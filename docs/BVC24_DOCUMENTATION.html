@@ -1,0 +1,2483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>BVC24 ERP — Complete System Documentation</title>
+<style>
+@page {
+  size: A4;
+  margin: 18mm 16mm 18mm 16mm;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: 'Segoe UI', 'Calibri', 'Arial', sans-serif;
+  font-size: 11pt;
+  color: #0f172a;
+  line-height: 1.55;
+  margin: 0;
+  padding: 0;
+  background: white;
+}
+
+.cover {
+  page-break-after: always;
+  padding: 90mm 0 0 0;
+  text-align: center;
+}
+
+.cover .brand {
+  font-size: 14pt;
+  letter-spacing: 4pt;
+  color: #C8102E;
+  font-weight: 800;
+  margin-bottom: 12pt;
+}
+
+.cover h1 {
+  font-size: 28pt;
+  margin: 0 0 18pt;
+  color: #0f172a;
+}
+
+.cover .sub {
+  font-size: 13pt;
+  color: #64748b;
+  margin-bottom: 8pt;
+}
+
+.cover .meta {
+  margin-top: 40mm;
+  font-size: 10pt;
+  color: #94a3b8;
+}
+
+.cover .accent {
+  height: 4pt;
+  width: 80mm;
+  margin: 0 auto 18pt;
+  background: linear-gradient(90deg, #C8102E, #F4B324);
+  border-radius: 2pt;
+}
+
+h1 {
+  font-size: 22pt;
+  color: #8B0B1F;
+  border-bottom: 2pt solid #C8102E;
+  padding-bottom: 6pt;
+  margin-top: 28pt;
+  page-break-after: avoid;
+}
+
+h2 {
+  font-size: 16pt;
+  color: #C8102E;
+  margin-top: 22pt;
+  page-break-after: avoid;
+}
+
+h3 {
+  font-size: 13pt;
+  color: #0f172a;
+  margin-top: 16pt;
+  page-break-after: avoid;
+}
+
+h4 {
+  font-size: 11pt;
+  color: #475569;
+  margin-top: 12pt;
+  page-break-after: avoid;
+}
+
+p { margin: 6pt 0; }
+
+ul, ol {
+  margin: 6pt 0;
+  padding-left: 18pt;
+}
+
+li { margin: 3pt 0; }
+
+a {
+  color: #C8102E;
+  text-decoration: none;
+}
+
+a:hover { text-decoration: underline; }
+
+code {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 9.5pt;
+  background: #fef2f2;
+  color: #8B0B1F;
+  padding: 1pt 4pt;
+  border-radius: 3pt;
+}
+
+pre {
+  background: #1A0508;
+  color: #f8fafc;
+  padding: 10pt 14pt;
+  border-radius: 6pt;
+  border-left: 3pt solid #C8102E;
+  overflow-x: auto;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 9pt;
+  line-height: 1.45;
+  page-break-inside: avoid;
+}
+
+pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: inherit;
+}
+
+blockquote {
+  margin: 8pt 0;
+  padding: 6pt 14pt;
+  border-left: 3pt solid #F4B324;
+  background: #fffaeb;
+  color: #6b4226;
+  font-style: italic;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 10pt 0;
+  font-size: 10pt;
+  page-break-inside: auto;
+}
+
+table th {
+  background: linear-gradient(135deg, #C8102E, #8B0B1F);
+  color: white;
+  text-align: left;
+  padding: 6pt 8pt;
+  font-weight: 700;
+  font-size: 10pt;
+}
+
+table td {
+  padding: 5pt 8pt;
+  border-bottom: 0.5pt solid #e2e8f0;
+  vertical-align: top;
+}
+
+table tr:nth-child(even) td {
+  background: #fafafa;
+}
+
+hr {
+  border: none;
+  border-top: 1pt solid #e2e8f0;
+  margin: 18pt 0;
+}
+
+strong { color: #0f172a; }
+
+.toc {
+  page-break-after: always;
+  padding: 14pt 0;
+}
+
+.toc h1 {
+  border-bottom: 2pt solid #C8102E;
+  padding-bottom: 8pt;
+  margin-top: 0;
+}
+
+.toc ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.toc ul ul {
+  padding-left: 18pt;
+  list-style: disc;
+}
+
+.toc li { margin: 4pt 0; }
+
+.toc a {
+  color: #0f172a;
+  text-decoration: none;
+}
+
+.toc a:hover {
+  color: #C8102E;
+}
+
+/* Avoid orphans / widows on small text blocks */
+p, li { orphans: 3; widows: 3; }
+
+/* Page break helpers */
+h1 { page-break-before: auto; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="brand">BVC24 &middot; BHARATH VENDING CORPORATION</div>
+  <div class="accent"></div>
+  <h1>BVC24 Manufacturing ERP</h1>
+  <div class="sub">Complete System Documentation &middot; Edition 1.0</div>
+  <div class="sub">Engineering &amp; Implementation Reference</div>
+  <div class="meta">
+    Chennai, Tamil Nadu, India<br>
+    www.bvc24.in
+  </div>
+</div>
+
+<h1 id="bvc24-erp-complete-system-documentation">BVC24 ERP — Complete System Documentation</h1>
+<p><strong>Project</strong>: BVC24 — Vendor-based Manufacturing ERP
+<strong>Customer</strong>: Bharath Vending Corporation (BVC)
+<strong>Edition</strong>: 1.0 — Production Ready
+<strong>Document Class</strong>: Engineering &amp; Implementation Reference
+<strong>Format</strong>: Master single-file edition</p>
+<hr>
+<h2 id="how-to-read-this-document">How to Read This Document</h2>
+<p>This is the master single-file edition of the BVC24 documentation. It is suitable for:</p>
+<ul>
+<li>Sending as a single PDF to a customer or stakeholder.</li>
+<li>Printing to A4 for offline review.</li>
+<li>Hand-off to a CTO, architect, or development team during a transition.</li>
+</ul>
+<p>Each section corresponds to a focused file in the multi-file <code>docs/</code> tree — see <code>docs/README.md</code> for that structured navigation. Cross-references between sections inside this master file use anchor links.</p>
+<hr>
+<h1 id="part-i-foundation">Part I — Foundation</h1>
+<h2 id="1-executive-summary">1. Executive Summary</h2>
+<h3 id="11-product-identity">1.1 Product Identity</h3>
+<p><strong>BVC24</strong> is a vendor-based manufacturing ERP designed for <strong>Bharath Vending Corporation (BVC)</strong> — a Chennai-headquartered manufacturer of automated vending machines (snack, beverage, combo, medicine, and special-purpose dispensers).</p>
+<p>The platform consolidates the day-to-day operations of a manufacturing-and-installation business into a single web application:</p>
+<ul>
+<li><strong>Sales</strong> — enquiries, quotations, sales orders, payment milestones.</li>
+<li><strong>Production</strong> — product catalog, bill of materials, work orders, process stages, Gantt scheduling, quality inspections.</li>
+<li><strong>Procurement</strong> — supplier master, purchase orders, goods receipt notes, inventory updates.</li>
+<li><strong>People</strong> — employees, attendance (biometric), leave with email-token approvals, payroll, monthly STAR performance ratings.</li>
+<li><strong>Customer Lifecycle</strong> — 360° customer view, requirements pipeline, post-sale installation projects.</li>
+<li><strong>Operations</strong> — daily task allocation, real-time dashboards, MD-level WhatsApp alerts.</li>
+</ul>
+<h3 id="12-business-value-proposition">1.2 Business Value Proposition</h3>
+<p>BVC24 replaces a patchwork of spreadsheets, WhatsApp chats, and paper trails with a single source of truth that follows the cash flow:</p>
+<pre><code>Enquiry → Quotation → Sales Order → Advance Payment → Production →
+Quality Inspection → Shipping → Installation → Final Payment → AMC
+</code></pre>
+<p>Every state transition is timestamped, logged in an activity timeline, and gated by a business rule:</p>
+<ul>
+<li>A <strong>Sales Order cannot enter production</strong> until the customer's advance payment is recorded.</li>
+<li>A <strong>Work Order cannot be closed</strong> until its QC inspection is finalised.</li>
+<li>A <strong>GRN feeds inventory only after finalisation</strong> — preventing accidental stock changes.</li>
+<li><strong>Leave requests issue a single email</strong> with one-click tokens to the approver — no portal login required.</li>
+</ul>
+<p>These guard rails turn process discipline into a property of the software, not human memory.</p>
+<h3 id="13-stakeholder-map">1.3 Stakeholder Map</h3>
+<table>
+<thead>
+<tr>
+<th>Stakeholder</th>
+<th>Primary Screens</th>
+<th>Key Outcomes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Managing Director</td>
+<td>MD Review, Dashboard, WhatsApp alerts</td>
+<td>Cash-in events, top performers, blocked SOs</td>
+</tr>
+<tr>
+<td>Sales Team</td>
+<td>CRM, Quotations, Sales Orders</td>
+<td>Quote → SO conversion, payment progress</td>
+</tr>
+<tr>
+<td>Production Head</td>
+<td>Production, Work Orders, Gantt</td>
+<td>Stage progress, employee allocation</td>
+</tr>
+<tr>
+<td>Procurement</td>
+<td>Purchase Orders, Suppliers, Inventory</td>
+<td>PO funnel, GRN, supplier performance</td>
+</tr>
+<tr>
+<td>Quality</td>
+<td>Quality Management, NCRs</td>
+<td>Inspection pass-rate, rework</td>
+</tr>
+<tr>
+<td>HR</td>
+<td>Employees, Attendance, Leave, Payroll</td>
+<td>Compliance, payouts, recognitions</td>
+</tr>
+<tr>
+<td>Floor Employees</td>
+<td>Employee Dashboard, Apply Leave, Biometric</td>
+<td>Today's tasks, leave balance</td>
+</tr>
+<tr>
+<td>Customer (external)</td>
+<td>Public Quotation link <code>/q/:token</code></td>
+<td>View &amp; respond without an account</td>
+</tr>
+</tbody>
+</table>
+<h3 id="14-scope-of-implementation">1.4 Scope of Implementation</h3>
+<p><strong>Implemented and live (Release 1.0)</strong>:</p>
+<ul>
+<li>✅ Phase 1 — Organization, IAM, Employees (profile, biometric, photos)</li>
+<li>✅ Phase 2 — Attendance, Leave (email-token approval), Payroll, STAR Performance</li>
+<li>✅ Phase 3 — CRM, Quotations with public share token, auto-pricing from BOM</li>
+<li>✅ Phase 4 — Procurement (Suppliers, POs, GRN with partial-receipt support)</li>
+<li>✅ Phase 5 — Sales Orders with payment-gated workflow, auto-project spawning</li>
+<li>✅ Production — Models, BOM, Work Orders, Process Stages, Gantt</li>
+<li>✅ Quality — Inspection checklists, NCRs, finalisation gate</li>
+<li>✅ Machines — Auto-registered from Work Order completion</li>
+<li>✅ Dashboard &amp; Analytics — real-time stats, voice alerts</li>
+<li>✅ Notifications — Email (Resend + SMTP), WhatsApp (CallMeBot + Cloud API), in-app, voice</li>
+<li>✅ Chatbot — HR Assistant (rule-based), general ERP chatbot (Gemini)</li>
+</ul>
+<p><strong>Planned (not in this release)</strong>:</p>
+<ul>
+<li>⏳ Phase 6 — Invoicing, GST e-Invoice, e-Way Bill</li>
+<li>⏳ Phase 7 — Service / AMC, complaint tickets</li>
+</ul>
+<h3 id="15-headline-metrics">1.5 Headline Metrics</h3>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>Count</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Backend route files</td>
+<td>34</td>
+</tr>
+<tr>
+<td>HTTP endpoints</td>
+<td>~200</td>
+</tr>
+<tr>
+<td>Frontend pages</td>
+<td>35</td>
+</tr>
+<tr>
+<td>Print views</td>
+<td>4</td>
+</tr>
+<tr>
+<td>Public (no-auth) routes</td>
+<td>2</td>
+</tr>
+<tr>
+<td>Database tables</td>
+<td>50+</td>
+</tr>
+<tr>
+<td>Third-party integrations</td>
+<td>5 (Resend, SMTP, Gemini, CallMeBot, WhatsApp)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="2-system-architecture">2. System Architecture</h2>
+<h3 id="21-high-level-view">2.1 High-Level View</h3>
+<p>A standard three-tier web application:</p>
+<pre><code>┌─────────────────────────────────────────────────────────────────────┐
+│                         CLIENT (Browser)                            │
+│   React 19 + Vite SPA · role-based routing · Axios + JWT            │
+│   Real-time polling (10s dashboard, 15s tasks) · Recharts           │
+│   Print views render to A4 PDF via browser print                    │
+└──────────────────────────┬──────────────────────────────────────────┘
+                           │  HTTPS / JSON
+                           ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                  APPLICATION TIER (FastAPI)                         │
+│  Routers (34) → Services (16) → SQLAlchemy ORM ↔ Auto-migration     │
+│  JWT auth · Pydantic schemas · Integrations: Resend, WhatsApp,      │
+│  Gemini, Biometric                                                  │
+└──────────────────────────┬──────────────────────────────────────────┘
+                           │  SQLAlchemy
+                           ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                         DATA TIER                                   │
+│   MySQL 8.x · 50+ tables, all multi-tenant (VENDOR_ID)              │
+│   Activity tables for audit · file uploads on disk (static/)        │
+└─────────────────────────────────────────────────────────────────────┘
+</code></pre>
+<h3 id="22-backend-layered-structure">2.2 Backend Layered Structure</h3>
+<pre><code>backend/app/
+├── main.py                  ← FastAPI app, CORS, router registration,
+│                              auto-migration on startup
+├── database/database.py     ← engine, SessionLocal, get_db
+├── auth/                    ← JWT bearer + encode/decode
+├── models/models.py         ← All SQLAlchemy ORM models
+├── schemas/                 ← Pydantic schemas (22 files)
+├── routes/                  ← HTTP endpoint routers (34 files)
+└── services/                ← business logic (16 files)
+</code></pre>
+<ul>
+<li><strong>Routers</strong> validate inputs, call services or the DB, shape the JSON response.</li>
+<li><strong>Services</strong> encapsulate cross-cutting business logic (pricing, email, WhatsApp, payroll computation).</li>
+<li><strong>Models</strong> describe every table; the same ORM class serves both persistence and business identity.</li>
+<li><strong>Schemas</strong> are Pydantic v2 classes used for request validation and response serialisation.</li>
+</ul>
+<h3 id="23-frontend-layered-structure">2.3 Frontend Layered Structure</h3>
+<pre><code>frontend/src/
+├── main.jsx                 ← React mount + BrowserRouter
+├── App.jsx                  ← Routes, role-based landing
+├── App.css                  ← Global theme (BVC red palette)
+├── services/api.js          ← Axios instance, JWT injection
+├── pages/                   ← 35 screens
+└── components/              ← shared UI (ChatBot, HRAssistant, EntityDrawer, etc.)
+</code></pre>
+<ul>
+<li><strong>No external UI library</strong> — all UI is custom CSS-in-JS with inline styles + a small CSS file.</li>
+<li><strong>BVC red palette</strong>: <code>#C8102E</code> primary, <code>#8B0B1F</code> dark, <code>#4A0E18</code> wine, <code>#1A0508</code> wine-black, <code>#F4B324</code> gold.</li>
+<li><strong>Sticky-header modal pattern</strong> is reused across every detail modal in the system.</li>
+<li><strong>Real-time polling</strong> every 10s (dashboard) / 15s (tasks). No WebSockets in this release.</li>
+</ul>
+<h3 id="24-multi-tenancy">2.4 Multi-tenancy</h3>
+<p>Every customer-facing table carries a <code>VENDOR_ID</code> referencing <code>vendor.ID</code>. The JWT carries <code>vendor_id</code> from login; every list query filters by it. Cross-tenant access is impossible without forging the token.</p>
+<p>Currently BVC operates as <code>VENDOR_ID = 1</code>. Onboarding additional tenants requires no schema changes.</p>
+<h3 id="25-worked-example-sale-to-shipment">2.5 Worked Example — Sale to Shipment</h3>
+<pre><code>1. Customer Apollo Hospitals enquires
+   POST /create-customer            → Customer (LEAD_STATUS=NEW)
+   POST /customers/enquiry          → WhatsApp MD alert
+   POST /customers/{id}/requirements
+
+2. Quotation
+   POST /quotations/from-requirements → auto-priced from BOM
+   POST /quotations/{id}/send        → STATUS=SENT, email + public token
+
+3. Customer approves (no portal login)
+   GET  /q/{token}                   → HTML view
+   POST /q/{token}/respond           → STATUS=APPROVED
+
+4. Convert to Sales Order
+   POST /sales-orders/from-quotation → SO DRAFT
+
+5. Send advance request
+   POST /sales-orders/{id}/confirm   → STATUS=AWAITING_ADVANCE
+                                      → Email with advance amount + due date
+                                      → MD WhatsApp alert
+
+6. Customer pays advance
+   POST /sales-orders/{id}/payment   → ADVANCE_RECEIVED += amount
+                                      → Auto-confirm when ≥ required advance
+                                      → MD WhatsApp alert
+
+7. Start production
+   POST /sales-orders/{id}/start-production
+                                     → Projects spawned per line
+                                     → Work Orders created
+                                     → STATUS=IN_PRODUCTION
+
+8. Production floor
+   PATCH /process/wo/{wo}/stages/{stage}  per stage completion
+
+9. QC gate
+   POST /quality/inspections + finalise → blocks WO DONE until passed
+
+10. Ship → Deliver → Close
+</code></pre>
+<h3 id="26-integration-map">2.6 Integration Map</h3>
+<table>
+<thead>
+<tr>
+<th>Integration</th>
+<th>Direction</th>
+<th>Used For</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Resend / SMTP</td>
+<td>Outbound</td>
+<td>All transactional emails</td>
+</tr>
+<tr>
+<td>WhatsApp Business API</td>
+<td>Outbound</td>
+<td>MD revenue-event alerts</td>
+</tr>
+<tr>
+<td>CallMeBot</td>
+<td>Outbound</td>
+<td>Free WhatsApp fallback</td>
+</tr>
+<tr>
+<td>Google Gemini</td>
+<td>Outbound</td>
+<td>General ERP chatbot</td>
+</tr>
+<tr>
+<td>Biometric devices</td>
+<td>Inbound</td>
+<td>Attendance from raw scans</td>
+</tr>
+<tr>
+<td>Browser Print API</td>
+<td>Client</td>
+<td>A4 PDF generation</td>
+</tr>
+</tbody>
+</table>
+<h3 id="27-stateless-backend">2.7 Stateless Backend</h3>
+<p>The FastAPI process is stateless — restartable at any time, horizontally scalable behind Nginx. The auto-migration block is idempotent (<code>IF NOT EXISTS</code>) so deployments don't need separate schema scripts.</p>
+<hr>
+<h2 id="3-technology-stack">3. Technology Stack</h2>
+<h3 id="31-backend">3.1 Backend</h3>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Technology</th>
+<th>Version</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Language</td>
+<td>Python</td>
+<td>3.13</td>
+</tr>
+<tr>
+<td>Web framework</td>
+<td>FastAPI</td>
+<td>latest</td>
+</tr>
+<tr>
+<td>ASGI server</td>
+<td>Uvicorn</td>
+<td>latest</td>
+</tr>
+<tr>
+<td>ORM</td>
+<td>SQLAlchemy</td>
+<td>2.x</td>
+</tr>
+<tr>
+<td>DB driver</td>
+<td>PyMySQL</td>
+<td>latest</td>
+</tr>
+<tr>
+<td>Validation</td>
+<td>Pydantic</td>
+<td>v2</td>
+</tr>
+<tr>
+<td>Password hashing</td>
+<td>bcrypt (<code>passlib</code>)</td>
+<td>latest</td>
+</tr>
+<tr>
+<td>JWT</td>
+<td><code>python-jose</code></td>
+<td>latest</td>
+</tr>
+<tr>
+<td>Email</td>
+<td>Resend HTTP API / SMTP</td>
+<td>—</td>
+</tr>
+<tr>
+<td>WhatsApp</td>
+<td>Cloud API + CallMeBot</td>
+<td>v22.0</td>
+</tr>
+<tr>
+<td>Chat</td>
+<td>Google Gemini</td>
+<td>v1</td>
+</tr>
+</tbody>
+</table>
+<h3 id="32-frontend">3.2 Frontend</h3>
+<table>
+<thead>
+<tr>
+<th>Dependency</th>
+<th>Version</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>React</td>
+<td>^19.2.6</td>
+<td>UI</td>
+</tr>
+<tr>
+<td>React DOM</td>
+<td>^19.2.6</td>
+<td>rendering</td>
+</tr>
+<tr>
+<td>React Router DOM</td>
+<td>^7.15.0</td>
+<td>routing</td>
+</tr>
+<tr>
+<td>Axios</td>
+<td>^1.16.0</td>
+<td>HTTP</td>
+</tr>
+<tr>
+<td>Recharts</td>
+<td>^3.8.1</td>
+<td>charts</td>
+</tr>
+<tr>
+<td>Vite</td>
+<td>latest</td>
+<td>bundler</td>
+</tr>
+</tbody>
+</table>
+<p>No external UI library, no Tailwind. The visual layer is custom CSS-in-JS with BVC red. Bundle size ~250 KB gzipped.</p>
+<h3 id="33-database">3.3 Database</h3>
+<ul>
+<li><strong>MySQL 8.x</strong>, <code>utf8mb4</code>, <code>utf8mb4_unicode_ci</code>.</li>
+<li>50+ tables, all with <code>VENDOR_ID</code>.</li>
+<li>Indices on every <code>*_ID</code> foreign key and commonly filtered status columns.</li>
+<li>Auto-migration on backend startup (idempotent <code>ALTER TABLE ... IF NOT EXISTS</code>).</li>
+</ul>
+<h3 id="34-third-party-services">3.4 Third-Party Services</h3>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Resend or SMTP</td>
+<td>One required</td>
+<td>Email transport</td>
+</tr>
+<tr>
+<td>WhatsApp Cloud API / CallMeBot</td>
+<td>Optional</td>
+<td>MD alerts</td>
+</tr>
+<tr>
+<td>Google Gemini</td>
+<td>Optional</td>
+<td>General chatbot</td>
+</tr>
+<tr>
+<td>Biometric device</td>
+<td>Optional</td>
+<td>Attendance</td>
+</tr>
+</tbody>
+</table>
+<p>All optional services degrade gracefully — missing config never blocks a business operation.</p>
+<hr>
+<h2 id="4-installation-deployment">4. Installation &amp; Deployment</h2>
+<h3 id="41-prerequisites">4.1 Prerequisites</h3>
+<table>
+<thead>
+<tr>
+<th>Software</th>
+<th>Min. version</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Python</td>
+<td>3.11+ (3.13 recommended)</td>
+</tr>
+<tr>
+<td>Node.js</td>
+<td>20 LTS</td>
+</tr>
+<tr>
+<td>MySQL</td>
+<td>8.0+</td>
+</tr>
+<tr>
+<td>Git</td>
+<td>any</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42-local-development">4.2 Local Development</h3>
+<pre><code class="language-bash"># 1. Clone
+git clone &lt;repo&gt; bvc24-erp &amp;&amp; cd bvc24-erp
+
+# 2. Database
+mysql -u root -p &lt;&lt;EOF
+CREATE DATABASE bvc24 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'bvc24'@'localhost' IDENTIFIED BY 'CHANGE_ME';
+GRANT ALL ON bvc24.* TO 'bvc24'@'localhost';
+EOF
+
+# 3. Backend
+cd backend
+python -m venv venv &amp;&amp; venv/Scripts/activate
+pip install -r requirements.txt
+# Create .env per Appendix C
+uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+
+# 4. Seed
+# Visit http://127.0.0.1:8001/docs and POST:
+#   /seed-org, /seed-admin, /seed-employees, /seed-bvc24,
+#   /seed-materials, /seed-project-templates
+
+# 5. Frontend
+cd ../frontend
+npm install
+npm run dev      # → http://localhost:5173
+</code></pre>
+<h3 id="43-production-deployment">4.3 Production Deployment</h3>
+<p>Single-VM topology (4 vCPU / 8 GB RAM) is sufficient for the current scale.</p>
+<pre><code>                     Internet
+                        │
+                    ┌───┴────┐
+                    │ Nginx  │  TLS via Certbot
+                    └───┬────┘
+              ┌─────────┴───────────┐
+        ┌─────┴───────┐      ┌──────┴─────┐
+        │/api/* → 8001│      │/ → dist/   │
+        │(Uvicorn × 2)│      │(static)    │
+        └─────┬───────┘      └────────────┘
+              │
+        ┌─────┴───────┐
+        │   MySQL     │
+        └─────────────┘
+</code></pre>
+<h3 id="44-systemd-unit-backend">4.4 Systemd unit (backend)</h3>
+<pre><code class="language-ini">[Unit]
+Description=BVC24 Backend
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/bvc24-erp/backend
+ExecStart=/opt/bvc24-erp/backend/venv/bin/uvicorn app.main:app \
+          --host 127.0.0.1 --port 8001 --workers 2
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+</code></pre>
+<h3 id="45-nginx-frontend-api-proxy">4.5 Nginx (frontend + API proxy)</h3>
+<pre><code class="language-nginx">server {
+    listen 80;
+    server_name erp.bvc24.in;
+
+    root /opt/bvc24-erp/frontend/dist;
+    index index.html;
+    try_files $uri /index.html;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8001/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /static/ {
+        proxy_pass http://127.0.0.1:8001/static/;
+    }
+}
+</code></pre>
+<h3 id="46-upgrade-procedure">4.6 Upgrade Procedure</h3>
+<pre><code class="language-bash">cd /opt/bvc24-erp
+git pull origin main
+cd backend &amp;&amp; venv/bin/pip install -r requirements.txt
+cd ../frontend &amp;&amp; npm ci &amp;&amp; npm run build
+sudo systemctl restart bvc24-backend
+</code></pre>
+<p>Auto-migration applies any new schema changes idempotently on startup.</p>
+<h3 id="47-backups">4.7 Backups</h3>
+<p>Daily mysqldump + tarball of <code>backend/app/static/</code>. Retain 30 days + 1 monthly archive.</p>
+<h3 id="48-required-environment-variables-minimal">4.8 Required Environment Variables (minimal)</h3>
+<pre><code class="language-env">MY_SQL=localhost:3306
+DB_NAME=bvc24
+SECRET_KEY=&lt;random 32+ char&gt;
+RESEND_API_KEY=re_...           # OR SMTP_HOST/PORT/USER/PASSWORD
+SMTP_FROM=erp@bvc24.in
+APPROVER_EMAIL=md@bvc24.in
+FRONTEND_URL=https://erp.bvc24.in
+BACKEND_URL=https://erp.bvc24.in/api
+</code></pre>
+<p>See Appendix C for the complete env-var reference.</p>
+<hr>
+<h2 id="5-security-authentication">5. Security &amp; Authentication</h2>
+<h3 id="51-auth-model">5.1 Auth Model</h3>
+<p>JWT-based stateless authentication with two login flows:</p>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Endpoint</th>
+<th>Identity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Admin / MD / HR / Production Head</td>
+<td><code>POST /admin-login</code></td>
+<td><code>EMAIL</code> + password</td>
+</tr>
+<tr>
+<td>Floor Employee</td>
+<td><code>POST /employee-login</code></td>
+<td><code>EMPLOYEE_CODE</code> + password</td>
+</tr>
+</tbody>
+</table>
+<p>Tokens signed with <code>SECRET_KEY</code> (HS256). Default expiry 7 days. 401 → client clears <code>localStorage</code> and redirects to <code>/login</code>.</p>
+<h3 id="52-password-storage">5.2 Password Storage</h3>
+<p>bcrypt via <code>passlib</code>, cost 12. No plaintext stored. <code>PUT /employees/{id}/reset-password</code> lets admin reset.</p>
+<h3 id="53-role-based-access-control">5.3 Role-Based Access Control</h3>
+<p>Seeded system roles: <code>SUPER_ADMIN</code>, <code>ADMIN</code>, <code>HR</code>, <code>MANAGER</code>, <code>PRODUCTION_HEAD</code>, <code>SALES</code>, <code>EMPLOYEE</code>.</p>
+<p>Permission codes (<code>task.assign</code>, <code>report.export</code>, etc.) are defined and stored, with role-level enforcement at routes today. Per-permission decorators are on the roadmap.</p>
+<h3 id="54-multi-tenancy">5.4 Multi-tenancy</h3>
+<p>Every customer-facing table includes <code>VENDOR_ID</code>. JWT carries <code>vendor_id</code>. Every list query filters by it. No shared data between tenants.</p>
+<h3 id="55-public-endpoints-no-authentication">5.5 Public Endpoints (No Authentication)</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Auth</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST /admin-login</code>, <code>/login</code>, <code>/employee-login</code></td>
+<td>Credentials</td>
+</tr>
+<tr>
+<td><code>GET /q/{token}</code></td>
+<td>Token in URL (quotation public view)</td>
+</tr>
+<tr>
+<td><code>POST /q/{token}/respond</code></td>
+<td>Token in URL</td>
+</tr>
+<tr>
+<td><code>GET /approve-task?token=...</code></td>
+<td>Token in URL</td>
+</tr>
+<tr>
+<td><code>GET /reject-task?token=...</code></td>
+<td>Token in URL</td>
+</tr>
+<tr>
+<td><code>GET /leave/decide/{token}?action=</code></td>
+<td>Token in URL</td>
+</tr>
+<tr>
+<td><code>POST /biometric/scan</code></td>
+<td>(device, consider device-token in production)</td>
+</tr>
+</tbody>
+</table>
+<p>Tokens are <code>secrets.token_urlsafe(24)</code> — 32 URL-safe characters. Inert after consumption.</p>
+<h3 id="56-transport-storage">5.6 Transport &amp; Storage</h3>
+<ul>
+<li>TLS via Nginx + Certbot.</li>
+<li>bcrypt password hashing.</li>
+<li>All SQL queries parameterised via SQLAlchemy ORM.</li>
+<li>React escapes output by default.</li>
+<li>CORS configured in <code>main.py</code>; restrict <code>allow_origins</code> in production.</li>
+</ul>
+<h3 id="57-audit-trail">5.7 Audit Trail</h3>
+<p>Every business-critical entity has an <code>*_activity</code> companion table with <code>EVENT_TYPE</code>, <code>EVENT_DETAIL</code>, <code>ACTOR_TYPE</code> (<code>SYSTEM</code> / <code>SALES</code> / <code>CUSTOMER</code> / <code>SUPPLIER</code> / <code>WAREHOUSE</code> / <code>ADMIN</code>), <code>ACTOR_NAME</code>, <code>CREATED_AT</code>.</p>
+<h3 id="58-production-hardening-checklist">5.8 Production Hardening Checklist</h3>
+<ul>
+<li>[ ] Set <code>SECRET_KEY</code> to a 32+ char random value.</li>
+<li>[ ] Restrict CORS <code>allow_origins</code> to production frontend host.</li>
+<li>[ ] Gate seed endpoints behind a production check.</li>
+<li>[ ] Force HTTPS at Nginx.</li>
+<li>[ ] Configure DB backups offsite.</li>
+<li>[ ] Configure log shipping (journal → ELK / CloudWatch).</li>
+<li>[ ] Add rate limiting on login endpoints.</li>
+</ul>
+<hr>
+<h2 id="6-database-schema">6. Database Schema</h2>
+<p>A complete data dictionary follows. Generic columns (<code>ID</code>, <code>CREATED_AT</code>, <code>UPDATED_AT</code>) are omitted unless they carry notable defaults.</p>
+<h3 id="61-organization-multi-tenancy">6.1 Organization &amp; Multi-tenancy</h3>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Table</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Vendor</td>
+<td><code>vendor</code></td>
+<td>Tenant; <code>VENDOR_NAME</code></td>
+</tr>
+<tr>
+<td>RootUser</td>
+<td><code>root_user</code></td>
+<td>Tenant admin; <code>EMAIL</code>, <code>PASSWORD</code></td>
+</tr>
+<tr>
+<td>Department</td>
+<td><code>department</code></td>
+<td><code>CODE</code>, <code>NAME</code>, <code>HEAD_EMPLOYEE_ID</code></td>
+</tr>
+<tr>
+<td>Designation</td>
+<td><code>designation</code></td>
+<td><code>TITLE</code>, <code>DEPARTMENT_ID</code>, <code>BASE_SALARY</code></td>
+</tr>
+<tr>
+<td>Role</td>
+<td><code>role</code></td>
+<td><code>ROLE_NAME</code>, <code>IS_SYSTEM</code></td>
+</tr>
+<tr>
+<td>Permission</td>
+<td><code>permission</code></td>
+<td><code>CODE</code>, <code>NAME</code></td>
+</tr>
+<tr>
+<td>RolePermission</td>
+<td><code>role_permission</code></td>
+<td>M2M role↔permission</td>
+</tr>
+</tbody>
+</table>
+<h3 id="62-people">6.2 People</h3>
+<p><strong>Employee</strong> (<code>employee</code>) — primary fields: <code>EMPLOYEE_CODE</code> (unique), <code>NAME</code>, <code>EMAIL</code>, <code>PHONE</code>, <code>PASSWORD</code> (bcrypt), <code>DEPARTMENT_ID</code>, <code>DESIGNATION_ID</code>, <code>ROLE_ID</code>, <code>REPORTING_MANAGER_ID</code> (self-FK), <code>JOINING_DATE</code>, <code>SALARY</code>, <code>SHIFT_START</code>/<code>END</code>, <code>STATUS</code> (ACTIVE/SUSPENDED/RESIGNED/TERMINATED), <code>FINGERPRINT_ID</code>, <code>PROFILE_SUBMITTED</code>, <code>SKILLS</code>. Profile: <code>ADDRESS</code>, <code>CITY</code>, <code>STATE</code>, <code>PINCODE</code>, <code>DOB</code>, <code>GENDER</code>, <code>FATHER_NAME</code>, <code>MOTHER_NAME</code>, <code>MARITAL_STATUS</code>, <code>OCCUPATION</code>, <code>QUALIFICATION</code>, <code>YEAR_OF_PASSING</code>, <code>EXPERIENCE_YEARS</code>, <code>EXPERIENCE_DETAILS</code>, <code>PAST_PROJECTS</code>, <code>EMPLOYMENT_TYPE</code>, <code>PHOTO_URL</code>. <code>VENDOR_ID</code>.</p>
+<p><strong>Customer</strong> (<code>customer</code>): <code>CUSTOMER_CODE</code>, <code>CUSTOMER_NAME</code>, <code>CONTACT_PERSON</code>, <code>PHONE</code>, <code>EMAIL</code>, <code>GST_NUMBER</code>, <code>INDUSTRY</code>, <code>STATUS</code> (LEAD/PROSPECT/ACTIVE/INACTIVE), <code>LEAD_STATUS</code> (NEW/QUALIFIED/PROPOSAL/NEGOTIATION/CLOSED_WON/CLOSED_LOST), <code>LEAD_SOURCE</code>, <code>LEAD_PRIORITY</code>, <code>ASSIGNED_SALES_ID</code>, qualification fields (<code>NUMBER_OF_BRANCHES</code>, <code>EXPECTED_MONTHLY_ORDERS</code>, <code>EXISTING_MACHINE_USAGE</code>, <code>CURRENT_VENDOR_NAME</code>), <code>BILLING_ADDRESS</code>, <code>SHIPPING_ADDRESS</code>, <code>WHATSAPP_NUMBER</code>.</p>
+<p><strong>Supplier</strong> (<code>supplier</code>): <code>SUPPLIER_CODE</code>, <code>COMPANY_NAME</code>, <code>CONTACT_PERSON</code>, <code>PHONE</code>, <code>EMAIL</code>, <code>GST_NUMBER</code>, <code>CATEGORY</code>, <code>PAYMENT_TERMS</code>, <code>STATUS</code> (ACTIVE/INACTIVE/BLACKLISTED).</p>
+<h3 id="63-sales">6.3 Sales</h3>
+<p><strong>Quotation</strong> (<code>quotation</code>): <code>QUOTATION_NUMBER</code> (unique), <code>CUSTOMER_ID</code>, <code>QUOTATION_DATE</code>, <code>VALIDITY_DAYS</code>, <code>EXPIRY_DATE</code>, <code>STATUS</code> (DRAFT/SENT/APPROVED/REJECTED/CONVERTED/EXPIRED), totals (<code>SUBTOTAL</code>, <code>DISCOUNT_PERCENT</code>, <code>TAX_PERCENT</code>, <code>GRAND_TOTAL</code>), <code>PREPARED_BY</code>, <code>PUBLIC_TOKEN</code>, <code>EMAIL_SENT_AT</code>, <code>VIEWED_AT</code>, <code>VIEW_COUNT</code>.</p>
+<p><strong>QuotationLine</strong> (<code>quotation_line</code>): <code>QUOTATION_ID</code>, <code>PRODUCT_MODEL_ID</code>, <code>REQUIREMENT_ID</code>, <code>DESCRIPTION</code>, <code>HSN_CODE</code>, <code>QUANTITY</code>, <code>UNIT</code>, <code>UNIT_PRICE</code>, <code>DISCOUNT_PERCENT</code>, <code>LINE_TOTAL</code>.</p>
+<p><strong>QuotationActivity</strong> (<code>quotation_activity</code>): audit timeline.</p>
+<p><strong>SalesOrder</strong> (<code>sales_order</code>): <code>SO_NUMBER</code> (unique), <code>CUSTOMER_ID</code>, <code>QUOTATION_ID</code>, <code>SO_DATE</code>, <code>EXPECTED_DELIVERY_DATE</code>, <strong><code>ADVANCE_DUE_DATE</code></strong> (Phase 5), <code>STATUS</code> (DRAFT / <strong>AWAITING_ADVANCE</strong> / CONFIRMED / IN_PRODUCTION / SHIPPED / DELIVERED / CLOSED / CANCELLED), totals, <code>ADVANCE_PERCENT</code>(50)/<code>DISPATCH_PERCENT</code>(40)/<code>INSTALLATION_PERCENT</code>(10), <code>ADVANCE_RECEIVED</code>/<code>DISPATCH_RECEIVED</code>/<code>INSTALLATION_RECEIVED</code>, <code>PREPARED_BY</code>, <code>CONFIRMED_AT</code>, <code>PRODUCTION_STARTED_AT</code>, <code>SHIPPED_AT</code>, <code>DELIVERED_AT</code>, <code>CLOSED_AT</code>, <code>CANCELLED_AT</code>, <code>CANCEL_REASON</code>.</p>
+<p><strong>SalesOrderLine</strong> (<code>sales_order_line</code>): <code>SO_ID</code>, <code>PRODUCT_MODEL_ID</code>, <code>QUOTATION_LINE_ID</code>, <strong><code>SPAWNED_PROJECT_ID</code></strong> (set when production starts), pricing, <code>LINE_TOTAL</code>.</p>
+<p><strong>SalesOrderActivity</strong> (<code>sales_order_activity</code>): audit timeline.</p>
+<h3 id="64-purchase">6.4 Purchase</h3>
+<p><strong>PurchaseOrder</strong> (<code>purchase_order</code>): <code>PO_NUMBER</code>, <code>SUPPLIER_ID</code>, <code>PO_DATE</code>, <code>EXPECTED_DELIVERY_DATE</code>, <code>STATUS</code> (DRAFT/SENT/CONFIRMED/PARTIAL_RECEIVED/RECEIVED/CANCELLED), totals, <code>DELIVERY_ADDRESS</code>, <code>LINKED_PROJECT_ID</code>, <code>PREPARED_BY</code>.</p>
+<p><strong>PurchaseOrderLine</strong> (<code>purchase_order_line</code>): <code>PO_ID</code>, <code>MATERIAL_ID</code>, <code>BOM_ITEM_ID</code>, <code>QUANTITY</code>, <code>QUANTITY_RECEIVED</code>, pricing.</p>
+<p><strong>GoodsReceiptNote</strong> (<code>goods_receipt_note</code>): <code>GRN_NUMBER</code>, <code>PO_ID</code>, <code>RECEIVED_DATE</code>, <code>RECEIVED_BY</code>, <code>STATUS</code> (DRAFT/FINAL), <code>INVOICE_NUMBER</code>.</p>
+<p><strong>GoodsReceiptLine</strong> (<code>goods_receipt_line</code>): <code>GRN_ID</code>, <code>PO_LINE_ID</code>, <code>QUANTITY_RECEIVED</code>, <code>QUANTITY_REJECTED</code>, <code>REJECTION_REASON</code>.</p>
+<p><strong>PurchaseOrderActivity</strong> (<code>purchase_order_activity</code>).</p>
+<h3 id="65-inventory">6.5 Inventory</h3>
+<p><strong>MaterialCatalog</strong> (<code>material_catalog</code>): master list — <code>MATERIAL_NAME</code> unique.</p>
+<p><strong>MaterialDepartment</strong> (<code>material_department</code>): M2M material↔department.</p>
+<p><strong>Inventory</strong> (<code>inventory</code>): per-vendor stock — <code>MATERIAL_ID</code>, <code>MATERIAL_NAME</code>, <code>QUANTITY</code>, <code>UNIT_PRICE</code>.</p>
+<h3 id="66-production">6.6 Production</h3>
+<p><strong>ProductModel</strong> (<code>product_model</code>): <code>MODEL_NAME</code>, <code>MODEL_CODE</code>, <code>CATEGORY</code>, <code>ESTIMATED_BUILD_DAYS</code>, <code>STATUS</code>.</p>
+<p><strong>BOMItem</strong> (<code>bom_item</code>): <code>PRODUCT_MODEL_ID</code>, <code>MATERIAL_ID</code>, <code>MATERIAL_NAME</code>, <code>QUANTITY</code>, <code>UNIT</code>, <strong><code>ITEM_TYPE</code></strong> (PURCHASE/PROCESS), <code>PREFERRED_SUPPLIER_ID</code>, <code>PROCESS_STAGE_ID</code>, <code>ITEM_NO</code>, <code>IMAGE_URL</code>.</p>
+<p><strong>ProcessStage</strong> (<code>process_stage</code>): <code>PRODUCT_MODEL_ID</code>, <code>SEQUENCE</code>, <code>STAGE_NAME</code>, <code>STAGE_TYPE</code> (DESIGN / MECHANICAL / ELECTRICAL / WIRING / FABRICATION / ASSEMBLY / TESTING / QC / PACKAGING / OTHER), <code>ESTIMATED_HOURS</code>, <code>IS_ACTIVE</code>.</p>
+<p><strong>WorkOrder</strong> (<code>work_order</code>): <code>WO_NUMBER</code>, <code>PRODUCT_MODEL_ID</code>, <code>PROJECT_ID</code>, <code>QUANTITY</code>, <code>STATUS</code> (PLANNED/IN_PROGRESS/ON_HOLD/DONE/CANCELLED), planned + actual dates.</p>
+<p><strong>WorkOrderStageProgress</strong> (<code>wo_stage_progress</code>): <code>WORK_ORDER_ID</code>, <code>STAGE_ID</code>, <code>STATUS</code> (PENDING/IN_PROGRESS/DONE/FAILED/SKIPPED), <code>ASSIGNED_TO_ID</code>, <code>STARTED_AT</code>, <code>COMPLETED_AT</code>, <code>NOTES</code>.</p>
+<p><strong>Machine</strong> (<code>machine</code>): <code>MACHINE_NAME</code>, <code>MACHINE_TYPE</code>, <code>STATUS</code>, <code>LOCATION</code>, <code>PRODUCT_MODEL_ID</code>, <code>WORK_ORDER_ID</code>, <code>UNIT_NUMBER</code>, <code>SERIAL_NO</code>.</p>
+<p><strong>MachineLog</strong> (<code>machine_log</code>): <code>MACHINE_ID</code>, <code>STATUS</code>, <code>NOTE</code>, <code>TIMESTAMP</code>.</p>
+<h3 id="67-quality">6.7 Quality</h3>
+<p><strong>QCChecklistItem</strong> (<code>qc_checklist_item</code>): <code>PRODUCT_MODEL_ID</code>, <code>SEQUENCE</code>, <code>CHECK_POINT</code>, <code>DESCRIPTION</code>, <code>SEVERITY</code> (CRITICAL/MAJOR/MINOR), <code>IS_ACTIVE</code>.</p>
+<p><strong>QCInspection</strong> (<code>qc_inspection</code>): <code>WORK_ORDER_ID</code>, <code>PRODUCT_MODEL_ID</code>, <code>INSPECTOR_ID</code>, <code>INSPECTION_DATE</code>, <code>STATUS</code>, counts.</p>
+<p><strong>QCInspectionResult</strong> (<code>qc_inspection_result</code>): <code>INSPECTION_ID</code>, <code>CHECKLIST_ITEM_ID</code>, <code>CHECK_POINT</code>, <code>RESULT</code> (PASS/FAIL/NEEDS_REWORK/NA), <code>NOTES</code>.</p>
+<p><strong>NCR</strong> (<code>ncr</code>): auto-created on failure — <code>NCR_NUMBER</code>, <code>INSPECTION_ID</code>, <code>WORK_ORDER_ID</code>, <code>PRODUCT_MODEL_ID</code>, <code>CHECK_POINT</code>, <code>SEVERITY</code>, <code>DESCRIPTION</code>, <code>ROOT_CAUSE</code>, <code>CORRECTIVE_ACTION</code>, <code>STATUS</code> (OPEN/IN_PROGRESS/CLOSED), assignees, timestamps.</p>
+<h3 id="68-projects-tasks">6.8 Projects &amp; Tasks</h3>
+<p><strong>ProjectCategory</strong> (<code>project_category</code>): <code>SECTION</code>, <code>NAME</code>.</p>
+<p><strong>SubProjectTemplate</strong> (<code>sub_project_template</code>): <code>CATEGORY_ID</code>, <code>NAME</code>, <code>ESTIMATED_TOTAL_DAYS</code>.</p>
+<p><strong>Project</strong> (<code>project</code>): <code>PROJECT_NAME</code>, <code>DESCRIPTION</code>, <code>STATUS</code>, <code>SUB_PROJECT_TEMPLATE_ID</code>, <code>DEPARTMENT_ID</code>, <code>CUSTOMER_ID</code>, <code>PRODUCT_MODEL_ID</code>, <code>QUANTITY</code>, <code>TARGET_DATE</code>, <code>PRIORITY</code>, <code>SKILLS_REQUIRED</code>.</p>
+<p><strong>Task</strong> (<code>task</code>): <code>TASK_NAME</code>, <code>STATUS</code>, <code>PRIORITY</code>, <code>PROJECT_ID</code>, <code>ASSIGNED_TO</code>, <code>START_TIME</code>, <code>END_TIME</code>.</p>
+<p><strong>TaskAssignment</strong> (<code>task_assignment</code>): formal allocation with <code>APPROVAL_STATUS</code> (PENDING_APPROVAL/APPROVED/REJECTED/EXPIRED), <code>APPROVAL_TOKEN</code>, <code>ASSIGNED_BY_ID</code>.</p>
+<p><strong>DailyAllocation</strong> (<code>daily_allocation</code>): AI allocator output per employee per day.</p>
+<h3 id="69-attendance-leave">6.9 Attendance &amp; Leave</h3>
+<p><strong>BiometricEvent</strong> (<code>biometric_event</code>): raw device scan log.</p>
+<p><strong>Attendance</strong> (<code>attendance</code>): daily record — <code>EMPLOYEE_ID</code>, <code>DATE</code>, <code>CHECK_IN</code>, <code>CHECK_OUT</code>, <code>STATUS</code>, <code>WORKED_HOURS</code>, <code>OVERTIME_HOURS</code>.</p>
+<p><strong>LeaveRequest</strong> (<code>leave_request</code>): <code>EMPLOYEE_ID</code>, <code>LEAVE_TYPE</code> (CASUAL/SICK/EARNED/UNPAID/LOP), dates, <code>DAYS</code>, <code>REASON</code>, <code>STATUS</code>, <code>APPROVAL_TOKEN</code>.</p>
+<p><strong>LeaveBalance</strong> (<code>leave_balance</code>): annual quota — Casual 12, Sick 12, Earned 15.</p>
+<h3 id="610-payroll-performance">6.10 Payroll &amp; Performance</h3>
+<p><strong>PayrollRun</strong> (<code>payroll_run</code>): header per (vendor, year, month) — <code>STATUS</code> (DRAFT/FINALIZED/PAID).</p>
+<p><strong>PayrollSlip</strong> (<code>payroll_slip</code>): per-employee breakdown with attendance counts, task bonus, OT, penalties, net pay.</p>
+<p><strong>PerformanceScore</strong> (<code>performance_score</code>): monthly STAR rating with weighted formula (25 % attendance + 30 % tasks + 25 % productivity + 20 % consistency), recommendations.</p>
+<h3 id="611-system">6.11 System</h3>
+<p><strong>Setting</strong>, <strong>Notification</strong>.</p>
+<hr>
+<h1 id="part-ii-functional-modules">Part II — Functional Modules</h1>
+<h2 id="module-01-organization-management">Module 01 — Organization Management</h2>
+<p>Defines Vendor, Department, Designation, Role, Permission, RolePermission.</p>
+<p><strong>Workflows</strong>:</p>
+<ul>
+<li>Initial setup: <code>POST /create-vendor</code> → <code>POST /seed-org</code> (MANUFACTURING preset) → <code>POST /seed-admin</code>.</li>
+<li>Custom departments / roles / permissions via standard CRUD endpoints.</li>
+</ul>
+<p><strong>System roles seeded</strong>: <code>SUPER_ADMIN</code>, <code>ADMIN</code>, <code>HR</code>, <code>MANAGER</code>, <code>PRODUCTION_HEAD</code>, <code>SALES</code>, <code>EMPLOYEE</code> — <code>IS_SYSTEM=1</code> prevents deletion.</p>
+<p><strong>Permissions</strong> follow <code>&lt;entity&gt;.&lt;action&gt;</code> codes (e.g. <code>task.assign</code>). Definitions are seeded; enforcement is currently role-level.</p>
+<p><strong>Multi-tenancy</strong>: every customer-facing table carries <code>VENDOR_ID</code>; JWT carries <code>vendor_id</code>; queries filter accordingly.</p>
+<hr>
+<h2 id="module-02-human-resources">Module 02 — Human Resources</h2>
+<p>Five sub-modules sharing the <code>employee</code> table.</p>
+<h3 id="21-employee-master">2.1 Employee Master</h3>
+<ul>
+<li>Directory at <code>/employees</code> with photos, skill tags.</li>
+<li>Self-registration flow: admin creates employee → employee logs in → sees <code>EmployeeProfileForm</code> → submits → <code>PROFILE_SUBMITTED=1</code> locks the form.</li>
+<li>ResumeModal shows full profile with sticky header.</li>
+</ul>
+<h3 id="22-attendance">2.2 Attendance</h3>
+<ul>
+<li><code>/biometric</code> kiosk for fingerprint check-in.</li>
+<li>Device pushes <code>/biometric/scan</code> → BiometricEvent → resolved to Attendance via <code>FINGERPRINT_ID</code>.</li>
+<li>Status (PRESENT/LATE/ABSENT/HALF_DAY) computed from check-in vs. shift start.</li>
+</ul>
+<h3 id="23-leave">2.3 Leave</h3>
+<ul>
+<li>Token-based email approval — single click from approver's email.</li>
+<li>LeaveBalance tracks Casual (12), Sick (12), Earned (15) annual quota.</li>
+<li>Casual/Sick auto-convert to LOP when exhausted; Earned rejected.</li>
+</ul>
+<h3 id="24-payroll">2.4 Payroll</h3>
+<ul>
+<li>Auto-computed from attendance + completed tasks + OT.</li>
+<li>Formula: <code>EARNED_BASIC + TASK_BONUS + OT_PAY - DEDUCTIONS = NET_PAY</code>.</li>
+<li>TASK_BONUS = completed tasks × 100 (default).</li>
+<li>Runs progress DRAFT → FINALIZED → PAID.</li>
+</ul>
+<h3 id="25-star-performance">2.5 STAR Performance</h3>
+<ul>
+<li>Monthly star rating per employee.</li>
+<li>Formula: <code>0.25 × ATT + 0.30 × TASK + 0.25 × PROD + 0.20 × CONS</code>.</li>
+<li><code>≥ 4.5</code> → recommended for promotion; <code>≥ 4.0</code> → recommended for increment.</li>
+<li>MD approves recommendations via MDReview screen.</li>
+</ul>
+<hr>
+<h2 id="module-03-crm">Module 03 — CRM</h2>
+<p>Customer + Contact + Requirement entities. Lead pipeline:</p>
+<pre><code>NEW → QUALIFIED → PROPOSAL → NEGOTIATION → CLOSED_WON / CLOSED_LOST
+</code></pre>
+<p><strong>WhatsApp MD alerts</strong> fire on <code>POST /create-customer</code> and <code>POST /customers/enquiry</code> with rich context (customer, industry, sales rep, expected orders).</p>
+<p><strong>Convert path</strong>: <code>POST /customers/{cid}/requirements/{rid}/to-project</code> skips quotation and spawns a project directly.</p>
+<p>Qualification fields (<code>BUSINESS_TYPE</code>, <code>NUMBER_OF_BRANCHES</code>, <code>EXPECTED_MONTHLY_ORDERS</code>, <code>LEAD_PRIORITY</code>) help prioritise leads.</p>
+<hr>
+<h2 id="module-04-quotations">Module 04 — Quotations</h2>
+<p>State machine: <code>DRAFT → SENT → APPROVED/REJECTED → CONVERTED</code> (or <code>EXPIRED</code>).</p>
+<p><strong>Public link</strong> — <code>GET /q/{token}</code> serves a no-auth customer view; <code>POST /q/{token}/respond</code> records approval/rejection. Telemetry: <code>VIEWED_AT</code>, <code>VIEW_COUNT</code>.</p>
+<p><strong>Auto-pricing</strong>: <code>POST /quotations/from-requirements</code> builds a quote from BOM with a configurable margin.</p>
+<p><strong>Email</strong>: HTML template with BVC red header, line items, totals, validity warning, CTA to public link. Transport: Resend → SMTP fallback.</p>
+<p><strong>Print</strong>: <code>/quotation-print/:id</code> renders A4 layout for browser PDF export.</p>
+<p><strong>Activity timeline</strong> records CREATED, LINE_*, SENT, EMAIL_SENT/FAILED, VIEWED, APPROVED, REJECTED, CONVERTED.</p>
+<hr>
+<h2 id="module-05-sales-orders-phase-5">Module 05 — Sales Orders (Phase 5)</h2>
+<p>The most business-critical module.</p>
+<h3 id="payment-gated-state-machine">Payment-gated state machine</h3>
+<pre><code>DRAFT ──/confirm──▶ AWAITING_ADVANCE ──advance fully paid──▶ CONFIRMED
+                                                                │
+                                                                ▼
+                                                       (auto on /payment)
+CONFIRMED ──/start-production──▶ IN_PRODUCTION ──/ship──▶ SHIPPED
+       ──/deliver──▶ DELIVERED ──/close──▶ CLOSED
+
+(any non-CLOSED) ──/cancel──▶ CANCELLED
+</code></pre>
+<h3 id="three-payment-milestones-defaults">Three payment milestones (defaults)</h3>
+<ul>
+<li>Advance 50 % — before production starts</li>
+<li>On Dispatch 40 % — at shipping</li>
+<li>On Installation 10 % — at site delivery</li>
+</ul>
+<h3 id="workflow">Workflow</h3>
+<ol>
+<li><code>POST /sales-orders/{id}/confirm</code> — sets <code>AWAITING_ADVANCE</code>, ensures <code>ADVANCE_DUE_DATE</code> (defaults SO_DATE + 7 days), emails customer with <strong>highlighted advance amount + due date box</strong>.</li>
+<li><code>POST /sales-orders/{id}/payment</code> (<code>MILESTONE=ADVANCE</code>) — increments <code>ADVANCE_RECEIVED</code>. <strong>Auto-flips to CONFIRMED</strong> when ≥ required advance.</li>
+<li><code>POST /sales-orders/{id}/start-production</code> — invokes <code>project_from_product_service.create_project_from_product()</code> for each line, spawning Project + Tasks + Work Order. <code>SPAWNED_PROJECT_ID</code> recorded on the SO line.</li>
+<li><code>/ship</code> → SHIPPED, <code>/deliver</code> → DELIVERED, <code>/close</code> → CLOSED.</li>
+</ol>
+<h3 id="md-whatsapp-alerts">MD WhatsApp alerts</h3>
+<ul>
+<li><code>/confirm</code> → "📩 Sales Order — Awaiting Advance" (SO #, customer, total, advance amount + due).</li>
+<li><code>/payment</code> auto-confirm → "✅ Sales Order CONFIRMED — Advance Received".</li>
+<li><code>from-quotation</code> → "🏆 Quotation CONVERTED to Sales Order".</li>
+</ul>
+<h3 id="ui">UI</h3>
+<ul>
+<li>Status pill, action button changes by state.</li>
+<li>Amber AWAITING_ADVANCE banner showing advance ₹ + due date.</li>
+<li>Payment progress card with three milestone tiles.</li>
+</ul>
+<h3 id="computed-fields-on-get-sales-ordersid">Computed fields on <code>GET /sales-orders/{id}</code></h3>
+<p><code>ADVANCE_AMOUNT</code>, <code>DISPATCH_AMOUNT</code>, <code>INSTALLATION_AMOUNT</code>, <code>PAYMENT_RECEIVED_TOTAL</code>, <code>PAYMENT_PENDING</code>, <code>PAYMENT_PROGRESS_PCT</code>.</p>
+<hr>
+<h2 id="module-06-purchase-orders">Module 06 — Purchase Orders</h2>
+<p>State machine: <code>DRAFT → SENT → CONFIRMED → PARTIAL_RECEIVED → RECEIVED</code> (or <code>CANCELLED</code>).</p>
+<p><strong>GRN workflow</strong>: a single PO may have multiple GRNs (partial deliveries). Each GRN tracks <code>QUANTITY_RECEIVED</code> + <code>QUANTITY_REJECTED</code> per line. GRN starts as <code>DRAFT</code>; <strong>only <code>FINAL</code> GRNs push to inventory</strong>.</p>
+<p><strong>Auto-PO from project</strong>: <code>POST /purchase-orders/auto-from-project</code> walks the BOM, groups by <code>PREFERRED_SUPPLIER_ID</code>, creates one PO per supplier. A 30-item BOM across 5 suppliers becomes 5 POs in one click.</p>
+<p><strong>Rejection notice</strong>: <code>POST /purchase-orders/grn/{id}/resend-rejection-notice</code> emails the supplier with itemised rejections + reasons.</p>
+<p><strong>Activity timeline</strong> records the full chain — CREATED, LINE_*, SENT, CONFIRMED, GRN_RECORDED, GRN_FINALIZED, PARTIAL_RECEIVED, RECEIVED, REJECTION_NOTICE_SENT, CANCELLED.</p>
+<hr>
+<h2 id="module-07-suppliers">Module 07 — Suppliers</h2>
+<p>Master record of all external vendors. <code>STATUS = ACTIVE / INACTIVE / BLACKLISTED</code>. PO creation validates supplier is <code>ACTIVE</code>.</p>
+<p>Categories: Sheet Metal, Electronics / PCBs, Refrigeration, Vending Mechanisms, Payment Systems, Display, Packaging, Logistics, Misc.</p>
+<p><strong>360° view</strong> (<code>/connect/supplier/{id}/360</code>) aggregates total POs, on-time delivery rate, GRN rejection rate, average order value, last 10 POs.</p>
+<hr>
+<h2 id="module-08-inventory">Module 08 — Inventory</h2>
+<p>KPI tiles: Total Materials, Total Stock Value, Low Stock, Out of Stock.</p>
+<p><strong>Status buckets</strong>: <code>OUT_OF_STOCK</code> (qty ≤ 0), <code>LOW_STOCK</code> (qty &lt; reorder), <code>OK</code>.</p>
+<p><strong>Category auto-detection</strong> from material name maps to emoji badges (🪙 Sheet Metal, 🧊 Refrigeration, ⚡ Electrical, etc.).</p>
+<p><strong>Stock adjustment</strong> (<code>POST /inventory/{id}/adjust</code>) — TYPE = RECEIPT / ISSUE / COUNT. Each adjustment logs a movement.</p>
+<p><strong>Inventory ← GRN pipeline</strong>: only GRN finalisation pushes stock. Drafts don't affect inventory.</p>
+<p><strong>Material → Department scoping</strong>: <code>/materials/for-me</code> returns only materials accessible to the current employee's department.</p>
+<hr>
+<h2 id="module-09-projects-tasks">Module 09 — Projects &amp; Tasks</h2>
+<p>Projects are execution containers between sale and delivered machine.</p>
+<p><strong>Spawning paths</strong>:</p>
+<ol>
+<li>Primary — <code>POST /sales-orders/{id}/start-production</code> via <code>project_from_product_service</code>.</li>
+<li>CRM shortcut — <code>POST /customers/{cid}/requirements/{rid}/to-project</code>.</li>
+<li>Manual — <code>POST /create-project</code>.</li>
+</ol>
+<p><strong>Tasks</strong> are the unit of daily work. Lifecycle: <code>PENDING → IN_PROGRESS → COMPLETED</code> (or <code>ON_HOLD</code>).</p>
+<p><strong>TaskAssignment</strong> adds formal approval workflow:</p>
+<ul>
+<li><code>APPROVAL_TOKEN</code> for one-click email approval / rejection.</li>
+<li>Approver gets <code>/approve-task?token=...</code> / <code>/reject-task?token=...</code> links.</li>
+<li>Employee then accepts / rejects from their dashboard.</li>
+</ul>
+<p><strong>Workload service</strong> picks the least-loaded employee matching required skills for auto-assignment.</p>
+<p><strong>DailyAllocation</strong> is the AI allocator's output — which employee gets which task on which day.</p>
+<p><strong>Carryover banner</strong> — <code>pending-from-yesterday</code> surfaces incomplete tasks the next morning.</p>
+<hr>
+<h2 id="module-10-production-bom">Module 10 — Production &amp; BOM</h2>
+<h3 id="product-models">Product Models</h3>
+<p>The vending machine catalog: <code>BVC24 Snack &amp; Beverage Combo (BVC-SBC-01)</code>, <code>BVC24 Medicine Dispenser (BVC-MED-01)</code>, etc.</p>
+<h3 id="bom-bill-of-materials">BOM (Bill of Materials)</h3>
+<p>Each line is classified as <code>ITEM_TYPE</code>:</p>
+<ul>
+<li><strong>PURCHASE</strong> — sourced from supplier (feeds auto-PO flow).</li>
+<li><strong>PROCESS</strong> — made in-house at a specific process stage.</li>
+</ul>
+<p>Each line carries <code>IMAGE_URL</code> (assembly reference photo).</p>
+<p><code>POST /production/models/{id}/seed-default-bom</code> creates a 10-stage flow: Design Review → Mechanical Design → Electrical Design → Sheet Metal Fabrication → Electrical Wiring → Component Assembly → Software Flashing → Bench Testing → Pre-Dispatch QC → Packaging &amp; Dispatch (86h total).</p>
+<h3 id="process-stages">Process Stages</h3>
+<p>Colour-coded by <code>STAGE_TYPE</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Colour</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DESIGN</td>
+<td>Purple</td>
+</tr>
+<tr>
+<td>MECHANICAL</td>
+<td>Blue</td>
+</tr>
+<tr>
+<td>ELECTRICAL</td>
+<td>Cyan</td>
+</tr>
+<tr>
+<td>FABRICATION</td>
+<td>Amber</td>
+</tr>
+<tr>
+<td>ASSEMBLY</td>
+<td>Emerald</td>
+</tr>
+<tr>
+<td>TESTING</td>
+<td>Pink</td>
+</tr>
+<tr>
+<td>QC</td>
+<td>Red</td>
+</tr>
+<tr>
+<td>PACKAGING</td>
+<td>Slate</td>
+</tr>
+</tbody>
+</table>
+<h3 id="work-orders">Work Orders</h3>
+<p>State machine: <code>PLANNED → IN_PROGRESS → DONE</code> (or <code>ON_HOLD</code> / <code>CANCELLED</code>). On create, <code>POST /process/spawn-for-wo/{wo_id}</code> spawns one <code>WorkOrderStageProgress</code> row per active stage.</p>
+<h3 id="gantt-timeline-get-processwowo_idgantt">Gantt Timeline (<code>GET /process/wo/{wo_id}/gantt</code>)</h3>
+<p>The marquee feature. Returns a 30-day calendar timeline with:</p>
+<ul>
+<li><code>timeline</code> — array of 30 day-cells with <code>day_number</code>, <code>date</code>, <code>weekday</code>, <code>is_sunday</code>.</li>
+<li><code>stages</code> — each carries <code>day_number</code>, <code>planned_start_date</code>, <code>planned_end_date</code>, <code>days_allocated: 1</code>, <code>assignee_name</code>, <code>assignee_code</code>.</li>
+</ul>
+<p><strong>Scheduling rule</strong>: Day 1 = <code>WO.PLANNED_START_DATE</code>. One stage = one working day. Sundays skipped.</p>
+<p><strong>Auto-assignment policy</strong>: the endpoint <strong>does not auto-assign</strong>. It <strong>does clear stale assignments to sales-role employees</strong> (name/role/dept/designation/skills matching <code>sales</code> / <code>marketing</code> / <code>ragul</code>).</p>
+<h3 id="gantt-ui">Gantt UI</h3>
+<ul>
+<li>Sticky header — WO number, product, units always visible.</li>
+<li>4 summary tiles — Progress %, Planned days, Actual So Far, Failed Stages.</li>
+<li>Day 1–30 calendar header with date and weekday under each day number; Sundays in red.</li>
+<li>Per-row card shows stage name, type chip, hours, <code>1 day</code>, assignee chip, status pill, action buttons (▶ ✓ ✗).</li>
+<li>Drawer width <code>98vw</code> so all 30 day cells fit without horizontal scroll.</li>
+</ul>
+<hr>
+<h2 id="module-11-quality-management">Module 11 — Quality Management</h2>
+<p>Three-tier model: <strong>template (QCChecklistItem) → instance (QCInspection) → result (QCInspectionResult)</strong>.</p>
+<p><strong>Workflow</strong>:</p>
+<ol>
+<li><code>POST /quality/inspections</code> creates the inspection + spawns one result row per checklist item.</li>
+<li>Per-item <code>PATCH /quality/results/{id}</code> records <code>PASS</code> / <code>FAIL</code> / <code>NEEDS_REWORK</code> / <code>NA</code>.</li>
+<li>Failures auto-create NCRs.</li>
+<li><code>POST /quality/inspections/{id}/finalise</code> locks the inspection. Status computed:
+   - All PASS → <code>PASS</code>
+   - Any FAIL → <code>FAIL</code>
+   - Only NEEDS_REWORK → <code>REWORK</code></li>
+</ol>
+<p><strong>Severity policy</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Failure consequence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CRITICAL</td>
+<td>Auto-NCR, blocks WO <code>DONE</code>, requires re-inspection</td>
+</tr>
+<tr>
+<td>MAJOR</td>
+<td>Auto-NCR, blocks WO <code>DONE</code></td>
+</tr>
+<tr>
+<td>MINOR</td>
+<td>Auto-NCR, does NOT block WO <code>DONE</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>NCR resolution</strong>: <code>OPEN → IN_PROGRESS → CLOSED</code>. Closure requires <code>ROOT_CAUSE</code> and <code>CORRECTIVE_ACTION</code>.</p>
+<p><strong>WO → DONE gate</strong>: all stages DONE + inspection passed + open NCRs closed.</p>
+<hr>
+<h2 id="module-12-machines">Module 12 — Machines</h2>
+<p>Registry of manufactured units. <strong>Auto-registered</strong> when a Work Order completes — one <code>Machine</code> row per unit produced.</p>
+<p>Status flow: <code>IDLE → ACTIVE → MAINTENANCE → ACTIVE</code> (or decommissioned).</p>
+<p><code>MachineLog</code> is the append-only history of status changes. Used as service history until Phase 7 formalises it into structured <code>ServiceVisit</code> records.</p>
+<p><code>POST /machines/sync</code> bulk-registers machines for historical WOs that pre-date the auto-registration logic (idempotent).</p>
+<hr>
+<h2 id="module-13-notifications">Module 13 — Notifications</h2>
+<p>Four channels, each with graceful degradation.</p>
+<h3 id="email">Email</h3>
+<p><code>email_service.py</code> tries Resend → SMTP fallback. Email types: quotation send, SO advance request, PO send, GRN rejection notice, leave / task approval links.</p>
+<p>Dev override: <code>EMAIL_TESTING_OVERRIDE_TO</code> redirects all email to one address.</p>
+<h3 id="whatsapp">WhatsApp</h3>
+<p><code>whatsapp_service.py</code> tries CallMeBot (free) → WhatsApp Business Cloud API (paid). <code>notify_md_safe()</code> is fire-and-forget — never blocks parent op.</p>
+<p>MD alert triggers: new customer, new enquiry, quotation → SO conversion, SO awaiting advance, SO auto-confirmed.</p>
+<h3 id="in-app">In-app</h3>
+<p><code>notification</code> table. NotificationBell component polls <code>/notifications/unread-count</code> every 10 s.</p>
+<h3 id="voice">Voice</h3>
+<p>Opt-in browser TTS (no external service). Speaks critical alerts (out-of-stock, failed QC, etc.). Employee dashboard variant reads today's task list on login.</p>
+<hr>
+<h2 id="module-14-chatbot-hr-assistant">Module 14 — Chatbot &amp; HR Assistant</h2>
+<p>Two bots intentionally separated.</p>
+<h3 id="general-erp-chatbot">General ERP Chatbot</h3>
+<p><code>gemini_service.py</code> — Google Gemini-backed. Scoped via system prompt to BVC24 questions only. Chat history client-side (not persisted). Falls back to friendly message when <code>GEMINI_API_KEY</code> not set.</p>
+<h3 id="hr-assistant">HR Assistant</h3>
+<p><code>hr_assistant.py</code> — stateless rule-based bot for leave application. Walks employee through type / dates / reason via dialogue. Validates against actual <code>LeaveBalance</code> server-side. No LLM, no hallucination risk.</p>
+<p>Both bots use a shared floating widget with BVC red gradient for user bubbles.</p>
+<hr>
+<h2 id="module-15-dashboard-analytics">Module 15 — Dashboard &amp; Analytics</h2>
+<p><code>DashboardHome</code> (<code>/</code>) is the executive cockpit:</p>
+<ul>
+<li>4-grid stat cards (Employees / Projects / Tasks / Inventory).</li>
+<li>Recharts donut + bar visualisations.</li>
+<li>InventorySummaryCard with low-stock items.</li>
+<li>Pending acceptance + today's allocations + recent activity.</li>
+</ul>
+<p>Refreshes every 10 s. Opt-in voice alerts.</p>
+<p><code>GET /analytics/dashboard-stats</code> returns all KPIs in one round trip.</p>
+<p><code>GET /analytics/chart-data?range=7d|30d|month</code> returns time-series.</p>
+<p><strong>Reports</strong>: <code>/reports/report/{module}.pdf|.xlsx</code> for sales / production / inventory / attendance / payroll / performance / quality.</p>
+<p><code>MDReview</code> (<code>/md-review</code>) is the MD-specific deeper KPI view (revenue trend, top performers, lead pipeline).</p>
+<hr>
+<h2 id="module-16-print-public-links">Module 16 — Print &amp; Public Links</h2>
+<h3 id="print-views-4">Print views (4)</h3>
+<ul>
+<li><code>/quotation-print/:id</code></li>
+<li><code>/so-print/:id</code></li>
+<li><code>/po-print/:id</code></li>
+<li><code>/grn-print/:id</code></li>
+</ul>
+<p>Each renders an A4-styled HTML page. Users press Ctrl+P → Save as PDF. No PDF library required.</p>
+<h3 id="public-quotation-link">Public quotation link</h3>
+<p><code>/q/{PUBLIC_TOKEN}</code> — customer-facing no-auth view + Approve/Reject endpoint. Token is <code>secrets.token_urlsafe(24)</code> — unguessable, per-quotation. Telemetry tracked.</p>
+<h3 id="other-token-gated-routes">Other token-gated routes</h3>
+<ul>
+<li><code>/approve-task?token=...</code>, <code>/reject-task?token=...</code></li>
+<li><code>/leave/decide/{token}?action=approve|reject</code></li>
+<li><code>/biometric</code> (kiosk)</li>
+<li><code>/apply-leave</code> (deep link)</li>
+</ul>
+<p>All become inert after consumption.</p>
+<hr>
+<h1 id="part-iii-api-reference">Part III — API Reference</h1>
+<p>A complete inventory follows. Endpoints are grouped by router. All endpoints require <code>Authorization: Bearer &lt;JWT&gt;</code> unless marked <strong>(no auth)</strong>.</p>
+<h2 id="authentication">Authentication</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST</td>
+<td><code>/admin-login</code>, <code>/login</code></td>
+<td>Admin login</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/employee-login</code></td>
+<td>Employee login</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/employee-logout</code></td>
+<td>Logout</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/me</code></td>
+<td>Verify token</td>
+</tr>
+</tbody>
+</table>
+<h2 id="organization">Organization</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET / POST / PUT / DELETE</td>
+<td><code>/departments</code></td>
+<td>Department CRUD</td>
+</tr>
+<tr>
+<td>GET / POST / PUT / DELETE</td>
+<td><code>/designations</code></td>
+<td>Designation CRUD</td>
+</tr>
+<tr>
+<td>GET / POST / DELETE</td>
+<td><code>/roles</code></td>
+<td>Role CRUD</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/permissions</code></td>
+<td>List permissions</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/roles/{id}/permissions</code></td>
+<td>Assign permissions</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/seed-org</code></td>
+<td>Apply MANUFACTURING preset</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/org-presets</code></td>
+<td>List presets</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/create-vendor</code>, GET <code>/vendors</code></td>
+<td>Vendor CRUD</td>
+</tr>
+</tbody>
+</table>
+<h2 id="hr-employees">HR — Employees</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST</td>
+<td><code>/create-employee</code></td>
+<td>Create</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/employees</code>, <code>/employees/{id}</code>, <code>/employees/by-code/{code}</code></td>
+<td>Lookup</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/employees/by-code/{code}/submit-profile</code></td>
+<td>Self-registration</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/update-employee/{id}</code></td>
+<td>Update</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/employees/{id}/reset-password</code></td>
+<td>Reset password</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/employees/{id}/upload-photo</code></td>
+<td>Photo</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/delete-employee/{id}</code></td>
+<td>Remove</td>
+</tr>
+</tbody>
+</table>
+<h2 id="hr-attendance">HR — Attendance</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST</td>
+<td><code>/attendance/check-in</code>, <code>/check-out</code>, <code>/mark-absent</code></td>
+<td>Manual</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/attendance</code>, <code>/attendance/today</code>, <code>/attendance/live-board</code></td>
+<td>List</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/attendance/{id}</code></td>
+<td>Remove</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/biometric/enroll</code>, <code>/biometric/scan</code></td>
+<td>Biometric</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/biometric/events</code></td>
+<td>Raw log</td>
+</tr>
+</tbody>
+</table>
+<h2 id="hr-leave">HR — Leave</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST</td>
+<td><code>/leave/apply</code></td>
+<td>Apply</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/leave/decide/{token}?action=</code> <strong>(no auth)</strong></td>
+<td>Email link decision</td>
+</tr>
+<tr>
+<td>PATCH</td>
+<td><code>/leave/{id}/approve</code>, <code>/reject</code>, <code>/cancel</code></td>
+<td>Workflow</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/leave/pending</code>, <code>/all</code>, <code>/my-requests</code>, <code>/balance/{id}</code>, <code>/dashboard</code></td>
+<td>Queries</td>
+</tr>
+</tbody>
+</table>
+<h2 id="hr-payroll">HR — Payroll</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST</td>
+<td><code>/payroll/generate</code></td>
+<td>Create run</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/payroll/runs</code>, <code>/runs/{id}</code>, <code>/runs/{id}/slip/{eid}</code></td>
+<td>Query</td>
+</tr>
+<tr>
+<td>PATCH</td>
+<td><code>/runs/{id}/finalize</code>, <code>/mark-paid</code></td>
+<td>Workflow</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/runs/{id}</code></td>
+<td>Delete unpaid</td>
+</tr>
+</tbody>
+</table>
+<h2 id="hr-performance">HR — Performance</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST</td>
+<td><code>/performance/stars/compute</code></td>
+<td>Recalculate STAR</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/performance/stars</code>, <code>/top</code>, <code>/employee/{id}/history</code></td>
+<td>Query</td>
+</tr>
+<tr>
+<td>PATCH</td>
+<td><code>/performance/stars/{id}/action</code></td>
+<td>Approve/deny</td>
+</tr>
+</tbody>
+</table>
+<h2 id="crm">CRM</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST</td>
+<td><code>/create-customer</code></td>
+<td>Create + WhatsApp alert</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/customers</code>, <code>/customers/{id}</code></td>
+<td>Lookup</td>
+</tr>
+<tr>
+<td>PATCH</td>
+<td><code>/customers/{id}</code></td>
+<td>Update</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/delete-customer/{id}</code></td>
+<td>Remove</td>
+</tr>
+<tr>
+<td>PATCH</td>
+<td><code>/customers/{id}/lead-status</code></td>
+<td>Pipeline</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/customers/enquiry</code></td>
+<td>Enquiry + WhatsApp alert</td>
+</tr>
+<tr>
+<td>POST / GET / DELETE</td>
+<td><code>/customers/{id}/contacts[/{cid}]</code></td>
+<td>Contacts</td>
+</tr>
+<tr>
+<td>POST / GET / PATCH / DELETE</td>
+<td><code>/customers/{id}/requirements[/{rid}]</code></td>
+<td>Requirements</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/customers/{cid}/requirements/{rid}/to-project</code></td>
+<td>Convert</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/connect/customer/{id}/360</code></td>
+<td>360° view</td>
+</tr>
+</tbody>
+</table>
+<h2 id="quotations">Quotations</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST / GET / PATCH / DELETE</td>
+<td><code>/quotations[/{id}]</code></td>
+<td>CRUD</td>
+</tr>
+<tr>
+<td>POST / PATCH / DELETE</td>
+<td><code>/quotations/{id}/lines[/{lid}]</code></td>
+<td>Lines</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/quotations/{id}/send</code>, <code>/resend-email</code>, <code>/approve</code>, <code>/reject</code></td>
+<td>Workflow</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/quotations/from-requirements</code></td>
+<td>Auto-build</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/quotations/auto-price</code></td>
+<td>Suggest</td>
+</tr>
+<tr>
+<td>GET / POST</td>
+<td><code>/q/{token}</code> / <code>/q/{token}/respond</code> <strong>(no auth)</strong></td>
+<td>Public link</td>
+</tr>
+<tr>
+<td>GET / DELETE</td>
+<td><code>/quotations/{id}/activity[/{aid}]</code></td>
+<td>Timeline</td>
+</tr>
+</tbody>
+</table>
+<h2 id="sales-orders">Sales Orders</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST / GET / PATCH / DELETE</td>
+<td><code>/sales-orders[/{id}]</code></td>
+<td>CRUD</td>
+</tr>
+<tr>
+<td>POST / PATCH / DELETE</td>
+<td><code>/sales-orders/{id}/lines[/{lid}]</code></td>
+<td>Lines</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/sales-orders/{id}/confirm</code></td>
+<td>Send advance request</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/sales-orders/{id}/payment</code></td>
+<td>Record milestone, auto-confirm</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/sales-orders/{id}/start-production</code></td>
+<td>Spawn projects</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/sales-orders/{id}/ship</code>, <code>/deliver</code>, <code>/close</code>, <code>/cancel</code></td>
+<td>Workflow</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/sales-orders/from-quotation</code></td>
+<td>Convert quote</td>
+</tr>
+<tr>
+<td>GET / DELETE</td>
+<td><code>/sales-orders/{id}/activity[/{aid}]</code></td>
+<td>Timeline</td>
+</tr>
+</tbody>
+</table>
+<h2 id="purchase-orders">Purchase Orders</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST / GET / PATCH / DELETE</td>
+<td><code>/purchase-orders[/{id}]</code></td>
+<td>CRUD</td>
+</tr>
+<tr>
+<td>POST / PATCH / DELETE</td>
+<td><code>/purchase-orders/{id}/lines[/{lid}]</code></td>
+<td>Lines</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/purchase-orders/{id}/send</code>, <code>/resend-email</code>, <code>/confirm</code>, <code>/cancel</code></td>
+<td>Workflow</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/purchase-orders/{id}/grn</code></td>
+<td>Record GRN</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/purchase-orders/{id}/grn</code>, <code>/grn/{gid}</code></td>
+<td>Query</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/purchase-orders/grn/{gid}/finalize</code></td>
+<td>Push to inventory</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/purchase-orders/grn/{gid}/resend-rejection-notice</code></td>
+<td>Notify supplier</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/purchase-orders/grn/{gid}</code></td>
+<td>Delete draft</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/purchase-orders/auto-from-project</code></td>
+<td>Generate from BOM</td>
+</tr>
+<tr>
+<td>GET / DELETE</td>
+<td><code>/purchase-orders/{id}/activity[/{aid}]</code></td>
+<td>Timeline</td>
+</tr>
+</tbody>
+</table>
+<h2 id="suppliers">Suppliers</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST / GET / PATCH / DELETE</td>
+<td><code>/suppliers[/{id}]</code></td>
+<td>CRUD</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/suppliers/categories</code></td>
+<td>List categories</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/connect/supplier/{id}/360</code></td>
+<td>360° view</td>
+</tr>
+</tbody>
+</table>
+<h2 id="inventory">Inventory</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/materials-catalog</code>, <code>/materials/for-me</code>, <code>/materials</code></td>
+<td>List</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/create-material</code>, <code>/seed-materials</code></td>
+<td>Create</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/materials-catalog/{id}/departments</code>, <code>/update-stock/{id}</code></td>
+<td>Update</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/delete-material/{id}</code></td>
+<td>Remove</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/inventory/full</code>, <code>/inventory/{id}/movements</code></td>
+<td>Query</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/inventory/{id}/adjust</code></td>
+<td>Stock movement</td>
+</tr>
+</tbody>
+</table>
+<h2 id="projects-tasks">Projects &amp; Tasks</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST</td>
+<td><code>/create-project</code>, <code>/projects/from-product</code>, <code>/projects/{id}/backfill-tasks</code>, <code>/projects/auto-assign-missing</code></td>
+<td>Create / spawn</td>
+</tr>
+<tr>
+<td>GET / PATCH / DELETE</td>
+<td><code>/projects[/{id}]</code></td>
+<td>CRUD</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/create-task</code></td>
+<td>Task</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/tasks</code>, <code>/project/{id}/tasks</code></td>
+<td>List</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/start-task/{id}</code>, <code>/complete-task/{id}</code>, <code>/hold-task/{id}</code></td>
+<td>Status</td>
+</tr>
+<tr>
+<td>POST / PUT / PATCH / DELETE</td>
+<td><code>/task-assignment[/{id}]</code></td>
+<td>Assignment</td>
+</tr>
+<tr>
+<td>GET / PATCH</td>
+<td><code>/employee/{ref}/today-task</code>, <code>/tasks</code>, <code>/pending-acceptance</code>, <code>/pending-from-yesterday</code></td>
+<td>Employee views</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/approve-task?token=...</code>, <code>/reject-task?token=...</code> <strong>(no auth)</strong></td>
+<td>Email link</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/task-proposals/cleanup-expired</code></td>
+<td>Cron</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/connect/project/{id}/360</code></td>
+<td>360° view</td>
+</tr>
+</tbody>
+</table>
+<h2 id="production-process">Production &amp; Process</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST / GET / PATCH / DELETE</td>
+<td><code>/production/models[/{id}]</code></td>
+<td>Models</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/production/models/{id}/seed-default-bom</code></td>
+<td>Seed 10-stage flow</td>
+</tr>
+<tr>
+<td>POST / GET / PATCH / DELETE</td>
+<td><code>/production/models/{id}/bom</code>, <code>/production/bom/{id}</code></td>
+<td>BOM</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/production/bom/{id}/upload-image</code></td>
+<td>Image</td>
+</tr>
+<tr>
+<td>PATCH</td>
+<td><code>/bom-items/{id}/classify</code></td>
+<td>Set ITEM_TYPE</td>
+</tr>
+<tr>
+<td>POST / GET / PATCH / DELETE</td>
+<td><code>/stages[/{id}]</code></td>
+<td>Process stages</td>
+</tr>
+<tr>
+<td>POST / GET / PATCH / DELETE</td>
+<td><code>/production/work-orders[/{id}]</code></td>
+<td>Work Orders</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/process/spawn-for-wo/{id}</code></td>
+<td>Spawn stage progress</td>
+</tr>
+<tr>
+<td>GET / PATCH</td>
+<td><code>/process/wo/{id}/stages[/{sid}]</code></td>
+<td>Stage progress</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/process/wo/{id}/gantt</code></td>
+<td>Gantt timeline</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/production/dashboard</code></td>
+<td>KPIs</td>
+</tr>
+</tbody>
+</table>
+<h2 id="quality">Quality</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST / GET / PATCH / DELETE</td>
+<td><code>/quality/checklist-items</code>, <code>/checklist/{model_id}</code></td>
+<td>Checklists</td>
+</tr>
+<tr>
+<td>POST / GET / PATCH</td>
+<td><code>/quality/inspections[/{id}]</code>, <code>/results/{id}</code></td>
+<td>Inspections</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/quality/inspections/{id}/finalise</code></td>
+<td>Lock + NCRs</td>
+</tr>
+<tr>
+<td>GET / PATCH</td>
+<td><code>/quality/ncrs[/{id}]</code></td>
+<td>NCRs</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/quality/dashboard</code></td>
+<td>KPIs</td>
+</tr>
+</tbody>
+</table>
+<h2 id="machines">Machines</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST / GET / PUT / DELETE</td>
+<td><code>/machines[/{id}]</code></td>
+<td>CRUD</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/machines/sync</code></td>
+<td>Bulk register</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/machines/machine-logs/{id}</code></td>
+<td>History</td>
+</tr>
+</tbody>
+</table>
+<h2 id="notifications">Notifications</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST / GET / DELETE</td>
+<td><code>/notifications[/{id}]</code></td>
+<td>CRUD</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/notifications/unread-count</code></td>
+<td>Badge</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/notifications/{id}/read</code>, <code>/mark-all-read</code></td>
+<td>Mark read</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/notifications/generate</code></td>
+<td>System auto</td>
+</tr>
+</tbody>
+</table>
+<h2 id="whatsapp_1">WhatsApp</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/whatsapp/diagnose</code></td>
+<td>Status</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/whatsapp/test</code></td>
+<td>Send test</td>
+</tr>
+</tbody>
+</table>
+<h2 id="chat-hr-assistant">Chat / HR Assistant</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST</td>
+<td><code>/chat</code>, <code>/chat/stream</code></td>
+<td>Gemini chat</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/chat/health</code>, <code>/chat/suggestions</code></td>
+<td>Status</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/hr-bot/message</code></td>
+<td>HR conversation</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/hr-bot/policy</code>, <code>/hr-bot/diagnose</code></td>
+<td>Status</td>
+</tr>
+</tbody>
+</table>
+<h2 id="connect-360-views">Connect (360° views)</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/connect/employee/{id}/360</code></td>
+<td>Employee 360</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/connect/project/{id}/360</code></td>
+<td>Project 360</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/connect/customer/{id}/360</code></td>
+<td>Customer 360</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/connect/work-order/{id}/360</code></td>
+<td>WO 360</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/connect/supplier/{id}/360</code></td>
+<td>Supplier 360</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/connect/workflow/snapshot</code></td>
+<td>Global snapshot</td>
+</tr>
+</tbody>
+</table>
+<h2 id="analytics-reports-settings">Analytics / Reports / Settings</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td><code>/analytics/dashboard-stats</code>, <code>/chart-data</code></td>
+<td>Dashboard</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/reports/report/{module}.pdf</code>, <code>.xlsx</code></td>
+<td>Reports</td>
+</tr>
+<tr>
+<td>GET / PUT</td>
+<td><code>/settings</code>, <code>/settings/email-alerts</code></td>
+<td>Settings</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/settings/test-email</code></td>
+<td>Test</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h1 id="part-iv-appendix">Part IV — Appendix</h1>
+<h2 id="a-glossary">A. Glossary</h2>
+<table>
+<thead>
+<tr>
+<th>Term</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>AMC</td>
+<td>Annual Maintenance Contract</td>
+</tr>
+<tr>
+<td>BOM</td>
+<td>Bill of Materials</td>
+</tr>
+<tr>
+<td>BVC</td>
+<td>Bharath Vending Corporation</td>
+</tr>
+<tr>
+<td>BVC24</td>
+<td>The product / system name</td>
+</tr>
+<tr>
+<td>CallMeBot</td>
+<td>Free WhatsApp bridge</td>
+</tr>
+<tr>
+<td>CRM</td>
+<td>Customer Relationship Management</td>
+</tr>
+<tr>
+<td>ERP</td>
+<td>Enterprise Resource Planning</td>
+</tr>
+<tr>
+<td>GRN</td>
+<td>Goods Receipt Note</td>
+</tr>
+<tr>
+<td>GST</td>
+<td>Indian Goods &amp; Services Tax</td>
+</tr>
+<tr>
+<td>HSN</td>
+<td>Harmonized System of Nomenclature</td>
+</tr>
+<tr>
+<td>JWT</td>
+<td>JSON Web Token</td>
+</tr>
+<tr>
+<td>LOP</td>
+<td>Loss of Pay</td>
+</tr>
+<tr>
+<td>MD</td>
+<td>Managing Director</td>
+</tr>
+<tr>
+<td>NCR</td>
+<td>Non-Conformance Report</td>
+</tr>
+<tr>
+<td>PO</td>
+<td>Purchase Order</td>
+</tr>
+<tr>
+<td>PROCESS</td>
+<td>BOM in-house manufacture</td>
+</tr>
+<tr>
+<td>PURCHASE</td>
+<td>BOM external sourcing</td>
+</tr>
+<tr>
+<td>QC</td>
+<td>Quality Control</td>
+</tr>
+<tr>
+<td>SO</td>
+<td>Sales Order</td>
+</tr>
+<tr>
+<td>STAR</td>
+<td>Monthly performance rating system</td>
+</tr>
+<tr>
+<td>UPI</td>
+<td>Indian instant payment</td>
+</tr>
+<tr>
+<td>VENDOR</td>
+<td>ERP tenant</td>
+</tr>
+<tr>
+<td>WO</td>
+<td>Work Order</td>
+</tr>
+</tbody>
+</table>
+<h2 id="b-state-machines-summary">B. State Machines Summary</h2>
+<pre><code>Quotation:  DRAFT → SENT → APPROVED → CONVERTED
+                              ↘ REJECTED
+                       ↘ REJECTED
+
+Sales Order: DRAFT → AWAITING_ADVANCE → CONFIRMED → IN_PRODUCTION
+                                                 → SHIPPED → DELIVERED → CLOSED
+             (any) → CANCELLED
+
+Purchase Order: DRAFT → SENT → CONFIRMED → PARTIAL_RECEIVED → RECEIVED
+                (any) → CANCELLED
+
+GRN: DRAFT → FINAL (pushes to inventory)
+
+Work Order: PLANNED → IN_PROGRESS → DONE (requires stages + QC + NCRs)
+            (any) → ON_HOLD / CANCELLED
+
+WO Stage:   PENDING → IN_PROGRESS → DONE / FAILED / SKIPPED
+
+Project:    PENDING → IN_PROGRESS → COMPLETED
+            (any) → ON_HOLD / CANCELLED
+
+Task / TaskAssignment:
+            PENDING_APPROVAL → APPROVED → ACCEPTED → IN_PROGRESS → COMPLETED
+                            → REJECTED / EXPIRED
+
+Leave:      PENDING_APPROVAL → APPROVED / REJECTED / CANCELLED / EXPIRED
+
+QC Inspection: PENDING → PASS / FAIL / REWORK (failures auto-open NCRs)
+
+NCR:        OPEN → IN_PROGRESS → CLOSED
+
+Machine:    IDLE → ACTIVE → MAINTENANCE → ACTIVE
+                                       → decommissioned (terminal)
+
+Customer Lead: NEW → QUALIFIED → PROPOSAL → NEGOTIATION → CLOSED_WON / CLOSED_LOST
+
+Customer Requirement: DRAFT → CONFIRMED → QUOTED → ORDERED / CANCELLED
+</code></pre>
+<h2 id="c-environment-variables-essential">C. Environment Variables (essential)</h2>
+<pre><code class="language-env"># Required
+MY_SQL=localhost:3306
+DB_NAME=bvc24
+SECRET_KEY=&lt;32+ random chars&gt;
+ALGORITHM=HS256
+
+# Email — Resend (preferred)
+RESEND_API_KEY=re_...
+SMTP_FROM=erp@bvc24.in
+SMTP_FROM_NAME=BVC24 ERP
+
+# Or SMTP fallback
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=...
+SMTP_PASSWORD=...
+SMTP_USE_TLS=true
+
+# Approver / URLs
+APPROVER_EMAIL=md@bvc24.in
+APPROVER_NAME=Managing Director
+FRONTEND_URL=https://erp.bvc24.in
+BACKEND_URL=https://erp.bvc24.in/api
+
+# WhatsApp (optional, CallMeBot — free)
+CALLMEBOT_API_KEY=...
+MD_WHATSAPP_NUMBER=+91...
+
+# Or WhatsApp Cloud API
+WHATSAPP_TOKEN=EAAQ...
+WHATSAPP_PHONE_NUMBER_ID=...
+
+# Gemini (optional)
+GEMINI_API_KEY=AIza...
+GEMINI_MODEL=gemini-1.5-flash
+
+# Dev only
+EMAIL_TESTING_OVERRIDE_TO=test@example.com
+</code></pre>
+<p>See <code>docs/appendix/C-environment-variables.md</code> for the complete reference.</p>
+<h2 id="d-roadmap">D. Roadmap</h2>
+<h3 id="planned-phases">Planned phases</h3>
+<ul>
+<li><strong>Phase 6</strong> — Invoicing with GST e-Invoice IRN, e-Way Bill, credit/debit notes, payment reconciliation.</li>
+<li><strong>Phase 7</strong> — Service / AMC contracts, complaint tickets, service visit scheduling, spare-parts consumption, renewal reminders.</li>
+</ul>
+<h3 id="cross-cutting">Cross-cutting</h3>
+<ul>
+<li>Alembic migrations replacing the <code>IF NOT EXISTS</code> block when schema changes get more complex.</li>
+<li>Per-permission decorator enforcement across all routes.</li>
+<li>Refresh tokens to extend session.</li>
+<li>Rate limiting on login.</li>
+<li>Background jobs (Celery + Redis) for heavy reports and bulk emails.</li>
+<li>Materialised summary tables when dashboard load grows.</li>
+<li>Mobile app (React Native shell).</li>
+<li>Tamil + Hindi UI translations.</li>
+<li>Per-department approver configuration.</li>
+<li>WebSocket layer when polling becomes a bottleneck.</li>
+<li>Knowledge-base chatbot (RAG over this <code>/docs</code> folder).</li>
+<li>PDF attachment variant of customer-facing documents.</li>
+<li>Multi-currency support.</li>
+<li>Centralised audit log table.</li>
+</ul>
+<h3 id="known-gaps-in-release-10">Known Gaps in Release 1.0</h3>
+<ul>
+<li>Seed endpoints not gated by environment.</li>
+<li>Permission enforcement is role-level, not per-permission.</li>
+<li>Refresh-token endpoint absent.</li>
+<li>No rate limiting on <code>/admin-login</code>.</li>
+<li>Email queue is synchronous.</li>
+<li>File uploads have no virus scanning.</li>
+</ul>
+<h2 id="e-changelog">E. Changelog</h2>
+<h3 id="release-10-production-ready-current">Release 1.0 — Production Ready (current)</h3>
+<ul>
+<li><strong>Phase 5 — Sales Orders with Payment-Gated Workflow</strong>: AWAITING_ADVANCE status, advance amount + due date in email, auto-confirm on advance payment, MD WhatsApp alerts at three SO events, advance banner in UI.</li>
+<li><strong>Production &amp; Gantt rewrite</strong>: 30-day calendar header, one-stage-per-working-day, Sundays skipped, drawer 98vw, auto-assignment removed, sales-role employees excluded from production stages.</li>
+<li><strong>Sticky-header modal pattern</strong> applied across Employee profile, Quotation, Sales Order, Purchase Order modals + Work Order Gantt drawer.</li>
+<li><strong>WhatsApp notifications</strong>: <code>whatsapp_service.py</code> with CallMeBot + Cloud API, <code>notify_md_safe()</code>, wired across CRM and SO events.</li>
+<li><strong>Inventory rebuild</strong>: BVC red theme, KPI tiles, MaterialCard with stock fill bar, AdjustModal, DetailDrawer, category auto-detection.</li>
+<li><strong>BVC red theme</strong> applied consistently (login, sidebar, modals, chatbot, gradients).</li>
+<li><strong>Chatbot</strong>: <code>gemini_service.py</code> (general ERP) + <code>hr_assistant.py</code> (stateless rule-based for leave).</li>
+</ul>
+<h3 id="release-04-procurement-phase-4">Release 0.4 — Procurement (Phase 4)</h3>
+<p>Supplier master, PO CRUD with workflow, GRN with partial receipts and rejections, GRN-to-inventory pipeline, auto-PO from project BOM, PO email + rejection-notice resend.</p>
+<h3 id="release-03-crm-quotations-phase-3">Release 0.3 — CRM &amp; Quotations (Phase 3)</h3>
+<p>Customer master with lead pipeline, contacts, requirements, Quotation CRUD with lines/totals/terms, SEND → APPROVE → CONVERT workflow, public share token, email dispatch with view telemetry, auto-pricing from BOM, A4 print.</p>
+<h3 id="release-02-hr-operations-phase-2">Release 0.2 — HR Operations (Phase 2)</h3>
+<p>Biometric-driven attendance, leave with token-based email approval (CASUAL/SICK/EARNED quotas, auto-LOP), payroll runs from attendance + tasks, STAR performance with weighted formula and recommendations, MD Review.</p>
+<h3 id="release-01-foundation-phase-1">Release 0.1 — Foundation (Phase 1)</h3>
+<p>Vendor / multi-tenancy, MANUFACTURING org preset, Employee master with UUID PK and profile self-registration, JWT auth (admin + employee), bcrypt passwords, auto-migration framework.</p>
+<hr>
+<h2 id="end-of-document">End of Document</h2>
+<p>For the multi-file modular edition see <code>docs/README.md</code> and the structured folders:</p>
+<ul>
+<li><code>docs/01-executive-summary.md</code> … <code>docs/06-database-schema.md</code> — Foundation</li>
+<li><code>docs/modules/01-organization.md</code> … <code>docs/modules/16-print-and-public-links.md</code> — 16 module documents</li>
+<li><code>docs/api/01-auth.md</code> … <code>docs/api/14-misc.md</code> — Complete API reference</li>
+<li><code>docs/appendix/A-glossary.md</code> … <code>docs/appendix/E-changelog.md</code> — Reference appendix</li>
+</ul>
+<p>© Bharath Vending Corporation · Chennai, Tamil Nadu, India · <code>www.bvc24.in</code></p>
+</body>
+</html>

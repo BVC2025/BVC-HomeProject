@@ -6,15 +6,17 @@ from jose import JWTError
 
 load_dotenv()
 
-SECRET_KEY = os.getenv("SECRET_KEY")
-ALGORITHM = os.getenv("ALGORITHM")
+SECRET_KEY = os.getenv("SECRET_KEY") or "dev-secret-change-me"
+ALGORITHM = os.getenv("ALGORITHM") or "HS256"
 
 
-def create_token(data: dict):
+def create_token(data: dict, expires_hours: int = 24):
 
     payload = data.copy()
 
-    payload["exp"] = datetime.utcnow() + timedelta(days=1)
+    payload["exp"] = datetime.utcnow() + timedelta(
+        hours=expires_hours
+    )
 
     token = jwt.encode(
         payload,
@@ -23,10 +25,6 @@ def create_token(data: dict):
     )
 
     return token
-
-
-
-
 
 
 def verify_token(token: str):

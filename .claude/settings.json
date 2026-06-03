@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -m 3 \"http://localhost:8001/\")",
+      "Bash(curl -s -m 3 \"http://localhost:8001/docs\")",
+      "Bash(python -c \"from app.main import app; print\\('OK'\\)\")",
+      "Bash(./venv/Scripts/python.exe -c \"from app.main import app; print\\('OK'\\)\")",
+      "Bash(tasklist)",
+      "Bash(\"D:/PUVI-DOC/Vendor-based Manufacturing ERP/backend/venv/Scripts/python.exe\" -c \"import sys; sys.path.insert\\(0, 'D:/PUVI-DOC/Vendor-based Manufacturing ERP/backend'\\); from app.routes import production; print\\('production OK'\\)\")",
+      "Bash(\"C:/Windows/py.exe\" -c \"import ast; ast.parse\\(open\\(r'd:\\\\\\\\PUVI-DOC\\\\\\\\Vendor-based Manufacturing ERP\\\\\\\\backend\\\\\\\\app\\\\\\\\main.py', encoding='utf-8'\\).read\\(\\)\\); print\\('main.py syntax OK'\\)\")",
+      "Bash(\"C:/Windows/py.exe\" -c \"import ast; ast.parse\\(open\\(r'd:\\\\\\\\PUVI-DOC\\\\\\\\Vendor-based Manufacturing ERP\\\\\\\\backend\\\\\\\\app\\\\\\\\routes\\\\\\\\production.py', encoding='utf-8'\\).read\\(\\)\\); print\\('production.py syntax OK'\\)\")",
+      "Bash(\"C:/Windows/py.exe\" -c \"import ast; ast.parse\\(open\\(r'd:\\\\\\\\PUVI-DOC\\\\\\\\Vendor-based Manufacturing ERP\\\\\\\\backend\\\\\\\\app\\\\\\\\models\\\\\\\\models.py', encoding='utf-8'\\).read\\(\\)\\); print\\('models.py syntax OK'\\)\")"
+    ]
+  }
+}

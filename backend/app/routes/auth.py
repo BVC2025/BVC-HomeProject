@@ -1,133 +1,109 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from passlib.context import CryptContext
+from pydantic import BaseModel
+from typing import Optional
 
 from app.database.database import get_db
-from app.models.models import RootUser
-
-from app.schemas.auth_schema import (
-    RootUserCreate,
-    LoginSchema
-)
-
-from app.auth.jwt_handler import (
-    create_token
-)
 
 from app.auth.auth_bearer import (
-    get_current_user
+    get_current_user,
+    ADMIN_ROLES
 )
+
+from app.services.auth_service import (
+    find_employee_by_login,
+    verify_password,
+    build_login_response
+)
+
 
 router = APIRouter()
 
-pwd_context = CryptContext(
-    schemes=["bcrypt"],
-    deprecated="auto"
-)
+
+class LoginRequest(BaseModel):
+
+    EMPLOYEE_CODE: Optional[str] = None
+    EMAIL: Optional[str] = None
+    PASSWORD: str
 
 
 # =========================
-# CREATE ROOT USER
+# ADMIN LOGIN
 # =========================
 
-@router.post("/create-root-user")
-def create_root_user(
-    data: RootUserCreate,
+@router.post("/admin-login")
+def admin_login(
+    data: LoginRequest,
     db: Session = Depends(get_db)
 ):
+    """
+    Login for admin-side users (SUPER_ADMIN / ADMIN / HR /
+    MANAGER / PRODUCTION_HEAD). Accepts either EMPLOYEE_CODE
+    or EMAIL plus password.
+    """
 
-    try:
+    identifier = data.EMPLOYEE_CODE or data.EMAIL
 
-        # hash password
-        hashed_password = pwd_context.hash(
-            data.PASSWORD
-        )
-
-        # create object
-        new_user = RootUser(
-            EMAIL=data.EMAIL,
-            PASSWORD=hashed_password,
-            VENDOR_ID=data.VENDOR_ID,
-            STATUS="ACTIVE"
-        )
-
-        # save to db
-        db.add(new_user)
-
-        db.commit()
-
-        db.refresh(new_user)
-
-        return {
-            "message": "Root user created successfully",
-            "user_id": new_user.ID
-        }
-
-    except Exception as e:
-
-        db.rollback()
+    if not identifier:
 
         raise HTTPException(
-            status_code=500,
-            detail=str(e)
+            status_code=400,
+            detail="EMPLOYEE_CODE or EMAIL is required"
         )
+
+    emp = find_employee_by_login(db, identifier)
+
+    if not emp:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Account not found"
+        )
+
+    if emp.STATUS and emp.STATUS.upper() != "ACTIVE":
+
+        raise HTTPException(
+            status_code=403,
+            detail=f"Account is {emp.STATUS}"
+        )
+
+    if not verify_password(data.PASSWORD, emp.PASSWORD):
+
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid password"
+        )
+
+    response = build_login_response(db, emp)
+
+    if response["role"] not in ADMIN_ROLES:
+
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "This account does not have admin "
+                "access. Use the Employee login instead."
+            )
+        )
+
+    return response
 
 
 # =========================
-# LOGIN
+# LEGACY /login (now backed by Employee)
 # =========================
 
 @router.post("/login")
-def login(
-    data: LoginSchema,
+def legacy_login(
+    data: LoginRequest,
     db: Session = Depends(get_db)
 ):
+    """
+    Backward-compatible alias of /admin-login. Older clients
+    that POST to /login keep working.
+    """
 
-    try:
-
-        # check user
-        user = db.query(RootUser).filter(
-            RootUser.EMAIL == data.EMAIL
-        ).first()
-
-        if not user:
-
-            raise HTTPException(
-                status_code=404,
-                detail="User not found"
-            )
-
-        # verify password
-        valid_password = pwd_context.verify(
-            data.PASSWORD,
-            user.PASSWORD
-        )
-
-        if not valid_password:
-
-            raise HTTPException(
-                status_code=401,
-                detail="Invalid password"
-            )
-
-        # create jwt token
-        token = create_token({
-            "user_id": user.ID,
-            "email": user.EMAIL,
-            "vendor_id": user.VENDOR_ID
-        })
-
-        return {
-            "access_token": token,
-            "token_type": "bearer"
-        }
-
-    except Exception as e:
-
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
+    return admin_login(data, db)
 
 
 # =========================

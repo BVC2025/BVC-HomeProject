@@ -1,0 +1,12 @@
+# BVC24 ERP — AI / Chatbot dependencies.
+# Install with:  pip install -r requirements-ai.txt
+#
+# Gemini gives a generous free tier (1500 req/day, 15 RPM, 1M tok/min).
+# Get a free API key (no credit card needed) at:
+#   https://aistudio.google.com/apikey
+#
+# Then add to backend/.env:
+#   GEMINI_API_KEY=your_key_here
+#   GEMINI_MODEL=gemini-2.0-flash-exp     # optional, default is set in code
+
+google-generativeai==0.8.3

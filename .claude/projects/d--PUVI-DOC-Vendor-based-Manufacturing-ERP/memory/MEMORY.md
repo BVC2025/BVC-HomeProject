@@ -1,0 +1,4 @@
+- [User communication style](user_language.md) — Speaks Tanglish (Tamil + English mixed); responses should match this register
+- [BVC24 project pivot](project_bvc24_pivot.md) — Existing ERP being repurposed for Bharath Vending Corporation (Coimbatore) with biometric + AI allocation
+- [BVC24 Gantt reference](reference_bvc24_gantt.md) — 20-week implementation plan, 7 phases, kickoff 26 May 2025, go-live 6 Oct 2025
+- [Biometric + AI design decisions](feedback_bvc24_design.md) — Real device (ZKTeco/eSSL/Mantra), rule-based scoring, full pivot, vertical-slice first
