@@ -25,13 +25,38 @@ router = APIRouter()
 # ---- Config ----
 
 DOC_TYPES = {
+    # ---- Identity ----
     "AADHAAR",
     "PAN",
+    "VOTER_ID",
+    "PASSPORT",
+    "DRIVING_LICENSE",
+
+    # ---- Education ----
+    "TENTH_MARKSHEET",         # 10th / SSLC
+    "TWELFTH_MARKSHEET",       # 12th / HSC
+    "DIPLOMA",                 # Diploma / ITI
+    "DEGREE",                  # Bachelor's (BE / BTech / BSc / BCom etc.)
+    "POSTGRADUATE",            # Master's (ME / MTech / MSc / MBA etc.)
+    "EDUCATIONAL",             # Other educational (kept for back-compat)
+    "CERTIFICATE",             # Professional / technical certificate
+
+    # ---- Employment ----
     "RESUME",
     "OFFER_LETTER",
-    "CERTIFICATE",
+    "JOINING_LETTER",
     "EXPERIENCE_LETTER",
-    "EDUCATIONAL",
+    "RELIEVING_LETTER",
+    "SALARY_SLIP",             # Previous employer payslip
+
+    # ---- Personal / Banking ----
+    "PHOTO",
+    "BIRTH_CERTIFICATE",
+    "MARRIAGE_CERTIFICATE",
+    "ADDRESS_PROOF",
+    "BANK_PASSBOOK",           # Or cancelled cheque
+
+    # ---- Catch-all ----
     "OTHER",
 }
 

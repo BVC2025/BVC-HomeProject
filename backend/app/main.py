@@ -62,6 +62,10 @@ from app.routes.approvals import router as approvals_router
 from app.routes.ai_command import router as ai_command_router
 from app.routes.dashboard_aggregators import router as dashboard_aggregators_router
 from app.routes.ai import router as ai_router
+from app.routes.public_enquiry import router as public_enquiry_router
+from app.routes.geofence import router as geofence_router
+from app.routes.employee_memos import router as employee_memos_router
+from app.routes.leave_chatbot import router as leave_chatbot_router
 from app.routes.employee_portal import router as employee_portal_router
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -227,6 +231,17 @@ def _auto_migrate():
         ("payroll_slip", "ESI_EMPLOYEE",          "FLOAT NULL DEFAULT 0"),
         ("payroll_slip", "ESI_EMPLOYER",          "FLOAT NULL DEFAULT 0"),
         ("payroll_slip", "PROFESSIONAL_TAX",      "FLOAT NULL DEFAULT 0"),
+        # ---- Geofenced attendance (Module: Geofence) ----
+        ("attendance", "CHECKIN_LATITUDE",   "FLOAT NULL"),
+        ("attendance", "CHECKIN_LONGITUDE",  "FLOAT NULL"),
+        ("attendance", "CHECKIN_DISTANCE",   "FLOAT NULL"),
+        ("attendance", "CHECKOUT_LATITUDE",  "FLOAT NULL"),
+        ("attendance", "CHECKOUT_LONGITUDE", "FLOAT NULL"),
+        ("attendance", "CHECKOUT_DISTANCE",  "FLOAT NULL"),
+        ("attendance", "GEOFENCE_STATUS",    "VARCHAR(20) NULL"),
+        ("attendance", "DEVICE_INFO",        "VARCHAR(255) NULL"),
+        ("attendance", "BROWSER_INFO",       "VARCHAR(255) NULL"),
+        ("attendance", "IP_ADDRESS",         "VARCHAR(60) NULL"),
     ]
 
     # Indexes / unique constraints that earlier model versions
@@ -461,6 +476,85 @@ def _auto_migrate():
                 CONSTRAINT `fk_emp_onboard_approved_by`
                     FOREIGN KEY (`APPROVED_BY_ID`)
                     REFERENCES `employee` (`ID`)
+            )
+            """
+        ),
+        (
+            "geofence_settings",
+            """
+            CREATE TABLE IF NOT EXISTS `geofence_settings` (
+                `ID` INT NOT NULL AUTO_INCREMENT,
+                `VENDOR_ID` INT NULL,
+                `OFFICE_NAME` VARCHAR(150) NULL,
+                `LATITUDE` FLOAT NOT NULL DEFAULT 0,
+                `LONGITUDE` FLOAT NOT NULL DEFAULT 0,
+                `RADIUS_METERS` INT NOT NULL DEFAULT 100,
+                `IS_ACTIVE` INT NOT NULL DEFAULT 1,
+                `CREATED_AT` DATETIME NULL,
+                `UPDATED_AT` DATETIME NULL,
+                PRIMARY KEY (`ID`),
+                KEY `ix_geofence_vendor` (`VENDOR_ID`)
+            )
+            """
+        ),
+        (
+            "employee_memos",
+            """
+            CREATE TABLE IF NOT EXISTS `employee_memos` (
+                `ID` INT NOT NULL AUTO_INCREMENT,
+                `MEMO_NUMBER` VARCHAR(30) NULL,
+                `EMPLOYEE_ID` VARCHAR(36) NOT NULL,
+                `MEMO_TYPE` VARCHAR(40) NOT NULL,
+                `SUBJECT` VARCHAR(200) NOT NULL,
+                `DESCRIPTION` VARCHAR(4000) NULL,
+                `SEVERITY` VARCHAR(20) NULL DEFAULT 'LOW',
+                `STATUS` VARCHAR(20) NULL DEFAULT 'ACTIVE',
+                `ISSUED_BY` VARCHAR(100) NULL,
+                `ISSUE_DATE` DATE NULL,
+                `ATTACHMENT_URL` VARCHAR(500) NULL,
+                `ATTACHMENT_NAME` VARCHAR(255) NULL,
+                `ACKNOWLEDGED_BY_EMPLOYEE` INT NOT NULL DEFAULT 0,
+                `ACKNOWLEDGED_DATE` DATETIME NULL,
+                `REMARKS` VARCHAR(2000) NULL,
+                `CREATED_BY_ID` VARCHAR(36) NULL,
+                `UPDATED_BY_ID` VARCHAR(36) NULL,
+                `CREATED_AT` DATETIME NULL,
+                `UPDATED_AT` DATETIME NULL,
+                `DELETED_AT` DATETIME NULL,
+                `VENDOR_ID` INT NULL,
+                PRIMARY KEY (`ID`),
+                UNIQUE KEY `uq_memo_number` (`MEMO_NUMBER`),
+                KEY `ix_memo_employee` (`EMPLOYEE_ID`),
+                KEY `ix_memo_type` (`MEMO_TYPE`),
+                KEY `ix_memo_severity` (`SEVERITY`),
+                KEY `ix_memo_status` (`STATUS`),
+                KEY `ix_memo_issue` (`ISSUE_DATE`),
+                KEY `ix_memo_deleted` (`DELETED_AT`),
+                CONSTRAINT `fk_memo_employee`
+                    FOREIGN KEY (`EMPLOYEE_ID`)
+                    REFERENCES `employee` (`ID`)
+            )
+            """
+        ),
+        (
+            "attendance_security_logs",
+            """
+            CREATE TABLE IF NOT EXISTS `attendance_security_logs` (
+                `ID` INT NOT NULL AUTO_INCREMENT,
+                `EMPLOYEE_ID` VARCHAR(36) NULL,
+                `LATITUDE` FLOAT NULL,
+                `LONGITUDE` FLOAT NULL,
+                `DISTANCE` FLOAT NULL,
+                `REASON` VARCHAR(80) NULL,
+                `DETAIL` VARCHAR(500) NULL,
+                `DEVICE_INFO` VARCHAR(255) NULL,
+                `IP_ADDRESS` VARCHAR(60) NULL,
+                `VENDOR_ID` INT NULL,
+                `CREATED_AT` DATETIME NULL,
+                PRIMARY KEY (`ID`),
+                KEY `ix_sec_log_emp` (`EMPLOYEE_ID`),
+                KEY `ix_sec_log_reason` (`REASON`),
+                KEY `ix_sec_log_created` (`CREATED_AT`)
             )
             """
         ),
@@ -812,6 +906,10 @@ app.include_router(approvals_router)
 app.include_router(ai_command_router)
 app.include_router(dashboard_aggregators_router)
 app.include_router(ai_router)
+app.include_router(public_enquiry_router)
+app.include_router(geofence_router)
+app.include_router(employee_memos_router)
+app.include_router(leave_chatbot_router)
 app.include_router(employee_portal_router, tags=["Employee Portal"])
 
 

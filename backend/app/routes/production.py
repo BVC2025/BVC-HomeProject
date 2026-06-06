@@ -590,6 +590,7 @@ def create_product_model(
 def list_product_models(
     vendor_id: int = 1,
     status: Optional[str] = None,
+    include_discontinued: bool = False,
     db: Session = Depends(get_db)
 ):
 
@@ -602,6 +603,11 @@ def list_product_models(
     if status:
 
         q = q.filter(ProductModel.STATUS == status)
+
+    elif not include_discontinued:
+
+        # Hide soft-deleted (DISCONTINUED) models by default
+        q = q.filter(ProductModel.STATUS != "DISCONTINUED")
 
     rows = q.order_by(ProductModel.MODEL_NAME).all()
 

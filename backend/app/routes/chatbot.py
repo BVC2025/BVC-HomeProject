@@ -2715,6 +2715,17 @@ class ChatStreamMessage(BaseModel):
     #   False -> always use rule-based
     #   None  -> hybrid (rules first, fallback to Gemini)
 
+    # ---- Leave-workflow bridge (employee portal) -------------------
+    # The floating ERP Assistant doubles as the leave assistant on the
+    # Employee Portal. employee_id identifies the logged-in employee;
+    # leave_state carries the multi-turn conversation context (type,
+    # dates, reason, is_half_day) across turns so the bot can collect
+    # missing fields one at a time. Both are optional — admin chat
+    # sessions don't set them.
+    employee_id: Optional[str] = None
+
+    leave_state: Optional[Dict] = None
+
 
 def _is_rule_unknown(result: Dict) -> bool:
     """Heuristic: did the rule-based bot just return the generic
@@ -2738,6 +2749,292 @@ def chat(
     the structured reply. 100% local, no external API, no quota."""
 
     return parse_intent(data.message, db)
+
+
+# =====================================================================
+# LEAVE WORKFLOW BRIDGE
+# =====================================================================
+# The floating ERP Assistant is multi-purpose: free-text Q&A on every
+# module + step-by-step leave application + leave-status lookups.
+# Detection happens BEFORE the rule-based parser so leave intents
+# don't get caught by generic "pending leave" admin handlers.
+
+import re as _re
+
+_LEAVE_REQUEST_PATTERNS = [
+    r"\b(apply|need|take|want|book|request|file|raise)\b.*\b(leave|holiday|vacation|off|permission|day off|wfh)\b",
+    r"\b(casual|sick|earned|maternity|unpaid)\s+leave\b",
+    r"\b(half[\s\-]?day|halfday|0\.5\s*day)\b",
+    r"^(leave|permission)\s+(tomorrow|today|next|on|for|from)\b",
+    r"\bgoing\s+on\s+leave\b",
+]
+
+_LEAVE_STATUS_PATTERNS = [
+    r"\b(leave\s+status|my\s+leave|leave\s+approved|leave\s+rejected|leave\s+history|leave\s+balance|leave\s+request)\b",
+    r"\b(approved|rejected|pending).*(leave|permission)\b",
+    r"\bwhat'?s?\s+my\s+(leave|permission)",
+    r"\bcheck\s+my\s+leave\b",
+]
+
+_LEAVE_CONFIRM_KEYWORDS = {
+    "confirm", "confirm & submit", "confirm and submit", "submit", "submit it",
+    "yes submit", "yes please submit", "go ahead", "apply it", "send it",
+    "yes", "yep", "yeah", "ok submit", "okay submit"
+}
+
+
+def _is_leave_request_msg(msg: str) -> bool:
+
+    low = (msg or "").lower().strip()
+
+    for pat in _LEAVE_REQUEST_PATTERNS:
+
+        if _re.search(pat, low):
+
+            return True
+
+    return False
+
+
+def _is_leave_status_msg(msg: str) -> bool:
+
+    low = (msg or "").lower().strip()
+
+    for pat in _LEAVE_STATUS_PATTERNS:
+
+        if _re.search(pat, low):
+
+            return True
+
+    return False
+
+
+def _is_confirm_submit(msg: str) -> bool:
+
+    low = (msg or "").lower().strip().rstrip(".!?")
+
+    return low in _LEAVE_CONFIRM_KEYWORDS
+
+
+def _is_cancel(msg: str) -> bool:
+
+    low = (msg or "").lower().strip()
+
+    return bool(_re.search(r"^(cancel|never\s*mind|forget\s*it|stop|abort|nvm)\b", low))
+
+
+def _handle_leave_status_query(db: Session, employee_id: str) -> dict:
+    """Return the employee's recent leave requests + approval status."""
+
+    from app.models.models import LeaveRequest, Employee
+
+    emp = (
+        db.query(Employee)
+        .filter(
+            (Employee.ID == employee_id) | (Employee.EMPLOYEE_CODE == employee_id)
+        )
+        .first()
+    )
+
+    if not emp:
+
+        return reply(
+            "I can't find your employee record. Try refreshing the page or contact HR.",
+            suggestions=["Apply for leave", "What can you do?"]
+        )
+
+    rows = (
+        db.query(LeaveRequest)
+        .filter(LeaveRequest.EMPLOYEE_ID == emp.ID)
+        .order_by(LeaveRequest.ID.desc())
+        .limit(5)
+        .all()
+    )
+
+    if not rows:
+
+        return reply(
+            "You have no leave requests on record yet. Want to apply for one now?",
+            suggestions=["Casual leave tomorrow", "Sick leave today", "Apply for leave"]
+        )
+
+    icon_map = {
+        "PENDING_APPROVAL": "⏳",
+        "APPROVED":         "✅",
+        "REJECTED":         "❌",
+        "CANCELLED":        "🚫",
+        "EXPIRED":          "⌛"
+    }
+
+    items = []
+
+    lines = ["Here are your recent leave requests:\n"]
+
+    for r in rows:
+
+        ico = icon_map.get(r.STATUS, "•")
+
+        dt = (
+            r.START_DATE.isoformat() if r.START_DATE else "?"
+        ) + (
+            f" → {r.END_DATE.isoformat()}"
+            if r.END_DATE and r.END_DATE != r.START_DATE else ""
+        )
+
+        lines.append(
+            f"{ico} **#{r.ID}** {r.LEAVE_TYPE} · {dt} · "
+            f"{r.STATUS.replace('_', ' ').title()}"
+            + (f"\n   _Reason: {r.REASON[:80]}_" if r.REASON else "")
+            + (f"\n   _Rejection: {r.REJECTION_REASON[:80]}_"
+               if r.STATUS == "REJECTED" and r.REJECTION_REASON else "")
+        )
+
+        items.append({
+            "type": "leave_request",
+            "id": r.ID,
+            "leave_type": r.LEAVE_TYPE,
+            "status": r.STATUS,
+            "start_date": r.START_DATE.isoformat() if r.START_DATE else None,
+            "end_date":   r.END_DATE.isoformat()   if r.END_DATE   else None,
+            "days": r.DAYS,
+            "reason": r.REASON
+        })
+
+    return reply(
+        "\n".join(lines),
+        items=items,
+        suggestions=["Apply for leave", "Casual leave tomorrow", "Sick leave today"]
+    )
+
+
+def _handle_leave_flow(
+    db: Session,
+    employee_id: str,
+    message: str,
+    leave_state: dict
+) -> dict:
+    """Run one turn of the leave conversation. Returns a dict shaped
+    like the rule-based reply() but with an extra `leave_state` field
+    that the SSE stream forwards back to the frontend."""
+
+    from app.services.leave_chatbot_service import handle_message as leave_handle
+
+    from app.models.models import Employee
+
+    emp = (
+        db.query(Employee)
+        .filter(
+            (Employee.ID == employee_id) | (Employee.EMPLOYEE_CODE == employee_id)
+        )
+        .first()
+    )
+
+    if not emp:
+
+        return {
+            **reply(
+                "I can't find your employee record. Try refreshing the page.",
+                suggestions=[]
+            ),
+            "leave_state": {}
+        }
+
+    # If user said "confirm & submit" AND we have a ready-to-submit state,
+    # do the actual submission via the existing /leave/apply logic.
+    if _is_confirm_submit(message) and leave_state and \
+       leave_state.get("leave_type") and leave_state.get("start_date") and \
+       leave_state.get("reason"):
+
+        return _submit_leave_from_state(db, emp, leave_state)
+
+    if _is_cancel(message) and leave_state:
+
+        return {
+            **reply(
+                "Okay — leave request discarded. Start a new one anytime.",
+                suggestions=["Casual leave tomorrow", "Sick leave today", "Earned leave next monday"]
+            ),
+            "leave_state": {}
+        }
+
+    # Normal multi-turn parse
+    result = leave_handle(
+        db=db,
+        employee=emp,
+        message=message,
+        prior_state=leave_state or {}
+    )
+
+    # Format reply text + suggestions into the shape the SSE stream expects
+    return {
+        "reply":       result.get("reply", ""),
+        "items":       [],
+        "suggestions": result.get("suggestions") or [],
+        "leave_state": result.get("state") or {},
+        "ready_to_submit": result.get("ready_to_submit", False)
+    }
+
+
+def _submit_leave_from_state(db: Session, employee, leave_state: dict) -> dict:
+    """Actually submit the leave by calling the same logic as
+    POST /leave/apply. Returns confirmation + clears leave_state."""
+
+    from app.routes.leave import apply_leave
+
+    from app.schemas.leave_schema import LeaveApplyRequest
+
+    from datetime import datetime as _dt
+
+    try:
+
+        sd = _dt.fromisoformat(leave_state["start_date"]).date()
+
+        ed = _dt.fromisoformat(leave_state["end_date"]).date()
+
+        body = LeaveApplyRequest(
+            EMPLOYEE_ID=employee.ID,
+            LEAVE_TYPE=leave_state["leave_type"],
+            START_DATE=sd,
+            END_DATE=ed,
+            REASON=leave_state.get("reason") or "",
+            HALF_DAY=bool(leave_state.get("is_half_day"))
+        )
+
+        res = apply_leave(body, db)
+
+        lr = res.get("leave") or res.get("leave_request") or {}
+
+        rid = lr.get("ID")
+
+        return {
+            **reply(
+                f"✅ **Submitted!** Your leave request **#{rid}** is now with HR for approval.\n\n"
+                f"📧 An email has been sent to the approver.\n"
+                f"📋 You can ask me *'leave status'* anytime to check approval.",
+                suggestions=["Check my leave status", "Apply for another leave", "What can you do?"]
+            ),
+            "leave_state": {}
+        }
+
+    except HTTPException as he:
+
+        return {
+            **reply(
+                f"⚠ Submission rejected: {he.detail}\n\nWhat would you like to change?",
+                suggestions=["Change date", "Change reason", "Cancel"]
+            ),
+            "leave_state": leave_state
+        }
+
+    except Exception as e:
+
+        return {
+            **reply(
+                f"⚠ Couldn't submit: {str(e)[:200]}\n\nTry again or use the form on the page.",
+                suggestions=["Cancel"]
+            ),
+            "leave_state": leave_state
+        }
 
 
 @router.post("/chat/stream")
@@ -2778,9 +3075,84 @@ def chat_stream(
 
             return
 
-        # Always go through the rule-based parser. No Gemini fallback
-        # — that path was removed after the Google account hit
-        # project-level permission denials.
+        # =================================================================
+        # LEAVE WORKFLOW BRIDGE — runs ONLY when employee_id is set
+        # (Employee Portal context). Catches:
+        #   • leave application requests (multi-turn collect → submit)
+        #   • mid-flow continuations (when leave_state is already populated)
+        #   • leave status queries
+        # =================================================================
+        emp_ctx = (data.employee_id or "").strip()
+
+        prior_leave_state = data.leave_state or {}
+
+        in_leave_flow = bool(emp_ctx) and bool(prior_leave_state)
+
+        is_leave_req  = bool(emp_ctx) and _is_leave_request_msg(message)
+
+        is_leave_stat = bool(emp_ctx) and _is_leave_status_msg(message)
+
+        if emp_ctx and is_leave_stat and not in_leave_flow:
+
+            yield _sse({"type": "source", "source": "leave"})
+
+            try:
+
+                result = _handle_leave_status_query(db, emp_ctx)
+
+            except Exception as e:
+
+                yield _sse({"type": "error", "message": f"Leave status error: {e}"})
+                yield _sse({"type": "done"})
+                return
+
+            text = (result.get("reply") or "").strip()
+
+            for i in range(0, len(text), 6):
+                yield _sse({"type": "text", "text": text[i:i + 6]})
+
+            if result.get("items"):
+                yield _sse({"type": "items", "items": result["items"]})
+
+            if result.get("suggestions"):
+                yield _sse({"type": "suggestions", "suggestions": result["suggestions"]})
+
+            yield _sse({"type": "done"})
+            return
+
+        if emp_ctx and (in_leave_flow or is_leave_req):
+
+            yield _sse({"type": "source", "source": "leave"})
+
+            try:
+
+                result = _handle_leave_flow(db, emp_ctx, message, prior_leave_state)
+
+            except Exception as e:
+
+                yield _sse({"type": "error", "message": f"Leave flow error: {e}"})
+                yield _sse({"type": "done"})
+                return
+
+            # New event type — frontend stores leave_state for the next turn
+            yield _sse({
+                "type": "leave_state",
+                "state": result.get("leave_state") or {},
+                "ready_to_submit": bool(result.get("ready_to_submit"))
+            })
+
+            text = (result.get("reply") or "").strip()
+
+            for i in range(0, len(text), 6):
+                yield _sse({"type": "text", "text": text[i:i + 6]})
+
+            if result.get("suggestions"):
+                yield _sse({"type": "suggestions", "suggestions": result["suggestions"]})
+
+            yield _sse({"type": "done"})
+            return
+
+        # ---- Default path: rule-based parser for everything else ----
         yield _sse({"type": "source", "source": "rules"})
 
         try:

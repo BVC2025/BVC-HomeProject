@@ -1,0 +1,712 @@
+[startup] .env loaded from: D:\PUVI-DOC\Vendor-based Manufacturing ERP\backend\.env
+[startup] APPROVER_EMAIL = ppuviyarasi.002@gmail.com
+[startup] SMTP_HOST      = smtp.gmail.com
+INFO:     127.0.0.1:49750 - "GET /chat/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49771 - "GET /chat/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49820 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:49821 - "OPTIONS /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49822 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49821 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49820 - "GET /employee/EMP101/portal-dashboard HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:49823 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49825 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49824 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49894 - "POST /chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49897 - "POST /chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50166 - "OPTIONS /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50169 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50171 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50169 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50172 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50166 - "GET /employee/EMP101/portal-dashboard HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50174 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50173 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50221 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50223 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50222 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50224 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50226 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50225 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50225 - "OPTIONS /employees/by-code/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50225 - "GET /employees/by-code/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50225 - "OPTIONS /memos/employee/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50226 - "OPTIONS /leave-chatbot/greeting/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50226 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50222 - "GET /memos/employee/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50225 - "GET /employee/EMP101/portal-dashboard HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50225 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50226 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50222 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50224 - "GET /leave-chatbot/greeting/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50221 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50223 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50223 - "OPTIONS /chat/suggestions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50223 - "GET /chat/suggestions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50323 - "OPTIONS /chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50323 - "POST /chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50323 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50327 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50326 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50323 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50327 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50326 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50351 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50353 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50352 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50351 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50352 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50353 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50417 - "POST /chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50417 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50419 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50418 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50417 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50418 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50419 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50484 - "POST /chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50486 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50485 - "GET /employee/EMP101/portal-dashboard HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50486 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50485 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50486 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50485 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50486 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50557 - "POST /chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50558 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50560 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50559 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50558 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50560 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50559 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50626 - "POST /chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50626 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50628 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50627 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50626 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50628 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50627 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50696 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50698 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50697 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50696 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50698 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50697 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50760 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50760 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50759 - "GET /employee/EMP101/portal-dashboard HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50761 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50760 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50759 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50761 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50900 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50902 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50901 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50903 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50905 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50904 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50973 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:50975 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50974 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50976 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50977 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50978 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51046 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51048 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51047 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51049 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51050 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51051 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51119 - "OPTIONS /employee/EMP101/portal-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51120 - "OPTIONS /employee/EMP101/production-stages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51121 - "OPTIONS /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51123 - "OPTIONS /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51124 - "OPTIONS /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51120 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51119 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51122 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51121 - "GET /employee/EMP101/portal-dashboard HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51123 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51120 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51124 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51193 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51195 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51194 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51196 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51198 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51197 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51267 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51269 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51268 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51270 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51271 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51272 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51340 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51342 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51341 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51343 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51345 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51344 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51410 - "GET /employee/EMP101/portal-dashboard HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51411 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51411 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51411 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51411 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51411 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51411 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51598 - "GET /chat/suggestions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51599 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51601 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51600 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51598 - "GET /employee/EMP101/portal-dashboard HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51602 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51599 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51601 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51667 - "POST /chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51736 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51738 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51737 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51739 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51740 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51741 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51809 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51811 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51810 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51812 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51813 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51814 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51883 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51885 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51884 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51886 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51887 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51888 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51958 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51960 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51957 - "GET /employee/EMP101/portal-dashboard HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51959 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51961 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51958 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51962 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51961 - "POST /chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51986 - "POST /chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51988 - "POST /chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51988 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:51988 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51988 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51988 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51988 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51988 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52034 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:52036 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52035 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52037 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52034 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52038 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52038 - "POST /chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52101 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:52101 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52101 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52101 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52101 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52101 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52167 - "OPTIONS /employee-logout HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52168 - "POST /employee-logout HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52169 - "OPTIONS /admin-login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52170 - "POST /admin-login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52170 - "OPTIONS /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52169 - "OPTIONS /admin/dashboard/analytics/revenue?range=month HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52171 - "OPTIONS /admin/dashboard-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52171 - "OPTIONS /admin/dashboard/health-score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52169 - "OPTIONS /admin/dashboard/factory-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52170 - "OPTIONS /admin/dashboard/insights HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52171 - "OPTIONS /admin/dashboard/production-flow HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52169 - "OPTIONS /admin/dashboard/activity-feed HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52170 - "OPTIONS /admin/dashboard/top-performers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52171 - "OPTIONS /admin/approvals/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52169 - "OPTIONS /inventory?status=LOW_STOCK&limit=5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52170 - "OPTIONS /memos/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52169 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52170 - "GET /admin/dashboard-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52169 - "GET /admin/dashboard/analytics/revenue?range=month HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52169 - "GET /admin/dashboard/factory-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52170 - "GET /admin/dashboard/health-score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52169 - "GET /admin/dashboard/insights HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52170 - "GET /admin/dashboard/production-flow HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52170 - "GET /admin/dashboard/top-performers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52171 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52171 - "GET /inventory?status=LOW_STOCK&limit=5 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:52171 - "GET /memos/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52171 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52171 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52169 - "GET /admin/dashboard/activity-feed HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52170 - "GET /admin/approvals/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52221 - "OPTIONS /leave/pending?vendor_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52222 - "OPTIONS /leave/all?vendor_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52223 - "OPTIONS /leave/dashboard?vendor_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52221 - "GET /leave/pending?vendor_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52222 - "GET /leave/dashboard?vendor_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52223 - "GET /leave/all?vendor_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52327 - "OPTIONS /leave/26/approve HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52327 - "PATCH /leave/26/approve HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52329 - "GET /leave/all?vendor_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52327 - "GET /leave/pending?vendor_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52329 - "GET /leave/dashboard?vendor_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52331 - "OPTIONS /leave/25/approve HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52358 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52357 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52357 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52358 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52331 - "PATCH /leave/25/approve HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52331 - "GET /leave/pending?vendor_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52358 - "GET /leave/all?vendor_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52357 - "GET /leave/dashboard?vendor_id=1 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52483 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52482 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52482 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52483 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52504 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52504 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52504 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52504 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52632 - "OPTIONS /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52632 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52611 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52611 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52632 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52888 - "OPTIONS /employee-login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52888 - "POST /employee-login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:52890 - "POST /employee-login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52890 - "GET /employees/by-code/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52890 - "GET /memos/employee/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52891 - "GET /leave-chatbot/greeting/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52891 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:52890 - "GET /employee/EMP101/portal-dashboard HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:52890 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52891 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52890 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52890 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52891 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52917 - "OPTIONS /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52918 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:52919 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52919 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52920 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52917 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52918 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52982 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:52982 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52983 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52982 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52983 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52982 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53047 - "OPTIONS /chat/suggestions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53047 - "GET /chat/suggestions HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53048 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53050 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53049 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53050 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53048 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53049 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53114 - "OPTIONS /chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53115 - "POST /chat/stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53116 - "GET /employee/EMP101/portal-dashboard HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53116 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53116 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53116 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53116 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53116 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53116 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53182 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53184 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53183 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53182 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53185 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53186 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53248 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53248 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53248 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53248 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53248 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53248 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53314 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53317 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53315 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53314 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53318 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53316 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53384 - "OPTIONS /leave/24/cancel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53384 - "PATCH /leave/24/cancel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53384 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53384 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53384 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53384 - "OPTIONS /leave/23/cancel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53384 - "PATCH /leave/23/cancel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53384 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53408 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53409 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53409 - "OPTIONS /leave/18/cancel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53409 - "PATCH /leave/18/cancel HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53409 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53384 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53408 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53384 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53384 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53408 - "GET /employee/EMP101/portal-dashboard HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53409 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53384 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53409 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53408 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53453 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53455 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53454 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53453 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53455 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53454 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53519 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53521 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53520 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53519 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53521 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53520 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53586 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53588 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53587 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53586 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53587 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53588 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53654 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53654 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53653 - "GET /employee/EMP101/portal-dashboard HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53655 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53654 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53655 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53653 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53720 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53722 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53721 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53720 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53722 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53721 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53786 - "OPTIONS /employee/EMP101/production-stages HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53787 - "OPTIONS /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53787 - "OPTIONS /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53787 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53788 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53788 - "OPTIONS /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53786 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53787 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53788 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53786 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53852 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53854 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53853 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53852 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53854 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53853 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53919 - "OPTIONS /employee/EMP101/portal-dashboard HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53919 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53921 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53920 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53921 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53919 - "GET /employee/EMP101/portal-dashboard HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53920 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53921 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53985 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53987 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53986 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53985 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53986 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53987 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53987 - "OPTIONS /leave-chatbot/message HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53986 - "POST /leave-chatbot/message HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54053 - "POST /leave-chatbot/message HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54053 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54055 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54054 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54053 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54055 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54054 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54121 - "POST /leave-chatbot/message HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54121 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54123 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54122 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54121 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54123 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54122 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54191 - "POST /leave-chatbot/message HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54192 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54192 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54191 - "GET /employee/EMP101/portal-dashboard HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54193 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54192 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54191 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54193 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54193 - "POST /leave-chatbot/message HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54260 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54262 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54261 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54260 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54262 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54261 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54261 - "POST /leave-chatbot/message HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54329 - "OPTIONS /employees/by-code/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54329 - "GET /employees/by-code/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54329 - "OPTIONS /memos/employee/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54329 - "OPTIONS /leave-chatbot/greeting/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54331 - "GET /employee/EMP101/portal-dashboard HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54331 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54330 - "GET /leave-chatbot/greeting/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54331 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54330 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54329 - "GET /memos/employee/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54329 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54331 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54330 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54383 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54384 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54385 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54383 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54384 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54385 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54454 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54456 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54455 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54456 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54454 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54455 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54522 - "POST /leave-chatbot/message HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54521 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54523 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54521 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54523 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54521 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54523 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54590 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54592 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54589 - "GET /employee/EMP101/portal-dashboard HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54591 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54590 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54592 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54589 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54656 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54656 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54655 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54656 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54655 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54656 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54722 - "GET /employees/by-code/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54725 - "GET /employee/EMP101/production-stages HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54724 - "GET /employee/EMP101/portal-dashboard HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54722 - "GET /memos/employee/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54723 - "GET /leave-chatbot/greeting/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54725 - "GET /leave/balance/EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54724 - "GET /leave/my-requests?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54725 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54722 - "GET /leave/my-permissions?employee_id=EMP101 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54723 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54796 - "POST /employee-logout HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54797 - "POST /admin-login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54797 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54797 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54797 - "GET /admin/dashboard/analytics/revenue?range=month HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54797 - "GET /admin/dashboard-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54797 - "GET /admin/dashboard/health-score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54797 - "GET /admin/dashboard/factory-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54797 - "GET /admin/dashboard/insights HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54797 - "GET /admin/dashboard/production-flow HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54797 - "GET /admin/dashboard/activity-feed HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54797 - "GET /admin/dashboard/top-performers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54797 - "GET /admin/approvals/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54797 - "GET /inventory?status=LOW_STOCK&limit=5 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:54797 - "GET /memos/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54797 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54797 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54891 - "OPTIONS /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54892 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54893 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54892 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54893 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54895 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54894 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54894 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54895 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55266 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55265 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55265 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55266 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55267 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55267 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55267 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55267 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55438 - "OPTIONS /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55438 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55439 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55439 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55438 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55440 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55440 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55440 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55440 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55700 - "OPTIONS /admin/dashboard/analytics/revenue?range=month HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55701 - "OPTIONS /admin/dashboard-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55702 - "OPTIONS /admin/dashboard/health-score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55702 - "OPTIONS /admin/dashboard/factory-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55702 - "OPTIONS /admin/dashboard/insights HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55701 - "GET /admin/dashboard/analytics/revenue?range=month HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55701 - "OPTIONS /admin/dashboard/production-flow HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55701 - "OPTIONS /admin/dashboard/activity-feed HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55700 - "GET /admin/dashboard-stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55700 - "OPTIONS /admin/dashboard/top-performers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55702 - "GET /admin/dashboard/health-score HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55701 - "GET /admin/dashboard/factory-status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55702 - "OPTIONS /admin/approvals/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55701 - "OPTIONS /inventory?status=LOW_STOCK&limit=5 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55702 - "OPTIONS /memos/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55700 - "GET /admin/dashboard/insights HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55701 - "GET /admin/dashboard/production-flow HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55702 - "GET /admin/dashboard/activity-feed HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55702 - "GET /inventory?status=LOW_STOCK&limit=5 HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55700 - "GET /admin/dashboard/top-performers HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55701 - "GET /admin/approvals/pending HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55702 - "GET /memos/stats HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55726 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55727 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55726 - "OPTIONS /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55727 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55726 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56195 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56194 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56194 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56195 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56196 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56196 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56196 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56196 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56448 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56447 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56447 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56448 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56947 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56946 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56946 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56947 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56948 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56948 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56948 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56948 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57200 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57199 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57199 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57200 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57476 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57475 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57475 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57476 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57478 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57478 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57478 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57478 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57607 - "OPTIONS /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57608 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57609 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57609 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57608 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57963 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57962 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57962 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57963 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57966 - "OPTIONS /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57966 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57966 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57966 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57966 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58214 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58213 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58213 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58214 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58728 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58727 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58727 - "OPTIONS /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58728 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58727 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58836 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58835 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58835 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58836 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58837 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58837 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58837 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58837 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     192.168.1.56:58971 - "GET /docs HTTP/1.1" 200 OK
+INFO:     192.168.1.56:58971 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58884 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58885 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58885 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58884 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58886 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58886 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58886 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58886 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59145 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59144 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59144 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59145 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59146 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59146 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59146 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59146 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59401 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59400 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59400 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59401 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59715 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59714 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59714 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59715 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59716 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59716 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59716 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59716 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59784 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59783 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59783 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59784 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59785 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59785 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59785 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59785 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60099 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60098 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60098 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60099 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60576 - "OPTIONS /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60577 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60576 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60576 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60577 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60580 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60579 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60579 - "OPTIONS /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60579 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60580 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61088 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61087 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61087 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61088 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61089 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61089 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61089 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61089 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61343 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61342 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61342 - "OPTIONS /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61343 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61342 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61850 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61849 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61849 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61850 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61851 - "POST /notifications/generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61851 - "GET /notifications/unread-count HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61851 - "GET /notifications HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61851 - "GET /notifications/unread-count HTTP/1.1" 200 OK

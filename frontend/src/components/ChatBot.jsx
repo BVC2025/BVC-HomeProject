@@ -127,8 +127,56 @@ export default function ChatBot() {
   }, [open]);
 
 
-  // Track which router answered (rules vs gemini) for the in-flight reply
+  // Track which router answered (rules / leave / gemini) for the in-flight reply
   const [streamingMode, setStreamingMode] = useState(null);
+
+  // ---- Leave workflow state — multi-turn conversation context ----
+  // Stored per-employee in localStorage so refreshing the page doesn't
+  // lose a half-finished leave request. Cleared once the request is
+  // submitted (or the user cancels).
+  const employeeId = (() => {
+
+    try {
+
+      return localStorage.getItem("employee_id")
+        || localStorage.getItem("EMPLOYEE_ID")
+        || null;
+
+    } catch { return null; }
+  })();
+
+  const LEAVE_STATE_KEY = employeeId ? `chatbot_leave_state_${employeeId}` : null;
+
+  const readLeaveState = () => {
+
+    if (!LEAVE_STATE_KEY) return {};
+
+    try {
+
+      const raw = localStorage.getItem(LEAVE_STATE_KEY);
+
+      return raw ? JSON.parse(raw) : {};
+
+    } catch { return {}; }
+  };
+
+  const writeLeaveState = (state) => {
+
+    if (!LEAVE_STATE_KEY) return;
+
+    try {
+
+      if (!state || Object.keys(state).length === 0) {
+
+        localStorage.removeItem(LEAVE_STATE_KEY);
+
+      } else {
+
+        localStorage.setItem(LEAVE_STATE_KEY, JSON.stringify(state));
+      }
+
+    } catch { /* ignore */ }
+  };
 
   // Keep a short history that we send to Gemini so multi-turn works
   const buildHistory = (msgs) => {
@@ -224,7 +272,12 @@ export default function ChatBot() {
         headers,
         body: JSON.stringify({
           message: text,
-          history: buildHistory(messages)
+          history: buildHistory(messages),
+          // ---- Leave workflow context (employee portal only) ----
+          // Backend uses these to detect leave intents and run the
+          // multi-turn collect → confirm → submit conversation.
+          employee_id: employeeId,
+          leave_state: readLeaveState()
         })
       });
 
@@ -297,6 +350,14 @@ export default function ChatBot() {
           } else if (evt.type === "suggestions") {
 
             appendToBot({ suggestions: evt.suggestions });
+
+          } else if (evt.type === "leave_state") {
+
+            // Backend echoes back the merged leave conversation state.
+            // Persist so the next turn (or page refresh) continues
+            // where we left off. An empty {} state means the flow
+            // just finished (submitted or cancelled).
+            writeLeaveState(evt.state || {});
 
           } else if (evt.type === "error") {
 

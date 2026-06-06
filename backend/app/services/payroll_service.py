@@ -129,7 +129,31 @@ def calculate_employee_payroll(
 
     first, last = _month_range(year, month)
 
-    base_salary = float(employee.SALARY or 0.0)
+    # Pull salary structure up-front. If it exists, BASE_SALARY reflects
+    # the configured monthly gross (Basic + all allowances) so HR sees a
+    # meaningful number in the Payroll table. If no structure is configured
+    # we fall back to the legacy Employee.SALARY lump-sum field.
+    _structure = db.query(SalaryStructure).filter(
+        SalaryStructure.EMPLOYEE_ID == employee.ID
+    ).first()
+
+    if _structure:
+
+        base_salary = float(
+            (_structure.BASIC or 0.0) +
+            (_structure.HRA or 0.0) +
+            (_structure.DA or 0.0) +
+            (_structure.CONVEYANCE_ALLOWANCE or 0.0) +
+            (_structure.MEDICAL_ALLOWANCE or 0.0) +
+            (_structure.SPECIAL_ALLOWANCE or 0.0) +
+            (_structure.OTHER_ALLOWANCES or 0.0) +
+            (_structure.ANNUAL_BONUS or 0.0) +
+            (_structure.INCENTIVES or 0.0)
+        )
+
+    else:
+
+        base_salary = float(employee.SALARY or 0.0)
 
     per_day = (base_salary / working_days) if working_days > 0 else 0.0
 
@@ -230,12 +254,10 @@ def calculate_employee_payroll(
     # ---- 5. Money — Phase E: component breakdown + statutory ----
     paid_days = days_present + days_half * 0.5 + paid_leave
 
-    # Pull salary structure (if any). The "earned" multiplier prorates
-    # every component by attendance — so a half-month employee earns
-    # half of every allowance, not just half of BASIC.
-    structure = db.query(SalaryStructure).filter(
-        SalaryStructure.EMPLOYEE_ID == employee.ID
-    ).first()
+    # Reuse the salary structure fetched at the top of this function.
+    # The "earned" multiplier prorates every component by attendance —
+    # so a half-month employee earns half of every allowance.
+    structure = _structure
 
     earn_ratio = (paid_days / working_days) if working_days else 0.0
 

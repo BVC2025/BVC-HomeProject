@@ -1183,6 +1183,71 @@ class Attendance(Base):
         ForeignKey("vendor.ID")
     )
 
+    # ---- Geofencing (Module: Geofenced Attendance) ----
+    # Captured at check-in / check-out time so the admin can audit
+    # exactly where the employee was when they marked attendance.
+    CHECKIN_LATITUDE   = Column(Float, nullable=True)
+    CHECKIN_LONGITUDE  = Column(Float, nullable=True)
+    CHECKIN_DISTANCE   = Column(Float, nullable=True)   # metres from office
+    CHECKOUT_LATITUDE  = Column(Float, nullable=True)
+    CHECKOUT_LONGITUDE = Column(Float, nullable=True)
+    CHECKOUT_DISTANCE  = Column(Float, nullable=True)
+
+    GEOFENCE_STATUS    = Column(String(20), nullable=True)
+    # INSIDE / OUTSIDE / UNKNOWN  — set at check-in time
+
+    DEVICE_INFO        = Column(String(255), nullable=True)
+    BROWSER_INFO       = Column(String(255), nullable=True)
+    IP_ADDRESS         = Column(String(60), nullable=True)
+
+
+# =====================================================================
+# Geofence settings — single-row config per vendor for office location
+# =====================================================================
+
+class GeofenceSettings(Base):
+    """Office coordinates + allowed radius. One row per vendor.
+    Used by the attendance flow to validate that the employee is
+    physically near the office before allowing biometric scan."""
+
+    __tablename__ = "geofence_settings"
+
+    ID            = Column(Integer, primary_key=True, autoincrement=True)
+    VENDOR_ID     = Column(Integer, ForeignKey("vendor.ID"), index=True, nullable=True)
+    OFFICE_NAME   = Column(String(150), nullable=True)
+    LATITUDE      = Column(Float, nullable=False, default=0.0)
+    LONGITUDE     = Column(Float, nullable=False, default=0.0)
+    RADIUS_METERS = Column(Integer, nullable=False, default=100)
+    IS_ACTIVE     = Column(Integer, default=1)
+    # 1 = enforce geofencing, 0 = allow attendance from anywhere (kill-switch)
+    CREATED_AT    = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT    = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# =====================================================================
+# Attendance security log — every blocked / failed attempt
+# =====================================================================
+
+class AttendanceSecurityLog(Base):
+    """One row per failed attendance attempt. Helps the admin spot
+    employees trying to mark attendance from outside the office, GPS
+    spoofing attempts, or simple GPS permission denials."""
+
+    __tablename__ = "attendance_security_logs"
+
+    ID          = Column(Integer, primary_key=True, autoincrement=True)
+    EMPLOYEE_ID = Column(String(36), ForeignKey("employee.ID"), index=True, nullable=True)
+    LATITUDE    = Column(Float, nullable=True)
+    LONGITUDE   = Column(Float, nullable=True)
+    DISTANCE    = Column(Float, nullable=True)
+    REASON      = Column(String(80), nullable=True, index=True)
+    # OUTSIDE_GEOFENCE / GPS_DISABLED / PERMISSION_DENIED / FACE_FAILED / etc.
+    DETAIL      = Column(String(500), nullable=True)
+    DEVICE_INFO = Column(String(255), nullable=True)
+    IP_ADDRESS  = Column(String(60), nullable=True)
+    VENDOR_ID   = Column(Integer, ForeignKey("vendor.ID"), nullable=True)
+    CREATED_AT  = Column(DateTime, default=datetime.utcnow, index=True)
+
 
 class ProductModel(Base):
     """
@@ -3598,6 +3663,94 @@ class EmployeeDocument(Base):
     )
 
     UPLOADED_AT = Column(DateTime, default=datetime.utcnow)
+
+
+# ====================================================================
+# HR Module — Employee Memo Management
+# ====================================================================
+# Permanent audit trail of warnings, appreciations, disciplinary
+# actions, customer complaints and performance recognitions.
+# Soft delete only (DELETED_AT). Every row also stores who created /
+# last updated it for compliance.
+
+class EmployeeMemo(Base):
+    """One row per official memo issued to an employee."""
+
+    __tablename__ = "employee_memos"
+
+    ID = Column(Integer, primary_key=True, autoincrement=True)
+
+    MEMO_NUMBER = Column(String(30), unique=True, index=True, nullable=True)
+    # Auto-generated: MEMO-2026-0001
+
+    EMPLOYEE_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=False,
+        index=True
+    )
+
+    MEMO_TYPE = Column(String(40), nullable=False, index=True)
+    # WARNING / APPRECIATION / DISCIPLINARY / INFORMATION /
+    # CUSTOMER_COMPLAINT / PERFORMANCE_RECOGNITION / SHOW_CAUSE_NOTICE
+
+    SUBJECT = Column(String(200), nullable=False)
+
+    DESCRIPTION = Column(String(4000), nullable=True)
+
+    SEVERITY = Column(String(20), default="LOW", index=True)
+    # LOW / MEDIUM / HIGH / CRITICAL
+
+    STATUS = Column(String(20), default="ACTIVE", index=True)
+    # ACTIVE / CLOSED / CANCELLED
+
+    ISSUED_BY = Column(String(100), nullable=True)
+    # Free-text name of the person issuing — keeps the memo readable
+    # even if the issuer's employee row is later deleted.
+
+    ISSUE_DATE = Column(Date, nullable=True, index=True)
+
+    ATTACHMENT_URL = Column(String(500), nullable=True)
+    # /static/memos/<memo_id>/<uuid>.<ext>
+
+    ATTACHMENT_NAME = Column(String(255), nullable=True)
+
+    ACKNOWLEDGED_BY_EMPLOYEE = Column(Integer, default=0)
+    # 0 = pending, 1 = acknowledged
+
+    ACKNOWLEDGED_DATE = Column(DateTime, nullable=True)
+
+    REMARKS = Column(String(2000), nullable=True)
+
+    # ---- Audit ----
+    CREATED_BY_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=True
+    )
+
+    UPDATED_BY_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=True
+    )
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+
+    UPDATED_AT = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow
+    )
+
+    DELETED_AT = Column(DateTime, nullable=True, index=True)
+    # Soft delete — set to a timestamp instead of removing the row
+
+    VENDOR_ID = Column(
+        Integer,
+        ForeignKey("vendor.ID"),
+        nullable=True
+    )
 
 
 # ====================================================================

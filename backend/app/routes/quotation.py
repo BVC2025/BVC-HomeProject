@@ -31,6 +31,7 @@ Endpoints:
 """
 
 import os
+import re
 import secrets
 
 from datetime import datetime, date, timedelta
@@ -995,7 +996,10 @@ def delete_quotation(
 
     from app.models.models import (
         QuotationActivity,
-        SalesOrderLine
+        QuotationNegotiation,
+        SalesOrder,
+        SalesOrderLine,
+        DiscountRequest
     )
 
     q = db.query(Quotation).filter(Quotation.ID == quotation_id).first()
@@ -1032,6 +1036,25 @@ def delete_quotation(
             synchronize_session=False
         )
 
+    # Sales orders converted from this quote — keep the SO row but
+    # NULL out the back-pointer so the order survives the quote delete.
+    sos_unlinked = db.query(SalesOrder).filter(
+        SalesOrder.QUOTATION_ID == quotation_id
+    ).update(
+        {SalesOrder.QUOTATION_ID: None},
+        synchronize_session=False
+    )
+
+    # Chat-style negotiation messages tied to this quote → delete.
+    negotiations_deleted = db.query(QuotationNegotiation).filter(
+        QuotationNegotiation.QUOTATION_ID == quotation_id
+    ).delete(synchronize_session=False)
+
+    # Discount requests reference quotation NOT NULL → must delete first.
+    discounts_deleted = db.query(DiscountRequest).filter(
+        DiscountRequest.QUOTATION_ID == quotation_id
+    ).delete(synchronize_session=False)
+
     activity_deleted = db.query(QuotationActivity).filter(
         QuotationActivity.QUOTATION_ID == quotation_id
     ).delete(synchronize_session=False)
@@ -1040,15 +1063,22 @@ def delete_quotation(
         QuotationLine.QUOTATION_ID == quotation_id
     ).delete(synchronize_session=False)
 
+    # Snapshot the human-readable identifier BEFORE deleting the row
+    # (after db.delete + commit the ORM may detach attributes).
+    qnum = q.QUOTATION_NUMBER or str(quotation_id)
+
     db.delete(q)
 
     db.commit()
 
     return {
-        "message": f"Quotation {q.QUOTE_NO or quotation_id} removed.",
+        "message": f"Quotation {qnum} removed.",
         "lines_deleted": lines_deleted,
         "activity_deleted": activity_deleted,
-        "so_lines_unlinked": so_lines_unlinked
+        "negotiations_deleted": negotiations_deleted,
+        "discounts_deleted": discounts_deleted,
+        "so_lines_unlinked": so_lines_unlinked,
+        "sos_unlinked": sos_unlinked
     }
 
 
@@ -2403,6 +2433,218 @@ DEFAULT_VENDING_MACHINE_HSN = "84244000"
 AUTO_GEN_REQUIREMENT_STATUSES = ("DRAFT", "CONFIRMED", "QUOTED")
 
 
+# =====================================================================
+# Pricing catalog used when auto-generating from customer requirements
+# =====================================================================
+#
+# Customers who submit via the public chatbot or the onboarding portal
+# usually don't pick a specific ProductModel — they just say "Combo
+# Machine × 1" and describe features in free text. To turn that into
+# a real quotation we need:
+#
+#   1. A reasonable base price per machine *category*, keyed by the
+#      same labels the intake widgets / dropdowns use. The admin can
+#      always edit a line before sending.
+#
+#   2. A feature add-on catalog. Each entry is a regex matched against
+#      the requirement's free-text (SPECIAL_NOTES + MACHINE_NAME +
+#      CAPACITY). One hit → one extra line on the quotation, with a
+#      sensible price tag.
+#
+# All amounts are in INR.
+
+CATEGORY_BASE_PRICE = {
+    # Snack vending
+    "snack":               180_000,
+    "snack machine":       180_000,
+    "snack vending":       180_000,
+
+    # Beverage vending (cold drinks)
+    "beverage":            200_000,
+    "beverage machine":    200_000,
+    "beverage vending":    200_000,
+
+    # Combo (snack + beverage)
+    "combo":               350_000,
+    "combo machine":       350_000,
+    "snack-beverage":      350_000,
+    "snack & beverage":    350_000,
+    "snack and beverage":  350_000,
+
+    # Hot beverage (coffee / tea)
+    "hot-beverage":        280_000,
+    "hot beverage":        280_000,
+    "coffee":              280_000,
+    "coffee machine":      280_000,
+    "tea":                 280_000,
+
+    # Specialty
+    "medicine":            225_000,
+    "medicine machine":    225_000,
+    "fruit":               240_000,
+    "fruit & veg":         240_000,
+    "fruit and veg":       240_000,
+    "cosmetics":           195_000,
+    "cosmetics machine":   195_000,
+
+    # Custom
+    "custom":              400_000,
+    "custom machine":      400_000,
+    "vending":             250_000,        # generic fallback
+}
+
+DEFAULT_BASE_PRICE = 250_000   # absolute fallback if nothing matches
+
+
+def _category_base_price(category: str) -> float:
+    """Look up a reasonable starting price for a machine category."""
+
+    if not category:
+
+        return DEFAULT_BASE_PRICE
+
+    key = category.strip().lower()
+
+    if key in CATEGORY_BASE_PRICE:
+
+        return float(CATEGORY_BASE_PRICE[key])
+
+    # Partial match — useful for free-text inputs like
+    # "BVC24 Snack & Beverage Combo SS&B-001"
+    for k, v in CATEGORY_BASE_PRICE.items():
+
+        if k in key or key in k:
+
+            return float(v)
+
+    return DEFAULT_BASE_PRICE
+
+
+# (regex pattern, label shown on quotation line, unit price INR, HSN code)
+FEATURE_CATALOG = [
+    (
+        r"\b(cashless|upi|debit\s*card|credit\s*card|card\s*payment|qr\s*payment|qr\s*code)\b",
+        "Cashless payment system (UPI / Card / QR)",
+        15_000,
+        "84709010"
+    ),
+    (
+        r"\b(remote\s+(monitor|inventor)|iot|real[-\s]?time\s+monitor|smart\s+monitor|live\s+inventor)\b",
+        "Remote inventory monitoring (IoT module)",
+        25_000,
+        "85176290"
+    ),
+    (
+        r"\b(energy[-\s]?efficient|low\s+power|eco[-\s]?mode|green\s+power|power\s+saving)\b",
+        "Energy-efficient operation (low-power mode)",
+        12_000,
+        None
+    ),
+    (
+        r"\b(touch[-\s]?screen|hd\s+display|hd\s+screen|interactive\s+screen)\b",
+        "Touchscreen interface (HD display)",
+        18_000,
+        "85285900"
+    ),
+    (
+        r"\b(refriger|chiller|cooling\s+unit|cold\s+storage|cold\s+drink)\b",
+        "Refrigeration / chiller unit (4–8°C)",
+        22_000,
+        "84189900"
+    ),
+    (
+        r"\b(24/?7|round[-\s]?the[-\s]?clock|all[-\s]?day\s+operation|continuous\s+operation)\b",
+        "24/7 operation capability (heavy-duty)",
+        8_000,
+        None
+    ),
+    (
+        r"\b(brand|logo|custom[-\s]?paint|wrap|decal|sticker|skin)\b",
+        "Custom branding (decals / logo paint)",
+        10_000,
+        None
+    ),
+    (
+        r"\b(install|setup|on[-\s]?site|deployment|commissioning)\b",
+        "On-site installation & commissioning",
+        12_000,
+        "998873"
+    ),
+    (
+        r"\b(amc|maintenance|service\s+contract|extended\s+warranty)\b",
+        "Annual Maintenance Contract (1 year)",
+        30_000,
+        "998719"
+    ),
+    (
+        r"\b(restock|refill|replenish)\b",
+        "Restocking service (weekly, 1 year)",
+        18_000,
+        "998719"
+    ),
+    (
+        r"\b(train|orientation|user\s+training)\b",
+        "Staff training session",
+        5_000,
+        "999293"
+    ),
+    (
+        r"\b(led|lighting|interior\s+light|illuminated)\b",
+        "LED interior illumination",
+        4_000,
+        None
+    ),
+    (
+        r"\b(coin\s+accept|coin\s+mech|cash\s+accept|bill\s+accept|note\s+accept)\b",
+        "Coin / note acceptor module",
+        16_000,
+        "84709010"
+    ),
+]
+
+
+def _detect_features(req) -> list:
+    """Scan a CustomerRequirement's free-text fields for feature
+    keywords and return a list of {description, qty, unit_price, hsn}.
+
+    Each match shows up as its own line on the quotation so the customer
+    sees what they're paying for (instead of one opaque lump sum)."""
+
+    haystack = " ".join(
+        str(s or "") for s in (
+            req.SPECIAL_NOTES, req.MACHINE_NAME, req.CAPACITY,
+            req.MACHINE_CATEGORY
+        )
+    ).lower()
+
+    if not haystack.strip():
+
+        return []
+
+    found = []
+
+    seen_labels = set()
+
+    for pattern, label, price, hsn in FEATURE_CATALOG:
+
+        if re.search(pattern, haystack, flags=re.IGNORECASE):
+
+            if label in seen_labels:
+
+                continue
+
+            seen_labels.add(label)
+
+            found.append({
+                "description": label,
+                "qty": 1.0,
+                "unit_price": float(price),
+                "hsn": hsn
+            })
+
+    return found
+
+
 def _default_terms_and_conditions(validity_days: int) -> str:
     """Sensible default T&C for an auto-generated quotation.
 
@@ -2508,15 +2750,24 @@ def auto_generate_quotation(
     db.flush()
 
     # --- 4. Lines ---
-    for idx, r in enumerate(requirements):
+    # Each requirement spawns ONE machine line + N feature lines (auto-
+    # detected from the requirement's free text). This way the customer
+    # sees exactly what they're paying for instead of one opaque lump.
+    line_sort = 0
 
+    for r in requirements:
+
+        # ---- 4a. Machine line — base price ----
         if r.PRODUCT_MODEL_ID:
 
             product = db.query(ProductModel).filter(
                 ProductModel.ID == r.PRODUCT_MODEL_ID
             ).first()
 
-            # Price precedence: explicit target > BOM-based > 0
+            # Price precedence:
+            #   1. Customer's TARGET_UNIT_PRICE (explicit budget)
+            #   2. BOM rollup × margin
+            #   3. Category default (covers empty-BOM products)
             if r.TARGET_UNIT_PRICE:
 
                 unit_price = float(r.TARGET_UNIT_PRICE)
@@ -2529,55 +2780,61 @@ def auto_generate_quotation(
                     vendor_id=vendor_id
                 )
 
-                if unit_price == 0.0:
+                if unit_price == 0.0 and product:
+
+                    unit_price = _category_base_price(product.CATEGORY)
 
                     warnings.append(
                         f"Requirement #{r.ID}: BOM is empty for product "
-                        f"#{r.PRODUCT_MODEL_ID} — unit price set to 0, "
-                        f"please edit before sending."
+                        f"#{r.PRODUCT_MODEL_ID} — used category default "
+                        f"price (₹{unit_price:,.0f}). Edit before sending "
+                        f"if needed."
                     )
 
-            if product:
-
-                description = (
-                    f"{product.MODEL_NAME} ({product.MODEL_CODE})"
-                )
-
-            else:
-
-                description = (
-                    r.MACHINE_NAME
-                    or f"Product #{r.PRODUCT_MODEL_ID}"
-                )
+            description = (
+                f"{product.MODEL_NAME} ({product.MODEL_CODE})"
+                if product else (r.MACHINE_NAME or f"Product #{r.PRODUCT_MODEL_ID}")
+            )
 
             if r.CAPACITY:
 
                 description += f" — {r.CAPACITY}"
 
-            if r.SPECIAL_NOTES:
-
-                description += f". {r.SPECIAL_NOTES}"
-
             hsn = DEFAULT_VENDING_MACHINE_HSN
 
         else:
 
-            # Free-text line from requirement metadata
-            unit_price = float(r.TARGET_UNIT_PRICE or 0.0)
+            # ---- No ProductModel — chatbot / portal intake ----
+            # Use TARGET_UNIT_PRICE if provided, else look up by category
+            if r.TARGET_UNIT_PRICE:
 
-            if unit_price == 0.0:
+                unit_price = float(r.TARGET_UNIT_PRICE)
 
-                warnings.append(
-                    f"Requirement #{r.ID}: no PRODUCT_MODEL_ID and no "
-                    f"TARGET_UNIT_PRICE — unit price set to 0, please "
-                    f"edit before sending."
-                )
+            else:
 
+                unit_price = _category_base_price(r.MACHINE_CATEGORY)
+
+                if unit_price == DEFAULT_BASE_PRICE:
+
+                    warnings.append(
+                        f"Requirement #{r.ID}: category "
+                        f"'{r.MACHINE_CATEGORY}' didn't match the pricing "
+                        f"catalog — used generic default "
+                        f"(₹{unit_price:,.0f}). Edit before sending."
+                    )
+
+            # Build a clean machine label (without dumping the whole
+            # special-notes blob into the description — features get
+            # their own lines below).
             parts = []
 
             if r.MACHINE_NAME:
 
-                parts.append(r.MACHINE_NAME)
+                # Take just the first segment if customer pasted multiple
+                # model names separated by spaces / commas
+                first_name = re.split(r"[,;\n]| {2,}", r.MACHINE_NAME)[0].strip()
+
+                parts.append(first_name or r.MACHINE_NAME)
 
             if r.MACHINE_CATEGORY:
 
@@ -2587,15 +2844,13 @@ def auto_generate_quotation(
 
                 parts.append(f"— {r.CAPACITY}")
 
-            description = " ".join(parts) or f"Requirement #{r.ID}"
+            description = " ".join(parts) or (
+                r.MACHINE_CATEGORY or f"Vending Machine (Requirement #{r.ID})"
+            )
 
-            if r.SPECIAL_NOTES:
+            hsn = DEFAULT_VENDING_MACHINE_HSN
 
-                description += f". {r.SPECIAL_NOTES}"
-
-            hsn = None
-
-        line = QuotationLine(
+        machine_line = QuotationLine(
             QUOTATION_ID=q.ID,
             PRODUCT_MODEL_ID=r.PRODUCT_MODEL_ID,
             REQUIREMENT_ID=r.ID,
@@ -2605,12 +2860,40 @@ def auto_generate_quotation(
             UNIT="nos",
             UNIT_PRICE=unit_price,
             DISCOUNT_PERCENT=0.0,
-            SORT_ORDER=idx
+            SORT_ORDER=line_sort
         )
 
-        line.LINE_TOTAL = _compute_line_total(line)
+        machine_line.LINE_TOTAL = _compute_line_total(machine_line)
 
-        db.add(line)
+        db.add(machine_line)
+
+        line_sort += 1
+
+        # ---- 4b. Feature lines — detected from free-text ----
+        # Each detected feature becomes its own quotation line with
+        # qty = machine qty (1 cashless module per machine, etc.).
+        machine_qty = float(r.QUANTITY or 1)
+
+        for feat in _detect_features(r):
+
+            feat_line = QuotationLine(
+                QUOTATION_ID=q.ID,
+                PRODUCT_MODEL_ID=None,
+                REQUIREMENT_ID=r.ID,
+                DESCRIPTION=feat["description"][:500],
+                HSN_CODE=feat["hsn"],
+                QUANTITY=feat["qty"] * machine_qty,
+                UNIT="nos",
+                UNIT_PRICE=feat["unit_price"],
+                DISCOUNT_PERCENT=0.0,
+                SORT_ORDER=line_sort
+            )
+
+            feat_line.LINE_TOTAL = _compute_line_total(feat_line)
+
+            db.add(feat_line)
+
+            line_sort += 1
 
     db.flush()
 

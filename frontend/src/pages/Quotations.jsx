@@ -1535,54 +1535,120 @@ function Quotations() {
 
       {!loading && filtered.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {filtered.map((r) => (
-            <div
-              key={r.ID}
-              onClick={() => { setEditingId(r.ID); setEditorOpen(true); }}
-              style={{
-                background: "white",
-                border: "1px solid #e2e8f0",
-                borderRadius: 12,
-                padding: "14px 18px",
-                display: "grid",
-                gridTemplateColumns: "180px 1fr 200px 140px 140px",
-                gap: 14,
-                alignItems: "center",
-                cursor: "pointer",
-                transition: "box-shadow 0.15s"
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.boxShadow = "0 8px 20px rgba(15,23,42,0.1)"}
-              onMouseLeave={(e) => e.currentTarget.style.boxShadow = "none"}
-            >
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>
-                  {r.QUOTATION_NUMBER}
+          {filtered.map((r) => {
+
+            const isProtected = !["DRAFT", "REJECTED", "EXPIRED"].includes(r.STATUS);
+
+            const deleteRow = async (e) => {
+
+              e.stopPropagation();
+
+              const msg = isProtected
+                ? `This quotation is ${r.STATUS}. Deleting will REMOVE its lines and activity (any Sales Order lines that came from it will keep their data but lose the link to this quote). Continue?`
+                : `Delete quotation ${r.QUOTATION_NUMBER}? This cannot be undone.`;
+
+              if (!window.confirm(msg)) return;
+
+              try {
+
+                await API.delete(
+                  `/quotations/${r.ID}${isProtected ? "?force=true" : ""}`
+                );
+
+                load();
+                loadDashStats();
+
+              } catch (err) {
+
+                alert(
+                  err?.response?.data?.detail ||
+                  "Failed to delete quotation."
+                );
+              }
+            };
+
+            return (
+
+              <div
+                key={r.ID}
+                onClick={() => { setEditingId(r.ID); setEditorOpen(true); }}
+                style={{
+                  background: "white",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 12,
+                  padding: "14px 18px",
+                  display: "grid",
+                  gridTemplateColumns: "180px 1fr 200px 140px 140px 60px",
+                  gap: 14,
+                  alignItems: "center",
+                  cursor: "pointer",
+                  transition: "box-shadow 0.15s"
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.boxShadow = "0 8px 20px rgba(15,23,42,0.1)"}
+                onMouseLeave={(e) => e.currentTarget.style.boxShadow = "none"}
+              >
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>
+                    {r.QUOTATION_NUMBER}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+                    {r.QUOTATION_DATE}
+                  </div>
                 </div>
-                <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
-                  {r.QUOTATION_DATE}
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+                    {r.CUSTOMER_NAME || `#${r.CUSTOMER_ID}`}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#64748b" }}>
+                    {r.CUSTOMER_CODE} {r.PREPARED_BY_NAME ? `· ${r.PREPARED_BY_NAME}` : ""}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 11, color: "#94a3b8" }}>Expires</div>
+                  <div style={{ fontSize: 12, color: "#475569" }}>{r.EXPIRY_DATE || "—"}</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 11, color: "#94a3b8" }}>Total</div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#047857" }}>{inr(r.GRAND_TOTAL)}</div>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <StatusPill status={r.STATUS} />
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <button
+                    onClick={deleteRow}
+                    title={
+                      isProtected
+                        ? `Force-delete this ${r.STATUS} quotation`
+                        : "Delete this quotation"
+                    }
+                    style={{
+                      background: "white",
+                      border: "1px solid #fecaca",
+                      color: "#dc2626",
+                      width: 36,
+                      height: 36,
+                      borderRadius: 8,
+                      cursor: "pointer",
+                      fontSize: 15,
+                      fontWeight: 700,
+                      transition: "all 0.15s"
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "#dc2626";
+                      e.currentTarget.style.color = "white";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "white";
+                      e.currentTarget.style.color = "#dc2626";
+                    }}
+                  >
+                    🗑
+                  </button>
                 </div>
               </div>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
-                  {r.CUSTOMER_NAME || `#${r.CUSTOMER_ID}`}
-                </div>
-                <div style={{ fontSize: 11, color: "#64748b" }}>
-                  {r.CUSTOMER_CODE} {r.PREPARED_BY_NAME ? `· ${r.PREPARED_BY_NAME}` : ""}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: 11, color: "#94a3b8" }}>Expires</div>
-                <div style={{ fontSize: 12, color: "#475569" }}>{r.EXPIRY_DATE || "—"}</div>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 11, color: "#94a3b8" }}>Total</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: "#047857" }}>{inr(r.GRAND_TOTAL)}</div>
-              </div>
-              <div style={{ textAlign: "right" }}>
-                <StatusPill status={r.STATUS} />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

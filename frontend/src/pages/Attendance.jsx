@@ -6,6 +6,8 @@ import TablePagination from "../components/TablePagination";
 
 import IconButton from "../components/IconButton";
 
+import GeofenceGate from "../components/GeofenceGate";
+
 import { formatISTTime, istEpoch } from "../utils/time";
 
 function Attendance() {
@@ -20,6 +22,17 @@ function Attendance() {
     useState("");
 
   const [view, setView] = useState("today");
+
+  // ---- Geofencing: gate the check-in/out buttons until inside ----
+  const [gpsCtx, setGpsCtx] = useState(null);
+  // gpsCtx = { lat, lng, distance, accuracy, deviceInfo } | null
+
+  const browserInfo = useMemo(
+    () => (typeof navigator !== "undefined"
+      ? `${navigator.userAgent || ""}`.slice(0, 255)
+      : null),
+    []
+  );
 
   const fetchEmployees = async () => {
 
@@ -89,13 +102,28 @@ function Attendance() {
       return;
     }
 
+    if (!gpsCtx) {
+
+      alert("Waiting for GPS — the geofence check above must pass first.");
+
+      return;
+    }
+
     try {
 
       await API.post("/check-in", {
 
         EMPLOYEE_ID: selectedEmployee,
 
-        VENDOR_ID: 1
+        VENDOR_ID: 1,
+
+        LATITUDE: gpsCtx.lat,
+
+        LONGITUDE: gpsCtx.lng,
+
+        DEVICE_INFO: gpsCtx.deviceInfo,
+
+        BROWSER_INFO: browserInfo
       });
 
       refreshAll();
@@ -121,11 +149,24 @@ function Attendance() {
       return;
     }
 
+    if (!gpsCtx) {
+
+      alert("Waiting for GPS — the geofence check above must pass first.");
+
+      return;
+    }
+
     try {
 
       await API.post("/check-out", {
 
-        EMPLOYEE_ID: selectedEmployee
+        EMPLOYEE_ID: selectedEmployee,
+
+        LATITUDE: gpsCtx.lat,
+
+        LONGITUDE: gpsCtx.lng,
+
+        DEVICE_INFO: gpsCtx.deviceInfo
       });
 
       refreshAll();
@@ -265,6 +306,26 @@ function Attendance() {
     [rows, page, pageSize]
   );
 
+  // ---- Geofence widget counters (live from backend) ----
+  const [geoStats, setGeoStats] = useState(null);
+
+  useEffect(() => {
+
+    let mounted = true;
+
+    const load = () => API
+      .get("/geofence/dashboard")
+      .then((r) => mounted && setGeoStats(r.data))
+      .catch(() => {});
+
+    load();
+
+    const t = setInterval(load, 60000);
+
+    return () => { mounted = false; clearInterval(t); };
+
+  }, []);
+
   return (
 
     <div>
@@ -307,7 +368,42 @@ function Attendance() {
 
       </div>
 
+      {/* ===== Geofence widgets — live counts from /geofence/dashboard ===== */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(3, 1fr)",
+        gap: 12,
+        marginTop: 14
+      }}>
+        <div style={geoWidget("#10b981", "#ecfdf5")}>
+          <div style={geoLabel}>📍 Inside Geofence</div>
+          <div style={geoValue("#065f46")}>{geoStats?.inside_geofence ?? "—"}</div>
+          <div style={geoSub}>employees inside office today</div>
+        </div>
+        <div style={geoWidget("#ef4444", "#fef2f2")}>
+          <div style={geoLabel}>🚫 Outside Geofence</div>
+          <div style={geoValue("#991b1b")}>{geoStats?.outside_geofence ?? "—"}</div>
+          <div style={geoSub}>marked from outside the radius</div>
+        </div>
+        <div style={geoWidget("#f59e0b", "#fffbeb")}>
+          <div style={geoLabel}>🚨 Security Failures (Today)</div>
+          <div style={geoValue("#854d0e")}>{geoStats?.security_failures_today ?? "—"}</div>
+          <div style={geoSub}>
+            <a href="/geofence" style={{ color: "#854d0e", textDecoration: "underline" }}>
+              review log →
+            </a>
+          </div>
+        </div>
+      </div>
+
       <h2 className="section-title">Mark Attendance</h2>
+
+      {/* Geofence gate — must pass before Check-In/Out work */}
+      <GeofenceGate
+        employeeId={selectedEmployee || null}
+        onAllowed={(ctx) => setGpsCtx(ctx)}
+        onBlocked={() => setGpsCtx(null)}
+      />
 
       <div className="employee-form">
 
@@ -336,6 +432,9 @@ function Attendance() {
         <button
           className="start-btn"
           onClick={checkIn}
+          disabled={!gpsCtx}
+          title={!gpsCtx ? "Waiting for geofence verification…" : "Check In"}
+          style={!gpsCtx ? { opacity: 0.45, cursor: "not-allowed" } : undefined}
         >
           Check In
         </button>
@@ -343,6 +442,9 @@ function Attendance() {
         <button
           className="complete-btn"
           onClick={checkOut}
+          disabled={!gpsCtx}
+          title={!gpsCtx ? "Waiting for geofence verification…" : "Check Out"}
+          style={!gpsCtx ? { opacity: 0.45, cursor: "not-allowed" } : undefined}
         >
           Check Out
         </button>
@@ -415,6 +517,14 @@ function Attendance() {
 
             <th>Status</th>
 
+            <th>Check-In Location</th>
+
+            <th>Check-Out Location</th>
+
+            <th>Distance</th>
+
+            <th>Geofence</th>
+
             <th>Actions</th>
 
           </tr>
@@ -429,7 +539,7 @@ function Attendance() {
               <tr>
 
                 <td
-                  colSpan="7"
+                  colSpan="11"
                   style={{
                     textAlign: "center",
                     color: "#94a3b8",
@@ -467,6 +577,18 @@ function Attendance() {
                   </td>
 
                   <td>{statusBadge(row.STATUS)}</td>
+
+                  <td>{coordCell(row.CHECKIN_LATITUDE, row.CHECKIN_LONGITUDE)}</td>
+
+                  <td>{coordCell(row.CHECKOUT_LATITUDE, row.CHECKOUT_LONGITUDE)}</td>
+
+                  <td>
+                    {row.CHECKIN_DISTANCE != null
+                      ? `${Math.round(row.CHECKIN_DISTANCE)} m`
+                      : "—"}
+                  </td>
+
+                  <td>{geofenceBadge(row.GEOFENCE_STATUS)}</td>
 
                   <td>
 
@@ -1125,6 +1247,78 @@ function EmployeeTile({ emp, tick }) {
     </div>
   );
 }
+
+
+// ---- Report-cell helpers for the geofence columns ----
+function coordCell(lat, lng) {
+  if (lat == null || lng == null) return "—";
+  const short = (n) => Number(n).toFixed(5);
+  const url = `https://www.google.com/maps?q=${lat},${lng}`;
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      title="Open in Google Maps"
+      style={{
+        fontFamily: "ui-monospace, monospace",
+        fontSize: 11,
+        color: "#6366f1",
+        textDecoration: "none"
+      }}
+    >
+      {short(lat)}, {short(lng)} 🗺
+    </a>
+  );
+}
+
+function geofenceBadge(status) {
+  const theme = {
+    INSIDE:  { bg: "#dcfce7", fg: "#166534", label: "Inside" },
+    OUTSIDE: { bg: "#fee2e2", fg: "#991b1b", label: "Outside" },
+    UNKNOWN: { bg: "#f1f5f9", fg: "#475569", label: "—" }
+  }[status || "UNKNOWN"] || { bg: "#f1f5f9", fg: "#475569", label: "—" };
+  return (
+    <span style={{
+      display: "inline-block",
+      padding: "2px 10px",
+      borderRadius: 999,
+      fontSize: 10,
+      fontWeight: 800,
+      letterSpacing: 0.5,
+      background: theme.bg,
+      color: theme.fg
+    }}>
+      {theme.label}
+    </span>
+  );
+}
+
+
+// ---- Geofence-widget tiny style helpers ----
+function geoWidget(border, bg) {
+  return {
+    background: bg,
+    border: `1px solid ${border}33`,
+    borderTop: `3px solid ${border}`,
+    padding: "12px 16px",
+    borderRadius: 10,
+    boxShadow: "0 2px 8px rgba(15,23,42,0.04)"
+  };
+}
+const geoLabel = {
+  fontSize: 10,
+  fontWeight: 800,
+  letterSpacing: 1,
+  color: "#475569",
+  textTransform: "uppercase"
+};
+function geoValue(color) {
+  return {
+    fontSize: 28, fontWeight: 800, color, marginTop: 4, lineHeight: 1
+  };
+}
+const geoSub = { fontSize: 11, color: "#64748b", marginTop: 6 };
 
 
 export default Attendance;

@@ -1100,6 +1100,46 @@ def portal_submit(
 
     db.flush()
 
+    # ---- Materialise a CustomerRequirement row ----
+    # The portal collected REQUESTED_* + REQUIREMENT_NOTES into the
+    # session's partial data, but historically never persisted them as
+    # a real CustomerRequirement. Without this row the admin's
+    # Customer 360° view shows "No machine requirements submitted yet"
+    # even though the customer DID specify what they want. Fix: create
+    # one CustomerRequirement now if any machine field was answered.
+    from app.models.models import CustomerRequirement
+
+    req_category = _g("REQUESTED_MACHINE_CATEGORY")
+
+    req_name     = _g("REQUESTED_MACHINE_NAME")
+
+    req_qty_raw  = _g("REQUESTED_QUANTITY")
+
+    req_notes    = _g("REQUIREMENT_NOTES")
+
+    if req_category or req_name or req_qty_raw or req_notes:
+
+        try:
+
+            req_qty = int(req_qty_raw) if req_qty_raw else 1
+
+        except Exception:
+
+            req_qty = 1
+
+        cr = CustomerRequirement(
+            CUSTOMER_ID=customer.ID,
+            MACHINE_CATEGORY=req_category,
+            MACHINE_NAME=req_name,
+            QUANTITY=req_qty,
+            SPECIAL_NOTES=req_notes,
+            PRIORITY="MEDIUM",
+            STATUS="DRAFT",
+            VENDOR_ID=vendor_id
+        )
+
+        db.add(cr)
+
     s.STATUS = "SUBMITTED"
 
     s.SUBMITTED_AT = datetime.utcnow()

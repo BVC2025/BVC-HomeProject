@@ -360,6 +360,22 @@ function EmployeeCard({ employee, onView, onEdit, onDelete }) {
           ✏️
         </button>
         <button
+          onClick={() => { window.location.href = `/memos?employee_id=${employee.ID}`; }}
+          title="View this employee's memos"
+          style={{
+            background: "#fffbeb",
+            color: "#92400e",
+            border: "1px solid #fde68a",
+            padding: "9px 12px",
+            borderRadius: 8,
+            fontWeight: 700,
+            fontSize: 12,
+            cursor: "pointer"
+          }}
+        >
+          📋
+        </button>
+        <button
           onClick={() => onDelete(employee)}
           title="Delete"
           style={{
@@ -388,15 +404,42 @@ function EmployeeCard({ employee, onView, onEdit, onDelete }) {
 // HR Module — Phase B: Documents block rendered inside ResumeModal.
 // Self-contained: fetches its own list, handles upload + delete.
 
+// Grouped by category for the optgroup UI — every key must also exist
+// in the backend whitelist (backend/app/routes/employee_documents.py).
 const DOC_TYPES = [
-  { key: "AADHAAR",            label: "Aadhaar",           icon: "🪪" },
-  { key: "PAN",                label: "PAN",               icon: "🆔" },
-  { key: "RESUME",             label: "Resume",            icon: "📄" },
-  { key: "OFFER_LETTER",       label: "Offer Letter",      icon: "📃" },
-  { key: "EXPERIENCE_LETTER",  label: "Experience Letter", icon: "🏅" },
-  { key: "EDUCATIONAL",        label: "Educational",       icon: "🎓" },
-  { key: "CERTIFICATE",        label: "Certificate",       icon: "📜" },
-  { key: "OTHER",              label: "Other",             icon: "📁" },
+  // ---- Identity ----
+  { key: "AADHAAR",              label: "Aadhaar",                  icon: "🪪", group: "Identity" },
+  { key: "PAN",                  label: "PAN",                      icon: "🆔", group: "Identity" },
+  { key: "VOTER_ID",             label: "Voter ID",                 icon: "🗳️", group: "Identity" },
+  { key: "PASSPORT",             label: "Passport",                 icon: "🛂", group: "Identity" },
+  { key: "DRIVING_LICENSE",      label: "Driving License",          icon: "🚗", group: "Identity" },
+
+  // ---- Education ----
+  { key: "TENTH_MARKSHEET",      label: "10th Marksheet / SSLC",    icon: "📘", group: "Education" },
+  { key: "TWELFTH_MARKSHEET",    label: "12th Marksheet / HSC",     icon: "📗", group: "Education" },
+  { key: "DIPLOMA",              label: "Diploma / ITI",            icon: "📙", group: "Education" },
+  { key: "DEGREE",               label: "Degree (UG)",              icon: "🎓", group: "Education" },
+  { key: "POSTGRADUATE",         label: "Post-Graduate (PG)",       icon: "🎓", group: "Education" },
+  { key: "EDUCATIONAL",          label: "Other Educational",        icon: "📚", group: "Education" },
+  { key: "CERTIFICATE",          label: "Professional Certificate", icon: "📜", group: "Education" },
+
+  // ---- Employment ----
+  { key: "RESUME",               label: "Resume / CV",              icon: "📄", group: "Employment" },
+  { key: "OFFER_LETTER",         label: "Offer Letter",             icon: "📃", group: "Employment" },
+  { key: "JOINING_LETTER",       label: "Joining Letter",           icon: "✍️", group: "Employment" },
+  { key: "EXPERIENCE_LETTER",    label: "Experience Letter",        icon: "🏅", group: "Employment" },
+  { key: "RELIEVING_LETTER",     label: "Relieving Letter",         icon: "🗒️", group: "Employment" },
+  { key: "SALARY_SLIP",          label: "Previous Salary Slip",     icon: "💰", group: "Employment" },
+
+  // ---- Personal / Banking ----
+  { key: "PHOTO",                label: "Photograph",               icon: "🖼️", group: "Personal" },
+  { key: "BIRTH_CERTIFICATE",    label: "Birth Certificate",        icon: "👶", group: "Personal" },
+  { key: "MARRIAGE_CERTIFICATE", label: "Marriage Certificate",     icon: "💍", group: "Personal" },
+  { key: "ADDRESS_PROOF",        label: "Address Proof",            icon: "🏠", group: "Personal" },
+  { key: "BANK_PASSBOOK",        label: "Bank Passbook / Cheque",   icon: "🏦", group: "Personal" },
+
+  // ---- Catch-all ----
+  { key: "OTHER",                label: "Other",                    icon: "📁", group: "Other" },
 ];
 
 const DOC_TYPE_LABEL = Object.fromEntries(
@@ -555,9 +598,29 @@ function EmployeeDocumentsSection({ employee }) {
               background: "white"
             }}
           >
-            {DOC_TYPES.map((t) => (
-              <option key={t.key} value={t.key}>{t.label}</option>
-            ))}
+            {/* Render as grouped <optgroup> so the 24 types scan easily */}
+            {(() => {
+
+              const grouped = DOC_TYPES.reduce((acc, t) => {
+
+                (acc[t.group || "Other"] ||= []).push(t);
+
+                return acc;
+              }, {});
+
+              const order = ["Identity", "Education", "Employment", "Personal", "Other"];
+
+              return order
+                .filter((g) => grouped[g])
+                .map((g) => (
+
+                  <optgroup key={g} label={g}>
+                    {grouped[g].map((t) => (
+                      <option key={t.key} value={t.key}>{t.icon} {t.label}</option>
+                    ))}
+                  </optgroup>
+                ));
+            })()}
           </select>
         </label>
         <label style={{ fontSize: 11, fontWeight: 700, color: "#7f1d1d" }}>

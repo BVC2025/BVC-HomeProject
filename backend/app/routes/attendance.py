@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, date, time
@@ -10,7 +10,9 @@ from app.models.models import (
     Employee,
     TaskAssignment,
     Project,
-    Department
+    Department,
+    GeofenceSettings,
+    AttendanceSecurityLog
 )
 
 from app.schemas.attendance_schema import (
@@ -19,7 +21,88 @@ from app.schemas.attendance_schema import (
     MarkAbsentRequest
 )
 
+from app.routes.geofence import (
+    haversine_meters,
+    _get_or_create_settings as get_geofence_settings
+)
+
 router = APIRouter()
+
+
+# =========================
+# Geofence helpers (used by both check-in and check-out)
+# =========================
+
+def _check_geofence(
+    db: Session,
+    vendor_id: int,
+    lat: float | None,
+    lng: float | None
+) -> dict:
+    """Return {allowed, distance_m, status, settings}.
+
+    - allowed: True if inside radius OR enforcement is OFF OR no
+      coordinates were sent (back-compat with legacy callers).
+    - distance_m: metres from the configured office (None if no coords).
+    - status: 'INSIDE' / 'OUTSIDE' / 'UNKNOWN'.
+    """
+
+    settings = get_geofence_settings(db, vendor_id)
+
+    if lat is None or lng is None:
+
+        return {
+            "allowed": True,                  # back-compat
+            "distance_m": None,
+            "status": "UNKNOWN",
+            "settings": settings
+        }
+
+    distance = haversine_meters(
+        lat, lng, settings.LATITUDE, settings.LONGITUDE
+    )
+
+    inside = distance <= settings.RADIUS_METERS
+
+    enforced = bool(settings.IS_ACTIVE)
+
+    return {
+        "allowed": inside or (not enforced),
+        "distance_m": round(distance, 2),
+        "status": "INSIDE" if inside else "OUTSIDE",
+        "settings": settings
+    }
+
+
+def _log_failure(
+    db: Session,
+    employee_id: str | None,
+    reason: str,
+    lat: float | None,
+    lng: float | None,
+    distance: float | None,
+    detail: str | None,
+    device_info: str | None,
+    ip: str | None,
+    vendor_id: int
+):
+    """Record a blocked attempt in the security log table."""
+
+    row = AttendanceSecurityLog(
+        EMPLOYEE_ID=employee_id,
+        LATITUDE=lat,
+        LONGITUDE=lng,
+        DISTANCE=distance,
+        REASON=reason[:80],
+        DETAIL=(detail or "")[:500] or None,
+        DEVICE_INFO=(device_info or "")[:255] or None,
+        IP_ADDRESS=ip,
+        VENDOR_ID=vendor_id
+    )
+
+    db.add(row)
+
+    db.commit()
 
 
 WORK_START_HOUR = 10
@@ -48,6 +131,7 @@ def compute_status(check_in_time: datetime) -> str:
 @router.post("/check-in")
 def check_in(
     data: CheckInRequest,
+    request: Request,
     db: Session = Depends(get_db)
 ):
 
@@ -60,6 +144,30 @@ def check_in(
         raise HTTPException(
             status_code=404,
             detail="Employee not found"
+        )
+
+    ip = request.client.host if request.client else None
+
+    # ---- Geofence gate (server-side re-validation) ----
+    geo = _check_geofence(db, data.VENDOR_ID, data.LATITUDE, data.LONGITUDE)
+
+    if not geo["allowed"]:
+
+        _log_failure(
+            db, data.EMPLOYEE_ID, "OUTSIDE_GEOFENCE",
+            data.LATITUDE, data.LONGITUDE, geo["distance_m"],
+            f"Check-in blocked: {geo['distance_m']}m from office (max {geo['settings'].RADIUS_METERS}m)",
+            data.DEVICE_INFO, ip, data.VENDOR_ID
+        )
+
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"Outside office geofence — you are {round(geo['distance_m'])}m "
+                f"from {geo['settings'].OFFICE_NAME or 'the office'} "
+                f"(max allowed {geo['settings'].RADIUS_METERS}m). "
+                f"Move closer and try again."
+            )
         )
 
     today = date.today()
@@ -96,6 +204,15 @@ def check_in(
 
         db.add(record)
 
+    # ---- Persist geo + device info ----
+    record.CHECKIN_LATITUDE  = data.LATITUDE
+    record.CHECKIN_LONGITUDE = data.LONGITUDE
+    record.CHECKIN_DISTANCE  = geo["distance_m"]
+    record.GEOFENCE_STATUS   = geo["status"]
+    record.DEVICE_INFO       = (data.DEVICE_INFO or "")[:255] or record.DEVICE_INFO
+    record.BROWSER_INFO      = (data.BROWSER_INFO or "")[:255] or record.BROWSER_INFO
+    record.IP_ADDRESS        = ip or record.IP_ADDRESS
+
     db.commit()
 
     db.refresh(record)
@@ -103,7 +220,9 @@ def check_in(
     return {
         "message": "Checked in",
         "attendance_id": record.ID,
-        "status": record.STATUS
+        "status": record.STATUS,
+        "geofence_status": record.GEOFENCE_STATUS,
+        "distance_meters": record.CHECKIN_DISTANCE
     }
 
 
@@ -114,6 +233,7 @@ def check_in(
 @router.post("/check-out")
 def check_out(
     data: CheckOutRequest,
+    request: Request,
     db: Session = Depends(get_db)
 ):
 
@@ -145,6 +265,31 @@ def check_out(
             detail="Employee has already checked out today"
         )
 
+    ip = request.client.host if request.client else None
+
+    # ---- Geofence gate on check-out as well ----
+    vendor_id = record.VENDOR_ID or 1
+
+    geo = _check_geofence(db, vendor_id, data.LATITUDE, data.LONGITUDE)
+
+    if not geo["allowed"]:
+
+        _log_failure(
+            db, data.EMPLOYEE_ID, "OUTSIDE_GEOFENCE",
+            data.LATITUDE, data.LONGITUDE, geo["distance_m"],
+            f"Check-out blocked: {geo['distance_m']}m from office",
+            data.DEVICE_INFO, ip, vendor_id
+        )
+
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"Outside office geofence — you are {round(geo['distance_m'])}m "
+                f"from the office (max {geo['settings'].RADIUS_METERS}m). "
+                f"Move closer to check out."
+            )
+        )
+
     now = datetime.now()
 
     record.CHECK_OUT = now
@@ -158,13 +303,19 @@ def check_out(
 
     record.OVERTIME_HOURS = max(0, round(hours - 8, 2))
 
+    # ---- Persist check-out geo ----
+    record.CHECKOUT_LATITUDE  = data.LATITUDE
+    record.CHECKOUT_LONGITUDE = data.LONGITUDE
+    record.CHECKOUT_DISTANCE  = geo["distance_m"]
+
     db.commit()
 
     return {
         "message": "Checked out",
         "attendance_id": record.ID,
         "worked_hours": record.WORKED_HOURS,
-        "overtime_hours": record.OVERTIME_HOURS
+        "overtime_hours": record.OVERTIME_HOURS,
+        "checkout_distance_meters": record.CHECKOUT_DISTANCE
     }
 
 
@@ -266,7 +417,18 @@ def get_attendance(
             "WORKED_HOURS": record.WORKED_HOURS,
             "OVERTIME_HOURS": record.OVERTIME_HOURS,
             "REMARKS": record.REMARKS,
-            "VENDOR_ID": record.VENDOR_ID
+            "VENDOR_ID": record.VENDOR_ID,
+            # ---- Geofence ----
+            "CHECKIN_LATITUDE":   record.CHECKIN_LATITUDE,
+            "CHECKIN_LONGITUDE":  record.CHECKIN_LONGITUDE,
+            "CHECKIN_DISTANCE":   record.CHECKIN_DISTANCE,
+            "CHECKOUT_LATITUDE":  record.CHECKOUT_LATITUDE,
+            "CHECKOUT_LONGITUDE": record.CHECKOUT_LONGITUDE,
+            "CHECKOUT_DISTANCE":  record.CHECKOUT_DISTANCE,
+            "GEOFENCE_STATUS":    record.GEOFENCE_STATUS,
+            "DEVICE_INFO":        record.DEVICE_INFO,
+            "BROWSER_INFO":       record.BROWSER_INFO,
+            "IP_ADDRESS":         record.IP_ADDRESS
         })
 
     return out
@@ -307,7 +469,19 @@ def get_today_attendance(
             ),
             "STATUS": rec.STATUS,
             "WORKED_HOURS": rec.WORKED_HOURS,
-            "OVERTIME_HOURS": rec.OVERTIME_HOURS
+            "OVERTIME_HOURS": rec.OVERTIME_HOURS,
+            # ---- Geofence (must match /attendance shape so the Today
+            # ----  tab renders the same columns as All Records)
+            "CHECKIN_LATITUDE":   rec.CHECKIN_LATITUDE,
+            "CHECKIN_LONGITUDE":  rec.CHECKIN_LONGITUDE,
+            "CHECKIN_DISTANCE":   rec.CHECKIN_DISTANCE,
+            "CHECKOUT_LATITUDE":  rec.CHECKOUT_LATITUDE,
+            "CHECKOUT_LONGITUDE": rec.CHECKOUT_LONGITUDE,
+            "CHECKOUT_DISTANCE":  rec.CHECKOUT_DISTANCE,
+            "GEOFENCE_STATUS":    rec.GEOFENCE_STATUS,
+            "DEVICE_INFO":        rec.DEVICE_INFO,
+            "BROWSER_INFO":       rec.BROWSER_INFO,
+            "IP_ADDRESS":         rec.IP_ADDRESS
         }
         for rec, name, code in rows
     ]

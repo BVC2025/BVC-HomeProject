@@ -1396,11 +1396,61 @@ function CustomerView({ data, openEntity, navigate, onClose }) {
 
   const sum = data?.summary || {};
 
-  const projects = data?.projects || [];
+  const requirements = data?.requirements || [];
 
-  const wos = data?.work_orders || [];
+  // Production state still arrives in the payload — we don't render
+  // the heavy sections (machine models, projects, work orders) here
+  // any more, but we keep `sum` for the four top tiles and offer a
+  // single button at the bottom to jump to the production page.
+  const fmtMoney = (v) =>
+    v == null || v === ""
+      ? "—"
+      : `₹${Number(v).toLocaleString("en-IN", {
+          maximumFractionDigits: 2, minimumFractionDigits: 0
+        })}`;
 
-  const models = data?.machine_models || [];
+  const fmtDate = (v) => {
+
+    if (!v) return "—";
+
+    try {
+
+      const d = new Date(v);
+
+      return d.toLocaleDateString("en-IN", {
+        day: "numeric", month: "short", year: "numeric"
+      });
+
+    } catch {
+
+      return v;
+    }
+  };
+
+  const ReadField = ({ label, value, mono }) => (
+
+    <div>
+      <div style={{
+        fontSize: 10,
+        fontWeight: 700,
+        color: "#64748b",
+        textTransform: "uppercase",
+        letterSpacing: 0.6,
+        marginBottom: 3
+      }}>
+        {label}
+      </div>
+      <div style={{
+        fontSize: 13,
+        color: value == null || value === "" ? "#94a3b8" : "#0f172a",
+        fontWeight: value == null || value === "" ? 400 : 600,
+        fontFamily: mono ? "ui-monospace, monospace" : undefined,
+        wordBreak: "break-word"
+      }}>
+        {value == null || value === "" ? "—" : value}
+      </div>
+    </div>
+  );
 
   return (
 
@@ -1576,160 +1626,233 @@ function CustomerView({ data, openEntity, navigate, onClose }) {
         </div>
       </Section>
 
-      {/* Machine models being built */}
-      <Section title={`Machine Models We're Building for Them (${models.length})`}>
-        {models.length === 0 && (
-          <div style={{ color: "#94a3b8", fontSize: 13, padding: 14, background: "#f8fafc", borderRadius: 8 }}>
-            No machines ordered yet.
-          </div>
-        )}
-        {models.map((m) => (
-          <div
-            key={m.MODEL_ID}
-            style={{
-              padding: 14,
-              border: "1px solid #e2e8f0",
-              borderRadius: 10,
-              marginBottom: 10,
-              background: "linear-gradient(135deg, #fef2f2 0%, #fff4e6 100%)"
-            }}
-          >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-start",
+      {/* ============== Enquiry / Lead Information ============== */}
+      <Section title="Enquiry Information">
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, 1fr)",
+            gap: 14,
+            padding: 14,
+            background: "#f8fafc",
+            border: "1px solid #e2e8f0",
+            borderRadius: 10
+          }}
+        >
+          <ReadField label="Enquiry Date" value={fmtDate(cust.LEAD_CREATED_DATE || cust.CREATED_AT)} />
+          <ReadField label="Lead Source" value={cust.LEAD_SOURCE || cust.SOURCE} />
+          <ReadField label="Lead Status" value={cust.LEAD_STATUS} />
+
+          <ReadField label="Priority" value={cust.LEAD_PRIORITY} />
+          <ReadField label="Industry" value={cust.INDUSTRY} />
+          <ReadField label="Customer Status" value={cust.STATUS} />
+
+          <ReadField label="Follow-up Date" value={fmtDate(cust.FOLLOW_UP_DATE)} />
+          <ReadField label="Next Meeting" value={fmtDate(cust.NEXT_MEETING_DATE)} />
+          <ReadField label="Assigned Sales ID" value={cust.ASSIGNED_SALES_ID} mono />
+        </div>
+
+        {(cust.REQUIREMENT_NOTES || cust.REMARKS) && (
+
+          <div style={{ marginTop: 12 }}>
+
+            {cust.REQUIREMENT_NOTES && (
+
+              <div style={{
+                padding: 14,
+                background: "#eff6ff",
+                border: "1px solid #bfdbfe",
+                borderRadius: 10,
                 marginBottom: 8
-              }}
-            >
-              <div>
-                <div style={{ fontWeight: 700, color: "#0f172a", fontSize: 14 }}>
-                  {m.MODEL_NAME}
+              }}>
+                <div style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: "#1e40af",
+                  textTransform: "uppercase",
+                  letterSpacing: 0.8,
+                  marginBottom: 6
+                }}>
+                  💬 Initial Enquiry Notes (from chatbot / intake form)
                 </div>
-                <div style={{ fontSize: 11, color: "#64748b", fontFamily: "ui-monospace, monospace" }}>
-                  {m.MODEL_CODE} · {m.CATEGORY || "uncategorized"}
-                </div>
-              </div>
-              <Pill color="#6366f1">{m.total_units} units</Pill>
-            </div>
-
-            <div style={{ display: "flex", gap: 8, fontSize: 11, marginBottom: 8 }}>
-              <span style={{ color: "#64748b" }}>WOs: <strong>{m.wo_count}</strong></span>
-              <span style={{ color: "#f59e0b" }}>In progress: <strong>{m.in_progress_units}</strong></span>
-              <span style={{ color: "#10b981" }}>Delivered: <strong>{m.done_units}</strong></span>
-            </div>
-
-            {m.bom_preview && m.bom_preview.length > 0 && (
-              <div style={{ marginTop: 6, paddingTop: 8, borderTop: "1px dashed #c7d2fe" }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: "#4338ca", letterSpacing: 0.8, marginBottom: 4, textTransform: "uppercase" }}>
-                  BOM preview ({m.bom_total_items} items total)
-                </div>
-                <div style={{ fontSize: 11, color: "#475569", lineHeight: 1.6 }}>
-                  {m.bom_preview.map((b, i) => (
-                    <div key={i}>
-                      • {b.MATERIAL_NAME} <span style={{ color: "#94a3b8" }}>
-                        ({b.QUANTITY} {b.UNIT})
-                      </span>
-                      <span style={{
-                        marginLeft: 6,
-                        fontSize: 9,
-                        padding: "1px 6px",
-                        borderRadius: 4,
-                        background: b.TYPE === "PURCHASE" ? "#dbeafe" : "#ede9fe",
-                        color: b.TYPE === "PURCHASE" ? "#1e40af" : "#6d28d9",
-                        fontWeight: 700
-                      }}>{b.TYPE}</span>
-                    </div>
-                  ))}
-                  {m.bom_total_items > m.bom_preview.length && (
-                    <div style={{ color: "#94a3b8", marginTop: 2 }}>
-                      … and {m.bom_total_items - m.bom_preview.length} more parts
-                    </div>
-                  )}
+                <div style={{
+                  fontSize: 13,
+                  color: "#0f172a",
+                  whiteSpace: "pre-wrap",
+                  lineHeight: 1.6
+                }}>
+                  {cust.REQUIREMENT_NOTES}
                 </div>
               </div>
             )}
+
+            {cust.REMARKS && (
+
+              <div style={{
+                padding: 12,
+                background: "#fffbeb",
+                border: "1px solid #fde68a",
+                borderRadius: 8,
+                fontSize: 13,
+                color: "#78350f",
+                whiteSpace: "pre-wrap"
+              }}>
+                <div style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: "#854d0e",
+                  textTransform: "uppercase",
+                  letterSpacing: 0.8,
+                  marginBottom: 4
+                }}>
+                  Internal Remarks
+                </div>
+                {cust.REMARKS}
+              </div>
+            )}
           </div>
-        ))}
+        )}
       </Section>
 
-      {/* Projects */}
-      <Section title={`Projects (${projects.length})`}>
-        {projects.length === 0 && (
-          <div style={{ color: "#94a3b8", fontSize: 13 }}>No projects yet.</div>
+      {/* ============== Vending Machine Requirements ============== */}
+      <Section title={`Vending Machine Requirements / Requests (${requirements.length})`}>
+
+        {requirements.length === 0 && (
+
+          <div style={{
+            color: "#94a3b8",
+            fontSize: 13,
+            padding: 18,
+            background: "#f8fafc",
+            border: "1px dashed #cbd5e1",
+            borderRadius: 10,
+            textAlign: "center"
+          }}>
+            No machine requirements submitted yet.<br />
+            <span style={{ fontSize: 11 }}>
+              When the customer fills the chatbot intake form, each request will appear here.
+            </span>
+          </div>
         )}
-        {projects.map((p) => (
+
+        {requirements.map((r, idx) => (
+
           <div
-            key={p.ID}
-            onClick={() => openEntity("project", p.ID)}
+            key={r.ID}
             style={{
-              padding: "10px 12px",
               border: "1px solid #e2e8f0",
-              borderRadius: 8,
-              marginBottom: 8,
-              cursor: "pointer"
+              borderRadius: 12,
+              marginBottom: 12,
+              overflow: "hidden",
+              boxShadow: "0 2px 8px rgba(15,23,42,0.04)"
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
-                  {p.PROJECT_NAME}
+
+            {/* Card header */}
+            <div style={{
+              padding: "10px 14px",
+              background: "linear-gradient(135deg, #C8102E, #8B0B1F)",
+              color: "white",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: "50%",
+                  background: "rgba(255,255,255,0.2)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 11,
+                  fontWeight: 800
+                }}>
+                  {idx + 1}
                 </div>
-                {p.DEPARTMENT && (
-                  <div style={{ fontSize: 11, color: "#64748b" }}>
-                    {p.DEPARTMENT}
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.1 }}>
+                    {r.MACHINE_NAME || r.MACHINE_CATEGORY || "Machine Request"}
                   </div>
-                )}
+                  <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>
+                    Submitted {fmtDate(r.CREATED_AT)}
+                  </div>
+                </div>
               </div>
-              <div style={{ display: "flex", gap: 4 }}>
+              <div style={{ display: "flex", gap: 6 }}>
                 <Pill color={
-                  p.PRIORITY === "HIGH" ? "#ef4444" :
-                  p.PRIORITY === "LOW" ? "#94a3b8" : "#f59e0b"
-                }>{p.PRIORITY || "MEDIUM"}</Pill>
-                <Pill color="#3b82f6">{p.STATUS}</Pill>
+                  r.PRIORITY === "HIGH" ? "#fca5a5" :
+                  r.PRIORITY === "LOW" ? "#94a3b8" : "#fcd34d"
+                }>{r.PRIORITY || "MEDIUM"}</Pill>
+                <Pill color={
+                  r.STATUS === "ORDERED" ? "#86efac" :
+                  r.STATUS === "QUOTED" ? "#93c5fd" :
+                  r.STATUS === "CONFIRMED" ? "#a5b4fc" :
+                  r.STATUS === "CANCELLED" ? "#fca5a5" :
+                  "#fde68a"
+                }>{r.STATUS || "DRAFT"}</Pill>
               </div>
+            </div>
+
+            {/* Card body — form-style read-only fields */}
+            <div style={{
+              padding: 16,
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: 14,
+              background: "white"
+            }}>
+              <ReadField label="Machine Category" value={r.MACHINE_CATEGORY} />
+              <ReadField label="Machine Name" value={r.MACHINE_NAME} />
+              <ReadField label="Quantity" value={r.QUANTITY ? `${r.QUANTITY} unit(s)` : null} />
+
+              <ReadField label="Capacity / Size" value={r.CAPACITY} />
+              <ReadField label="Target Unit Price" value={r.TARGET_UNIT_PRICE != null ? fmtMoney(r.TARGET_UNIT_PRICE) : null} />
+              <ReadField label="Target Delivery Date" value={fmtDate(r.TARGET_DELIVERY_DATE)} />
+
+              <div style={{ gridColumn: "1 / -1" }}>
+                <ReadField label="Installation Site" value={r.INSTALLATION_SITE} />
+              </div>
+
+              {r.SPECIAL_NOTES && (
+
+                <div style={{
+                  gridColumn: "1 / -1",
+                  padding: 12,
+                  background: "#fef3c7",
+                  border: "1px solid #fde68a",
+                  borderRadius: 8
+                }}>
+                  <div style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: "#854d0e",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.8,
+                    marginBottom: 4
+                  }}>
+                    💡 Special Notes / Customization
+                  </div>
+                  <div style={{
+                    fontSize: 13,
+                    color: "#78350f",
+                    whiteSpace: "pre-wrap",
+                    lineHeight: 1.5
+                  }}>
+                    {r.SPECIAL_NOTES}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ))}
       </Section>
 
-      {/* Recent work orders */}
-      {wos.length > 0 && (
-        <Section title={`Recent Work Orders (${wos.length})`}>
-          {wos.slice(0, 10).map((wo) => (
-            <div
-              key={wo.ID}
-              onClick={() => openEntity("work-order", wo.ID)}
-              style={{
-                padding: "8px 12px",
-                border: "1px solid #e2e8f0",
-                borderRadius: 8,
-                marginBottom: 6,
-                cursor: "pointer",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center"
-              }}
-            >
-              <div>
-                <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 12, fontWeight: 600, color: "#1e40af" }}>
-                  {wo.WO_NUMBER}
-                </div>
-                <div style={{ fontSize: 12, color: "#475569" }}>
-                  {wo.MODEL_NAME} × {wo.QUANTITY}
-                </div>
-              </div>
-              <Pill color={
-                wo.STATUS === "DONE" ? "#10b981" :
-                wo.STATUS === "IN_PROGRESS" ? "#f59e0b" : "#64748b"
-              }>{wo.STATUS}</Pill>
-            </div>
-          ))}
-        </Section>
-      )}
-
+      {/* ============== General Notes ============== */}
       {cust.NOTES && (
-        <Section title="Notes">
+
+        <Section title="General Notes">
           <div style={{
             padding: 12,
             background: "#fffbeb",
@@ -1744,13 +1867,19 @@ function CustomerView({ data, openEntity, navigate, onClose }) {
         </Section>
       )}
 
+      {/* ============== Footer actions ============== */}
       <div style={{ marginTop: 22, display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button
-          onClick={() => { onClose(); navigate("/production"); }}
-          style={navBtn("#f59e0b")}
-        >
-          Production →
-        </button>
+
+        {sum.projects_total > 0 && (
+          <button
+            onClick={() => { onClose(); navigate("/production"); }}
+            style={navBtn("#f59e0b")}
+            title={`View ${sum.projects_total} project(s) and ${sum.work_orders_total || 0} work order(s) tied to this customer`}
+          >
+            🏭 View Production Status →
+          </button>
+        )}
+
         <button
           onClick={() => { onClose(); navigate("/customers"); }}
           style={navBtn("#06b6d4")}

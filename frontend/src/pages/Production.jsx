@@ -2815,12 +2815,42 @@ function TimelineHeader({ timeline }) {
 
   const cellWidth = 100 / timeline.length;
 
+  // ---- Adaptive layout based on how cramped the cells are ---------
+  // full   ≥ 3.0% per cell (≤33 days)  → show day#, full date, 3-letter weekday
+  // medium ≥ 1.5% per cell (≤66 days)  → show day#, full date, single-char weekday
+  // compact <1.5% per cell (>66 days)  → show day#, single-char weekday;
+  //                                       month labels only on the 1st of each month
+  let mode = "full";
+
+  if (cellWidth < 1.5) mode = "compact";
+
+  else if (cellWidth < 3) mode = "medium";
+
+  const headerHeight = mode === "compact" ? 46 : 54;
+
+  // Pre-compute the day-of-month label visibility for compact mode.
+  // We show a date label whenever it's the 1st of the month or
+  // every 7 days (whichever comes first) so the user can still
+  // anchor by week and by month change.
+  const showDateLabel = (d, idx) => {
+
+    if (mode !== "compact") return true;
+
+    const dt = new Date(d.date + "T00:00:00");
+
+    if (dt.getDate() === 1) return true;        // 1st of month — always
+
+    if (idx % 7 === 0) return true;             // weekly anchor
+
+    return false;
+  };
+
   return (
 
     <div
       style={{
         position: "relative",
-        height: 54,
+        height: headerHeight,
         background: "#f8fafc",
         borderRadius: 6,
         overflow: "hidden",
@@ -2834,6 +2864,17 @@ function TimelineHeader({ timeline }) {
         const dayNum = dt.getDate();
 
         const monthShort = dt.toLocaleDateString("en-IN", { month: "short" });
+
+        const weekdayChar = (d.weekday || "")[0] || "";
+
+        const weekdayText =
+          mode === "full" ? (d.weekday || "").toUpperCase() : weekdayChar;
+
+        const showDate = showDateLabel(d, idx);
+
+        // Highlight the 1st of each month with a stronger top border
+        // so the user can spot month changes at a glance.
+        const isMonthStart = dt.getDate() === 1;
 
         return (
 
@@ -2849,18 +2890,23 @@ function TimelineHeader({ timeline }) {
                 idx < timeline.length - 1
                   ? "1px solid #e2e8f0"
                   : "none",
+              borderLeft: isMonthStart && idx > 0
+                ? "2px solid #6366f1"
+                : "none",
               background: d.is_sunday ? "#fee2e2" : "transparent",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              padding: "3px 0"
+              padding: "3px 0",
+              overflow: "hidden"
             }}
+            title={`Day ${d.day_number} — ${dt.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short", year: "numeric" })}`}
           >
 
             <div
               style={{
-                fontSize: 13,
+                fontSize: mode === "compact" ? 10 : 12,
                 fontWeight: 800,
                 color: d.is_sunday ? "#991b1b" : "#0f172a",
                 lineHeight: 1
@@ -2869,29 +2915,39 @@ function TimelineHeader({ timeline }) {
               {d.day_number}
             </div>
 
-            <div
-              style={{
-                fontSize: 9,
-                color: d.is_sunday ? "#991b1b" : "#475569",
-                fontWeight: 700,
-                marginTop: 3,
-                whiteSpace: "nowrap"
-              }}
-            >
-              {dayNum} {monthShort}
-            </div>
+            {showDate && (
+
+              <div
+                style={{
+                  fontSize: mode === "compact" ? 8 : 9,
+                  color: d.is_sunday ? "#991b1b" : "#475569",
+                  fontWeight: 700,
+                  marginTop: 3,
+                  whiteSpace: "nowrap",
+                  // In compact mode allow the label to spill into the
+                  // adjacent (blank) cells — common Gantt-chart pattern.
+                  overflow: mode === "compact" ? "visible" : "hidden",
+                  pointerEvents: "none"
+                }}
+              >
+                {mode === "compact" && isMonthStart
+                  ? monthShort
+                  : `${dayNum}${mode === "full" ? " " + monthShort : ""}`}
+              </div>
+            )}
 
             <div
               style={{
-                fontSize: 8,
+                fontSize: mode === "full" ? 8 : 9,
                 color: d.is_sunday ? "#991b1b" : "#94a3b8",
-                fontWeight: 600,
+                fontWeight: 700,
                 marginTop: 2,
                 textTransform: "uppercase",
-                letterSpacing: 0.4
+                letterSpacing: mode === "full" ? 0.4 : 0,
+                lineHeight: 1
               }}
             >
-              {d.weekday}
+              {weekdayText}
             </div>
           </div>
         );
@@ -2910,6 +2966,13 @@ function WOGanttDrawer({ wo, onClose }) {
   const [updating, setUpdating] = useState(false);
 
   const [resyncing, setResyncing] = useState(false);
+
+  // Pagination — page through the full timeline one calendar month at a time
+  // so the Gantt header stays readable even for 100-day projects.
+  const [monthIdx, setMonthIdx] = useState(0);
+
+  // Reset to first month whenever we switch to a different WO
+  useEffect(() => { setMonthIdx(0); }, [wo?.ID]);
 
   const fetchGantt = () => {
 
@@ -3022,6 +3085,82 @@ function WOGanttDrawer({ wo, onClose }) {
   const progressPct = data?.total_stages
     ? Math.round((data.completed_count / data.total_stages) * 100)
     : 0;
+
+  // ---- Month-bucket the full timeline so the Gantt can paginate ----
+  const monthBuckets = (() => {
+
+    const buckets = [];
+
+    let current = null;
+
+    (data?.timeline || []).forEach((d) => {
+
+      const dt = new Date(d.date + "T00:00:00");
+
+      const key = `${dt.getFullYear()}-${dt.getMonth()}`;
+
+      if (!current || current.key !== key) {
+
+        current = {
+          key,
+          label: dt.toLocaleDateString("en-IN", {
+            month: "long",
+            year: "numeric"
+          }),
+          days: []
+        };
+
+        buckets.push(current);
+      }
+
+      current.days.push(d);
+    });
+
+    return buckets;
+  })();
+
+  const safeMonthIdx = Math.min(
+    monthIdx,
+    Math.max(0, monthBuckets.length - 1)
+  );
+
+  const activeMonth = monthBuckets[safeMonthIdx];
+
+  const visibleTimeline = activeMonth?.days || [];
+
+  const windowStart = visibleTimeline[0]?.day_number || 1;
+
+  const windowEnd =
+    visibleTimeline[visibleTimeline.length - 1]?.day_number || 0;
+
+  // Reproject each bar so its day_number is relative to the visible window.
+  // Stages that are entirely outside this month are filtered out so the
+  // Gantt rows match what the user can actually see in the bars.
+  const windowedBars = bars
+
+    .map((bar) => {
+
+      const barEnd = bar.day_number + (bar.days_allocated || 1) - 1;
+
+      // Skip if entirely outside the visible window
+      if (barEnd < windowStart || bar.day_number > windowEnd) return null;
+
+      // Clamp to window edges so long bars don't visually overflow
+      const clampedStart = Math.max(bar.day_number, windowStart);
+
+      const clampedEnd = Math.min(barEnd, windowEnd);
+
+      return {
+        ...bar,
+        // Re-base into window coordinates (1-indexed within the window)
+        day_number: clampedStart - windowStart + 1,
+        days_allocated: clampedEnd - clampedStart + 1,
+        _clippedLeft: bar.day_number < windowStart,
+        _clippedRight: barEnd > windowEnd
+      };
+    })
+
+    .filter(Boolean);
 
   return (
 
@@ -3410,6 +3549,132 @@ function WOGanttDrawer({ wo, onClose }) {
               }}
             >
 
+              {/* ---- Month pagination toolbar ---- */}
+              {monthBuckets.length > 0 && (
+
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    marginBottom: 10,
+                    padding: "8px 12px",
+                    background: "#f8fafc",
+                    borderRadius: 8,
+                    border: "1px solid #e2e8f0"
+                  }}
+                >
+
+                  <button
+                    onClick={() => setMonthIdx((i) => Math.max(0, i - 1))}
+                    disabled={safeMonthIdx === 0}
+                    style={{
+                      padding: "6px 14px",
+                      borderRadius: 6,
+                      border: "1px solid #cbd5e1",
+                      background: safeMonthIdx === 0 ? "#f1f5f9" : "white",
+                      cursor: safeMonthIdx === 0 ? "not-allowed" : "pointer",
+                      fontWeight: 700,
+                      fontSize: 13,
+                      color: safeMonthIdx === 0 ? "#94a3b8" : "#0f172a"
+                    }}
+                  >
+                    ‹ Prev
+                  </button>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      flex: 1,
+                      justifyContent: "center"
+                    }}
+                  >
+
+                    <div style={{
+                      fontSize: 15,
+                      fontWeight: 800,
+                      color: "#0f172a",
+                      letterSpacing: 0.3
+                    }}>
+                      {activeMonth?.label}
+                    </div>
+
+                    <div style={{
+                      fontSize: 11,
+                      color: "#64748b",
+                      padding: "3px 10px",
+                      background: "white",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 99,
+                      fontWeight: 700
+                    }}>
+                      {visibleTimeline.length} days · day {windowStart}–{windowEnd}
+                      &nbsp;·&nbsp; {windowedBars.length} stage(s)
+                    </div>
+
+                    {/* Pill nav — quick jump to any month */}
+                    <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>
+
+                      {monthBuckets.map((m, i) => (
+
+                        <button
+                          key={m.key}
+                          onClick={() => setMonthIdx(i)}
+                          title={m.label}
+                          style={{
+                            width: 26,
+                            height: 26,
+                            border: "1px solid",
+                            borderColor: i === safeMonthIdx ? "#6366f1" : "#e2e8f0",
+                            background: i === safeMonthIdx ? "#6366f1" : "white",
+                            color: i === safeMonthIdx ? "white" : "#475569",
+                            borderRadius: 6,
+                            cursor: "pointer",
+                            fontWeight: 700,
+                            fontSize: 11
+                          }}
+                        >
+                          {i + 1}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      setMonthIdx((i) =>
+                        Math.min(monthBuckets.length - 1, i + 1)
+                      )
+                    }
+                    disabled={safeMonthIdx >= monthBuckets.length - 1}
+                    style={{
+                      padding: "6px 14px",
+                      borderRadius: 6,
+                      border: "1px solid #cbd5e1",
+                      background:
+                        safeMonthIdx >= monthBuckets.length - 1
+                          ? "#f1f5f9"
+                          : "white",
+                      cursor:
+                        safeMonthIdx >= monthBuckets.length - 1
+                          ? "not-allowed"
+                          : "pointer",
+                      fontWeight: 700,
+                      fontSize: 13,
+                      color:
+                        safeMonthIdx >= monthBuckets.length - 1
+                          ? "#94a3b8"
+                          : "#0f172a"
+                    }}
+                  >
+                    Next ›
+                  </button>
+                </div>
+              )}
+
               <div
                 style={{
                   display: "grid",
@@ -3426,17 +3691,30 @@ function WOGanttDrawer({ wo, onClose }) {
                 }}
               >
                 <div>Stage</div>
-                <TimelineHeader timeline={data.timeline || []} />
+                <TimelineHeader timeline={visibleTimeline} />
                 <div style={{ textAlign: "right" }}>Status / Action</div>
               </div>
 
-              {bars.map((bar) => (
+              {windowedBars.length === 0 && (
+
+                <div style={{
+                  padding: "30px 12px",
+                  textAlign: "center",
+                  color: "#94a3b8",
+                  fontSize: 13
+                }}>
+                  No stages scheduled for {activeMonth?.label}.
+                  Use the Prev / Next buttons to find this month's stages.
+                </div>
+              )}
+
+              {windowedBars.map((bar) => (
 
                 <GanttRow
                   key={bar.stage_id}
                   bar={bar}
-                  timeline={data.timeline || []}
-                  timelineDays={data.timeline_days || 30}
+                  timeline={visibleTimeline}
+                  timelineDays={visibleTimeline.length || 30}
                   onUpdate={updateStage}
                   updating={updating}
                 />

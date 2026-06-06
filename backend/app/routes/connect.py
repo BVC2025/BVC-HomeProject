@@ -659,6 +659,35 @@ def customer_360(customer_id: int, db: Session = Depends(get_db)):
         if p.STATUS in ("PENDING", "IN_PROGRESS", "ACTIVE")
     )
 
+    # ---- Requirements (chatbot / enquiry-form submissions) ----
+    from app.models.models import CustomerRequirement
+
+    req_rows = (
+        db.query(CustomerRequirement)
+        .filter(CustomerRequirement.CUSTOMER_ID == customer.ID)
+        .order_by(CustomerRequirement.CREATED_AT.desc())
+        .all()
+    )
+
+    requirements = [
+        {
+            "ID": r.ID,
+            "MACHINE_CATEGORY": r.MACHINE_CATEGORY,
+            "MACHINE_NAME": r.MACHINE_NAME,
+            "PRODUCT_MODEL_ID": r.PRODUCT_MODEL_ID,
+            "QUANTITY": r.QUANTITY,
+            "CAPACITY": r.CAPACITY,
+            "TARGET_UNIT_PRICE": r.TARGET_UNIT_PRICE,
+            "TARGET_DELIVERY_DATE": _iso(r.TARGET_DELIVERY_DATE),
+            "INSTALLATION_SITE": r.INSTALLATION_SITE,
+            "PRIORITY": r.PRIORITY,
+            "STATUS": r.STATUS,
+            "SPECIAL_NOTES": r.SPECIAL_NOTES,
+            "CREATED_AT": _iso(r.CREATED_AT)
+        }
+        for r in req_rows
+    ]
+
     return {
         "customer": {
             "ID": customer.ID,
@@ -681,8 +710,19 @@ def customer_360(customer_id: int, db: Session = Depends(get_db)):
             "SOURCE": customer.SOURCE,
             "STATUS": customer.STATUS,
             "NOTES": customer.NOTES,
-            "CREATED_AT": _iso(customer.CREATED_AT)
+            "CREATED_AT": _iso(customer.CREATED_AT),
+            # ---- Enquiry / lead intake fields (from initial chatbot/form) ----
+            "LEAD_SOURCE": getattr(customer, "LEAD_SOURCE", None),
+            "LEAD_STATUS": getattr(customer, "LEAD_STATUS", None),
+            "LEAD_PRIORITY": getattr(customer, "LEAD_PRIORITY", None),
+            "LEAD_CREATED_DATE": _iso(getattr(customer, "LEAD_CREATED_DATE", None)),
+            "FOLLOW_UP_DATE": _iso(getattr(customer, "FOLLOW_UP_DATE", None)),
+            "NEXT_MEETING_DATE": _iso(getattr(customer, "NEXT_MEETING_DATE", None)),
+            "REQUIREMENT_NOTES": getattr(customer, "REQUIREMENT_NOTES", None),
+            "REMARKS": getattr(customer, "REMARKS", None),
+            "ASSIGNED_SALES_ID": getattr(customer, "ASSIGNED_SALES_ID", None)
         },
+        "requirements": requirements,
         "summary": {
             "projects_total": len(projects),
             "active_projects": active_projects,

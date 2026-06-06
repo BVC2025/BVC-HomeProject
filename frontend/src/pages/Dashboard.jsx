@@ -57,8 +57,11 @@ import LeaveManagement from "./LeaveManagement";
 import DashboardHome from "./DashboardHome";
 import AdminDashboard from "./AdminDashboard";
 import AdminDashboardV2 from "./AdminDashboardV2";
+import EnterpriseCommandCenter from "./EnterpriseCommandCenter";
 import RoleManagement from "./RoleManagement";
 import CompanySettings from "./CompanySettings";
+import GeofenceSettings from "./GeofenceSettings";
+import EmployeeMemos from "./EmployeeMemos";
 import ApprovalCenter from "./ApprovalCenter";
 import AICommandCenter from "./AICommandCenter";
 import Workflow from "./Workflow";
@@ -1270,11 +1273,11 @@ const NAV_GROUPS = [
       { to: "/approvals",         icon: "✅", label: "Approval Center" },
       { to: "/roles",             icon: "🔐", label: "Roles & Permissions" },
       { to: "/employees",         icon: "👥", label: "Employees" },
+      { to: "/memos",             icon: "📋", label: "Memos" },
       { to: "/attendance",        icon: "🕒", label: "Attendance" },
       { to: "/leave-management",  icon: "🌴", label: "Leave Management" },
       { to: "/payroll",           icon: "💰", label: "Payroll" },
-      { to: "/star-performance",  icon: "⭐", label: "Star Performance" },
-      { to: "/md-review",         icon: "📈", label: "MD Performance Review" }
+      { to: "/star-performance",  icon: "⭐", label: "Star Performance" }
     ]
   },
   {
@@ -1324,6 +1327,7 @@ const NAV_GROUPS = [
     icon: "⚙️",
     items: [
       { to: "/company-settings", icon: "🏢", label: "Company Settings" },
+      { to: "/geofence", icon: "📍", label: "Geofence Settings" },
       { to: "/settings", icon: "⚙️", label: "Settings" }
     ]
   }
@@ -1607,7 +1611,8 @@ function Dashboard() {
         <Routes>
 
           {/* AI Mission Control — Phase 1 foundation (new default) */}
-          <Route path="/" element={<AdminDashboardV2 />} />
+          <Route path="/" element={<EnterpriseCommandCenter />} />
+          <Route path="/dashboard-v2" element={<AdminDashboardV2 />} />
 
           {/* Earlier dashboards reachable for comparison / fallback */}
           <Route path="/dashboard-v1" element={<AdminDashboard />} />
@@ -1615,6 +1620,8 @@ function Dashboard() {
           <Route path="/roles" element={<RoleManagement />} />
 
           <Route path="/company-settings" element={<CompanySettings />} />
+          <Route path="/geofence" element={<GeofenceSettings />} />
+          <Route path="/memos" element={<EmployeeMemos />} />
 
           <Route path="/approvals" element={<ApprovalCenter />} />
 

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 import ChatBot from "../components/ChatBot";
 import HRAssistant from "../components/HRAssistant";
+import LeaveChatbot from "../components/LeaveChatbot";
 import EmployeeProfileForm from "./EmployeeProfileForm";
 
 import {
@@ -765,6 +766,9 @@ function EmployeeDashboardBody() {
         {/* ---------- 5. ASSIGNED PROJECTS ---------- */}
         <AssignedProjectsCard projects={projects} />
 
+        {/* ---------- 5b. MY MEMOS — employee-side view ---------- */}
+        <MyMemosCard employeeId={employeeId} />
+
         {/* ---------- 6. PERFORMANCE BREAKDOWN ---------- */}
         <PerformanceBreakdownCard productivity={productivity} />
 
@@ -785,6 +789,20 @@ function EmployeeDashboardBody() {
             onUpdate={updateStage}
           />
         )}
+
+        {/* ---------- AI Leave Chatbot — new feature ---------- */}
+        {/* Sits above the existing form. Does NOT replace it — both    */}
+        {/* coexist. The chatbot calls the same POST /leave/apply       */}
+        {/* endpoint the form does, so the rest of the workflow         */}
+        {/* (HR email, dashboard update, balance deduction) stays put.  */}
+        <LeaveChatbot
+          employeeId={employeeId}
+          onLeaveSubmitted={() => {
+            // Re-fetch so the Leave History panel + balance refresh
+            fetchLeaveHistory?.();
+            fetchLeaveBalance?.();
+          }}
+        />
 
         {/* ---------- (retained) Leave & Permission ---------- */}
         <LeavePermissionSection
@@ -2811,6 +2829,567 @@ function ProductionStagesSection({ stages, busyMap, onUpdate }) {
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+
+// =====================================================================
+// MY MEMOS — employee-side view of their own memos
+//
+// Self-contained: fetches via /memos/employee/<EMPLOYEE_CODE> (the
+// backend accepts both UUID and code). Shows latest 5 by default with
+// an "Show All" toggle. Lets the employee acknowledge memos they
+// haven't seen yet. Read-only otherwise — HR is the editor.
+// =====================================================================
+
+function MyMemosCard({ employeeId }) {
+
+  const [memos, setMemos] = useState([]);
+
+  const [loading, setLoading] = useState(false);
+
+  const [error, setError] = useState("");
+
+  const [openMemo, setOpenMemo] = useState(null);
+
+  const [showAll, setShowAll] = useState(false);
+
+  const [filter, setFilter] = useState("ALL");
+  // ALL | PENDING | ACKNOWLEDGED
+
+  const [ackBusy, setAckBusy] = useState(false);
+
+  const load = async () => {
+
+    if (!employeeId) return;
+
+    setLoading(true);
+
+    setError("");
+
+    try {
+
+      const res = await API.get(`/memos/employee/${encodeURIComponent(employeeId)}`);
+
+      setMemos(Array.isArray(res.data) ? res.data : []);
+
+    } catch (e) {
+
+      const status = e?.response?.status;
+
+      if (status === 404) {
+
+        setError("");                  // no memos / employee not found
+
+        setMemos([]);
+
+      } else {
+
+        setError(e?.response?.data?.detail || "Failed to load memos.");
+      }
+
+    } finally {
+
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+
+    load();
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employeeId]);
+
+  const filtered = memos.filter((m) => {
+
+    if (filter === "PENDING")      return !m.ACKNOWLEDGED_BY_EMPLOYEE;
+
+    if (filter === "ACKNOWLEDGED") return  m.ACKNOWLEDGED_BY_EMPLOYEE;
+
+    return true;
+  });
+
+  const visible = showAll ? filtered : filtered.slice(0, 5);
+
+  const counts = {
+    total:        memos.length,
+    pendingAck:   memos.filter((m) => !m.ACKNOWLEDGED_BY_EMPLOYEE).length,
+    warnings:     memos.filter((m) => m.MEMO_TYPE === "WARNING").length,
+    appreciations: memos.filter((m) =>
+      m.MEMO_TYPE === "APPRECIATION" || m.MEMO_TYPE === "PERFORMANCE_RECOGNITION"
+    ).length
+  };
+
+  const acknowledge = async (memo) => {
+
+    if (memo.ACKNOWLEDGED_BY_EMPLOYEE) return;
+
+    setAckBusy(true);
+
+    try {
+
+      await API.post(`/memos/${memo.ID}/acknowledge`, {});
+
+      await load();
+
+      setOpenMemo((prev) => prev && prev.ID === memo.ID
+        ? { ...prev, ACKNOWLEDGED_BY_EMPLOYEE: true, ACKNOWLEDGED_DATE: new Date().toISOString() }
+        : prev);
+
+    } catch {
+      /* non-fatal */
+    } finally {
+
+      setAckBusy(false);
+    }
+  };
+
+  return (
+
+    <section style={{ ...cardBase, padding: 18, marginBottom: 18 }}>
+
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        marginBottom: 12,
+        gap: 12,
+        flexWrap: "wrap"
+      }}>
+        <div>
+          <div style={{ ...SECTION_LABEL }}>📋 My Memos</div>
+          <div style={{ fontSize: 12, color: BVC.MUTED, marginTop: 2 }}>
+            Official records issued to you by HR / Management.
+          </div>
+        </div>
+
+        {memos.length > 0 && (
+
+          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+            <MiniStat label="Total"        value={counts.total}        color={BVC.INK} />
+            <MiniStat label="To Ack"       value={counts.pendingAck}   color="#f59e0b" />
+            <MiniStat label="Warnings"     value={counts.warnings}     color="#dc2626" />
+            <MiniStat label="Appreciations"value={counts.appreciations}color="#16a34a" />
+          </div>
+        )}
+      </div>
+
+      {/* Pending Ack callout */}
+      {counts.pendingAck > 0 && filter === "ALL" && (
+
+        <div
+          onClick={() => setFilter("PENDING")}
+          style={{
+            background: "#fff7ed",
+            border: "1px solid #fed7aa",
+            borderRadius: 10,
+            padding: "10px 14px",
+            marginBottom: 12,
+            fontSize: 13,
+            color: "#9a3412",
+            cursor: "pointer",
+            fontWeight: 700
+          }}
+        >
+          ⏳ You have <strong>{counts.pendingAck}</strong> memo
+          {counts.pendingAck !== 1 ? "s" : ""} waiting for your acknowledgement.
+          <span style={{ marginLeft: 6, color: "#c2410c", textDecoration: "underline" }}>
+            Show only those →
+          </span>
+        </div>
+      )}
+
+      {/* Filter chips */}
+      {memos.length > 0 && (
+
+        <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+          {[
+            { key: "ALL",          label: "All" },
+            { key: "PENDING",      label: `Pending (${counts.pendingAck})` },
+            { key: "ACKNOWLEDGED", label: `Acknowledged (${counts.total - counts.pendingAck})` }
+          ].map((c) => (
+
+            <button
+              key={c.key}
+              onClick={() => setFilter(c.key)}
+              style={{
+                background: filter === c.key ? BVC.PRIMARY : "white",
+                color:      filter === c.key ? "white" : BVC.TEXT,
+                border:    `1px solid ${filter === c.key ? BVC.PRIMARY : "#e2e8f0"}`,
+                padding: "5px 12px",
+                borderRadius: 6,
+                fontSize: 11,
+                fontWeight: 800,
+                cursor: "pointer",
+                letterSpacing: 0.3
+              }}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Loading / empty / error states */}
+      {loading && (
+        <div style={{ padding: 20, color: BVC.MUTED, fontSize: 13 }}>
+          Loading memos…
+        </div>
+      )}
+
+      {error && (
+        <div style={{
+          padding: "10px 14px", background: "#fef2f2",
+          border: "1px solid #fecaca", borderRadius: 8,
+          color: "#991b1b", fontSize: 13
+        }}>
+          {error}
+        </div>
+      )}
+
+      {!loading && !error && memos.length === 0 && (
+        <EmptyState message="You have no memos on record. 👍" />
+      )}
+
+      {!loading && !error && filtered.length === 0 && memos.length > 0 && (
+        <div style={{
+          padding: 24, textAlign: "center", color: BVC.MUTED, fontSize: 13
+        }}>
+          No memos match this filter.
+        </div>
+      )}
+
+      {/* Memo list */}
+      {!loading && visible.length > 0 && (
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {visible.map((m) => (
+            <MemoRow key={m.ID} memo={m} onOpen={() => setOpenMemo(m)} />
+          ))}
+        </div>
+      )}
+
+      {filtered.length > 5 && !showAll && (
+        <div style={{ marginTop: 10, textAlign: "center" }}>
+          <button
+            onClick={() => setShowAll(true)}
+            style={{
+              background: "white", border: `1px solid ${BVC.BORDER}`,
+              color: BVC.DARK, padding: "6px 14px", borderRadius: 6,
+              fontSize: 12, fontWeight: 700, cursor: "pointer"
+            }}
+          >
+            Show all {filtered.length} memos →
+          </button>
+        </div>
+      )}
+
+      {/* Detail modal */}
+      {openMemo && (
+        <MyMemoDetail
+          memo={openMemo}
+          onClose={() => setOpenMemo(null)}
+          onAcknowledge={() => acknowledge(openMemo)}
+          ackBusy={ackBusy}
+        />
+      )}
+    </section>
+  );
+}
+
+
+function MiniStat({ label, value, color }) {
+
+  return (
+    <div style={{ textAlign: "center" }}>
+      <div style={{
+        fontSize: 9, fontWeight: 800, letterSpacing: 0.8, color: BVC.MUTED,
+        textTransform: "uppercase"
+      }}>
+        {label}
+      </div>
+      <div style={{
+        fontSize: 20, fontWeight: 800, color, letterSpacing: -0.3, marginTop: 1
+      }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+
+const MEMO_TYPE_THEME = {
+  WARNING:                { emoji: "⚠️", color: "#dc2626", bg: "#fef2f2", label: "Warning" },
+  APPRECIATION:           { emoji: "👏", color: "#16a34a", bg: "#dcfce7", label: "Appreciation" },
+  DISCIPLINARY:           { emoji: "🚫", color: "#991b1b", bg: "#fee2e2", label: "Disciplinary" },
+  INFORMATION:            { emoji: "ℹ️", color: "#2563eb", bg: "#dbeafe", label: "Information" },
+  CUSTOMER_COMPLAINT:     { emoji: "📨", color: "#ea580c", bg: "#fff7ed", label: "Customer Complaint" },
+  PERFORMANCE_RECOGNITION:{ emoji: "🏆", color: "#0d9488", bg: "#ccfbf1", label: "Recognition" },
+  SHOW_CAUSE_NOTICE:      { emoji: "📜", color: "#7c2d12", bg: "#fef3c7", label: "Show Cause" }
+};
+
+
+const MEMO_SEV_THEME = {
+  LOW:      { color: "#10b981", bg: "#dcfce7" },
+  MEDIUM:   { color: "#f59e0b", bg: "#fef3c7" },
+  HIGH:     { color: "#ef4444", bg: "#fee2e2" },
+  CRITICAL: { color: "#7c2d12", bg: "#fef2f2" }
+};
+
+
+function MemoRow({ memo, onOpen }) {
+
+  const tt = MEMO_TYPE_THEME[memo.MEMO_TYPE] || MEMO_TYPE_THEME.INFORMATION;
+
+  const st = MEMO_SEV_THEME[memo.SEVERITY]   || MEMO_SEV_THEME.LOW;
+
+  return (
+    <div
+      onClick={onOpen}
+      style={{
+        display: "grid",
+        gridTemplateColumns: "auto 1fr auto auto",
+        gap: 12,
+        alignItems: "center",
+        padding: "12px 14px",
+        border: `1px solid ${memo.ACKNOWLEDGED_BY_EMPLOYEE ? "#e2e8f0" : tt.color + "55"}`,
+        borderRadius: 10,
+        background: memo.ACKNOWLEDGED_BY_EMPLOYEE ? "white" : tt.bg + "55",
+        cursor: "pointer",
+        transition: "all 0.15s"
+      }}
+      onMouseEnter={(e) => e.currentTarget.style.boxShadow = "0 4px 12px rgba(15,23,42,0.08)"}
+      onMouseLeave={(e) => e.currentTarget.style.boxShadow = "none"}
+    >
+      {/* Type emoji avatar */}
+      <div style={{
+        width: 40, height: 40, borderRadius: 10,
+        background: tt.color + "22",
+        color: tt.color,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: 18
+      }}>
+        {tt.emoji}
+      </div>
+
+      {/* Subject + meta */}
+      <div style={{ minWidth: 0 }}>
+        <div style={{
+          fontSize: 13, fontWeight: 700, color: BVC.INK, marginBottom: 2,
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+        }}>
+          {memo.SUBJECT}
+        </div>
+        <div style={{ fontSize: 11, color: BVC.MUTED, display: "flex", gap: 10 }}>
+          <span style={{ fontFamily: "ui-monospace, monospace", fontWeight: 700, color: "#475569" }}>
+            {memo.MEMO_NUMBER}
+          </span>
+          <span>·</span>
+          <span>{memo.ISSUE_DATE || "—"}</span>
+          {memo.ISSUED_BY && (
+            <>
+              <span>·</span>
+              <span>by {memo.ISSUED_BY}</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Type + Severity pills */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
+        <span style={{
+          background: tt.bg, color: tt.color, padding: "2px 8px",
+          borderRadius: 999, fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
+          textTransform: "uppercase"
+        }}>
+          {tt.label}
+        </span>
+        <span style={{
+          background: st.bg, color: st.color, padding: "1px 8px",
+          borderRadius: 999, fontSize: 9, fontWeight: 800, letterSpacing: 0.5
+        }}>
+          {memo.SEVERITY}
+        </span>
+      </div>
+
+      {/* Ack badge */}
+      <div style={{
+        width: 90, textAlign: "right", fontSize: 11, fontWeight: 800
+      }}>
+        {memo.ACKNOWLEDGED_BY_EMPLOYEE
+          ? <span style={{ color: "#16a34a" }}>✓ Acknowledged</span>
+          : <span style={{ color: "#f59e0b" }}>○ Pending</span>}
+      </div>
+    </div>
+  );
+}
+
+
+function MyMemoDetail({ memo, onClose, onAcknowledge, ackBusy }) {
+
+  const tt = MEMO_TYPE_THEME[memo.MEMO_TYPE] || MEMO_TYPE_THEME.INFORMATION;
+
+  const st = MEMO_SEV_THEME[memo.SEVERITY]   || MEMO_SEV_THEME.LOW;
+
+  return (
+
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0,
+        background: "rgba(15,23,42,0.55)",
+        zIndex: 1100,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "white",
+          borderRadius: 14,
+          width: "min(620px, 100%)",
+          maxHeight: "88vh",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          boxShadow: "0 30px 80px rgba(0,0,0,0.3)"
+        }}
+      >
+
+        {/* Header */}
+        <div style={{
+          padding: "18px 24px",
+          background: `linear-gradient(135deg, ${tt.color}, ${tt.color}dd)`,
+          color: "white"
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.6, opacity: 0.85, textTransform: "uppercase" }}>
+                {memo.MEMO_NUMBER}
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 800, marginTop: 4, letterSpacing: -0.2 }}>
+                {tt.emoji} {tt.label}
+              </div>
+              <div style={{ fontSize: 12, opacity: 0.92, marginTop: 4 }}>
+                Issued {memo.ISSUE_DATE || "—"}{memo.ISSUED_BY ? ` · by ${memo.ISSUED_BY}` : ""}
+              </div>
+            </div>
+            <button onClick={onClose} style={{
+              background: "rgba(255,255,255,0.2)", color: "white", border: "none",
+              padding: "4px 12px", borderRadius: 6, fontSize: 18, cursor: "pointer"
+            }}>×</button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflowY: "auto", padding: 22 }}>
+
+          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+            <span style={{
+              background: st.bg, color: st.color, padding: "3px 10px",
+              borderRadius: 999, fontSize: 10, fontWeight: 800, letterSpacing: 0.6,
+              textTransform: "uppercase"
+            }}>
+              {memo.SEVERITY}
+            </span>
+            <span style={{
+              background: "#f1f5f9", color: "#475569", padding: "3px 10px",
+              borderRadius: 999, fontSize: 10, fontWeight: 800, letterSpacing: 0.6,
+              textTransform: "uppercase"
+            }}>
+              {memo.STATUS}
+            </span>
+            {memo.ACKNOWLEDGED_BY_EMPLOYEE && (
+              <span style={{
+                background: "#dcfce7", color: "#15803d", padding: "3px 10px",
+                borderRadius: 999, fontSize: 10, fontWeight: 800, letterSpacing: 0.6,
+                textTransform: "uppercase"
+              }}>
+                ✓ Acknowledged
+              </span>
+            )}
+          </div>
+
+          <div style={{ fontSize: 17, fontWeight: 800, color: BVC.INK, marginBottom: 12, letterSpacing: -0.2 }}>
+            {memo.SUBJECT}
+          </div>
+
+          {memo.DESCRIPTION && (
+            <div style={{
+              padding: 14, background: "#f8fafc", border: "1px solid #e2e8f0",
+              borderRadius: 10, fontSize: 13, color: "#334155",
+              whiteSpace: "pre-wrap", lineHeight: 1.6, marginBottom: 14
+            }}>
+              {memo.DESCRIPTION}
+            </div>
+          )}
+
+          {memo.ATTACHMENT_URL && (
+            <div style={{ marginBottom: 14 }}>
+              <a href={memo.ATTACHMENT_URL} target="_blank" rel="noreferrer"
+                 style={{
+                   display: "inline-flex", alignItems: "center", gap: 6,
+                   color: "#2563eb", fontWeight: 700, textDecoration: "none",
+                   padding: "8px 12px", border: "1px solid #bfdbfe",
+                   borderRadius: 8, background: "#eff6ff", fontSize: 12
+                 }}>
+                📎 {memo.ATTACHMENT_NAME || "Download attachment"}
+              </a>
+            </div>
+          )}
+
+          {memo.ACKNOWLEDGED_BY_EMPLOYEE && memo.ACKNOWLEDGED_DATE && (
+            <div style={{
+              fontSize: 11, color: "#15803d", padding: "8px 12px",
+              background: "#f0fdf4", border: "1px solid #bbf7d0",
+              borderRadius: 8
+            }}>
+              ✓ You acknowledged this on {new Date(memo.ACKNOWLEDGED_DATE).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: "14px 22px",
+          background: "#f8fafc",
+          borderTop: "1px solid #e2e8f0",
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 10
+        }}>
+          <button onClick={onClose} style={{
+            background: "white", border: "1px solid #cbd5e1",
+            color: "#475569", padding: "8px 16px", borderRadius: 8,
+            fontWeight: 700, fontSize: 12, cursor: "pointer"
+          }}>
+            Close
+          </button>
+
+          {!memo.ACKNOWLEDGED_BY_EMPLOYEE && (
+            <button
+              onClick={onAcknowledge}
+              disabled={ackBusy}
+              style={{
+                background: ackBusy ? "#94a3b8" : "linear-gradient(135deg, #10b981, #059669)",
+                color: "white", border: "none",
+                padding: "9px 22px", borderRadius: 8,
+                fontWeight: 800, fontSize: 13,
+                cursor: ackBusy ? "wait" : "pointer",
+                letterSpacing: 0.3,
+                boxShadow: "0 4px 14px rgba(16,185,129,0.30)"
+              }}
+            >
+              {ackBusy ? "Recording…" : "✓ Acknowledge Memo"}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

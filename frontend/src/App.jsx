@@ -9,6 +9,7 @@ import BiometricCheckIn from "./pages/BiometricCheckIn";
 import ApplyLeave from "./pages/ApplyLeave";
 import QuotationPrint from "./pages/QuotationPrint";
 import PublicQuotation from "./pages/PublicQuotation";
+import PublicEnquiry from "./pages/PublicEnquiry";
 import PurchaseOrderPrint from "./pages/PurchaseOrderPrint";
 import GRNPrint from "./pages/GRNPrint";
 import SalesOrderPrint from "./pages/SalesOrderPrint";
@@ -98,6 +99,12 @@ function App() {
       <Route
         path="/q/:token"
         element={<PublicQuotation />}
+      />
+
+      {/* Public customer enquiry chatbot — no auth */}
+      <Route
+        path="/enquiry"
+        element={<PublicEnquiry />}
       />
 
       {/* Customer self-onboarding portal — public, token-gated */}
