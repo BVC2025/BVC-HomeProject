@@ -41,6 +41,13 @@ from app.models.models import (
     Employee
 )
 
+from app.auth.auth_bearer import (
+    get_current_admin,
+    get_current_user,
+    require,
+    ADMIN_ROLES,
+)
+
 
 router = APIRouter(prefix="/geofence", tags=["Geofence"])
 
@@ -163,7 +170,7 @@ def get_settings(vendor_id: int = 1, db: Session = Depends(get_db)):
     return _serialize_settings(s)
 
 
-@router.put("/settings")
+@router.put("/settings", dependencies=[Depends(require("geofence.settings.update"))])
 def save_settings(body: SettingsBody, db: Session = Depends(get_db)):
     """Admin saves new office coordinates / radius. Single row per
     vendor — we UPSERT rather than insert."""
@@ -284,10 +291,27 @@ def list_security_logs(
     limit: int = 50,
     reason: Optional[str] = None,
     employee_id: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
-    """Admin-side feed of recent failures with the employee name
-    joined in (so the UI doesn't need a second round-trip)."""
+    """Recent geofence/attendance failures with the employee name joined.
+
+    - Admins can query any employee_id (or omit it for global view).
+    - Employees can only see their own failures — any employee_id
+      query is forced to their own identity.
+    """
+
+    is_admin = payload.get("role") in ADMIN_ROLES
+
+    if not is_admin:
+        # Non-admins are scoped to their own failures only.
+        own_id = payload.get("employee_id")
+        if employee_id and employee_id != own_id:
+            raise HTTPException(
+                status_code=403,
+                detail="You can only view your own attendance attempts."
+            )
+        employee_id = own_id
 
     q = (
         db.query(AttendanceSecurityLog, Employee)
@@ -328,7 +352,7 @@ def list_security_logs(
 # DELETE security log entries (admin cleanup)
 # =====================================================================
 
-@router.delete("/security-logs/{log_id}")
+@router.delete("/security-logs/{log_id}", dependencies=[Depends(require("geofence.logs.delete"))])
 def delete_security_log(log_id: int, db: Session = Depends(get_db)):
     """Permanently remove a single security log entry. Use sparingly —
     these entries are normally kept as an audit trail of failed
@@ -351,7 +375,7 @@ def delete_security_log(log_id: int, db: Session = Depends(get_db)):
     return {"message": f"Security log entry {log_id} deleted"}
 
 
-@router.delete("/security-logs")
+@router.delete("/security-logs", dependencies=[Depends(require("geofence.logs.delete"))])
 def delete_security_logs_bulk(
     reason: Optional[str]      = None,
     employee_id: Optional[str] = None,
@@ -398,7 +422,7 @@ def delete_security_logs_bulk(
 # Dashboard — widget counters
 # =====================================================================
 
-@router.get("/dashboard")
+@router.get("/dashboard", dependencies=[Depends(require("geofence.dashboard.view"))])
 def geofence_dashboard(db: Session = Depends(get_db)):
     """Today's attendance counters broken down by geofence status.
     Drives the widget row on the admin attendance dashboard."""

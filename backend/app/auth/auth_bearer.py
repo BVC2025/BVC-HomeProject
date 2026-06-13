@@ -84,6 +84,43 @@ def get_current_admin(
     return payload
 
 
+def assert_self_or_admin(identifier, payload: dict) -> None:
+    """Raise 403 unless the JWT belongs to either:
+      - the same employee the path/body identifies (by UUID or CODE), OR
+      - an admin/HR/manager role (full passthrough).
+
+    Used by self-service endpoints where {employee_id} in the path or
+    EMPLOYEE_ID in the body must match the caller's identity. Accepts
+    either the employee UUID or the EMPLOYEE_CODE — both are valid
+    identifiers in the URL surface.
+    """
+
+    if not identifier:
+        # Nothing to compare against — caller's responsibility to
+        # check the actual mutation makes sense. We don't 403 here.
+        return
+
+    if payload.get("role") in ADMIN_ROLES:
+        return
+
+    ident = str(identifier).strip()
+
+    payload_id   = str(payload.get("employee_id") or "").strip()
+    payload_code = str(payload.get("code") or "").strip()
+
+    if ident == payload_id:
+        return
+
+    # Code comparison is case-insensitive to match find_employee_by_login
+    if payload_code and ident.upper() == payload_code.upper():
+        return
+
+    raise HTTPException(
+        status_code=403,
+        detail="You can only access your own data."
+    )
+
+
 def require(*permission_codes: str):
     """
     FastAPI dependency factory that allows a route only if the

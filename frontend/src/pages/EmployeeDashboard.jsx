@@ -5,6 +5,7 @@ import API from "../services/api";
 import ChatBot from "../components/ChatBot";
 import HRAssistant from "../components/HRAssistant";
 import LeaveChatbot from "../components/LeaveChatbot";
+import MyAttendancePanel from "../components/MyAttendancePanel";
 import EmployeeProfileForm from "./EmployeeProfileForm";
 
 import {
@@ -736,6 +737,12 @@ function EmployeeDashboardBody() {
           profile={profile}
           productivity={productivity}
         />
+
+        {/* ---------- 1b. MY ATTENDANCE — check-in / check-out ---------- */}
+        {/* Mirrors the admin Attendance widget but auto-targets the logged-in */}
+        {/* employee. Hits the SAME /check-in and /check-out endpoints, so the */}
+        {/* attendance ledger HR sees stays a single source of truth.          */}
+        <MyAttendancePanel employeeId={employeeId} />
 
         {/* ---------- 2. KPI GRID ---------- */}
         <KpiGrid kpis={kpis} />

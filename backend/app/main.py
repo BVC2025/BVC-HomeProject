@@ -67,7 +67,13 @@ from app.routes.geofence import router as geofence_router
 from app.routes.employee_memos import router as employee_memos_router
 from app.routes.leave_chatbot import router as leave_chatbot_router
 from app.routes.employee_portal import router as employee_portal_router
+from app.routes.audit import router as audit_router  # Phase 3 security
+from app.routes.rbac import router as rbac_router    # Phase 2 RBAC
 from fastapi.middleware.cors import CORSMiddleware
+
+# Phase 3 — Audit log
+from starlette.middleware.base import BaseHTTPMiddleware
+from app.services.audit_service import should_audit, write_audit_row
 
 
 app = FastAPI(
@@ -79,6 +85,49 @@ app = FastAPI(
     ),
     version="1.0.0"
 )
+
+
+class AuditMiddleware(BaseHTTPMiddleware):
+    """Logs every state-changing HTTP request to the audit_log table.
+
+    GETs/HEADs/OPTIONS are skipped (handled in should_audit()) so the
+    table stays small and write volume stays low. Failed requests
+    (4xx/5xx) ARE captured — that's the most forensically useful
+    case (intrusion attempts, permission violations, etc.).
+    """
+
+    async def dispatch(self, request, call_next):
+
+        # Run the actual request first
+        response = await call_next(request)
+
+        # Decide AFTER we have a status code so we can include it
+        method = request.method
+        path = request.url.path
+
+        if not should_audit(method, path):
+            return response
+
+        try:
+            write_audit_row(
+                method=method,
+                path=path,
+                status_code=response.status_code,
+                auth_header=request.headers.get("authorization"),
+                client_ip=(request.client.host if request.client else None),
+                user_agent=request.headers.get("user-agent", "")[:500],
+            )
+        except Exception as e:
+            # Never let audit failure break the response.
+            print(f"[audit-middleware] {type(e).__name__}: {e}")
+
+        return response
+
+
+# Audit MUST run AFTER CORS (so OPTIONS preflight short-circuits
+# and never reaches our logger). Order: CORS added second runs
+# first → audit added first runs second.
+app.add_middleware(AuditMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -911,13 +960,15 @@ app.include_router(geofence_router)
 app.include_router(employee_memos_router)
 app.include_router(leave_chatbot_router)
 app.include_router(employee_portal_router, tags=["Employee Portal"])
+app.include_router(audit_router)
+app.include_router(rbac_router)
 
 
 @app.get("/", tags=["Health"])
 def home():
 
     return {
-        "message": "Server running"
+        "message": "erp Server is running"
     }
 
 

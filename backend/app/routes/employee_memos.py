@@ -35,6 +35,12 @@ from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.models.models import EmployeeMemo, Employee
+from app.auth.auth_bearer import (
+    get_current_admin,
+    get_current_user,
+    assert_self_or_admin,
+    require,
+)
 
 
 router = APIRouter(prefix="/memos", tags=["Employee Memos"])
@@ -166,7 +172,7 @@ def _parse_iso_date(s: Optional[str]) -> Optional[date]:
 # CREATE
 # =====================================================================
 
-@router.post("")
+@router.post("", dependencies=[Depends(require("memo.create"))])
 async def create_memo(
     EMPLOYEE_ID:  str           = Form(...),
     MEMO_TYPE:    str           = Form(...),
@@ -257,7 +263,7 @@ async def create_memo(
 # LIST + FILTERS
 # =====================================================================
 
-@router.get("")
+@router.get("", dependencies=[Depends(require("memo.view.all"))])
 def list_memos(
     employee_id: Optional[str] = Query(None),
     memo_type:   Optional[str] = Query(None),
@@ -327,11 +333,26 @@ def list_memos(
 def memo_stats(
     employee_id: Optional[str] = Query(None),
     db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     """Counters for the dashboard widget + employee tab header.
 
     If employee_id is given, scoped to that employee. Otherwise global.
+    Non-admins are forced into the per-employee view (their own).
     """
+
+    # Non-admins can only see their own stats. Coerce employee_id to
+    # their identity if missing, or 403 if they tried to query
+    # someone else's.
+    if payload.get("role") not in ({"ADMIN", "SUPER_ADMIN", "HR", "MANAGER",
+                                    "PRODUCTION_HEAD", "MANAGING_DIRECTOR",
+                                    "HR_MANAGER", "SALES_MANAGER",
+                                    "PURCHASE_MANAGER", "PRODUCTION_MANAGER",
+                                    "INVENTORY_MANAGER", "ACCOUNTS_MANAGER"}):
+        if employee_id is None:
+            employee_id = payload.get("employee_id")
+        else:
+            assert_self_or_admin(employee_id, payload)
 
     q = db.query(EmployeeMemo).filter(EmployeeMemo.DELETED_AT.is_(None))
 
@@ -396,13 +417,19 @@ def memo_stats(
 # =====================================================================
 
 @router.get("/employee/{employee_id}")
-def memos_for_employee(employee_id: str, db: Session = Depends(get_db)):
+def memos_for_employee(
+    employee_id: str,
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
+):
     """All memos for one employee, ordered newest first.
 
     Accepts either the UUID (Employee.ID) OR the human-readable
     EMPLOYEE_CODE (e.g. "EMP101"). The employee portal uses the code,
     while the admin app uses the UUID — same endpoint handles both.
     """
+
+    assert_self_or_admin(employee_id, payload)
 
     emp = (
         db.query(Employee)
@@ -437,13 +464,20 @@ def memos_for_employee(employee_id: str, db: Session = Depends(get_db)):
 # =====================================================================
 
 @router.get("/{memo_id}")
-def get_memo(memo_id: int, db: Session = Depends(get_db)):
+def get_memo(
+    memo_id: int,
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
+):
 
     m = db.query(EmployeeMemo).filter(EmployeeMemo.ID == memo_id).first()
 
     if not m:
 
         raise HTTPException(404, "Memo not found")
+
+    # Ownership check: a non-admin can only view their own memos
+    assert_self_or_admin(m.EMPLOYEE_ID, payload)
 
     emp = db.query(Employee).filter(Employee.ID == m.EMPLOYEE_ID).first()
 
@@ -466,7 +500,7 @@ class MemoUpdate(BaseModel):
     UPDATED_BY_ID: Optional[str] = None
 
 
-@router.patch("/{memo_id}")
+@router.patch("/{memo_id}", dependencies=[Depends(require("memo.update"))])
 def update_memo(memo_id: int, body: MemoUpdate, db: Session = Depends(get_db)):
 
     m = db.query(EmployeeMemo).filter(EmployeeMemo.ID == memo_id).first()
@@ -517,7 +551,7 @@ def update_memo(memo_id: int, body: MemoUpdate, db: Session = Depends(get_db)):
 # CLOSE / CANCEL / SOFT-DELETE
 # =====================================================================
 
-@router.post("/{memo_id}/close")
+@router.post("/{memo_id}/close", dependencies=[Depends(require("memo.update"))])
 def close_memo(memo_id: int, db: Session = Depends(get_db)):
 
     m = db.query(EmployeeMemo).filter(EmployeeMemo.ID == memo_id).first()
@@ -532,7 +566,7 @@ def close_memo(memo_id: int, db: Session = Depends(get_db)):
     return {"message": f"Memo {m.MEMO_NUMBER} closed"}
 
 
-@router.post("/{memo_id}/cancel")
+@router.post("/{memo_id}/cancel", dependencies=[Depends(require("memo.update"))])
 def cancel_memo(memo_id: int, db: Session = Depends(get_db)):
 
     m = db.query(EmployeeMemo).filter(EmployeeMemo.ID == memo_id).first()
@@ -547,7 +581,7 @@ def cancel_memo(memo_id: int, db: Session = Depends(get_db)):
     return {"message": f"Memo {m.MEMO_NUMBER} cancelled"}
 
 
-@router.delete("/{memo_id}")
+@router.delete("/{memo_id}", dependencies=[Depends(require("memo.delete"))])
 def delete_memo(memo_id: int, db: Session = Depends(get_db)):
     """Soft-delete only — sets DELETED_AT, row stays for audit."""
 
@@ -578,6 +612,7 @@ def acknowledge_memo(
     memo_id: int,
     body: Optional[AcknowledgeBody] = None,
     db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     """Mark a memo as acknowledged by the employee. Idempotent."""
 
@@ -585,6 +620,9 @@ def acknowledge_memo(
 
     if not m:                  raise HTTPException(404, "Memo not found")
     if m.DELETED_AT is not None: raise HTTPException(400, "Memo deleted")
+
+    # Only the recipient (or admin) can acknowledge their own memo
+    assert_self_or_admin(m.EMPLOYEE_ID, payload)
 
     if m.ACKNOWLEDGED_BY_EMPLOYEE:
 
@@ -613,7 +651,7 @@ def acknowledge_memo(
 # EXPORT — CSV (Excel-compatible)
 # =====================================================================
 
-@router.get("/export/csv")
+@router.get("/export/csv", dependencies=[Depends(require("memo.export"))])
 def export_csv(
     employee_id: Optional[str] = Query(None),
     memo_type:   Optional[str] = Query(None),

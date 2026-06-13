@@ -39,6 +39,13 @@ from app.schemas.leave_schema import (
     PermissionApplyRequest
 )
 
+from app.auth.auth_bearer import (
+    get_current_admin,
+    get_current_user,
+    assert_self_or_admin,
+    require,
+)
+
 def _resolve_employee(db: Session, identifier: str):
     """Accept either Employee.ID (UUID) or Employee.EMPLOYEE_CODE
     (e.g. 'EMP101'). Returns the Employee row or None.
@@ -162,8 +169,13 @@ def _serialize_leave(
 @router.post("/apply")
 def apply_leave(
     data: LeaveApplyRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
+
+    # Employee can only apply leave for themselves; admin/HR may
+    # apply on behalf of any employee.
+    assert_self_or_admin(data.EMPLOYEE_ID, payload)
 
     if data.LEAVE_TYPE == "PERMISSION":
 
@@ -548,7 +560,7 @@ def decide_leave(
 # DECISION via dashboard (admin-side, alternative to email link)
 # ----------------------------------------------------------------
 
-@router.patch("/{leave_id}/approve")
+@router.patch("/{leave_id}/approve", dependencies=[Depends(require("leave.approve", "leave.decide"))])
 def approve_via_dashboard(
     leave_id: int,
     db: Session = Depends(get_db)
@@ -627,7 +639,7 @@ def approve_via_dashboard(
     }
 
 
-@router.patch("/{leave_id}/reject")
+@router.patch("/{leave_id}/reject", dependencies=[Depends(require("leave.reject", "leave.decide"))])
 def reject_via_dashboard(
     leave_id: int,
     data: LeaveRejectRequest,
@@ -688,7 +700,7 @@ def reject_via_dashboard(
 # LISTS
 # ----------------------------------------------------------------
 
-@router.get("/pending")
+@router.get("/pending", dependencies=[Depends(require("leave.view.all"))])
 def list_pending(
     vendor_id: int = 1,
     db: Session = Depends(get_db)
@@ -712,7 +724,7 @@ def list_pending(
     return [_serialize_leave(lv, emp) for lv, emp in rows]
 
 
-@router.get("/all")
+@router.get("/all", dependencies=[Depends(require("leave.view.all"))])
 def list_all(
     vendor_id: int = 1,
     status: Optional[str] = None,
@@ -751,8 +763,12 @@ def list_all(
 @router.get("/my-requests")
 def list_my_requests(
     employee_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
+    # Caller can only list their own; admin may pass any employee_id.
+    assert_self_or_admin(employee_id, payload)
+
     # Accept either UUID or EMPLOYEE_CODE
     emp = _resolve_employee(db, employee_id)
 
@@ -781,8 +797,12 @@ def list_my_requests(
 def cancel_leave(
     leave_id: int,
     data: LeaveCancelRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
+
+    # Employee can only cancel their own; admin may cancel anyone's.
+    assert_self_or_admin(data.EMPLOYEE_ID, payload)
 
     leave = db.query(LeaveRequest).filter(
         LeaveRequest.ID == leave_id
@@ -847,8 +867,11 @@ def cancel_leave(
 def get_balance(
     employee_id: str,
     year: Optional[int] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
+
+    assert_self_or_admin(employee_id, payload)
 
     emp = _resolve_employee(db, employee_id)
 
@@ -875,7 +898,7 @@ def get_balance(
 # Admin dashboard tile
 # ----------------------------------------------------------------
 
-@router.get("/dashboard")
+@router.get("/dashboard", dependencies=[Depends(require("leave.view.all"))])
 def leave_dashboard(
     vendor_id: int = 1,
     db: Session = Depends(get_db)
@@ -929,7 +952,8 @@ def leave_dashboard(
 @router.post("/apply-permission")
 def apply_permission(
     data: PermissionApplyRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     """Submit an hourly permission request.
 
@@ -944,6 +968,10 @@ def apply_permission(
 
     Fires the same approver email as POST /leave/apply.
     """
+
+    # Employee can only request a permission for themselves; admin/HR
+    # may submit on behalf of any employee.
+    assert_self_or_admin(data.EMPLOYEE_ID, payload)
 
     employee = _resolve_employee(db, data.EMPLOYEE_ID)
 
@@ -1076,13 +1104,16 @@ def apply_permission(
 @router.get("/my-permissions")
 def list_my_permissions(
     employee_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     """Return the calling employee's permission history only.
 
     Same shape as GET /leave/my-requests, but filtered to
     LEAVE_TYPE='PERMISSION'.
     """
+
+    assert_self_or_admin(employee_id, payload)
 
     emp = _resolve_employee(db, employee_id)
 
@@ -1109,7 +1140,8 @@ def list_my_permissions(
 @router.get("/dashboard-summary/{employee_id}")
 def employee_dashboard_summary(
     employee_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     """Aggregate counts for the Employee Dashboard summary cards.
 
@@ -1121,6 +1153,8 @@ def employee_dashboard_summary(
                                 this calendar year (PERMISSION excluded)
       APPROVED_PERMISSIONS_THIS_MONTH — bonus card for permission tile
     """
+
+    assert_self_or_admin(employee_id, payload)
 
     emp = _resolve_employee(db, employee_id)
 
@@ -1263,7 +1297,7 @@ def _serialize_policy(p: LeaveQuotaPolicy) -> dict:
     }
 
 
-@router.get("/quota-policies")
+@router.get("/quota-policies", dependencies=[Depends(require("leave.policy.manage"))])
 def list_quota_policies(
     scope: str | None = Query(None),
     is_active: int | None = Query(None),
@@ -1287,7 +1321,7 @@ def list_quota_policies(
     return [_serialize_policy(p) for p in rows]
 
 
-@router.post("/quota-policies")
+@router.post("/quota-policies", dependencies=[Depends(require("leave.policy.manage"))])
 def create_quota_policy(
     body: LeaveQuotaPolicyCreate,
     db: Session = Depends(get_db),
@@ -1338,7 +1372,7 @@ def create_quota_policy(
     }
 
 
-@router.patch("/quota-policies/{policy_id}")
+@router.patch("/quota-policies/{policy_id}", dependencies=[Depends(require("leave.policy.manage"))])
 def update_quota_policy(
     policy_id: int,
     body: LeaveQuotaPolicyUpdate,
@@ -1367,7 +1401,7 @@ def update_quota_policy(
     }
 
 
-@router.delete("/quota-policies/{policy_id}")
+@router.delete("/quota-policies/{policy_id}", dependencies=[Depends(require("leave.policy.manage"))])
 def delete_quota_policy(
     policy_id: int,
     db: Session = Depends(get_db),
@@ -1393,7 +1427,7 @@ def delete_quota_policy(
     return {"message": f"Quota policy '{name}' deleted."}
 
 
-@router.get("/quota-policies/resolve/{employee_id}")
+@router.get("/quota-policies/resolve/{employee_id}", dependencies=[Depends(require("leave.policy.manage"))])
 def resolve_policy_for_employee(
     employee_id: str,
     db: Session = Depends(get_db),

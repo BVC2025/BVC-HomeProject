@@ -54,6 +54,7 @@ from app.services.employee_performance_service import (
     award_points_on_task_complete,
 )
 from app.services.stage_auto_unlock_service import handle_stage_completed
+from app.auth.auth_bearer import get_current_user, assert_self_or_admin
 
 
 router = APIRouter()
@@ -575,8 +576,11 @@ class TaskStatusPatch(BaseModel):
 def get_portal_dashboard(
     employee_id: str,
     db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     """Single-call aggregate for the employee portal page."""
+
+    assert_self_or_admin(employee_id, payload)
 
     profile = _employee_profile(db, employee_id)
     buckets = _bucket_assignments(db, employee_id)
@@ -620,9 +624,12 @@ def patch_task_status(
     assignment_id: int,
     body: TaskStatusPatch,
     db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     """Mutate the STATUS of one of the employee's assigned tasks and
     cascade the side-effects (points, stage unlock, performance)."""
+
+    assert_self_or_admin(employee_id, payload)
 
     new_status = (body.status or "").upper().strip()
 
@@ -783,8 +790,11 @@ def patch_task_status(
 def get_performance_only(
     employee_id: str,
     db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     """Cheap polling endpoint — just the headline performance dict."""
+
+    assert_self_or_admin(employee_id, payload)
 
     # Existence check so the polling caller gets a clean 404 rather
     # than a zero-row dict that masks a typo in the ID.

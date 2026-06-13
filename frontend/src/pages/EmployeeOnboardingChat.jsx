@@ -27,6 +27,134 @@ const EMPLOYMENT_TYPES = ["FRESHER", "EXPERIENCED"];
 const MARITAL_STATUSES = ["SINGLE", "MARRIED", "DIVORCED", "WIDOWED"];
 
 
+// ================================================================
+// FIELD VALIDATION
+// ----------------------------------------------------------------
+// Centralised validators for every field that has a format / range
+// constraint. Each entry can have:
+//   required: boolean   — empty value is rejected
+//   test:     (value) => boolean   — fails the rule when it returns false
+//   message:  user-facing error
+// Optional fields skip their `test` when empty so candidates aren't
+// blocked from submitting partial info.
+// ================================================================
+
+function _normalizePhone(v) {
+  if (!v) return "";
+  let s = String(v).replace(/[\s\-()+]/g, "");
+  if (s.startsWith("91") && s.length === 12) s = s.slice(2);
+  if (s.startsWith("0")  && s.length === 11) s = s.slice(1);
+  return s;
+}
+
+function _normalizeDigits(v) {
+  return v == null ? "" : String(v).replace(/\D/g, "");
+}
+
+const VALIDATORS = {
+  NAME: {
+    required: true,
+    test: (v) => v && v.trim().length >= 2,
+    message: "Name is required (at least 2 characters)."
+  },
+  PHONE: {
+    required: true,
+    test: (v) => /^\d{10}$/.test(_normalizePhone(v)),
+    message: "Contact Number must be exactly 10 digits."
+  },
+  EMAIL: {
+    test: (v) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()),
+    message: "Please enter a valid email address (e.g. name@example.com)."
+  },
+  EMERGENCY_CONTACT_PHONE: {
+    test: (v) => !v || /^\d{10}$/.test(_normalizePhone(v)),
+    message: "Emergency Contact Phone must be exactly 10 digits."
+  },
+  PINCODE: {
+    test: (v) => !v || /^\d{6}$/.test(_normalizeDigits(v)),
+    message: "Pincode must be exactly 6 digits."
+  },
+  PAN_NUMBER: {
+    test: (v) => !v || /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(v.toUpperCase().trim()),
+    message: "PAN must be 5 letters + 4 digits + 1 letter (e.g. ABCDE1234F)."
+  },
+  AADHAAR_NUMBER: {
+    test: (v) => !v || /^\d{12}$/.test(_normalizeDigits(v)),
+    message: "Aadhaar Number must be exactly 12 digits."
+  },
+  IFSC_CODE: {
+    test: (v) => !v || /^[A-Z]{4}0[A-Z0-9]{6}$/.test(v.toUpperCase().trim()),
+    message: "IFSC must be 4 letters + 0 + 6 alphanumeric (e.g. HDFC0001234)."
+  },
+  BANK_ACCOUNT_NUMBER: {
+    test: (v) => !v || /^\d{9,18}$/.test(_normalizeDigits(v)),
+    message: "Bank Account Number must be 9 to 18 digits."
+  },
+  DOB: {
+    test: (v) => {
+      if (!v) return true;
+      const d = new Date(v);
+      if (isNaN(d.getTime())) return false;
+      const ageYrs = (Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000);
+      return ageYrs >= 14 && ageYrs <= 100;
+    },
+    message: "Date of Birth must be a real past date (age 14-100)."
+  },
+  YEAR_OF_PASSING: {
+    test: (v) => {
+      if (v === "" || v == null) return true;
+      const n = Number(v);
+      const now = new Date().getFullYear();
+      return Number.isInteger(n) && n >= 1950 && n <= now + 5;
+    },
+    message: "Year of Passing must be between 1950 and 5 years from now."
+  },
+  PERCENTAGE: {
+    test: (v) => {
+      if (v === "" || v == null) return true;
+      const n = Number(v);
+      return !isNaN(n) && n >= 0 && n <= 100;
+    },
+    message: "Percentage / CGPA must be between 0 and 100."
+  },
+  EXPERIENCE_YEARS: {
+    test: (v) => {
+      if (v === "" || v == null) return true;
+      const n = Number(v);
+      return !isNaN(n) && n >= 0 && n <= 60;
+    },
+    message: "Years of Experience must be between 0 and 60."
+  },
+  PREVIOUS_SALARY: {
+    test: (v) => {
+      if (v === "" || v == null) return true;
+      const n = Number(v);
+      return !isNaN(n) && n >= 0;
+    },
+    message: "Previous Salary cannot be negative."
+  }
+};
+
+function validateField(name, value) {
+  const rule = VALIDATORS[name];
+  if (!rule) return null;
+  const isEmpty = value === null || value === undefined ||
+                  (typeof value === "string" && !value.trim());
+  if (rule.required && isEmpty) return rule.message;
+  if (!isEmpty && rule.test && !rule.test(value)) return rule.message;
+  return null;
+}
+
+function validateAll(form) {
+  const errors = {};
+  for (const field of Object.keys(VALIDATORS)) {
+    const err = validateField(field, form[field]);
+    if (err) errors[field] = err;
+  }
+  return errors;
+}
+
+
 // ----------------------------------------------------------------
 // Initials helper for the photo placeholder
 // ----------------------------------------------------------------
@@ -77,34 +205,49 @@ function FormGrid({ cols, children }) {
   );
 }
 
-function FormField({ label, span, children }) {
+function FormField({ label, span, children, error, fieldName }) {
   return (
-    <div style={{ gridColumn: span ? `span ${span}` : undefined }}>
+    <div
+      style={{ gridColumn: span ? `span ${span}` : undefined }}
+      data-field={fieldName}
+    >
       <label style={{
         display: "block",
         fontSize: 11,
         fontWeight: 700,
-        color: "#475569",
+        color: error ? "#dc2626" : "#475569",
         marginBottom: 4,
         letterSpacing: 0.3
       }}>
         {label}
       </label>
       {children}
+      {error && (
+        <div style={{
+          marginTop: 4,
+          fontSize: 11,
+          fontWeight: 600,
+          color: "#dc2626",
+          lineHeight: 1.35
+        }}>
+          {error}
+        </div>
+      )}
     </div>
   );
 }
 
-function inputStyle() {
+function inputStyle(hasError) {
   return {
     width: "100%",
     padding: "9px 12px",
-    border: "1px solid #cbd5e1",
+    border: `1px solid ${hasError ? "#dc2626" : "#cbd5e1"}`,
     borderRadius: 8,
     fontSize: 13,
     fontFamily: "inherit",
     outline: "none",
-    boxSizing: "border-box"
+    boxSizing: "border-box",
+    boxShadow: hasError ? "0 0 0 2px rgba(220, 38, 38, 0.10)" : "none"
   };
 }
 
@@ -305,8 +448,104 @@ function RegistrationForm({ token, session, onSubmitted }) {
   const [uploading, setUploading]       = useState(false);
   const [submitting, setSubmitting]     = useState(false);
   const [error, setError]               = useState("");
+  // Per-field validation errors keyed by field name.
+  const [errors, setErrors]             = useState({});
 
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  // ---- Candidate documents (resume, marksheet, KYC, ...) ----
+  // Staged on the backend keyed by the session token. The submit-form
+  // endpoint promotes them to real EmployeeDocument rows.
+  const [docs, setDocs]                 = useState([]);     // [{id, doc_type, original_name, size, ...}]
+  const [docType, setDocType]           = useState("RESUME");
+  const [docUploading, setDocUploading] = useState(false);
+  const [docError, setDocError]         = useState("");
+
+  const DOC_TYPES = [
+    "RESUME", "MARKSHEET", "DEGREE_CERTIFICATE",
+    "AADHAAR", "PAN", "PASSPORT", "DRIVING_LICENSE",
+    "OFFER_LETTER", "EXPERIENCE_LETTER",
+    "PAYSLIP", "BANK_STATEMENT", "OTHER",
+  ];
+
+  // On mount, ask the backend what's already been staged for this
+  // token. Lets the candidate close the tab and come back without
+  // losing what they uploaded.
+  useEffect(() => {
+    if (!token) return;
+    pub.get(`/employee-onboarding/${token}/documents`)
+      .then((r) => setDocs(r.data?.documents || []))
+      .catch(() => { /* non-fatal */ });
+  }, [token]);
+
+  const handleDocUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setDocError("");
+    setDocUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("doc_type", docType);
+      const r = await pub.post(
+        `/employee-onboarding/${token}/upload-document`,
+        fd,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+      const newDoc = r.data?.document;
+      if (newDoc) setDocs((prev) => [...prev, newDoc]);
+      e.target.value = ""; // allow re-uploading the same file
+    } catch (err) {
+      setDocError(
+        err?.response?.data?.detail ||
+        "Upload failed. Check the file type and size (<=10 MB)."
+      );
+    } finally {
+      setDocUploading(false);
+    }
+  };
+
+  const handleDocDelete = async (id) => {
+    setDocError("");
+    try {
+      await pub.delete(`/employee-onboarding/${token}/documents/${id}`);
+      setDocs((prev) => prev.filter((d) => d.id !== id));
+    } catch (err) {
+      setDocError(
+        err?.response?.data?.detail || "Could not remove document."
+      );
+    }
+  };
+
+  const fmtBytes = (n) => {
+    if (!n) return "—";
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+    return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  };
+
+  // Update a form field. Clears that field's validation error as the
+  // user starts correcting it so the red highlight doesn't linger.
+  const set = (k) => (e) => {
+    setForm((f) => ({ ...f, [k]: e.target.value }));
+    setErrors((er) => {
+      if (!er[k]) return er;
+      const next = { ...er };
+      delete next[k];
+      return next;
+    });
+  };
+
+  // Re-validate this field on blur so errors appear as soon as the
+  // user leaves the input — not just at submit time.
+  const blur = (k) => (e) => {
+    const msg = validateField(k, e.target.value);
+    setErrors((er) => {
+      if (msg) return { ...er, [k]: msg };
+      if (!er[k]) return er;
+      const next = { ...er };
+      delete next[k];
+      return next;
+    });
+  };
 
   const handlePhoto = async (e) => {
     const file = e.target.files?.[0];
@@ -344,12 +583,24 @@ function RegistrationForm({ token, session, onSubmitted }) {
     e?.preventDefault?.();
     setError("");
 
-    if (!form.NAME.trim()) {
-      setError("Name is required.");
-      return;
-    }
-    if (!form.PHONE.trim()) {
-      setError("Phone number is required.");
+    // Run every field validator before hitting the server.
+    const fieldErrors = validateAll(form);
+    if (Object.keys(fieldErrors).length > 0) {
+      setErrors(fieldErrors);
+      const count = Object.keys(fieldErrors).length;
+      setError(
+        `Please fix the highlighted field${count > 1 ? "s" : ""} ` +
+        `(${count} issue${count > 1 ? "s" : ""}) before submitting.`
+      );
+      // Scroll the first invalid field into view so the candidate
+      // knows where to look.
+      const firstField = Object.keys(fieldErrors)[0];
+      setTimeout(() => {
+        const el = document.querySelector(`[data-field="${firstField}"]`);
+        if (el && typeof el.scrollIntoView === "function") {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 60);
       return;
     }
 
@@ -575,13 +826,14 @@ function RegistrationForm({ token, session, onSubmitted }) {
               }}
             />
           </FormField>
-          <FormField label="Employee Name *">
+          <FormField label="Employee Name *" error={errors.NAME} fieldName="NAME">
             <input
               type="text"
               value={form.NAME}
               onChange={set("NAME")}
+              onBlur={blur("NAME")}
               placeholder="Ramesh Kumar"
-              style={inputStyle()}
+              style={inputStyle(!!errors.NAME)}
             />
           </FormField>
           <FormField label="Father's Name">
@@ -602,12 +854,13 @@ function RegistrationForm({ token, session, onSubmitted }) {
               style={inputStyle()}
             />
           </FormField>
-          <FormField label="Date of Birth">
+          <FormField label="Date of Birth" error={errors.DOB} fieldName="DOB">
             <input
               type="date"
               value={form.DOB}
               onChange={set("DOB")}
-              style={inputStyle()}
+              onBlur={blur("DOB")}
+              style={inputStyle(!!errors.DOB)}
             />
           </FormField>
           <FormField label="Gender">
@@ -673,13 +926,19 @@ function RegistrationForm({ token, session, onSubmitted }) {
               style={inputStyle()}
             />
           </FormField>
-          <FormField label="Emergency Contact Phone">
+          <FormField
+            label="Emergency Contact Phone"
+            error={errors.EMERGENCY_CONTACT_PHONE}
+            fieldName="EMERGENCY_CONTACT_PHONE"
+          >
             <input
               type="tel"
               value={form.EMERGENCY_CONTACT_PHONE}
               onChange={set("EMERGENCY_CONTACT_PHONE")}
-              placeholder="+91 98765 43210"
-              style={inputStyle()}
+              onBlur={blur("EMERGENCY_CONTACT_PHONE")}
+              placeholder="9876543210"
+              maxLength={15}
+              style={inputStyle(!!errors.EMERGENCY_CONTACT_PHONE)}
             />
           </FormField>
           <FormField label="Relationship" span={2}>
@@ -697,22 +956,25 @@ function RegistrationForm({ token, session, onSubmitted }) {
       {/* ============== 2. CONTACT ============== */}
       <FormSection title="② Contact" color="#06b6d4">
         <FormGrid cols={2}>
-          <FormField label="Contact Number *">
+          <FormField label="Contact Number *" error={errors.PHONE} fieldName="PHONE">
             <input
               type="tel"
               value={form.PHONE}
               onChange={set("PHONE")}
-              placeholder="+91 98765 43210"
-              style={inputStyle()}
+              onBlur={blur("PHONE")}
+              placeholder="9876543210"
+              maxLength={15}
+              style={inputStyle(!!errors.PHONE)}
             />
           </FormField>
-          <FormField label="Email">
+          <FormField label="Email" error={errors.EMAIL} fieldName="EMAIL">
             <input
               type="email"
               value={form.EMAIL}
               onChange={set("EMAIL")}
+              onBlur={blur("EMAIL")}
               placeholder="ramesh@bvc24.in"
-              style={inputStyle()}
+              style={inputStyle(!!errors.EMAIL)}
             />
           </FormField>
           <FormField label="Address (Street / House No)" span={2}>
@@ -742,15 +1004,16 @@ function RegistrationForm({ token, session, onSubmitted }) {
               style={inputStyle()}
             />
           </FormField>
-          <FormField label="Pincode" span={2}>
+          <FormField label="Pincode" span={2} error={errors.PINCODE} fieldName="PINCODE">
             <input
               type="text"
               inputMode="numeric"
               value={form.PINCODE}
               onChange={set("PINCODE")}
+              onBlur={blur("PINCODE")}
               placeholder="641001"
-              maxLength={10}
-              style={inputStyle()}
+              maxLength={6}
+              style={inputStyle(!!errors.PINCODE)}
             />
           </FormField>
         </FormGrid>
@@ -768,15 +1031,20 @@ function RegistrationForm({ token, session, onSubmitted }) {
               style={inputStyle()}
             />
           </FormField>
-          <FormField label="Year of Passing">
+          <FormField
+            label="Year of Passing"
+            error={errors.YEAR_OF_PASSING}
+            fieldName="YEAR_OF_PASSING"
+          >
             <input
               type="number"
               min="1950"
               max="2099"
               value={form.YEAR_OF_PASSING}
               onChange={set("YEAR_OF_PASSING")}
+              onBlur={blur("YEAR_OF_PASSING")}
               placeholder="2020"
-              style={inputStyle()}
+              style={inputStyle(!!errors.YEAR_OF_PASSING)}
             />
           </FormField>
           <FormField label="College">
@@ -797,7 +1065,12 @@ function RegistrationForm({ token, session, onSubmitted }) {
               style={inputStyle()}
             />
           </FormField>
-          <FormField label="Percentage / CGPA" span={2}>
+          <FormField
+            label="Percentage / CGPA"
+            span={2}
+            error={errors.PERCENTAGE}
+            fieldName="PERCENTAGE"
+          >
             <input
               type="number"
               min="0"
@@ -805,8 +1078,9 @@ function RegistrationForm({ token, session, onSubmitted }) {
               step="0.01"
               value={form.PERCENTAGE}
               onChange={set("PERCENTAGE")}
+              onBlur={blur("PERCENTAGE")}
               placeholder="85.5"
-              style={inputStyle()}
+              style={inputStyle(!!errors.PERCENTAGE)}
             />
           </FormField>
         </FormGrid>
@@ -826,15 +1100,20 @@ function RegistrationForm({ token, session, onSubmitted }) {
               ))}
             </select>
           </FormField>
-          <FormField label="Years of Experience">
+          <FormField
+            label="Years of Experience"
+            error={errors.EXPERIENCE_YEARS}
+            fieldName="EXPERIENCE_YEARS"
+          >
             <input
               type="number"
               min="0"
               step="0.5"
               value={form.EXPERIENCE_YEARS}
               onChange={set("EXPERIENCE_YEARS")}
+              onBlur={blur("EXPERIENCE_YEARS")}
               placeholder="0"
-              style={inputStyle()}
+              style={inputStyle(!!errors.EXPERIENCE_YEARS)}
             />
           </FormField>
           <FormField label="Previous Company">
@@ -846,15 +1125,20 @@ function RegistrationForm({ token, session, onSubmitted }) {
               style={inputStyle()}
             />
           </FormField>
-          <FormField label="Previous Salary (₹/month)">
+          <FormField
+            label="Previous Salary (₹/month)"
+            error={errors.PREVIOUS_SALARY}
+            fieldName="PREVIOUS_SALARY"
+          >
             <input
               type="number"
               min="0"
               step="500"
               value={form.PREVIOUS_SALARY}
               onChange={set("PREVIOUS_SALARY")}
+              onBlur={blur("PREVIOUS_SALARY")}
               placeholder="45000"
-              style={inputStyle()}
+              style={inputStyle(!!errors.PREVIOUS_SALARY)}
             />
           </FormField>
           <FormField label="Skills (comma-separated)" span={2}>
@@ -890,13 +1174,20 @@ function RegistrationForm({ token, session, onSubmitted }) {
       {/* ============== 5. BANK + IDENTITY (PAYROLL) ============== */}
       <FormSection title="⑤ Bank & Identity (Payroll)" color="#0284c7">
         <FormGrid cols={2}>
-          <FormField label="Bank Account Number">
+          <FormField
+            label="Bank Account Number"
+            error={errors.BANK_ACCOUNT_NUMBER}
+            fieldName="BANK_ACCOUNT_NUMBER"
+          >
             <input
               type="text"
+              inputMode="numeric"
               value={form.BANK_ACCOUNT_NUMBER}
               onChange={set("BANK_ACCOUNT_NUMBER")}
+              onBlur={blur("BANK_ACCOUNT_NUMBER")}
               placeholder="50100123456789"
-              style={inputStyle()}
+              maxLength={18}
+              style={inputStyle(!!errors.BANK_ACCOUNT_NUMBER)}
             />
           </FormField>
           <FormField label="Bank Name">
@@ -908,35 +1199,51 @@ function RegistrationForm({ token, session, onSubmitted }) {
               style={inputStyle()}
             />
           </FormField>
-          <FormField label="IFSC Code">
+          <FormField
+            label="IFSC Code"
+            error={errors.IFSC_CODE}
+            fieldName="IFSC_CODE"
+          >
             <input
               type="text"
               value={form.IFSC_CODE}
               onChange={set("IFSC_CODE")}
+              onBlur={blur("IFSC_CODE")}
               placeholder="HDFC0001234"
-              maxLength={20}
-              style={{...inputStyle(), textTransform: "uppercase"}}
+              maxLength={11}
+              style={{ ...inputStyle(!!errors.IFSC_CODE), textTransform: "uppercase" }}
             />
           </FormField>
-          <FormField label="PAN Number">
+          <FormField
+            label="PAN Number"
+            error={errors.PAN_NUMBER}
+            fieldName="PAN_NUMBER"
+          >
             <input
               type="text"
               value={form.PAN_NUMBER}
               onChange={set("PAN_NUMBER")}
+              onBlur={blur("PAN_NUMBER")}
               placeholder="ABCDE1234F"
-              maxLength={20}
-              style={{...inputStyle(), textTransform: "uppercase"}}
+              maxLength={10}
+              style={{ ...inputStyle(!!errors.PAN_NUMBER), textTransform: "uppercase" }}
             />
           </FormField>
-          <FormField label="Aadhaar Number" span={2}>
+          <FormField
+            label="Aadhaar Number"
+            span={2}
+            error={errors.AADHAAR_NUMBER}
+            fieldName="AADHAAR_NUMBER"
+          >
             <input
               type="text"
               inputMode="numeric"
               value={form.AADHAAR_NUMBER}
               onChange={set("AADHAAR_NUMBER")}
+              onBlur={blur("AADHAAR_NUMBER")}
               placeholder="1234 5678 9012"
-              maxLength={20}
-              style={inputStyle()}
+              maxLength={14}
+              style={inputStyle(!!errors.AADHAAR_NUMBER)}
             />
           </FormField>
         </FormGrid>
@@ -953,6 +1260,175 @@ function RegistrationForm({ token, session, onSubmitted }) {
             style={inputStyle()}
           />
         </FormField>
+      </FormSection>
+
+      {/* ============== 7. DOCUMENTS ============== */}
+      <FormSection title="⑦ Documents" color="#ea580c">
+        <div style={{
+          background: "#fff7ed",
+          border: "1px solid #fed7aa",
+          borderRadius: 10,
+          padding: 12,
+          marginBottom: 14,
+          fontSize: 12,
+          color: "#7c2d12",
+          lineHeight: 1.55,
+        }}>
+          Upload your <b>resume, marksheets, degree certificate, Aadhaar, PAN</b>,
+          and any other documents HR will need. Allowed: PDF, JPG, PNG, DOC/DOCX,
+          XLS/XLSX, TXT. Max 10&nbsp;MB per file. You can upload as many as you
+          need; they're saved with your application.
+        </div>
+
+        <FormGrid cols={2}>
+          <FormField label="Document Type">
+            <select
+              value={docType}
+              onChange={(e) => setDocType(e.target.value)}
+              style={inputStyle()}
+            >
+              {DOC_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t.replace(/_/g, " ")}
+                </option>
+              ))}
+            </select>
+          </FormField>
+
+          <FormField label="Select File">
+            <input
+              type="file"
+              onChange={handleDocUpload}
+              disabled={docUploading}
+              accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.txt"
+              style={{
+                ...inputStyle(),
+                padding: "8px 10px",
+                cursor: docUploading ? "wait" : "pointer",
+              }}
+            />
+          </FormField>
+        </FormGrid>
+
+        {docError && (
+          <div style={{
+            marginTop: 10,
+            padding: "8px 12px",
+            background: "#fee2e2",
+            border: "1px solid #fca5a5",
+            borderRadius: 8,
+            color: "#991b1b",
+            fontSize: 12,
+            fontWeight: 600,
+          }}>
+            {docError}
+          </div>
+        )}
+
+        {docUploading && (
+          <div style={{
+            marginTop: 10,
+            fontSize: 12,
+            color: "#7c2d12",
+            fontWeight: 600,
+          }}>
+            Uploading…
+          </div>
+        )}
+
+        {/* Uploaded list */}
+        <div style={{ marginTop: 14 }}>
+          <div style={{
+            fontSize: 11,
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: 0.6,
+            color: "#64748b",
+            marginBottom: 6,
+          }}>
+            Uploaded ({docs.length})
+          </div>
+
+          {docs.length === 0 ? (
+            <div style={{
+              padding: "16px 12px",
+              textAlign: "center",
+              color: "#94a3b8",
+              fontSize: 12,
+              border: "1px dashed #e2e8f0",
+              borderRadius: 8,
+            }}>
+              No documents uploaded yet.
+            </div>
+          ) : (
+            <div style={{
+              border: "1px solid #e2e8f0",
+              borderRadius: 8,
+              overflow: "hidden",
+            }}>
+              {docs.map((d, i) => (
+                <div
+                  key={d.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "10px 12px",
+                    background: i % 2 === 0 ? "#fff" : "#f8fafc",
+                    borderBottom: i < docs.length - 1 ? "1px solid #e2e8f0" : "none",
+                    fontSize: 13,
+                  }}
+                >
+                  <span style={{
+                    fontSize: 10,
+                    fontWeight: 800,
+                    color: "#9a3412",
+                    background: "#ffedd5",
+                    padding: "3px 8px",
+                    borderRadius: 999,
+                    letterSpacing: 0.3,
+                    whiteSpace: "nowrap",
+                  }}>
+                    {(d.doc_type || "").replace(/_/g, " ")}
+                  </span>
+                  <span style={{
+                    flex: 1,
+                    minWidth: 0,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    color: COLOURS.ink,
+                  }} title={d.original_name}>
+                    {d.original_name}
+                  </span>
+                  <span style={{
+                    color: "#94a3b8",
+                    fontSize: 11,
+                    whiteSpace: "nowrap",
+                  }}>
+                    {fmtBytes(d.size)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleDocDelete(d.id)}
+                    style={{
+                      padding: "5px 10px",
+                      border: "1px solid #fca5a5",
+                      background: "#fee2e2",
+                      color: "#991b1b",
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </FormSection>
 
       <div style={{

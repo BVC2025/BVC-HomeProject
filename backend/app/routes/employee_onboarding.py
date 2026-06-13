@@ -35,7 +35,7 @@ from datetime import datetime, timedelta, time as dtime
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -59,6 +59,8 @@ from app.services.auth_service import (
 )
 from app.services import employee_onboarding_ai_service as ai
 
+from app.auth.auth_bearer import get_current_admin, require
+
 
 router = APIRouter()
 
@@ -73,6 +75,29 @@ _STATIC_DIR = (
     Path(__file__).resolve().parent.parent.parent
     / "static" / "employee-onboarding"
 )
+
+# ---- Candidate document uploads (resume, marksheet, Aadhaar, PAN, ...) ----
+# Staged here keyed by token; moved to /static/employee-docs/{emp_id}/
+# at submit-form time, with matching EmployeeDocument rows created.
+_DOC_STAGING_DIR = (
+    Path(__file__).resolve().parent.parent.parent
+    / "static" / "employee-onboarding-docs"
+)
+
+_ALLOWED_DOC_EXTS = {
+    ".pdf", ".png", ".jpg", ".jpeg", ".webp",
+    ".doc", ".docx", ".xls", ".xlsx", ".txt",
+}
+
+_MAX_DOC_BYTES = 10 * 1024 * 1024  # 10 MB per file
+
+# Document types the candidate can pick. Kept aligned with the admin
+# /employees/{id}/documents catalogue so post-submit handoff is direct.
+_CANDIDATE_DOC_TYPES = {
+    "RESUME", "MARKSHEET", "DEGREE_CERTIFICATE", "AADHAAR", "PAN",
+    "PASSPORT", "DRIVING_LICENSE", "OFFER_LETTER", "EXPERIENCE_LETTER",
+    "PAYSLIP", "BANK_STATEMENT", "OTHER",
+}
 
 
 def _frontend_base_url() -> str:
@@ -493,7 +518,7 @@ class ApproveBody(BaseModel):
 # lives further down — this is just a forwarding stub registered at
 # the right point in the route table.
 
-@router.get("/employee-onboarding/sessions")
+@router.get("/employee-onboarding/sessions", dependencies=[Depends(require("onboarding.sessions.view"))])
 def _admin_list_sessions_early(
     status: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
@@ -837,6 +862,263 @@ def public_upload_photo(
     }
 
 
+# =====================================================================
+# Candidate document uploads — staged by token, finalized at submit
+# =====================================================================
+
+def _staged_docs_for_token(token: str) -> list[dict]:
+    """Return the JSON list stored under
+    session.COLLECTED_DATA['__pending_documents__'].
+    Each entry: {id, doc_type, original_name, stored_name, size, uploaded_at}"""
+
+    pass  # placeholder; we read/write through helper below
+
+
+def _read_pending_docs(s) -> list[dict]:
+    data = _load_json(s.COLLECTED_DATA, {})
+    raw = data.get("__pending_documents__") or []
+    return raw if isinstance(raw, list) else []
+
+
+def _write_pending_docs(s, docs: list[dict]) -> None:
+    data = _load_json(s.COLLECTED_DATA, {})
+    data["__pending_documents__"] = docs
+    s.COLLECTED_DATA = json.dumps(data, default=str)
+
+
+def _promote_staged_documents(db: Session, s, emp, docs: list[dict] | None = None) -> int:
+    """Move every staged document for this session into the employee's
+    permanent docs folder and create matching EmployeeDocument rows.
+
+    `docs` can be passed in by the caller when COLLECTED_DATA was
+    overwritten between upload-time and promote-time (the submit-form
+    case). When None, falls back to reading from the session.
+
+    Returns the count of documents successfully promoted.
+    """
+
+    from app.models.models import EmployeeDocument
+
+    if docs is None:
+        docs = _read_pending_docs(s)
+    if not docs:
+        return 0
+
+    target_dir = (
+        Path(__file__).resolve().parent.parent.parent
+        / "static" / "employee-docs" / str(emp.ID)
+    )
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    staged_dir = _DOC_STAGING_DIR / s.TOKEN
+    promoted = 0
+
+    for d in docs:
+        stored = d.get("stored_name")
+        if not stored:
+            continue
+        src = staged_dir / stored
+        if not src.exists() or not src.is_file():
+            continue
+
+        dest = target_dir / stored
+        try:
+            shutil.move(str(src), str(dest))
+        except Exception as e:
+            print(f"[onboarding] could not move {src} -> {dest}: {e}")
+            continue
+
+        public_url = f"/static/employee-docs/{emp.ID}/{stored}"
+
+        try:
+            row = EmployeeDocument(
+                EMPLOYEE_ID=emp.ID,
+                DOC_TYPE=d.get("doc_type") or "OTHER",
+                TITLE=d.get("original_name") or stored,
+                FILE_URL=public_url,
+                FILE_NAME=d.get("original_name") or stored,
+                SIZE_BYTES=int(d.get("size") or 0),
+                NOTES="Uploaded by candidate during self-onboarding.",
+                UPLOADED_BY_ID=emp.ID,
+            )
+            db.add(row)
+            promoted += 1
+        except Exception as e:
+            print(f"[onboarding] could not insert EmployeeDocument: {e}")
+
+    # Clean up the now-empty staging dir
+    try:
+        if staged_dir.exists() and not any(staged_dir.iterdir()):
+            staged_dir.rmdir()
+    except Exception:
+        pass
+
+    # Clear the pending list since they're now real docs
+    _write_pending_docs(s, [])
+
+    return promoted
+
+
+@router.post("/employee-onboarding/{token}/upload-document")
+def public_upload_document(
+    token: str,
+    doc_type: str = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    """Candidate uploads a single document (resume, marksheet, KYC, etc.).
+
+    Each file is staged under static/employee-onboarding-docs/{token}/.
+    The submit-form endpoint moves staged files to
+    static/employee-docs/{employee_id}/ and creates matching
+    EmployeeDocument rows.
+
+    Returns the new doc record so the frontend can show it in the
+    "Uploaded documents" list and offer a Delete button."""
+
+    s = _require_session(token, db)
+
+    if s.STATUS not in ("OPEN", "SUBMITTED"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Document upload is disabled for {s.STATUS} sessions.",
+        )
+
+    dt = (doc_type or "").upper().strip()
+    if dt not in _CANDIDATE_DOC_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Invalid doc_type {dt!r}. Allowed: "
+                + ", ".join(sorted(_CANDIDATE_DOC_TYPES))
+            ),
+        )
+
+    ext = Path(file.filename or "").suffix.lower()
+    if ext not in _ALLOWED_DOC_EXTS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Unsupported file type {ext!r}. Allowed: "
+                + ", ".join(sorted(_ALLOWED_DOC_EXTS))
+            ),
+        )
+
+    # Read file to enforce size cap. UploadFile gives us a SpooledTempFile
+    # so we can read into memory safely below the 10 MB cap.
+    file.file.seek(0, os.SEEK_END)
+    size = file.file.tell()
+    file.file.seek(0)
+    if size > _MAX_DOC_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large ({size} bytes). Max {_MAX_DOC_BYTES} bytes.",
+        )
+
+    # Save to staging dir
+    staging = _DOC_STAGING_DIR / token
+    staging.mkdir(parents=True, exist_ok=True)
+
+    doc_id = uuid.uuid4().hex
+    stored_name = f"{doc_id}{ext}"
+    dest = staging / stored_name
+    try:
+        with dest.open("wb") as out:
+            shutil.copyfileobj(file.file, out)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not save document: {exc}",
+        )
+
+    # Append to session's pending-documents list
+    docs = _read_pending_docs(s)
+    record = {
+        "id":            doc_id,
+        "doc_type":      dt,
+        "original_name": (file.filename or "")[:255],
+        "stored_name":   stored_name,
+        "size":          int(size),
+        "uploaded_at":   _utcnow().isoformat(),
+        "url":           f"/static/employee-onboarding-docs/{token}/{stored_name}",
+    }
+    docs.append(record)
+    _write_pending_docs(s, docs)
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        # best-effort cleanup on commit failure
+        try:
+            dest.unlink()
+        except Exception:
+            pass
+        raise HTTPException(500, "Could not record document upload.")
+
+    return {"message": "Document uploaded", "document": record}
+
+
+@router.get("/employee-onboarding/{token}/documents")
+def public_list_documents(
+    token: str,
+    db: Session = Depends(get_db),
+):
+    """List all documents the candidate has uploaded so far for THIS
+    onboarding session. Used by the form to render the 'uploaded'
+    table with delete buttons."""
+
+    s = _require_session(token, db)
+    return {"documents": _read_pending_docs(s)}
+
+
+@router.delete("/employee-onboarding/{token}/documents/{doc_id}")
+def public_delete_document(
+    token: str,
+    doc_id: str,
+    db: Session = Depends(get_db),
+):
+    """Remove a single staged document. Idempotent — a missing doc
+    returns 200 with `removed=false`."""
+
+    s = _require_session(token, db)
+
+    if s.STATUS not in ("OPEN", "SUBMITTED"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Document delete is disabled for {s.STATUS} sessions.",
+        )
+
+    docs = _read_pending_docs(s)
+    keep, dropped = [], None
+    for d in docs:
+        if d.get("id") == doc_id:
+            dropped = d
+            continue
+        keep.append(d)
+
+    if not dropped:
+        return {"removed": False, "doc_id": doc_id}
+
+    # Remove the file from disk (best effort)
+    try:
+        p = _DOC_STAGING_DIR / token / dropped.get("stored_name", "")
+        if p.exists() and p.is_file():
+            p.unlink()
+    except Exception:
+        pass
+
+    _write_pending_docs(s, keep)
+
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(500, "Could not record document removal.")
+
+    return {"removed": True, "doc_id": doc_id}
+
+
 @router.post("/employee-onboarding/{token}/submit")
 def public_submit(
     token: str,
@@ -893,7 +1175,7 @@ def public_submit(
 # ADMIN ENDPOINTS
 # =========================
 
-@router.post("/employee-onboarding/invite")
+@router.post("/employee-onboarding/invite", dependencies=[Depends(require("onboarding.invite"))])
 def admin_create_invite(
     body: InviteCreate,
     db: Session = Depends(get_db)
@@ -1187,6 +1469,13 @@ def public_submit_form(
             detail="EMPLOYEE_CODE does not match the invite."
         )
 
+    # ---- Capture pending docs BEFORE we overwrite COLLECTED_DATA ----
+    # _save_collected() replaces the entire JSON blob, which would wipe
+    # the __pending_documents__ list the upload-document endpoint
+    # appended. Grab it now and hand it to _promote_staged_documents
+    # directly.
+    pending_docs_snapshot = _read_pending_docs(s)
+
     # Persist payload to COLLECTED_DATA so HR can still review what was
     # actually submitted (separate from any later admin edits).
     payload = body.model_dump()
@@ -1399,6 +1688,15 @@ def public_submit_form(
     s.EMPLOYEE_CODE = emp.EMPLOYEE_CODE
     s.REJECT_REASON = None
 
+    # ---- Promote staged candidate documents to real EmployeeDocument rows.
+    # We pass the pre-captured list because _save_collected() above
+    # already wiped __pending_documents__ from COLLECTED_DATA.
+    # Best-effort: a failure here doesn't undo the Employee row.
+    try:
+        _promote_staged_documents(db, s, emp, pending_docs_snapshot)
+    except Exception as doc_exc:
+        print(f"[onboarding] document promote failed for {emp.EMPLOYEE_CODE}: {doc_exc}")
+
     try:
 
         db.commit()
@@ -1440,7 +1738,7 @@ def public_submit_form(
     }
 
 
-@router.get("/employee-onboarding/sessions")
+@router.get("/employee-onboarding/sessions", dependencies=[Depends(require("onboarding.sessions.view"))])
 def admin_list_sessions(
     status: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
@@ -1474,7 +1772,7 @@ def admin_list_sessions(
     return [_serialize_for_admin_list(r) for r in rows]
 
 
-@router.get("/employee-onboarding/sessions/{session_id}")
+@router.get("/employee-onboarding/sessions/{session_id}", dependencies=[Depends(require("onboarding.sessions.view"))])
 def admin_get_session(
     session_id: int,
     db: Session = Depends(get_db)
@@ -1496,7 +1794,7 @@ def admin_get_session(
     return base
 
 
-@router.patch("/employee-onboarding/sessions/{session_id}")
+@router.patch("/employee-onboarding/sessions/{session_id}", dependencies=[Depends(require("onboarding.sessions.edit"))])
 def admin_patch_session(
     session_id: int,
     body: SessionPatch,
@@ -1593,7 +1891,7 @@ def admin_patch_session(
     }
 
 
-@router.post("/employee-onboarding/sessions/{session_id}/approve")
+@router.post("/employee-onboarding/sessions/{session_id}/approve", dependencies=[Depends(require("onboarding.sessions.approve"))])
 def admin_approve_session(
     session_id: int,
     body: Optional[ApproveBody] = None,
@@ -1964,7 +2262,7 @@ def admin_approve_session(
     }
 
 
-@router.post("/employee-onboarding/sessions/{session_id}/reject")
+@router.post("/employee-onboarding/sessions/{session_id}/reject", dependencies=[Depends(require("onboarding.sessions.reject"))])
 def admin_reject_session(
     session_id: int,
     body: RejectBody,
@@ -2007,7 +2305,7 @@ def admin_reject_session(
     }
 
 
-@router.delete("/employee-onboarding/sessions/{session_id}")
+@router.delete("/employee-onboarding/sessions/{session_id}", dependencies=[Depends(require("onboarding.sessions.delete"))])
 def admin_delete_session(
     session_id: int,
     db: Session = Depends(get_db)
@@ -2076,7 +2374,7 @@ def admin_delete_session(
     }
 
 
-@router.post("/employee-onboarding/sessions/{session_id}/resend-link")
+@router.post("/employee-onboarding/sessions/{session_id}/resend-link", dependencies=[Depends(require("onboarding.sessions.resend"))])
 def admin_resend_link(
     session_id: int,
     expires_in_days: int = Query(7, ge=1, le=90),

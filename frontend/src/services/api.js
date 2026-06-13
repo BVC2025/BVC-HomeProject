@@ -13,6 +13,16 @@ import axios from "axios";
 //      http://192.168.1.56:8001 for the API. No code change needed
 //      when switching machines.
 //   3. Hardcoded localhost fallback for non-browser contexts.
+// When running through a Cloudflare quick tunnel, the frontend lives
+// at one .trycloudflare.com URL and the backend at another. The
+// frontend can't autodetect the backend URL because :8001 doesn't
+// exist on the tunnel domain. So we map: if the page is on any
+// .trycloudflare.com host, route API calls to the hardcoded backend
+// tunnel below. Update this string each time `cloudflared` is
+// restarted (quick tunnels assign a new URL on every restart).
+const CLOUDFLARE_BACKEND_URL =
+  "https://witness-entity-coordinate-command.trycloudflare.com";
+
 function resolveApiBase() {
 
   const envUrl = (import.meta?.env?.VITE_API_URL || "").trim();
@@ -25,6 +35,11 @@ function resolveApiBase() {
 
     const proto = window.location.protocol || "http:";
 
+    if (host.endsWith(".trycloudflare.com")) {
+
+      return CLOUDFLARE_BACKEND_URL;
+    }
+
     return `${proto}//${host}:8001`;
   }
 
@@ -32,6 +47,10 @@ function resolveApiBase() {
 }
 
 export const API_BASE_URL = resolveApiBase();
+
+if (typeof window !== "undefined") {
+  console.log("[api.js] API_BASE_URL =", API_BASE_URL, "(VITE_API_URL was:", import.meta?.env?.VITE_API_URL, ")");
+}
 
 const API = axios.create({
   baseURL: API_BASE_URL

@@ -28,6 +28,12 @@ from app.schemas.employee_schema import (
 )
 
 from app.services.auth_service import hash_password
+from app.auth.auth_bearer import (
+    get_current_admin,
+    get_current_user,
+    assert_self_or_admin,
+    require,
+)
 
 
 router = APIRouter()
@@ -148,7 +154,7 @@ def serialize_employee(emp: Employee, db: Session):
 # CREATE
 # =========================
 
-@router.post("/create-employee")
+@router.post("/create-employee", dependencies=[Depends(require("employee.create"))])
 def create_employee(
     data: EmployeeCreate,
     db: Session = Depends(get_db)
@@ -283,7 +289,7 @@ def create_employee(
 # LIST
 # =========================
 
-@router.get("/employees")
+@router.get("/employees", dependencies=[Depends(require("employee.view"))])
 def get_employees(
     department_id: Optional[int] = Query(None),
     role_id: Optional[int] = Query(None),
@@ -318,8 +324,11 @@ def get_employees(
 @router.get("/employees/{employee_id}")
 def get_one_employee(
     employee_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
+
+    assert_self_or_admin(employee_id, payload)
 
     emp = db.query(Employee).filter(
         Employee.ID == employee_id
@@ -339,12 +348,15 @@ def get_one_employee(
 @router.get("/employees/by-code/{code}")
 def get_employee_by_code(
     code: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     """Look up the logged-in employee by their EMPLOYEE_CODE (the
     same code stored in localStorage on login). Used by the
     EmployeeDashboard to decide whether to show the self-registration
     form or the read-only resume view."""
+
+    assert_self_or_admin(code, payload)
 
     emp = db.query(Employee).filter(
         Employee.EMPLOYEE_CODE == code.upper().strip()
@@ -361,7 +373,8 @@ def get_employee_by_code(
 def submit_own_profile(
     code: str,
     data: EmployeeUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     """Employee's one-shot self-registration. Updates the row with
     every field they submitted and flips PROFILE_SUBMITTED → 1.
@@ -373,6 +386,8 @@ def submit_own_profile(
     EMPLOYEE_CODE, PASSWORD, SALARY) are silently dropped from the
     payload so the employee can't promote themselves.
     """
+
+    assert_self_or_admin(code, payload)
 
     emp = db.query(Employee).filter(
         Employee.EMPLOYEE_CODE == code.upper().strip()
@@ -426,7 +441,7 @@ def submit_own_profile(
 # UPDATE
 # =========================
 
-@router.put("/update-employee/{employee_id}")
+@router.put("/update-employee/{employee_id}", dependencies=[Depends(require("employee.update"))])
 def update_employee(
     employee_id: str,
     data: EmployeeUpdate,
@@ -450,7 +465,7 @@ def update_employee(
     return {"message": "Employee updated successfully"}
 
 
-@router.put("/employees/{employee_id}/reset-password")
+@router.put("/employees/{employee_id}/reset-password", dependencies=[Depends(require("employee.password-reset"))])
 def reset_password(
     employee_id: str,
     data: EmployeePasswordReset,
@@ -498,13 +513,16 @@ def _safe_slug(text: str) -> str:
 def upload_employee_photo(
     employee_id: str,
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     """Save a passport-size photo for the employee and store the
     public /static/employee/<file> URL on Employee.PHOTO_URL.
 
     Replaces the previous photo if one exists (old file is removed)
     so /static doesn't bloat over time."""
+
+    assert_self_or_admin(employee_id, payload)
 
     emp = db.query(Employee).filter(
         Employee.ID == employee_id
@@ -570,7 +588,7 @@ def upload_employee_photo(
     }
 
 
-@router.post("/employees/wipe-all")
+@router.post("/employees/wipe-all", dependencies=[Depends(require("employee.wipe"))])
 def wipe_all_employees(
     keep_admin: bool = True,
     db: Session = Depends(get_db)
@@ -840,7 +858,7 @@ def wipe_all_employees(
     }
 
 
-@router.delete("/delete-employee/{employee_id}")
+@router.delete("/delete-employee/{employee_id}", dependencies=[Depends(require("employee.delete"))])
 def delete_employee(
     employee_id: str,
     db: Session = Depends(get_db)
@@ -877,7 +895,8 @@ def delete_employee(
         SalesOrder,
         PurchaseOrder,
         EmployeeOnboardingSession,
-        EmployeeDocument
+        EmployeeDocument,
+        EmployeeMemo,
     )
 
     # Path to clean up document files on disk
@@ -964,6 +983,13 @@ def delete_employee(
     # have no value once the employee is gone — delete outright.
     _try("performance_scores", lambda: db.query(PerformanceScore)
          .filter(PerformanceScore.EMPLOYEE_ID == employee_id)
+         .delete(synchronize_session=False))
+
+    # Memos are per-employee notes (warnings, appreciations,
+    # disciplinary). They're meaningless once the employee is gone
+    # and their EMPLOYEE_ID FK blocks the delete otherwise.
+    _try("memos", lambda: db.query(EmployeeMemo)
+         .filter(EmployeeMemo.EMPLOYEE_ID == employee_id)
          .delete(synchronize_session=False))
 
     # ---- 2. Null-out history-bearing references ----

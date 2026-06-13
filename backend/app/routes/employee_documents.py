@@ -17,6 +17,12 @@ import re
 
 from app.database.database import get_db
 from app.models.models import Employee, EmployeeDocument
+from app.auth.auth_bearer import (
+    get_current_admin,
+    get_current_user,
+    assert_self_or_admin,
+    require,
+)
 
 
 router = APIRouter()
@@ -113,7 +119,10 @@ def _serialize(d: EmployeeDocument) -> dict:
 
 # ---- Endpoints ----
 
-@router.post("/employees/{employee_id}/documents")
+@router.post(
+    "/employees/{employee_id}/documents",
+    dependencies=[Depends(require("document.upload"))]
+)
 def upload_document(
     employee_id: str,
     file: UploadFile = File(...),
@@ -226,9 +235,12 @@ def list_documents(
     employee_id: str,
     doc_type: str = Query(None),
     db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     """List every document attached to an employee. Optional
     ?doc_type=AADHAAR filter."""
+
+    assert_self_or_admin(employee_id, payload)
 
     q = db.query(EmployeeDocument).filter(
         EmployeeDocument.EMPLOYEE_ID == employee_id
@@ -248,7 +260,10 @@ def get_document(
     employee_id: str,
     doc_id: int,
     db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
+
+    assert_self_or_admin(employee_id, payload)
 
     doc = db.query(EmployeeDocument).filter(
         EmployeeDocument.ID == doc_id,
@@ -262,7 +277,10 @@ def get_document(
     return _serialize(doc)
 
 
-@router.delete("/employees/{employee_id}/documents/{doc_id}")
+@router.delete(
+    "/employees/{employee_id}/documents/{doc_id}",
+    dependencies=[Depends(require("document.delete"))]
+)
 def delete_document(
     employee_id: str,
     doc_id: int,

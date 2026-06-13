@@ -59,6 +59,7 @@ import AdminDashboard from "./AdminDashboard";
 import AdminDashboardV2 from "./AdminDashboardV2";
 import EnterpriseCommandCenter from "./EnterpriseCommandCenter";
 import RoleManagement from "./RoleManagement";
+import RbacPermissions from "./RbacPermissions";
 import CompanySettings from "./CompanySettings";
 import GeofenceSettings from "./GeofenceSettings";
 import EmployeeMemos from "./EmployeeMemos";
@@ -1261,7 +1262,7 @@ function DashboardHomeLegacy() {
 const NAV_TOP = [
   { to: "/",            icon: "📊", label: "Dashboard" },
   { to: "/ai-command",  icon: "🤖", label: "AI Command Center" },
-  { to: "/workflow",    icon: "🔗", label: "Workflow Map" }
+  // { to: "/workflow",    icon: "🔗", label: "Workflow Map" }  // temporarily hidden
 ];
 
 const NAV_GROUPS = [
@@ -1272,6 +1273,7 @@ const NAV_GROUPS = [
     items: [
       { to: "/approvals",         icon: "✅", label: "Approval Center" },
       { to: "/roles",             icon: "🔐", label: "Roles & Permissions" },
+      { to: "/rbac",              icon: "🛡️", label: "RBAC (Permission Grants)" },
       { to: "/employees",         icon: "👥", label: "Employees" },
       { to: "/memos",             icon: "📋", label: "Memos" },
       { to: "/attendance",        icon: "🕒", label: "Attendance" },
@@ -1618,6 +1620,7 @@ function Dashboard() {
           <Route path="/dashboard-v1" element={<AdminDashboard />} />
 
           <Route path="/roles" element={<RoleManagement />} />
+          <Route path="/rbac"  element={<RbacPermissions />} />
 
           <Route path="/company-settings" element={<CompanySettings />} />
           <Route path="/geofence" element={<GeofenceSettings />} />

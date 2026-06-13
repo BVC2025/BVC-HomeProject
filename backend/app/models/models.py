@@ -3960,3 +3960,44 @@ class CompanyMaster(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow
     )
+
+
+# =============================================================
+# AUDIT LOG — Phase 3 security hardening
+# -------------------------------------------------------------
+# Single forensic table that records every state-changing request
+# (POST / PUT / PATCH / DELETE). Read-only GETs are not logged
+# to keep the table small. Written by AuditMiddleware in main.py
+# after the response is built, so the user's request latency is
+# barely affected.
+# =============================================================
+class AuditLog(Base):
+
+    __tablename__ = "audit_log"
+
+    ID = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Caller identity (null = anonymous request, e.g. failed login)
+    USER_ID    = Column(String(36),  index=True, nullable=True)
+    USER_CODE  = Column(String(50),  index=True, nullable=True)
+    USER_ROLE  = Column(String(50),  index=True, nullable=True)
+    USER_NAME  = Column(String(150),               nullable=True)
+
+    # Action
+    METHOD = Column(String(10), index=True)
+    PATH   = Column(String(500), index=True)
+
+    # Target heuristically extracted from the URL path. Lets you
+    # answer "show every change made to LEAVE id=42" without parsing
+    # the full URL on read.
+    TARGET_TYPE = Column(String(50), index=True, nullable=True)
+    TARGET_ID   = Column(String(100), index=True, nullable=True)
+
+    # Response
+    STATUS_CODE = Column(Integer, index=True)
+
+    # Forensics
+    IP_ADDRESS  = Column(String(45),  nullable=True)
+    USER_AGENT  = Column(String(500), nullable=True)
+
+    CREATED_AT  = Column(DateTime, default=datetime.utcnow, index=True)

@@ -1,0 +1,106 @@
+# =====================================================================
+# BVC24 ERP — Caddy production config
+# ---------------------------------------------------------------------
+# This file:
+#   - Serves the React build (frontend/dist) at the root
+#   - Reverse-proxies /api/* to the uvicorn backend on 127.0.0.1:8001
+#   - Auto-provisions a Let's Encrypt cert (Caddy does this on first
+#     start; you DON'T need to install certbot)
+#   - Forces HTTPS redirect on port 80
+#
+# To use:
+#   1. Replace BOTH erp.example.com lines with your real domain.
+#   2. Replace the file path with your actual frontend/dist location.
+#   3. Make sure the domain's A record points at this server's public IP.
+#   4. Copy to C:\Caddy\Caddyfile (or wherever you installed Caddy).
+#   5. Start Caddy: caddy run --config C:\Caddy\Caddyfile
+#      (For a real service install, see deploy\nssm-install-caddy.ps1)
+#
+# Mobile GPS REQUIRES HTTPS. Caddy gives you that for free with this
+# config — no extra steps.
+# =====================================================================
+
+erp.example.com {
+
+    # --- Backend API routes ---------------------------------------
+    # Anything starting with /api goes to uvicorn. The backend doesn't
+    # know about the /api prefix — strip it before forwarding.
+    handle_path /api/* {
+        reverse_proxy 127.0.0.1:8001 {
+            # Forward the original Host + scheme so the backend builds
+            # correct absolute URLs in emails (leave approval links etc.)
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Forwarded-Host {host}
+        }
+    }
+
+    # --- Static file routes ---------------------------------------
+    # The backend writes /static/<things> (BOM images, employee photos,
+    # memo attachments, etc.). Proxy those directly to uvicorn.
+    handle_path /static/* {
+        reverse_proxy 127.0.0.1:8001
+    }
+
+    # --- Frontend SPA ----------------------------------------------
+    # Everything else is the React build. try_files makes client-side
+    # routing work (deep links like /employee-onboarding/abc).
+    handle {
+        root * "C:\inetpub\bvc24\frontend\dist"
+        try_files {path} /index.html
+        file_server
+
+        # Aggressive caching for the hashed asset filenames Vite produces
+        @assets path *.js *.css *.svg *.png *.jpg *.webp *.woff2 *.ico
+        header @assets Cache-Control "public, max-age=31536000, immutable"
+
+        # Don't cache index.html (so deploys take effect immediately)
+        @html path /index.html /
+        header @html Cache-Control "no-cache, must-revalidate"
+    }
+
+    # --- Logging ---------------------------------------------------
+    log {
+        output file C:\Caddy\logs\access.log {
+            roll_size     50mb
+            roll_keep     10
+        }
+        format json
+    }
+
+    # --- Security headers ------------------------------------------
+    header {
+        # HSTS — force HTTPS for 6 months, including subdomains.
+        # Comment out the first time you go live, in case you hit a
+        # cert issue. Once stable, enable.
+        # Strict-Transport-Security "max-age=15552000; includeSubDomains"
+
+        # Block MIME-type sniffing
+        X-Content-Type-Options "nosniff"
+
+        # Prevent clickjacking
+        X-Frame-Options "SAMEORIGIN"
+
+        # Browser cross-site protection
+        Referrer-Policy "strict-origin-when-cross-origin"
+
+        # Trim noisy CDN markers
+        -Server
+        -X-Powered-By
+    }
+}
+
+
+# =====================================================================
+# Optional: dedicated subdomain for the OpenAPI / Swagger UI
+# Useful for developers without exposing it on the main domain.
+# =====================================================================
+#
+# api-docs.erp.example.com {
+#     handle_path /docs* {
+#         reverse_proxy 127.0.0.1:8001
+#     }
+#     handle_path /openapi.json {
+#         reverse_proxy 127.0.0.1:8001
+#     }
+# }

@@ -24,7 +24,12 @@ from app.schemas.employee_task_schema import (
     DayUpdate
 )
 
-from app.auth.auth_bearer import get_current_employee
+from app.auth.auth_bearer import (
+    get_current_employee,
+    get_current_admin,
+    get_current_user,
+    assert_self_or_admin,
+)
 
 from app.services.auth_service import (
     find_employee_by_login,
@@ -282,7 +287,7 @@ def set_current_day(db, day):
 # SEED DEMO DATA
 # =========================
 
-@router.post("/seed-employees")
+@router.post("/seed-employees", dependencies=[Depends(get_current_admin)])
 def seed_employees(
     db: Session = Depends(get_db)
 ):
@@ -455,7 +460,7 @@ def seed_employees(
     }
 
 
-@router.delete("/seed-employees")
+@router.delete("/seed-employees", dependencies=[Depends(get_current_admin)])
 def reset_seed(
     db: Session = Depends(get_db)
 ):
@@ -510,7 +515,7 @@ def reset_seed(
 # SEED ADMIN
 # =========================
 
-@router.post("/seed-admin")
+@router.post("/seed-admin", dependencies=[Depends(get_current_admin)])
 def seed_admin(
     db: Session = Depends(get_db)
 ):
@@ -888,7 +893,7 @@ def current_day(
     return {"day": get_current_day(db)}
 
 
-@router.put("/current-day")
+@router.put("/current-day", dependencies=[Depends(get_current_admin)])
 def update_current_day(
     data: DayUpdate,
     db: Session = Depends(get_db)
@@ -1325,7 +1330,7 @@ def update_task_status(
 # LIST EMPLOYEE ACCOUNTS (admin)
 # =========================
 
-@router.get("/employee-accounts")
+@router.get("/employee-accounts", dependencies=[Depends(get_current_admin)])
 def list_employee_accounts(
     db: Session = Depends(get_db)
 ):
@@ -1358,7 +1363,8 @@ def list_employee_accounts(
 @router.patch("/task-assignment/{task_id}/accept")
 def accept_task(
     task_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
 
     task = db.query(TaskAssignment).filter(
@@ -1368,6 +1374,9 @@ def accept_task(
     if not task:
 
         raise HTTPException(status_code=404, detail="Task not found")
+
+    # Only the assignee (or admin) can accept the task
+    assert_self_or_admin(task.EMPLOYEE_ID, payload)
 
     if task.APPROVAL_STATUS != "PENDING":
 
@@ -1397,7 +1406,8 @@ def accept_task(
 @router.patch("/task-assignment/{task_id}/reject")
 def reject_task(
     task_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     """
     Employee declines an assigned task. The system tries to
@@ -1413,6 +1423,9 @@ def reject_task(
     if not task:
 
         raise HTTPException(status_code=404, detail="Task not found")
+
+    # Only the assignee (or admin) can reject the task
+    assert_self_or_admin(task.EMPLOYEE_ID, payload)
 
     if task.APPROVAL_STATUS != "PENDING":
 
@@ -1514,11 +1527,14 @@ def reject_task(
 @router.get("/employee/{employee_ref}/pending-acceptance")
 def list_pending_acceptance(
     employee_ref: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     """List the tasks waiting on this employee's accept/reject.
     `employee_ref` accepts either the UUID or the EMPLOYEE_CODE
     so the employee dashboard can pass whatever it has."""
+
+    assert_self_or_admin(employee_ref, payload)
 
     emp = (
         db.query(Employee)
@@ -1569,7 +1585,7 @@ def list_pending_acceptance(
 # ADMIN: ASSIGN TASKS
 # =========================
 
-@router.post("/task-assignment")
+@router.post("/task-assignment", dependencies=[Depends(get_current_admin)])
 def assign_task(
     data: TaskAssignmentCreate,
     db: Session = Depends(get_db)
@@ -1700,7 +1716,7 @@ def assign_task(
     }
 
 
-@router.get("/workload-preview")
+@router.get("/workload-preview", dependencies=[Depends(get_current_admin)])
 def workload_preview(
     project_id: int = None,
     department_id: int = None,
@@ -1748,7 +1764,7 @@ def workload_preview(
     }
 
 
-@router.get("/project/{project_id}/tasks")
+@router.get("/project/{project_id}/tasks", dependencies=[Depends(get_current_admin)])
 def list_project_tasks(
     project_id: int,
     db: Session = Depends(get_db)
@@ -1803,7 +1819,7 @@ def list_project_tasks(
     }
 
 
-@router.delete("/task-assignment/{task_id}")
+@router.delete("/task-assignment/{task_id}", dependencies=[Depends(get_current_admin)])
 def delete_task(
     task_id: int,
     db: Session = Depends(get_db)
@@ -1828,7 +1844,7 @@ def delete_task(
 # EMPLOYEE ATTENDANCE LIST (admin)
 # =========================
 
-@router.get("/employee-attendance")
+@router.get("/employee-attendance", dependencies=[Depends(get_current_admin)])
 def list_employee_attendance(
     db: Session = Depends(get_db)
 ):

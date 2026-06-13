@@ -26,6 +26,14 @@ from app.routes.geofence import (
     _get_or_create_settings as get_geofence_settings
 )
 
+from app.auth.auth_bearer import (
+    get_current_admin,
+    get_current_user,
+    assert_self_or_admin,
+    require,
+    ADMIN_ROLES,
+)
+
 router = APIRouter()
 
 
@@ -132,8 +140,13 @@ def compute_status(check_in_time: datetime) -> str:
 def check_in(
     data: CheckInRequest,
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
+
+    # An employee can only check IN as themselves; admins (e.g. kiosk
+    # operators or HR via the live floor board) may check in anyone.
+    assert_self_or_admin(data.EMPLOYEE_ID, payload)
 
     emp = db.query(Employee).filter(
         Employee.ID == data.EMPLOYEE_ID
@@ -234,8 +247,13 @@ def check_in(
 def check_out(
     data: CheckOutRequest,
     request: Request,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
+
+    # An employee can only check OUT as themselves; admins may
+    # check out anyone (e.g. shift supervisor closing the floor).
+    assert_self_or_admin(data.EMPLOYEE_ID, payload)
 
     today = date.today()
 
@@ -323,7 +341,7 @@ def check_out(
 # MARK ABSENT
 # =========================
 
-@router.post("/mark-absent")
+@router.post("/mark-absent", dependencies=[Depends(require("attendance.mark.others"))])
 def mark_absent(
     data: MarkAbsentRequest,
     db: Session = Depends(get_db)
@@ -375,7 +393,7 @@ def mark_absent(
 # LIST
 # =========================
 
-@router.get("/attendance")
+@router.get("/attendance", dependencies=[Depends(require("attendance.view.all"))])
 def get_attendance(
     db: Session = Depends(get_db)
 ):
@@ -436,12 +454,19 @@ def get_attendance(
 
 @router.get("/attendance/today")
 def get_today_attendance(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
+    """Today's attendance rows.
+
+    - Admins see every employee's row.
+    - Employees see only their own row (so the Employee Portal's
+      attendance widget can render without a separate endpoint).
+    """
 
     today = date.today()
 
-    rows = db.query(
+    q = db.query(
         Attendance,
         Employee.NAME,
         Employee.EMPLOYEE_CODE
@@ -450,7 +475,13 @@ def get_today_attendance(
         Attendance.EMPLOYEE_ID == Employee.ID
     ).filter(
         Attendance.DATE == today
-    ).all()
+    )
+
+    if payload.get("role") not in ADMIN_ROLES:
+        # Scope to caller's own row only.
+        q = q.filter(Attendance.EMPLOYEE_ID == payload.get("employee_id"))
+
+    rows = q.all()
 
     return [
         {
@@ -487,7 +518,7 @@ def get_today_attendance(
     ]
 
 
-@router.get("/attendance/live-board")
+@router.get("/attendance/live-board", dependencies=[Depends(require("attendance.view.all"))])
 def live_floor_board(
     db: Session = Depends(get_db)
 ):
@@ -636,7 +667,7 @@ def live_floor_board(
     }
 
 
-@router.delete("/attendance/{attendance_id}")
+@router.delete("/attendance/{attendance_id}", dependencies=[Depends(require("attendance.delete"))])
 def delete_attendance(
     attendance_id: int,
     db: Session = Depends(get_db)
