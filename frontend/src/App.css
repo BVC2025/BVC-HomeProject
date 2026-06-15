@@ -65,11 +65,14 @@ body {
 
 .vending-marquee {
 
+  /* Background marquee hidden — only the dark-red gradient on
+     .login-page is visible. To bring the vending images back,
+     change `display: none` back to `display: flex`. */
+  display: none;
+
   position: absolute;
 
   inset: 0;
-
-  display: flex;
 
   align-items: center;
 
@@ -130,7 +133,9 @@ body {
 
   padding-right: 40px;
 
-  animation: vending-scroll 45s linear infinite;
+  /* animation: vending-scroll 45s linear infinite; */
+  /* Scrolling temporarily disabled — uncomment to restore the marquee. */
+  animation: none;
 }
 
 .vending-machine {

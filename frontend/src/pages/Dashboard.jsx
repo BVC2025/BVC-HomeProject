@@ -1261,7 +1261,7 @@ function DashboardHomeLegacy() {
 
 const NAV_TOP = [
   { to: "/",            icon: "📊", label: "Dashboard" },
-  { to: "/ai-command",  icon: "🤖", label: "AI Command Center" },
+  // { to: "/ai-command",  icon: "🤖", label: "AI Command Center" },  // temporarily hidden
   // { to: "/workflow",    icon: "🔗", label: "Workflow Map" }  // temporarily hidden
 ];
 

@@ -21,7 +21,7 @@ import axios from "axios";
 // tunnel below. Update this string each time `cloudflared` is
 // restarted (quick tunnels assign a new URL on every restart).
 const CLOUDFLARE_BACKEND_URL =
-  "https://witness-entity-coordinate-command.trycloudflare.com";
+  "https://belongs-suite-select-wheel.trycloudflare.com";
 
 function resolveApiBase() {
 

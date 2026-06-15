@@ -161,6 +161,49 @@ function StatTile({ label, value, sub, color }) {
 }
 
 
+// 8-colour theme palette cycled deterministically from EMPLOYEE_CODE.
+// Same code always gets the same colour, so the directory looks the
+// same across refreshes.
+const CARD_THEMES = [
+  { tag: "#dbeafe", tagFg: "#1d4ed8", title: "#2563eb", btn: "linear-gradient(135deg,#3b82f6,#2563eb)", chip: "#eff6ff", chipFg: "#1d4ed8", deptBg: "#eff6ff", deptFg: "#1d4ed8" }, // blue
+  { tag: "#d1fae5", tagFg: "#047857", title: "#059669", btn: "linear-gradient(135deg,#10b981,#059669)", chip: "#ecfdf5", chipFg: "#047857", deptBg: "#ecfdf5", deptFg: "#047857" }, // green
+  { tag: "#ede9fe", tagFg: "#6d28d9", title: "#7c3aed", btn: "linear-gradient(135deg,#8b5cf6,#7c3aed)", chip: "#f5f3ff", chipFg: "#6d28d9", deptBg: "#f5f3ff", deptFg: "#6d28d9" }, // purple
+  { tag: "#fed7aa", tagFg: "#c2410c", title: "#ea580c", btn: "linear-gradient(135deg,#f97316,#ea580c)", chip: "#fff7ed", chipFg: "#c2410c", deptBg: "#fff7ed", deptFg: "#c2410c" }, // orange
+  { tag: "#fce7f3", tagFg: "#be185d", title: "#db2777", btn: "linear-gradient(135deg,#ec4899,#db2777)", chip: "#fdf2f8", chipFg: "#be185d", deptBg: "#fdf2f8", deptFg: "#be185d" }, // pink
+  { tag: "#cffafe", tagFg: "#0e7490", title: "#0891b2", btn: "linear-gradient(135deg,#06b6d4,#0891b2)", chip: "#ecfeff", chipFg: "#0e7490", deptBg: "#ecfeff", deptFg: "#0e7490" }, // teal
+  { tag: "#fef3c7", tagFg: "#a16207", title: "#d97706", btn: "linear-gradient(135deg,#f59e0b,#d97706)", chip: "#fffbeb", chipFg: "#a16207", deptBg: "#fffbeb", deptFg: "#a16207" }, // amber
+  { tag: "#e0e7ff", tagFg: "#4338ca", title: "#4f46e5", btn: "linear-gradient(135deg,#6366f1,#4f46e5)", chip: "#eef2ff", chipFg: "#4338ca", deptBg: "#eef2ff", deptFg: "#4338ca" }, // indigo
+];
+
+function pickTheme(code) {
+  const s = String(code || "");
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return CARD_THEMES[h % CARD_THEMES.length];
+}
+
+function fmtJoinDate(iso) {
+  if (!iso) return null;
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  } catch { return null; }
+}
+
+function statusBadge(emp) {
+  // Heuristic — most employee profiles only have STATUS = ACTIVE.
+  // Show "On Leave" if a dashboard column hints at it.
+  const onLeave = (emp.LEAVE_STATUS || "").toUpperCase() === "ON_LEAVE"
+               || (emp.TODAY_STATUS || "").toUpperCase() === "ON_LEAVE";
+  if (onLeave) return { label: "On Leave", dot: "#f59e0b", fg: "#92400e" };
+  if (emp.STATUS && emp.STATUS.toUpperCase() !== "ACTIVE") {
+    return { label: emp.STATUS, dot: "#94a3b8", fg: "#475569" };
+  }
+  return { label: "Active", dot: "#10b981", fg: "#166534" };
+}
+
+
 function EmployeeCard({ employee, onView, onEdit, onDelete }) {
 
   const skills = (employee.SKILLS || "")
@@ -168,232 +211,286 @@ function EmployeeCard({ employee, onView, onEdit, onDelete }) {
     .map((s) => s.trim())
     .filter(Boolean);
 
-  return (
+  const theme  = pickTheme(employee.EMPLOYEE_CODE);
+  const status = statusBadge(employee);
+  const joined = fmtJoinDate(employee.JOINING_DATE);
+  const city   = [employee.CITY, employee.STATE].filter(Boolean).join(", ");
 
+  return (
     <div
       style={{
         background: "white",
         borderRadius: 16,
         padding: 18,
-        boxShadow: "0 10px 30px rgba(15,23,42,0.07)",
+        boxShadow: "0 6px 18px rgba(15,23,42,0.06)",
         transition: "transform 0.18s, box-shadow 0.18s",
         position: "relative",
         overflow: "hidden",
         animation: "empFadeIn 0.4s ease-out both",
-        // Flex column so the content area expands and the action
-        // button row sits at a uniform bottom across all cards in
-        // the grid (CSS Grid already equalises row heights).
         display: "flex",
         flexDirection: "column",
-        height: "100%"
+        height: "100%",
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.transform = "translateY(-3px)";
-        e.currentTarget.style.boxShadow = "0 18px 40px rgba(15,23,42,0.14)";
+        e.currentTarget.style.boxShadow = "0 14px 32px rgba(15,23,42,0.12)";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "0 10px 30px rgba(15,23,42,0.07)";
+        e.currentTarget.style.boxShadow = "0 6px 18px rgba(15,23,42,0.06)";
       }}
     >
-      <div style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 4,
-        background: avatarGradient(employee.NAME)
-      }} />
 
+      {/* ===== TOP ROW: EMP code tag + Status pill ===== */}
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 14,
+      }}>
+        <span style={{
+          background: theme.tag,
+          color: theme.tagFg,
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+          fontSize: 11,
+          fontWeight: 800,
+          letterSpacing: 0.4,
+          padding: "4px 10px",
+          borderRadius: 6,
+        }}>
+          {employee.EMPLOYEE_CODE || "—"}
+        </span>
+
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          fontSize: 11,
+          fontWeight: 700,
+          color: status.fg,
+        }}>
+          <span style={{
+            width: 8, height: 8, borderRadius: "50%",
+            background: status.dot, display: "inline-block",
+          }} />
+          {status.label}
+        </div>
+      </div>
+
+      {/* ===== PHOTO + NAME + TITLE ===== */}
       <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 12 }}>
         <Avatar employee={employee} size={64} />
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{
-            fontSize: 16,
+            fontSize: 17,
             fontWeight: 800,
             color: "#0f172a",
             lineHeight: 1.2,
             overflow: "hidden",
             textOverflow: "ellipsis",
-            whiteSpace: "nowrap"
+            whiteSpace: "nowrap",
           }}>
             {employee.NAME || "—"}
           </div>
-          <div style={{
-            fontSize: 11,
-            color: "#64748b",
-            fontFamily: "ui-monospace, monospace",
-            fontWeight: 700,
-            marginTop: 2
-          }}>
-            {employee.EMPLOYEE_CODE}
-          </div>
           {employee.DESIGNATION?.TITLE && (
-            <div style={{ fontSize: 12, color: "#475569", marginTop: 4, fontStyle: "italic" }}>
+            <div style={{
+              fontSize: 13,
+              color: theme.title,
+              fontWeight: 700,
+              marginTop: 4,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}>
               {employee.DESIGNATION.TITLE}
             </div>
           )}
         </div>
       </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-        {employee.DEPARTMENT?.NAME && (
-          <Pill bg="#dbeafe" fg="#1e40af">
-            {employee.DEPARTMENT.NAME}
-          </Pill>
-        )}
-        {employee.ROLE?.NAME && (
-          <Pill bg="#ede9fe" fg="#6d28d9">
-            {employee.ROLE.NAME}
-          </Pill>
-        )}
-        {employee.EMPLOYMENT_TYPE && (
-          <Pill
-            bg={employee.EMPLOYMENT_TYPE === "FRESHER" ? "#dcfce7" : "#fef3c7"}
-            fg={employee.EMPLOYMENT_TYPE === "FRESHER" ? "#166534" : "#92400e"}
-          >
-            {employee.EMPLOYMENT_TYPE}
-          </Pill>
-        )}
-      </div>
-
-      {/* Flexible content area — expands so the action row sticks
-          to the card bottom across all rows in the grid. */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-
-        {employee.EMAIL && (
-          <div style={{
+      {/* ===== Department chip ===== */}
+      {employee.DEPARTMENT?.NAME && (
+        <div style={{ marginBottom: 12 }}>
+          <span style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            background: theme.deptBg,
+            color: theme.deptFg,
+            border: `1px solid ${theme.deptBg}`,
             fontSize: 11,
-            color: "#64748b",
-            marginBottom: 4,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap"
+            fontWeight: 700,
+            padding: "4px 10px",
+            borderRadius: 999,
           }}>
-            ✉️ {employee.EMAIL}
+            <span style={{ fontSize: 11 }}>🏢</span>
+            {employee.DEPARTMENT.NAME}
+          </span>
+        </div>
+      )}
+
+      {/* ===== Contact info rows ===== */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 7, marginBottom: 12 }}>
+        {employee.EMAIL && (
+          <div style={contactRow(theme.title)}>
+            <span style={iconBox(theme.deptBg)}>✉</span>
+            <span style={contactTextStyle}>{employee.EMAIL}</span>
           </div>
         )}
         {employee.PHONE && (
-          <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>
-            📞 {employee.PHONE}
+          <div style={contactRow(theme.title)}>
+            <span style={iconBox(theme.deptBg)}>📞</span>
+            <span style={contactTextStyle}>{employee.PHONE}</span>
           </div>
         )}
-
-        {skills.length > 0 && (
-          <div style={{
-            background: "#f8fafc",
-            padding: "8px 10px",
-            borderRadius: 8,
-            marginBottom: 10
-          }}>
-            <div style={{
-              fontSize: 9,
-              fontWeight: 800,
-              color: "#64748b",
-              textTransform: "uppercase",
-              letterSpacing: 1,
-              marginBottom: 4
-            }}>
-              🧠 Skills
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-              {skills.slice(0, 5).map((s, i) => (
-                <span
-                  key={i}
-                  style={{
-                    fontSize: 10,
-                    padding: "2px 8px",
-                    background: "white",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: 4,
-                    color: "#475569",
-                    fontWeight: 600
-                  }}
-                >
-                  {s}
-                </span>
-              ))}
-              {skills.length > 5 && (
-                <span style={{ fontSize: 10, color: "#94a3b8" }}>
-                  +{skills.length - 5}
-                </span>
-              )}
-            </div>
+        {city && (
+          <div style={contactRow(theme.title)}>
+            <span style={iconBox(theme.deptBg)}>📍</span>
+            <span style={contactTextStyle}>{city}</span>
           </div>
         )}
-
+        {joined && (
+          <div style={contactRow(theme.title)}>
+            <span style={iconBox(theme.deptBg)}>📅</span>
+            <span style={contactTextStyle}>Joined on {joined}</span>
+          </div>
+        )}
       </div>
 
-      <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
+      {/* ===== Skills chips ===== */}
+      {skills.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: "#475569",
+            marginBottom: 6,
+          }}>
+            Skills
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {skills.slice(0, 6).map((s, i) => (
+              <span key={i} style={{
+                fontSize: 11,
+                fontWeight: 600,
+                padding: "4px 10px",
+                background: theme.chip,
+                color: theme.chipFg,
+                borderRadius: 6,
+              }}>
+                {s}
+              </span>
+            ))}
+            {skills.length > 6 && (
+              <span style={{
+                fontSize: 11, color: "#94a3b8", padding: "4px 8px",
+              }}>
+                +{skills.length - 6}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ===== Bottom action row ===== */}
+      <div style={{
+        display: "flex",
+        gap: 8,
+        marginTop: "auto",
+        alignItems: "stretch",
+      }}>
         <button
           onClick={() => onView(employee)}
           style={{
             flex: 1,
-            background: "linear-gradient(135deg, #C8102E, #8B0B1F)",
+            background: theme.btn,
             color: "white",
             border: "none",
-            padding: "9px 12px",
-            borderRadius: 8,
+            padding: "11px 12px",
+            borderRadius: 10,
             fontWeight: 700,
-            fontSize: 12,
+            fontSize: 13,
             cursor: "pointer",
-            letterSpacing: 0.3
+            letterSpacing: 0.2,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.10)",
           }}
         >
-          👤 View Data
+          <span>👤</span> View Profile
         </button>
+
         <button
           onClick={() => onEdit?.(employee)}
           title="Edit"
-          style={{
-            background: "#f0f9ff",
-            color: "#0369a1",
-            border: "1px solid #bae6fd",
-            padding: "9px 12px",
-            borderRadius: 8,
-            fontWeight: 700,
-            fontSize: 12,
-            cursor: "pointer"
-          }}
+          style={iconBtn("#eff6ff", "#1d4ed8")}
         >
           ✏️
         </button>
-        <button
-          onClick={() => { window.location.href = `/memos?employee_id=${employee.ID}`; }}
-          title="View this employee's memos"
-          style={{
-            background: "#fffbeb",
-            color: "#92400e",
-            border: "1px solid #fde68a",
-            padding: "9px 12px",
-            borderRadius: 8,
-            fontWeight: 700,
-            fontSize: 12,
-            cursor: "pointer"
-          }}
-        >
-          📋
-        </button>
+
         <button
           onClick={() => onDelete(employee)}
           title="Delete"
-          style={{
-            background: "#fef2f2",
-            color: "#b91c1c",
-            border: "1px solid #fecaca",
-            padding: "9px 12px",
-            borderRadius: 8,
-            fontWeight: 700,
-            fontSize: 12,
-            cursor: "pointer"
-          }}
+          style={iconBtn("#fef2f2", "#b91c1c")}
         >
           🗑
         </button>
       </div>
     </div>
   );
+}
+
+
+// ---- small style helpers used by EmployeeCard ----
+const contactTextStyle = {
+  fontSize: 12,
+  color: "#475569",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+  flex: 1,
+  minWidth: 0,
+};
+
+function contactRow() {
+  return {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    minWidth: 0,
+  };
+}
+
+function iconBox(bg) {
+  return {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    background: bg,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 11,
+    flexShrink: 0,
+  };
+}
+
+function iconBtn(bg, fg) {
+  return {
+    background: bg,
+    color: fg,
+    border: "none",
+    padding: "9px 11px",
+    borderRadius: 10,
+    fontSize: 14,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  };
 }
 
 
