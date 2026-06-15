@@ -1,0 +1,257 @@
+/* ============================================================
+   Login — split card (Welcome panel + form) on SVG background
+   UI only. No functional/state changes in Login.jsx.
+   ============================================================ */
+
+.page {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  font-family: "Segoe UI", Roboto, system-ui, -apple-system, sans-serif;
+  /* Clean professional gradient — light, airy, faint brand tint */
+  background: linear-gradient(135deg, #f4f7fb 0%, #e7ecf5 100%);
+}
+
+/* ---------------------------------------------------------- Card */
+.card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: min(900px, 100%);
+  min-height: 540px;
+  background: #ffffff;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.18);
+}
+
+/* ------------------------------------------------ Left welcome */
+.left {
+  flex: 0 0 42%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px 32px;
+  color: #fff;
+  background: linear-gradient(160deg, #ff6b6b 0%, #e63946 48%, #c8102e 100%);
+}
+
+.brandLogo {
+  width: 84px;
+  height: 84px;
+  object-fit: contain;
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.14);
+  margin-bottom: 22px;
+}
+
+.welcomeTitle {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+}
+
+.welcomeSub {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.brandSpacer {
+  flex: 1;
+}
+
+.brandName {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+/* ------------------------------------------------- Right form */
+.right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* balance the vertical space instead of pooling it at the bottom */
+  padding: 48px 48px;
+}
+
+.formHeading {
+  margin: 0 0 4px;
+  font-size: 21px;
+  font-weight: 700;
+  color: #1f2933;
+}
+
+.formSubheading {
+  margin: 0 0 26px;
+  font-size: 13px;
+  color: #8a93a2;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  padding: 5px;
+  margin-bottom: 26px;
+  background: #f1f1f4;
+  border-radius: 10px;
+}
+.tab {
+  flex: 1;
+  padding: 10px 0;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.tabActive {
+  background: #c8102e;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(200, 16, 46, 0.35);
+}
+
+/* Labels + inputs */
+.label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+.inputWrap {
+  position: relative;
+  margin-bottom: 20px;
+}
+.icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 15px;
+  opacity: 0.7;
+  pointer-events: none;
+}
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 44px 13px 40px;
+  font-size: 14px;
+  color: #1f2933;
+  background: #f7f7f9;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+.input:focus {
+  border-color: #c8102e;
+  background: #fff;
+}
+.input::placeholder {
+  color: #9ca3af;
+}
+.eye {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 6px;
+  border: none;
+  background: transparent;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* Error */
+.error {
+  margin-bottom: 16px;
+  padding: 9px 12px;
+  background: rgba(200, 16, 46, 0.08);
+  border: 1px solid rgba(200, 16, 46, 0.3);
+  border-radius: 8px;
+  color: #b3122b;
+  font-size: 13px;
+}
+
+/* Onboarding banner */
+.onboardingBanner {
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background: rgba(200, 16, 46, 0.1);
+  border: 1px solid rgba(200, 16, 46, 0.4);
+  border-radius: 8px;
+  color: #b3122b;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Submit */
+.submit {
+  width: 100%;
+  margin-top: 8px;
+  padding: 14px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #e63946 0%, #c8102e 100%);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(200, 16, 46, 0.3);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+.submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(200, 16, 46, 0.38);
+}
+.submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Cancel onboarding */
+.cancelWrap {
+  margin-top: 10px;
+  text-align: center;
+}
+.cancelLink {
+  font-size: 11px;
+  color: #9ca3af;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------- Responsive */
+@media (max-width: 720px) {
+  .card {
+    flex-direction: column;
+    min-height: 0;
+  }
+  .left {
+    flex: none;
+    padding: 30px 24px;
+  }
+  .brandSpacer {
+    display: none;
+  }
+  .right {
+    padding: 30px 26px;
+  }
+}

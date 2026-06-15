@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import API from "../services/api";
+import API, { API_BASE_URL } from "../services/api";
 import ChatBot from "../components/ChatBot";
 import HRAssistant from "../components/HRAssistant";
 import LeaveChatbot from "../components/LeaveChatbot";
@@ -27,7 +27,7 @@ const POLL_INTERVAL_MS = 15000;    // legacy poll for tasks/notifications
 const BVC = {
   PRIMARY: "#C8102E",   // BVC red
   DARK:    "#8B0B1F",   // dark red
-  DEEPEST: "#4A0E18",   // deepest red — section headers
+  DEEPEST: "#000000",   // deepest red — section headers
   INK:     "#1A0508",   // near black
   ACCENT:  "#F4B324",   // gold
   TINT:    "#fef2f2",
@@ -41,7 +41,7 @@ const CARD_SHADOW = "0 4px 12px rgba(0,0,0,0.06)";
 
 const SECTION_LABEL = {
   textTransform: "uppercase",
-  fontSize: 11,
+  fontSize: 17,
   letterSpacing: 1.2,
   fontWeight: 700,
   color: BVC.DEEPEST
@@ -472,9 +472,12 @@ function EmployeeDashboardBody() {
   };
 
   const submitPermission = async (form) => {
+    // The form's startTime is a datetime-local value (e.g. "2026-06-13T17:00"),
+    // but the backend's PERMISSION_DATE is a plain date. Send the date part only
+    // (string split avoids any Date() timezone shift on the day boundary).
     const res = await API.post("/leave/apply-permission", {
       EMPLOYEE_ID: employeeId,
-      START_TIME: form.startTime,
+      PERMISSION_DATE: (form.startTime || "").split("T")[0],
       DURATION_HOURS: Number(form.durationHours),
       REASON: (form.reason || "").trim() || null
     });
@@ -3235,6 +3238,138 @@ function MemoRow({ memo, onOpen }) {
 }
 
 
+// ---------------------------------------------------------------------
+// Memo → printable PDF.
+//
+// No PDF library in the project — the established pattern (see the
+// *Print.jsx pages) is to render a print-styled document and let the
+// browser "Save as PDF". We open a standalone window, write a formatted
+// memo (BVC header + type ribbon + details + the attached image), and
+// auto-trigger print once every image has loaded.
+//
+// Attachments are served by the BACKEND as relative /static/* paths, so
+// they're resolved against API_BASE_URL (the frontend logo lives on the
+// app origin instead).
+// ---------------------------------------------------------------------
+function resolveMemoAsset(url) {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  return `${API_BASE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
+}
+
+function memoAttachmentIsImage(memo) {
+  const name = (memo.ATTACHMENT_NAME || memo.ATTACHMENT_URL || "").toLowerCase();
+  return /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/.test(name);
+}
+
+function downloadMemoPdf(memo) {
+
+  const tt = MEMO_TYPE_THEME[memo.MEMO_TYPE] || MEMO_TYPE_THEME.INFORMATION;
+
+  const logoUrl = `${window.location.origin}/bharath-logo.png`;
+
+  const attUrl  = resolveMemoAsset(memo.ATTACHMENT_URL);
+
+  const showImage = !!attUrl && memoAttachmentIsImage(memo);
+
+  const esc = (s) =>
+    String(s ?? "").replace(/[&<>"]/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])
+    );
+
+  const ackLine =
+    memo.ACKNOWLEDGED_BY_EMPLOYEE && memo.ACKNOWLEDGED_DATE
+      ? `Acknowledged by employee on ${new Date(memo.ACKNOWLEDGED_DATE).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}`
+      : `Status: ${esc(memo.STATUS || "—")}`;
+
+  const generatedOn = new Date().toLocaleDateString("en-IN", { dateStyle: "medium" });
+
+  const html = `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>${esc(memo.MEMO_NUMBER || "Memo")}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", Roboto, system-ui, sans-serif; color: #1f2933; }
+  .page { width: 800px; margin: 0 auto; padding: 48px 56px; }
+  .memono { float: right; margin-top: 30px; font-family: ui-monospace, monospace; font-weight: 700; font-size: 13px; color: ${tt.color}; }
+  .top { display: flex; align-items: center; gap: 16px; border-bottom: 3px solid ${tt.color}; padding-bottom: 18px; }
+  .top img { width: 60px; height: 60px; object-fit: contain; }
+  .org { font-size: 22px; font-weight: 800; color: #0f172a; line-height: 1.2; }
+  .org small { display: block; font-size: 11px; font-weight: 600; color: #64748b; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+  .ribbon { display: inline-block; margin: 26px 0 14px; padding: 8px 20px; border-radius: 999px; background: ${tt.color}; color: #fff; font-weight: 800; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; }
+  .subject { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 6px; }
+  .meta { font-size: 13px; color: #64748b; margin-bottom: 22px; line-height: 1.7; }
+  .meta b { color: #334155; }
+  .desc { padding: 18px 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 14px; line-height: 1.7; white-space: pre-wrap; }
+  .imgwrap { margin-top: 24px; text-align: center; }
+  .imgwrap img { max-width: 100%; max-height: 540px; border: 1px solid #e2e8f0; border-radius: 10px; }
+  .imgcap { margin-top: 6px; font-size: 11px; color: #94a3b8; }
+  .foot { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 12px; color: #64748b; }
+  @page { margin: 14mm; }
+  @media print { .page { width: auto; padding: 0; } }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="memono">${esc(memo.MEMO_NUMBER || "")}</div>
+
+    <div class="top">
+      <img src="${logoUrl}" alt="" onerror="this.style.display='none'" />
+      <div class="org">Bharath Vending Corporation<small>Employee Memo</small></div>
+    </div>
+
+    <div class="ribbon">${esc(tt.emoji)} ${esc(tt.label)}</div>
+
+    <div class="subject">${esc(memo.SUBJECT || "")}</div>
+
+    <div class="meta">
+      Issued to <b>${esc(memo.EMPLOYEE_NAME || "—")}</b>${memo.EMPLOYEE_CODE ? ` (${esc(memo.EMPLOYEE_CODE)})` : ""}
+      &nbsp;·&nbsp; Date: <b>${esc(memo.ISSUE_DATE || "—")}</b>
+      ${memo.ISSUED_BY ? `&nbsp;·&nbsp; Issued by: <b>${esc(memo.ISSUED_BY)}</b>` : ""}
+      &nbsp;·&nbsp; Severity: <b>${esc(memo.SEVERITY || "—")}</b>
+    </div>
+
+    ${memo.DESCRIPTION ? `<div class="desc">${esc(memo.DESCRIPTION)}</div>` : ""}
+
+    ${showImage ? `<div class="imgwrap"><img src="${attUrl}" onerror="this.parentNode.style.display='none'" /><div class="imgcap">${esc(memo.ATTACHMENT_NAME || "Attachment")}</div></div>` : ""}
+
+    <div class="foot">
+      <span>${esc(ackLine)}</span>
+      <span>Generated ${esc(generatedOn)}</span>
+    </div>
+  </div>
+
+  <script>
+    window.onload = function () {
+      var imgs = document.images, total = imgs.length, done = 0;
+      var go = function () { try { window.focus(); window.print(); } catch (e) {} };
+      if (!total) { setTimeout(go, 200); return; }
+      var tick = function () { if (++done >= total) setTimeout(go, 150); };
+      for (var i = 0; i < total; i++) {
+        if (imgs[i].complete) tick();
+        else { imgs[i].addEventListener('load', tick); imgs[i].addEventListener('error', tick); }
+      }
+      setTimeout(go, 3000); // hard fallback if an image never settles
+    };
+  <\/script>
+</body>
+</html>`;
+
+  const win = window.open("", "_blank", "width=900,height=1000");
+
+  if (!win) {
+    alert("Please allow pop-ups for this site to download the memo PDF.");
+    return;
+  }
+
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+}
+
+
 function MyMemoDetail({ memo, onClose, onAcknowledge, ackBusy }) {
 
   const tt = MEMO_TYPE_THEME[memo.MEMO_TYPE] || MEMO_TYPE_THEME.INFORMATION;
@@ -3371,13 +3506,24 @@ function MyMemoDetail({ memo, onClose, onAcknowledge, ackBusy }) {
           justifyContent: "space-between",
           gap: 10
         }}>
-          <button onClick={onClose} style={{
-            background: "white", border: "1px solid #cbd5e1",
-            color: "#475569", padding: "8px 16px", borderRadius: 8,
-            fontWeight: 700, fontSize: 12, cursor: "pointer"
-          }}>
-            Close
-          </button>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={onClose} style={{
+              background: "white", border: "1px solid #cbd5e1",
+              color: "#475569", padding: "8px 16px", borderRadius: 8,
+              fontWeight: 700, fontSize: 12, cursor: "pointer"
+            }}>
+              Close
+            </button>
+
+            <button onClick={() => downloadMemoPdf(memo)} style={{
+              background: "white", border: `1px solid ${tt.color}`,
+              color: tt.color, padding: "8px 16px", borderRadius: 8,
+              fontWeight: 800, fontSize: 12, cursor: "pointer",
+              display: "inline-flex", alignItems: "center", gap: 6
+            }}>
+              ⬇ Download PDF
+            </button>
+          </div>
 
           {!memo.ACKNOWLEDGED_BY_EMPLOYEE && (
             <button
