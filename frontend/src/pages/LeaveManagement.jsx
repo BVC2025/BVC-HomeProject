@@ -499,6 +499,22 @@ function LeaveManagement() {
 
   const [statusFilter, setStatusFilter] = useState("");
 
+  // Live filter by Employee ID (code) or name — applied client-side to
+  // the already-loaded rows so it works on both the Pending and All tabs.
+  const [empQuery, setEmpQuery] = useState("");
+
+  const matchesEmp = (r) => {
+
+    const q = empQuery.trim().toLowerCase();
+
+    if (!q) return true;
+
+    return (
+      (r.EMPLOYEE_CODE || "").toLowerCase().includes(q) ||
+      (r.EMPLOYEE_NAME || "").toLowerCase().includes(q)
+    );
+  };
+
   const fetchAll = async () => {
 
     setLoading(true);
@@ -724,10 +740,96 @@ function LeaveManagement() {
         ))}
       </div>
 
+      {/* Employee filter — narrows the table below by Employee ID or name */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          marginBottom: 14,
+          flexWrap: "wrap"
+        }}
+      >
+
+        <div
+          style={{
+            position: "relative",
+            flex: "0 0 300px",
+            maxWidth: "100%"
+          }}
+        >
+
+          <span
+            style={{
+              position: "absolute",
+              left: 11,
+              top: "50%",
+              transform: "translateY(-50%)",
+              fontSize: 13,
+              color: "#94a3b8",
+              pointerEvents: "none"
+            }}
+          >
+            🔍
+          </span>
+
+          <input
+            value={empQuery}
+            onChange={(e) => setEmpQuery(e.target.value)}
+            placeholder="Filter by Employee ID or name…"
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "9px 30px 9px 32px",
+              border: "1px solid #e2e8f0",
+              borderRadius: 8,
+              fontSize: 13,
+              outline: "none",
+              background: "white"
+            }}
+          />
+
+          {empQuery && (
+
+            <button
+              onClick={() => setEmpQuery("")}
+              title="Clear filter"
+              style={{
+                position: "absolute",
+                right: 6,
+                top: "50%",
+                transform: "translateY(-50%)",
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                color: "#94a3b8",
+                fontSize: 14,
+                lineHeight: 1,
+                padding: 4
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {empQuery.trim() && (
+
+          <span style={{ fontSize: 12, color: "#64748b" }}>
+            {(tab === "pending" ? pending : all).filter(matchesEmp).length}{" "}
+            match
+            {(tab === "pending" ? pending : all).filter(matchesEmp).length === 1
+              ? ""
+              : "es"}{" "}
+            for “{empQuery.trim()}”
+          </span>
+        )}
+      </div>
+
       {tab === "pending" && (
 
         <LeaveTable
-          rows={pending}
+          rows={pending.filter(matchesEmp)}
           onChanged={fetchAll}
           showActions={true}
         />
@@ -772,7 +874,7 @@ function LeaveManagement() {
           </div>
 
           <LeaveTable
-            rows={all}
+            rows={all.filter(matchesEmp)}
             onChanged={fetchAll}
             showActions={true}
           />

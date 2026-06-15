@@ -411,7 +411,39 @@ function MemoRow({ row, hideEmployee, onOpen, onClose, onCancel, onDelete }) {
 }
 
 
-function CreateMemoModal({ employees, employeeIdLocked, onClose, onSaved }) {
+function CreateMemoModal({ employees: employeesProp, employeeIdLocked, onClose, onSaved }) {
+
+  // The parent loads the employee list only when the page isn't locked to a
+  // single employee, and swallows any failure silently — which can leave this
+  // dropdown empty with no hint why. Make the modal self-sufficient: seed from
+  // the prop, and fetch the list ourselves when it's missing (surfacing errors).
+  const [employees,  setEmployees]  = useState(employeesProp || []);
+
+  const [empLoading, setEmpLoading] = useState(false);
+
+  const [empError,   setEmpError]   = useState("");
+
+  useEffect(() => {
+
+    if ((employeesProp || []).length) {
+
+      setEmployees(employeesProp);
+
+      return;
+    }
+
+    setEmpLoading(true);
+
+    API.get("/employees")
+      .then((r) => setEmployees(r.data || []))
+      .catch((e) =>
+        setEmpError(
+          e?.response?.data?.detail || "Could not load the employee list."
+        )
+      )
+      .finally(() => setEmpLoading(false));
+
+  }, [employeesProp]);
 
   const [form, setForm] = useState({
     EMPLOYEE_ID: employeeIdLocked || "",
@@ -487,14 +519,26 @@ function CreateMemoModal({ employees, employeeIdLocked, onClose, onSaved }) {
               <select
                 value={form.EMPLOYEE_ID}
                 onChange={set("EMPLOYEE_ID")}
-                disabled={!!employeeIdLocked}
+                disabled={!!employeeIdLocked || empLoading}
                 style={inputStyle}
               >
-                <option value="">— pick —</option>
+                <option value="">
+                  {empLoading ? "Loading employees…" : "— pick —"}
+                </option>
                 {employees.map((e) => (
                   <option key={e.ID} value={e.ID}>{e.NAME} ({e.EMPLOYEE_CODE})</option>
                 ))}
               </select>
+              {empError && (
+                <div style={{ fontSize: 11, color: "#dc2626", marginTop: 4 }}>
+                  {empError}
+                </div>
+              )}
+              {!empLoading && !empError && !employeeIdLocked && employees.length === 0 && (
+                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
+                  No employees found.
+                </div>
+              )}
             </Field>
 
             <Field label="Memo Type *">

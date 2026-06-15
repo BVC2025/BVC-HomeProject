@@ -1,8 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(curl -s -m 3 \"http://localhost:8001/\")",
-      "Bash(curl -s -m 3 \"http://localhost:8001/docs\")",
+      "Bash(curl -s -m 3 \"http://localhost:8000/\")",
+      "Bash(curl -s -m 3 \"http://localhost:8000/docs\")",
       "Bash(python -c \"from app.main import app; print\\('OK'\\)\")",
       "Bash(./venv/Scripts/python.exe -c \"from app.main import app; print\\('OK'\\)\")",
       "Bash(tasklist)",
