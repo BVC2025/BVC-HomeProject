@@ -919,14 +919,12 @@ function Machines() {
       {/* Hero header */}
       <div
         style={{
-          background:
-            "linear-gradient(135deg, #0e7490, #C8102E, #F4B324)",
-          backgroundSize: "200% 200%",
-          animation: "machHeroShift 18s ease infinite",
+          background: "linear-gradient(135deg, #C8102E 0%, #A60F26 50%, #8B0B1F 100%)",
           color: "white",
-          borderRadius: 20,
-          padding: "28px 32px",
+          borderRadius: 14,
+          padding: "20px 28px",
           marginBottom: 22,
+          boxShadow: "0 6px 18px rgba(139,11,31,0.18)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -934,52 +932,47 @@ function Machines() {
           gap: 16
         }}
       >
-        <div style={{ flex: 1, minWidth: 280 }}>
-          <div
-            style={{
-              fontSize: 11,
-              letterSpacing: 2,
-              textTransform: "uppercase",
-              opacity: 0.85,
-              fontWeight: 700
-            }}
-          >
-            BVC24 · Machine Monitoring
+        <div>
+          <div style={{
+            fontSize: 10,
+            letterSpacing: 2,
+            color: "#fde047",
+            fontWeight: 700,
+            textTransform: "uppercase"
+          }}>
+            Operations
           </div>
-          <h1
-            style={{
-              fontSize: 26,
-              fontWeight: 900,
-              margin: "6px 0 8px",
-              lineHeight: 1.15
-            }}
-          >
-            Every built unit, live status — all in one board.
+          <h1 style={{
+            fontSize: 22,
+            fontWeight: 700,
+            margin: "4px 0 0",
+            lineHeight: 1.2,
+            color: "white",
+            letterSpacing: -0.3
+          }}>
+            Machines
           </h1>
-          <div style={{ fontSize: 13, opacity: 0.9, maxWidth: 620 }}>
-            Each unit of every active work order auto-registers here.
-            Flip status to <strong>Running / Idle / Down /
-            Maintenance</strong> from the card — Down or Maintenance
-            also fires a notification.
-          </div>
         </div>
+
         <button
           onClick={runSync}
           disabled={syncing}
           style={{
-            background: "rgba(255,255,255,0.95)",
-            color: "#0f172a",
+            background: "white",
+            color: "#8B0B1F",
             border: "none",
-            padding: "12px 22px",
-            borderRadius: 12,
+            padding: "10px 20px",
+            borderRadius: 8,
             fontWeight: 800,
-            fontSize: 13,
+            fontSize: 12,
             cursor: syncing ? "default" : "pointer",
-            boxShadow: "0 8px 20px rgba(0,0,0,0.18)",
+            letterSpacing: 0.6,
+            textTransform: "uppercase",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
             whiteSpace: "nowrap"
           }}
         >
-          {syncing ? "Syncing…" : "🔄 Sync from Work Orders"}
+          {syncing ? "Syncing…" : "Sync from Work Orders"}
         </button>
       </div>
 

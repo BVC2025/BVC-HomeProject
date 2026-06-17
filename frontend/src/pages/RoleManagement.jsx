@@ -14,22 +14,22 @@ import { useEffect, useMemo, useState } from "react";
 import API from "../services/api";
 
 
-const BVC_RED   = "#C8102E";
-const BVC_DARK  = "#8B0B1F";
-const BVC_GOLD  = "#F4B324";
+const BVC_RED = "#C8102E";
+const BVC_DARK = "#8B0B1F";
+const BVC_GOLD = "#F4B324";
 
 // Friendly labels for the 9 BVC24 target roles (everything else gets
 // the raw ROLE_NAME shown as-is).
 const ROLE_LABELS = {
-  SUPER_ADMIN:        "🔱 Super Admin",
-  MANAGING_DIRECTOR:  "🎖️ Managing Director (MD)",
-  HR_MANAGER:         "👥 HR Manager",
-  SALES_MANAGER:      "📈 Sales Manager",
-  PURCHASE_MANAGER:   "🛒 Purchase Manager",
+  SUPER_ADMIN: "🔱 Super Admin",
+  MANAGING_DIRECTOR: "🎖️ Managing Director (MD)",
+  HR_MANAGER: "👥 HR Manager",
+  SALES_MANAGER: "📈 Sales Manager",
+  PURCHASE_MANAGER: "🛒 Purchase Manager",
   PRODUCTION_MANAGER: "🏭 Production Manager",
-  INVENTORY_MANAGER:  "📦 Inventory Manager",
-  ACCOUNTS_MANAGER:   "💰 Accounts Manager",
-  EMPLOYEE:           "👤 Employee",
+  INVENTORY_MANAGER: "📦 Inventory Manager",
+  ACCOUNTS_MANAGER: "💰 Accounts Manager",
+  EMPLOYEE: "👤 Employee",
 };
 
 const BVC24_ROLE_ORDER = [
@@ -47,20 +47,20 @@ const BVC24_ROLE_ORDER = [
 
 export default function RoleManagement() {
 
-  const [roles, setRoles]               = useState([]);
-  const [permissions, setPermissions]   = useState([]);
-  const [employees, setEmployees]       = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [permissions, setPermissions] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [selectedRoleId, setSelectedId] = useState(null);
   const [draftPermIds, setDraftPermIds] = useState(new Set());
-  const [loading, setLoading]           = useState(true);
-  const [saving, setSaving]             = useState(false);
-  const [seeding, setSeeding]           = useState(false);
-  const [error, setError]               = useState("");
-  const [toast, setToast]               = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+  const [error, setError] = useState("");
+  const [toast, setToast] = useState("");
 
   // New-role inline form
   const [showCreate, setShowCreate] = useState(false);
-  const [newRole, setNewRole]       = useState({ ROLE_NAME: "", DESCRIPTION: "" });
+  const [newRole, setNewRole] = useState({ ROLE_NAME: "", DESCRIPTION: "" });
 
   // ---- Fetch ---------------------------------------------------------
 

@@ -38,20 +38,32 @@ import {
 // Design tokens — enterprise palette
 // =====================================================================
 
+// BVC24 brand palette — corporate red + white with subtle gold accent.
+// Red is the primary brand colour; gold is reserved for highlights on
+// dark backgrounds; charcoal-slate is used for text & data-dense sections.
 const T = {
-  bg:        "#f4f6fa",
+  bg:        "#f6f7fa",
   card:      "#ffffff",
-  border:    "#e2e8f0",
-  borderS:   "#eef2f7",
+  border:    "#e6e8ee",
+  borderS:   "#eef1f5",
   text:      "#0f172a",
   text2:     "#334155",
   muted:     "#64748b",
   muted2:    "#94a3b8",
 
-  // Accents
+  // Primary — BVC24 red
   red:       "#C8102E",
   redDeep:   "#8B0B1F",
+  redDark:   "#5a0712",
   redSoft:   "#fee2e2",
+
+  // Gold accent (subtle highlights on red surfaces)
+  gold:      "#D4A017",
+  goldSoft:  "#fef3c7",
+
+  // Neutral accent for data tiles
+  slate:     "#1f2937",
+  slateSoft: "#e5e7eb",
 
   green:     "#10b981",
   greenSoft: "#dcfce7",
@@ -65,10 +77,19 @@ const T = {
   purple:    "#6366f1",
   purpleSoft:"#ede9fe",
 
-  // Dark hero
+  // Dark hero accents (unused now but kept for parity)
   ink:       "#0b1220",
   ink2:      "#111827",
   inkBorder: "#1f2937",
+
+  // Legacy aliases (kept to avoid touching every accent reference).
+  orange:    "#C8102E",
+  orangeDeep:"#8B0B1F",
+  orangeSoft:"#fee2e2",
+  navy:      "#1f2937",
+  navy2:     "#374151",
+  navyDeep:  "#0f172a",
+  navySoft:  "#e5e7eb"
 };
 
 const FONT_HEAD = "'Inter','system-ui','-apple-system',sans-serif";
@@ -204,13 +225,11 @@ function HeroBar({ stats }) {
     timeZone: "Asia/Kolkata"
   });
 
-  // High-contrast accents tuned for red background
+  // Pared down to the three things a CEO actually wants on first glance.
   const items = [
-    { label: "System Status",     value: "🟢 Operational",                color: "#fef08a" },
-    { label: "Factory Health",    value: stats.factory_health || "—",     color: "#fde047" },
-    { label: "Approvals Pending", value: stats.pending_approvals ?? "—",  color: "#ffffff" },
-    { label: "Production WOs",    value: stats.active_wos ?? "—",         color: "#fef9c3" },
-    { label: "Revenue (MTD)",     value: inrShort(stats.monthly_revenue || 0), color: "#fff" }
+    { label: "Revenue · MTD",      value: inrShort(stats.monthly_revenue || 0) },
+    { label: "Approvals Pending",  value: stats.pending_approvals ?? "—" },
+    { label: "Factory Health",     value: stats.factory_health || "—" }
   ];
 
   return (
@@ -218,83 +237,100 @@ function HeroBar({ stats }) {
     <div style={{
       // BVC24 brand red — matches bvc24.com navbar
       background: "linear-gradient(135deg, #C8102E 0%, #A60F26 35%, #8B0B1F 70%, #5a0712 100%)",
-      borderRadius: 16,
-      padding: "20px 28px",
+      borderRadius: 18,
+      padding: "26px 32px",
       color: "white",
       marginBottom: 22,
       position: "relative",
       overflow: "hidden",
-      border: "1px solid rgba(255,255,255,0.08)",
-      boxShadow: "0 10px 30px rgba(200,16,46,0.25)"
+      boxShadow: "0 10px 30px rgba(139,11,31,0.30)"
     }}>
 
-      {/* subtle highlight sweep — top-right glow */}
+      {/* Subtle gold highlight sweep, top-right */}
       <div style={{
-        position: "absolute", inset: 0,
-        background: "radial-gradient(circle at 85% 20%, rgba(255,255,255,0.18) 0%, transparent 55%)",
+        position: "absolute",
+        top: -60, right: -40,
+        width: 280, height: 280,
+        background: "radial-gradient(circle, rgba(253,224,71,0.16) 0%, transparent 65%)",
         pointerEvents: "none"
       }} />
 
-      {/* subtle bottom shadow for depth */}
+      {/* Depth wash, bottom */}
       <div style={{
         position: "absolute",
         bottom: 0, left: 0, right: 0,
-        height: "50%",
-        background: "linear-gradient(to top, rgba(0,0,0,0.15) 0%, transparent 100%)",
+        height: "55%",
+        background: "linear-gradient(to top, rgba(0,0,0,0.20) 0%, transparent 100%)",
         pointerEvents: "none"
       }} />
 
-      <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24, flexWrap: "wrap" }}>
+      <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 28, flexWrap: "wrap" }}>
 
-        {/* Left — branding + welcome */}
-        <div style={{ flex: "1 1 280px" }}>
+        {/* Left — logo lockup + welcome */}
+        <div style={{ flex: "1 1 320px", display: "flex", alignItems: "center", gap: 18 }}>
+
           <div style={{
-            fontSize: 10,
-            fontWeight: 800,
-            letterSpacing: 2.4,
-            opacity: 0.9,
-            color: "#fde047",
-            textTransform: "uppercase",
-            fontFamily: FONT_BODY
+            width: 62, height: 62, borderRadius: 14,
+            background: "#ffffff",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "0 6px 18px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,255,255,0.18)",
+            padding: 7,
+            flexShrink: 0
           }}>
-            BVC24 · AI Command Center
+            <img
+              src="/bharath-logo.png"
+              alt="Bharath Vending Corporation"
+              style={{ width: "100%", height: "100%", objectFit: "contain" }}
+            />
           </div>
-          <div style={{
-            fontSize: 24,
-            fontWeight: 800,
-            marginTop: 4,
-            letterSpacing: -0.4,
-            color: "#ffffff",
-            fontFamily: FONT_HEAD,
-            textShadow: "0 1px 2px rgba(0,0,0,0.2)"
-          }}>
-            Welcome, {stats.user_name || "System Administrator"}
-          </div>
-          <div style={{ fontSize: 12, opacity: 0.92, marginTop: 4, color: "#fff5f5" }}>
-            {dateStr} · <span style={{ color: "#fde047", fontWeight: 700 }}>{timeStr}</span>
+
+          <div>
+            <div style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: 2.4,
+              color: "#fde047",
+              textTransform: "uppercase",
+              fontFamily: FONT_BODY
+            }}>
+              Bharath Vending Corporation
+            </div>
+            <div style={{
+              fontSize: 22,
+              fontWeight: 700,
+              marginTop: 2,
+              letterSpacing: -0.3,
+              color: "#ffffff",
+              fontFamily: FONT_HEAD
+            }}>
+              Welcome, {stats.user_name || "System Administrator"}
+            </div>
+            <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4, color: "#ffe4e6" }}>
+              {dateStr} · <span style={{ color: "#fde047", fontWeight: 600 }}>{timeStr}</span>
+            </div>
           </div>
         </div>
 
-        {/* Right — live KPI strip */}
+        {/* Right — three headline stats only */}
         <div style={{
-          display: "flex", gap: 24, flexWrap: "wrap", justifyContent: "flex-end"
+          display: "flex", gap: 28, flexWrap: "wrap", justifyContent: "flex-end"
         }}>
-          {items.map((it) => (
+          {items.map((it, idx) => (
 
             <div key={it.label} style={{
-              minWidth: 110,
-              paddingLeft: 14,
-              borderLeft: "1px solid rgba(255,255,255,0.18)"
+              minWidth: 120,
+              paddingLeft: idx === 0 ? 0 : 18,
+              borderLeft: idx === 0 ? "none" : "1px solid rgba(255,255,255,0.18)"
             }}>
               <div style={{
                 fontSize: 9, opacity: 0.85, letterSpacing: 1.4, textTransform: "uppercase",
-                fontWeight: 700, fontFamily: FONT_BODY, color: "#fee2e2"
+                fontWeight: 600, fontFamily: FONT_BODY, color: "#fecdd3"
               }}>
                 {it.label}
               </div>
               <div style={{
-                fontSize: 17, fontWeight: 800, color: it.color, marginTop: 2, fontFamily: FONT_HEAD,
-                textShadow: "0 1px 2px rgba(0,0,0,0.15)"
+                fontSize: 20, fontWeight: 700, color: "#ffffff", marginTop: 4, fontFamily: FONT_HEAD,
+                letterSpacing: -0.3
               }}>
                 {it.value}
               </div>
@@ -311,7 +347,7 @@ function HeroBar({ stats }) {
 // EXECUTIVE KPI ROW — 6 large tiles
 // =====================================================================
 
-function ExecKPI({ label, value, delta, deltaLabel = "vs last month", accent, icon, onClick }) {
+function ExecKPI({ label, value, delta, deltaLabel = "vs last month", accent, onClick }) {
 
   const positive = (delta || 0) >= 0;
 
@@ -321,46 +357,47 @@ function ExecKPI({ label, value, delta, deltaLabel = "vs last month", accent, ic
       style={{
         background: T.card,
         border: `1px solid ${T.border}`,
-        borderRadius: 16,
-        padding: 22,
+        borderRadius: 14,
+        padding: "22px 22px 20px",
         cursor: onClick ? "pointer" : "default",
-        transition: "all 0.15s",
+        transition: "transform 0.15s, box-shadow 0.15s",
         position: "relative",
         overflow: "hidden"
       }}
-      onMouseEnter={(e) => onClick && (e.currentTarget.style.boxShadow = "0 8px 24px rgba(15,23,42,0.08)")}
-      onMouseLeave={(e) => onClick && (e.currentTarget.style.boxShadow = "none")}
+      onMouseEnter={(e) => {
+        if (!onClick) return;
+        e.currentTarget.style.boxShadow = "0 10px 26px rgba(11,36,71,0.10)";
+        e.currentTarget.style.transform = "translateY(-2px)";
+      }}
+      onMouseLeave={(e) => {
+        if (!onClick) return;
+        e.currentTarget.style.boxShadow = "none";
+        e.currentTarget.style.transform = "translateY(0)";
+      }}
     >
-      {/* accent bar */}
+      {/* Side accent bar — vertical, BVC24-style */}
       <div style={{
         position: "absolute",
-        top: 0, left: 0, height: 3, width: "100%",
-        background: accent
+        top: 14, bottom: 14, left: 0, width: 3,
+        background: accent,
+        borderRadius: "0 3px 3px 0"
       }} />
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-        <div style={{
-          fontSize: 10,
-          fontWeight: 800,
-          letterSpacing: 1.4,
-          color: T.muted,
-          textTransform: "uppercase",
-          fontFamily: FONT_BODY
-        }}>
-          {label}
-        </div>
-        <div style={{
-          fontSize: 18,
-          color: accent,
-          opacity: 0.65
-        }}>
-          {icon}
-        </div>
+      <div style={{
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: 0.6,
+        color: T.muted,
+        textTransform: "uppercase",
+        fontFamily: FONT_BODY,
+        marginBottom: 12
+      }}>
+        {label}
       </div>
 
       <div style={{
-        fontSize: 30,
-        fontWeight: 800,
+        fontSize: 32,
+        fontWeight: 700,
         color: T.text,
         letterSpacing: -0.6,
         fontFamily: FONT_HEAD,
@@ -369,20 +406,20 @@ function ExecKPI({ label, value, delta, deltaLabel = "vs last month", accent, ic
         {value}
       </div>
 
-      {delta !== undefined && delta !== null && (
-        <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6 }}>
+      {delta !== undefined && delta !== null && delta !== 0 && (
+        <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{
             display: "inline-flex",
             alignItems: "center",
             padding: "2px 8px",
-            borderRadius: 6,
-            background: positive ? T.greenSoft : T.redSoft,
-            color: positive ? "#047857" : "#991b1b",
-            fontWeight: 800,
+            borderRadius: 4,
+            background: positive ? T.greenSoft : T.orangeSoft,
+            color: positive ? "#047857" : T.orangeDeep,
+            fontWeight: 700,
             fontSize: 11,
             fontFamily: FONT_BODY
           }}>
-            {positive ? "▲" : "▼"} {Math.abs(delta)}%
+            {positive ? "↑" : "↓"} {Math.abs(delta)}%
           </span>
           <span style={{ fontSize: 11, color: T.muted, fontFamily: FONT_BODY }}>
             {deltaLabel}
@@ -398,20 +435,20 @@ function ExecKPIRow({ stats }) {
 
   const nav = useNavigate();
 
+  // Four headline metrics only — the ones a CEO opens the app to see.
+  // Inventory + Employees moved to their dedicated sections below.
   const items = [
-    { label: "Revenue (MTD)",    value: inrShort(stats.monthly_revenue || 0), delta: stats.revenue_delta || 0, accent: T.green, icon: "₹", to: "/sales-orders" },
-    { label: "Customers",        value: stats.total_customers ?? 0,           delta: stats.customers_delta || 0, accent: T.blue,  icon: "👥", to: "/customers" },
-    { label: "Active Orders",    value: stats.total_sales_orders ?? 0,        delta: stats.orders_delta || 0,    accent: T.purple, icon: "📑", to: "/sales-orders" },
-    { label: "Production WOs",   value: stats.active_wos ?? 0,                delta: stats.production_delta || 0,accent: T.red,   icon: "🏭", to: "/production" },
-    { label: "Inventory Value",  value: inrShort(stats.inventory_value || 0), delta: stats.inventory_delta || 0, accent: T.amber, icon: "📦", to: "/inventory" },
-    { label: "Employees",        value: stats.total_employees ?? 0,           delta: 0,                          accent: "#0ea5e9", icon: "👤", to: "/employees" }
+    { label: "Revenue · MTD",   value: inrShort(stats.monthly_revenue || 0), delta: stats.revenue_delta   || 0, accent: T.red,     to: "/sales-orders" },
+    { label: "Customers",       value: stats.total_customers ?? 0,           delta: stats.customers_delta || 0, accent: T.gold,    to: "/customers" },
+    { label: "Active Orders",   value: stats.total_sales_orders ?? 0,        delta: stats.orders_delta    || 0, accent: T.slate,   to: "/sales-orders" },
+    { label: "Production WOs",  value: stats.active_wos ?? 0,                delta: stats.production_delta|| 0, accent: T.redDeep, to: "/production" }
   ];
 
   return (
     <div style={{
       display: "grid",
-      gridTemplateColumns: "repeat(6, 1fr)",
-      gap: 14,
+      gridTemplateColumns: "repeat(4, 1fr)",
+      gap: 16,
       marginBottom: 22
     }}>
       {items.map((it) => (
@@ -584,32 +621,36 @@ function AIPriorityCenter({ insights }) {
 // BUSINESS HEALTH — 4 quadrant cards (Sales / Production / Procurement / HR)
 // =====================================================================
 
-function HealthQuad({ title, icon, accent, items }) {
+function HealthQuad({ title, marker, accent, items }) {
 
   return (
     <div style={{
       background: T.card,
       border: `1px solid ${T.border}`,
-      borderRadius: 16,
-      padding: 18,
+      borderRadius: 14,
+      padding: 20,
       position: "relative",
       overflow: "hidden"
     }}>
       <div style={{
-        position: "absolute", top: 0, left: 0, height: 3, width: 64, background: accent
+        position: "absolute", top: 0, left: 0, height: 3, width: 56, background: accent
       }} />
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
         <div style={{
-          width: 32, height: 32, borderRadius: 8,
-          background: accent + "15",
+          width: 30, height: 30, borderRadius: 8,
+          background: accent,
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 16
+          color: "#fff",
+          fontSize: 12,
+          fontWeight: 700,
+          letterSpacing: 0.4,
+          fontFamily: FONT_HEAD
         }}>
-          {icon}
+          {marker}
         </div>
         <div style={{
-          fontSize: 14, fontWeight: 800, color: T.text, letterSpacing: -0.2, fontFamily: FONT_HEAD
+          fontSize: 14, fontWeight: 700, color: T.text, letterSpacing: -0.2, fontFamily: FONT_HEAD
         }}>
           {title}
         </div>
@@ -676,7 +717,7 @@ function BusinessHealthGrid({ stats, factory }) {
         gap: 14
       }}>
         <HealthQuad
-          title="Sales" icon="💼" accent={T.green}
+          title="Sales" marker="01" accent={T.red}
           items={[
             { label: "Target",     value: inrShort(stats.sales_target || 1500000) },
             { label: "Achieved",   value: inrShort(stats.monthly_revenue || 0) },
@@ -686,7 +727,7 @@ function BusinessHealthGrid({ stats, factory }) {
         />
 
         <HealthQuad
-          title="Production" icon="🏭" accent={T.red}
+          title="Production" marker="02" accent={T.redDeep}
           items={[
             { label: "In Production", value: machines.in_production ?? (stats.active_wos || 0) },
             { label: "Completed",     value: machines.completed ?? 0 },
@@ -696,7 +737,7 @@ function BusinessHealthGrid({ stats, factory }) {
         />
 
         <HealthQuad
-          title="Procurement" icon="🛒" accent={T.amber}
+          title="Procurement" marker="03" accent={T.gold}
           items={[
             { label: "Open POs",        value: procurement.open_pos },
             { label: "Received",        value: procurement.received },
@@ -706,7 +747,7 @@ function BusinessHealthGrid({ stats, factory }) {
         />
 
         <HealthQuad
-          title="HR" icon="👥" accent={T.blue}
+          title="HR" marker="04" accent={T.slate}
           items={[
             { label: "Employees", value: stats.total_employees || 0 },
             { label: "Present",   value: stats.employees_present_today || 0 },
@@ -1041,11 +1082,11 @@ function ApprovalCenter({ buckets }) {
   const nav = useNavigate();
 
   const items = [
-    { key: "leaves",     label: "Leaves",            icon: "🌴", count: buckets?.leaves?.count || 0, to: "/approvals" },
-    { key: "quotations", label: "Quotations",        icon: "📄", count: buckets?.quotations?.count || 0, to: "/quotations" },
-    { key: "pos",        label: "Purchase Orders",   icon: "🛒", count: buckets?.purchase_orders?.count || 0, to: "/purchase-orders" },
-    { key: "payroll",    label: "Payroll",           icon: "💰", count: buckets?.payroll?.count || 0, to: "/payroll" },
-    { key: "customers",  label: "Customer Approvals",icon: "🤝", count: buckets?.customers?.count || 0, to: "/customers" }
+    { key: "leaves",     label: "Leaves",            marker: "01", count: buckets?.leaves?.count || 0, to: "/approvals" },
+    { key: "quotations", label: "Quotations",        marker: "02", count: buckets?.quotations?.count || 0, to: "/quotations" },
+    { key: "pos",        label: "Purchase Orders",   marker: "03", count: buckets?.purchase_orders?.count || 0, to: "/purchase-orders" },
+    { key: "payroll",    label: "Payroll",           marker: "04", count: buckets?.payroll?.count || 0, to: "/payroll" },
+    { key: "customers",  label: "Customer Approvals",marker: "05", count: buckets?.customers?.count || 0, to: "/customers" }
   ];
 
   const total = items.reduce((s, x) => s + x.count, 0);
@@ -1078,19 +1119,27 @@ function ApprovalCenter({ buckets }) {
               padding: 14,
               cursor: "pointer",
               transition: "all 0.15s",
-              background: it.count ? "#fff7ed" : T.card
+              background: it.count ? T.orangeSoft : T.card
             }}
-            onMouseEnter={(e) => e.currentTarget.style.borderColor = T.red}
+            onMouseEnter={(e) => e.currentTarget.style.borderColor = T.orange}
             onMouseLeave={(e) => e.currentTarget.style.borderColor = T.border}
           >
             <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6
+              display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8
             }}>
-              <span style={{ fontSize: 16 }}>{it.icon}</span>
+              <span style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: it.count ? T.orangeDeep : T.muted,
+                letterSpacing: 0.6,
+                fontFamily: FONT_HEAD
+              }}>
+                {it.marker}
+              </span>
               {it.count > 0 && (
                 <span style={{
-                  background: T.red, color: "white",
-                  padding: "1px 8px", borderRadius: 999, fontSize: 10, fontWeight: 800,
+                  background: T.orange, color: "white",
+                  padding: "1px 8px", borderRadius: 999, fontSize: 10, fontWeight: 700,
                   fontFamily: FONT_HEAD
                 }}>
                   {it.count}
@@ -1105,17 +1154,18 @@ function ApprovalCenter({ buckets }) {
             <button
               onClick={(e) => { e.stopPropagation(); nav(it.to); }}
               style={{
-                background: it.count ? T.red : T.borderS,
+                background: it.count ? T.orange : T.borderS,
                 color: it.count ? "white" : T.muted,
                 border: "none",
-                padding: "5px 10px",
+                padding: "6px 10px",
                 borderRadius: 6,
                 fontSize: 10,
-                fontWeight: 800,
-                letterSpacing: 0.3,
+                fontWeight: 700,
+                letterSpacing: 0.4,
                 cursor: it.count ? "pointer" : "default",
                 width: "100%",
-                fontFamily: FONT_BODY
+                fontFamily: FONT_BODY,
+                textTransform: "uppercase"
               }}
             >
               {it.count ? "Review →" : "All clear"}
@@ -1945,8 +1995,6 @@ export default function EnterpriseCommandCenter() {
         <FactoryFloor factory={factory} />
       </div>
 
-      <ProductionPipeline flow={flow} />
-
       {/* Approval + CRM funnel side-by-side */}
       <div style={{
         display: "grid",
@@ -1962,20 +2010,13 @@ export default function EnterpriseCommandCenter() {
         <InventoryCenter stats={stats} lowStock={lowStock} />
       </div>
 
-      <MemoSummaryCard stats={memoStats} />
-
-      {/* Leaderboard — Activity Timeline TEMPORARILY HIDDEN.
-          To restore, wrap both in the grid below:
-          <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 14, marginBottom: 22 }}>
+      {/* Sections below temporarily hidden to keep the dashboard focused on
+          the day-one essentials. Restore by uncommenting:
+            <ProductionPipeline flow={flow} />
+            <MemoSummaryCard stats={memoStats} />
             <EmployeeLeaderboard performers={performers} />
-            <ActivityTimeline events={activity} />
-          </div>
+            <ExecutiveAnalytics />
        */}
-      <div style={{ marginBottom: 22 }}>
-        <EmployeeLeaderboard performers={performers} />
-      </div>
-
-      <ExecutiveAnalytics />
 
       <QuickActionsFAB />
     </div>

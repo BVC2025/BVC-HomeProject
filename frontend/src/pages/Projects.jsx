@@ -868,53 +868,60 @@ function Projects() {
 
       {/* HERO */}
       <div style={{
-        background: "linear-gradient(120deg, #1A0508 0%, #4A0E18 30%, #8B0B1F 70%, #C8102E 100%)",
-        backgroundSize: "300% 300%",
-        animation: "bvcProjHeroShift 18s ease-in-out infinite",
+        background: "linear-gradient(135deg, #C8102E 0%, #A60F26 50%, #8B0B1F 100%)",
         color: "white",
-        padding: "26px 28px",
-        borderRadius: 18,
+        padding: "20px 28px",
+        borderRadius: 14,
         marginBottom: 22,
-        position: "relative",
-        overflow: "hidden",
-        boxShadow: "0 24px 60px rgba(99,102,241,0.4)"
+        boxShadow: "0 6px 18px rgba(139,11,31,0.18)",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: 16
       }}>
-        <div style={{ position: "absolute", width: 240, height: 240, borderRadius: "50%", background: "rgba(255,255,255,0.08)", top: -100, right: -60, pointerEvents: "none" }} />
-
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 20, position: "relative" }}>
-          <div style={{ flex: 1, minWidth: 280 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", opacity: 0.85, marginBottom: 6 }}>
-              BVC24 · Product → Project Workflow
-            </div>
-            <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0, letterSpacing: -0.5, lineHeight: 1.15, color: "white" }}>
-              From product spec to assigned tasks — one click.
-            </h1>
-            <div style={{ fontSize: 14, opacity: 0.9, marginTop: 6, maxWidth: 600 }}>
-              Pick a customer, pick a product. BVC24 inherits the product's BOM + stages, creates a project,
-              auto-assigns each stage to the best-skill employee, and emails them. Tasks land in their dashboard
-              after they accept.
-            </div>
+        <div>
+          <div style={{
+            fontSize: 10,
+            letterSpacing: 2,
+            color: "#fde047",
+            fontWeight: 700,
+            textTransform: "uppercase"
+          }}>
+            Workflow
           </div>
+          <h1 style={{
+            fontSize: 22,
+            fontWeight: 700,
+            margin: "4px 0 0",
+            lineHeight: 1.2,
+            color: "white",
+            letterSpacing: -0.3
+          }}>
+            Projects
+          </h1>
+        </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
 
-            <button
-              onClick={() => setShowCreate(true)}
-              style={{
-                background: "white",
-                color: "#4338ca",
-                border: "none",
-                padding: "12px 22px",
-                borderRadius: 12,
-                fontWeight: 800,
-                fontSize: 14,
-                cursor: "pointer",
-                boxShadow: "0 8px 22px rgba(0,0,0,0.18)",
-                letterSpacing: 0.4
-              }}
-            >
-              ✨ Create Project from Product
-            </button>
+          <button
+            onClick={() => setShowCreate(true)}
+            style={{
+              background: "white",
+              color: "#8B0B1F",
+              border: "none",
+              padding: "10px 20px",
+              borderRadius: 8,
+              fontWeight: 800,
+              fontSize: 12,
+              cursor: "pointer",
+              letterSpacing: 0.6,
+              textTransform: "uppercase",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
+            }}
+          >
+            + Create Project
+          </button>
 
             <button
               onClick={async () => {
@@ -958,22 +965,21 @@ function Projects() {
                 }
               }}
               style={{
-                background: "rgba(255,255,255,0.15)",
+                background: "transparent",
                 color: "white",
-                border: "1px solid rgba(255,255,255,0.4)",
-                padding: "8px 16px",
-                borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.45)",
+                padding: "10px 18px",
+                borderRadius: 8,
                 fontWeight: 700,
-                fontSize: 11,
+                fontSize: 12,
                 cursor: "pointer",
-                letterSpacing: 0.4
+                letterSpacing: 0.6,
+                textTransform: "uppercase"
               }}
               title="Delete all projects + child rows (irreversible)"
             >
-              🔄 Reset All Projects
+              Reset All Projects
             </button>
-
-          </div>
 
         </div>
       </div>
@@ -1058,7 +1064,7 @@ function Projects() {
           border: "1px dashed #cbd5e1"
         }}>
           {projects.length === 0
-            ? "No projects yet. Click ✨ Create Project from Product to start the workflow."
+            ? "No projects yet. Click + Create Project to start the workflow."
             : "No projects match these filters."}
         </div>
       )}

@@ -2844,21 +2844,15 @@ function Employees() {
           from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        @keyframes empHeroShift {
-          0%, 100% { background-position: 0% 50%; }
-          50%      { background-position: 100% 50%; }
-        }
       `}</style>
 
       <div style={{
-        background: "linear-gradient(120deg, #1A0508 0%, #4A0E18 30%, #8B0B1F 60%, #C8102E 100%)",
-        backgroundSize: "300% 300%",
-        animation: "empHeroShift 18s ease-in-out infinite",
+        background: "linear-gradient(135deg, #C8102E 0%, #A60F26 50%, #8B0B1F 100%)",
         color: "white",
-        padding: "28px 32px",
-        borderRadius: 20,
+        padding: "20px 28px",
+        borderRadius: 14,
         marginBottom: 22,
-        boxShadow: "0 24px 60px rgba(99,102,241,0.4)",
+        boxShadow: "0 6px 18px rgba(139,11,31,0.18)",
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
@@ -2866,37 +2860,44 @@ function Employees() {
         gap: 16
       }}>
         <div>
-          <div style={{ fontSize: 11, letterSpacing: 2.5, opacity: 0.85, fontWeight: 800, textTransform: "uppercase" }}>
-            BVC24 · Workforce
+          <div style={{
+            fontSize: 10,
+            letterSpacing: 2,
+            color: "#fde047",
+            fontWeight: 700,
+            textTransform: "uppercase"
+          }}>
+            Workforce
           </div>
-          <h1 style={{ fontSize: 28, fontWeight: 900, margin: "6px 0 6px", lineHeight: 1.15, color: "white" }}>
-            Employee Directory — every face, every skill, one click away.
+          <h1 style={{
+            fontSize: 22,
+            fontWeight: 700,
+            margin: "4px 0 0",
+            lineHeight: 1.2,
+            color: "white",
+            letterSpacing: -0.3
+          }}>
+            Employees
           </h1>
-          <div style={{ fontSize: 13, opacity: 0.92, maxWidth: 600 }}>
-            Add new hires with their full profile + photo. View any
-            employee's resume on demand. Skills, experience, projects,
-            qualification — all in one place.
-          </div>
         </div>
 
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button
             onClick={() => setShowInvite(true)}
             style={{
-              background: "rgba(255,255,255,0.15)",
+              background: "transparent",
               color: "white",
-              border: "1px solid rgba(255,255,255,0.4)",
-              padding: "14px 22px",
-              borderRadius: 12,
-              fontWeight: 800,
-              fontSize: 14,
+              border: "1px solid rgba(255,255,255,0.45)",
+              padding: "10px 18px",
+              borderRadius: 8,
+              fontWeight: 700,
+              fontSize: 12,
               cursor: "pointer",
-              boxShadow: "0 10px 24px rgba(0,0,0,0.2)",
-              letterSpacing: 0.3,
-              backdropFilter: "blur(6px)"
+              letterSpacing: 0.6,
+              textTransform: "uppercase"
             }}
           >
-            🤖 Invite (AI Onboarding)
+            Invite via Onboarding
           </button>
           <button
             onClick={() => setShowAdd(true)}
@@ -2904,16 +2905,17 @@ function Employees() {
               background: "white",
               color: "#8B0B1F",
               border: "none",
-              padding: "14px 26px",
-              borderRadius: 12,
+              padding: "10px 20px",
+              borderRadius: 8,
               fontWeight: 800,
-              fontSize: 14,
+              fontSize: 12,
               cursor: "pointer",
-              boxShadow: "0 10px 24px rgba(0,0,0,0.2)",
-              letterSpacing: 0.3
+              letterSpacing: 0.6,
+              textTransform: "uppercase",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
             }}
           >
-            ✨ Add Employee
+            + Add Employee
           </button>
         </div>
       </div>
@@ -2994,9 +2996,8 @@ function Employees() {
             borderRadius: 14,
             border: "1px dashed #cbd5e1"
           }}>
-            <div style={{ fontSize: 30, marginBottom: 8 }}>👥</div>
             {employees.length === 0
-              ? <>No employees yet. Click <strong>✨ Add Employee</strong> to start the directory.</>
+              ? <>No employees yet. Click <strong>+ Add Employee</strong> to start the directory.</>
               : "No employees match these filters."}
           </div>
         )

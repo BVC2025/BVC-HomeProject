@@ -729,35 +729,38 @@ function Inventory() {
 
       {/* HERO */}
       <div style={{
-        background: "linear-gradient(120deg, #1A0508 0%, #4A0E18 30%, #8B0B1F 70%, #C8102E 100%)",
+        background: "linear-gradient(135deg, #C8102E 0%, #A60F26 50%, #8B0B1F 100%)",
         color: "white",
-        padding: "26px 30px",
-        borderRadius: 18,
+        padding: "20px 28px",
+        borderRadius: 14,
         marginBottom: 22,
-        position: "relative",
-        overflow: "hidden",
-        boxShadow: "0 18px 40px rgba(200,16,46,0.3)"
+        boxShadow: "0 6px 18px rgba(139,11,31,0.18)",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: 16
       }}>
-        <div style={{
-          position: "absolute", right: -80, top: -80,
-          width: 280, height: 280, borderRadius: "50%",
-          background: "rgba(255,255,255,0.06)"
-        }} />
-        <div style={{ position: "relative" }}>
+        <div>
           <div style={{
-            fontSize: 11, fontWeight: 800, letterSpacing: 2.5,
-            opacity: 0.85, marginBottom: 6
+            fontSize: 10,
+            letterSpacing: 2,
+            color: "#fde047",
+            fontWeight: 700,
+            textTransform: "uppercase"
           }}>
-            BVC24 · WAREHOUSE INVENTORY
+            Warehouse
           </div>
-          <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0, letterSpacing: -0.5, color: "white" }}>
-            Every part, every value, every alert.
+          <h1 style={{
+            fontSize: 22,
+            fontWeight: 700,
+            margin: "4px 0 0",
+            lineHeight: 1.2,
+            color: "white",
+            letterSpacing: -0.3
+          }}>
+            Inventory
           </h1>
-          <div style={{ fontSize: 13, opacity: 0.85, marginTop: 6, maxWidth: 700 }}>
-            Live stock view of raw materials and components.
-            Updates automatically when goods receipts are finalized
-            in the Purchase Orders module.
-          </div>
         </div>
       </div>
 

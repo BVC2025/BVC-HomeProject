@@ -2662,125 +2662,79 @@ function Customers() {
       {/* HERO */}
       <div
         style={{
-          background:
-            "linear-gradient(120deg, #1A0508 0%, #4A0E18 30%, #8B0B1F 70%, #C8102E 100%)",
-          backgroundSize: "300% 300%",
-          animation: "bvcCustHeroShift 18s ease-in-out infinite",
+          background: "linear-gradient(135deg, #C8102E 0%, #A60F26 50%, #8B0B1F 100%)",
           color: "white",
-          padding: "26px 28px",
-          borderRadius: 18,
+          padding: "20px 28px",
+          borderRadius: 14,
           marginBottom: 22,
-          position: "relative",
-          overflow: "hidden",
-          boxShadow: "0 24px 60px rgba(8,145,178,0.35)"
+          boxShadow: "0 6px 18px rgba(139,11,31,0.18)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 16
         }}
       >
-
-        <div
-          style={{
-            position: "absolute",
-            width: 240,
-            height: 240,
-            borderRadius: "50%",
-            background: "rgba(255,255,255,0.08)",
-            top: -100,
-            right: -60,
-            pointerEvents: "none"
-          }}
-        />
-
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            flexWrap: "wrap",
-            gap: 20,
-            position: "relative"
-          }}
-        >
-
-          <div style={{ flex: 1, minWidth: 280 }}>
-
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: 3,
-                textTransform: "uppercase",
-                opacity: 0.85,
-                marginBottom: 6
-              }}
-            >
-              BVC24 · Customer Command Center
-            </div>
-
-            <h1
-              style={{
-                fontSize: 28,
-                fontWeight: 900,
-                margin: 0,
-                letterSpacing: -0.5,
-                lineHeight: 1.15,
-                color: "white"
-              }}
-            >
-              Every customer. Every order. Every machine.
-            </h1>
-
-            <div
-              style={{
-                fontSize: 14,
-                opacity: 0.9,
-                marginTop: 6,
-                maxWidth: 560
-              }}
-            >
-              Click any customer card to see the projects + work orders +
-              machine models + BOM details being built for them — all in
-              one connected view.
-            </div>
+        <div>
+          <div style={{
+            fontSize: 10,
+            letterSpacing: 2,
+            color: "#fde047",
+            fontWeight: 700,
+            textTransform: "uppercase"
+          }}>
+            CRM
           </div>
+          <h1 style={{
+            fontSize: 22,
+            fontWeight: 700,
+            margin: "4px 0 0",
+            lineHeight: 1.2,
+            color: "white",
+            letterSpacing: -0.3
+          }}>
+            Customers
+          </h1>
+        </div>
 
-          <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button
+            onClick={() => setInviteOpen(true)}
+            title="Generate a self-onboarding link for a new customer"
+            style={{
+              background: "transparent",
+              color: "white",
+              border: "1px solid rgba(255,255,255,0.45)",
+              padding: "10px 18px",
+              borderRadius: 8,
+              fontWeight: 700,
+              fontSize: 12,
+              cursor: "pointer",
+              letterSpacing: 0.6,
+              textTransform: "uppercase"
+            }}
+          >
+            Invite via Self-Onboarding
+          </button>
 
-            <button
-              onClick={() => setInviteOpen(true)}
-              title="Generate a self-onboarding link for a new customer"
-              style={{
-                background: "rgba(255,255,255,0.15)",
-                color: "white",
-                border: "1px solid rgba(255,255,255,0.4)",
-                padding: "12px 18px",
-                borderRadius: 12,
-                fontWeight: 700,
-                fontSize: 13,
-                cursor: "pointer",
-                letterSpacing: 0.3
-              }}
-            >
-              🤖 Invite (Self-Onboarding)
-            </button>
-
-            <button
-              onClick={() => setEditing({})}
-              style={{
-                background: "white",
-                color: "#0e7490",
-                border: "none",
-                padding: "12px 22px",
-                borderRadius: 12,
-                fontWeight: 800,
-                fontSize: 14,
-                cursor: "pointer",
-                boxShadow: "0 8px 22px rgba(0,0,0,0.18)",
-                letterSpacing: 0.4
-              }}
-            >
-              ➕ Add Customer
-            </button>
-
-          </div>
+          <button
+            onClick={() => setEditing({})}
+            style={{
+              background: "white",
+              color: "#8B0B1F",
+              border: "none",
+              padding: "10px 20px",
+              borderRadius: 8,
+              fontWeight: 800,
+              fontSize: 12,
+              cursor: "pointer",
+              letterSpacing: 0.6,
+              textTransform: "uppercase",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
+            }}
+          >
+            + Add Customer
+          </button>
         </div>
       </div>
 

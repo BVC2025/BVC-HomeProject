@@ -529,22 +529,16 @@ function StarPerformance() {
           from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        @keyframes perfHeroShift {
-          0%, 100% { background-position: 0% 50%; }
-          50%      { background-position: 100% 50%; }
-        }
       `}</style>
 
       {/* Hero */}
       <div style={{
-        background: "linear-gradient(120deg, #1A0508 0%, #4A0E18 35%, #8B0B1F 65%, #C8102E 100%)",
-        backgroundSize: "300% 300%",
-        animation: "perfHeroShift 18s ease-in-out infinite",
+        background: "linear-gradient(135deg, #C8102E 0%, #A60F26 50%, #8B0B1F 100%)",
         color: "white",
-        padding: "28px 32px",
-        borderRadius: 20,
+        padding: "20px 28px",
+        borderRadius: 14,
         marginBottom: 22,
-        boxShadow: "0 24px 60px rgba(99,102,241,0.4)",
+        boxShadow: "0 6px 18px rgba(139,11,31,0.18)",
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
@@ -552,26 +546,28 @@ function StarPerformance() {
         gap: 16
       }}>
         <div>
-          <div style={{ fontSize: 11, letterSpacing: 2.5, opacity: 0.85, fontWeight: 800, textTransform: "uppercase" }}>
-            BVC24 · Star Performance Rating
+          <div style={{
+            fontSize: 10,
+            letterSpacing: 2,
+            color: "#fde047",
+            fontWeight: 700,
+            textTransform: "uppercase"
+          }}>
+            Performance
           </div>
           <h1 style={{
-            fontSize: 28,
-            fontWeight: 900,
-            margin: "6px 0 6px",
-            lineHeight: 1.15,
-            color: "white"
+            fontSize: 22,
+            fontWeight: 700,
+            margin: "4px 0 0",
+            lineHeight: 1.2,
+            color: "white",
+            letterSpacing: -0.3
           }}>
-            ⭐ Who's earning their stars this month?
+            Star Performance
           </h1>
-          <div style={{ fontSize: 13, opacity: 0.92, maxWidth: 620 }}>
-            Auto-computed from attendance, task completion, productivity,
-            and consistency. Recommend top performers for promotions,
-            increments, and rewards — one click each.
-          </div>
         </div>
 
-        <div style={{ display: "flex", gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <select
             value={period.month}
             onChange={(e) => setPeriod((p) => ({ ...p, month: Number(e.target.value) }))}
@@ -591,34 +587,38 @@ function StarPerformance() {
           <button
             onClick={() => fetchScores(period.year, period.month)}
             style={{
-              background: "rgba(255,255,255,0.2)",
+              background: "transparent",
               color: "white",
-              border: "1px solid rgba(255,255,255,0.3)",
-              padding: "9px 16px",
-              borderRadius: 10,
+              border: "1px solid rgba(255,255,255,0.45)",
+              padding: "10px 18px",
+              borderRadius: 8,
               fontWeight: 700,
               fontSize: 12,
-              cursor: "pointer"
+              cursor: "pointer",
+              letterSpacing: 0.6,
+              textTransform: "uppercase"
             }}
           >
-            🔍 Load
+            Load
           </button>
           <button
             onClick={compute}
             disabled={computing}
             style={{
               background: "white",
-              color: "#4338ca",
+              color: "#8B0B1F",
               border: "none",
-              padding: "9px 20px",
-              borderRadius: 10,
+              padding: "10px 20px",
+              borderRadius: 8,
               fontWeight: 800,
-              fontSize: 13,
+              fontSize: 12,
               cursor: computing ? "default" : "pointer",
-              boxShadow: "0 8px 20px rgba(0,0,0,0.2)"
+              letterSpacing: 0.6,
+              textTransform: "uppercase",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
             }}
           >
-            {computing ? "Computing…" : "⚡ Compute Stars"}
+            {computing ? "Computing…" : "Compute Stars"}
           </button>
         </div>
       </div>
@@ -676,12 +676,11 @@ function StarPerformance() {
           borderRadius: 14,
           border: "1px dashed #cbd5e1"
         }}>
-          <div style={{ fontSize: 30, marginBottom: 8 }}>⭐</div>
           <div style={{ fontSize: 14, fontWeight: 700 }}>
             No scores for {MONTH_NAMES[period.month - 1]} {period.year}
           </div>
           <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 6 }}>
-            Click <strong>⚡ Compute Stars</strong> to generate this month's scores
+            Click <strong>Compute Stars</strong> to generate this month's scores
             from the live attendance, task, and productivity data.
           </div>
         </div>
