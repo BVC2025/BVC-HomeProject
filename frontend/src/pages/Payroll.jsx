@@ -8,446 +8,419 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December"
 ];
 
-const STATUS_THEMES = {
-  DRAFT: { grad: "linear-gradient(135deg, #F4B324, #C8102E)", bg: "#fef3c7", fg: "#92400e" },
-  FINALIZED: { grad: "linear-gradient(135deg, #C8102E, #8B0B1F)", bg: "#e0e7ff", fg: "#3730a3" },
-  PAID: { grad: "linear-gradient(135deg, #10b981, #047857)", bg: "#d1fae5", fg: "#065f46" }
-};
-
 
 function inr(n) {
 
   const v = Number(n || 0);
 
-  return v.toLocaleString("en-IN", { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+  return v.toLocaleString("en-IN", {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2
+  });
 }
 
 
-function StatusPill({ status }) {
+function Payroll() {
 
-  const t = STATUS_THEMES[status] || STATUS_THEMES.DRAFT;
+  const today = new Date();
 
-  return (
+  const [year, setYear]   = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth() + 1);
 
-    <span style={{
-      display: "inline-block",
-      padding: "3px 12px",
-      borderRadius: 999,
-      fontSize: 10,
-      fontWeight: 800,
-      letterSpacing: 0.6,
-      background: t.bg,
-      color: t.fg,
-      textTransform: "uppercase"
-    }}>
-      {status}
-    </span>
-  );
-}
+  const [run, setRun]     = useState(null);
+  const [slips, setSlips] = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [errorMsg, setErrorMsg]     = useState("");
 
+  const yearOptions = useMemo(() => {
 
-// ============================================================
-// Slip detail drawer
-// ============================================================
-function SlipDrawer({ run, slip, onClose }) {
+    const yr = today.getFullYear();
 
-  if (!slip) return null;
+    return [yr - 2, yr - 1, yr, yr + 1];
 
-  const period = `${MONTH_NAMES[run.PAY_MONTH - 1]} ${run.PAY_YEAR}`;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  return (
-
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,0.55)",
-        zIndex: 1000,
-        display: "flex",
-        justifyContent: "flex-end"
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 560,
-          maxWidth: "92%",
-          background: "white",
-          padding: 28,
-          overflow: "auto",
-          boxShadow: "-20px 0 60px rgba(0,0,0,0.3)"
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-          <div>
-            <div style={{ fontSize: 10, letterSpacing: 1.5, fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>
-              Salary Slip · {period}
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "#0f172a", marginTop: 4 }}>
-              {slip.EMPLOYEE_NAME}
-            </div>
-            <div style={{ fontSize: 12, color: "#64748b", fontFamily: "ui-monospace, monospace" }}>
-              {slip.EMPLOYEE_CODE}
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            style={{ border: "none", background: "#f1f5f9", padding: "4px 12px", borderRadius: 8, cursor: "pointer", fontSize: 18 }}
-          >
-            ×
-          </button>
-        </div>
-
-        {/* Net pay headline */}
-        <div style={{
-          background: "linear-gradient(135deg, #10b981, #047857)",
-          color: "white",
-          padding: "18px 22px",
-          borderRadius: 12,
-          marginBottom: 18
-        }}>
-          <div style={{ fontSize: 11, letterSpacing: 1.4, opacity: 0.85, fontWeight: 700 }}>
-            NET PAY
-          </div>
-          <div style={{ fontSize: 32, fontWeight: 900, fontFamily: "ui-monospace, monospace" }}>
-            ₹ {inr(slip.NET_PAY)}
-          </div>
-        </div>
-
-        {/* Attendance breakdown */}
-        <Section title="Attendance">
-          <Row label="Present" value={slip.DAYS_PRESENT} />
-          <Row label="Late (subset)" value={slip.DAYS_LATE} muted />
-          <Row label="Half days" value={slip.DAYS_HALF} />
-          <Row label="Paid leave" value={slip.PAID_LEAVE_DAYS} />
-          <Row label="Unpaid leave" value={slip.UNPAID_LEAVE_DAYS} muted />
-          <Row label="Absent" value={slip.ABSENT_DAYS} muted />
-          <Row label="Working days in month" value={slip.WORKING_DAYS} highlight />
-        </Section>
-
-        {/* Earnings */}
-        <Section title="Earnings">
-          <Row label="Base salary" value={`₹ ${inr(slip.BASE_SALARY)}`} />
-          <Row label="Per-day rate" value={`₹ ${inr(slip.PER_DAY_RATE)}`} muted />
-          <Row label="Earned basic" value={`₹ ${inr(slip.EARNED_BASIC)}`} />
-          <Row
-            label={`Task bonus (${slip.TASKS_COMPLETED} × ₹${slip.TASK_BONUS_PER_TASK})`}
-            value={`₹ ${inr(slip.TASK_BONUS)}`}
-          />
-          <Row label="OT pay" value={`₹ ${inr(slip.OT_PAY)}`} muted />
-          <Row label="Gross pay" value={`₹ ${inr(slip.GROSS_PAY)}`} highlight />
-        </Section>
-
-        {/* Deductions */}
-        <Section title="Deductions">
-          <Row label="Late penalty" value={`₹ ${inr(slip.LATE_PENALTY)}`} />
-          <Row label="Other deductions" value={`₹ ${inr(slip.OTHER_DEDUCTIONS)}`} muted />
-          <Row label="Total deductions" value={`₹ ${inr(slip.TOTAL_DEDUCTIONS)}`} highlight />
-        </Section>
-
-        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 16, lineHeight: 1.5 }}>
-          Generated from your live Attendance, Leave and Task data.
-          Re-run the payroll to refresh numbers (only DRAFT runs).
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-function Section({ title, children }) {
-
-  return (
-
-    <div style={{ marginBottom: 18 }}>
-      <div style={{
-        fontSize: 11,
-        fontWeight: 800,
-        letterSpacing: 1.2,
-        color: "#64748b",
-        textTransform: "uppercase",
-        marginBottom: 8,
-        paddingBottom: 4,
-        borderBottom: "1px solid #e2e8f0"
-      }}>
-        {title}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-
-function Row({ label, value, muted, highlight }) {
-
-  return (
-
-    <div style={{
-      display: "flex",
-      justifyContent: "space-between",
-      padding: "6px 0",
-      fontSize: highlight ? 14 : 13,
-      color: muted ? "#94a3b8" : "#0f172a",
-      fontWeight: highlight ? 800 : 500,
-      borderTop: highlight ? "1px solid #e2e8f0" : "none",
-      marginTop: highlight ? 6 : 0,
-      paddingTop: highlight ? 8 : 6
-    }}>
-      <span>{label}</span>
-      <span style={{ fontFamily: "ui-monospace, monospace" }}>{value}</span>
-    </div>
-  );
-}
-
-
-// ============================================================
-// Run detail (table of slips)
-// ============================================================
-function RunDetail({ runId, onClose, onRefresh }) {
-
-  const [data, setData] = useState(null);
-
-  const [loading, setLoading] = useState(true);
-
-  const [slipFor, setSlipFor] = useState(null);
-
-  const [acting, setActing] = useState(false);
-
-  const fetchData = () => {
+  // ----- Load slips for the selected month --------------------------
+  const fetchSlips = async (y, m) => {
 
     setLoading(true);
 
-    API.get(`/payroll/runs/${runId}`)
-      .then((r) => setData(r.data))
-      .catch(() => setData(null))
-      .finally(() => setLoading(false));
+    setErrorMsg("");
+
+    try {
+
+      const runs = await API.get(`/payroll/runs?year=${y}`);
+
+      const match = (runs.data || []).find(
+        (r) => r.PAY_YEAR === y && r.PAY_MONTH === m
+      );
+
+      if (!match) {
+
+        setRun(null);
+
+        setSlips([]);
+
+        return;
+      }
+
+      const detail = await API.get(`/payroll/runs/${match.ID}`);
+
+      setRun(detail.data?.run || null);
+
+      setSlips(detail.data?.slips || []);
+
+    } catch (err) {
+
+      console.log(err);
+
+      setErrorMsg("Could not load payroll for this month.");
+
+    } finally {
+
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
 
-    fetchData();
+    fetchSlips(year, month);
 
-  }, [runId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [year, month]);
 
-  const finalize = async () => {
+  // ----- Generate (or refresh) the run ------------------------------
+  const generate = async () => {
 
-    if (!window.confirm("Finalize this run? After that you can no longer edit slips.")) return;
-
-    setActing(true);
-
-    try {
-
-      await API.patch(`/payroll/runs/${runId}/finalize`);
-
-      fetchData();
-
-      onRefresh?.();
-
-    } finally {
-
-      setActing(false);
-    }
-  };
-
-  const markPaid = async () => {
-
-    if (!window.confirm("Mark this run as PAID?")) return;
-
-    setActing(true);
+    setGenerating(true);
 
     try {
 
-      await API.patch(`/payroll/runs/${runId}/mark-paid`);
+      await API.post("/payroll/generate", {
+        YEAR: year,
+        MONTH: month,
+        OVERWRITE: true
+      });
 
-      fetchData();
-
-      onRefresh?.();
-
-    } finally {
-
-      setActing(false);
-    }
-  };
-
-  const deleteRun = async () => {
-
-    if (!window.confirm("Delete this DRAFT run? This removes all slips for it.")) return;
-
-    setActing(true);
-
-    try {
-
-      await API.delete(`/payroll/runs/${runId}`);
-
-      onClose();
-
-      onRefresh?.();
+      await fetchSlips(year, month);
 
     } catch (err) {
 
-      alert(err?.response?.data?.detail || "Delete failed");
+      const detail = err?.response?.data?.detail || "Generation failed.";
+
+      alert(detail);
 
     } finally {
 
-      setActing(false);
+      setGenerating(false);
     }
   };
 
-  const run = data?.run;
+  // ----- Mark one employee paid -------------------------------------
+  const markPaid = async (slipId) => {
 
-  const slips = data?.slips || [];
+    try {
 
-  if (!run && !loading) return null;
+      const res = await API.patch(`/payroll/slips/${slipId}/mark-paid`);
+
+      const updated = res.data?.slip;
+
+      if (updated) {
+
+        setSlips((prev) =>
+          prev.map((s) => (s.ID === updated.ID ? { ...s, ...updated } : s))
+        );
+      }
+
+    } catch (err) {
+
+      alert(err?.response?.data?.detail || "Could not mark paid.");
+    }
+  };
 
   return (
 
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,0.55)",
-        zIndex: 950,
+    <div>
+
+      {/* Hero */}
+      <div style={{
+        background: "linear-gradient(135deg, #C8102E 0%, #A60F26 50%, #8B0B1F 100%)",
+        color: "white",
+        padding: "20px 28px",
+        borderRadius: 14,
+        marginBottom: 22,
+        boxShadow: "0 6px 18px rgba(139,11,31,0.18)",
         display: "flex",
-        justifyContent: "center",
-        alignItems: "flex-start",
-        paddingTop: 40
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "min(1100px, 96%)",
-          background: "white",
-          borderRadius: 18,
-          padding: 28,
-          maxHeight: "88vh",
-          overflow: "auto",
-          boxShadow: "0 24px 60px rgba(0,0,0,0.35)"
-        }}
-      >
+        justifyContent: "space-between",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: 16
+      }}>
+        <div>
+          <div style={{
+            fontSize: 10,
+            letterSpacing: 2,
+            color: "#fde047",
+            fontWeight: 700,
+            textTransform: "uppercase"
+          }}>
+            Finance
+          </div>
+          <h1 style={{
+            fontSize: 22,
+            fontWeight: 700,
+            margin: "4px 0 0",
+            lineHeight: 1.2,
+            color: "white",
+            letterSpacing: -0.3
+          }}>
+            Payroll
+          </h1>
+        </div>
+      </div>
 
-        {loading && <div>Loading run…</div>}
+      {/* Controls */}
+      <div style={{
+        background: "white",
+        padding: 16,
+        borderRadius: 12,
+        boxShadow: "0 4px 14px rgba(15,23,42,0.06)",
+        marginBottom: 18,
+        display: "flex",
+        gap: 12,
+        flexWrap: "wrap",
+        alignItems: "flex-end"
+      }}>
+        <div>
+          <div style={pickerLabelStyle()}>Month</div>
+          <select
+            value={month}
+            onChange={(e) => setMonth(Number(e.target.value))}
+            style={pickerStyle()}
+          >
+            {MONTH_NAMES.map((name, i) => (
+              <option key={i + 1} value={i + 1}>{name}</option>
+            ))}
+          </select>
+        </div>
 
-        {!loading && run && (
+        <div>
+          <div style={pickerLabelStyle()}>Year</div>
+          <select
+            value={year}
+            onChange={(e) => setYear(Number(e.target.value))}
+            style={pickerStyle()}
+          >
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
 
+        <button
+          onClick={generate}
+          disabled={generating}
+          style={{
+            background: generating ? "#cbd5e1" : "#8B0B1F",
+            color: "white",
+            border: "none",
+            padding: "10px 22px",
+            borderRadius: 8,
+            fontWeight: 800,
+            fontSize: 12,
+            letterSpacing: 0.6,
+            textTransform: "uppercase",
+            cursor: generating ? "default" : "pointer"
+          }}
+        >
+          {generating
+            ? "Generating…"
+            : slips.length
+            ? "Re-generate"
+            : "Generate Payroll"}
+        </button>
+
+        <div style={{
+          fontSize: 11,
+          color: "#94a3b8",
+          flex: 1,
+          minWidth: 200,
+          lineHeight: 1.5
+        }}>
+          Salary is auto-computed from attendance, approved leaves, and
+          permission hours for the selected month.
+        </div>
+      </div>
+
+      {/* Body */}
+      <div style={{
+        background: "white",
+        padding: 18,
+        borderRadius: 12,
+        boxShadow: "0 4px 14px rgba(15,23,42,0.06)"
+      }}>
+
+        {loading && (
+          <div style={{ color: "#94a3b8", padding: 20 }}>
+            Loading…
+          </div>
+        )}
+
+        {!loading && errorMsg && (
+          <div style={{
+            color: "#991b1b",
+            background: "#fee2e2",
+            padding: 12,
+            borderRadius: 8,
+            fontSize: 13
+          }}>
+            {errorMsg}
+          </div>
+        )}
+
+        {!loading && !errorMsg && slips.length === 0 && (
+          <div style={{
+            padding: 36,
+            textAlign: "center",
+            color: "#94a3b8",
+            fontSize: 13
+          }}>
+            No payroll generated for {MONTH_NAMES[month - 1]} {year} yet.
+            Click <strong>Generate Payroll</strong> above.
+          </div>
+        )}
+
+        {!loading && slips.length > 0 && (
           <>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 18, flexWrap: "wrap", gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 10, letterSpacing: 1.5, fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>
-                  Payroll Run #{run.ID}
-                </div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: "#0f172a", marginTop: 4 }}>
-                  {MONTH_NAMES[run.PAY_MONTH - 1]} {run.PAY_YEAR}
-                </div>
-                <div style={{ marginTop: 6 }}>
-                  <StatusPill status={run.STATUS} />
-                  <span style={{ marginLeft: 10, fontSize: 12, color: "#64748b" }}>
-                    {run.EMPLOYEE_COUNT} employee(s) · {run.WORKING_DAYS} working days
-                  </span>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {run.STATUS === "DRAFT" && (
-                  <>
-                    <button onClick={finalize} disabled={acting} style={btnStyle("#6366f1")}>
-                      🔒 Finalize
-                    </button>
-                    <button onClick={deleteRun} disabled={acting} style={btnStyle("#ef4444")}>
-                      🗑 Delete
-                    </button>
-                  </>
-                )}
-                {run.STATUS === "FINALIZED" && (
-                  <button onClick={markPaid} disabled={acting} style={btnStyle("#10b981")}>
-                    💸 Mark as PAID
-                  </button>
-                )}
-                <button onClick={onClose} style={btnStyle("#94a3b8")}>
-                  Close
-                </button>
-              </div>
-            </div>
-
-            {/* Totals */}
             <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: 12,
-              marginBottom: 18
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              marginBottom: 10,
+              flexWrap: "wrap",
+              gap: 8
             }}>
-              <TotalTile label="Total Gross" value={run.TOTAL_GROSS} color="#3b82f6" />
-              <TotalTile label="Total Deductions" value={run.TOTAL_DEDUCTIONS} color="#ef4444" />
-              <TotalTile label="Total Net" value={run.TOTAL_NET} color="#10b981" />
+              <div style={{
+                fontSize: 13,
+                fontWeight: 800,
+                color: "#0f172a",
+                letterSpacing: 0.3
+              }}>
+                {MONTH_NAMES[month - 1]} {year} · {slips.length} employees
+              </div>
+
+              <div style={{ fontSize: 11, color: "#64748b" }}>
+                {slips.filter((s) => s.STATUS === "PAID").length} paid ·
+                {" "}
+                {slips.filter((s) => s.STATUS !== "PAID").length} pending
+              </div>
             </div>
 
-            {/* Slip table */}
-            <div style={{ overflowX: "auto" }}>
-              <table style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: 12,
-                border: "1px solid #e2e8f0"
-              }}>
-                <thead>
-                  <tr style={{ background: "#f1f5f9", color: "#475569", fontSize: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                    <th style={th()}>Employee</th>
-                    <th style={th("right")}>Base Salary</th>
-                    <th style={th("center")}>Present</th>
-                    <th style={th("center")}>Paid Leave</th>
-                    <th style={th("center")}>Absent</th>
-                    <th style={th("center")}>Tasks</th>
-                    <th style={th("right")}>Gross</th>
-                    <th style={th("right")}>Deductions</th>
-                    <th style={th("right")}>Net Pay</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {slips.map((s) => (
+            <table style={{
+              width: "100%",
+              borderCollapse: "collapse",
+              fontSize: 13
+            }}>
+              <thead>
+                <tr style={{
+                  background: "#f8fafc",
+                  color: "#475569",
+                  fontSize: 11,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5
+                }}>
+                  <th style={th()}>Employee</th>
+                  <th style={th("right")}>Base</th>
+                  <th style={th("center")}>Present</th>
+                  <th style={th("center")}>Leave</th>
+                  <th style={th("center")}>Permission</th>
+                  <th style={th("center")}>Rating</th>
+                  <th style={th("right")}>Bonus</th>
+                  <th style={th("right")}>Net Pay</th>
+                  <th style={th("right")}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {slips.map((s) => {
+
+                  const isPaid = s.STATUS === "PAID";
+
+                  const leaveDays =
+                    Number(s.PAID_LEAVE_DAYS || 0) +
+                    Number(s.UNPAID_LEAVE_DAYS || 0);
+
+                  return (
                     <tr
                       key={s.ID}
-                      onClick={() => setSlipFor(s)}
-                      style={{ borderBottom: "1px solid #f1f5f9", cursor: "pointer" }}
+                      style={{
+                        borderBottom: "1px solid #f1f5f9",
+                        background: isPaid ? "#f0fdf4" : "white"
+                      }}
                     >
                       <td style={td()}>
-                        <div style={{ fontWeight: 700 }}>{s.EMPLOYEE_NAME}</div>
-                        <div style={{ fontSize: 10, color: "#94a3b8", fontFamily: "ui-monospace, monospace" }}>
-                          {s.EMPLOYEE_CODE}
+                        <div style={{ fontWeight: 700, color: "#0f172a" }}>
+                          {s.EMPLOYEE_NAME || "—"}
+                        </div>
+                        <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                          {s.EMPLOYEE_CODE || ""}
                         </div>
                       </td>
-                      <td style={td("right")}>₹ {inr(s.BASE_SALARY)}</td>
-                      <td style={td("center")}>{s.DAYS_PRESENT}</td>
-                      <td style={td("center")}>{s.PAID_LEAVE_DAYS}</td>
-                      <td style={{ ...td("center"), color: s.ABSENT_DAYS > 0 ? "#b91c1c" : "#94a3b8" }}>
-                        {s.ABSENT_DAYS}
+
+                      <td style={{ ...td("right"), color: "#0f172a", fontWeight: 700 }}>
+                        ₹ {inr(s.BASE_SALARY)}
                       </td>
-                      <td style={td("center")}>{s.TASKS_COMPLETED}</td>
-                      <td style={td("right")}>₹ {inr(s.GROSS_PAY)}</td>
-                      <td style={{ ...td("right"), color: s.TOTAL_DEDUCTIONS > 0 ? "#b91c1c" : "#94a3b8" }}>
-                        ₹ {inr(s.TOTAL_DEDUCTIONS)}
+
+                      <td style={td("center")}>
+                        {s.DAYS_PRESENT ?? 0}
+                        <span style={{ color: "#94a3b8" }}>
+                          {" / "}{s.WORKING_DAYS ?? 26}
+                        </span>
                       </td>
+
+                      <td style={td("center")}>
+                        {leaveDays}
+                      </td>
+
+                      <td style={td("center")}>
+                        {Number(s.PERMISSION_HOURS || 0).toFixed(1)}h
+                      </td>
+
+                      <td style={td("center")}>
+                        <span style={{ color: "#D4A017", fontWeight: 800 }}>
+                          {Number(s.PERFORMANCE_STARS || 0).toFixed(1)}★
+                        </span>
+                      </td>
+
+                      <td style={{ ...td("right"), color: "#92400e" }}>
+                        ₹ {inr(s.STAR_BONUS)}
+                      </td>
+
                       <td style={{ ...td("right"), fontWeight: 800, color: "#065f46" }}>
                         ₹ {inr(s.NET_PAY)}
                       </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8 }}>
-                Click any row to see the full salary slip breakdown.
-              </div>
-            </div>
-          </>
-        )}
 
-        {slipFor && (
-          <SlipDrawer
-            run={run}
-            slip={slipFor}
-            onClose={() => setSlipFor(null)}
-          />
+                      <td style={td("right")}>
+                        {isPaid ? (
+                          <span style={paidBadgeStyle()}>
+                            ✓ Paid
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => markPaid(s.ID)}
+                            style={markPaidBtnStyle()}
+                          >
+                            Mark Paid
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </>
         )}
       </div>
     </div>
@@ -455,16 +428,62 @@ function RunDetail({ runId, onClose, onRefresh }) {
 }
 
 
-function btnStyle(color) {
+// ---------------- styles ----------------
+
+function pickerLabelStyle() {
 
   return {
-    background: color,
+    fontSize: 10,
+    color: "#64748b",
+    marginBottom: 4,
+    fontWeight: 700,
+    letterSpacing: 0.6,
+    textTransform: "uppercase"
+  };
+}
+
+
+function pickerStyle() {
+
+  return {
+    padding: "8px 12px",
+    borderRadius: 8,
+    border: "1px solid #cbd5e1",
+    minWidth: 130,
+    fontSize: 13,
+    background: "white",
+    color: "#0f172a"
+  };
+}
+
+
+function paidBadgeStyle() {
+
+  return {
+    display: "inline-block",
+    padding: "5px 12px",
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: 800,
+    color: "#065f46",
+    background: "#d1fae5",
+    letterSpacing: 0.4
+  };
+}
+
+
+function markPaidBtnStyle() {
+
+  return {
+    background: "#8B0B1F",
     color: "white",
     border: "none",
-    padding: "8px 16px",
-    borderRadius: 8,
+    padding: "6px 14px",
+    borderRadius: 6,
+    fontSize: 11,
     fontWeight: 700,
-    fontSize: 12,
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
     cursor: "pointer"
   };
 }
@@ -475,6 +494,7 @@ function th(align = "left") {
   return {
     padding: "10px 8px",
     textAlign: align,
+    fontWeight: 700,
     borderBottom: "1px solid #e2e8f0"
   };
 }
@@ -483,285 +503,10 @@ function th(align = "left") {
 function td(align = "left") {
 
   return {
-    padding: "10px 8px",
-    textAlign: align,
-    fontFamily: align === "right" ? "ui-monospace, monospace" : "inherit"
+    padding: "12px 8px",
+    textAlign: align
   };
 }
 
-
-function TotalTile({ label, value, color }) {
-
-  return (
-
-    <div style={{
-      background: "white",
-      padding: 16,
-      borderRadius: 12,
-      border: `1px solid ${color}33`,
-      borderTop: `3px solid ${color}`,
-      boxShadow: "0 4px 14px rgba(15,23,42,0.06)"
-    }}>
-      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.2, color: "#64748b", textTransform: "uppercase" }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 22, fontWeight: 900, fontFamily: "ui-monospace, monospace", color: "#0f172a", marginTop: 4 }}>
-        ₹ {inr(value)}
-      </div>
-    </div>
-  );
-}
-
-
-// ============================================================
-// Main page
-// ============================================================
-function Payroll() {
-
-  const today = new Date();
-
-  const [runs, setRuns] = useState([]);
-
-  const [loading, setLoading] = useState(true);
-
-  const [year, setYear] = useState(today.getFullYear());
-
-  const [month, setMonth] = useState(today.getMonth() + 1);
-
-  const [generating, setGenerating] = useState(false);
-
-  const [openRunId, setOpenRunId] = useState(null);
-
-  const fetchAll = () => {
-
-    setLoading(true);
-
-    API.get("/payroll/runs?vendor_id=1")
-      .then((r) => setRuns(r.data || []))
-      .catch(() => setRuns([]))
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => {
-
-    fetchAll();
-
-  }, []);
-
-  const generate = async () => {
-
-    setGenerating(true);
-
-    try {
-
-      const res = await API.post("/payroll/generate", {
-        VENDOR_ID: 1,
-        YEAR: year,
-        MONTH: month,
-        GENERATED_BY: localStorage.getItem("username") || "—",
-        OVERWRITE: true
-      });
-
-      fetchAll();
-
-      const runId = res.data?.run?.ID;
-
-      if (runId) setOpenRunId(runId);
-
-    } catch (err) {
-
-      alert(err?.response?.data?.detail || "Generate failed");
-
-    } finally {
-
-      setGenerating(false);
-    }
-  };
-
-  const yearOptions = useMemo(() => {
-
-    const yr = today.getFullYear();
-
-    return [yr - 2, yr - 1, yr, yr + 1];
-
-  }, []);
-
-  return (
-
-    <div>
-
-      {/* Hero */}
-      <div style={{
-        background: "linear-gradient(120deg, #1A0508 0%, #4A0E18 35%, #8B0B1F 65%, #C8102E 100%)",
-        backgroundSize: "300% 300%",
-        animation: "bvcGradientShift 18s ease-in-out infinite",
-        color: "white",
-        padding: "26px 30px",
-        borderRadius: 18,
-        marginBottom: 22,
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: 16,
-        flexWrap: "wrap"
-      }}>
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: 2, textTransform: "uppercase", opacity: 0.85, fontWeight: 700 }}>
-            BVC24 · Payroll
-          </div>
-          <h1 style={{ fontSize: 24, fontWeight: 900, margin: "6px 0 6px", color: "white" }}>
-            Monthly salary — attendance × leave × tasks, automatic.
-          </h1>
-          <div style={{ fontSize: 13, opacity: 0.9, maxWidth: 640, lineHeight: 1.5 }}>
-            Pick a month, click Generate. We read every employee's
-            attendance, approved leaves, and completed tasks from the
-            live database, then compute net pay with the breakdown
-            saved in a slip you can review later.
-          </div>
-        </div>
-      </div>
-
-      {/* Generator */}
-      <div style={{
-        background: "white",
-        padding: 16,
-        borderRadius: 14,
-        boxShadow: "0 4px 14px rgba(15,23,42,0.06)",
-        marginBottom: 18,
-        display: "flex",
-        gap: 12,
-        flexWrap: "wrap",
-        alignItems: "flex-end"
-      }}>
-        <div>
-          <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }}>
-            Month
-          </div>
-          <select
-            value={month}
-            onChange={(e) => setMonth(Number(e.target.value))}
-            style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #cbd5e1", minWidth: 150, fontSize: 13 }}
-          >
-            {MONTH_NAMES.map((name, i) => (
-              <option key={i + 1} value={i + 1}>{name}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase" }}>
-            Year
-          </div>
-          <select
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
-            style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #cbd5e1", minWidth: 100, fontSize: 13 }}
-          >
-            {yearOptions.map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
-        </div>
-        <button
-          onClick={generate}
-          disabled={generating}
-          style={{
-            background: generating ? "#cbd5e1" : "linear-gradient(135deg, #C8102E, #8B0B1F)",
-            color: "white",
-            border: "none",
-            padding: "10px 20px",
-            borderRadius: 10,
-            fontWeight: 800,
-            fontSize: 13,
-            cursor: generating ? "default" : "pointer"
-          }}
-        >
-          {generating ? "Generating…" : "⚡ Generate Payroll"}
-        </button>
-        <div style={{ fontSize: 11, color: "#94a3b8", flex: 1, minWidth: 200 }}>
-          Re-running the same month replaces the DRAFT slips with fresh numbers.
-          A FINALIZED or PAID run is locked.
-        </div>
-      </div>
-
-      {/* Runs list */}
-      <div style={{ background: "white", padding: 18, borderRadius: 14, boxShadow: "0 4px 14px rgba(15,23,42,0.06)" }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a", marginBottom: 12, letterSpacing: 0.3 }}>
-          Past payroll runs ({runs.length})
-        </div>
-
-        {loading && <div style={{ color: "#94a3b8" }}>Loading…</div>}
-
-        {!loading && runs.length === 0 && (
-          <div style={{ padding: 30, textAlign: "center", color: "#94a3b8" }}>
-            <div style={{ fontSize: 30, marginBottom: 6 }}>💸</div>
-            No payroll runs yet. Pick a month above and click Generate.
-          </div>
-        )}
-
-        {!loading && runs.length > 0 && (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-            <thead>
-              <tr style={{ background: "#f8fafc", color: "#475569", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                <th style={th()}>Period</th>
-                <th style={th("center")}>Status</th>
-                <th style={th("center")}>Employees</th>
-                <th style={th("right")}>Gross</th>
-                <th style={th("right")}>Deductions</th>
-                <th style={th("right")}>Net</th>
-                <th style={th("center")}>Generated</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {runs.map((r) => (
-                <tr
-                  key={r.ID}
-                  style={{ borderBottom: "1px solid #f1f5f9", cursor: "pointer" }}
-                  onClick={() => setOpenRunId(r.ID)}
-                >
-                  <td style={td()}>
-                    <strong>{MONTH_NAMES[r.PAY_MONTH - 1]} {r.PAY_YEAR}</strong>
-                  </td>
-                  <td style={td("center")}>
-                    <StatusPill status={r.STATUS} />
-                  </td>
-                  <td style={td("center")}>{r.EMPLOYEE_COUNT}</td>
-                  <td style={td("right")}>₹ {inr(r.TOTAL_GROSS)}</td>
-                  <td style={td("right")}>₹ {inr(r.TOTAL_DEDUCTIONS)}</td>
-                  <td style={{ ...td("right"), fontWeight: 800, color: "#065f46" }}>
-                    ₹ {inr(r.TOTAL_NET)}
-                  </td>
-                  <td style={{ ...td("center"), fontSize: 11, color: "#94a3b8" }}>
-                    {r.GENERATED_BY || "—"}
-                  </td>
-                  <td style={td("right")}>
-                    <span style={{ color: "#6366f1", fontWeight: 700, fontSize: 11 }}>
-                      View →
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* Inline keyframe for the hero gradient animation */}
-      <style>{`
-        @keyframes bvcGradientShift {
-          0%   { background-position: 0% 50%; }
-          50%  { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-      `}</style>
-
-      {openRunId && (
-        <RunDetail
-          runId={openRunId}
-          onClose={() => setOpenRunId(null)}
-          onRefresh={fetchAll}
-        />
-      )}
-    </div>
-  );
-}
 
 export default Payroll;

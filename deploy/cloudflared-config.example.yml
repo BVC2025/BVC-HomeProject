@@ -1,0 +1,54 @@
+# =====================================================================
+# BVC24 ERP — Cloudflare Tunnel config (production template)
+# ---------------------------------------------------------------------
+# Copy this file to:
+#   %USERPROFILE%\.cloudflared\config.yml
+# (Windows path; cloudflared looks here by default.)
+#
+# Replace the two placeholders below before starting the tunnel:
+#   1. <TUNNEL-UUID>            — printed by `cloudflared tunnel create bvc24-erp`
+#   2. <PATH-TO-CREDENTIALS>    — file path printed by the same command
+#                                 (looks like ~/.cloudflared/<UUID>.json)
+#
+# Routing model: ONE tunnel process, TWO hostnames, no Caddy needed.
+#   erp.bvc24.com  -> localhost:4173   (frontend, `vite preview` build)
+#   api.bvc24.com  -> localhost:8001   (uvicorn FastAPI)
+# Cloudflare's edge handles HTTPS termination; local services stay HTTP.
+# =====================================================================
+
+tunnel: <TUNNEL-UUID>
+credentials-file: <PATH-TO-CREDENTIALS>
+
+# Tunnels created after 2023 must be set to "yes" — the cloudflared
+# client uses the QUIC protocol unless explicitly downgraded. Leave it.
+protocol: auto
+
+# Optional: writes connection events to a file. Useful while debugging
+# the first deploy; comment out once stable.
+logfile: C:\ProgramData\cloudflared\cloudflared.log
+loglevel: info
+
+# Ingress rules are evaluated TOP TO BOTTOM. The last rule MUST be a
+# catch-all (no `hostname:` key) or cloudflared refuses to start.
+ingress:
+
+  # ---- Frontend (Vite static build served by `vite preview`) ---------
+  - hostname: erp.bvc24.com
+    service: http://localhost:4173
+    originRequest:
+      # vite preview defaults to a 5-second connection timeout — fine.
+      connectTimeout: 10s
+      noTLSVerify: true
+
+  # ---- Backend API (FastAPI / uvicorn) -------------------------------
+  - hostname: api.bvc24.com
+    service: http://localhost:8001
+    originRequest:
+      connectTimeout: 10s
+      noTLSVerify: true
+      # Allow file uploads (memo attachments, employee photos, etc.)
+      # without cloudflared truncating large requests.
+      disableChunkedEncoding: false
+
+  # ---- Catch-all: anything that doesn't match above returns 404 ------
+  - service: http_status:404

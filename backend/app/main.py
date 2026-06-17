@@ -129,9 +129,36 @@ class AuditMiddleware(BaseHTTPMiddleware):
 # first → audit added first runs second.
 app.add_middleware(AuditMiddleware)
 
+# CORS — explicit allow-list. allow_origins=["*"] is incompatible with
+# allow_credentials=True per the CORS spec (browsers reject the combo),
+# so we enumerate. Override via env: CORS_ALLOWED_ORIGINS="a.com,b.com".
+# LAN IPs (for mobile-on-WiFi testing) are matched by regex below.
+_DEFAULT_CORS_ORIGINS = [
+    "https://erp.bvc24.com",        # production frontend
+    "https://api.bvc24.com",        # in case anything self-loads
+    "http://localhost:5173",        # vite dev
+    "http://localhost:5174",        # vite dev (alt port)
+    "http://localhost:4173",        # vite preview (production build)
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:4173",
+]
+
+_env_origins = os.getenv("CORS_ALLOWED_ORIGINS", "").strip()
+
+if _env_origins:
+
+    _cors_origins = [o.strip() for o in _env_origins.split(",") if o.strip()]
+
+else:
+
+    _cors_origins = _DEFAULT_CORS_ORIGINS
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
+    # LAN IPs on Vite dev/preview ports — for testing on phones over WiFi.
+    # Matches e.g. http://192.168.1.56:5173 but not random public IPs.
+    allow_origin_regex=r"^http://(10|127|192\.168|172\.(1[6-9]|2\d|3[01]))\.[\d.]+:\d{4}$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -280,6 +307,21 @@ def _auto_migrate():
         ("payroll_slip", "ESI_EMPLOYEE",          "FLOAT NULL DEFAULT 0"),
         ("payroll_slip", "ESI_EMPLOYER",          "FLOAT NULL DEFAULT 0"),
         ("payroll_slip", "PROFESSIONAL_TAX",      "FLOAT NULL DEFAULT 0"),
+        # Per-slip payment tracking — lets the UI mark each employee
+        # Paid independently instead of finalising a whole run.
+        ("payroll_slip", "STATUS",                "VARCHAR(20) NULL DEFAULT 'PENDING'"),
+        ("payroll_slip", "PAID_AT",               "DATETIME NULL"),
+        # Permission hours used by the employee in this pay period
+        # (LeaveRequest rows where TYPE='PERMISSION', summed).
+        ("payroll_slip", "PERMISSION_HOURS",      "FLOAT NULL DEFAULT 0"),
+        # Star-rating bonus — feeds into NET_PAY (BONUS_PER_STAR × stars).
+        ("payroll_slip", "PERFORMANCE_STARS",     "FLOAT NULL DEFAULT 0"),
+        ("payroll_slip", "STAR_BONUS",            "FLOAT NULL DEFAULT 0"),
+        # PerformanceScore — Leave + Permission dimensions (new scheme).
+        ("performance_score", "LEAVE_DAYS_TAKEN",       "FLOAT NULL DEFAULT 0"),
+        ("performance_score", "PERMISSION_HOURS_TAKEN", "FLOAT NULL DEFAULT 0"),
+        ("performance_score", "LEAVE_STARS",            "FLOAT NULL DEFAULT 0"),
+        ("performance_score", "PERMISSION_STARS",       "FLOAT NULL DEFAULT 0"),
         # ---- Geofenced attendance (Module: Geofence) ----
         ("attendance", "CHECKIN_LATITUDE",   "FLOAT NULL"),
         ("attendance", "CHECKIN_LONGITUDE",  "FLOAT NULL"),

@@ -156,7 +156,12 @@ def _serialize_slip(slip: PayrollSlip, employee: Optional[Employee] = None) -> d
         "GROSS_PAY": slip.GROSS_PAY,
         "TOTAL_DEDUCTIONS": slip.TOTAL_DEDUCTIONS,
         "NET_PAY": slip.NET_PAY,
-        "NOTES": slip.NOTES
+        "NOTES": slip.NOTES,
+        "STATUS": slip.STATUS or "PENDING",
+        "PAID_AT": slip.PAID_AT.isoformat() if slip.PAID_AT else None,
+        "PERMISSION_HOURS": slip.PERMISSION_HOURS or 0.0,
+        "PERFORMANCE_STARS": slip.PERFORMANCE_STARS or 0.0,
+        "STAR_BONUS": slip.STAR_BONUS or 0.0
     }
 
 
@@ -304,6 +309,34 @@ def finalize_run(run_id: int, db: Session = Depends(get_db)):
     return {
         "message": f"Run {run.PAY_YEAR}-{run.PAY_MONTH:02d} finalized.",
         "run": _serialize_run(run)
+    }
+
+
+@router.patch("/slips/{slip_id}/mark-paid")
+def mark_slip_paid(slip_id: int, db: Session = Depends(get_db)):
+    """Mark one employee's slip as PAID. Used by the simplified
+    employee-list payroll UI where each row has its own Mark Paid
+    button instead of a run-level workflow."""
+
+    slip = db.query(PayrollSlip).filter(PayrollSlip.ID == slip_id).first()
+
+    if not slip:
+
+        raise HTTPException(status_code=404, detail="Payroll slip not found")
+
+    slip.STATUS = "PAID"
+
+    slip.PAID_AT = datetime.utcnow()
+
+    db.commit()
+
+    employee = db.query(Employee).filter(
+        Employee.ID == slip.EMPLOYEE_ID
+    ).first()
+
+    return {
+        "message": "Slip marked PAID.",
+        "slip": _serialize_slip(slip, employee)
     }
 
 

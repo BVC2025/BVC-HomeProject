@@ -272,10 +272,10 @@ function ScoreCard({ score, onAction }) {
         </div>
       </div>
 
-      <DimRow label="🕒 Attendance" stars={score.ATTENDANCE_STARS} weight="25%" />
-      <DimRow label="✓ Task Completion" stars={score.TASK_STARS} weight="30%" />
-      <DimRow label="⚡ Productivity" stars={score.PRODUCTIVITY_STARS} weight="25%" />
-      <DimRow label="📈 Consistency" stars={score.CONSISTENCY_STARS} weight="20%" />
+      <DimRow label="Task"       stars={score.TASK_STARS}       weight="25%" />
+      <DimRow label="Attendance" stars={score.ATTENDANCE_STARS} weight="25%" />
+      <DimRow label="Leave"      stars={score.LEAVE_STARS}      weight="25%" />
+      <DimRow label="Permission" stars={score.PERMISSION_STARS} weight="25%" />
 
       <div style={{
         marginTop: 12,
@@ -285,11 +285,12 @@ function ScoreCard({ score, onAction }) {
         color: "#64748b",
         display: "flex",
         flexWrap: "wrap",
-        gap: 10
+        gap: 12
       }}>
-        <span>📅 {score.DAYS_PRESENT}/{score.WORKING_DAYS} days</span>
-        <span>✓ {score.TASKS_ON_TIME}/{score.TASKS_ASSIGNED} tasks</span>
-        <span>⏱ {score.ESTIMATED_HOURS}h est · {score.ACTUAL_HOURS}h actual</span>
+        <span>{score.DAYS_PRESENT}/{score.WORKING_DAYS} days</span>
+        <span>{score.TASKS_COMPLETED}/{score.TASKS_ASSIGNED} tasks</span>
+        <span>{Number(score.LEAVE_DAYS_TAKEN || 0).toFixed(1)} unpaid leave</span>
+        <span>{Number(score.PERMISSION_HOURS_TAKEN || 0).toFixed(1)}h permission</span>
       </div>
 
       <div style={{

@@ -1411,47 +1411,18 @@ body {
 
   cursor: pointer;
 
-  transition: all 0.25s ease;
-
-  position: relative;
-
-  overflow: hidden;
-}
-
-.logout-btn::before {
-
-  content: "";
-
-  position: absolute;
-
-  inset: 0;
-
-  background: #ffffff;
-
-  opacity: 0;
-
-  transition: opacity 0.25s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .logout-btn:hover {
 
-  color: #8B0B1F;
+  background: rgba(255,255,255,0.14);
 
-  border-color: #ffffff;
+  border-color: rgba(255,255,255,0.85);
+
+  color: #ffffff;
 
   box-shadow: 0 6px 18px rgba(0,0,0,0.25);
-}
-
-.logout-btn:hover::before {
-
-  opacity: 1;
-}
-
-.logout-btn > * {
-
-  position: relative;
-
-  z-index: 1;
 }
 
 /* ---- NAV LINKS — the bread and butter of the sidebar ---- */

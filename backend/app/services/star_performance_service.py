@@ -1,25 +1,24 @@
 """
 Star-based monthly performance scoring for BVC24.
 
-Four dimensions, weighted average for final overall:
-  Attendance      25%  — days_present / working_days × 5
-  Task Completion 30%  — on_time_completed / assigned × 5
-  Productivity    25%  — estimated_hours / actual_hours × 5  (cap 5)
-  Consistency     20%  — 5 − stddev(weekly_completion_rates)
+Four equal-weight dimensions, averaged for the final overall:
+  Attendance   25%  — days_present / working_days × 5
+  Task         25%  — completed / assigned × 5  (5 if no tasks assigned)
+  Leave        25%  — 5 − unpaid_leave_days       (floor at 0)
+  Permission   25%  — 5 − permission_hours / 4    (floor at 0)
 
 All inputs read live from existing tables:
-  Attendance              → days present, late, half-day
-  TaskAssignment          → tasks assigned + completed + on-time
-  WorkOrderStageProgress  → estimated + actual hours via STARTED_AT/COMPLETED_AT
+  Attendance     → days present, late, half-day
+  TaskAssignment → tasks assigned + completed
+  LeaveRequest   → unpaid leave + permission hours
 
 Scores stored on PerformanceScore (one row per employee × month).
 Re-running the same month overwrites the previous row so the MD
 always sees fresh data.
 
-This module is distinct from the legacy `performance_service.py`
-which scored employees by per-task on-time / minutes-before-deadline.
-That older flow drives the existing MD Review tab; this module
-powers the new Star Performance Rating page.
+The OVERALL_STARS this module produces drives the STAR_BONUS that
+payroll adds on top of the calculated salary
+(see `payroll_service.calculate_star_bonus`).
 """
 
 import calendar
@@ -27,6 +26,7 @@ import statistics
 from datetime import date, datetime, timedelta
 from typing import Dict, Tuple
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.models import (
@@ -36,17 +36,24 @@ from app.models.models import (
     WorkOrderStageProgress,
     ProcessStage,
     Role,
+    LeaveRequest,
     PerformanceScore
 )
 
 
-# Weight per dimension. Must sum to 1.0.
+# Equal weight across all four dimensions. Must sum to 1.0.
 WEIGHTS = {
-    "attendance":  0.25,
-    "task":        0.30,
-    "productivity": 0.25,
-    "consistency": 0.20
+    "attendance": 0.25,
+    "task":       0.25,
+    "leave":      0.25,
+    "permission": 0.25
 }
+
+# Penalty curves — chosen to be intuitive for staff:
+#   1 unpaid leave day  = −1 star  (5 unpaid days → 0★)
+#   4 permission hours  = −1 star  (20h → 0★, roughly half-day×5)
+LEAVE_PENALTY_PER_DAY = 1.0
+PERMISSION_PENALTY_PER_HOUR = 0.25
 
 # Roles excluded from scoring — admins manage the system, they
 # don't run shop-floor work, so their stars would be misleading.
@@ -201,6 +208,65 @@ def _score_task_completion(
     }
 
 
+def _score_leave(
+    db: Session, employee_id: str,
+    year: int, month: int
+) -> Dict:
+    """5★ if no unpaid leave was taken this month. Each unpaid leave
+    day removes 1 star (floor 0). Paid leave (CASUAL/SICK/EARNED) is
+    an entitlement and does not affect the score."""
+
+    first, last = _month_range(year, month)
+
+    unpaid_days = db.query(
+        func.coalesce(func.sum(LeaveRequest.DAYS), 0.0)
+    ).filter(
+        LeaveRequest.EMPLOYEE_ID == employee_id,
+        LeaveRequest.LEAVE_TYPE.in_(["UNPAID", "LOP"]),
+        LeaveRequest.STATUS == "APPROVED",
+        LeaveRequest.START_DATE >= first,
+        LeaveRequest.START_DATE <= last
+    ).scalar() or 0.0
+
+    raw = 5.0 - (unpaid_days * LEAVE_PENALTY_PER_DAY)
+
+    stars = _snap_half_star(raw)
+
+    return {
+        "unpaid_days": round(unpaid_days, 2),
+        "stars": stars
+    }
+
+
+def _score_permission(
+    db: Session, employee_id: str,
+    year: int, month: int
+) -> Dict:
+    """5★ if no permission hours used this month. Each hour removes
+    0.25 stars (i.e. 4h = 1 star, 20h = 0★)."""
+
+    first, last = _month_range(year, month)
+
+    hours = db.query(
+        func.coalesce(func.sum(LeaveRequest.DURATION_HOURS), 0.0)
+    ).filter(
+        LeaveRequest.EMPLOYEE_ID == employee_id,
+        LeaveRequest.LEAVE_TYPE == "PERMISSION",
+        LeaveRequest.STATUS == "APPROVED",
+        LeaveRequest.START_DATE >= first,
+        LeaveRequest.START_DATE <= last
+    ).scalar() or 0.0
+
+    raw = 5.0 - (hours * PERMISSION_PENALTY_PER_HOUR)
+
+    stars = _snap_half_star(raw)
+
+    return {
+        "hours": round(hours, 2),
+        "stars": stars
+    }
+
+
 def _score_productivity(
     db: Session, employee_id: str,
     year: int, month: int
@@ -339,21 +405,19 @@ def compute_performance_for_employee(
 
     working_days = _working_days_in_month(year, month)
 
-    att = _score_attendance(
-        db, employee.ID, year, month, working_days
-    )
+    att  = _score_attendance(db, employee.ID, year, month, working_days)
 
     task = _score_task_completion(db, employee.ID, year, month)
 
-    prod = _score_productivity(db, employee.ID, year, month)
+    leave = _score_leave(db, employee.ID, year, month)
 
-    cons = _score_consistency(db, employee.ID, year, month)
+    perm  = _score_permission(db, employee.ID, year, month)
 
     overall = (
-        att["stars"] * WEIGHTS["attendance"]
-        + task["stars"] * WEIGHTS["task"]
-        + prod["stars"] * WEIGHTS["productivity"]
-        + cons["stars"] * WEIGHTS["consistency"]
+        att["stars"]   * WEIGHTS["attendance"]
+        + task["stars"]  * WEIGHTS["task"]
+        + leave["stars"] * WEIGHTS["leave"]
+        + perm["stars"]  * WEIGHTS["permission"]
     )
 
     overall = _snap_half_star(overall)
@@ -386,17 +450,22 @@ def compute_performance_for_employee(
 
     score.TASKS_ON_TIME = task["on_time"]
 
-    score.ESTIMATED_HOURS = prod["estimated_hours"]
+    score.LEAVE_DAYS_TAKEN = leave["unpaid_days"]
 
-    score.ACTUAL_HOURS = prod["actual_hours"]
+    score.PERMISSION_HOURS_TAKEN = perm["hours"]
 
     score.ATTENDANCE_STARS = att["stars"]
 
     score.TASK_STARS = task["stars"]
 
-    score.PRODUCTIVITY_STARS = prod["stars"]
+    score.LEAVE_STARS = leave["stars"]
 
-    score.CONSISTENCY_STARS = cons["stars"]
+    score.PERMISSION_STARS = perm["stars"]
+
+    # Legacy fields blanked so old data isn't misleading
+    score.PRODUCTIVITY_STARS = 0.0
+
+    score.CONSISTENCY_STARS = 0.0
 
     score.OVERALL_STARS = overall
 

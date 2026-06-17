@@ -35,10 +35,12 @@ from app.models.models import (
     Role,
     PayrollRun,
     PayrollSlip,
+    PerformanceScore,
     SalaryStructure
 )
 
 from app.services.statutory_calc_service import compute_statutory_deductions
+from app.services import star_performance_service
 
 
 # Tunables — same defaults as elsewhere in the app
@@ -47,6 +49,10 @@ PAID_LEAVE_TYPES = {"CASUAL", "SICK", "EARNED", "PAID"}
 UNPAID_LEAVE_TYPES = {"UNPAID", "LOP"}
 
 DEFAULT_TASK_BONUS = 100.0   # ₹ per task COMPLETED in the month
+
+# Star-rating-driven monthly bonus. star_bonus = stars × this.
+# At ₹500/star a 5★ employee earns +₹2,500/month on top of base.
+BONUS_PER_STAR = 500.0
 
 DEFAULT_LATE_PENALTY = 50.0  # ₹ per late check-in
 
@@ -455,6 +461,13 @@ def generate_payroll_run(
 
     total_net = 0.0
 
+    # Pay-period bounds used for the permission-hours rollup below.
+    first_of_month = date(year, month, 1)
+
+    last_day = calendar.monthrange(year, month)[1]
+
+    last_of_month = date(year, month, last_day)
+
     for emp in employees:
 
         breakdown = calculate_employee_payroll(
@@ -463,6 +476,40 @@ def generate_payroll_run(
             task_bonus_per_task=task_bonus_per_task,
             late_penalty_per_day=late_penalty_per_day
         )
+
+        # Permission hours for this employee in the pay period.
+        # PERMISSION rows store duration in LeaveRequest.DURATION_HOURS.
+        permission_hours = db.query(
+            func.coalesce(func.sum(LeaveRequest.DURATION_HOURS), 0.0)
+        ).filter(
+            LeaveRequest.EMPLOYEE_ID == emp.ID,
+            LeaveRequest.LEAVE_TYPE == "PERMISSION",
+            LeaveRequest.STATUS == "APPROVED",
+            LeaveRequest.START_DATE >= first_of_month,
+            LeaveRequest.START_DATE <= last_of_month
+        ).scalar() or 0.0
+
+        # Ensure a fresh PerformanceScore for this employee × month,
+        # then use its OVERALL_STARS to compute the bonus added on top.
+        try:
+
+            perf = star_performance_service.compute_performance_for_employee(
+                db, emp, year, month
+            )
+
+            stars = float(perf.OVERALL_STARS or 0.0)
+
+        except Exception:
+
+            stars = 0.0
+
+        star_bonus = round(stars * BONUS_PER_STAR, 2)
+
+        # Fold the star bonus into gross + net so the salary the
+        # employee receives matches their performance rating.
+        breakdown["gross_pay"]      = round(breakdown["gross_pay"] + star_bonus, 2)
+
+        breakdown["net_pay"]        = round(breakdown["net_pay"] + star_bonus, 2)
 
         slip = PayrollSlip(
             PAYROLL_RUN_ID=run.ID,
@@ -476,6 +523,10 @@ def generate_payroll_run(
             PAID_LEAVE_DAYS=breakdown["paid_leave_days"],
             UNPAID_LEAVE_DAYS=breakdown["unpaid_leave_days"],
             ABSENT_DAYS=breakdown["absent_days"],
+            PERMISSION_HOURS=permission_hours,
+            PERFORMANCE_STARS=stars,
+            STAR_BONUS=star_bonus,
+            STATUS="PENDING",
             TASKS_COMPLETED=breakdown["tasks_completed"],
             TASK_BONUS_PER_TASK=breakdown["task_bonus_per_task"],
             EARNED_BASIC=breakdown["earned_basic"],

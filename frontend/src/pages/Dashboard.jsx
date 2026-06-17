@@ -1491,7 +1491,7 @@ const NAV_GROUPS = [
     label: "Organization",
     items: [
       // { to: "/approvals",         icon: <SidebarIcon name="approvals"   />, label: "Approval Center" },  // temporarily hidden
-      { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },
+      // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // temporarily hidden (RBAC covers same purpose)
       { to: "/rbac",              icon: <SidebarIcon name="rbac"        />, label: "RBAC" },
       { to: "/employees",         icon: <SidebarIcon name="employees"   />, label: "Employees" },
       { to: "/memos",             icon: <SidebarIcon name="memos"       />, label: "Memos" },

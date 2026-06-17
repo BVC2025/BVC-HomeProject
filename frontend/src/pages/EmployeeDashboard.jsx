@@ -285,6 +285,11 @@ function EmployeeDashboardBody() {
   const [toast, setToast]     = useState(null);
   const [tab, setTab]         = useState("pending");
 
+  // Top-level tab for the redesigned employee portal. Splits the long
+  // single-scroll page into focused sections: Overview / Attendance /
+  // Tasks / Leave / Memos / Performance.
+  const [mainTab, setMainTab] = useState("overview");
+
   // ----- legacy supporting state -----
   const [productionStages, setProductionStages] = useState([]);
   const [stageBusy, setStageBusy] = useState({});
@@ -735,99 +740,198 @@ function EmployeeDashboardBody() {
           </div>
         )}
 
-        {/* ---------- 1. PROFILE STRIP ---------- */}
+        {/* ---------- PROFILE STRIP (persistent across all tabs) ---------- */}
         <ProfileStrip
           profile={profile}
           productivity={productivity}
         />
 
-        {/* ---------- 1b. MY ATTENDANCE — check-in / check-out ---------- */}
-        {/* Mirrors the admin Attendance widget but auto-targets the logged-in */}
-        {/* employee. Hits the SAME /check-in and /check-out endpoints, so the */}
-        {/* attendance ledger HR sees stays a single source of truth.          */}
-        <MyAttendancePanel employeeId={employeeId} />
-
-        {/* ---------- 2. KPI GRID ---------- */}
-        <KpiGrid kpis={kpis} />
-
-        {/* ---------- 3. TODAY'S TASKS ---------- */}
-        <TodayTasksCard
-          tasks={taskBuckets.today}
-          busyMap={actionBusy}
-          onUpdate={updateAssignmentStatus}
-        />
-
-        {/* ---------- 4. TABBED TASK LISTS ---------- */}
-        <TabbedTaskLists
-          tab={tab}
-          onTabChange={setTab}
-          counts={{
-            pending:     taskBuckets.pending.length,
-            in_progress: taskBuckets.in_progress.length,
-            on_hold:     taskBuckets.on_hold.length,
-            upcoming:    taskBuckets.upcoming.length,
-            completed:   taskBuckets.completed.length
+        {/* ---------- TAB NAV — focuses each role-task on its own section ---------- */}
+        <PortalTabNav
+          active={mainTab}
+          onChange={setMainTab}
+          badges={{
+            tasks: (taskBuckets.today?.length || 0)
+                 + (taskBuckets.pending?.length || 0),
+            leave: (leaveHistory || []).filter(
+              (l) => l.STATUS === "PENDING_APPROVAL"
+            ).length
           }}
-          tasks={tilesActiveTab}
-          busyMap={actionBusy}
-          onUpdate={updateAssignmentStatus}
         />
 
-        {/* ---------- 5. ASSIGNED PROJECTS ---------- */}
-        <AssignedProjectsCard projects={projects} />
-
-        {/* ---------- 5b. MY MEMOS — employee-side view ---------- */}
-        <MyMemosCard employeeId={employeeId} />
-
-        {/* ---------- 6. PERFORMANCE BREAKDOWN ---------- */}
-        <PerformanceBreakdownCard productivity={productivity} />
-
-        {/* ---------- 7. MONTHLY PRODUCTIVITY CHART ---------- */}
-        <MonthlyProductivityChart data={monthlyChart} />
-
-        {/* ---------- 8. ATTENDANCE SUMMARY ---------- */}
-        <AttendanceSummaryCard attendance={attendance} />
-
-        {/* ---------- 9. REWARDS ---------- */}
-        <RewardsCard productivity={productivity} />
-
-        {/* ---------- (retained) Production Stages ---------- */}
-        {productionStages.length > 0 && (
-          <ProductionStagesSection
-            stages={productionStages}
-            busyMap={stageBusy}
-            onUpdate={updateStage}
-          />
+        {/* ---------- TAB CONTENT ---------- */}
+        {mainTab === "overview" && (
+          <>
+            <KpiGrid kpis={kpis} />
+            <TodayTasksCard
+              tasks={taskBuckets.today}
+              busyMap={actionBusy}
+              onUpdate={updateAssignmentStatus}
+            />
+          </>
         )}
 
-        {/* ---------- AI Leave Chatbot — new feature ---------- */}
-        {/* Sits above the existing form. Does NOT replace it — both    */}
-        {/* coexist. The chatbot calls the same POST /leave/apply       */}
-        {/* endpoint the form does, so the rest of the workflow         */}
-        {/* (HR email, dashboard update, balance deduction) stays put.  */}
-        <LeaveChatbot
-          employeeId={employeeId}
-          onLeaveSubmitted={() => {
-            // Re-fetch so the Leave History panel + balance refresh
-            fetchLeaveHistory?.();
-            fetchLeaveBalance?.();
-          }}
-        />
+        {mainTab === "attendance" && (
+          <>
+            <MyAttendancePanel employeeId={employeeId} />
+            <AttendanceSummaryCard attendance={attendance} />
+          </>
+        )}
 
-        {/* ---------- (retained) Leave & Permission ---------- */}
-        <LeavePermissionSection
-          balance={leaveBalance}
-          leaveHistory={leaveHistory}
-          permissionHistory={permissionHistory}
-          onSubmitLeave={submitLeave}
-          onSubmitPermission={submitPermission}
-          onCancel={cancelLeave}
-        />
+        {mainTab === "tasks" && (
+          <>
+            <TodayTasksCard
+              tasks={taskBuckets.today}
+              busyMap={actionBusy}
+              onUpdate={updateAssignmentStatus}
+            />
+            <TabbedTaskLists
+              tab={tab}
+              onTabChange={setTab}
+              counts={{
+                pending:     taskBuckets.pending.length,
+                in_progress: taskBuckets.in_progress.length,
+                on_hold:     taskBuckets.on_hold.length,
+                upcoming:    taskBuckets.upcoming.length,
+                completed:   taskBuckets.completed.length
+              }}
+              tasks={tilesActiveTab}
+              busyMap={actionBusy}
+              onUpdate={updateAssignmentStatus}
+            />
+            <AssignedProjectsCard projects={projects} />
+            {productionStages.length > 0 && (
+              <ProductionStagesSection
+                stages={productionStages}
+                busyMap={stageBusy}
+                onUpdate={updateStage}
+              />
+            )}
+          </>
+        )}
+
+        {mainTab === "leave" && (
+          <>
+            <LeaveChatbot
+              employeeId={employeeId}
+              onLeaveSubmitted={() => {
+                fetchLeaveHistory?.();
+                fetchLeaveBalance?.();
+              }}
+            />
+            <LeavePermissionSection
+              balance={leaveBalance}
+              leaveHistory={leaveHistory}
+              permissionHistory={permissionHistory}
+              onSubmitLeave={submitLeave}
+              onSubmitPermission={submitPermission}
+              onCancel={cancelLeave}
+            />
+          </>
+        )}
+
+        {mainTab === "memos" && (
+          <MyMemosCard employeeId={employeeId} />
+        )}
+
+        {mainTab === "performance" && (
+          <>
+            <PerformanceBreakdownCard productivity={productivity} />
+            <MonthlyProductivityChart data={monthlyChart} />
+            <RewardsCard productivity={productivity} />
+          </>
+        )}
 
       </main>
 
       <Toast toast={toast} onClose={() => setToast(null)} />
       <ChatBot />
+    </div>
+  );
+}
+
+
+// =================================================================
+// PortalTabNav — top-level tab bar shown directly under the
+// sticky profile strip. Splits the 14 employee-portal widgets into
+// six focused sections so the page no longer feels like one endless
+// scroll. Each tab is just a label + optional red badge; counts come
+// from the parent (today/pending tasks, pending leave requests, etc.).
+// =================================================================
+
+function PortalTabNav({ active, onChange, badges = {} }) {
+
+  const tabs = [
+    { key: "overview",    label: "Overview"    },
+    { key: "attendance",  label: "Attendance"  },
+    { key: "tasks",       label: "Tasks",       badge: badges.tasks },
+    { key: "leave",       label: "Leave",       badge: badges.leave },
+    { key: "memos",       label: "Memos"       },
+    { key: "performance", label: "Performance" }
+  ];
+
+  return (
+    <div
+      style={{
+        background: "white",
+        border: `1px solid ${BVC.BORDER}`,
+        borderRadius: 12,
+        padding: "6px",
+        marginBottom: 18,
+        boxShadow: CARD_SHADOW,
+        display: "flex",
+        gap: 4,
+        overflowX: "auto"
+      }}
+    >
+      {tabs.map((t) => {
+
+        const isOn = t.key === active;
+
+        return (
+          <button
+            key={t.key}
+            onClick={() => onChange(t.key)}
+            style={{
+              background: isOn
+                ? "linear-gradient(135deg, #C8102E 0%, #8B0B1F 100%)"
+                : "transparent",
+              color: isOn ? "white" : "#475569",
+              border: "none",
+              padding: "10px 18px",
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: 0.6,
+              textTransform: "uppercase",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              transition: "background 0.15s, color 0.15s",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              boxShadow: isOn ? "0 4px 12px rgba(139,11,31,0.25)" : "none"
+            }}
+          >
+            <span>{t.label}</span>
+            {!!t.badge && t.badge > 0 && (
+              <span
+                style={{
+                  background: isOn ? "#F4B324" : "#fee2e2",
+                  color: isOn ? "#5a0712" : "#991b1b",
+                  fontSize: 10,
+                  fontWeight: 800,
+                  padding: "1px 7px",
+                  borderRadius: 999,
+                  letterSpacing: 0
+                }}
+              >
+                {t.badge > 99 ? "99+" : t.badge}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }

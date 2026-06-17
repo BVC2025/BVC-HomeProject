@@ -189,74 +189,46 @@ function Reports() {
 
     <div className="reports-page">
 
-      <div className="reports-hero">
-
-        <div className="reports-hero-left">
-
-          <img
-            src="/bharath-logo.png"
-            alt="Bharath Vending Corporation"
-            className="reports-hero-logo"
-          />
-
-          <div>
-
-            <div className="reports-hero-eyebrow">
-              Bharath Vending Corporation
-            </div>
-
-            <h1 className="reports-hero-title" style={{ color: "white" }}>
-              Reports Center
-            </h1>
-
-            <p className="reports-hero-sub">
-              Branded PDF & Excel exports for every
-              operational module — generated live from
-              your data.
-            </p>
-
+      <div style={{
+        background: "linear-gradient(135deg, #C8102E 0%, #A60F26 50%, #8B0B1F 100%)",
+        color: "white",
+        padding: "20px 28px",
+        borderRadius: 14,
+        marginBottom: 22,
+        boxShadow: "0 6px 18px rgba(139,11,31,0.18)",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: 16
+      }}>
+        <div>
+          <div style={{
+            fontSize: 10,
+            letterSpacing: 2,
+            color: "#fde047",
+            fontWeight: 700,
+            textTransform: "uppercase"
+          }}>
+            Analytics
           </div>
-
+          <h1 style={{
+            fontSize: 22,
+            fontWeight: 700,
+            margin: "4px 0 0",
+            lineHeight: 1.2,
+            color: "white",
+            letterSpacing: -0.3
+          }}>
+            Reports
+          </h1>
         </div>
 
-        <div className="reports-hero-stats">
-
-          <div className="reports-stat">
-
-            <span className="reports-stat-value">
-              {MODULES.length}
-            </span>
-
-            <span className="reports-stat-label">
-              Modules
-            </span>
-
-          </div>
-
-          <div className="reports-stat">
-
-            <span className="reports-stat-value">
-              {totalDownloads}
-            </span>
-
-            <span className="reports-stat-label">
-              Recent exports
-            </span>
-
-          </div>
-
-          <div className="reports-stat">
-
-            <span className="reports-stat-value">2</span>
-
-            <span className="reports-stat-label">
-              Formats
-            </span>
-
-          </div>
-
+        <div style={{ display: "flex", gap: 22 }}>
+          <HeroStat label="Modules"        value={MODULES.length} />
+          <HeroStat label="Recent Exports" value={totalDownloads} />
+          <HeroStat label="Formats"        value={2} />
         </div>
-
       </div>
 
       <div className="reports-grid">
@@ -271,13 +243,6 @@ function Reports() {
             >
 
               <div className="report-card-top">
-
-                <div
-                  className="report-icon"
-                  style={{ background: mod.accent }}
-                >
-                  {mod.icon}
-                </div>
 
                 <span className="report-category">
                   {mod.category}
@@ -308,7 +273,6 @@ function Reports() {
                     download(mod.key, "pdf")
                   }
                 >
-                  <span className="report-btn-icon">📄</span>
                   {
                     downloading === `${mod.key}-pdf`
                       ? "Generating…"
@@ -325,7 +289,6 @@ function Reports() {
                     download(mod.key, "xlsx")
                   }
                 >
-                  <span className="report-btn-icon">📊</span>
                   {
                     downloading === `${mod.key}-xlsx`
                       ? "Generating…"
@@ -350,5 +313,35 @@ function Reports() {
     </div>
   );
 }
+
+
+function HeroStat({ label, value }) {
+
+  return (
+    <div style={{ textAlign: "right", minWidth: 80 }}>
+      <div style={{
+        fontSize: 22,
+        fontWeight: 800,
+        color: "#ffffff",
+        letterSpacing: -0.3,
+        lineHeight: 1
+      }}>
+        {value}
+      </div>
+      <div style={{
+        fontSize: 9,
+        opacity: 0.8,
+        letterSpacing: 1.4,
+        textTransform: "uppercase",
+        fontWeight: 600,
+        color: "#fecdd3",
+        marginTop: 4
+      }}>
+        {label}
+      </div>
+    </div>
+  );
+}
+
 
 export default Reports;

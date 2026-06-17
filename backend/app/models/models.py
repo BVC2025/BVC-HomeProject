@@ -2426,6 +2426,26 @@ class PayrollSlip(Base):
 
     NOTES = Column(String(500), nullable=True)
 
+    # Per-slip payment workflow (simpler than run-level statuses).
+    # 'PENDING' on generation; flips to 'PAID' when the admin clicks
+    # Mark Paid against this employee's row.
+    STATUS = Column(String(20), default="PENDING")
+    PAID_AT = Column(DateTime, nullable=True)
+
+    # Sum of LeaveRequest.DURATION_HOURS for TYPE='PERMISSION' rows
+    # falling inside this slip's pay period. Surfaced as an input
+    # column on the employee-list view; does not itself affect pay.
+    PERMISSION_HOURS = Column(Float, default=0.0)
+
+    # Snapshot of the employee's PerformanceScore.OVERALL_STARS for
+    # this pay period (0.0–5.0). Drives STAR_BONUS below.
+    PERFORMANCE_STARS = Column(Float, default=0.0)
+
+    # Star-rating-driven bonus added on top of the salary calculation.
+    # bonus = round(PERFORMANCE_STARS × BONUS_PER_STAR), included in
+    # GROSS_PAY and NET_PAY.
+    STAR_BONUS = Column(Float, default=0.0)
+
     CREATED_AT = Column(DateTime, default=datetime.utcnow)
 
 
@@ -2561,17 +2581,31 @@ class PerformanceScore(Base):
     ACTUAL_HOURS = Column(Float, default=0.0)
     # Sum of actual_hours across the same tasks (from WorkOrderStageProgress)
 
-    # --- Outputs (the 4 star scores + overall) ---
+    # --- Inputs added for the Leave + Permission dimensions ---
+    LEAVE_DAYS_TAKEN = Column(Float, default=0.0)
+    # Approved UNPAID/LOP leave days in this pay period
+
+    PERMISSION_HOURS_TAKEN = Column(Float, default=0.0)
+    # Approved PERMISSION leave duration (hours) in this pay period
+
+    # --- Outputs (4 star scores + overall) ---
+    # Active dimensions (current scheme): attendance + task + leave + permission
     ATTENDANCE_STARS = Column(Float, default=0.0)
 
     TASK_STARS = Column(Float, default=0.0)
 
+    LEAVE_STARS = Column(Float, default=0.0)
+
+    PERMISSION_STARS = Column(Float, default=0.0)
+
+    # Legacy dimensions — no longer used in the overall, kept so old
+    # rows still serialise without a NULL surprise.
     PRODUCTIVITY_STARS = Column(Float, default=0.0)
 
     CONSISTENCY_STARS = Column(Float, default=0.0)
 
     OVERALL_STARS = Column(Float, default=0.0)
-    # weighted average of the four — what UI shows as ⭐⭐⭐⭐½
+    # Equal-weight average of attendance + task + leave + permission
 
     # --- MD actions taken based on this score ---
     RECOMMENDED_FOR_PROMOTION = Column(Integer, default=0)  # 0/1
