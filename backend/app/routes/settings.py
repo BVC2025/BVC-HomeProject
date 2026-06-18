@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from datetime import datetime
 from pathlib import Path
@@ -477,3 +478,49 @@ def remove_company_logo(
     db.commit()
 
     return {"message": "Logo removed.", "company": serialize_company(company)}
+
+
+@router.get("/settings/company/preview-pdf")
+def preview_company_pdf(
+    vendor_id: int = 1,
+    db: Session = Depends(get_db),
+):
+    """Render a sample PDF using the current CompanyMaster values so
+    the admin can see how the header (logo + legal name + tagline +
+    title bar) will appear on real reports BEFORE generating one for
+    a customer. Returned with `inline` disposition so the browser
+    opens it in a tab instead of downloading."""
+
+    # Touch the row so an auto-seeded vendor still works
+    get_company_settings(db, vendor_id)
+
+    from app.routes.reports import build_pdf
+
+    sample_headers = [
+        "Sr. No.", "Item Description", "HSN",
+        "Qty", "Rate (Rs.)", "Amount (Rs.)",
+    ]
+
+    sample_rows = [
+        [1, "Sample Item A - 500ml Bottle", "2202", 100, "12.50",  "1,250.00"],
+        [2, "Sample Item B - 1L Carton",    "2202",  50, "45.00",  "2,250.00"],
+        [3, "Sample Item C - Premium Mix",  "2106",  25, "180.00", "4,500.00"],
+        [4, "Sample Item D - Bulk Pack",    "2202",  10, "320.00", "3,200.00"],
+    ]
+
+    buffer = build_pdf(
+        "Branding Preview",
+        sample_headers,
+        sample_rows,
+    )
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (
+                'inline; filename="company-branding-preview.pdf"'
+            ),
+            "Cache-Control": "no-store",
+        },
+    )

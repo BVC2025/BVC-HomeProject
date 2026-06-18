@@ -25,6 +25,7 @@ export default function CompanySettings() {
   const [original, setOrig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const [error, setError]     = useState("");
   const [toast, setToast]     = useState("");
   const fileRef = useRef(null);
@@ -96,6 +97,35 @@ export default function CompanySettings() {
     if (fileRef.current) fileRef.current.value = "";
   };
 
+  const previewPdf = async () => {
+    if (isDirty) {
+      const ok = window.confirm(
+        "You have unsaved changes. The preview will use the LAST SAVED " +
+        "values, not what's on screen. Save first to preview your " +
+        "current edits.\n\nOpen preview with last-saved values anyway?"
+      );
+      if (!ok) return;
+    }
+    setPreviewing(true);
+    try {
+      const response = await API.get("/settings/company/preview-pdf", {
+        responseType: "blob",
+      });
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const win = window.open(url, "_blank");
+      if (!win) {
+        showToast("Pop-up blocked — allow pop-ups for this site.");
+      }
+      // Revoke after 60s so the browser tab can finish loading
+      setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
+    } catch (e) {
+      setError(e?.response?.data?.detail || "Preview failed.");
+    } finally {
+      setPreviewing(false);
+    }
+  };
+
   const removeLogo = async () => {
     if (!window.confirm("Remove the current logo?")) return;
     try {
@@ -151,23 +181,51 @@ export default function CompanySettings() {
             Order, GRN, Payslip and PDF Report.
           </div>
         </div>
-        <button
-          onClick={save}
-          disabled={!isDirty || saving}
-          style={{
-            padding: "12px 24px",
-            background: !isDirty || saving ? "#94a3b8" : BVC_GOLD,
-            color: "#1A0508",
-            border: "none",
-            borderRadius: 8,
-            fontWeight: 900,
-            fontSize: 13,
-            cursor: !isDirty || saving ? "not-allowed" : "pointer",
-            boxShadow: "0 6px 16px rgba(244,179,36,0.35)",
-          }}
-        >
-          {saving ? "Saving…" : isDirty ? "💾 Save Changes" : "✓ Saved"}
-        </button>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={previewPdf}
+            disabled={previewing}
+            title="Open a sample PDF in a new tab using the last-saved company branding"
+            style={{
+              padding: "12px 18px",
+              background: previewing ? "rgba(255,255,255,0.15)" : "rgba(255,255,255,0.10)",
+              color: "white",
+              border: "1px solid rgba(255,255,255,0.35)",
+              borderRadius: 8,
+              fontWeight: 800,
+              fontSize: 13,
+              cursor: previewing ? "wait" : "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" strokeWidth="2.2"
+                 strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            {previewing ? "Opening…" : "Preview PDF"}
+          </button>
+          <button
+            onClick={save}
+            disabled={!isDirty || saving}
+            style={{
+              padding: "12px 24px",
+              background: !isDirty || saving ? "#94a3b8" : BVC_GOLD,
+              color: "#1A0508",
+              border: "none",
+              borderRadius: 8,
+              fontWeight: 900,
+              fontSize: 13,
+              cursor: !isDirty || saving ? "not-allowed" : "pointer",
+              boxShadow: "0 6px 16px rgba(244,179,36,0.35)",
+            }}
+          >
+            {saving ? "Saving…" : isDirty ? "Save Changes" : "Saved"}
+          </button>
+        </div>
       </div>
 
       {error && (

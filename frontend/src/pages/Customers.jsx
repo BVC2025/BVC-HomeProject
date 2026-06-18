@@ -43,23 +43,104 @@ const SOURCES = [
 
 
 const STATUS_THEMES = {
-  ACTIVE: { bg: "#dcfce7", fg: "#166534", grad: "linear-gradient(135deg,#10b981,#059669)" },
-  PROSPECT: { bg: "#dbeafe", fg: "#1e40af", grad: "linear-gradient(135deg,#C8102E,#8B0B1F)" },
-  LEAD: { bg: "#fef3c7", fg: "#854d0e", grad: "linear-gradient(135deg,#F4B324,#C8102E)" },
+  ACTIVE:   { bg: "#dcfce7", fg: "#166534", grad: "linear-gradient(135deg,#059669,#047857)" },
+  PROSPECT: { bg: "#dbeafe", fg: "#1e40af", grad: "linear-gradient(135deg,#1d4ed8,#1e40af)" },
+  LEAD:     { bg: "#fef3c7", fg: "#854d0e", grad: "linear-gradient(135deg,#F4B324,#B47900)" },
   INACTIVE: { bg: "#f1f5f9", fg: "#475569", grad: "linear-gradient(135deg,#94a3b8,#64748b)" }
 };
 
 
-const INDUSTRY_EMOJI = {
-  "Retail": "🛍️",
-  "Healthcare": "🏥",
-  "Education": "🎓",
-  "Office": "🏢",
-  "Metro / Transport": "🚆",
-  "Hotel / Hospitality": "🏨",
-  "Government": "🏛️",
-  "Manufacturing": "🏭",
-  "Other": "📦"
+// Inline SVGs — keep them tiny so the cards stay light.
+const Icon = {
+  search: (p) => (
+    <svg width={p?.size || 16} height={p?.size || 16} viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </svg>
+  ),
+  users: (p) => (
+    <svg width={p?.size || 18} height={p?.size || 18} viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+  ),
+  check: (p) => (
+    <svg width={p?.size || 18} height={p?.size || 18} viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <polyline points="20 6 9 17 4 12"/>
+    </svg>
+  ),
+  trending: (p) => (
+    <svg width={p?.size || 18} height={p?.size || 18} viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+    </svg>
+  ),
+  receipt: (p) => (
+    <svg width={p?.size || 18} height={p?.size || 18} viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/>
+      <line x1="8" y1="17" x2="16" y2="17"/>
+    </svg>
+  ),
+  pencil: (p) => (
+    <svg width={p?.size || 14} height={p?.size || 14} viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4z"/>
+    </svg>
+  ),
+  doc: (p) => (
+    <svg width={p?.size || 14} height={p?.size || 14} viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+    </svg>
+  ),
+  trash: (p) => (
+    <svg width={p?.size || 14} height={p?.size || 14} viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <polyline points="3 6 5 6 21 6"/>
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+      <line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
+    </svg>
+  ),
+  phone: (p) => (
+    <svg width={p?.size || 12} height={p?.size || 12} viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92z"/>
+    </svg>
+  ),
+  mail: (p) => (
+    <svg width={p?.size || 12} height={p?.size || 12} viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+      <polyline points="22,6 12,13 2,6"/>
+    </svg>
+  ),
+  pin: (p) => (
+    <svg width={p?.size || 12} height={p?.size || 12} viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+      <circle cx="12" cy="10" r="3"/>
+    </svg>
+  ),
+  user: (p) => (
+    <svg width={p?.size || 12} height={p?.size || 12} viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+      <circle cx="12" cy="7" r="4"/>
+    </svg>
+  ),
+  plus: (p) => (
+    <svg width={p?.size || 14} height={p?.size || 14} viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  ),
 };
 
 
@@ -88,8 +169,9 @@ function StatTile({ label, value, sub, color, icon }) {
             position: "absolute",
             top: 14,
             right: 14,
-            fontSize: 22,
-            opacity: 0.85
+            color,
+            opacity: 0.6,
+            display: "flex"
           }}
         >
           {icon}
@@ -155,16 +237,16 @@ function StatusPill({ status }) {
 }
 
 
-// Lead pipeline status pill — different palette + icons so it's
-// visually distinct from the overall customer status.
+// Lead pipeline status pill — distinct palette from overall customer
+// status so the two are visually separable.
 const LEAD_STATUS_THEMES = {
-  NEW: { bg: "#e0e7ff", fg: "#3730a3", icon: "🆕" },
-  CONTACTED: { bg: "#dbeafe", fg: "#1e40af", icon: "📞" },
-  QUALIFIED: { bg: "#cffafe", fg: "#0e7490", icon: "✓" },
-  QUOTED: { bg: "#fef3c7", fg: "#92400e", icon: "📄" },
-  NEGOTIATING: { bg: "#fce7f3", fg: "#9d174d", icon: "💬" },
-  WON: { bg: "#dcfce7", fg: "#166534", icon: "🏆" },
-  LOST: { bg: "#fee2e2", fg: "#991b1b", icon: "❌" }
+  NEW:         { bg: "#e0e7ff", fg: "#3730a3" },
+  CONTACTED:   { bg: "#dbeafe", fg: "#1e40af" },
+  QUALIFIED:   { bg: "#cffafe", fg: "#0e7490" },
+  QUOTED:      { bg: "#fef3c7", fg: "#92400e" },
+  NEGOTIATING: { bg: "#fce7f3", fg: "#9d174d" },
+  WON:         { bg: "#dcfce7", fg: "#166534" },
+  LOST:        { bg: "#fee2e2", fg: "#991b1b" }
 };
 
 
@@ -178,7 +260,6 @@ function LeadStatusPill({ status }) {
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: 3,
         padding: "3px 10px",
         borderRadius: 999,
         fontSize: 10,
@@ -189,7 +270,6 @@ function LeadStatusPill({ status }) {
         textTransform: "uppercase"
       }}
     >
-      <span aria-hidden="true">{t.icon}</span>
       {status}
     </span>
   );
@@ -205,8 +285,6 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
   const status = customer.STATUS || "ACTIVE";
 
   const theme = STATUS_THEMES[status] || STATUS_THEMES.ACTIVE;
-
-  const industryIcon = INDUSTRY_EMOJI[customer.INDUSTRY] || "🏢";
 
   const [deleting, setDeleting] = useState(false);
 
@@ -287,25 +365,21 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
           position: "absolute",
           top: 10,
           right: 78,
-          width: 26,
-          height: 26,
-          borderRadius: "50%",
-          border: "1px solid #fbcfe8",
-          background: "linear-gradient(135deg,#C8102E,#8B0B1F)",
-          color: "white",
+          width: 28,
+          height: 28,
+          borderRadius: 8,
+          border: "1px solid #fecaca",
+          background: "#fef2f2",
+          color: "#8B0B1F",
           cursor: "pointer",
-          fontSize: 12,
-          fontWeight: 700,
-          lineHeight: 1,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           padding: 0,
-          zIndex: 5,
-          boxShadow: "0 4px 10px rgba(200,16,46,0.35)"
+          zIndex: 5
         }}
       >
-        📑
+        <Icon.doc size={14} />
       </button>
 
       <button
@@ -318,16 +392,13 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
           position: "absolute",
           top: 10,
           right: 44,
-          width: 26,
-          height: 26,
-          borderRadius: "50%",
-          border: "1px solid #bae6fd",
-          background: "#f0f9ff",
-          color: "#0369a1",
+          width: 28,
+          height: 28,
+          borderRadius: 8,
+          border: "1px solid #cbd5e1",
+          background: "#f8fafc",
+          color: "#475569",
           cursor: "pointer",
-          fontSize: 12,
-          fontWeight: 700,
-          lineHeight: 1,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -335,7 +406,7 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
           zIndex: 5
         }}
       >
-        ✏️
+        <Icon.pencil size={14} />
       </button>
 
       <button
@@ -346,16 +417,13 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
           position: "absolute",
           top: 10,
           right: 10,
-          width: 26,
-          height: 26,
-          borderRadius: "50%",
+          width: 28,
+          height: 28,
+          borderRadius: 8,
           border: "1px solid #fecaca",
           background: deleting ? "#f1f5f9" : "#fef2f2",
           color: deleting ? "#94a3b8" : "#b91c1c",
           cursor: deleting ? "default" : "pointer",
-          fontSize: 14,
-          fontWeight: 700,
-          lineHeight: 1,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -363,7 +431,7 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
           zIndex: 5
         }}
       >
-        {deleting ? "…" : "×"}
+        <Icon.trash size={14} />
       </button>
 
       <div
@@ -388,31 +456,10 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
             fontSize: 22,
             fontWeight: 800,
             flexShrink: 0,
-            boxShadow: `0 6px 16px ${theme.fg}33`,
-            position: "relative"
+            boxShadow: `0 6px 16px ${theme.fg}33`
           }}
         >
           {(customer.CUSTOMER_NAME || "?").charAt(0).toUpperCase()}
-
-          <span
-            style={{
-              position: "absolute",
-              bottom: -4,
-              right: -4,
-              background: "white",
-              borderRadius: "50%",
-              width: 22,
-              height: 22,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 12,
-              boxShadow: "0 2px 6px rgba(15,23,42,0.18)",
-              border: "1px solid #e2e8f0"
-            }}
-          >
-            {industryIcon}
-          </span>
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -457,7 +504,7 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
                 color: "#991b1b",
                 letterSpacing: 0.4
               }}>
-                🔥 HIGH
+                HIGH PRIORITY
               </span>
             )}
           </div>
@@ -467,14 +514,14 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
       {customer.ASSIGNED_SALES_NAME && (
         <div style={{
           fontSize: 11,
-          color: "#64748b",
+          color: "#475569",
           marginBottom: 10,
-          background: "#fdf2f8",
+          background: "#f8fafc",
           padding: "5px 10px",
           borderRadius: 6,
-          border: "1px solid #fbcfe8"
+          border: "1px solid #e2e8f0"
         }}>
-          🎯 Sales: <strong style={{ color: "#9d174d" }}>
+          Sales owner: <strong style={{ color: "#0f172a" }}>
             {customer.ASSIGNED_SALES_NAME}
           </strong>
         </div>
@@ -490,7 +537,7 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
           borderRadius: 6,
           border: "1px solid #fde68a"
         }}>
-          📞 Follow-up: <strong>{customer.FOLLOW_UP_DATE}</strong>
+          Follow-up: <strong>{customer.FOLLOW_UP_DATE}</strong>
         </div>
       )}
 
@@ -502,32 +549,45 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
           marginBottom: 10,
           fontSize: 12,
           color: "#475569",
-          lineHeight: 1.5
+          lineHeight: 1.6
         }}
       >
         {customer.CONTACT_PERSON && (
-          <div style={{ color: "#0f172a", fontWeight: 600 }}>
-            👤 {customer.CONTACT_PERSON}
-            {customer.DESIGNATION && (
-              <span style={{ color: "#64748b", fontWeight: 400 }}>
-                {" · "}{customer.DESIGNATION}
-              </span>
-            )}
+          <div style={{ color: "#0f172a", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+            <Icon.user />
+            <span>
+              {customer.CONTACT_PERSON}
+              {customer.DESIGNATION && (
+                <span style={{ color: "#64748b", fontWeight: 400 }}>
+                  {" · "}{customer.DESIGNATION}
+                </span>
+              )}
+            </span>
           </div>
         )}
-        <div>📞 {customer.PHONE || "—"}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <Icon.phone />
+          <span>{customer.PHONE || "—"}</span>
+        </div>
         <div
           style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis"
           }}
         >
-          ✉️ {customer.EMAIL || "—"}
+          <Icon.mail />
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+            {customer.EMAIL || "—"}
+          </span>
         </div>
         {(customer.CITY || customer.STATE) && (
-          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
-            📍 {[customer.CITY, customer.STATE].filter(Boolean).join(", ")}
+          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}>
+            <Icon.pin />
+            <span>{[customer.CITY, customer.STATE].filter(Boolean).join(", ")}</span>
           </div>
         )}
       </div>
@@ -574,7 +634,7 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
             }}
             title="GST registered"
           >
-            GST ✓
+            GST
           </span>
         )}
       </div>
@@ -582,16 +642,17 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
       <div
         style={{
           padding: "8px 12px",
-          background: "linear-gradient(135deg, #fef2f2 0%, #fff4e6 100%)",
+          background: "#f8fafc",
           borderRadius: 8,
           fontSize: 11,
-          color: "#4338ca",
+          color: "#475569",
           fontWeight: 700,
           textAlign: "center",
-          letterSpacing: 0.4
+          letterSpacing: 0.4,
+          border: "1px solid #e2e8f0"
         }}
       >
-        Open 360° → projects, machines & BOM ✨
+        View profile &rarr;
       </div>
     </div>
   );
@@ -748,8 +809,8 @@ function RequirementsManager({ customerId }) {
           marginBottom: 12
         }}
       >
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.4, color: "#10b981", textTransform: "uppercase" }}>
-          📋 Customer Requirements ({rows.length})
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.4, color: "#0f172a", textTransform: "uppercase" }}>
+          Requirements ({rows.length})
         </div>
 
         <button
@@ -757,17 +818,20 @@ function RequirementsManager({ customerId }) {
           onClick={() => setEditing("new")}
           style={{
             border: "none",
-            background: "linear-gradient(135deg,#10b981,#059669)",
+            background: "#0f172a",
             color: "white",
             padding: "7px 14px",
             borderRadius: 8,
             fontWeight: 700,
             fontSize: 12,
             cursor: "pointer",
-            boxShadow: "0 4px 12px rgba(16,185,129,0.35)"
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6
           }}
         >
-          ➕ Add Requirement
+          <Icon.plus size={12} />
+          Add requirement
         </button>
       </div>
 
@@ -858,29 +922,29 @@ function RequirementsManager({ customerId }) {
 
                     <div style={{ fontSize: 12, color: "#475569", display: "flex", gap: 14, flexWrap: "wrap" }}>
                       {r.MACHINE_CATEGORY && (
-                        <span>📦 {r.MACHINE_CATEGORY}</span>
+                        <span>Category: <b>{r.MACHINE_CATEGORY}</b></span>
                       )}
-                      <span>🔢 Qty: <b>{r.QUANTITY || 1}</b></span>
+                      <span>Qty: <b>{r.QUANTITY || 1}</b></span>
                       {r.CAPACITY && (
-                        <span>📏 {r.CAPACITY}</span>
+                        <span>Capacity: <b>{r.CAPACITY}</b></span>
                       )}
                       {r.TARGET_UNIT_PRICE && (
-                        <span>💰 ₹{Number(r.TARGET_UNIT_PRICE).toLocaleString("en-IN")}/unit</span>
+                        <span>Target: <b>&#8377;{Number(r.TARGET_UNIT_PRICE).toLocaleString("en-IN")}/unit</b></span>
                       )}
                       {r.TARGET_DELIVERY_DATE && (
-                        <span>📅 by {r.TARGET_DELIVERY_DATE}</span>
+                        <span>By <b>{r.TARGET_DELIVERY_DATE}</b></span>
                       )}
                     </div>
 
                     {r.INSTALLATION_SITE && (
                       <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
-                        📍 {r.INSTALLATION_SITE}
+                        Site: {r.INSTALLATION_SITE}
                       </div>
                     )}
 
                     {r.SPECIAL_NOTES && (
                       <div style={{ fontSize: 12, color: "#64748b", marginTop: 6, fontStyle: "italic" }}>
-                        “{r.SPECIAL_NOTES}”
+                        &ldquo;{r.SPECIAL_NOTES}&rdquo;
                       </div>
                     )}
                   </div>
@@ -892,9 +956,9 @@ function RequirementsManager({ customerId }) {
                         onClick={async () => {
 
                           if (!window.confirm(
-                            "🚀 Convert this requirement into a Project?\n\n" +
-                            "This will create a project, seed product stages,\n" +
-                            "auto-assign tasks to skilled employees, and\n" +
+                            "Convert this requirement into a Project?\n\n" +
+                            "This will create a project, seed product stages, " +
+                            "auto-assign tasks to skilled employees, and " +
                             "mark this requirement as ORDERED."
                           )) return;
 
@@ -904,7 +968,7 @@ function RequirementsManager({ customerId }) {
                               `/customers/${customerId}/requirements/${r.ID}/to-project`
                             );
 
-                            alert("✅ " + (res.data?.message || "Project created"));
+                            alert(res.data?.message || "Project created");
 
                             load();
 
@@ -915,9 +979,9 @@ function RequirementsManager({ customerId }) {
                         }}
                         title="Convert to Project"
                         style={{
-                          border: "1px solid #c7d2fe",
-                          background: "#eef2ff",
-                          color: "#4338ca",
+                          border: "1px solid #cbd5e1",
+                          background: "#0f172a",
+                          color: "white",
                           padding: "5px 10px",
                           borderRadius: 6,
                           cursor: "pointer",
@@ -925,7 +989,7 @@ function RequirementsManager({ customerId }) {
                           fontWeight: 700
                         }}
                       >
-                        🚀 Project
+                        Convert to project
                       </button>
                     )}
 
@@ -936,13 +1000,15 @@ function RequirementsManager({ customerId }) {
                       style={{
                         border: "1px solid #cbd5e1",
                         background: "white",
-                        padding: "5px 10px",
+                        padding: "5px 8px",
                         borderRadius: 6,
                         cursor: "pointer",
-                        fontSize: 11
+                        display: "inline-flex",
+                        alignItems: "center",
+                        color: "#475569"
                       }}
                     >
-                      ✏️
+                      <Icon.pencil size={13} />
                     </button>
                     <button
                       type="button"
@@ -952,13 +1018,14 @@ function RequirementsManager({ customerId }) {
                         border: "1px solid #fecaca",
                         background: "#fef2f2",
                         color: "#b91c1c",
-                        padding: "5px 10px",
+                        padding: "5px 8px",
                         borderRadius: 6,
                         cursor: "pointer",
-                        fontSize: 11
+                        display: "inline-flex",
+                        alignItems: "center"
                       }}
                     >
-                      🗑
+                      <Icon.trash size={13} />
                     </button>
                   </div>
                 </div>
@@ -1050,15 +1117,15 @@ function RequirementForm({ customerId, initial, products, onCancel, onSaved }) {
 
     <div
       style={{
-        border: "1px solid #10b981",
+        border: "1px solid #e2e8f0",
         borderRadius: 12,
-        background: "linear-gradient(180deg,#f0fdf4,#ffffff)",
+        background: "#f8fafc",
         padding: 16,
         marginBottom: 18
       }}
     >
-      <div style={{ fontSize: 12, fontWeight: 800, color: "#047857", marginBottom: 12, letterSpacing: 0.8 }}>
-        {isEdit ? "✏️ EDIT REQUIREMENT" : "➕ NEW REQUIREMENT"}
+      <div style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", marginBottom: 12, letterSpacing: 0.8 }}>
+        {isEdit ? "EDIT REQUIREMENT" : "NEW REQUIREMENT"}
       </div>
 
       <div
@@ -1208,9 +1275,7 @@ function RequirementForm({ customerId, initial, products, onCancel, onSaved }) {
           disabled={saving}
           style={{
             border: "none",
-            background: saving
-              ? "#94a3b8"
-              : "linear-gradient(135deg,#10b981,#059669)",
+            background: saving ? "#94a3b8" : "#0f172a",
             color: "white",
             padding: "8px 20px",
             borderRadius: 8,
@@ -1219,7 +1284,7 @@ function RequirementForm({ customerId, initial, products, onCancel, onSaved }) {
             cursor: saving ? "not-allowed" : "pointer"
           }}
         >
-          {saving ? "Saving…" : isEdit ? "💾 Update" : "💾 Save"}
+          {saving ? "Saving…" : isEdit ? "Update" : "Save"}
         </button>
       </div>
     </div>
@@ -1363,8 +1428,8 @@ function CustomerQuotationsSection({ customerId, onJumpToQuotations }) {
           marginBottom: 12
         }}
       >
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.4, color: "#6366f1", textTransform: "uppercase" }}>
-          📄 Quotations ({quotations.length})
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.4, color: "#0f172a", textTransform: "uppercase" }}>
+          Quotations ({quotations.length})
         </div>
 
         <div style={{ display: "flex", gap: 6 }}>
@@ -1373,17 +1438,16 @@ function CustomerQuotationsSection({ customerId, onJumpToQuotations }) {
             onClick={openPicker}
             style={{
               border: "none",
-              background: "linear-gradient(135deg,#06b6d4,#C8102E,#8B0B1F)",
+              background: "linear-gradient(135deg,#C8102E,#8B0B1F)",
               color: "white",
               padding: "7px 14px",
               borderRadius: 8,
               fontWeight: 700,
               fontSize: 12,
-              cursor: "pointer",
-              boxShadow: "0 4px 12px rgba(99,102,241,0.35)"
+              cursor: "pointer"
             }}
           >
-            ✨ Create from Requirements
+            Create from requirements
           </button>
 
           <button
@@ -1399,7 +1463,7 @@ function CustomerQuotationsSection({ customerId, onJumpToQuotations }) {
               fontSize: 12
             }}
           >
-            ↗ Open Quotations
+            Open quotations &rarr;
           </button>
         </div>
       </div>
@@ -1489,10 +1553,11 @@ function CustomerQuotationsSection({ customerId, onJumpToQuotations }) {
                       padding: "5px 10px",
                       borderRadius: 6,
                       cursor: "pointer",
-                      fontSize: 11
+                      fontSize: 11,
+                      color: "#475569"
                     }}
                   >
-                    🖨️
+                    View
                   </button>
                 </div>
               </div>
@@ -1549,14 +1614,14 @@ function RequirementPickerModal({
         }}
       >
         <div style={{ fontSize: 17, fontWeight: 800, color: "#0f172a", marginBottom: 12 }}>
-          ✨ Create Quotation from Requirements
+          Create quotation from requirements
         </div>
 
         {requirements.length === 0 && (
           <div style={{ padding: 16, background: "#fef3c7", borderRadius: 8, color: "#854d0e", fontSize: 13, marginBottom: 12 }}>
-            ⚠️ No quotable requirements found. Only DRAFT or CONFIRMED
+            No quotable requirements found. Only DRAFT or CONFIRMED
             requirements can be used. Already-QUOTED requirements
-            won't appear here.
+            won&apos;t appear here.
           </div>
         )}
 
@@ -1663,17 +1728,17 @@ function RequirementPickerModal({
                 border: "none",
                 background: creating || picked.size === 0
                   ? "#94a3b8"
-                  : "linear-gradient(135deg,#06b6d4,#C8102E,#8B0B1F)",
+                  : "linear-gradient(135deg,#C8102E,#8B0B1F)",
                 color: "white",
                 padding: "9px 22px",
                 borderRadius: 8,
                 fontWeight: 800,
                 fontSize: 13,
                 cursor: (creating || picked.size === 0) ? "not-allowed" : "pointer",
-                boxShadow: "0 6px 18px rgba(14,165,233,0.45)"
+                boxShadow: "0 6px 18px rgba(200,16,46,0.35)"
               }}
             >
-              {creating ? "Creating…" : `✨ Create from ${picked.size} requirement(s)`}
+              {creating ? "Creating…" : `Create from ${picked.size} requirement(s)`}
             </button>
           )}
         </div>
@@ -1815,7 +1880,7 @@ function CustomerEditor({ initial, onClose, onSaved }) {
 
           alert(
             `Customer saved.\n\n` +
-            `🏭 ${prod.model_name} (${prod.model_code}) ${verb} in Products & BOM.\n` +
+            `${prod.model_name} (${prod.model_code}) ${verb} in Products & BOM.\n` +
             `It's now available in the Work Order "Pick a model" dropdown.`
           );
         }
@@ -1994,24 +2059,22 @@ function CustomerEditor({ initial, onClose, onSaved }) {
             </FormField>
           </div>
 
-          {/* ============================================== */}
-          {/*  🎯 LEAD MANAGEMENT (Phase 1)                  */}
-          {/* ============================================== */}
+          {/* Lead pipeline */}
           <div style={{
             fontSize: 11,
             fontWeight: 700,
             letterSpacing: 1.4,
-            color: "#ec4899",
+            color: "#0f172a",
             textTransform: "uppercase",
             marginBottom: 10,
             display: "flex",
             alignItems: "center",
             gap: 8
           }}>
-            🎯 Lead Pipeline
+            Lead pipeline
             <span style={{
-              background: "#fce7f3",
-              color: "#9d174d",
+              background: "#f1f5f9",
+              color: "#475569",
               padding: "2px 8px",
               borderRadius: 999,
               fontSize: 9,
@@ -2027,8 +2090,8 @@ function CustomerEditor({ initial, onClose, onSaved }) {
             gap: 12,
             marginBottom: 14,
             padding: 14,
-            background: "linear-gradient(135deg, #fdf2f8, #fce7f3)",
-            border: "1px solid #fbcfe8",
+            background: "#f8fafc",
+            border: "1px solid #e2e8f0",
             borderRadius: 10
           }}>
 
@@ -2055,13 +2118,13 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                 onChange={set("LEAD_STATUS")}
                 style={inputStyle()}
               >
-                <option value="NEW">🆕 New</option>
-                <option value="CONTACTED">📞 Contacted</option>
-                <option value="QUALIFIED">✓ Qualified</option>
-                <option value="QUOTED">📄 Quoted</option>
-                <option value="NEGOTIATING">💬 Negotiating</option>
-                <option value="WON">🏆 Won</option>
-                <option value="LOST">❌ Lost</option>
+                <option value="NEW">New</option>
+                <option value="CONTACTED">Contacted</option>
+                <option value="QUALIFIED">Qualified</option>
+                <option value="QUOTED">Quoted</option>
+                <option value="NEGOTIATING">Negotiating</option>
+                <option value="WON">Won</option>
+                <option value="LOST">Lost</option>
               </select>
             </FormField>
 
@@ -2071,9 +2134,9 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                 onChange={set("LEAD_PRIORITY")}
                 style={inputStyle()}
               >
-                <option value="HIGH">🔥 High</option>
-                <option value="MEDIUM">⚡ Medium</option>
-                <option value="LOW">🌱 Low</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="LOW">Low</option>
               </select>
             </FormField>
 
@@ -2120,23 +2183,23 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                 fontSize: 11,
                 fontWeight: 700,
                 letterSpacing: 1.4,
-                color: "#f59e0b",
+                color: "#0f172a",
                 textTransform: "uppercase",
                 marginBottom: 10,
                 display: "flex",
                 alignItems: "center",
                 gap: 8
               }}>
-                🏭 Vending Machine Requested
+                Machine requested
                 <span style={{
-                  background: "#fef3c7",
-                  color: "#92400e",
+                  background: "#f1f5f9",
+                  color: "#475569",
                   padding: "2px 8px",
                   borderRadius: 999,
                   fontSize: 9,
                   letterSpacing: 0.5
                 }}>
-                  AUTO-CREATES IN PRODUCTS & BOM
+                  AUTO-CREATES IN PRODUCTS &amp; BOM
                 </span>
               </div>
 
@@ -2147,8 +2210,8 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                   gap: 12,
                   marginBottom: 18,
                   padding: 14,
-                  background: "linear-gradient(135deg, #fffbeb, #fef3c7)",
-                  border: "1px solid #fde68a",
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
                   borderRadius: 10
                 }}
               >
@@ -2206,13 +2269,13 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                 <div style={{
                   gridColumn: "1 / -1",
                   fontSize: 11,
-                  color: "#78350f",
+                  color: "#475569",
                   marginTop: -4
                 }}>
-                  💡 If the machine doesn't exist in Products & BOM,
-                  it'll be auto-created with the default 10-stage
+                  If the machine doesn&apos;t exist in Products &amp; BOM,
+                  it&apos;ll be auto-created with the default 10-stage
                   manufacturing flow + 62-line BOM template. Already
-                  exists? It's linked, no duplicate.
+                  exists? It&apos;s linked, no duplicate.
                 </div>
 
               </div>
@@ -2305,11 +2368,9 @@ function CustomerEditor({ initial, onClose, onSaved }) {
             </FormField>
           </div>
 
-          {/* ============================================== */}
-          {/*  🏢 BUSINESS PROFILE                           */}
-          {/* ============================================== */}
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.4, color: "#0ea5e9", textTransform: "uppercase", marginBottom: 10 }}>
-            🏢 Business Profile
+          {/* Business profile */}
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.4, color: "#0f172a", textTransform: "uppercase", marginBottom: 10 }}>
+            Business profile
           </div>
 
           <div
@@ -2394,14 +2455,12 @@ function CustomerEditor({ initial, onClose, onSaved }) {
             </FormField>
           </div>
 
-          {/* ============================================== */}
-          {/*  📋 PHASE 2 — REQUIREMENTS (edit mode only)    */}
-          {/* ============================================== */}
+          {/* Requirements (edit mode only) */}
           {isEdit && (
             <div
               style={{
-                background: "linear-gradient(135deg,#ecfdf5,#f0fdf4)",
-                border: "1px solid #bbf7d0",
+                background: "white",
+                border: "1px solid #e2e8f0",
                 borderRadius: 12,
                 padding: 16,
                 marginBottom: 18
@@ -2411,14 +2470,12 @@ function CustomerEditor({ initial, onClose, onSaved }) {
             </div>
           )}
 
-          {/* ============================================== */}
-          {/*  📄 PHASE 3 — QUOTATIONS for this customer     */}
-          {/* ============================================== */}
+          {/* Quotations for this customer */}
           {isEdit && (
             <div
               style={{
-                background: "linear-gradient(135deg,#eef2ff,#f5f3ff)",
-                border: "1px solid #c7d2fe",
+                background: "white",
+                border: "1px solid #e2e8f0",
                 borderRadius: 12,
                 padding: 16,
                 marginBottom: 18
@@ -2437,7 +2494,7 @@ function CustomerEditor({ initial, onClose, onSaved }) {
           {!isEdit && (
             <div
               style={{
-                background: "#fafafa",
+                background: "#f8fafc",
                 border: "1px dashed #cbd5e1",
                 borderRadius: 10,
                 padding: 12,
@@ -2446,7 +2503,7 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                 color: "#64748b"
               }}
             >
-              💡 Save this customer first — once created, you can add a
+              Save this customer first &mdash; once created, you can add a
               full list of vending-machine requirements with quantities,
               specs and target dates.
             </div>
@@ -2517,21 +2574,21 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                 border: "none",
                 background: saving
                   ? "#94a3b8"
-                  : "linear-gradient(135deg, #E63946, #C8102E, #8B0B1F)",
+                  : "linear-gradient(135deg, #C8102E, #8B0B1F)",
                 color: "white",
                 padding: "10px 26px",
                 borderRadius: 8,
                 fontWeight: 800,
                 fontSize: 13,
                 cursor: saving ? "not-allowed" : "pointer",
-                boxShadow: "0 6px 18px rgba(14,165,233,0.45)"
+                boxShadow: "0 6px 18px rgba(200,16,46,0.35)"
               }}
             >
               {saving
                 ? "Saving…"
                 : isEdit
-                  ? "💾 Save Changes"
-                  : "✨ Create Customer"}
+                  ? "Save changes"
+                  : "Create customer"}
             </button>
           </div>
         </form>
@@ -2752,31 +2809,31 @@ function Customers() {
         }}
       >
         <StatTile
-          label="Total Customers"
+          label="Total customers"
           value={stats.total}
-          color="#06b6d4"
-          icon="🤝"
+          color="#0f172a"
+          icon={<Icon.users size={22} />}
         />
         <StatTile
           label="Active"
           value={stats.active}
           sub="receiving orders"
-          color="#10b981"
-          icon="✓"
+          color="#059669"
+          icon={<Icon.check size={22} />}
         />
         <StatTile
-          label="Prospects + Leads"
+          label="Prospects + leads"
           value={stats.prospects}
           sub="in the pipeline"
-          color="#f59e0b"
-          icon="🌱"
+          color="#B47900"
+          icon={<Icon.trending size={22} />}
         />
         <StatTile
           label="With GST"
           value={stats.withGst}
           sub="invoice-ready"
-          color="#8b5cf6"
-          icon="🧾"
+          color="#1d4ed8"
+          icon={<Icon.receipt size={22} />}
         />
       </div>
 
@@ -2795,20 +2852,33 @@ function Customers() {
         }}
       >
 
-        <input
-          type="text"
-          placeholder="🔍 Search by name, code, contact, phone, GST, city..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{
-            flex: 1,
-            minWidth: 260,
-            padding: "10px 14px",
-            border: "1px solid #e2e8f0",
-            borderRadius: 8,
-            fontSize: 13
-          }}
-        />
+        <div style={{ position: "relative", flex: 1, minWidth: 260 }}>
+          <span style={{
+            position: "absolute",
+            left: 12,
+            top: "50%",
+            transform: "translateY(-50%)",
+            color: "#94a3b8",
+            display: "flex",
+            pointerEvents: "none"
+          }}>
+            <Icon.search size={16} />
+          </span>
+          <input
+            type="text"
+            placeholder="Search by name, code, contact, phone, GST, city..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "10px 14px 10px 36px",
+              border: "1px solid #e2e8f0",
+              borderRadius: 8,
+              fontSize: 13,
+              boxSizing: "border-box"
+            }}
+          />
+        </div>
 
         <select
           value={industryFilter}
@@ -2873,7 +2943,7 @@ function Customers() {
           }}
         >
           {customers.length === 0
-            ? "No customers yet. Click ➕ Add Customer to create the first one."
+            ? "No customers yet. Click + Add Customer to create the first one."
             : "No customers match these filters."}
         </div>
       )}
@@ -3097,25 +3167,24 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
             alignItems: "center",
             gap: 12,
             padding: "12px 14px",
-            border: "1px solid #bbf7d0",
-            background: "linear-gradient(135deg,#f0fdf4,#dcfce7)",
+            border: "1px solid #e2e8f0",
+            background: "#f8fafc",
             borderRadius: 12,
             marginBottom: 18
           }}>
             <div style={{
               width: 38, height: 38, borderRadius: 10,
-              background: "linear-gradient(135deg,#10b981,#059669)",
+              background: "#0f172a",
               color: "white",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontWeight: 800, fontSize: 18,
-              boxShadow: "0 4px 12px rgba(16,185,129,0.35)"
+              fontWeight: 800, fontSize: 16
             }}>
-              ✓
+              {(customer?.CUSTOMER_NAME || "?").charAt(0).toUpperCase()}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{
                 fontSize: 10, fontWeight: 800,
-                letterSpacing: 1.2, color: "#166534"
+                letterSpacing: 1.2, color: "#475569"
               }}>
                 CUSTOMER
               </div>
@@ -3147,7 +3216,7 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                   color: "#991b1b", border: "1px solid #fecaca",
                   borderRadius: 8, fontSize: 13, marginBottom: 14
                 }}>
-                  ⚠ {error}
+                  {error}
                 </div>
               )}
 
@@ -3161,12 +3230,12 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                   lineHeight: 1.5
                 }}>
                   <div style={{ fontWeight: 800, marginBottom: 4 }}>
-                    ⚠ This customer has no active requirements yet
+                    This customer has no active requirements yet
                   </div>
                   <div style={{ marginBottom: 10 }}>
                     A quotation needs at least one requirement (which
                     vending machine, how many). Click below to open the
-                    customer's profile and add one — then come back here
+                    customer&apos;s profile and add one &mdash; then come back here
                     and click <b>Generate Quotation</b> again.
                   </div>
                   <button
@@ -3190,7 +3259,7 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                       boxShadow: "0 6px 18px rgba(200,16,46,0.35)"
                     }}
                   >
-                    📋 Open Customer → Add a Requirement
+                    Open customer &rarr; Add a requirement
                   </button>
                 </div>
               )}
@@ -3271,8 +3340,8 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                   alignItems: "center",
                   gap: 10,
                   padding: "10px 12px",
-                  background: "#fef2f2",
-                  border: "1px solid #fecaca",
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
                   borderRadius: 10,
                   cursor: "pointer",
                   marginBottom: 16
@@ -3284,11 +3353,11 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                     style={{ width: 18, height: 18 }}
                   />
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#991b1b" }}>
-                      📧 Auto-send email to customer
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+                      Auto-send email to customer
                     </div>
-                    <div style={{ fontSize: 11, color: "#7f1d1d", marginTop: 2 }}>
-                      Quotation goes out the moment it's generated. Uncheck
+                    <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+                      Quotation goes out the moment it&apos;s generated. Uncheck
                       to keep it as a DRAFT for review.
                     </div>
                   </div>
@@ -3296,8 +3365,8 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
 
                 {/* What will be auto-filled callout */}
                 <div style={{
-                  background: "linear-gradient(135deg, #fff7ed, #ffedd5)",
-                  border: "1.5px solid #F4B324",
+                  background: "#fffbeb",
+                  border: "1px solid #F4B324",
                   borderRadius: 12,
                   padding: "12px 14px",
                   marginBottom: 16
@@ -3307,7 +3376,7 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                     letterSpacing: 1.2, color: "#8B4500",
                     marginBottom: 6
                   }}>
-                    ✨ WHAT WILL BE AUTO-FILLED
+                    WHAT WILL BE AUTO-FILLED
                   </div>
                   <ul style={{
                     margin: 0,
@@ -3355,7 +3424,7 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                       boxShadow: "0 6px 18px rgba(200,16,46,0.35)"
                     }}
                   >
-                    {submitting ? "Generating…" : "🤖 Generate Quotation"}
+                    {submitting ? "Generating…" : "Generate quotation"}
                   </button>
                 </div>
               </form>
@@ -3364,8 +3433,8 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
 
           {result && (
             <div style={{
-              background: "linear-gradient(135deg,#f0fdf4,#dcfce7)",
-              border: "2px solid #16a34a",
+              background: "#f0fdf4",
+              border: "1px solid #16a34a",
               borderRadius: 14,
               padding: 18,
               marginBottom: 8
@@ -3375,7 +3444,7 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                 letterSpacing: 1.5, color: "#14532d",
                 marginBottom: 8
               }}>
-                ✅ QUOTATION GENERATED
+                QUOTATION GENERATED
               </div>
 
               <div style={{
@@ -3414,7 +3483,7 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                   borderRadius: 999,
                   fontSize: 11, fontWeight: 800, letterSpacing: 0.5
                 }}>
-                  📧 Emailed to {customer?.EMAIL || "customer"}
+                  Emailed to {customer?.EMAIL || "customer"}
                 </div>
               )}
 
@@ -3428,9 +3497,9 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                   borderRadius: 8,
                   fontSize: 12
                 }}>
-                  ⚠ Email could not be sent
+                  Email could not be sent
                   {result.email_status ? `: ${result.email_status}` : ""}.
-                  Quotation kept as DRAFT — you can retry from the
+                  Quotation kept as DRAFT &mdash; you can retry from the
                   Quotations page.
                 </div>
               )}
@@ -3448,7 +3517,7 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                     letterSpacing: 1, color: "#92400e",
                     marginBottom: 4
                   }}>
-                    ⚠ WARNINGS
+                    WARNINGS
                   </div>
                   <ul style={{
                     margin: 0, paddingLeft: 18,
@@ -3496,7 +3565,7 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                       cursor: "pointer"
                     }}
                   >
-                    {linkCopied ? "✓ Copied!" : "📋 Copy public link"}
+                    {linkCopied ? "Copied" : "Copy public link"}
                   </button>
                 )}
 
@@ -3704,7 +3773,7 @@ function InviteCustomerModal({ onClose }) {
                   color: "#991b1b", border: "1px solid #fecaca",
                   borderRadius: 8, fontSize: 13, marginBottom: 12
                 }}>
-                  ⚠ {error}
+                  {error}
                 </div>
               )}
 
@@ -3720,21 +3789,21 @@ function InviteCustomerModal({ onClose }) {
                   boxShadow: "0 6px 18px rgba(200,16,46,0.35)"
                 }}
               >
-                {loading ? "Generating…" : "🔗 Generate Invitation Link"}
+                {loading ? "Generating…" : "Generate invitation link"}
               </button>
             </form>
           )}
 
           {result && (
             <div style={{
-              background: "linear-gradient(135deg, #fff7ed, #ffedd5)",
-              border: "2px solid #F4B324",
+              background: "#fffbeb",
+              border: "1px solid #F4B324",
               borderRadius: 12,
               padding: "16px 18px",
               marginBottom: 16
             }}>
               <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, color: "#8B4500", marginBottom: 8 }}>
-                ✅ INVITATION CREATED
+                INVITATION CREATED
               </div>
               <div style={{
                 background: "white", padding: 10, borderRadius: 8,
@@ -3755,7 +3824,7 @@ function InviteCustomerModal({ onClose }) {
                     cursor: "pointer"
                   }}
                 >
-                  {copied ? "✓ Copied!" : "📋 Copy Link"}
+                  {copied ? "Copied" : "Copy link"}
                 </button>
                 <a
                   href={result.portal_url}
@@ -3770,7 +3839,7 @@ function InviteCustomerModal({ onClose }) {
                     display: "inline-block"
                   }}
                 >
-                  Open in new tab ↗
+                  Open in new tab &rarr;
                 </a>
                 <button
                   onClick={() => { setResult(null); setForm({ NAME_HINT: "", EMAIL_HINT: "" }); }}
@@ -3782,17 +3851,17 @@ function InviteCustomerModal({ onClose }) {
                     cursor: "pointer"
                   }}
                 >
-                  + Generate another
+                  Generate another
                 </button>
               </div>
               {result.email_sent && (
                 <div style={{ marginTop: 10, fontSize: 11, color: "#166534" }}>
-                  📧 Invitation email also sent to <b>{result.session.EMAIL_HINT}</b>
+                  Invitation email also sent to <b>{result.session.EMAIL_HINT}</b>
                 </div>
               )}
               {result.email_message && !result.email_sent && result.session?.EMAIL_HINT && (
                 <div style={{ marginTop: 10, fontSize: 11, color: "#854d0e" }}>
-                  ⚠ Email not sent: {result.email_message}
+                  Email not sent: {result.email_message}
                 </div>
               )}
             </div>
@@ -3823,7 +3892,7 @@ function InviteCustomerModal({ onClose }) {
                   letterSpacing: 0.3
                 }}
               >
-                🔄 Refresh
+                Refresh
               </button>
             </div>
 
@@ -3916,7 +3985,7 @@ function InviteCustomerModal({ onClose }) {
                     {/* Last active */}
                     <div style={{ fontSize: 10, color: "#64748b" }}>
                       {p.SUBMITTED_AT
-                        ? <>✓ {new Date(p.SUBMITTED_AT).toLocaleDateString("en-IN")}</>
+                        ? new Date(p.SUBMITTED_AT).toLocaleDateString("en-IN")
                         : p.LAST_ACTIVITY_AT
                           ? new Date(p.LAST_ACTIVITY_AT).toLocaleDateString("en-IN")
                           : <span style={{ color: "#94a3b8" }}>—</span>
@@ -3960,10 +4029,14 @@ function InviteCustomerModal({ onClose }) {
                         borderRadius: 6,
                         fontSize: 10,
                         cursor: "pointer",
-                        fontWeight: 700
+                        fontWeight: 700,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4
                       }}
                     >
-                      🗑 Delete
+                      <Icon.trash size={11} />
+                      Delete
                     </button>
                   </div>
                 ))}
