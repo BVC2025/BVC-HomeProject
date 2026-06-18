@@ -162,14 +162,27 @@ function MaterialCard({ item, onOpen, onAdjust }) {
           </span>
         </div>
 
-        <span style={{
-          background: statusTheme.bg, color: statusTheme.fg,
-          padding: "3px 9px", borderRadius: 999,
-          fontSize: 10, fontWeight: 800, letterSpacing: 0.6,
-          flexShrink: 0
-        }}>
-          {statusTheme.icon} {statusTheme.label}
-        </span>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+          <span style={{
+            background: statusTheme.bg, color: statusTheme.fg,
+            padding: "3px 9px", borderRadius: 999,
+            fontSize: 10, fontWeight: 800, letterSpacing: 0.6
+          }}>
+            {statusTheme.icon} {statusTheme.label}
+          </span>
+          {item.BELOW_MIN && (
+            <span
+              title={`Stock ${item.QUANTITY} is at or below reorder threshold ${item.MIN_STOCK}`}
+              style={{
+                background: "#fee2e2", color: "#7f1d1d",
+                padding: "2px 8px", borderRadius: 999,
+                fontSize: 9, fontWeight: 800, letterSpacing: 0.6
+              }}
+            >
+              🔔 Reorder alert
+            </span>
+          )}
+        </div>
       </div>
 
       <div style={{ marginTop: 14, marginBottom: 10 }}>
@@ -191,6 +204,16 @@ function MaterialCard({ item, onOpen, onAdjust }) {
             background: statusTheme.grad, transition: "width 0.4s"
           }} />
         </div>
+
+        {item.MIN_STOCK > 0 && (
+          <div style={{
+            marginTop: 6, fontSize: 11,
+            color: item.BELOW_MIN ? "#b91c1c" : "#64748b",
+            fontWeight: 600
+          }}>
+            Reorder at: <strong>{item.MIN_STOCK}</strong>
+          </div>
+        )}
       </div>
 
       <div style={{
@@ -275,14 +298,30 @@ function AdjustModal({ item, onClose, onSaved }) {
 
   const [saving, setSaving] = useState(false);
 
+  // Reorder-alert threshold — admin can set this from the same modal.
+  // Empty string means "leave unchanged"; 0 means "disable alerting".
+  const [minStock, setMinStock] = useState(
+    item.MIN_STOCK != null ? String(item.MIN_STOCK) : ""
+  );
+
   const delta = Number(qty) - item.QUANTITY;
+  const initialMin = Number(item.MIN_STOCK || 0);
+  const targetMin  = minStock === "" ? initialMin : Number(minStock) || 0;
+  const minChanged = targetMin !== initialMin;
+  const qtyChanged = Number(qty) !== Number(item.QUANTITY);
 
   const save = async () => {
 
-    if (!reason.trim()) {
+    if (qtyChanged && !reason.trim()) {
 
-      alert("Please pick a reason for the adjustment.");
+      alert("Please pick a reason for the quantity change.");
 
+      return;
+    }
+
+    if (!qtyChanged && !minChanged) {
+
+      onClose?.();
       return;
     }
 
@@ -290,17 +329,26 @@ function AdjustModal({ item, onClose, onSaved }) {
 
     try {
 
-      await API.post(`/inventory/${item.ID}/adjust`, {
-        QUANTITY: Number(qty),
-        REASON: reason,
-        NOTES: notes || null
-      });
+      // Two independent endpoints — issue both, surface either error.
+      if (qtyChanged) {
+        await API.post(`/inventory/${item.ID}/adjust`, {
+          QUANTITY: Number(qty),
+          REASON: reason,
+          NOTES: notes || null
+        });
+      }
+
+      if (minChanged) {
+        await API.patch(`/inventory/${item.ID}/min-stock`, {
+          MIN_STOCK: targetMin
+        });
+      }
 
       onSaved?.();
 
     } catch (err) {
 
-      alert(err?.response?.data?.detail || "Failed to adjust stock");
+      alert(err?.response?.data?.detail || "Failed to save changes");
 
     } finally {
 
@@ -411,6 +459,47 @@ function AdjustModal({ item, onClose, onSaved }) {
             }}
             placeholder="Any extra context for the audit log..."
           />
+        </div>
+
+        {/* Reorder threshold — independent of the quantity change above.
+            Setting it to 0 (or leaving blank when it was 0) disables
+            alerting for this row. */}
+        <div style={{
+          marginBottom: 14,
+          background: "#fffbeb",
+          border: "1px solid #fde68a",
+          borderRadius: 10,
+          padding: 12
+        }}>
+          <div style={{
+            fontSize: 10, fontWeight: 800, color: "#854d0e",
+            letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 6,
+            display: "flex", alignItems: "center", gap: 6
+          }}>
+            🔔 Reorder alert
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 12, color: "#854d0e" }}>
+              Notify when stock falls at or below
+            </span>
+            <input
+              type="number" min="0"
+              value={minStock}
+              onChange={(e) => setMinStock(e.target.value)}
+              placeholder="0 = off"
+              style={{
+                width: 90, padding: "6px 10px",
+                border: "1px solid #fcd34d", borderRadius: 6,
+                fontSize: 13, fontWeight: 700, color: "#854d0e",
+                textAlign: "center", background: "white"
+              }}
+            />
+            <span style={{ fontSize: 12, color: "#854d0e" }}>units</span>
+          </div>
+          <div style={{ fontSize: 10, color: "#92400e", marginTop: 6, opacity: 0.85 }}>
+            Current threshold: <strong>{initialMin || "off"}</strong>
+            {minChanged && <> · will change to <strong>{targetMin || "off"}</strong></>}
+          </div>
         </div>
 
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>

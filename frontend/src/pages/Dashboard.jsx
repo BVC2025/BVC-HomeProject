@@ -61,6 +61,7 @@ import EnterpriseCommandCenter from "./EnterpriseCommandCenter";
 import RoleManagement from "./RoleManagement";
 import RbacPermissions from "./RbacPermissions";
 import HolidayCalendar from "./HolidayCalendar";
+import WorkCenters from "./WorkCenters";
 import CompanySettings from "./CompanySettings";
 import GeofenceSettings from "./GeofenceSettings";
 import EmployeeMemos from "./EmployeeMemos";
@@ -1474,6 +1475,15 @@ function SidebarIcon({ name }) {
           <circle cx="12" cy="17.5" r="1.2" fill="currentColor" />
         </svg>
       );
+    case "workcenters":
+      return (
+        <svg {...props}>
+          <rect x="3" y="10" width="4" height="11" rx="0.6" />
+          <rect x="10" y="6" width="4" height="15" rx="0.6" />
+          <rect x="17" y="13" width="4" height="8" rx="0.6" />
+          <path d="M3 21h18" />
+        </svg>
+      );
     case "settings":
       return (
         <svg {...props}>
@@ -1524,10 +1534,11 @@ const NAV_GROUPS = [
     key: "manufacturing",
     label: "Project & Manufacturing",
     items: [
-      { to: "/projects",   icon: <SidebarIcon name="projects"   />, label: "Projects" },
-      { to: "/machines",   icon: <SidebarIcon name="machines"   />, label: "Machines" },
-      { to: "/production", icon: <SidebarIcon name="production" />, label: "Production & BOM" },
-      { to: "/quality",    icon: <SidebarIcon name="quality"    />, label: "Quality Management" }
+      { to: "/projects",      icon: <SidebarIcon name="projects"    />, label: "Projects" },
+      { to: "/machines",      icon: <SidebarIcon name="machines"    />, label: "Machines" },
+      { to: "/work-centers",  icon: <SidebarIcon name="workcenters" />, label: "Work Centers" },
+      { to: "/production",    icon: <SidebarIcon name="production"  />, label: "Production & BOM" },
+      { to: "/quality",       icon: <SidebarIcon name="quality"     />, label: "Quality Management" }
     ]
   },
   {
@@ -1902,6 +1913,11 @@ function Dashboard() {
           <Route
             path="/machines"
             element={<Machines />}
+          />
+
+          <Route
+            path="/work-centers"
+            element={<WorkCenters />}
           />
 
           <Route

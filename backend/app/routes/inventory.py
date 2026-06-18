@@ -13,7 +13,7 @@ from app.models.models import (
     Vendor
 )
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List
 
 from app.auth.auth_bearer import get_current_employee
@@ -677,6 +677,13 @@ def inventory_full(
 
         price = float(r.UNIT_PRICE or 0)
 
+        # Per-row reorder threshold — falls back to the global default
+        # when the admin hasn't set a specific value yet. This is the
+        # source of truth for the BELOW_MIN / Reorder-Alert flag.
+        row_min = int(r.MIN_STOCK or 0)
+
+        effective_threshold = row_min if row_min > 0 else low_threshold
+
         line_value = qty * price
 
         total_value += line_value
@@ -687,7 +694,7 @@ def inventory_full(
 
             out_count += 1
 
-        elif qty <= low_threshold:
+        elif qty <= effective_threshold:
 
             stock_status = "LOW"
 
@@ -696,6 +703,11 @@ def inventory_full(
         else:
 
             stock_status = "OK"
+
+        # Distinct flag for the "row has explicit MIN_STOCK set AND
+        # we're at or below it" case — feeds the Reorder-Alert badge
+        # in the UI vs the default global LOW indication.
+        below_min = row_min > 0 and qty <= row_min
 
         category = _category_for_material(r.MATERIAL_NAME)
 
@@ -708,6 +720,8 @@ def inventory_full(
             "CATEGORY": category,
             "QUANTITY": qty,
             "UNIT_PRICE": price,
+            "MIN_STOCK": row_min,
+            "BELOW_MIN": below_min,
             "TOTAL_VALUE": round(line_value, 2),
             "STOCK_STATUS": stock_status,
             "SUPPLIER": supplier_by_material.get(r.MATERIAL_ID),
@@ -792,12 +806,111 @@ def adjust_stock(
         inv.MATERIAL_NAME, inv.ID, old_qty, data.QUANTITY, data.REASON
     )
 
+    # Mfg Phase 1 — Reorder Alert: fire a Notification only when this
+    # write crosses the threshold (was above, now at-or-below). Avoids
+    # spamming when subsequent writes stay below the threshold.
+    _maybe_notify_low_stock(db, inv, old_qty, data.QUANTITY)
+
     return {
         "message": "Stock adjusted",
         "old_quantity": old_qty,
         "new_quantity": data.QUANTITY,
         "delta": data.QUANTITY - old_qty
     }
+
+
+class MinStockRequest(BaseModel):
+    MIN_STOCK: int = Field(..., ge=0)
+    # Set to 0 to disable alerting for this row.
+
+
+@router.patch("/inventory/{inventory_id}/min-stock")
+def set_min_stock(
+    inventory_id: int,
+    data: MinStockRequest,
+    db: Session = Depends(get_db),
+):
+    """Set the per-row reorder threshold. When QUANTITY later drops
+    at or below MIN_STOCK, a low-stock Notification is generated."""
+
+    inv = db.query(Inventory).filter(Inventory.ID == inventory_id).first()
+
+    if not inv:
+        raise HTTPException(status_code=404, detail="Inventory row not found")
+
+    old_min = int(inv.MIN_STOCK or 0)
+
+    inv.MIN_STOCK = data.MIN_STOCK
+
+    db.commit()
+
+    # If the user raised the threshold above the current stock,
+    # fire an immediate notification — the row is now "below min"
+    # even though stock didn't actually change.
+    if data.MIN_STOCK > 0 and int(inv.QUANTITY or 0) <= data.MIN_STOCK:
+        _push_low_stock_notification(db, inv)
+
+    return {
+        "message": "Reorder threshold updated",
+        "min_stock": inv.MIN_STOCK,
+        "old_min_stock": old_min,
+        "current_quantity": inv.QUANTITY,
+    }
+
+
+# ---------------------------------------------------------------------
+# Low-stock notification helpers (Mfg Phase 1 — Reorder Alerts)
+# ---------------------------------------------------------------------
+
+def _maybe_notify_low_stock(
+    db: Session, inv: Inventory, old_qty: int, new_qty: int
+) -> None:
+    """Notification fires only on a fresh crossing of the threshold —
+    old_qty was strictly above MIN_STOCK and new_qty is now at or
+    below. Re-adjusts that keep stock below the threshold do NOT
+    re-fire to prevent spam."""
+
+    min_stock = int(inv.MIN_STOCK or 0)
+
+    if min_stock <= 0:
+        return
+
+    if int(old_qty or 0) > min_stock and int(new_qty or 0) <= min_stock:
+        _push_low_stock_notification(db, inv)
+
+
+def _push_low_stock_notification(db: Session, inv: Inventory) -> None:
+    """Insert a single Notification row about this low-stock material.
+    Best-effort — wraps in try/except so any failure here never breaks
+    the inventory write that triggered it."""
+
+    try:
+
+        from app.models.models import Notification
+
+        title = f"Low stock: {inv.MATERIAL_NAME or 'Material'}"
+
+        body = (
+            f"{inv.MATERIAL_NAME or 'Material'} stock is {inv.QUANTITY} units "
+            f"(reorder threshold: {inv.MIN_STOCK}). Place a purchase order."
+        )
+
+        db.add(Notification(
+            TITLE=title,
+            MESSAGE=body[:500],
+            TYPE="WARNING",
+            VENDOR_ID=inv.VENDOR_ID or 1,
+        ))
+
+        db.commit()
+
+    except Exception as e:
+
+        import logging
+        logging.getLogger(__name__).warning(
+            "low-stock notification skipped: %s: %s",
+            type(e).__name__, e,
+        )
 
 
 @router.get("/inventory/{inventory_id}/movements")

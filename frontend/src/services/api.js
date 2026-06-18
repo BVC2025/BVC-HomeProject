@@ -28,7 +28,7 @@ const PROD_BACKEND_URL = "https://api.bvc24.com";
 // branch never fires.
 
 const LEGACY_QUICK_TUNNEL_BACKEND_URL =
-  "https://lender-buried-serious-duration.trycloudflare.com";
+  "https://translate-dealer-mitchell-assumption.trycloudflare.com";
 
 function resolveApiBase() {
 

@@ -71,6 +71,7 @@ from app.routes.audit import router as audit_router  # Phase 3 security
 from app.routes.rbac import router as rbac_router    # Phase 2 RBAC
 from app.routes.holiday import router as holiday_router    # Phase 2 Holiday Calendar
 from app.routes.chatbot_ai import router as chatbot_ai_router  # AI chatbot v1 (Gemini)
+from app.routes.work_center import router as work_center_router  # Mfg Phase 1 — Work Centers
 from fastapi.middleware.cors import CORSMiddleware
 
 # Phase 3 — Audit log
@@ -300,6 +301,10 @@ def _auto_migrate():
         # Phase 2 — admin can pre-set role at invite time
         ("employee_onboarding_session", "DEPARTMENT_ID",  "INT NULL"),
         ("employee_onboarding_session", "DESIGNATION_ID", "INT NULL"),
+        # ---- Manufacturing Phase 1: Reorder alerts ---------
+        # Threshold below which the inventory row triggers a low-stock
+        # notification. NULL/0 means "no alerting for this material".
+        ("inventory", "MIN_STOCK", "INT NULL DEFAULT 0"),
         # ---- HR Module Phase A — Employee column expansion (2026-06-01) ----
         ("employee", "BLOOD_GROUP",                "VARCHAR(5)   NULL"),
         ("employee", "NATIONALITY",                "VARCHAR(50)  NULL"),
@@ -1061,6 +1066,77 @@ def _auto_seed_org_catalog():
 _auto_seed_org_catalog()
 
 
+# Canonical Work Center catalog for a manufacturing shop. Inserted
+# additively — existing custom work centers are kept. Vendor-scoped.
+_MFG_WORK_CENTERS = [
+    ("Laser Cutting",   "LC",    "FABRICATION", 5.0),
+    ("Welding",         "WLD",   "WELDING",     3.0),
+    ("Fitting",         "FIT",   "ASSEMBLY",    4.0),
+    ("Painting",        "PAINT", "PAINTING",    2.0),
+    ("Assembly",        "ASM",   "ASSEMBLY",    2.0),
+    ("Testing",         "TEST",  "TESTING",     6.0),
+    ("Quality Control", "QC",    "QC",          8.0),
+    ("Packaging",       "PKG",   "PACKAGING",   10.0),
+    ("Dispatch",        "DSP",   "OTHER",       12.0),
+]
+
+
+def _auto_seed_work_centers():
+    """Top up the work_center table with the canonical manufacturing
+    list. Existing entries are NEVER modified; only missing names
+    get inserted. Safe to re-run on every boot."""
+
+    from sqlalchemy.orm import sessionmaker
+    from app.models.models import WorkCenter
+
+    Session = sessionmaker(bind=engine)
+    db = Session()
+
+    try:
+
+        existing_names = {
+            (w.NAME or "").strip().lower()
+            for w in db.query(WorkCenter).filter(WorkCenter.VENDOR_ID == 1).all()
+        }
+
+        added = 0
+        for name, code, category, capacity in _MFG_WORK_CENTERS:
+            if name.strip().lower() in existing_names:
+                continue
+            db.add(WorkCenter(
+                NAME=name,
+                CODE=code,
+                CATEGORY=category,
+                CAPACITY_PER_HOUR=capacity,
+                IS_ACTIVE=1,
+                VENDOR_ID=1,
+            ))
+            added += 1
+
+        if added:
+            db.commit()
+            import logging
+            logging.getLogger("uvicorn").info(
+                "auto-seed-work-centers: +%d work centers", added
+            )
+
+    except Exception as exc:
+
+        db.rollback()
+
+        import logging
+        logging.getLogger("uvicorn").warning(
+            "auto-seed-work-centers skipped: %s", exc
+        )
+
+    finally:
+
+        db.close()
+
+
+_auto_seed_work_centers()
+
+
 def _auto_seed_org():
     """If Department / Role / Designation are empty for vendor 1,
     seed the MANUFACTURING preset. Idempotent — only runs when the
@@ -1235,6 +1311,7 @@ app.include_router(audit_router)
 app.include_router(rbac_router)
 app.include_router(holiday_router)
 app.include_router(chatbot_ai_router)
+app.include_router(work_center_router)
 
 
 @app.get("/", tags=["Health"])

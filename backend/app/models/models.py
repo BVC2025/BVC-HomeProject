@@ -912,10 +912,89 @@ class Inventory(Base):
         default=0.0
     )
 
+    MIN_STOCK = Column(
+        Integer,
+        default=0
+    )
+    # Reorder threshold. When QUANTITY drops at or below this value,
+    # a low-stock Notification is generated. 0 means alerts disabled
+    # for this row.
+
     VENDOR_ID = Column(
         Integer,
         ForeignKey("vendor.ID"),
         index=True
+    )
+
+
+class WorkCenter(Base):
+    """A physical or logical work-station capability used in routing.
+
+    Odoo-style separation: ProcessStage = "WHAT to do in the process",
+    WorkCenter = "WHERE / by what capability it gets done". Multiple
+    Machines may belong to the same Work Center (e.g. three identical
+    welding bays); routing assigns each stage to one Work Center, and
+    the scheduler picks an available machine from that pool.
+
+    Adding this table does NOT touch any existing data — current
+    BOMs and Work Orders keep working without a Work Center reference.
+    The Routing feature (next phase) starts populating it.
+    """
+
+    __tablename__ = "work_center"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "VENDOR_ID", "NAME",
+            name="uq_work_center_vendor_name"
+        ),
+    )
+
+    ID = Column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+        index=True
+    )
+
+    NAME = Column(String(100), nullable=False)
+    # Human-readable: "Laser Cutting", "Welding Bay", "Assembly Line A"
+
+    CODE = Column(String(20), nullable=True)
+    # Short code for reports: "LC", "WLD", "PAINT", "ASM", "TEST"
+
+    CATEGORY = Column(String(40), default="ASSEMBLY")
+    # FABRICATION / WELDING / PAINTING / ASSEMBLY / TESTING /
+    # PACKAGING / QC / OTHER — informational grouping
+
+    CAPACITY_PER_HOUR = Column(Float, default=1.0)
+    # Theoretical throughput in units/hour. Used later for Gantt
+    # scheduling. Default 1 = "one unit per hour" — safe placeholder.
+
+    HOURLY_COST = Column(Float, default=0.0)
+    # Optional costing field for future job-cost rollup.
+
+    LOCATION = Column(String(200), nullable=True)
+    # Free text — "Bay 3, Ground Floor"
+
+    NOTES = Column(String(500), nullable=True)
+
+    IS_ACTIVE = Column(Integer, default=1)
+
+    VENDOR_ID = Column(
+        Integer,
+        ForeignKey("vendor.ID"),
+        nullable=False,
+        default=1,
+        index=True
+    )
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+
+    UPDATED_AT = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow
     )
 
 
