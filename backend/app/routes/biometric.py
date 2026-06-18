@@ -52,8 +52,9 @@ from app.services.allocation_service import (
 router = APIRouter(prefix="/biometric", tags=["Biometric"])
 
 
-WORK_START_HOUR = 10
-WORK_START_MINUTE = 0
+# Match attendance.py — anyone scanning in after 9:15 AM is LATE.
+WORK_START_HOUR = 9
+WORK_START_MINUTE = 15
 
 # Debounce window — a scan within this many seconds of the
 # current task's START_TIME is treated as a no-op status query

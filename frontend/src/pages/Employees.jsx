@@ -1414,6 +1414,9 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
     PERCENTAGE: editingEmployee?.PERCENTAGE ?? "",
     PREVIOUS_COMPANY: editingEmployee?.PREVIOUS_COMPANY || "",
     PREVIOUS_SALARY: editingEmployee?.PREVIOUS_SALARY ?? "",
+    // Current monthly salary — drives payroll BASE_SALARY snapshot.
+    // Editable here so HR can adjust without re-running the seed script.
+    SALARY: editingEmployee?.SALARY ?? "",
     BANK_ACCOUNT_NUMBER: editingEmployee?.BANK_ACCOUNT_NUMBER || "",
     BANK_NAME: editingEmployee?.BANK_NAME || "",
     IFSC_CODE: editingEmployee?.IFSC_CODE || "",
@@ -1567,6 +1570,8 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
           ? null : Number(form.PERCENTAGE),
         PREVIOUS_SALARY: form.PREVIOUS_SALARY === "" || form.PREVIOUS_SALARY == null
           ? null : Number(form.PREVIOUS_SALARY),
+        SALARY: form.SALARY === "" || form.SALARY == null
+          ? 0 : Number(form.SALARY),
         CONFIRMATION_DATE: form.CONFIRMATION_DATE || null
       };
 
@@ -2206,6 +2211,20 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   placeholder="ABC Manufacturing Pvt Ltd"
                   style={inputStyle()}
                 />
+              </FormField>
+              <FormField label="Current Monthly Salary (₹) *">
+                <input
+                  type="number"
+                  min="0"
+                  step="500"
+                  value={form.SALARY}
+                  onChange={set("SALARY")}
+                  placeholder="18000"
+                  style={inputStyle()}
+                />
+                <div style={{ fontSize: 10, color: "#64748b", marginTop: 4 }}>
+                  Used as the BASE_SALARY snapshot when payroll is generated.
+                </div>
               </FormField>
               <FormField label="Previous Salary (₹/month)">
                 <input
@@ -3081,8 +3100,16 @@ function InviteEmployeeModal({ onClose }) {
     INVITED_NAME: "",
     EMPLOYEE_CODE: "",
     PASSWORD: "",
-    EXPIRES_IN_DAYS: 2
+    EXPIRES_IN_DAYS: 2,
+    DEPARTMENT_ID: "",
+    DESIGNATION_ID: ""
   });
+
+  // Departments + Designations are loaded from the org catalog
+  // (/departments and /designations). Both are auto-seeded with the
+  // canonical manufacturing list on backend boot.
+  const [departments,   setDepartments]   = useState([]);
+  const [designations,  setDesignations]  = useState([]);
 
   const [result, setResult] = useState(null);
 
@@ -3090,9 +3117,26 @@ function InviteEmployeeModal({ onClose }) {
 
   const [error, setError] = useState("");
 
+  // Toggle for the password field's eye icon — admin can verify the
+  // 6+ char password they're sending the candidate before submitting.
+  const [showPassword, setShowPassword] = useState(false);
+
   const [copied, setCopied] = useState(false);
 
   const [emailMsg, setEmailMsg] = useState("");
+
+  // Fetch dropdown options once when the modal opens
+  useEffect(() => {
+
+    API.get("/departments")
+      .then((r) => setDepartments(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setDepartments([]));
+
+    API.get("/designations")
+      .then((r) => setDesignations(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setDesignations([]));
+
+  }, []);
 
   // ESC closes the modal
   useEffect(() => {
@@ -3147,7 +3191,9 @@ function InviteEmployeeModal({ onClose }) {
         INVITED_NAME: form.INVITED_NAME.trim(),
         EMPLOYEE_CODE: form.EMPLOYEE_CODE.trim() || null,
         PASSWORD: form.PASSWORD,
-        EXPIRES_IN_DAYS: Number(form.EXPIRES_IN_DAYS) || 2
+        EXPIRES_IN_DAYS: Number(form.EXPIRES_IN_DAYS) || 2,
+        DEPARTMENT_ID:  form.DEPARTMENT_ID  ? Number(form.DEPARTMENT_ID)  : null,
+        DESIGNATION_ID: form.DESIGNATION_ID ? Number(form.DESIGNATION_ID) : null
       });
 
       setResult(res.data);
@@ -3300,14 +3346,84 @@ function InviteEmployeeModal({ onClose }) {
                     style={inviteInputStyle()}
                   />
                 </InviteField>
-                <InviteField label="Login Password *" span={2}>
-                  <input
-                    type="password"
-                    value={form.PASSWORD}
-                    onChange={set("PASSWORD")}
-                    placeholder="Min 6 characters"
+                <InviteField label="Department">
+                  <select
+                    value={form.DEPARTMENT_ID}
+                    onChange={set("DEPARTMENT_ID")}
                     style={inviteInputStyle()}
-                  />
+                  >
+                    <option value="">— Select —</option>
+                    {departments.map((d) => (
+                      <option key={d.ID} value={d.ID}>
+                        {d.NAME}
+                      </option>
+                    ))}
+                  </select>
+                </InviteField>
+                <InviteField label="Designation">
+                  <select
+                    value={form.DESIGNATION_ID}
+                    onChange={set("DESIGNATION_ID")}
+                    style={inviteInputStyle()}
+                  >
+                    <option value="">— Select —</option>
+                    {designations.map((d) => (
+                      <option key={d.ID} value={d.ID}>
+                        {d.TITLE}
+                      </option>
+                    ))}
+                  </select>
+                </InviteField>
+                <InviteField label="Login Password *" span={2}>
+                  <div style={{ position: "relative" }}>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={form.PASSWORD}
+                      onChange={set("PASSWORD")}
+                      placeholder="Min 6 characters"
+                      style={{ ...inviteInputStyle(), paddingRight: 44 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      title={showPassword ? "Hide password" : "Show password"}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      style={{
+                        position: "absolute",
+                        top: "50%",
+                        right: 8,
+                        transform: "translateY(-50%)",
+                        background: "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: 6,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: showPassword ? "#8B0B1F" : "#64748b"
+                      }}
+                    >
+                      {showPassword ? (
+                        // eye-off (currently visible -> click to hide)
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" strokeWidth="1.8"
+                             strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 3l18 18" />
+                          <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+                          <path d="M9.9 4.2A9.5 9.5 0 0 1 12 4c5 0 9.3 3 11 8a14 14 0 0 1-3.4 4.8" />
+                          <path d="M6.3 6.3A14 14 0 0 0 1 12c1.7 5 6 8 11 8 1.7 0 3.3-.3 4.7-.9" />
+                        </svg>
+                      ) : (
+                        // eye (currently hidden -> click to show)
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" strokeWidth="1.8"
+                             strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </InviteField>
                 <InviteField label="Expires in (days)" span={2}>
                   <input

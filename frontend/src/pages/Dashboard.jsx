@@ -48,7 +48,7 @@ import Machines from "./Machines";
 import Reports from "./Reports";
 import Settings from "./Settings";
 import Organization from "./Organization";
-import MDReview from "./MDReview";
+// MDReview removed Phase 2 — superseded by Star Performance
 import Production from "./Production";
 import Quality from "./Quality";
 import Suppliers from "./Suppliers";
@@ -60,12 +60,12 @@ import AdminDashboardV2 from "./AdminDashboardV2";
 import EnterpriseCommandCenter from "./EnterpriseCommandCenter";
 import RoleManagement from "./RoleManagement";
 import RbacPermissions from "./RbacPermissions";
+import HolidayCalendar from "./HolidayCalendar";
 import CompanySettings from "./CompanySettings";
 import GeofenceSettings from "./GeofenceSettings";
 import EmployeeMemos from "./EmployeeMemos";
 import ApprovalCenter from "./ApprovalCenter";
-import AICommandCenter from "./AICommandCenter";
-import Workflow from "./Workflow";
+// AICommandCenter + Workflow removed Phase 2 — were placeholder stubs
 import Payroll from "./Payroll";
 import StarPerformance from "./StarPerformance";
 import ChatBot from "../components/ChatBot";
@@ -1464,6 +1464,16 @@ function SidebarIcon({ name }) {
           <circle cx="12" cy="9" r="2.5" />
         </svg>
       );
+    case "holidays":
+      return (
+        <svg {...props}>
+          <rect x="3" y="5" width="18" height="16" rx="2" />
+          <path d="M3 10h18M8 3v4M16 3v4" />
+          <circle cx="8" cy="14" r="1.2" fill="currentColor" />
+          <circle cx="16" cy="14" r="1.2" fill="currentColor" />
+          <circle cx="12" cy="17.5" r="1.2" fill="currentColor" />
+        </svg>
+      );
     case "settings":
       return (
         <svg {...props}>
@@ -1490,8 +1500,8 @@ const NAV_GROUPS = [
     key: "org",
     label: "Organization",
     items: [
-      // { to: "/approvals",         icon: <SidebarIcon name="approvals"   />, label: "Approval Center" },  // temporarily hidden
-      // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // temporarily hidden (RBAC covers same purpose)
+      { to: "/approvals",         icon: <SidebarIcon name="approvals"   />, label: "Approval Center" },
+      // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
       { to: "/rbac",              icon: <SidebarIcon name="rbac"        />, label: "RBAC" },
       { to: "/employees",         icon: <SidebarIcon name="employees"   />, label: "Employees" },
       { to: "/memos",             icon: <SidebarIcon name="memos"       />, label: "Memos" },
@@ -1542,6 +1552,7 @@ const NAV_GROUPS = [
     label: "System",
     items: [
       { to: "/company-settings", icon: <SidebarIcon name="company"  />, label: "Company Settings" },
+      { to: "/holidays",         icon: <SidebarIcon name="holidays" />, label: "Holiday Calendar" },
       { to: "/geofence",         icon: <SidebarIcon name="geofence" />, label: "Geofence Settings" },
       { to: "/settings",         icon: <SidebarIcon name="settings" />, label: "Settings" }
     ]
@@ -1648,11 +1659,11 @@ function SidebarNav({ onItemClick }) {
                 background: "transparent",
                 border: "none",
                 color: hasActive
-                  ? "rgba(255,255,255,0.95)"
-                  : "rgba(255,255,255,0.55)",
-                fontSize: 10,
+                  ? "#fde047"
+                  : "rgba(255,255,255,0.92)",
+                fontSize: 12,
                 fontWeight: 800,
-                letterSpacing: 1.4,
+                letterSpacing: 1.6,
                 textTransform: "uppercase",
                 cursor: "pointer",
                 textAlign: "left",
@@ -1660,12 +1671,12 @@ function SidebarNav({ onItemClick }) {
                 transition: "color 0.15s, background 0.15s"
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.color = "rgba(255,255,255,0.9)";
+                e.currentTarget.style.color = "#fde047";
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.color = hasActive
-                  ? "rgba(255,255,255,0.95)"
-                  : "rgba(255,255,255,0.55)";
+                  ? "#fde047"
+                  : "rgba(255,255,255,0.92)";
               }}
             >
               <span style={{ flex: 1 }}>{group.label}</span>
@@ -1834,17 +1845,14 @@ function Dashboard() {
           <Route path="/rbac"  element={<RbacPermissions />} />
 
           <Route path="/company-settings" element={<CompanySettings />} />
+          <Route path="/holidays" element={<HolidayCalendar />} />
           <Route path="/geofence" element={<GeofenceSettings />} />
           <Route path="/memos" element={<EmployeeMemos />} />
 
           <Route path="/approvals" element={<ApprovalCenter />} />
 
-          <Route path="/ai-command" element={<AICommandCenter />} />
-
           {/* Legacy dashboard kept reachable for reference */}
           <Route path="/dashboard-legacy" element={<DashboardHome />} />
-
-          <Route path="/workflow" element={<Workflow />} />
 
           <Route
             path="/organization"
@@ -1934,11 +1942,6 @@ function Dashboard() {
           <Route
             path="/star-performance"
             element={<StarPerformance />}
-          />
-
-          <Route
-            path="/md-review"
-            element={<MDReview />}
           />
 
           <Route

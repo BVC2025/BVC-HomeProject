@@ -76,10 +76,32 @@ def _month_range(year: int, month: int) -> Tuple[date, date]:
     return first, last
 
 
-def _working_days_in_month(year: int, month: int) -> int:
-    """Mon-Sat counted, Sunday off. Adjust here if BVC24 changes
-    weekly-off policy."""
+def _working_days_in_month(
+    year: int,
+    month: int,
+    db=None,
+    vendor_id: int = 1,
+) -> int:
+    """Working days for the given pay period.
 
+    When a DB session is provided, the count is derived from the
+    HolidayCalendar table (Sundays + declared holidays excluded). This
+    is the production path called from `generate_payroll_run`.
+
+    The legacy signature `(year, month)` (no db) is retained for unit
+    tests and external callers; it falls back to "Sundays only off"
+    and never consults the holiday table."""
+
+    if db is not None:
+
+        # Import here to avoid a circular dep at module load: the
+        # working_days_service queries the HolidayCalendar model which
+        # lives alongside other models payroll_service imports.
+        from app.services.working_days_service import working_days_in_month
+
+        return working_days_in_month(db, year, month, vendor_id=vendor_id)
+
+    # Fallback — Sundays only (matches the pre-Phase-2 behavior).
     first, last = _month_range(year, month)
 
     days = 0
@@ -400,7 +422,14 @@ def generate_payroll_run(
 
     if working_days is None:
 
-        working_days = _working_days_in_month(year, month)
+        # Phase 2: read from HolidayCalendar (Sundays + declared
+        # holidays excluded). Falls back to Sundays-only if the table
+        # is empty for that month.
+        working_days = _working_days_in_month(
+            year, month,
+            db=db,
+            vendor_id=vendor_id,
+        )
 
     existing = db.query(PayrollRun).filter(
         PayrollRun.VENDOR_ID == vendor_id,

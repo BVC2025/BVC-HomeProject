@@ -578,14 +578,16 @@ function Attendance() {
 
                   <td>{statusBadge(row.STATUS)}</td>
 
-                  <td>{coordCell(row.CHECKIN_LATITUDE, row.CHECKIN_LONGITUDE)}</td>
+                  <td>{coordCell(row.CHECKIN_LATITUDE, row.CHECKIN_LONGITUDE, row.GEOFENCE_STATUS)}</td>
 
-                  <td>{coordCell(row.CHECKOUT_LATITUDE, row.CHECKOUT_LONGITUDE)}</td>
+                  <td>{coordCell(row.CHECKOUT_LATITUDE, row.CHECKOUT_LONGITUDE, row.GEOFENCE_STATUS)}</td>
 
                   <td>
                     {row.CHECKIN_DISTANCE != null
                       ? `${Math.round(row.CHECKIN_DISTANCE)} m`
-                      : "—"}
+                      : (row.GEOFENCE_STATUS === "UNKNOWN"
+                          ? <span style={{ color: "#92400e", fontSize: 11 }}>GPS skipped</span>
+                          : "—")}
                   </td>
 
                   <td>{geofenceBadge(row.GEOFENCE_STATUS)}</td>
@@ -1250,8 +1252,23 @@ function EmployeeTile({ emp, tick }) {
 
 
 // ---- Report-cell helpers for the geofence columns ----
-function coordCell(lat, lng) {
-  if (lat == null || lng == null) return "—";
+function coordCell(lat, lng, status) {
+  // If no coords AND status is UNKNOWN, the employee bypassed the GPS
+  // gate — surface that explicitly so it's not confused with legacy
+  // rows that have no geofence data at all.
+  if (lat == null || lng == null) {
+    if (status === "UNKNOWN") {
+      return (
+        <span
+          title="Employee skipped the GPS check at check-in"
+          style={{ color: "#92400e", fontSize: 11, fontStyle: "italic" }}
+        >
+          GPS skipped
+        </span>
+      );
+    }
+    return "—";
+  }
   const short = (n) => Number(n).toFixed(5);
   const url = `https://www.google.com/maps?q=${lat},${lng}`;
   return (
@@ -1273,25 +1290,40 @@ function coordCell(lat, lng) {
 }
 
 function geofenceBadge(status) {
+  // Distinguish three states:
+  //   INSIDE / OUTSIDE — GPS was captured + validated against geofence
+  //   UNKNOWN          — admin clicked "Skip GPS" (legitimate but unverified)
+  //   null / missing   — legacy row (e.g. auto-login check-in pre-Phase-2)
+  if (!status) {
+    return (
+      <span title="No geofence data captured for this row"
+            style={badgeStyle("#f1f5f9", "#94a3b8")}>—</span>
+    );
+  }
   const theme = {
-    INSIDE:  { bg: "#dcfce7", fg: "#166534", label: "Inside" },
-    OUTSIDE: { bg: "#fee2e2", fg: "#991b1b", label: "Outside" },
-    UNKNOWN: { bg: "#f1f5f9", fg: "#475569", label: "—" }
-  }[status || "UNKNOWN"] || { bg: "#f1f5f9", fg: "#475569", label: "—" };
+    INSIDE:  { bg: "#dcfce7", fg: "#166534", label: "INSIDE",      title: "Checked in inside the office geofence" },
+    OUTSIDE: { bg: "#fee2e2", fg: "#991b1b", label: "OUTSIDE",     title: "Checked in outside the allowed radius" },
+    UNKNOWN: { bg: "#fef3c7", fg: "#92400e", label: "GPS SKIPPED", title: "Employee bypassed GPS — coordinates not captured" }
+  }[status] || { bg: "#f1f5f9", fg: "#94a3b8", label: status, title: status };
   return (
-    <span style={{
-      display: "inline-block",
-      padding: "2px 10px",
-      borderRadius: 999,
-      fontSize: 10,
-      fontWeight: 800,
-      letterSpacing: 0.5,
-      background: theme.bg,
-      color: theme.fg
-    }}>
+    <span title={theme.title} style={badgeStyle(theme.bg, theme.fg)}>
       {theme.label}
     </span>
   );
+}
+
+function badgeStyle(bg, fg) {
+  return {
+    display: "inline-block",
+    padding: "2px 10px",
+    borderRadius: 999,
+    fontSize: 10,
+    fontWeight: 800,
+    letterSpacing: 0.5,
+    background: bg,
+    color: fg,
+    cursor: "default"
+  };
 }
 
 

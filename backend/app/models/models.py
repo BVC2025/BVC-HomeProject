@@ -1217,7 +1217,7 @@ class GeofenceSettings(Base):
     OFFICE_NAME   = Column(String(150), nullable=True)
     LATITUDE      = Column(Float, nullable=False, default=0.0)
     LONGITUDE     = Column(Float, nullable=False, default=0.0)
-    RADIUS_METERS = Column(Integer, nullable=False, default=100)
+    RADIUS_METERS = Column(Integer, nullable=False, default=50)
     IS_ACTIVE     = Column(Integer, default=1)
     # 1 = enforce geofencing, 0 = allow attendance from anywhere (kill-switch)
     CREATED_AT    = Column(DateTime, default=datetime.utcnow)
@@ -3592,6 +3592,24 @@ class EmployeeOnboardingSession(Base):
     # for /employee-onboarding/{token}/login, then copied onto
     # Employee.PASSWORD at approval time.
 
+    # Admin-chosen role assignment at invite time. Surfaced as a pair
+    # of dropdowns on the InviteEmployeeModal; carried through to the
+    # candidate's form as the default selection; copied onto the
+    # Employee row at approval.
+    DEPARTMENT_ID = Column(
+        Integer,
+        ForeignKey("department.ID"),
+        nullable=True,
+        index=True,
+    )
+
+    DESIGNATION_ID = Column(
+        Integer,
+        ForeignKey("designation.ID"),
+        nullable=True,
+        index=True,
+    )
+
     STATUS = Column(String(30), default="OPEN")
     # OPEN / SUBMITTED / APPROVED / REJECTED / EXPIRED
 
@@ -3784,6 +3802,62 @@ class EmployeeMemo(Base):
         Integer,
         ForeignKey("vendor.ID"),
         nullable=True
+    )
+
+
+# ====================================================================
+# Holiday Calendar (Phase 2 — replaces hardcoded 26 working days)
+# ====================================================================
+# One row per declared holiday. Used by:
+#   - payroll_service._working_days_in_month(year, month, vendor_id)
+#   - star_performance_service (working-day denominator)
+#
+# Sundays are implicitly holidays (handled in code, not stored). Saturday
+# may or may not be a holiday depending on company policy — for BVC24,
+# Saturdays are working days. To mark a Saturday as off, just add a row.
+
+class HolidayCalendar(Base):
+    """Vendor-scoped list of non-working calendar dates."""
+
+    __tablename__ = "holiday_calendar"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "VENDOR_ID", "HOLIDAY_DATE",
+            name="uq_holiday_per_vendor_per_date"
+        ),
+    )
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    VENDOR_ID = Column(
+        Integer,
+        ForeignKey("vendor.ID"),
+        nullable=False,
+        default=1,
+        index=True
+    )
+
+    HOLIDAY_DATE = Column(Date, nullable=False, index=True)
+
+    NAME = Column(String(120), nullable=False)
+    # Human-readable label — e.g. "Diwali", "Republic Day", "Sankranti"
+
+    TYPE = Column(String(30), default="NATIONAL")
+    # NATIONAL / REGIONAL / COMPANY — informational only
+
+    IS_OPTIONAL = Column(Integer, default=0)
+    # 0/1: optional holidays (e.g. Easter) — counted in the working-day
+    # math only if the admin explicitly marks them as such.
+
+    NOTES = Column(String(500), nullable=True)
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+
+    UPDATED_AT = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow
     )
 
 

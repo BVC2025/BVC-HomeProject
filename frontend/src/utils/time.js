@@ -30,7 +30,7 @@ export function formatISTTime(iso) {
   return d.toLocaleTimeString("en-IN", {
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
+    hour12: true,
     timeZone: "Asia/Kolkata"
   });
 }
@@ -46,7 +46,7 @@ export function formatISTTimeWithSec(iso) {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
-    hour12: false,
+    hour12: true,
     timeZone: "Asia/Kolkata"
   });
 }
@@ -64,7 +64,7 @@ export function formatISTDateTime(iso) {
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
+    hour12: true,
     timeZone: "Asia/Kolkata"
   });
 }

@@ -1435,9 +1435,9 @@ body {
 
   cursor: pointer;
 
-  font-size: 13.5px;
+  font-size: 15px;
 
-  font-weight: 500;
+  font-weight: 700;
 
   position: relative;
 
@@ -1470,11 +1470,11 @@ body {
 
   gap: 12px;
 
-  padding: 11px 14px;
+  padding: 12px 14px;
 
   text-decoration: none;
 
-  color: #cbd5e1;
+  color: rgba(255,255,255,0.92);
 
   width: 100%;
 
@@ -1597,7 +1597,7 @@ body {
 
   flex-shrink: 0;
 
-  color: rgba(255,255,255,0.7);
+  color: rgba(255,255,255,0.92);
 
   transition: color 0.25s ease, transform 0.25s ease;
 }

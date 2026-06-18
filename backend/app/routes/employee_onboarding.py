@@ -35,7 +35,7 @@ from datetime import datetime, timedelta, time as dtime
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -100,15 +100,51 @@ _CANDIDATE_DOC_TYPES = {
 }
 
 
-def _frontend_base_url() -> str:
+def _frontend_base_url(request: "Request | None" = None) -> str:
+    """Resolve the public URL the customer/employee should reach the
+    frontend on. Used when building invite/onboarding links that go
+    out via email or WhatsApp.
 
-    base = (
-        os.getenv("FRONTEND_BASE_URL")
-        or os.getenv("FRONTEND_URL")
-        or "http://localhost:5173"
-    )
+    Resolution order:
+      1. FRONTEND_BASE_URL / FRONTEND_URL env vars (production, fixed)
+      2. The request's `Origin` header, then `Referer` host —
+         set by the browser to the admin's current frontend URL.
+         When the admin opens the UI through a Cloudflare tunnel, this
+         is the tunnel hostname; when through localhost, it's localhost.
+         This eliminates the need to keep .env in sync with a rotating
+         quick-tunnel URL.
+      3. `http://localhost:5173` — final fallback for non-HTTP callers
+         (cron jobs, scripts) where neither env nor request is set.
+    """
 
-    return base.rstrip("/")
+    env_val = (os.getenv("FRONTEND_BASE_URL") or os.getenv("FRONTEND_URL") or "").strip()
+
+    if env_val:
+        return env_val.rstrip("/")
+
+    if request is not None:
+
+        # Origin is set on cross-origin POSTs (admin clicking "send invite"
+        # in the React app issues one). Use its scheme + host as-is.
+        origin = request.headers.get("origin")
+
+        if origin:
+            return origin.rstrip("/")
+
+        # Referer is more loosely set but includes the host the admin
+        # is browsing from. Strip the path component.
+        referer = request.headers.get("referer")
+
+        if referer:
+            try:
+                from urllib.parse import urlparse
+                p = urlparse(referer)
+                if p.scheme and p.netloc:
+                    return f"{p.scheme}://{p.netloc}"
+            except Exception:
+                pass
+
+    return "http://localhost:5173"
 
 
 # =========================
@@ -397,16 +433,21 @@ class ChatBody(BaseModel):
 
 
 class InviteCreate(BaseModel):
-    """New flow: admin sets {Name + Employee ID + Password} on invite.
+    """New flow: admin sets {Name + Employee ID + Password + Role} on invite.
 
     Email/phone are NOT collected here — the candidate fills them in
     on the registration form after logging in with the credentials
-    chosen by admin."""
+    chosen by admin. DEPARTMENT_ID + DESIGNATION_ID are optional but
+    strongly recommended — they pre-set the candidate's role so the
+    Employee row is fully populated on approval without an extra
+    HR step."""
 
     INVITED_NAME: str = Field(..., min_length=1)
     EMPLOYEE_CODE: str = Field(..., min_length=1)
     PASSWORD: str = Field(..., min_length=1)
     EXPIRES_IN_DAYS: int = 2
+    DEPARTMENT_ID:  Optional[int] = None
+    DESIGNATION_ID: Optional[int] = None
 
 
 class OnboardingLogin(BaseModel):
@@ -1178,6 +1219,7 @@ def public_submit(
 @router.post("/employee-onboarding/invite", dependencies=[Depends(require("onboarding.invite"))])
 def admin_create_invite(
     body: InviteCreate,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """Generate a fresh invitation.
@@ -1270,6 +1312,8 @@ def admin_create_invite(
         COLLECTED_DATA=json.dumps({}),
         CHAT_HISTORY=json.dumps([]),
         EXPIRES_AT=expires_at,
+        DEPARTMENT_ID=body.DEPARTMENT_ID,
+        DESIGNATION_ID=body.DESIGNATION_ID,
     )
 
     db.add(s)
@@ -1289,7 +1333,7 @@ def admin_create_invite(
             detail=f"Could not create invite: {exc}"
         )
 
-    invite_link = f"{_frontend_base_url()}/employee-onboarding/{token}"
+    invite_link = f"{_frontend_base_url(request)}/employee-onboarding/{token}"
 
     return {
         "id": s.ID,
@@ -2004,6 +2048,14 @@ def admin_approve_session(
 
         candidate_password = secrets.token_urlsafe(10)
 
+    # Resolve org assignment with a 2-stage fallback so the dropdowns
+    # the admin picked at invite time aren't silently lost:
+    #   1. HR's approval-time override (org_overrides) — highest priority
+    #   2. The invite-time selection stored on the session itself
+    #      (s.DEPARTMENT_ID / s.DESIGNATION_ID — see InviteEmployeeModal)
+    final_department_id  = org_overrides.get("DEPARTMENT_ID")  or s.DEPARTMENT_ID
+    final_designation_id = org_overrides.get("DESIGNATION_ID") or s.DESIGNATION_ID
+
     # Build the EmployeeCreate payload
     payload = {
         "EMPLOYEE_CODE": chosen_code,
@@ -2011,8 +2063,8 @@ def admin_approve_session(
         "EMAIL":         _val("EMAIL"),
         "PHONE":         _val("PHONE"),
         "PASSWORD":      candidate_password,
-        "DEPARTMENT_ID": org_overrides.get("DEPARTMENT_ID"),
-        "DESIGNATION_ID": org_overrides.get("DESIGNATION_ID"),
+        "DEPARTMENT_ID": final_department_id,
+        "DESIGNATION_ID": final_designation_id,
         "ROLE_ID":       org_overrides.get("ROLE_ID"),
         "REPORTING_MANAGER_ID": None,
         "JOINING_DATE":  None,
@@ -2377,6 +2429,7 @@ def admin_delete_session(
 @router.post("/employee-onboarding/sessions/{session_id}/resend-link", dependencies=[Depends(require("onboarding.sessions.resend"))])
 def admin_resend_link(
     session_id: int,
+    request: Request,
     expires_in_days: int = Query(7, ge=1, le=90),
     db: Session = Depends(get_db)
 ):
@@ -2426,7 +2479,7 @@ def admin_resend_link(
             detail=f"Could not resend link: {exc}"
         )
 
-    invite_link = f"{_frontend_base_url()}/employee-onboarding/{new_token}"
+    invite_link = f"{_frontend_base_url(request)}/employee-onboarding/{new_token}"
 
     return {
         "message": "New invite link generated.",

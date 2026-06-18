@@ -26,6 +26,8 @@ from app.routes.geofence import (
     _get_or_create_settings as get_geofence_settings
 )
 
+from app.utils.employee_resolver import resolve_employee_uuid
+
 from app.auth.auth_bearer import (
     get_current_admin,
     get_current_user,
@@ -113,8 +115,11 @@ def _log_failure(
     db.commit()
 
 
-WORK_START_HOUR = 10
-WORK_START_MINUTE = 0
+# Fallback office-start used only when the Setting rows are missing.
+# Source of truth is attendance_settings_service.get_office_hours(db)
+# — that reads from the `setting` table (configurable from the UI).
+WORK_START_HOUR = 9
+WORK_START_MINUTE = 15
 
 
 # =========================
@@ -147,6 +152,12 @@ def check_in(
     # An employee can only check IN as themselves; admins (e.g. kiosk
     # operators or HR via the live floor board) may check in anyone.
     assert_self_or_admin(data.EMPLOYEE_ID, payload)
+
+    # Normalise either UUID or EMPLOYEE_CODE (e.g. "EMP101") to the
+    # canonical UUID. The /employee-login flow returns the CODE under
+    # the EMPLOYEE_ID key, so self-service callers need this bridge.
+    # Raises 404 here if the employee genuinely doesn't exist.
+    data.EMPLOYEE_ID = resolve_employee_uuid(db, data.EMPLOYEE_ID)
 
     emp = db.query(Employee).filter(
         Employee.ID == data.EMPLOYEE_ID
@@ -255,6 +266,9 @@ def check_out(
     # check out anyone (e.g. shift supervisor closing the floor).
     assert_self_or_admin(data.EMPLOYEE_ID, payload)
 
+    # Accept either UUID or EMPLOYEE_CODE — see check-in route comment.
+    data.EMPLOYEE_ID = resolve_employee_uuid(db, data.EMPLOYEE_ID)
+
     today = date.today()
 
     record = db.query(Attendance).filter(
@@ -346,6 +360,9 @@ def mark_absent(
     data: MarkAbsentRequest,
     db: Session = Depends(get_db)
 ):
+
+    # Accept either UUID or EMPLOYEE_CODE — see check-in route comment.
+    data.EMPLOYEE_ID = resolve_employee_uuid(db, data.EMPLOYEE_ID)
 
     today = date.today()
 

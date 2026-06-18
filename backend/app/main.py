@@ -59,7 +59,7 @@ from app.routes.employee_onboarding import router as employee_onboarding_router
 from app.routes.employee_documents import router as employee_documents_router
 from app.routes.admin_dashboard import router as admin_dashboard_router
 from app.routes.approvals import router as approvals_router
-from app.routes.ai_command import router as ai_command_router
+# ai_command router removed Phase 2 — front-end stub was deleted
 from app.routes.dashboard_aggregators import router as dashboard_aggregators_router
 from app.routes.ai import router as ai_router
 from app.routes.public_enquiry import router as public_enquiry_router
@@ -69,6 +69,8 @@ from app.routes.leave_chatbot import router as leave_chatbot_router
 from app.routes.employee_portal import router as employee_portal_router
 from app.routes.audit import router as audit_router  # Phase 3 security
 from app.routes.rbac import router as rbac_router    # Phase 2 RBAC
+from app.routes.holiday import router as holiday_router    # Phase 2 Holiday Calendar
+from app.routes.chatbot_ai import router as chatbot_ai_router  # AI chatbot v1 (Gemini)
 from fastapi.middleware.cors import CORSMiddleware
 
 # Phase 3 — Audit log
@@ -94,6 +96,11 @@ class AuditMiddleware(BaseHTTPMiddleware):
     table stays small and write volume stays low. Failed requests
     (4xx/5xx) ARE captured — that's the most forensically useful
     case (intrusion attempts, permission violations, etc.).
+
+    Also surfaces CORS preflight failures to stdout — these are easy
+    to miss because they never reach a route handler and never get
+    audited. When an OPTIONS request returns 400, we log the Origin
+    so you can extend the CORS allow-list without debugging blind.
     """
 
     async def dispatch(self, request, call_next):
@@ -104,6 +111,16 @@ class AuditMiddleware(BaseHTTPMiddleware):
         # Decide AFTER we have a status code so we can include it
         method = request.method
         path = request.url.path
+
+        # CORS preflight diagnostic — only log the bad ones to keep
+        # noise low. A 200 OPTIONS means CORS approved; a 400 means
+        # the Origin was rejected by CORSMiddleware.
+        if method == "OPTIONS" and response.status_code == 400:
+            origin = request.headers.get("origin", "<missing>")
+            print(
+                f"[cors-reject] OPTIONS {path}  origin={origin}  "
+                f"-> 400 (extend allow_origins / allow_origin_regex in main.py)"
+            )
 
         if not should_audit(method, path):
             return response
@@ -153,12 +170,27 @@ else:
 
     _cors_origins = _DEFAULT_CORS_ORIGINS
 
+# The regex below covers TWO dynamic-origin families that can't be
+# enumerated in the static list above:
+#
+#   1. LAN IPs over HTTP — for mobile-on-WiFi testing.
+#      e.g. http://192.168.1.56:5173 / http://10.0.0.5:4173
+#
+#   2. Cloudflare Quick Tunnel hostnames — *.trycloudflare.com over HTTPS.
+#      These rotate on every `cloudflared` restart, so a pinned URL
+#      would force a code edit every time the tunnel comes back up.
+#      Generic pattern: lowercase letters/digits/hyphens, then
+#      ".trycloudflare.com". Named-tunnel hosts (erp.bvc24.com,
+#      api.bvc24.com) are in the static list and don't need a regex.
+_CORS_ORIGIN_REGEX = (
+    r"^http://(10|127|192\.168|172\.(1[6-9]|2\d|3[01]))\.[\d.]+:\d{4}$"
+    r"|^https://[a-z0-9-]+\.trycloudflare\.com$"
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
-    # LAN IPs on Vite dev/preview ports — for testing on phones over WiFi.
-    # Matches e.g. http://192.168.1.56:5173 but not random public IPs.
-    allow_origin_regex=r"^http://(10|127|192\.168|172\.(1[6-9]|2\d|3[01]))\.[\d.]+:\d{4}$",
+    allow_origin_regex=_CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -265,6 +297,9 @@ def _auto_migrate():
         # Replaces the AI chatbot flow with admin-sets-password-at-invite +
         # candidate logs in to fill the registration form.
         ("employee_onboarding_session", "PASSWORD_HASH", "VARCHAR(255) NULL"),
+        # Phase 2 — admin can pre-set role at invite time
+        ("employee_onboarding_session", "DEPARTMENT_ID",  "INT NULL"),
+        ("employee_onboarding_session", "DESIGNATION_ID", "INT NULL"),
         # ---- HR Module Phase A — Employee column expansion (2026-06-01) ----
         ("employee", "BLOOD_GROUP",                "VARCHAR(5)   NULL"),
         ("employee", "NATIONALITY",                "VARCHAR(50)  NULL"),
@@ -579,7 +614,7 @@ def _auto_migrate():
                 `OFFICE_NAME` VARCHAR(150) NULL,
                 `LATITUDE` FLOAT NOT NULL DEFAULT 0,
                 `LONGITUDE` FLOAT NOT NULL DEFAULT 0,
-                `RADIUS_METERS` INT NOT NULL DEFAULT 100,
+                `RADIUS_METERS` INT NOT NULL DEFAULT 50,
                 `IS_ACTIVE` INT NOT NULL DEFAULT 1,
                 `CREATED_AT` DATETIME NULL,
                 `UPDATED_AT` DATETIME NULL,
@@ -832,6 +867,200 @@ def _auto_migrate():
 _auto_migrate()
 
 
+def _auto_seed_holidays():
+    """If no holidays exist for the current year, seed the bundled
+    Indian national list (NATIONAL + Tamil New Year). Idempotent —
+    runs once on first boot per year per vendor."""
+
+    from sqlalchemy.orm import sessionmaker
+    from datetime import date
+    from app.models.models import HolidayCalendar
+    from app.routes.holiday import INDIA_NATIONAL_HOLIDAYS
+
+    Session = sessionmaker(bind=engine)
+
+    db = Session()
+
+    try:
+
+        current_year = date.today().year
+
+        # Seed the current year + next year so payroll for early-Jan
+        # ever runs without manual setup.
+        for year in (current_year, current_year + 1):
+
+            existing = (
+                db.query(HolidayCalendar)
+                  .filter(
+                      HolidayCalendar.VENDOR_ID == 1,
+                      HolidayCalendar.HOLIDAY_DATE >= date(year, 1, 1),
+                      HolidayCalendar.HOLIDAY_DATE <= date(year, 12, 31),
+                  )
+                  .count()
+            )
+
+            if existing > 0:
+                continue
+
+            catalog = INDIA_NATIONAL_HOLIDAYS.get(year)
+
+            if not catalog:
+                continue
+
+            for iso, name, htype in catalog:
+
+                db.add(HolidayCalendar(
+                    HOLIDAY_DATE=date.fromisoformat(iso),
+                    NAME=name,
+                    TYPE=htype,
+                    IS_OPTIONAL=0,
+                    VENDOR_ID=1,
+                ))
+
+        db.commit()
+
+    except Exception as exc:
+
+        db.rollback()
+
+        import logging
+
+        logging.getLogger("uvicorn").warning(
+            "auto-seed-holidays skipped: %s", exc
+        )
+
+    finally:
+
+        db.close()
+
+
+_auto_seed_holidays()
+
+
+# Canonical department + designation lists for a manufacturing company.
+# Inserted ADDITIVELY — existing custom entries are kept, missing ones
+# are added. Order doesn't matter; we de-dupe by (VENDOR_ID, NAME).
+_MFG_DEPARTMENTS = [
+    ("Software Development",          "SW"),
+    ("Accounts & Finance",            "FIN"),
+    ("Sales",                         "SAL"),
+    ("Purchase / Procurement",        "PUR"),
+    ("Design & Engineering",          "DSN"),
+    ("Electrical",                    "ELE"),
+    ("Welding",                       "WLD"),
+    ("Fitting",                       "FIT"),
+    ("Assembly",                      "ASM"),
+    ("Production",                    "PRD"),
+    ("Quality Control",               "QC"),
+    ("Quality Assurance",             "QA"),
+    ("Maintenance",                   "MNT"),
+    ("Manufacturing",                 "MFG"),
+    ("Operations",                    "OPS"),
+    ("Stores / Inventory",            "INV"),
+    ("Logistics",                     "LOG"),
+    ("Supply Chain Management",       "SCM"),
+    ("Research & Development",        "RND"),
+    ("Human Resources",               "HR"),
+    ("Administration",                "ADM"),
+    ("Safety (EHS)",                  "EHS"),
+    ("Planning",                      "PLN"),
+    ("Project Management",            "PM"),
+    ("Tool Room",                     "TR"),
+    ("Machine Shop",                  "MS"),
+    ("Fabrication",                   "FAB"),
+    ("Inspection",                    "INSP"),
+    ("Packaging",                     "PKG"),
+    ("Dispatch",                      "DSP"),
+    ("Customer Support / Service",    "CS"),
+    ("Information Technology",        "IT"),
+]
+
+_MFG_DESIGNATIONS = [
+    "Trainee", "Apprentice", "Operator", "Technician", "Fitter",
+    "Welder", "Electrician", "Supervisor", "Senior Supervisor",
+    "Engineer", "Senior Engineer", "Design Engineer", "Production Engineer",
+    "Quality Engineer", "Maintenance Engineer", "Team Leader",
+    "Shift In-Charge", "Assistant Manager", "Deputy Manager", "Manager",
+    "Senior Manager", "General Manager", "Department Head", "Executive",
+    "Senior Executive", "Accountant", "Purchase Executive",
+    "Sales Executive", "HR Executive", "HR Manager", "IT Administrator",
+    "Project Engineer", "Project Manager", "Plant Head", "Factory Manager",
+    "Director",
+]
+
+
+def _auto_seed_org_catalog():
+    """Top up Department + Designation tables with the canonical
+    manufacturing-industry list. Existing entries are NEVER modified;
+    only missing names get inserted. Safe to re-run on every boot."""
+
+    from sqlalchemy.orm import sessionmaker
+    from app.models.models import Department, Designation
+
+    Session = sessionmaker(bind=engine)
+    db = Session()
+
+    try:
+
+        # ---- Departments ------------------------------------------
+        existing_dept_names = {
+            (d.NAME or "").strip().lower()
+            for d in db.query(Department).filter(Department.VENDOR_ID == 1).all()
+        }
+
+        dept_added = 0
+        for name, code in _MFG_DEPARTMENTS:
+            if name.strip().lower() in existing_dept_names:
+                continue
+            db.add(Department(NAME=name, CODE=code, VENDOR_ID=1))
+            dept_added += 1
+
+        if dept_added:
+            db.commit()
+
+        # ---- Designations -----------------------------------------
+        # Designation is keyed by TITLE alone (no vendor scope on the
+        # model — it's company-agnostic). Use a case-insensitive set.
+        existing_des_titles = {
+            (d.TITLE or "").strip().lower()
+            for d in db.query(Designation).all()
+        }
+
+        des_added = 0
+        for title in _MFG_DESIGNATIONS:
+            if title.strip().lower() in existing_des_titles:
+                continue
+            db.add(Designation(TITLE=title))
+            des_added += 1
+
+        if des_added:
+            db.commit()
+
+        if dept_added or des_added:
+
+            import logging
+            logging.getLogger("uvicorn").info(
+                "auto-seed-org-catalog: +%d departments, +%d designations",
+                dept_added, des_added,
+            )
+
+    except Exception as exc:
+
+        db.rollback()
+
+        import logging
+        logging.getLogger("uvicorn").warning(
+            "auto-seed-org-catalog skipped: %s", exc
+        )
+
+    finally:
+
+        db.close()
+
+
+_auto_seed_org_catalog()
+
+
 def _auto_seed_org():
     """If Department / Role / Designation are empty for vendor 1,
     seed the MANUFACTURING preset. Idempotent — only runs when the
@@ -994,7 +1223,7 @@ app.include_router(employee_onboarding_router, tags=["Employee Onboarding Portal
 app.include_router(employee_documents_router, tags=["Employee Documents"])
 app.include_router(admin_dashboard_router)
 app.include_router(approvals_router)
-app.include_router(ai_command_router)
+# app.include_router(ai_command_router)  # removed Phase 2
 app.include_router(dashboard_aggregators_router)
 app.include_router(ai_router)
 app.include_router(public_enquiry_router)
@@ -1004,6 +1233,8 @@ app.include_router(leave_chatbot_router)
 app.include_router(employee_portal_router, tags=["Employee Portal"])
 app.include_router(audit_router)
 app.include_router(rbac_router)
+app.include_router(holiday_router)
+app.include_router(chatbot_ai_router)
 
 
 @app.get("/", tags=["Health"])

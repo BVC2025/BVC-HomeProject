@@ -92,6 +92,23 @@ def ensure_today_attendance(
     now: datetime,
     vendor_id: int
 ):
+    """Ensure an Attendance row exists for today, but do NOT mark
+    CHECK_IN automatically. Geofenced check-in is a separate explicit
+    action — the employee must tap the Check In button so the server
+    can validate their GPS coordinates against the office geofence.
+
+    Legacy "login = check-in" auto-fill was removed because it bypassed
+    the geofence gate and created phantom 4 PM check-ins whenever an
+    admin browsed the portal in the evening.
+
+    The row's STATUS is still computed at login time so that LATE
+    detection (used for late-coming notifications / auto-permissions)
+    works without waiting for the actual check-in.
+
+    Returns (row, fresh) where `fresh=True` means the row was created
+    in this call — used by the caller to decide whether to fire the
+    late-login notification.
+    """
 
     today = now.date()
 
@@ -107,24 +124,12 @@ def ensure_today_attendance(
         row = Attendance(
             EMPLOYEE_ID=employee_id,
             DATE=today,
-            CHECK_IN=now,
+            CHECK_IN=None,
             STATUS=compute_login_status(now, start),
             VENDOR_ID=vendor_id
         )
 
         db.add(row)
-
-        db.commit()
-
-        db.refresh(row)
-
-        return row, True
-
-    if row.CHECK_IN is None:
-
-        row.CHECK_IN = now
-
-        row.STATUS = compute_login_status(now, start)
 
         db.commit()
 

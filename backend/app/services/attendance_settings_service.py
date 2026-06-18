@@ -26,8 +26,8 @@ KEY_END   = "attendance.office_end_time"
 KEY_LATE_GRACE  = "attendance.late_grace_minutes"
 KEY_EARLY_GRACE = "attendance.early_exit_grace_minutes"
 
-DEFAULT_START = time(10, 0)    # 10:00 AM
-DEFAULT_END   = time(17, 30)   # 5:30 PM
+DEFAULT_START = time(9, 15)    # 9:15 AM — anyone clocking in later is LATE
+DEFAULT_END   = time(18, 0)    # 6:00 PM — work past this is overtime
 DEFAULT_LATE_GRACE_MIN  = 15
 DEFAULT_EARLY_GRACE_MIN = 15
 

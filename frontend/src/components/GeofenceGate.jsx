@@ -92,6 +92,29 @@ export default function GeofenceGate({
 
     setCoords({ lat, lng, accuracy });
 
+    // ---- Accuracy gate ---------------------------------------------
+    // Real GPS / Wi-Fi positioning is accurate to 5-100m. An accuracy
+    // reading worse than 500m almost always means the browser fell back
+    // to IP-geolocation — which places the device anywhere in a city-wide
+    // circle. Letting that through would block legit at-office users
+    // because the "you are here" guess is kilometres off. Block it
+    // explicitly with a clear message instead.
+    const MAX_TRUSTED_ACCURACY_METERS = 500;
+
+    if (Number.isFinite(accuracy) && accuracy > MAX_TRUSTED_ACCURACY_METERS) {
+
+      setPhase("low_accuracy");
+
+      reportFailure(
+        "LOW_GPS_ACCURACY", lat, lng, null,
+        `accuracy=${Math.round(accuracy)}m (threshold ${MAX_TRUSTED_ACCURACY_METERS}m)`
+      );
+
+      onBlocked("LOW_GPS_ACCURACY");
+
+      return;
+    }
+
     try {
 
       const r = await API.post("/geofence/validate", {
@@ -400,6 +423,42 @@ export default function GeofenceGate({
         <ActionRow>
           <SkipBtn onClick={skipGps}>✓ Skip GPS — mark attendance anyway</SkipBtn>
           <Retry onClick={requestLocation} label="Retry" inline />
+        </ActionRow>
+      </Card>
+    );
+  }
+
+  if (phase === "low_accuracy") {
+
+    const acc = coords?.accuracy
+      ? Math.round(coords.accuracy)
+      : null;
+
+    return (
+
+      <Card border="#fde68a" bg="#fffbeb">
+        <Title color="#854d0e">⚠ GPS reading is too imprecise</Title>
+        <Body>
+          The browser returned a location accurate to <b>±{acc ? acc.toLocaleString() : "?"}m</b>{" "}
+          — that's not a real GPS fix, it's an IP-based guess that can
+          be tens of kilometres off. Even if you're sitting at the office,
+          the geofence check would fail because we can't trust this reading.
+          <br /><br />
+          <b>Fixes that usually work:</b>
+          <ol style={{ margin: "6px 0 0 18px", padding: 0, lineHeight: 1.6 }}>
+            <li>Open this page on your <b>mobile phone</b> with Location ON
+                — phones have real GPS chips and Wi-Fi positioning.</li>
+            <li>If you're on a desktop, connect to <b>office Wi-Fi</b> so
+                Windows can use Wi-Fi triangulation instead of IP.</li>
+            <li>Check Windows&nbsp;Settings → Privacy → Location is ON,
+                AND your browser is allowed.</li>
+            <li>Worst case: ask an admin to mark your attendance from
+                the Live Floor Board.</li>
+          </ol>
+        </Body>
+        <ActionRow>
+          <SkipBtn onClick={skipGps}>✓ Skip GPS — mark attendance anyway</SkipBtn>
+          <Retry onClick={requestLocation} label="🔄 Retry GPS" inline />
         </ActionRow>
       </Card>
     );

@@ -403,7 +403,14 @@ def compute_performance_for_employee(
     """Idempotently compute one employee's PerformanceScore for the
     period. Overwrites the existing row if one exists."""
 
-    working_days = _working_days_in_month(year, month)
+    # Phase 2: vendor-aware working-day count (Sundays + declared
+    # holidays). Falls back to Sundays-only if the table is empty.
+    from app.services.working_days_service import working_days_in_month
+
+    working_days = working_days_in_month(
+        db, year, month,
+        vendor_id=(employee.VENDOR_ID or 1),
+    )
 
     att  = _score_attendance(db, employee.ID, year, month, working_days)
 

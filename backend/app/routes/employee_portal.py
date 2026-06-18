@@ -60,6 +60,11 @@ from app.auth.auth_bearer import get_current_user, assert_self_or_admin
 router = APIRouter()
 
 
+# Shared CODE-or-UUID resolver used at the top of every portal route —
+# see backstory in app/utils/employee_resolver.py.
+from app.utils.employee_resolver import resolve_employee_uuid as _resolve_employee_uuid  # noqa: E402
+
+
 # ---------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------
@@ -582,6 +587,9 @@ def get_portal_dashboard(
 
     assert_self_or_admin(employee_id, payload)
 
+    # Accept either UUID or CODE — see _resolve_employee_uuid docstring.
+    employee_id = _resolve_employee_uuid(db, employee_id)
+
     profile = _employee_profile(db, employee_id)
     buckets = _bucket_assignments(db, employee_id)
     assigned_projects = _assigned_projects_block(db, employee_id)
@@ -630,6 +638,9 @@ def patch_task_status(
     cascade the side-effects (points, stage unlock, performance)."""
 
     assert_self_or_admin(employee_id, payload)
+
+    # Accept either UUID or CODE — see _resolve_employee_uuid docstring.
+    employee_id = _resolve_employee_uuid(db, employee_id)
 
     new_status = (body.status or "").upper().strip()
 
@@ -795,6 +806,9 @@ def get_performance_only(
     """Cheap polling endpoint — just the headline performance dict."""
 
     assert_self_or_admin(employee_id, payload)
+
+    # Accept either UUID or CODE — see _resolve_employee_uuid docstring.
+    employee_id = _resolve_employee_uuid(db, employee_id)
 
     # Existence check so the polling caller gets a clean 404 rather
     # than a zero-row dict that masks a typo in the ID.
