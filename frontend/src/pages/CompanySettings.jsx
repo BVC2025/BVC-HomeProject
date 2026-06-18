@@ -16,7 +16,7 @@ const BVC_GOLD = "#F4B324";
 
 // Same base URL the API helper points at — used to render the logo
 // preview (which lives under /static on the backend).
-const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8001";
+const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8000";
 
 
 export default function CompanySettings() {

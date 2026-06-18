@@ -39,7 +39,7 @@ os.environ.setdefault("SMTP_USER", "test")
 os.environ.setdefault("SMTP_PASSWORD", "test")
 os.environ.setdefault("SMTP_FROM", "test@example.com")
 os.environ.setdefault("FRONTEND_URL", "http://localhost:5173")
-os.environ.setdefault("BACKEND_URL", "http://localhost:8001")
+os.environ.setdefault("BACKEND_URL", "http://localhost:8000")
 
 from app.database.database import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402

@@ -341,16 +341,6 @@ function QuotationEditor({ quotationId, onClose, onSaved }) {
             />
           </Field>
 
-          <Field label="GST / Tax (%)">
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={draft.TAX_PERCENT}
-              onChange={(e) => setDraft({ ...draft, TAX_PERCENT: e.target.value })}
-              style={inputStyle()}
-            />
-          </Field>
         </div>
 
         {/* Line items */}
@@ -514,11 +504,37 @@ function QuotationEditor({ quotationId, onClose, onSaved }) {
             border: "1px solid #bbf7d0",
             borderRadius: 12,
             padding: 16,
-            minWidth: 280
+            minWidth: 300
           }}>
             <TotalRow label="Subtotal" value={subtotal} />
             <TotalRow label={`Header Discount (${draft.DISCOUNT_PERCENT || 0}%)`} value={-discountAmount} />
-            <TotalRow label={`Tax (${draft.TAX_PERCENT || 0}%)`} value={taxAmount} />
+
+            {/* Editable tax row */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", fontSize: 13, color: "#475569" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                Tax
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={draft.TAX_PERCENT}
+                  onChange={(e) => setDraft({ ...draft, TAX_PERCENT: e.target.value })}
+                  style={{
+                    width: 58,
+                    padding: "3px 6px",
+                    border: "1px solid #86efac",
+                    borderRadius: 6,
+                    fontSize: 12,
+                    textAlign: "center",
+                    fontFamily: "inherit",
+                    background: "white"
+                  }}
+                />
+                <span style={{ fontSize: 12, color: "#64748b" }}>%</span>
+              </span>
+              <span style={{ fontWeight: 500 }}>{inr(taxAmount)}</span>
+            </div>
+
             <div style={{ borderTop: "1px solid #86efac", marginTop: 6, paddingTop: 6 }}>
               <TotalRow label="Grand Total" value={grandTotal} bold large />
             </div>
@@ -627,6 +643,21 @@ function QuotationDetail({ quotation, onClose, onChanged }) {
   const [activity, setActivity] = useState([]);
 
   const [resending, setResending] = useState(false);
+
+  const [localTaxPct, setLocalTaxPct] = useState(q.TAX_PERCENT ?? 18);
+
+  const taxableBase = (q.SUBTOTAL || 0) - (q.DISCOUNT_AMOUNT || 0);
+  const localTaxAmt = taxableBase * (Number(localTaxPct) || 0) / 100;
+  const localGrandTotal = taxableBase + localTaxAmt;
+
+  const saveTax = async (val) => {
+    try {
+      await API.patch(`/quotations/${q.ID}`, { TAX_PERCENT: Number(val) || 0 });
+      onChanged?.();
+    } catch {
+      // silent — totals still show the locally-computed value
+    }
+  };
 
   const loadActivity = () => {
 
@@ -792,8 +823,12 @@ function QuotationDetail({ quotation, onClose, onChanged }) {
 
   const printNow = () => {
 
-    // Open the dedicated print view in a new tab — keeps the modal intact
     window.open(`/quotation-print/${q.ID}`, "_blank");
+  };
+
+  const downloadPdf = () => {
+
+    window.open(`/quotation-print/${q.ID}?download=1`, "_blank");
   };
 
   const deleteQuotation = async () => {
@@ -907,7 +942,11 @@ function QuotationDetail({ quotation, onClose, onChanged }) {
         )}
 
         <ActionBtn color="#6366f1" onClick={printNow}>
-          🖨️ Print / PDF
+          🖨️ Print
+        </ActionBtn>
+
+        <ActionBtn color="#0f172a" onClick={downloadPdf}>
+          ⬇️ Save PDF
         </ActionBtn>
 
         {["DRAFT", "REJECTED", "EXPIRED"].includes(q.STATUS) && (
@@ -1026,9 +1065,36 @@ function QuotationDetail({ quotation, onClose, onChanged }) {
           {q.DISCOUNT_PERCENT > 0 && (
             <TotalRow label={`Discount (${q.DISCOUNT_PERCENT}%)`} value={-q.DISCOUNT_AMOUNT} />
           )}
-          <TotalRow label={`Tax (${q.TAX_PERCENT}%)`} value={q.TAX_AMOUNT} />
+
+          {/* Editable tax row */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", fontSize: 13, color: "#475569" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              Tax
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                value={localTaxPct}
+                onChange={(e) => setLocalTaxPct(e.target.value)}
+                onBlur={(e) => saveTax(e.target.value)}
+                style={{
+                  width: 58,
+                  padding: "3px 6px",
+                  border: "1px solid #86efac",
+                  borderRadius: 6,
+                  fontSize: 12,
+                  textAlign: "center",
+                  fontFamily: "inherit",
+                  background: "white"
+                }}
+              />
+              <span style={{ fontSize: 12, color: "#64748b" }}>%</span>
+            </span>
+            <span style={{ fontWeight: 500 }}>{inr(localTaxAmt)}</span>
+          </div>
+
           <div style={{ borderTop: "1px solid #86efac", marginTop: 6, paddingTop: 6 }}>
-            <TotalRow label="Grand Total" value={q.GRAND_TOTAL} bold large />
+            <TotalRow label="Grand Total" value={localGrandTotal} bold large />
           </div>
         </div>
       </div>

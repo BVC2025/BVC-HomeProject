@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 
 import API from "../services/api";
 
@@ -24,6 +24,10 @@ function inr(n) {
 function QuotationPrint() {
 
   const { id } = useParams();
+
+  const [searchParams] = useSearchParams();
+
+  const isDownload = searchParams.get("download") === "1";
 
   const [q, setQ] = useState(null);
 
@@ -50,7 +54,9 @@ function QuotationPrint() {
 
     if (q && company !== undefined) {
 
-      // Small delay so styles settle before the browser snapshots
+      // Set document title = quotation number so "Save as PDF" uses it as filename
+      document.title = q.QUOTATION_NUMBER || "Quotation";
+
       const t = setTimeout(() => window.print(), 350);
 
       return () => clearTimeout(t);
@@ -256,7 +262,40 @@ function QuotationPrint() {
         }
       `}</style>
 
-      <div className="quot-page">
+      {/* {isDownload && (
+        <div className="no-print" style={{
+          position: "fixed",
+          top: 0, left: 0, right: 0,
+          background: "#0f172a",
+          color: "white",
+          padding: "10px 20px",
+          fontSize: 13,
+          fontFamily: "Arial",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          zIndex: 9999
+        }}>
+          <span>📥 In the print dialog — change <b>Destination</b> to <b>"Save as PDF"</b>, then click Save.</span>
+          <button
+            onClick={() => window.print()}
+            style={{
+              background: "#C8102E",
+              color: "white",
+              border: "none",
+              padding: "6px 16px",
+              borderRadius: 6,
+              cursor: "pointer",
+              fontWeight: 700,
+              fontSize: 13
+            }}
+          >
+            ⬇️ Save as PDF
+          </button>
+        </div>
+      )} */}
+
+      <div className="quot-page" style={isDownload ? { marginTop: 48 } : {}}>
 
         <div className="quot-header">
           <div className="vendor-block">

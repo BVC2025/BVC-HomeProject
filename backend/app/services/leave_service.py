@@ -132,7 +132,7 @@ def _backend_url() -> str:
 
     return (
         os.getenv("BACKEND_URL", "").rstrip("/")
-        or "http://localhost:8001"
+        or "http://localhost:8000"
     )
 
 

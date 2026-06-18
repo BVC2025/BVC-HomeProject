@@ -729,7 +729,7 @@ def _submit_leave(
         try:
 
             api_base = os.getenv(
-                "API_BASE_URL", "http://localhost:8001"
+                "API_BASE_URL", "http://localhost:8000"
             ).rstrip("/")
 
             approve_link = f"{api_base}/leave/decide/{token}?action=approve"
@@ -1098,7 +1098,7 @@ def hr_bot_diagnose():
     the Gemini fallback is or isn't working. Use this when the bot
     keeps replying 'sorry I didn't catch that' instead of using AI.
 
-    Hit: http://localhost:8001/hr-bot/diagnose
+    Hit: http://localhost:8000/hr-bot/diagnose
     """
 
     import os

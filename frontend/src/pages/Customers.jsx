@@ -1812,6 +1812,8 @@ function CustomerEditor({ initial, onClose, onSaved }) {
 
   }, []);
 
+  const [errors, setErrors] = useState({});
+
   const [saving, setSaving] = useState(false);
 
   // Existing product catalogue — used to populate the datalist
@@ -1830,24 +1832,50 @@ function CustomerEditor({ initial, onClose, onSaved }) {
 
   }, [isEdit]);
 
-  const set = (k) => (e) =>
+  const set = (k) => (e) => {
     setForm((f) => ({ ...f, [k]: e.target.value }));
+    setErrors((errs) => ({ ...errs, [k]: "" }));
+  };
 
   const submit = async (e) => {
 
     e?.preventDefault?.();
 
     if (!form.CUSTOMER_NAME.trim()) {
-
       alert("Customer / Company name is required");
-
       return;
     }
 
     if (!form.PHONE.trim() || !form.EMAIL.trim()) {
-
       alert("Phone and Email are required");
+      return;
+    }
 
+    // Field-level validation
+    const PHONE_RE = /^\d{10}$/;
+    const GST_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+    const PAN_RE = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+
+    const newErrors = {};
+
+    if (!PHONE_RE.test(form.PHONE.trim())) {
+      newErrors.PHONE = "Enter a valid 10-digit mobile number";
+    }
+    if (form.ALTERNATE_PHONE.trim() && !PHONE_RE.test(form.ALTERNATE_PHONE.trim())) {
+      newErrors.ALTERNATE_PHONE = "Enter a valid 10-digit mobile number";
+    }
+    if (form.WHATSAPP_NUMBER.trim() && !PHONE_RE.test(form.WHATSAPP_NUMBER.trim())) {
+      newErrors.WHATSAPP_NUMBER = "Enter a valid 10-digit mobile number";
+    }
+    if (form.GST_NUMBER.trim() && !GST_RE.test(form.GST_NUMBER.trim())) {
+      newErrors.GST_NUMBER = "Invalid GST — must be 15 chars e.g. 33ABCDE1234F1Z5";
+    }
+    if (form.PAN_NUMBER.trim() && !PAN_RE.test(form.PAN_NUMBER.trim())) {
+      newErrors.PAN_NUMBER = "Invalid PAN — must be 10 chars e.g. ABCDE1234F";
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
       return;
     }
 
@@ -2296,16 +2324,61 @@ function CustomerEditor({ initial, onClose, onSaved }) {
             }}
           >
             <FormField label="Phone *">
-              <input type="text" value={form.PHONE} onChange={set("PHONE")} style={inputStyle()} placeholder="+91 98765 43210" />
+              <input
+                type="text"
+                value={form.PHONE}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  setForm((f) => ({ ...f, PHONE: digits }));
+                  setErrors((errs) => ({
+                    ...errs,
+                    PHONE: digits.length > 0 && digits.length < 10 ? "Mobile number must be 10 digits" : ""
+                  }));
+                }}
+                style={{ ...inputStyle(), ...(errors.PHONE && { border: "1px solid #dc2626" }) }}
+                placeholder="9876543210"
+                inputMode="numeric"
+              />
+              {errors.PHONE && <div style={{ color: "#dc2626", fontSize: 11, marginTop: 3 }}>{errors.PHONE}</div>}
             </FormField>
             <FormField label="Alternate Phone">
-              <input type="text" value={form.ALTERNATE_PHONE} onChange={set("ALTERNATE_PHONE")} style={inputStyle()} />
+              <input
+                type="text"
+                value={form.ALTERNATE_PHONE}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  setForm((f) => ({ ...f, ALTERNATE_PHONE: digits }));
+                  setErrors((errs) => ({
+                    ...errs,
+                    ALTERNATE_PHONE: digits.length > 0 && digits.length < 10 ? "Mobile number must be 10 digits" : ""
+                  }));
+                }}
+                style={{ ...inputStyle(), ...(errors.ALTERNATE_PHONE && { border: "1px solid #dc2626" }) }}
+                placeholder="9876543210"
+                inputMode="numeric"
+              />
+              {errors.ALTERNATE_PHONE && <div style={{ color: "#dc2626", fontSize: 11, marginTop: 3 }}>{errors.ALTERNATE_PHONE}</div>}
             </FormField>
             <FormField label="Email *">
               <input type="email" value={form.EMAIL} onChange={set("EMAIL")} style={inputStyle()} placeholder="contact@example.com" />
             </FormField>
             <FormField label="WhatsApp Number">
-              <input type="text" value={form.WHATSAPP_NUMBER} onChange={set("WHATSAPP_NUMBER")} style={inputStyle()} placeholder="+91 98765 43210" />
+              <input
+                type="text"
+                value={form.WHATSAPP_NUMBER}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                  setForm((f) => ({ ...f, WHATSAPP_NUMBER: digits }));
+                  setErrors((errs) => ({
+                    ...errs,
+                    WHATSAPP_NUMBER: digits.length > 0 && digits.length < 10 ? "Mobile number must be 10 digits" : ""
+                  }));
+                }}
+                style={{ ...inputStyle(), ...(errors.WHATSAPP_NUMBER && { border: "1px solid #dc2626" }) }}
+                placeholder="9876543210"
+                inputMode="numeric"
+              />
+              {errors.WHATSAPP_NUMBER && <div style={{ color: "#dc2626", fontSize: 11, marginTop: 3 }}>{errors.WHATSAPP_NUMBER}</div>}
             </FormField>
             <FormField label="Website" span={2}>
               <input type="text" value={form.WEBSITE} onChange={set("WEBSITE")} style={inputStyle()} placeholder="https://www.example.com" />
@@ -2448,10 +2521,40 @@ function CustomerEditor({ initial, onClose, onSaved }) {
             }}
           >
             <FormField label="GST Number">
-              <input type="text" value={form.GST_NUMBER} onChange={set("GST_NUMBER")} style={inputStyle()} placeholder="33ABCDE1234F1Z5" />
+              <input
+                type="text"
+                value={form.GST_NUMBER}
+                onChange={(e) => {
+                  const val = e.target.value.toUpperCase().slice(0, 15);
+                  const GST_RE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+                  let msg = "";
+                  if (val.length > 0 && val.length < 15) msg = `${val.length}/15 chars — format: 33ABCDE1234F1Z5`;
+                  else if (val.length === 15 && !GST_RE.test(val)) msg = "Invalid GST format — e.g. 33ABCDE1234F1Z5";
+                  setForm((f) => ({ ...f, GST_NUMBER: val }));
+                  setErrors((errs) => ({ ...errs, GST_NUMBER: msg }));
+                }}
+                style={{ ...inputStyle(), ...(errors.GST_NUMBER && { border: "1px solid #dc2626" }) }}
+                placeholder="33ABCDE1234F1Z5"
+              />
+              {errors.GST_NUMBER && <div style={{ color: "#dc2626", fontSize: 11, marginTop: 3 }}>{errors.GST_NUMBER}</div>}
             </FormField>
             <FormField label="PAN Number">
-              <input type="text" value={form.PAN_NUMBER} onChange={set("PAN_NUMBER")} style={inputStyle()} />
+              <input
+                type="text"
+                value={form.PAN_NUMBER}
+                onChange={(e) => {
+                  const val = e.target.value.toUpperCase().slice(0, 10);
+                  const PAN_RE = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+                  let msg = "";
+                  if (val.length > 0 && val.length < 10) msg = `${val.length}/10 chars — format: ABCDE1234F`;
+                  else if (val.length === 10 && !PAN_RE.test(val)) msg = "Invalid PAN format — e.g. ABCDE1234F";
+                  setForm((f) => ({ ...f, PAN_NUMBER: val }));
+                  setErrors((errs) => ({ ...errs, PAN_NUMBER: msg }));
+                }}
+                style={{ ...inputStyle(), ...(errors.PAN_NUMBER && { border: "1px solid #dc2626" }) }}
+                placeholder="ABCDE1234F"
+              />
+              {errors.PAN_NUMBER && <div style={{ color: "#dc2626", fontSize: 11, marginTop: 3 }}>{errors.PAN_NUMBER}</div>}
             </FormField>
           </div>
 
