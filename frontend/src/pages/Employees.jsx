@@ -1482,6 +1482,8 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
 
   const [error, setError] = useState("");
 
+  const [phoneErrors, setPhoneErrors] = useState({ PHONE: "", EMERGENCY_CONTACT_PHONE: "" });
+
   const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
@@ -2030,12 +2032,23 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
               </FormField>
               <FormField label="Emergency Contact Phone">
                 <input
-                  type="tel"
+                  type="text"
                   value={form.EMERGENCY_CONTACT_PHONE}
-                  onChange={set("EMERGENCY_CONTACT_PHONE")}
-                  placeholder="+91 98765 43210"
-                  style={inputStyle()}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    setForm((f) => ({ ...f, EMERGENCY_CONTACT_PHONE: digits }));
+                    setPhoneErrors((err) => ({
+                      ...err,
+                      EMERGENCY_CONTACT_PHONE: digits.length > 0 && digits.length < 10 ? "Mobile number must be 10 digits" : ""
+                    }));
+                  }}
+                  placeholder="9876543210"
+                  inputMode="numeric"
+                  style={{ ...inputStyle(), ...(phoneErrors.EMERGENCY_CONTACT_PHONE && { border: "1px solid #dc2626" }) }}
                 />
+                {phoneErrors.EMERGENCY_CONTACT_PHONE && (
+                  <div style={{ color: "#dc2626", fontSize: 11, marginTop: 3 }}>{phoneErrors.EMERGENCY_CONTACT_PHONE}</div>
+                )}
               </FormField>
               <FormField label="Relationship" span={2}>
                 <input
@@ -2054,12 +2067,23 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
             <FormGrid cols={2}>
               <FormField label="Contact Number">
                 <input
-                  type="tel"
+                  type="text"
                   value={form.PHONE}
-                  onChange={set("PHONE")}
-                  placeholder="+91 98765 43210"
-                  style={inputStyle()}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    setForm((f) => ({ ...f, PHONE: digits }));
+                    setPhoneErrors((err) => ({
+                      ...err,
+                      PHONE: digits.length > 0 && digits.length < 10 ? "Mobile number must be 10 digits" : ""
+                    }));
+                  }}
+                  placeholder="9876543210"
+                  inputMode="numeric"
+                  style={{ ...inputStyle(), ...(phoneErrors.PHONE && { border: "1px solid #dc2626" }) }}
                 />
+                {phoneErrors.PHONE && (
+                  <div style={{ color: "#dc2626", fontSize: 11, marginTop: 3 }}>{phoneErrors.PHONE}</div>
+                )}
               </FormField>
               <FormField label="Email">
                 <input
@@ -2387,11 +2411,21 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   type="text"
                   inputMode="numeric"
                   value={form.AADHAAR_NUMBER}
-                  onChange={set("AADHAAR_NUMBER")}
-                  placeholder="1234 5678 9012"
-                  maxLength={20}
-                  style={inputStyle()}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 12);
+                    setForm((f) => ({ ...f, AADHAAR_NUMBER: digits }));
+                  }}
+                  placeholder="123456789012"
+                  style={{
+                    ...inputStyle(),
+                    ...(form.AADHAAR_NUMBER.length > 0 && form.AADHAAR_NUMBER.length < 12 && { border: "1px solid #dc2626" })
+                  }}
                 />
+                {form.AADHAAR_NUMBER.length > 0 && form.AADHAAR_NUMBER.length < 12 && (
+                  <div style={{ color: "#dc2626", fontSize: 11, marginTop: 3 }}>
+                    {form.AADHAAR_NUMBER.length}/12 digits — Aadhaar must be 12 digits
+                  </div>
+                )}
               </FormField>
             </FormGrid>
           </FormSection>
