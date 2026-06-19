@@ -567,12 +567,11 @@ def create_product_model(
     # has stages to assign as tasks, dashboards aren't blank.
     stages_created = seed_default_stages_for_product(db, model.ID)
 
-    # Auto-create the common vending-machine BOM so the project
-    # drawer shows a real materials list immediately. Suppliers are
-    # auto-linked where a CATEGORY match exists.
-    bom_created = seed_default_bom_for_product(
-        db, model.ID, vendor_id=data.VENDOR_ID
-    )
+    # BOM is user-managed — new products start EMPTY. The admin adds
+    # each line manually via the Production & BOM page. They can opt
+    # in to the static catalog template at any time via
+    # POST /production/models/{id}/seed-default-bom.
+    bom_created = 0
 
     db.commit()
 

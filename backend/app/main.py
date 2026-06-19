@@ -72,6 +72,7 @@ from app.routes.rbac import router as rbac_router    # Phase 2 RBAC
 from app.routes.holiday import router as holiday_router    # Phase 2 Holiday Calendar
 from app.routes.chatbot_ai import router as chatbot_ai_router  # AI chatbot v1 (Gemini)
 from app.routes.work_center import router as work_center_router  # Mfg Phase 1 — Work Centers
+from app.routes.allowance import router as allowance_router  # Employee expense claims
 from fastapi.middleware.cors import CORSMiddleware
 
 # Phase 3 — Audit log
@@ -1312,6 +1313,7 @@ app.include_router(rbac_router)
 app.include_router(holiday_router)
 app.include_router(chatbot_ai_router)
 app.include_router(work_center_router)
+app.include_router(allowance_router, tags=["Allowances"])
 
 
 @app.get("/", tags=["Health"])

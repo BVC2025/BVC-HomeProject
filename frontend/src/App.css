@@ -6,8 +6,7 @@
 
 body {
 
-  font-family: "Segoe UI", sans-serif;
-
+  /* Font-family comes from index.css (Inter). Don't override here. */
   background: #f1f5f9;
 
   width: 100%;
@@ -1188,13 +1187,17 @@ body {
 
   margin: 0;
 
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
   font-size: 20px;
 
   line-height: 1.15;
 
   font-weight: 800;
 
-  letter-spacing: -0.3px;
+  letter-spacing: -0.025em;
+
+  font-feature-settings: 'cv11', 'ss01';
 
   color: #ffffff;
 }
@@ -1470,7 +1473,7 @@ body {
 
   gap: 12px;
 
-  padding: 12px 14px;
+  padding: 11px 14px;
 
   text-decoration: none;
 
@@ -1484,7 +1487,16 @@ body {
 
   transition: all 0.25s ease;
 
-  letter-spacing: 0.2px;
+  /* Inter-tuned sidebar typography (Linear / Stripe style). */
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  font-size: 14.5px;
+
+  font-weight: 500;
+
+  letter-spacing: -0.005em;
+
+  font-feature-settings: 'cv11', 'ss01';
 
   overflow: hidden;
 }
@@ -1568,7 +1580,7 @@ body {
 
   color: #ffffff;
 
-  font-weight: 700;
+  font-weight: 600;
 
   box-shadow:
     inset 0 0 0 1px rgba(253,224,71,0.35),

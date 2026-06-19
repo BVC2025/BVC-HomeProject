@@ -4188,3 +4188,59 @@ class AuditLog(Base):
     USER_AGENT  = Column(String(500), nullable=True)
 
     CREATED_AT  = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+# ====================================================================
+# Employee Allowance / Expense Claim
+# ====================================================================
+# Employee submits an office-related expense (travel, food, supplies,
+# etc.). MD / approver gets an email notification, reviews the request
+# in the admin Allowances page, and approves or rejects it.
+
+class EmployeeAllowance(Base):
+    """One row per expense claim submitted by an employee."""
+
+    __tablename__ = "employee_allowance"
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    EMPLOYEE_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=False,
+        index=True
+    )
+
+    CATEGORY = Column(String(40), nullable=False, index=True)
+    # TRAVEL / FOOD / ACCOMMODATION / OFFICE_SUPPLIES / FUEL /
+    # COMMUNICATION / CLIENT_MEETING / TRAINING / OTHER
+
+    AMOUNT = Column(Float, nullable=False, default=0.0)
+
+    EXPENSE_DATE = Column(Date, nullable=False, index=True)
+
+    DESCRIPTION = Column(String(1000), nullable=True)
+
+    RECEIPT_URL = Column(String(500), nullable=True)
+
+    STATUS = Column(String(20), default="PENDING", index=True)
+    # PENDING / APPROVED / REJECTED
+
+    SUBMITTED_AT = Column(DateTime, default=datetime.utcnow, index=True)
+
+    REVIEWED_BY_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=True
+    )
+
+    REVIEWED_AT = Column(DateTime, nullable=True)
+
+    REVIEW_NOTES = Column(String(1000), nullable=True)
+
+    VENDOR_ID = Column(
+        Integer,
+        ForeignKey("vendor.ID"),
+        nullable=True,
+        index=True
+    )

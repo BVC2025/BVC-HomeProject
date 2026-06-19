@@ -7,6 +7,7 @@ import HRAssistant from "../components/HRAssistant";
 import LeaveChatbot from "../components/LeaveChatbot";
 import VoiceLeaveTest from "../components/VoiceLeaveTest";
 import MyAttendancePanel from "../components/MyAttendancePanel";
+import MyAllowanceSection from "../components/MyAllowanceSection";
 import EmployeeProfileForm from "./EmployeeProfileForm";
 
 import {
@@ -845,6 +846,10 @@ function EmployeeDashboardBody() {
           <MyMemosCard employeeId={employeeId} />
         )}
 
+        {mainTab === "allowance" && (
+          <MyAllowanceSection employeeId={employeeId} />
+        )}
+
         {mainTab === "performance" && (
           <>
             <PerformanceBreakdownCard productivity={productivity} />
@@ -878,6 +883,7 @@ function PortalTabNav({ active, onChange, badges = {} }) {
     { key: "tasks",       label: "Tasks",       badge: badges.tasks },
     { key: "leave",       label: "Leave",       badge: badges.leave },
     { key: "memos",       label: "Memos"       },
+    { key: "allowance",   label: "Allowance"   },
     { key: "performance", label: "Performance" }
   ];
 
@@ -3404,9 +3410,12 @@ function downloadMemoPdf(memo) {
 <head>
 <meta charset="utf-8" />
 <title>${esc(memo.MEMO_NUMBER || "Memo")}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
 <style>
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: "Segoe UI", Roboto, system-ui, sans-serif; color: #1f2933; }
+  body { margin: 0; font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #1f2933; font-feature-settings: 'cv11', 'ss01'; letter-spacing: -0.005em; }
   .page { width: 800px; margin: 0 auto; padding: 48px 56px; }
   .memono { float: right; margin-top: 30px; font-family: ui-monospace, monospace; font-weight: 700; font-size: 13px; color: ${tt.color}; }
   .top { display: flex; align-items: center; gap: 16px; border-bottom: 3px solid ${tt.color}; padding-bottom: 18px; }

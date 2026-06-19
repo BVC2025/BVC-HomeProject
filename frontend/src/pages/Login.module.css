@@ -12,7 +12,9 @@
   justify-content: center;
   padding: 24px;
   box-sizing: border-box;
-  font-family: "Segoe UI", Roboto, system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-feature-settings: 'cv11', 'ss01', 'ss03', 'cv02';
+  letter-spacing: -0.005em;
   /* Clean professional gradient — light, airy, faint brand tint */
   background: linear-gradient(135deg, #f4f7fb 0%, #e7ecf5 100%);
 }

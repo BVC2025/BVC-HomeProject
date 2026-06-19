@@ -263,14 +263,63 @@ function DashboardTab() {
 
 // Single BOM row in the Production page model drawer. Renders the
 // Excel-style layout (preview | item no | part name | qty) plus a
-// file picker to upload/replace the line's image.
-function BomEditableRow({ item, onUploaded }) {
+// file picker to upload/replace the line's image. Also supports
+// inline edit of QUANTITY/UNIT and a delete action.
+function BomEditableRow({ item, onUploaded, onChanged }) {
 
   const [uploading, setUploading] = useState(false);
 
   const [error, setError] = useState("");
 
+  const [editing, setEditing] = useState(false);
+
+  const [saving, setSaving] = useState(false);
+
+  const [deleting, setDeleting] = useState(false);
+
+  const [draft, setDraft] = useState({
+    MATERIAL_NAME: item.MATERIAL_NAME || "",
+    QUANTITY: item.QUANTITY ?? 1,
+    UNIT: item.UNIT || "pcs",
+  });
+
   const fileInputId = `bom-img-${item.ID}`;
+
+  const saveEdit = async () => {
+    if (!draft.MATERIAL_NAME.trim()) {
+      setError("Material name is required.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      await API.patch(`/production/bom/${item.ID}`, {
+        QUANTITY: Number(draft.QUANTITY) || 0,
+        UNIT: draft.UNIT || "pcs",
+      });
+      // MATERIAL_NAME edit isn't supported by the PATCH schema
+      // (it's intentionally read-only post-create — change material
+      // by deleting and adding a new line).
+      setEditing(false);
+      onChanged?.();
+    } catch (err) {
+      setError(err?.response?.data?.detail || "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeLine = async () => {
+    if (!window.confirm(`Delete BOM line "${item.MATERIAL_NAME}"?`)) return;
+    setDeleting(true);
+    try {
+      await API.delete(`/production/bom/${item.ID}`);
+      onChanged?.();
+    } catch (err) {
+      alert(err?.response?.data?.detail || "Delete failed");
+      setDeleting(false);
+    }
+  };
 
   const isPurchase = (item.ITEM_TYPE || "PURCHASE") === "PURCHASE";
 
@@ -409,7 +458,7 @@ function BomEditableRow({ item, onUploaded }) {
         </div>
       </td>
 
-      {/* Qty */}
+      {/* Qty (inline editable) */}
       <td style={{
         padding: 6,
         textAlign: "center",
@@ -418,38 +467,161 @@ function BomEditableRow({ item, onUploaded }) {
         fontSize: 14,
         color: "#0f172a"
       }}>
-        {item.QUANTITY}
-        <div style={{ fontSize: 9, color: "#94a3b8", fontWeight: 500 }}>
-          {item.UNIT}
-        </div>
+        {editing ? (
+          <>
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              value={draft.QUANTITY}
+              onChange={(e) => setDraft({ ...draft, QUANTITY: e.target.value })}
+              style={{
+                width: 60,
+                padding: "4px 6px",
+                border: "1px solid #cbd5e1",
+                borderRadius: 4,
+                fontSize: 13,
+                textAlign: "center",
+                fontFamily: "inherit",
+              }}
+            />
+            <input
+              type="text"
+              value={draft.UNIT}
+              onChange={(e) => setDraft({ ...draft, UNIT: e.target.value })}
+              placeholder="pcs"
+              style={{
+                width: 50,
+                marginTop: 3,
+                padding: "3px 6px",
+                border: "1px solid #cbd5e1",
+                borderRadius: 4,
+                fontSize: 11,
+                textAlign: "center",
+                fontFamily: "inherit",
+              }}
+            />
+          </>
+        ) : (
+          <>
+            {item.QUANTITY}
+            <div style={{ fontSize: 9, color: "#94a3b8", fontWeight: 500 }}>
+              {item.UNIT}
+            </div>
+          </>
+        )}
       </td>
 
-      {/* Upload control */}
+      {/* Actions: Upload image · Edit · Delete */}
       <td style={{ padding: 6, textAlign: "center" }}>
-        <input
-          id={fileInputId}
-          type="file"
-          accept="image/*"
-          onChange={handleFile}
-          style={{ display: "none" }}
-        />
-        <label
-          htmlFor={fileInputId}
-          style={{
-            display: "inline-block",
-            padding: "6px 10px",
-            border: "1px solid #c7d2fe",
-            background: uploading ? "#cbd5e1" : "#eef2ff",
-            color: uploading ? "#94a3b8" : "#4338ca",
-            borderRadius: 6,
-            fontSize: 11,
-            fontWeight: 700,
-            cursor: uploading ? "default" : "pointer",
-            pointerEvents: uploading ? "none" : "auto"
-          }}
-        >
-          {uploading ? "Uploading…" : imageUrl ? "🔄 Replace" : "📷 Upload"}
-        </label>
+        {editing ? (
+          <div style={{ display: "flex", gap: 4, justifyContent: "center" }}>
+            <button
+              type="button"
+              onClick={saveEdit}
+              disabled={saving}
+              style={{
+                padding: "5px 10px",
+                background: saving ? "#94a3b8" : "#0f172a",
+                color: "white",
+                border: "none",
+                borderRadius: 5,
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: saving ? "default" : "pointer",
+              }}
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(false);
+                setDraft({
+                  MATERIAL_NAME: item.MATERIAL_NAME || "",
+                  QUANTITY: item.QUANTITY ?? 1,
+                  UNIT: item.UNIT || "pcs",
+                });
+                setError("");
+              }}
+              style={{
+                padding: "5px 8px",
+                background: "white",
+                color: "#475569",
+                border: "1px solid #cbd5e1",
+                borderRadius: 5,
+                fontSize: 11,
+                cursor: "pointer",
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 4, justifyContent: "center", flexWrap: "wrap" }}>
+            <input
+              id={fileInputId}
+              type="file"
+              accept="image/*"
+              onChange={handleFile}
+              style={{ display: "none" }}
+            />
+            <label
+              htmlFor={fileInputId}
+              title={imageUrl ? "Replace image" : "Upload image"}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "5px 8px",
+                border: "1px solid #cbd5e1",
+                background: uploading ? "#cbd5e1" : "white",
+                color: uploading ? "#94a3b8" : "#475569",
+                borderRadius: 5,
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: uploading ? "default" : "pointer",
+                pointerEvents: uploading ? "none" : "auto",
+              }}
+            >
+              {uploading ? "…" : imageUrl ? "Img" : "Img"}
+            </label>
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              title="Edit quantity / unit"
+              style={{
+                padding: "5px 8px",
+                background: "white",
+                color: "#475569",
+                border: "1px solid #cbd5e1",
+                borderRadius: 5,
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={removeLine}
+              disabled={deleting}
+              title="Delete this line"
+              style={{
+                padding: "5px 8px",
+                background: deleting ? "#f1f5f9" : "#fef2f2",
+                color: deleting ? "#94a3b8" : "#b91c1c",
+                border: "1px solid #fecaca",
+                borderRadius: 5,
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: deleting ? "default" : "pointer",
+              }}
+            >
+              {deleting ? "…" : "Delete"}
+            </button>
+          </div>
+        )}
         {error && (
           <div style={{ fontSize: 10, color: "#b91c1c", marginTop: 4 }}>
             {error}
@@ -458,6 +630,199 @@ function BomEditableRow({ item, onUploaded }) {
       </td>
 
     </tr>
+  );
+}
+
+
+// Inline form for adding a new BOM line. Sits above the table.
+function BomAddForm({ modelId, onAdded }) {
+
+  const [open, setOpen] = useState(false);
+
+  const [form, setForm] = useState({
+    MATERIAL_NAME: "",
+    QUANTITY: 1,
+    UNIT: "pcs",
+    NOTES: "",
+  });
+
+  const [saving, setSaving] = useState(false);
+
+  const [error, setError] = useState("");
+
+  const reset = () => {
+    setForm({ MATERIAL_NAME: "", QUANTITY: 1, UNIT: "pcs", NOTES: "" });
+    setError("");
+  };
+
+  const submit = async (e) => {
+    e?.preventDefault?.();
+    if (!form.MATERIAL_NAME.trim()) {
+      setError("Material name is required.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      await API.post(`/production/models/${modelId}/bom`, {
+        MATERIAL_NAME: form.MATERIAL_NAME.trim(),
+        QUANTITY: Number(form.QUANTITY) || 1,
+        UNIT: form.UNIT.trim() || "pcs",
+        NOTES: form.NOTES.trim() || null,
+      });
+      reset();
+      setOpen(false);
+      onAdded?.();
+    } catch (err) {
+      setError(err?.response?.data?.detail || "Add failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <div style={{ marginBottom: 10 }}>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          style={{
+            padding: "7px 14px",
+            background: "#0f172a",
+            color: "white",
+            border: "none",
+            borderRadius: 8,
+            fontWeight: 700,
+            fontSize: 12,
+            cursor: "pointer",
+          }}
+        >
+          + Add line
+        </button>
+      </div>
+    );
+  }
+
+  const inputStyle = {
+    width: "100%",
+    padding: "7px 10px",
+    border: "1px solid #cbd5e1",
+    borderRadius: 6,
+    fontSize: 13,
+    fontFamily: "inherit",
+    boxSizing: "border-box",
+  };
+
+  return (
+    <form
+      onSubmit={submit}
+      style={{
+        marginBottom: 12,
+        padding: 12,
+        background: "#f8fafc",
+        border: "1px solid #e2e8f0",
+        borderRadius: 10,
+      }}
+    >
+      <div style={{
+        fontSize: 11,
+        fontWeight: 700,
+        letterSpacing: 1,
+        color: "#475569",
+        textTransform: "uppercase",
+        marginBottom: 8,
+      }}>
+        New BOM line
+      </div>
+
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "2fr 70px 70px",
+        gap: 8,
+        marginBottom: 8,
+      }}>
+        <input
+          autoFocus
+          type="text"
+          value={form.MATERIAL_NAME}
+          onChange={(e) => setForm({ ...form, MATERIAL_NAME: e.target.value })}
+          placeholder="Material name (e.g. SMPS 24V 10A)"
+          style={inputStyle}
+        />
+        <input
+          type="number"
+          min="0"
+          step="0.5"
+          value={form.QUANTITY}
+          onChange={(e) => setForm({ ...form, QUANTITY: e.target.value })}
+          placeholder="Qty"
+          style={inputStyle}
+        />
+        <input
+          type="text"
+          value={form.UNIT}
+          onChange={(e) => setForm({ ...form, UNIT: e.target.value })}
+          placeholder="pcs / m / kg"
+          style={inputStyle}
+        />
+      </div>
+
+      <input
+        type="text"
+        value={form.NOTES}
+        onChange={(e) => setForm({ ...form, NOTES: e.target.value })}
+        placeholder="Notes (optional)"
+        style={{ ...inputStyle, marginBottom: 8 }}
+      />
+
+      {error && (
+        <div style={{
+          padding: "6px 10px",
+          background: "#fef2f2",
+          color: "#991b1b",
+          border: "1px solid #fecaca",
+          borderRadius: 6,
+          fontSize: 12,
+          marginBottom: 8,
+        }}>
+          {error}
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+        <button
+          type="button"
+          onClick={() => { reset(); setOpen(false); }}
+          style={{
+            padding: "7px 14px",
+            background: "white",
+            color: "#475569",
+            border: "1px solid #cbd5e1",
+            borderRadius: 6,
+            fontSize: 12,
+            cursor: "pointer",
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={saving}
+          style={{
+            padding: "7px 16px",
+            background: saving ? "#94a3b8" : "#0f172a",
+            color: "white",
+            border: "none",
+            borderRadius: 6,
+            fontWeight: 700,
+            fontSize: 12,
+            cursor: saving ? "default" : "pointer",
+          }}
+        >
+          {saving ? "Adding…" : "Add line"}
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -612,23 +977,43 @@ function ModelDetailDrawer({ modelId, onClose, refetchSignal = 0 }) {
 
         <div
           style={{
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: 1,
-            color: "#475569",
-            textTransform: "uppercase",
-            marginBottom: 8
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 8,
           }}
         >
-          Bill of Materials
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: 1,
+              color: "#475569",
+              textTransform: "uppercase",
+            }}
+          >
+            Bill of Materials ({bom.length})
+          </div>
         </div>
+
+        {modelId && <BomAddForm modelId={modelId} onAdded={refetch} />}
 
         {loading && <div style={{ color: "#94a3b8" }}>Loading BOM…</div>}
 
         {!loading && bom.length === 0 && (
-
-          <div style={{ color: "#94a3b8", fontSize: 13 }}>
-            No BOM items yet.
+          <div
+            style={{
+              padding: 14,
+              background: "#f8fafc",
+              border: "1px dashed #cbd5e1",
+              borderRadius: 10,
+              color: "#64748b",
+              fontSize: 13,
+              textAlign: "center",
+            }}
+          >
+            No BOM lines yet for this product. Click <b>+ Add line</b> above to
+            define the materials for this specific machine.
           </div>
         )}
 
@@ -653,7 +1038,7 @@ function ModelDetailDrawer({ modelId, onClose, refetchSignal = 0 }) {
                 }}
               >
                 <th style={{ padding: 8, borderBottom: "1px solid #cbd5e1", width: 90, textAlign: "center" }}>
-                  Document Preview
+                  Preview
                 </th>
                 <th style={{ padding: 8, borderBottom: "1px solid #cbd5e1", width: 70, textAlign: "center" }}>
                   Item No.
@@ -661,11 +1046,11 @@ function ModelDetailDrawer({ modelId, onClose, refetchSignal = 0 }) {
                 <th style={{ padding: 8, borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>
                   Part Number
                 </th>
-                <th style={{ padding: 8, borderBottom: "1px solid #cbd5e1", width: 70, textAlign: "center" }}>
+                <th style={{ padding: 8, borderBottom: "1px solid #cbd5e1", width: 90, textAlign: "center" }}>
                   Qty.
                 </th>
-                <th style={{ padding: 8, borderBottom: "1px solid #cbd5e1", width: 130, textAlign: "center" }}>
-                  Image
+                <th style={{ padding: 8, borderBottom: "1px solid #cbd5e1", width: 180, textAlign: "center" }}>
+                  Actions
                 </th>
               </tr>
             </thead>
@@ -675,6 +1060,7 @@ function ModelDetailDrawer({ modelId, onClose, refetchSignal = 0 }) {
                   key={b.ID}
                   item={b}
                   onUploaded={refetch}
+                  onChanged={refetch}
                 />
               ))}
             </tbody>

@@ -447,23 +447,20 @@ def create_customer(
 
                 db.flush()
 
-                # Seed default stages + BOM so the new product has
-                # a working manufacturing flow + materials list out
-                # of the box. Same helpers used by the Production
-                # page's create-model endpoint.
+                # Seed default stages so the new product has a
+                # working manufacturing flow out of the box. BOM is
+                # NOT auto-seeded — the admin defines each line
+                # manually via the Production & BOM page so every
+                # machine carries its real materials list.
                 from app.routes.production import (
                     seed_default_stages_for_product,
-                    seed_default_bom_for_product
                 )
 
                 stages_created = seed_default_stages_for_product(
                     db, new_product.ID
                 )
 
-                bom_created = seed_default_bom_for_product(
-                    db, new_product.ID,
-                    vendor_id=data.VENDOR_ID
-                )
+                bom_created = 0
 
                 db.commit()
 

@@ -496,19 +496,9 @@ def create_project_from_product(
             .all()
         )
 
-    # Self-heal: also seed the common BOM so the project drawer's
-    # BOM table is populated (suppliers auto-linked where possible).
-    existing_bom_count = db.query(BOMItem).filter(
-        BOMItem.PRODUCT_MODEL_ID == product.ID
-    ).count()
-
-    if existing_bom_count == 0:
-
-        from app.routes.production import seed_default_bom_for_product
-
-        seed_default_bom_for_product(db, product.ID, vendor_id=vendor_id)
-
-        db.flush()
+    # BOM is user-managed — do NOT auto-seed. If the product has no
+    # BOM rows yet, the project drawer will simply show an empty list
+    # until the admin adds lines via the Production & BOM page.
 
     skill_set = set()
 
@@ -1066,24 +1056,10 @@ def backfill_project_tasks(
             .all()
         )
 
-    # Also seed the common BOM if the product has none. The project
-    # drawer's BOM table reads from BOMItem, so this populates the
-    # materials list and pre-selects suppliers where matches exist.
-    from app.routes.production import seed_default_bom_for_product
-
-    existing_bom = db.query(BOMItem).filter(
-        BOMItem.PRODUCT_MODEL_ID == product.ID
-    ).count()
-
+    # BOM is user-managed — do NOT auto-seed. The admin defines each
+    # line manually via the Production & BOM page so every project's
+    # BOM reflects the real materials for that specific machine.
     bom_seeded = 0
-
-    if existing_bom == 0:
-
-        bom_seeded = seed_default_bom_for_product(
-            db, product.ID, vendor_id=project.VENDOR_ID
-        )
-
-        db.flush()
 
     # Find or create the project's work order
     wo = db.query(WorkOrder).filter(

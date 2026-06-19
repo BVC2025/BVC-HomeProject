@@ -69,6 +69,7 @@ import ApprovalCenter from "./ApprovalCenter";
 // AICommandCenter + Workflow removed Phase 2 — were placeholder stubs
 import Payroll from "./Payroll";
 import StarPerformance from "./StarPerformance";
+import Allowances from "./Allowances";
 import ChatBot from "../components/ChatBot";
 
 import {
@@ -1360,6 +1361,14 @@ function SidebarIcon({ name }) {
           <path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.7 6.6 19.5l1.2-6L3.3 9.3l6.1-.7L12 3z" />
         </svg>
       );
+    case "allowances":
+      return (
+        <svg {...props}>
+          {/* Receipt / expense voucher */}
+          <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z" />
+          <path d="M9 8h6M9 12h6M9 16h4" />
+        </svg>
+      );
     case "customers":
       return (
         <svg {...props}>
@@ -1518,7 +1527,8 @@ const NAV_GROUPS = [
       { to: "/attendance",        icon: <SidebarIcon name="attendance"  />, label: "Attendance" },
       { to: "/leave-management",  icon: <SidebarIcon name="leaves"      />, label: "Leave Management" },
       { to: "/payroll",           icon: <SidebarIcon name="payroll"     />, label: "Payroll" },
-      { to: "/star-performance",  icon: <SidebarIcon name="star"        />, label: "Star Performance" }
+      { to: "/star-performance",  icon: <SidebarIcon name="star"        />, label: "Star Performance" },
+      { to: "/allowances",        icon: <SidebarIcon name="allowances"  />, label: "Allowances" }
     ]
   },
   {
@@ -1671,11 +1681,13 @@ function SidebarNav({ onItemClick }) {
                 border: "none",
                 color: hasActive
                   ? "#fde047"
-                  : "rgba(255,255,255,0.92)",
+                  : "rgba(255,255,255,0.65)",
+                fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
                 fontSize: 12,
-                fontWeight: 800,
-                letterSpacing: 1.6,
+                fontWeight: 700,
+                letterSpacing: "0.08em",
                 textTransform: "uppercase",
+                fontFeatureSettings: "'cv11', 'ss01'",
                 cursor: "pointer",
                 textAlign: "left",
                 borderRadius: 6,
@@ -1958,6 +1970,11 @@ function Dashboard() {
           <Route
             path="/star-performance"
             element={<StarPerformance />}
+          />
+
+          <Route
+            path="/allowances"
+            element={<Allowances />}
           />
 
           <Route

@@ -249,8 +249,6 @@ function Login() {
     }
   };
 
-  const isEmployee = mode === "employee";
-
   return (
 
     <div className={styles.page}>
@@ -294,9 +292,12 @@ function Login() {
             Sign in to your Bharath Vending Corporation account.
           </p>
 
-          <div className={styles.tabs}>
+          {/* Tabs only appear for normal login. During onboarding,
+              the user is completing their own registration — they
+              don't need to pick a role. */}
+          {!onboardingToken && (
+            <div className={styles.tabs}>
 
-            {!onboardingToken && (
               <button
                 type="button"
                 className={
@@ -309,30 +310,22 @@ function Login() {
               >
                 Admin
               </button>
-            )}
 
-            <button
-              type="button"
-              className={
-                styles.tab +
-                (mode === "employee"
-                  ? " " + styles.tabActive
-                  : "")
-              }
-              onClick={() => switchMode("employee")}
-            >
-              Employee
-            </button>
+              <button
+                type="button"
+                className={
+                  styles.tab +
+                  (mode === "employee"
+                    ? " " + styles.tabActive
+                    : "")
+                }
+                onClick={() => switchMode("employee")}
+              >
+                Employee
+              </button>
 
-          </div>
-
-          {
-            onboardingToken && (
-              <div className={styles.onboardingBanner}>
-                🔑 Completing your onboarding registration
-              </div>
-            )
-          }
+            </div>
+          )}
 
           {
             error && (
@@ -343,14 +336,12 @@ function Login() {
           }
 
           <label className={styles.label}>
-            {isEmployee ? "Employee ID" : "Admin Code"}
+            User ID
           </label>
 
           <div className={styles.inputWrap}>
 
             <span className={styles.icon}>
-              {/* Person / badge icon — used for both employee + admin
-                  since the label above already distinguishes them. */}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
                    stroke="currentColor" strokeWidth="1.8"
                    strokeLinecap="round" strokeLinejoin="round">
@@ -362,11 +353,7 @@ function Login() {
             <input
               type="text"
               className={styles.input}
-              placeholder={
-                isEmployee
-                  ? "e.g. EMP001"
-                  : "Admin code (e.g. ADMIN)"
-              }
+              placeholder="Enter your User ID"
               value={username}
               onChange={(e) =>
                 setUsername(e.target.value)

@@ -11,12 +11,14 @@
   --shadow:
     rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* Inter is the primary UI font. The fallback chain keeps the app
+     usable if Google Fonts is unreachable (corporate networks, offline). */
+  --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --heading: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, 'Liberation Mono', monospace;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
+  font: 16px/1.55 var(--sans);
+  letter-spacing: -0.005em;
   color-scheme: light dark;
   color: var(--text);
   background: var(--bg);
@@ -25,8 +27,14 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
+  /* Inter's OpenType features — these are what separate a "good" font
+     from a "world-class" one. cv11 = single-storey a, ss01 = open digits,
+     ss03 = curved l, cv02 = open 4, tnum = tabular numbers (aligned
+     digits in tables — critical for payslips/quotations). */
+  font-feature-settings: 'cv11', 'ss01', 'ss03', 'cv02';
+
   @media (max-width: 1024px) {
-    font-size: 16px;
+    font-size: 15px;
   }
 }
 
@@ -52,6 +60,48 @@
 
 body {
   margin: 0;
+  font-family: var(--sans);
+}
+
+/* Form controls inherit the page font by default in most browsers, but
+   not in older Chromium and Safari. Force it so inputs, selects,
+   textareas, and buttons all render in Inter — and bump the default
+   size from the browser's small default (13px in many browsers) to
+   match the rest of the app. Inline `fontSize: 14` on individual
+   components still wins via specificity. */
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
+  font-feature-settings: inherit;
+  letter-spacing: inherit;
+  font-size: 14px;
+}
+
+/* Bump table cells so data tables (quotations, payslips, inventory,
+   BOM lines, employees, etc.) read more comfortably. */
+table {
+  font-size: 14px;
+}
+table th,
+table td {
+  font-size: inherit;
+}
+
+/* Numbers in data tables should line up vertically. Tabular numerals
+   make every digit the same width — essential for invoices and payslips. */
+table,
+td,
+th {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Tighten heading letter-spacing the way Inter's designer intended. */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--heading);
+  letter-spacing: -0.02em;
+  font-feature-settings: 'cv11', 'ss01';
 }
 
 #root {
