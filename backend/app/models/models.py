@@ -4244,3 +4244,347 @@ class EmployeeAllowance(Base):
         nullable=True,
         index=True
     )
+
+
+# ====================================================================
+# AI Leave Agent — conversation state + audit trail
+# ====================================================================
+# One row per "session" of an employee chatting with the leave agent.
+# Persists the state machine + message log + extracted fields so the
+# conversation can resume across page reloads, and every AI-driven
+# action has a complete audit trail.
+
+class AILeaveConversation(Base):
+    """Persistent state for an AI leave-request conversation."""
+
+    __tablename__ = "ai_leave_conversation"
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    EMPLOYEE_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=False,
+        index=True
+    )
+
+    # State machine. Values:
+    #   COLLECTING  -> still gathering required info
+    #   CONFIRMING  -> showed summary, awaiting yes/no
+    #   EXECUTED    -> leave request submitted (terminal success)
+    #   CANCELLED   -> employee cancelled mid-flow
+    #   FAILED      -> validation/policy rejection
+    STATE = Column(String(20), default="COLLECTING", index=True)
+
+    # Detected intent for this session.
+    # REQUEST / BALANCE / STATUS / CANCEL / MODIFY / UNKNOWN
+    INTENT = Column(String(20), nullable=True)
+
+    # Extracted-and-validated entity values, JSON-encoded.
+    COLLECTED_JSON = Column(Text, nullable=True)
+
+    # Full message log (chronological), JSON-encoded list.
+    MESSAGES_JSON = Column(Text, nullable=True)
+
+    # Links back to the LeaveRequest row that was created (if any).
+    # ON DELETE SET NULL — if the leave request is deleted, the
+    # conversation row stays (audit trail) with the link cleared.
+    LEAVE_REQUEST_ID = Column(
+        Integer,
+        ForeignKey("leave_request.ID", ondelete="SET NULL"),
+        nullable=True,
+        index=True
+    )
+
+    RESULT_MESSAGE = Column(String(500), nullable=True)
+
+    STARTED_AT   = Column(DateTime, default=datetime.utcnow)
+    LAST_AT      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    COMPLETED_AT = Column(DateTime, nullable=True)
+
+    VENDOR_ID = Column(
+        Integer,
+        ForeignKey("vendor.ID"),
+        nullable=True,
+        index=True
+    )
+
+
+# =====================================================================
+# Phase 2 — AI Recruitment Assistant
+# =====================================================================
+# All additive. Recruitment lives in its own namespace until a candidate
+# is officially hired, at which point a normal Employee row is created
+# through the existing onboarding flow.
+
+class RecruitmentJob(Base):
+    """An open position the company is hiring for."""
+
+    __tablename__ = "recruitment_job"
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    JOB_CODE = Column(String(30), unique=True, index=True, nullable=True)
+    # Auto-generated: JOB-2026-0001
+
+    TITLE = Column(String(150), nullable=False)
+    DEPARTMENT = Column(String(100), nullable=True)
+    LOCATION = Column(String(100), nullable=True)
+
+    EMPLOYMENT_TYPE = Column(String(30), default="FULL_TIME")
+    # FULL_TIME / PART_TIME / CONTRACT / INTERN
+
+    EXPERIENCE_MIN_YEARS = Column(Float, nullable=True, default=0.0)
+    EXPERIENCE_MAX_YEARS = Column(Float, nullable=True)
+
+    SALARY_MIN = Column(Float, nullable=True)
+    SALARY_MAX = Column(Float, nullable=True)
+
+    REQUIRED_SKILLS = Column(String(1000), nullable=True)
+    # Comma-separated skills, e.g. "Python, FastAPI, MySQL, React"
+
+    PREFERRED_SKILLS = Column(String(1000), nullable=True)
+
+    REQUIRED_EDUCATION = Column(String(200), nullable=True)
+    # e.g. "B.E. Mechanical" or "B.Tech / MCA"
+
+    DESCRIPTION = Column(String(4000), nullable=True)
+
+    STATUS = Column(String(20), default="OPEN", index=True)
+    # OPEN / ON_HOLD / FILLED / CANCELLED
+
+    OPENINGS = Column(Integer, default=1)
+
+    OPENED_AT = Column(DateTime, default=datetime.utcnow)
+    CLOSED_AT = Column(DateTime, nullable=True)
+
+    CREATED_BY_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=True,
+    )
+
+    VENDOR_ID = Column(
+        Integer,
+        ForeignKey("vendor.ID"),
+        nullable=True,
+        index=True,
+    )
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Candidate(Base):
+    """One row per unique candidate (deduped by email)."""
+
+    __tablename__ = "recruitment_candidate"
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    CANDIDATE_CODE = Column(String(30), unique=True, index=True, nullable=True)
+    # Auto-generated: CAND-2026-0001
+
+    # ----- Identity -----
+    FULL_NAME = Column(String(150), nullable=False)
+    EMAIL     = Column(String(120), index=True, nullable=True)
+    PHONE     = Column(String(30),  nullable=True)
+    LOCATION  = Column(String(120), nullable=True)
+
+    # ----- Resume (raw + parsed) -----
+    RESUME_URL = Column(String(500), nullable=True)
+    # /static/recruitment/resumes/<id>/<file>
+
+    RESUME_TEXT = Column(Text, nullable=True)
+    # Full plain-text extraction for searching / re-parsing
+
+    PARSED_JSON = Column(Text, nullable=True)
+    # JSON blob with skills, education list, work_experience list,
+    # certifications, languages, projects, total_experience_years
+
+    # ----- Quick-search fields (denormalised from parsed JSON) -----
+    TOTAL_EXPERIENCE_YEARS = Column(Float, nullable=True, default=0.0)
+    HIGHEST_QUALIFICATION  = Column(String(200), nullable=True)
+    SKILLS                 = Column(String(2000), nullable=True)
+    # Comma-separated for SQL LIKE searches
+
+    # ----- Status -----
+    STATUS = Column(String(30), default="NEW", index=True)
+    # NEW / SCREENED / SHORTLISTED / INTERVIEWING / OFFERED /
+    # HIRED / REJECTED / ON_HOLD
+
+    SOURCE = Column(String(50), nullable=True)
+    # WEBSITE / REFERRAL / LINKEDIN / AGENCY / WALK_IN / OTHER
+
+    NOTES = Column(String(2000), nullable=True)
+
+    VENDOR_ID = Column(
+        Integer,
+        ForeignKey("vendor.ID"),
+        nullable=True,
+        index=True,
+    )
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class CandidateApplication(Base):
+    """Links a candidate to a specific job + holds screening results."""
+
+    __tablename__ = "recruitment_application"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "CANDIDATE_ID", "JOB_ID",
+            name="uq_candidate_per_job",
+        ),
+    )
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    CANDIDATE_ID = Column(
+        Integer,
+        ForeignKey("recruitment_candidate.ID", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+
+    JOB_ID = Column(
+        Integer,
+        ForeignKey("recruitment_job.ID", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+
+    # ----- Screening results -----
+    SCREENING_STATUS = Column(String(20), default="PENDING", index=True)
+    # PENDING / HIGHLY_SUITABLE / SUITABLE / PARTIALLY_SUITABLE / NOT_SUITABLE
+
+    SKILL_MATCH_PCT       = Column(Float, default=0.0)
+    EXPERIENCE_MATCH_PCT  = Column(Float, default=0.0)
+    EDUCATION_MATCH_PCT   = Column(Float, default=0.0)
+    OVERALL_SCORE         = Column(Float, default=0.0)
+    # Weighted: 0.5 * skill + 0.3 * experience + 0.2 * education
+
+    MATCHING_SKILLS = Column(String(2000), nullable=True)
+    MISSING_SKILLS  = Column(String(2000), nullable=True)
+
+    SCREENING_SUMMARY = Column(Text, nullable=True)
+    # AI-generated narrative, e.g. "Strong Python / FastAPI fit; lacks
+    # MySQL exposure; senior-level experience."
+
+    SCREENED_AT = Column(DateTime, nullable=True)
+
+    # ----- Pipeline state -----
+    STATUS = Column(String(30), default="APPLIED", index=True)
+    # APPLIED / SCREENING / SHORTLISTED / INTERVIEWED / OFFERED /
+    # HIRED / REJECTED / WITHDRAWN
+
+    REJECTION_REASON = Column(String(500), nullable=True)
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Interview(Base):
+    """One scheduled interview for a candidate application."""
+
+    __tablename__ = "recruitment_interview"
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    APPLICATION_ID = Column(
+        Integer,
+        ForeignKey("recruitment_application.ID", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+
+    ROUND = Column(Integer, default=1)
+    # 1 = screening, 2 = technical, 3 = HR, etc.
+
+    ROUND_TYPE = Column(String(40), nullable=True)
+    # SCREENING / TECHNICAL / HR / MANAGERIAL / FINAL
+
+    SCHEDULED_AT = Column(DateTime, nullable=False, index=True)
+
+    DURATION_MINUTES = Column(Integer, default=45)
+
+    MODE = Column(String(20), default="ONLINE")
+    # ONLINE / IN_PERSON / PHONE
+
+    MEETING_LINK = Column(String(500), nullable=True)
+    LOCATION     = Column(String(200), nullable=True)
+
+    INTERVIEWER_NAME  = Column(String(150), nullable=True)
+    INTERVIEWER_EMAIL = Column(String(120), nullable=True)
+
+    STATUS = Column(String(20), default="SCHEDULED", index=True)
+    # SCHEDULED / RESCHEDULED / COMPLETED / NO_SHOW / CANCELLED
+
+    # ----- After the interview -----
+    SCORE = Column(Float, nullable=True)               # 0-10
+    RECOMMENDATION = Column(String(30), nullable=True) # HIRE / REJECT / HOLD / NEXT_ROUND
+    FEEDBACK = Column(Text, nullable=True)
+
+    SUGGESTED_QUESTIONS = Column(Text, nullable=True)
+    # AI-generated, based on candidate's skills + JD
+
+    CREATED_AT  = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT  = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class OfferLetter(Base):
+    """One offer letter draft per application (latest wins)."""
+
+    __tablename__ = "recruitment_offer"
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    APPLICATION_ID = Column(
+        Integer,
+        ForeignKey("recruitment_application.ID", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+
+    OFFER_NUMBER = Column(String(40), unique=True, index=True, nullable=True)
+    # Auto-generated: OFFER-2026-0001
+
+    JOB_TITLE = Column(String(150), nullable=False)
+    DEPARTMENT = Column(String(100), nullable=True)
+
+    COMPENSATION_CTC = Column(Float, nullable=False)
+    COMPENSATION_BREAKDOWN = Column(Text, nullable=True)
+    # JSON: { "basic": ..., "hra": ..., "allowances": ..., "bonus": ... }
+
+    BENEFITS = Column(Text, nullable=True)
+    # Free-text or JSON list
+
+    JOINING_DATE = Column(Date, nullable=True)
+    PROBATION_MONTHS = Column(Integer, default=6)
+    NOTICE_PERIOD_DAYS = Column(Integer, default=30)
+
+    EMPLOYMENT_TERMS = Column(Text, nullable=True)
+    SPECIAL_CLAUSES  = Column(Text, nullable=True)
+
+    LETTER_PDF_URL = Column(String(500), nullable=True)
+    # /static/recruitment/offers/<id>/<file>.pdf
+
+    STATUS = Column(String(20), default="DRAFTED", index=True)
+    # DRAFTED / REVIEWED / SENT / ACCEPTED / REJECTED / EXPIRED
+
+    SENT_AT     = Column(DateTime, nullable=True)
+    RESPONDED_AT = Column(DateTime, nullable=True)
+
+    CREATED_BY_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=True,
+    )
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+

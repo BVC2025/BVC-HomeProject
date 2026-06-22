@@ -6,8 +6,11 @@ import ChatBot from "../components/ChatBot";
 import HRAssistant from "../components/HRAssistant";
 import LeaveChatbot from "../components/LeaveChatbot";
 import VoiceLeaveTest from "../components/VoiceLeaveTest";
+import LeaveAgentChat from "../components/LeaveAgentChat";
+import MyLeaveStatus from "../components/MyLeaveStatus";
 import MyAttendancePanel from "../components/MyAttendancePanel";
 import MyAllowanceSection from "../components/MyAllowanceSection";
+import MyPayslipsPanel from "../components/MyPayslipsPanel";
 import EmployeeProfileForm from "./EmployeeProfileForm";
 
 import {
@@ -291,6 +294,10 @@ function EmployeeDashboardBody() {
   // single-scroll page into focused sections: Overview / Attendance /
   // Tasks / Leave / Memos / Performance.
   const [mainTab, setMainTab] = useState("overview");
+
+  // Bumped whenever the AI agent successfully submits a leave so the
+  // MyLeaveStatus panel reloads without a page refresh.
+  const [leaveStatusRefresh, setLeaveStatusRefresh] = useState(0);
 
   // ----- legacy supporting state -----
   const [productionStages, setProductionStages] = useState([]);
@@ -814,9 +821,25 @@ function EmployeeDashboardBody() {
 
         {mainTab === "leave" && (
           <>
-            {/* Voice-driven leave POC. Backend wiring follows once the
-                STT transcription quality is validated with real voices. */}
-            <VoiceLeaveTest />
+            {/* Primary: conversational AI leave assistant — extracts
+                dates / type / reason, validates balance, asks for
+                confirmation, submits to manager. */}
+            <LeaveAgentChat
+              employeeId={employeeId}
+              onLeaveSubmitted={() => setLeaveStatusRefresh((n) => n + 1)}
+            />
+
+            {/* Live status panel — shows every leave request with
+                approval state, auto-refreshes after a submit + every 30s. */}
+            <MyLeaveStatus
+              employeeId={employeeId}
+              refreshSignal={leaveStatusRefresh}
+            />
+
+            {/* Voice-driven leave POC stays for quick voice tests. */}
+            <div style={{ marginTop: 16 }}>
+              <VoiceLeaveTest />
+            </div>
 
             {/* The chat-based leave assistant and the manual apply
                 form are temporarily removed from this tab — voice is
@@ -848,6 +871,10 @@ function EmployeeDashboardBody() {
 
         {mainTab === "allowance" && (
           <MyAllowanceSection employeeId={employeeId} />
+        )}
+
+        {mainTab === "payslips" && (
+          <MyPayslipsPanel employeeId={employeeId} />
         )}
 
         {mainTab === "performance" && (
@@ -884,6 +911,7 @@ function PortalTabNav({ active, onChange, badges = {} }) {
     { key: "leave",       label: "Leave",       badge: badges.leave },
     { key: "memos",       label: "Memos"       },
     { key: "allowance",   label: "Allowance"   },
+    { key: "payslips",    label: "Payslips"    },
     { key: "performance", label: "Performance" }
   ];
 
@@ -3415,7 +3443,7 @@ function downloadMemoPdf(memo) {
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
 <style>
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: #1f2933; font-feature-settings: 'cv11', 'ss01'; letter-spacing: -0.005em; }
+  body { margin: 0; font-family: "Segoe UI", "Segoe UI Bold Italic", system-ui, -apple-system, Roboto, sans-serif; font-weight: 700; font-style: italic; color: #1f2933; }
   .page { width: 800px; margin: 0 auto; padding: 48px 56px; }
   .memono { float: right; margin-top: 30px; font-family: ui-monospace, monospace; font-weight: 700; font-size: 13px; color: ${tt.color}; }
   .top { display: flex; align-items: center; gap: 16px; border-bottom: 3px solid ${tt.color}; padding-bottom: 18px; }

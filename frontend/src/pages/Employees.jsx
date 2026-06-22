@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import API, { API_BASE_URL } from "../services/api";
 
@@ -400,8 +401,9 @@ function EmployeeCard({ employee, onView, onEdit, onDelete }) {
         marginTop: "auto",
         alignItems: "stretch",
       }}>
-        <button
-          onClick={() => onView(employee)}
+        <Link
+          to={`/employees/${employee.ID}/profile`}
+          title="Open full Odoo-style profile page (Overview, Documents, Payroll, Assets, Leave, etc.)"
           style={{
             flex: 1,
             background: theme.btn,
@@ -418,9 +420,18 @@ function EmployeeCard({ employee, onView, onEdit, onDelete }) {
             justifyContent: "center",
             gap: 8,
             boxShadow: "0 4px 12px rgba(0,0,0,0.10)",
+            textDecoration: "none",
           }}
         >
-          <span>👤</span> View Profile
+          <span>👤</span> Open Profile
+        </Link>
+
+        <button
+          onClick={() => onView(employee)}
+          title="Quick preview (modal)"
+          style={iconBtn("#f1f5f9", "#475569")}
+        >
+          👁
         </button>
 
         <button

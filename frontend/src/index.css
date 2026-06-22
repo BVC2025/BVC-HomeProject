@@ -1,24 +1,62 @@
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
+  /* =========================================================
+     BVC24 Design System  —  White 80% / Red 15% / Grey 5%
+     ---------------------------------------------------------
+     Red is reserved for: primary buttons, active states,
+     destructive confirmations, and small accent strokes.
+     The dominant surface is white; grey carries hierarchy.
+     ========================================================= */
+
+  /* Brand */
+  --bvc-red:        #C8102E;   /* primary action */
+  --bvc-red-hover:  #7A1022;   /* button hover / pressed */
+  --bvc-red-soft:   #fef2f4;   /* tinted hover background */
+  --bvc-red-bar:    #fee2e6;   /* active-row tint */
+  --bvc-gold:       #F4B324;   /* sparingly — never as a fill */
+
+  /* Surfaces */
+  --bvc-surface:    #ffffff;
+  --bvc-surface-2:  #fafbfc;
+  --bvc-surface-3:  #f1f5f9;
+
+  /* Text */
+  --bvc-text:       #0f172a;
+  --bvc-text-muted: #475569;
+  --bvc-text-soft:  #94a3b8;
+
+  /* Borders */
+  --bvc-border:     #e2e8f0;
+  --bvc-border-2:   #f1f5f9;
+
+  /* Status */
+  --bvc-success:    #16a34a;
+  --bvc-warning:    #d97706;
+  --bvc-error:      #dc2626;
+
+  /* Legacy aliases — keep so old references don't break */
+  --text: var(--bvc-text-muted);
+  --text-h: var(--bvc-text);
+  --bg: var(--bvc-surface);
+  --border: var(--bvc-border);
   --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
+  --accent: var(--bvc-red);
+  --accent-bg: var(--bvc-red-soft);
+  --accent-border: rgba(200,16,46,0.35);
   --social-bg: rgba(244, 243, 236, 0.5);
   --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+    rgba(0, 0, 0, 0.06) 0 10px 15px -3px, rgba(0, 0, 0, 0.03) 0 4px 6px -2px;
 
-  /* Inter is the primary UI font. The fallback chain keeps the app
-     usable if Google Fonts is unreachable (corporate networks, offline). */
-  --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --heading: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, 'Liberation Mono', monospace;
+  /* Application-wide font: Segoe UI Bold Italic (per design decision).
+     Segoe UI is pre-installed on every Windows machine. Fallback chain
+     covers macOS / Linux users with the closest match. */
+  --sans:    "Segoe UI", "Segoe UI Bold Italic", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --heading: "Segoe UI", "Segoe UI Bold Italic", system-ui, -apple-system, Roboto, sans-serif;
+  --mono:    ui-monospace, Consolas, "Liberation Mono", monospace;
 
   font: 16px/1.55 var(--sans);
-  letter-spacing: -0.005em;
+  font-weight: 700;     /* Bold across the whole app  */
+  font-style: italic;   /* Italic across the whole app */
+  letter-spacing: 0;
   color-scheme: light dark;
   color: var(--text);
   background: var(--bg);
@@ -26,12 +64,6 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  /* Inter's OpenType features — these are what separate a "good" font
-     from a "world-class" one. cv11 = single-storey a, ss01 = open digits,
-     ss03 = curved l, cv02 = open 4, tnum = tabular numbers (aligned
-     digits in tables — critical for payslips/quotations). */
-  font-feature-settings: 'cv11', 'ss01', 'ss03', 'cv02';
 
   @media (max-width: 1024px) {
     font-size: 15px;
@@ -69,39 +101,80 @@ body {
    size from the browser's small default (13px in many browsers) to
    match the rest of the app. Inline `fontSize: 14` on individual
    components still wins via specificity. */
+/* Inherit Bold + Italic Segoe UI into every form control. */
 input,
 select,
 textarea,
 button {
   font-family: inherit;
-  font-feature-settings: inherit;
+  font-weight: inherit;
+  font-style:  inherit;
   letter-spacing: inherit;
   font-size: 14px;
 }
 
-/* Bump table cells so data tables (quotations, payslips, inventory,
-   BOM lines, employees, etc.) read more comfortably. */
 table {
   font-size: 14px;
 }
 table th,
 table td {
   font-size: inherit;
+  font-weight: inherit;
+  font-style:  inherit;
 }
 
-/* Numbers in data tables should line up vertically. Tabular numerals
-   make every digit the same width — essential for invoices and payslips. */
+/* Tabular numerals for invoices / payslips / quote line items. */
 table,
 td,
 th {
   font-variant-numeric: tabular-nums;
 }
 
-/* Tighten heading letter-spacing the way Inter's designer intended. */
+/* Headings stay bold + italic. */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--heading);
-  letter-spacing: -0.02em;
-  font-feature-settings: 'cv11', 'ss01';
+  font-weight: 700;
+  font-style:  italic;
+  letter-spacing: 0;
+}
+
+/* SVG icons must not inherit the italic slant — keep logos / nav /
+   buttons' icons upright. */
+svg, svg * {
+  font-style: normal !important;
+}
+
+/* =====================================================================
+   FORCE Segoe UI Bold Italic on every element in every page.
+   ---------------------------------------------------------------------
+   The codebase has hundreds of inline `fontWeight: 400/500/600/700` and
+   `fontFamily` overrides per page. Without !important they keep their
+   own weights and the global rule never wins. This block makes the
+   font system truly global — covers every inner page (Employees,
+   Memos, Attendance, Leave, Payroll, Customers, Quotations, etc.).
+
+   Exceptions:
+     - Monospace text (codes / IDs / GST / IP / clock) — see the
+       [style*="monospace"] / code rules below
+     - SVG icons — already locked to font-style: normal above
+   ===================================================================== */
+body,
+body *:not(svg):not(svg *):not(code):not(.counter) {
+  font-family: "Segoe UI", "Segoe UI Bold Italic", system-ui,
+               -apple-system, Roboto, "Helvetica Neue", Arial,
+               sans-serif !important;
+  font-weight: 700  !important;
+  font-style:  italic !important;
+}
+
+/* Keep monospace text upright + not bold so codes / IDs / GST numbers
+   remain readable as data, not as prose. */
+[style*="ui-monospace"],
+[style*="monospace"],
+code, .counter, kbd, samp, pre {
+  font-family: var(--mono) !important;
+  font-style:  normal !important;
+  font-weight: 500 !important;
 }
 
 #root {

@@ -73,6 +73,10 @@ from app.routes.holiday import router as holiday_router    # Phase 2 Holiday Cal
 from app.routes.chatbot_ai import router as chatbot_ai_router  # AI chatbot v1 (Gemini)
 from app.routes.work_center import router as work_center_router  # Mfg Phase 1 — Work Centers
 from app.routes.allowance import router as allowance_router  # Employee expense claims
+from app.routes.leave_agent import router as leave_agent_router  # AI Leave Agent
+from app.routes.hr_chat import router as hr_chat_router          # Unified HR Assistant
+from app.routes.recruitment import router as recruitment_router  # Phase 2 — AI Recruitment Assistant
+from app.routes.employee_payslips import router as my_payslips_router  # Employee self-service payslips
 from fastapi.middleware.cors import CORSMiddleware
 
 # Phase 3 — Audit log
@@ -1314,6 +1318,10 @@ app.include_router(holiday_router)
 app.include_router(chatbot_ai_router)
 app.include_router(work_center_router)
 app.include_router(allowance_router, tags=["Allowances"])
+app.include_router(leave_agent_router)
+app.include_router(hr_chat_router)
+app.include_router(recruitment_router)
+app.include_router(my_payslips_router)
 
 
 @app.get("/", tags=["Health"])

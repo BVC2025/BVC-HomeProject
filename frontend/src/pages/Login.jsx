@@ -132,7 +132,9 @@ function Login() {
         new Date().toISOString()
       );
 
-      navigate("/");
+      // Admin lands on the app launcher (Odoo-style home grid).
+      // From there they pick a module or use the sidebar.
+      navigate("/apps");
 
     } catch (err) {
 

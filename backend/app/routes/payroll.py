@@ -169,6 +169,222 @@ def _serialize_slip(slip: PayrollSlip, employee: Optional[Employee] = None) -> d
 # Endpoints
 # ----------------------------------------------------------------
 
+@router.post("/generate-for-employee")
+def generate_for_employee(
+    body: dict,
+    db: Session = Depends(get_db),
+):
+    """HR generates ONE payslip for ONE employee for a given month/year.
+
+    Body shape (all fields optional except the four required ones):
+      {
+        "EMPLOYEE_ID":  "uuid or EMP code"  (required),
+        "YEAR":         2026                (required),
+        "MONTH":        6                   (required, 1-12),
+        "WORKING_DAYS": 26,                 (defaults to Employee policy / 26)
+
+        // Attendance snapshot — pre-fill from HR's review, no auto-calc
+        "DAYS_PRESENT":      24,
+        "DAYS_LATE":         1,
+        "PAID_LEAVE_DAYS":   1,
+        "UNPAID_LEAVE_DAYS": 0,
+        "ABSENT_DAYS":       0,
+        "OT_HOURS":          0,
+
+        // Earnings (rupees per month)
+        "BASIC":              18000,
+        "HRA":                7200,
+        "DA":                 0,
+        "CONVEYANCE":         1600,
+        "MEDICAL_ALLOWANCE":  1250,
+        "SPECIAL_ALLOWANCE":  0,
+        "OTHER_ALLOWANCES":   0,
+        "BONUS":              0,
+        "INCENTIVES":         0,
+        "TASK_BONUS":         0,
+        "OT_PAY":             0,
+
+        // Deductions (rupees)
+        "PF_EMPLOYEE":      1800,
+        "ESI_EMPLOYEE":      0,
+        "PROFESSIONAL_TAX":  200,
+        "LATE_PENALTY":      0,
+        "OTHER_DEDUCTIONS":  0
+      }
+
+    Behaviour:
+      - Reuses or creates the PayrollRun for (vendor, year, month)
+      - Inserts new PayrollSlip OR updates the existing one for this employee
+      - Computes GROSS_PAY = sum of earnings
+      - Computes TOTAL_DEDUCTIONS = sum of deductions
+      - Computes NET_PAY = GROSS - DEDUCTIONS
+      - Pushes a Notification to the employee
+      - Returns the slip ID + summary
+    """
+    from app.utils.employee_resolver import require_employee
+    from app.models.models import Notification
+
+    emp_id_raw = body.get("EMPLOYEE_ID")
+    year       = body.get("YEAR")
+    month      = body.get("MONTH")
+
+    if not emp_id_raw:
+        raise HTTPException(status_code=400, detail="EMPLOYEE_ID is required")
+    if not year or not month:
+        raise HTTPException(status_code=400, detail="YEAR and MONTH are required")
+    try:
+        year  = int(year)
+        month = int(month)
+    except Exception:
+        raise HTTPException(status_code=400, detail="YEAR and MONTH must be integers")
+    if month < 1 or month > 12:
+        raise HTTPException(status_code=400, detail="MONTH must be 1-12")
+
+    emp = require_employee(db, emp_id_raw)
+    vendor_id = getattr(emp, "VENDOR_ID", 1) or 1
+
+    # Find or create the PayrollRun for this period.
+    run = (
+        db.query(PayrollRun)
+        .filter(PayrollRun.VENDOR_ID == vendor_id)
+        .filter(PayrollRun.PAY_YEAR == year)
+        .filter(PayrollRun.PAY_MONTH == month)
+        .first()
+    )
+    if not run:
+        run = PayrollRun(
+            VENDOR_ID=vendor_id,
+            PAY_YEAR=year,
+            PAY_MONTH=month,
+            WORKING_DAYS=int(body.get("WORKING_DAYS") or 26),
+            STATUS="DRAFT",
+        )
+        db.add(run); db.flush()
+
+    if run.STATUS != "DRAFT":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Payroll run for {year}-{month:02d} is already "
+                f"{run.STATUS} — unlock or delete it before regenerating."
+            ),
+        )
+
+    # Find or create the slip for this (run, employee) pair.
+    slip = (
+        db.query(PayrollSlip)
+        .filter(PayrollSlip.PAYROLL_RUN_ID == run.ID)
+        .filter(PayrollSlip.EMPLOYEE_ID == emp.ID)
+        .first()
+    )
+    if not slip:
+        slip = PayrollSlip(
+            PAYROLL_RUN_ID=run.ID,
+            EMPLOYEE_ID=emp.ID,
+            BASE_SALARY=float(getattr(emp, "SALARY", 0) or 0),
+            WORKING_DAYS=run.WORKING_DAYS,
+        )
+        db.add(slip); db.flush()
+
+    # ---- Fill from body, with sensible defaults ----
+    def f(key, default=0.0):
+        v = body.get(key)
+        if v in (None, ""): return float(default)
+        try: return float(v)
+        except Exception: return float(default)
+    def i(key, default=0):
+        v = body.get(key)
+        if v in (None, ""): return int(default)
+        try: return int(v)
+        except Exception: return int(default)
+
+    slip.WORKING_DAYS       = i("WORKING_DAYS", run.WORKING_DAYS or 26)
+    slip.DAYS_PRESENT       = i("DAYS_PRESENT", 0)
+    slip.DAYS_LATE          = i("DAYS_LATE", 0)
+    slip.PAID_LEAVE_DAYS    = f("PAID_LEAVE_DAYS", 0)
+    slip.UNPAID_LEAVE_DAYS  = f("UNPAID_LEAVE_DAYS", 0)
+    slip.ABSENT_DAYS        = f("ABSENT_DAYS", 0)
+    slip.OT_HOURS           = f("OT_HOURS", 0)
+
+    # ---- Earnings ----
+    slip.EARNED_BASIC         = f("BASIC", 0)
+    slip.HRA                  = f("HRA", 0)
+    slip.DA                   = f("DA", 0)
+    slip.CONVEYANCE_ALLOWANCE = f("CONVEYANCE", 0)
+    slip.MEDICAL_ALLOWANCE    = f("MEDICAL_ALLOWANCE", 0)
+    slip.SPECIAL_ALLOWANCE    = f("SPECIAL_ALLOWANCE", 0)
+    slip.OTHER_ALLOWANCES     = f("OTHER_ALLOWANCES", 0)
+    slip.ANNUAL_BONUS         = f("BONUS", 0)
+    slip.INCENTIVES           = f("INCENTIVES", 0)
+    slip.TASK_BONUS           = f("TASK_BONUS", 0)
+    slip.OT_PAY               = f("OT_PAY", 0)
+
+    gross = (
+        slip.EARNED_BASIC + slip.HRA + slip.DA
+        + slip.CONVEYANCE_ALLOWANCE + slip.MEDICAL_ALLOWANCE
+        + slip.SPECIAL_ALLOWANCE + slip.OTHER_ALLOWANCES
+        + slip.ANNUAL_BONUS + slip.INCENTIVES
+        + slip.TASK_BONUS + slip.OT_PAY
+    )
+
+    # ---- Deductions ----
+    slip.PF_EMPLOYEE      = f("PF_EMPLOYEE", 0)
+    slip.ESI_EMPLOYEE     = f("ESI_EMPLOYEE", 0)
+    slip.PROFESSIONAL_TAX = f("PROFESSIONAL_TAX", 0)
+    slip.LATE_PENALTY     = f("LATE_PENALTY", 0)
+    slip.OTHER_DEDUCTIONS = f("OTHER_DEDUCTIONS", 0)
+
+    deductions = (
+        slip.PF_EMPLOYEE + slip.ESI_EMPLOYEE + slip.PROFESSIONAL_TAX
+        + slip.LATE_PENALTY + slip.OTHER_DEDUCTIONS
+    )
+
+    slip.GROSS_PAY        = round(gross, 2)
+    slip.TOTAL_DEDUCTIONS = round(deductions, 2)
+    slip.NET_PAY          = round(gross - deductions, 2)
+    slip.PER_DAY_RATE = (
+        slip.EARNED_BASIC / slip.WORKING_DAYS
+        if slip.WORKING_DAYS else 0.0
+    )
+
+    db.commit(); db.refresh(slip)
+
+    # ---- Notify the employee ----
+    try:
+        month_names = [
+            "January","February","March","April","May","June",
+            "July","August","September","October","November","December",
+        ]
+        m_name = month_names[month - 1]
+        db.add(Notification(
+            TYPE="INFO",
+            TITLE=f"New payslip — {m_name} {year}",
+            MESSAGE=(
+                f"{emp.NAME}'s {m_name} {year} payslip has been generated. "
+                f"Net pay: INR {slip.NET_PAY:,.2f}. "
+                f"View it in Employee Portal -> Payslips."
+            ),
+            CREATED_AT=datetime.utcnow(),
+            IS_READ=0,
+            VENDOR_ID=vendor_id,
+        ))
+        db.commit()
+    except Exception:
+        # Notification table schema may differ; never block payslip create.
+        db.rollback()
+
+    return {
+        "message": f"Payslip generated for {emp.NAME} ({year}-{month:02d})",
+        "slip_id": slip.ID,
+        "run_id":  run.ID,
+        "gross":   slip.GROSS_PAY,
+        "deductions": slip.TOTAL_DEDUCTIONS,
+        "net":     slip.NET_PAY,
+        "employee_code": emp.EMPLOYEE_CODE,
+        "employee_name": emp.NAME,
+    }
+
+
 @router.post("/generate")
 def generate_payroll(
     data: GeneratePayrollRequest,

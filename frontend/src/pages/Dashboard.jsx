@@ -70,6 +70,10 @@ import ApprovalCenter from "./ApprovalCenter";
 import Payroll from "./Payroll";
 import StarPerformance from "./StarPerformance";
 import Allowances from "./Allowances";
+import EmployeeProfile from "./EmployeeProfile";
+import AppLauncher from "./AppLauncher";
+import Recruitment from "./Recruitment";
+import PayslipGenerator from "./PayslipGenerator";
 import ChatBot from "../components/ChatBot";
 
 import {
@@ -1295,6 +1299,21 @@ function SidebarIcon({ name }) {
           <rect x="14" y="12" width="7" height="9" rx="1.4" />
         </svg>
       );
+    case "apps":
+      return (
+        <svg {...props}>
+          {/* 3x3 grid — universal "app launcher" icon */}
+          <rect x="3"  y="3"  width="5" height="5" rx="1" />
+          <rect x="10" y="3"  width="5" height="5" rx="1" />
+          <rect x="17" y="3"  width="4" height="5" rx="1" />
+          <rect x="3"  y="10" width="5" height="5" rx="1" />
+          <rect x="10" y="10" width="5" height="5" rx="1" />
+          <rect x="17" y="10" width="4" height="5" rx="1" />
+          <rect x="3"  y="17" width="5" height="4" rx="1" />
+          <rect x="10" y="17" width="5" height="4" rx="1" />
+          <rect x="17" y="17" width="4" height="4" rx="1" />
+        </svg>
+      );
     case "approvals":
       return (
         <svg {...props}>
@@ -1367,6 +1386,16 @@ function SidebarIcon({ name }) {
           {/* Receipt / expense voucher */}
           <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z" />
           <path d="M9 8h6M9 12h6M9 16h4" />
+        </svg>
+      );
+    case "recruitment":
+      return (
+        <svg {...props}>
+          {/* Briefcase + magnifier — hiring */}
+          <rect x="3" y="7" width="18" height="13" rx="2" />
+          <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+          <circle cx="15.5" cy="14.5" r="2.5" />
+          <line x1="17.5" y1="16.5" x2="19" y2="18" />
         </svg>
       );
     case "customers":
@@ -1511,7 +1540,8 @@ function SidebarIcon({ name }) {
 
 
 const NAV_TOP = [
-  { to: "/", icon: <SidebarIcon name="dashboard" />, label: "Dashboard" }
+  { to: "/apps", icon: <SidebarIcon name="apps"      />, label: "Apps" },
+  { to: "/",     icon: <SidebarIcon name="dashboard" />, label: "Dashboard" }
 ];
 
 const NAV_GROUPS = [
@@ -1527,8 +1557,10 @@ const NAV_GROUPS = [
       { to: "/attendance",        icon: <SidebarIcon name="attendance"  />, label: "Attendance" },
       { to: "/leave-management",  icon: <SidebarIcon name="leaves"      />, label: "Leave Management" },
       { to: "/payroll",           icon: <SidebarIcon name="payroll"     />, label: "Payroll" },
+      { to: "/payslip-generator", icon: <SidebarIcon name="payroll"     />, label: "Generate Payslip" },
       { to: "/star-performance",  icon: <SidebarIcon name="star"        />, label: "Star Performance" },
-      { to: "/allowances",        icon: <SidebarIcon name="allowances"  />, label: "Allowances" }
+      { to: "/allowances",        icon: <SidebarIcon name="allowances"  />, label: "Allowances" },
+      { to: "/recruitment",       icon: <SidebarIcon name="recruitment" />, label: "Recruitment" }
     ]
   },
   {
@@ -1679,11 +1711,9 @@ function SidebarNav({ onItemClick }) {
                 marginBottom: 4,
                 background: "transparent",
                 border: "none",
-                color: hasActive
-                  ? "#fde047"
-                  : "rgba(255,255,255,0.65)",
-                fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
-                fontSize: 12,
+                color: hasActive ? "#C8102E" : "#94a3b8",
+                fontFamily: "'Segoe UI', 'Segoe UI Bold Italic', system-ui, -apple-system, Roboto, sans-serif",
+                fontSize: 11,
                 fontWeight: 700,
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
@@ -1694,12 +1724,10 @@ function SidebarNav({ onItemClick }) {
                 transition: "color 0.15s, background 0.15s"
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.color = "#fde047";
+                e.currentTarget.style.color = "#C8102E";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.color = hasActive
-                  ? "#fde047"
-                  : "rgba(255,255,255,0.92)";
+                e.currentTarget.style.color = hasActive ? "#C8102E" : "#94a3b8";
               }}
             >
               <span style={{ flex: 1 }}>{group.label}</span>
@@ -1975,6 +2003,26 @@ function Dashboard() {
           <Route
             path="/allowances"
             element={<Allowances />}
+          />
+
+          <Route
+            path="/employees/:id/profile"
+            element={<EmployeeProfile />}
+          />
+
+          <Route
+            path="/apps"
+            element={<AppLauncher />}
+          />
+
+          <Route
+            path="/recruitment"
+            element={<Recruitment />}
+          />
+
+          <Route
+            path="/payslip-generator"
+            element={<PayslipGenerator />}
           />
 
           <Route
