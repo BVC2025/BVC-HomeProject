@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import API from "../services/api";
 import GeofenceGate from "./GeofenceGate";
 import { formatISTTime } from "../utils/time";
+import styles from "./MyAttendancePanel.module.css";
 
 
 // =====================================================================
@@ -26,44 +27,6 @@ import { formatISTTime } from "../utils/time";
 //   - POST /check-in, /check-out, /mark-absent (existing actions)
 // =====================================================================
 
-const BVC = {
-  PRIMARY: "#C8102E",
-  DARK:    "#8B0B1F",
-  DEEPEST: "#4A0E18",
-  ACCENT:  "#F4B324",
-  INK:     "#0f172a",
-  MUTED:   "#94a3b8",
-  TINT:    "#fef2f2",
-  BORDER:  "#fecaca",
-  BG:      "#F5F6FA"
-};
-
-const CARD = {
-  background: "#fff",
-  borderRadius: 14,
-  boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
-  padding: 22,
-  marginBottom: 16
-};
-
-const CARD_HEADER = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  flexWrap: "wrap",
-  gap: 10,
-  marginBottom: 16
-};
-
-const SECTION_LABEL = {
-  textTransform: "uppercase",
-  fontSize: 11,
-  letterSpacing: 1.2,
-  fontWeight: 700,
-  color: BVC.DEEPEST,
-  margin: 0
-};
-
 // Color-coded badges per requirement:
 //   Present / Inside  → Green
 //   Late              → Yellow
@@ -84,26 +47,22 @@ const BADGE_THEME = {
   PENDING:    { bg: "#f1f5f9", fg: "#475569", label: "Not marked" }
 };
 
+// Muted color for unset stat tiles
+const MUTED = "#94a3b8";
+const INK   = "#0f172a";
+
 
 function Badge({ kind, label }) {
   const theme = BADGE_THEME[kind] || { bg: "#e5e7eb", fg: "#475569", label: kind || "—" };
   return (
-    <span style={{
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 6,
-      padding: "5px 12px",
-      borderRadius: 999,
-      fontSize: 12,
-      fontWeight: 700,
-      background: theme.bg,
-      color: theme.fg,
-      whiteSpace: "nowrap"
-    }}>
-      <span style={{
-        width: 7, height: 7, borderRadius: "50%",
-        background: theme.fg, display: "inline-block"
-      }} />
+    <span
+      className={styles.badge}
+      style={{ background: theme.bg, color: theme.fg }}
+    >
+      <span
+        className={styles.badgeDot}
+        style={{ background: theme.fg }}
+      />
       {label || theme.label}
     </span>
   );
@@ -365,35 +324,31 @@ export default function MyAttendancePanel({ employeeId }) {
       {/* ============================================================ */}
       {/* CARD 1 — TODAY'S ATTENDANCE STATUS                            */}
       {/* ============================================================ */}
-      <div style={CARD}>
-        <div style={CARD_HEADER}>
-          <h3 style={SECTION_LABEL}>📅 Today's Attendance Status</h3>
+      <div className={styles.card}>
+        <div className={styles.cardHeader}>
+          <h3 className={styles.sectionLabel}>📅 Today's Attendance Status</h3>
           <Badge kind={status} />
         </div>
 
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: 12
-        }}>
+        <div className={styles.statGrid}>
           <StatTile label="Status" value={BADGE_THEME[status]?.label || "Not marked"}
-                    color={BADGE_THEME[status]?.fg || BVC.MUTED} />
+                    color={BADGE_THEME[status]?.fg || MUTED} />
           <StatTile label="Check-In Time"
                     value={today?.CHECK_IN ? formatISTTime(today.CHECK_IN) : "—"}
-                    color={today?.CHECK_IN ? "#16a34a" : BVC.MUTED} />
+                    color={today?.CHECK_IN ? "#16a34a" : MUTED} />
           <StatTile label="Check-Out Time"
                     value={today?.CHECK_OUT ? formatISTTime(today.CHECK_OUT) : "—"}
-                    color={today?.CHECK_OUT ? "#dc2626" : BVC.MUTED} />
-          <StatTile label="Total Working Hours" value={workingHours} color={BVC.PRIMARY} />
+                    color={today?.CHECK_OUT ? "#dc2626" : MUTED} />
+          <StatTile label="Total Working Hours" value={workingHours} color="var(--clr-primary)" />
         </div>
       </div>
 
       {/* ============================================================ */}
       {/* CARD 2 — LIVE GEOFENCE STATUS                                 */}
       {/* ============================================================ */}
-      <div style={CARD}>
-        <div style={CARD_HEADER}>
-          <h3 style={SECTION_LABEL}>📍 Live Geofence Status</h3>
+      <div className={styles.card}>
+        <div className={styles.cardHeader}>
+          <h3 className={styles.sectionLabel}>📍 Live Geofence Status</h3>
           <Badge kind={geoState} />
         </div>
 
@@ -405,46 +360,33 @@ export default function MyAttendancePanel({ employeeId }) {
         />
 
         {/* Structured numeric grid per requirement */}
-        <div style={{
-          marginTop: 14,
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: 10
-        }}>
+        <div className={styles.statGrid2}>
           <StatTile label="Your Latitude"
-                    value={fmtCoord(gpsCtx?.lat)} mono color={BVC.INK} />
+                    value={fmtCoord(gpsCtx?.lat)} mono color={INK} />
           <StatTile label="Your Longitude"
-                    value={fmtCoord(gpsCtx?.lng)} mono color={BVC.INK} />
+                    value={fmtCoord(gpsCtx?.lng)} mono color={INK} />
           <StatTile label="Office Latitude"
-                    value={fmtCoord(office?.lat)} mono color={BVC.INK} />
+                    value={fmtCoord(office?.lat)} mono color={INK} />
           <StatTile label="Office Longitude"
-                    value={fmtCoord(office?.lng)} mono color={BVC.INK} />
+                    value={fmtCoord(office?.lng)} mono color={INK} />
           <StatTile label="Distance From Office"
                     value={fmtDistance(gpsCtx?.distance)}
                     color={geoState === "INSIDE" ? "#16a34a" : "#dc2626"} />
           <StatTile label="Allowed Radius"
                     value={office?.radius != null ? `${office.radius} m` : "—"}
-                    color={BVC.INK} />
+                    color={INK} />
           <StatTile label="GPS Accuracy"
                     value={gpsCtx?.accuracy != null
                       ? `±${Math.round(gpsCtx.accuracy)} m`
                       : "—"}
-                    color={BVC.MUTED} />
+                    color={MUTED} />
           <StatTile label="Geofence Status"
                     value={BADGE_THEME[geoState]?.label || geoState}
-                    color={BADGE_THEME[geoState]?.fg || BVC.MUTED} />
+                    color={BADGE_THEME[geoState]?.fg || MUTED} />
         </div>
 
         {geoReason && geoState !== "INSIDE" && (
-          <div style={{
-            marginTop: 12,
-            padding: "10px 14px",
-            background: "#fef2f2",
-            border: "1px solid #fecaca",
-            borderRadius: 8,
-            fontSize: 13,
-            color: "#991b1b"
-          }}>
+          <div className={styles.reasonBox}>
             <strong>Why blocked:</strong> {reasonLabel(geoReason)}
           </div>
         )}
@@ -453,17 +395,17 @@ export default function MyAttendancePanel({ employeeId }) {
       {/* ============================================================ */}
       {/* ACTION BUTTONS                                                */}
       {/* ============================================================ */}
-      <div style={CARD}>
-        <div style={CARD_HEADER}>
-          <h3 style={SECTION_LABEL}>✋ Mark My Attendance</h3>
+      <div className={styles.card}>
+        <div className={styles.cardHeader}>
+          <h3 className={styles.sectionLabel}>✋ Mark My Attendance</h3>
         </div>
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <div className={styles.actionRow}>
           <ActionButton
             label="✓ Check In"
             enabled={canCheckIn}
             onClick={handleCheckIn}
-            colorOn="linear-gradient(135deg, #16a34a, #15803d)"
+            colorOn="#16a34a"
             shadowOn="rgba(22,163,74,0.35)"
             title={!gpsCtx ? "Waiting for GPS — must be inside the office geofence."
                   : isCheckedIn ? "You've already checked in today."
@@ -473,7 +415,7 @@ export default function MyAttendancePanel({ employeeId }) {
             label="→ Check Out"
             enabled={canCheckOut}
             onClick={handleCheckOut}
-            colorOn={`linear-gradient(135deg, ${BVC.PRIMARY}, ${BVC.DARK})`}
+            colorOn="var(--clr-primary)"
             shadowOn="rgba(200,16,46,0.35)"
             title={!gpsCtx ? "Waiting for GPS — must be inside the office geofence."
                   : !isCheckedIn ? "You must check in before you can check out."
@@ -484,7 +426,7 @@ export default function MyAttendancePanel({ employeeId }) {
             label="✗ Mark Absent"
             enabled={canMarkAbsent}
             onClick={handleMarkAbsent}
-            colorOn="linear-gradient(135deg, #d97706, #b45309)"
+            colorOn="#d97706"
             shadowOn="rgba(217,119,6,0.35)"
             title={isCheckedIn ? "Can't mark absent — already checked in."
                   : isAbsent ? "You're already marked absent today."
@@ -493,16 +435,7 @@ export default function MyAttendancePanel({ employeeId }) {
         </div>
 
         {notice && (
-          <div style={{
-            marginTop: 12,
-            padding: "10px 14px",
-            borderRadius: 8,
-            background: notice.type === "ok" ? "#dcfce7" : "#fee2e2",
-            color:      notice.type === "ok" ? "#166534" : "#991b1b",
-            border: "1px solid " + (notice.type === "ok" ? "#86efac" : "#fca5a5"),
-            fontSize: 13,
-            fontWeight: 600
-          }}>
+          <div className={notice.type === "ok" ? styles.noticeOk : styles.noticeErr}>
             {notice.text}
           </div>
         )}
@@ -511,44 +444,36 @@ export default function MyAttendancePanel({ employeeId }) {
       {/* ============================================================ */}
       {/* CARD 3 — LAST ATTENDANCE ATTEMPT                              */}
       {/* ============================================================ */}
-      <div style={CARD}>
-        <div style={CARD_HEADER}>
-          <h3 style={SECTION_LABEL}>🕓 Last Attendance Attempt</h3>
+      <div className={styles.card}>
+        <div className={styles.cardHeader}>
+          <h3 className={styles.sectionLabel}>🕓 Last Attendance Attempt</h3>
           <Badge kind={lastAttempt ? "BLOCKED" : (isCheckedIn ? "ALLOWED" : "PENDING")} />
         </div>
 
         {!lastAttempt && !isCheckedIn && (
-          <div style={{ color: BVC.MUTED, fontSize: 14, padding: "12px 0" }}>
+          <div className={styles.emptyText}>
             No attendance attempts yet today.
           </div>
         )}
 
         {!lastAttempt && isCheckedIn && (
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-            gap: 12
-          }}>
+          <div className={styles.statGrid}>
             <StatTile label="Attempt Time"
                       value={today?.CHECK_IN ? formatISTTime(today.CHECK_IN) : "—"}
-                      color={BVC.INK} />
+                      color={INK} />
             <StatTile label="Distance"
                       value={today?.DISTANCE_METERS != null
                         ? fmtDistance(today.DISTANCE_METERS) : "—"}
-                      color={BVC.INK} />
+                      color={INK} />
             <StatTile label="Result" value="Allowed" color="#16a34a" />
-            <StatTile label="Failure Reason" value="—" color={BVC.MUTED} />
+            <StatTile label="Failure Reason" value="—" color={MUTED} />
           </div>
         )}
 
         {lastAttempt && (
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-            gap: 12
-          }}>
+          <div className={styles.statGrid}>
             <StatTile label="Attempt Time"
-                      value={fmtAttemptTime(lastAttempt.time)} color={BVC.INK} />
+                      value={fmtAttemptTime(lastAttempt.time)} color={INK} />
             <StatTile label="Distance"
                       value={fmtDistance(lastAttempt.distance)} color="#dc2626" />
             <StatTile label="Result" value="Blocked" color="#dc2626" />
@@ -558,16 +483,7 @@ export default function MyAttendancePanel({ employeeId }) {
         )}
 
         {lastAttempt?.detail && (
-          <div style={{
-            marginTop: 10,
-            padding: "10px 14px",
-            background: "#fef2f2",
-            border: "1px solid #fecaca",
-            borderRadius: 8,
-            fontSize: 12,
-            color: "#7f1d1d",
-            lineHeight: 1.5
-          }}>
+          <div className={styles.detailBox}>
             {lastAttempt.detail}
           </div>
         )}
@@ -582,32 +498,14 @@ export default function MyAttendancePanel({ employeeId }) {
 // ---------------------------------------------------------------------
 function StatTile({ label, value, color, mono }) {
   return (
-    <div style={{
-      background: "#fafbfc",
-      border: "1px solid #e5e7eb",
-      borderRadius: 10,
-      padding: "10px 14px"
-    }}>
-      <div style={{
-        fontSize: 10,
-        fontWeight: 700,
-        color: "#64748b",
-        textTransform: "uppercase",
-        letterSpacing: 0.7,
-        marginBottom: 4
-      }}>
+    <div className={styles.statTile}>
+      <div className={styles.statTileLabel}>
         {label}
       </div>
-      <div style={{
-        fontSize: mono ? 14 : 16,
-        fontWeight: 800,
-        color: color || "#0f172a",
-        lineHeight: 1.25,
-        fontFamily: mono
-          ? "ui-monospace, SFMono-Regular, Menlo, monospace"
-          : "inherit",
-        wordBreak: "break-word"
-      }}>
+      <div
+        className={mono ? styles.statTileValueMono : styles.statTileValue}
+        style={{ color: color || INK }}
+      >
         {value}
       </div>
     </div>
@@ -621,20 +519,11 @@ function ActionButton({ label, enabled, onClick, colorOn, shadowOn, title }) {
       onClick={onClick}
       disabled={!enabled}
       title={title}
-      style={{
-        flex: "1 1 180px",
-        minHeight: 48,
-        padding: "12px 18px",
-        border: "none",
-        borderRadius: 10,
-        background: enabled ? colorOn : "#cbd5e1",
-        color: "#fff",
-        fontSize: 15,
-        fontWeight: 700,
-        cursor: enabled ? "pointer" : "not-allowed",
-        boxShadow: enabled ? `0 4px 14px ${shadowOn}` : "none",
-        transition: "0.2s"
-      }}
+      className={styles.actionBtn}
+      style={enabled ? {
+        background: colorOn,
+        boxShadow: `0 4px 14px ${shadowOn}`
+      } : undefined}
     >
       {label}
     </button>

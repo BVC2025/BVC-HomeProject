@@ -1,0 +1,340 @@
+/* CompanySettings page — scoped styles */
+
+@keyframes csFade {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Page ──────────────────────────────────────────────────── */
+
+.page {
+  padding: var(--sp-5);
+  min-height: calc(100vh - 80px);
+}
+
+/* ─── Hero ──────────────────────────────────────────────────── */
+
+.hero {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--clr-primary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow);
+  padding: var(--sp-5) var(--sp-6);
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.heroLeft {
+  flex: 1;
+}
+
+.heroEyebrow {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-black);
+  letter-spacing: 2px;
+  color: var(--clr-primary);
+  text-transform: uppercase;
+}
+
+.heroTitle {
+  font-size: var(--font-2xl);
+  font-weight: var(--fw-black);
+  margin-top: 4px;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.heroSub {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.heroActions {
+  display: flex;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+
+.previewBtn {
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  font-weight: var(--fw-black);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all var(--ease);
+}
+
+.previewBtn:hover:not(:disabled) {
+  background: var(--border-light);
+  border-color: var(--info);
+  color: var(--info);
+}
+
+.previewBtn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.saveBtn {
+  padding: var(--sp-3) var(--sp-5);
+  background: var(--clr-primary);
+  color: var(--text-inverse);
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: var(--fw-black);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background var(--ease);
+}
+
+.saveBtnDisabled {
+  background: var(--slate-400);
+  cursor: not-allowed;
+}
+
+/* ─── Error + toast ─────────────────────────────────────────── */
+
+.errorBanner {
+  padding: var(--sp-2) 14px;
+  background: var(--danger-bg);
+  color: var(--danger-dark);
+  border: 1px solid var(--danger-light);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  margin-bottom: var(--sp-3);
+}
+
+.toast {
+  position: fixed;
+  right: var(--sp-5);
+  bottom: var(--sp-5);
+  background: var(--text-primary);
+  color: var(--text-inverse);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  box-shadow: var(--shadow-lg);
+  z-index: 9999;
+  animation: csFade 0.25s ease-out;
+}
+
+/* ─── Two-column body ───────────────────────────────────────── */
+
+.bodyGrid {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 20px;
+}
+
+.formCol {
+  display: grid;
+  gap: 16px;
+}
+
+/* ─── Section card ──────────────────────────────────────────── */
+
+.sectionCard {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+  animation: csFade 0.4s ease-out;
+}
+
+.sectionTitle {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-black);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: var(--sp-3);
+  padding-bottom: var(--sp-2);
+  /* color and borderBottom set inline since they are per-section runtime colors */
+}
+
+.sectionBody {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+/* ─── Field ─────────────────────────────────────────────────── */
+
+.fieldLabel {
+  display: block;
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  color: var(--text-secondary);
+}
+
+.input {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-medium);
+  font-family: var(--font);
+  color: var(--text-primary);
+  background: var(--card-bg);
+  box-sizing: border-box;
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--clr-primary);
+}
+
+.textarea {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  color: var(--text-primary);
+  background: var(--card-bg);
+  box-sizing: border-box;
+  resize: vertical;
+  outline: none;
+}
+
+.textarea:focus {
+  border-color: var(--clr-primary);
+}
+
+/* ─── Field row helpers ─────────────────────────────────────── */
+
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+.row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-2); }
+
+/* ─── Right column — logo panel ─────────────────────────────── */
+
+.logoPanel {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+  height: fit-content;
+  position: sticky;
+  top: 90px;
+}
+
+.logoTitle {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-black);
+  letter-spacing: 1.5px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: var(--sp-3);
+}
+
+.logoBox {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--sp-3);
+  overflow: hidden;
+}
+
+.logoBoxEmpty {
+  background: var(--danger-bg);
+  border: 2px dashed var(--danger-light);
+}
+
+.logoBoxFilled {
+  background: var(--card-bg);
+  border: 2px dashed var(--border);
+}
+
+.logoImg {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.logoEmptyText {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  padding: var(--sp-3);
+}
+
+.logoEmptyHint {
+  font-size: var(--font-xs);
+}
+
+.logoBtnGrid {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.uploadBtn {
+  padding: var(--sp-2) 14px;
+  background: var(--clr-primary);
+  color: var(--text-inverse);
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: var(--fw-black);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background var(--ease);
+}
+
+.uploadBtn:hover {
+  background: var(--clr-primary-dark);
+}
+
+.removeBtn {
+  padding: var(--sp-2) 14px;
+  background: var(--card-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger-light);
+  border-radius: var(--radius-md);
+  font-weight: var(--fw-bold);
+  font-size: var(--font-xs);
+  font-family: var(--font);
+  cursor: pointer;
+}
+
+.logoHint {
+  margin-top: 18px;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--warning-bg, #fffbeb);
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-md);
+  font-size: var(--font-xs);
+  color: #92400e;
+  line-height: 1.5;
+}
+
+/* ─── Loading state ─────────────────────────────────────────── */
+
+.loadingText {
+  padding: 40px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.hidden { display: none; }
+
+.inputUppercase { text-transform: uppercase; }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import API, { API_BASE_URL } from "../services/api";
@@ -10,6 +10,7 @@ import MyAttendancePanel from "../components/MyAttendancePanel";
 import MyAllowanceSection from "../components/MyAllowanceSection";
 import EmployeeProfileForm from "./EmployeeProfileForm";
 
+import styles from "./EmployeeDashboard.module.css";
 import {
   isVoiceSupported,
   isVoiceEnabled,
@@ -27,56 +28,50 @@ const PORTAL_REFRESH_MS = 60000;   // 60s auto-refresh on the portal dashboard
 const POLL_INTERVAL_MS = 15000;    // legacy poll for tasks/notifications
 
 const BVC = {
-  PRIMARY: "#C8102E",   // BVC red
-  DARK:    "#8B0B1F",   // dark red
-  DEEPEST: "#000000",   // deepest red — section headers
-  INK:     "#1A0508",   // near black
-  ACCENT:  "#F4B324",   // gold
-  TINT:    "#fef2f2",
-  BORDER:  "#fecaca",
-  BG:      "#F5F6FA",   // page background
-  TEXT:    "#0f172a",
-  MUTED:   "#94a3b8"
+  PRIMARY: "#ef4444",   // BVC primary red
+  DARK: "#dc2626",   // darker red
+  DEEPEST: "#1e293b",   // near-black
+  INK: "#1e293b",   // neutral dark (tooltips, labels)
+  ACCENT: "#f59e0b",   // amber accent
+  TINT: "#fef2f2",
+  BORDER: "#fecaca",
+  BG: "#f8f9fa",   // page background
+  TEXT: "#1e293b",
+  MUTED: "#94a3b8"
 };
 
 const CARD_SHADOW = "0 4px 12px rgba(0,0,0,0.06)";
 
-const SECTION_LABEL = {
-  textTransform: "uppercase",
-  fontSize: 17,
-  letterSpacing: 1.2,
-  fontWeight: 700,
-  color: BVC.DEEPEST
-};
+// SECTION_LABEL inline style object removed — replaced by styles.kpiSectionLabel CSS class
 
 const PRIORITY_THEME = {
-  HIGH:   { bg: "#fee2e2", fg: "#b91c1c", border: "#fca5a5" },
+  HIGH: { bg: "#fee2e2", fg: "#b91c1c", border: "#fca5a5" },
   MEDIUM: { bg: "#fef3c7", fg: "#854d0e", border: "#fde68a" },
-  LOW:    { bg: "#dcfce7", fg: "#166534", border: "#a7f3d0" }
+  LOW: { bg: "#dcfce7", fg: "#166534", border: "#a7f3d0" }
 };
 
 const STATUS_PILL = {
-  PENDING:     { bg: "#f1f5f9", fg: "#475569", label: "Pending" },
+  PENDING: { bg: "#f1f5f9", fg: "#475569", label: "Pending" },
   IN_PROGRESS: { bg: "#dbeafe", fg: "#1d4ed8", label: "In Progress" },
-  ON_HOLD:     { bg: "#fef3c7", fg: "#854d0e", label: "On Hold" },
-  COMPLETED:   { bg: "#dcfce7", fg: "#166534", label: "Completed" },
-  UPCOMING:    { bg: "#ede9fe", fg: "#5b21b6", label: "Upcoming" },
-  OVERDUE:     { bg: "#fee2e2", fg: "#b91c1c", label: "Overdue" }
+  ON_HOLD: { bg: "#fef3c7", fg: "#854d0e", label: "On Hold" },
+  COMPLETED: { bg: "#dcfce7", fg: "#166534", label: "Completed" },
+  UPCOMING: { bg: "#ede9fe", fg: "#5b21b6", label: "Upcoming" },
+  OVERDUE: { bg: "#fee2e2", fg: "#b91c1c", label: "Overdue" }
 };
 
 const LEAVE_STATUS_PILL = {
   PENDING_APPROVAL: { bg: "#fef3c7", fg: "#854d0e", label: "Pending" },
-  APPROVED:         { bg: "#dcfce7", fg: "#166534", label: "Approved" },
-  REJECTED:         { bg: "#fee2e2", fg: "#b91c1c", label: "Rejected" },
-  CANCELLED:        { bg: "#f1f5f9", fg: "#475569", label: "Cancelled" }
+  APPROVED: { bg: "#dcfce7", fg: "#166534", label: "Approved" },
+  REJECTED: { bg: "#fee2e2", fg: "#b91c1c", label: "Rejected" },
+  CANCELLED: { bg: "#f1f5f9", fg: "#475569", label: "Cancelled" }
 };
 
 const LEAVE_TYPE_THEMES = {
   CASUAL: "#3b82f6",
-  SICK:   "#ef4444",
+  SICK: "#ef4444",
   EARNED: "#10b981",
   UNPAID: "#94a3b8",
-  LOP:    "#6b7280"
+  LOP: "#6b7280"
 };
 
 
@@ -141,39 +136,13 @@ function Toast({ toast, onClose }) {
   }, [toast, onClose]);
   if (!toast) return null;
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 16,
-        right: 16,
-        zIndex: 9999,
-        background: "#fff",
-        border: `1px solid ${BVC.BORDER}`,
-        borderLeft: `4px solid ${BVC.PRIMARY}`,
-        borderRadius: 12,
-        boxShadow: "0 12px 28px rgba(0,0,0,0.18)",
-        padding: "12px 16px",
-        minWidth: 280,
-        maxWidth: 380,
-        color: BVC.INK,
-        fontSize: 13,
-        fontWeight: 600
-      }}
-      role="status"
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-        <span style={{ flex: 1 }}>{toast.message}</span>
+    <div className={styles.toast} role="status">
+      <div className={styles.toastRow}>
+        <span className={styles.toastMessage}>{toast.message}</span>
         <button
           type="button"
           onClick={onClose}
-          style={{
-            background: "transparent",
-            border: "none",
-            color: BVC.MUTED,
-            cursor: "pointer",
-            fontSize: 16,
-            lineHeight: 1
-          }}
+          className={styles.toastClose}
           aria-label="Close"
         >
           ×
@@ -225,12 +194,7 @@ function EmployeeDashboard() {
 
   if (profileGate.loading) {
     return (
-      <div style={{
-        minHeight: "100vh", display: "flex",
-        alignItems: "center", justifyContent: "center",
-        background: BVC.BG, color: BVC.DARK,
-        fontFamily: "Arial, sans-serif"
-      }}>
+      <div className={styles.loadingScreen}>
         Loading your profile…
       </div>
     );
@@ -272,20 +236,20 @@ function EmployeeDashboardBody() {
   // localStorage keys written by Login.jsx (Employee login flow):
   //   employee_id, employee_name, department, employee_role,
   //   loginTime, attendance_status, auth, role, token, username
-  const employeeId       = localStorage.getItem("employee_id") || "";
-  const employeeName     = localStorage.getItem("employee_name") || "";
-  const department       = localStorage.getItem("department") || "";
-  const role             = localStorage.getItem("employee_role") || "EMPLOYEE";
-  const loginTime        = localStorage.getItem("loginTime") || "";
+  const employeeId = localStorage.getItem("employee_id") || "";
+  const employeeName = localStorage.getItem("employee_name") || "";
+  const department = localStorage.getItem("department") || "";
+  const role = localStorage.getItem("employee_role") || "EMPLOYEE";
+  const loginTime = localStorage.getItem("loginTime") || "";
   const attendanceStatus = localStorage.getItem("attendance_status") || "PRESENT";
 
   // ----- portal-dashboard state -----
-  const [portal, setPortal]   = useState(null);
+  const [portal, setPortal] = useState(null);
   const [portalErr, setPortalErr] = useState("");
   const [loading, setLoading] = useState(true);
   const [actionBusy, setActionBusy] = useState({}); // { [assignmentId]: true }
-  const [toast, setToast]     = useState(null);
-  const [tab, setTab]         = useState("pending");
+  const [toast, setToast] = useState(null);
+  const [tab, setTab] = useState("pending");
 
   // Top-level tab for the redesigned employee portal. Splits the long
   // single-scroll page into focused sections: Overview / Attendance /
@@ -581,12 +545,12 @@ function EmployeeDashboardBody() {
 
   const kpis = portal?.kpis || {};
   const taskBuckets = {
-    today:      portal?.tasks?.today      || [],
-    pending:    portal?.tasks?.pending    || [],
+    today: portal?.tasks?.today || [],
+    pending: portal?.tasks?.pending || [],
     in_progress: portal?.tasks?.in_progress || [],
-    on_hold:    portal?.tasks?.on_hold    || [],
-    upcoming:   portal?.tasks?.upcoming   || [],
-    completed:  portal?.tasks?.completed  || []
+    on_hold: portal?.tasks?.on_hold || [],
+    upcoming: portal?.tasks?.upcoming || [],
+    completed: portal?.tasks?.completed || []
   };
   const projects = portal?.projects || [];
   const monthlyChart = portal?.monthly_productivity || [];
@@ -596,12 +560,12 @@ function EmployeeDashboardBody() {
 
   const tilesActiveTab = (() => {
     switch (tab) {
-      case "pending":     return taskBuckets.pending;
+      case "pending": return taskBuckets.pending;
       case "in_progress": return taskBuckets.in_progress;
-      case "on_hold":     return taskBuckets.on_hold;
-      case "upcoming":    return taskBuckets.upcoming;
-      case "completed":   return taskBuckets.completed;
-      default:            return [];
+      case "on_hold": return taskBuckets.on_hold;
+      case "upcoming": return taskBuckets.upcoming;
+      case "completed": return taskBuckets.completed;
+      default: return [];
     }
   })();
 
@@ -612,45 +576,28 @@ function EmployeeDashboardBody() {
 
   return (
 
-    <div
-      style={{
-        minHeight: "100vh",
-        background: BVC.BG,
-        fontFamily: "Arial, sans-serif",
-        color: BVC.TEXT
-      }}
-    >
+    <div className={styles.page}>
 
       {/* ---------- TOP BAR ---------- */}
-      <header
-        style={{
-          background: `linear-gradient(135deg, ${BVC.INK}, ${BVC.DEEPEST} 50%, ${BVC.DARK})`,
-          color: "#fff",
-          padding: "14px 22px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          boxShadow: "0 4px 14px rgba(0,0,0,0.18)"
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+      <header className={styles.topbar}>
+        <div className={styles.topbarLeft}>
           <img
-            src="/bharath-logo.png"
+            src="/logo.webp"
             alt="logo"
-            style={{ height: 38, width: "auto" }}
+            className={styles.topbarLogo}
           />
           <div>
-            <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: 0.4 }}>
+            <div className={styles.topbarTitle}>
               BVC24 · Employee Portal
             </div>
-            <div style={{ fontSize: 12, opacity: 0.85 }}>
+            <div className={styles.topbarMeta}>
               {employeeName || profile.name} · {profile.employee_code}{" "}
               {profile.department ? `· ${profile.department}` : ""}
             </div>
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <div className={styles.topbarRight}>
           <span
             style={{
               fontSize: 11,
@@ -660,7 +607,7 @@ function EmployeeDashboardBody() {
               background: attendanceStatus === "LATE"
                 ? "rgba(244,179,36,0.22)"
                 : "rgba(34,197,94,0.22)",
-              color: attendanceStatus === "LATE" ? BVC.ACCENT : "#86efac",
+              color: attendanceStatus === "LATE" ? "#b45309" : "#16a34a",
               letterSpacing: 0.4
             }}
             title={`Login: ${fmtTime(loginTime)}`}
@@ -672,72 +619,38 @@ function EmployeeDashboardBody() {
             <button
               type="button"
               onClick={toggleVoice}
-              style={topbarBtn}
+              className={styles.topbarBtn}
               title="Toggle voice alerts"
             >
               {voiceOn ? "🔊" : "🔇"} Voice
             </button>
           )}
 
-          <button type="button" style={topbarBtn} onClick={handleLogout}>
+          <button type="button" className={styles.topbarBtn} onClick={handleLogout}>
             Logout
           </button>
 
           {unreadCount > 0 && (
-            <span
-              style={{
-                fontSize: 11,
-                background: BVC.ACCENT,
-                color: BVC.DEEPEST,
-                padding: "4px 8px",
-                borderRadius: 999,
-                fontWeight: 800
-              }}
-            >
+            <span className={styles.topbarNotifBadge}>
               🔔 {unreadCount}
             </span>
           )}
         </div>
       </header>
 
-      <main
-        style={{
-          maxWidth: 1380,
-          margin: "0 auto",
-          padding: "20px 22px 40px"
-        }}
-      >
+      <main className={styles.mainContent}>
 
         {portalErr && (
-          <div
-            style={{
-              background: "#fff",
-              border: `1px solid ${BVC.BORDER}`,
-              borderLeft: `4px solid ${BVC.PRIMARY}`,
-              borderRadius: 12,
-              padding: "12px 16px",
-              fontSize: 13,
-              color: BVC.DARK,
-              marginBottom: 16,
-              boxShadow: CARD_SHADOW
-            }}
-          >
+          <div className={styles.portalError}>
             ⚠ {portalErr}{" "}
-            <span style={{ color: BVC.MUTED }}>
+            <span className={styles.portalErrorNote}>
               — supporting widgets below remain functional.
             </span>
           </div>
         )}
 
         {loading && !portal && (
-          <div
-            style={{
-              ...cardBase,
-              textAlign: "center",
-              padding: 40,
-              color: BVC.MUTED
-            }}
-          >
+          <div className={styles.loadingCard}>
             Loading your workspace…
           </div>
         )}
@@ -754,7 +667,7 @@ function EmployeeDashboardBody() {
           onChange={setMainTab}
           badges={{
             tasks: (taskBuckets.today?.length || 0)
-                 + (taskBuckets.pending?.length || 0),
+              + (taskBuckets.pending?.length || 0),
             leave: (leaveHistory || []).filter(
               (l) => l.STATUS === "PENDING_APPROVAL"
             ).length
@@ -791,11 +704,11 @@ function EmployeeDashboardBody() {
               tab={tab}
               onTabChange={setTab}
               counts={{
-                pending:     taskBuckets.pending.length,
+                pending: taskBuckets.pending.length,
                 in_progress: taskBuckets.in_progress.length,
-                on_hold:     taskBuckets.on_hold.length,
-                upcoming:    taskBuckets.upcoming.length,
-                completed:   taskBuckets.completed.length
+                on_hold: taskBuckets.on_hold.length,
+                upcoming: taskBuckets.upcoming.length,
+                completed: taskBuckets.completed.length
               }}
               tasks={tilesActiveTab}
               busyMap={actionBusy}
@@ -878,29 +791,16 @@ function EmployeeDashboardBody() {
 function PortalTabNav({ active, onChange, badges = {} }) {
 
   const tabs = [
-    { key: "overview",    label: "Overview"    },
-    { key: "attendance",  label: "Attendance"  },
-    { key: "tasks",       label: "Tasks",       badge: badges.tasks },
-    { key: "leave",       label: "Leave",       badge: badges.leave },
-    { key: "memos",       label: "Memos"       },
-    { key: "allowance",   label: "Allowance"   },
+    { key: "overview", label: "Overview" },
+    { key: "attendance", label: "Attendance" },
+    { key: "tasks", label: "Tasks", badge: badges.tasks },
+    { key: "leave", label: "Leave", badge: badges.leave },
+    { key: "memos", label: "Memos" },
     { key: "performance", label: "Performance" }
   ];
 
   return (
-    <div
-      style={{
-        background: "white",
-        border: `1px solid ${BVC.BORDER}`,
-        borderRadius: 12,
-        padding: "6px",
-        marginBottom: 18,
-        boxShadow: CARD_SHADOW,
-        display: "flex",
-        gap: 4,
-        overflowX: "auto"
-      }}
-    >
+    <div className={styles.portalTabNav}>
       {tabs.map((t) => {
 
         const isOn = t.key === active;
@@ -910,9 +810,7 @@ function PortalTabNav({ active, onChange, badges = {} }) {
             key={t.key}
             onClick={() => onChange(t.key)}
             style={{
-              background: isOn
-                ? "linear-gradient(135deg, #C8102E 0%, #8B0B1F 100%)"
-                : "transparent",
+              background: isOn ? "#ef4444" : "transparent",
               color: isOn ? "white" : "#475569",
               border: "none",
               padding: "10px 18px",
@@ -933,14 +831,10 @@ function PortalTabNav({ active, onChange, badges = {} }) {
             <span>{t.label}</span>
             {!!t.badge && t.badge > 0 && (
               <span
+                className={styles.portalTabBadge}
                 style={{
-                  background: isOn ? "#F4B324" : "#fee2e2",
-                  color: isOn ? "#5a0712" : "#991b1b",
-                  fontSize: 10,
-                  fontWeight: 800,
-                  padding: "1px 7px",
-                  borderRadius: 999,
-                  letterSpacing: 0
+                  background: isOn ? "#f59e0b" : "#fee2e2",
+                  color: isOn ? "#5a0712" : "#991b1b"
                 }}
               >
                 {t.badge > 99 ? "99+" : t.badge}
@@ -998,58 +892,30 @@ function ProfileStrip({ profile, productivity }) {
       : { bg: "#e5e7eb", fg: "#475569" };
 
   return (
-    <section style={{ ...cardBase, marginBottom: 18, padding: 20 }}>
-      <div
-        style={{
-          display: "flex",
-          gap: 20,
-          alignItems: "center",
-          flexWrap: "wrap"
-        }}
-      >
+    <section className={styles.profileStrip}>
+      <div className={styles.profileStripInner}>
         {/* LEFT — identity */}
-        <div style={{ display: "flex", gap: 16, alignItems: "center", flex: 1, minWidth: 280 }}>
+        <div className={styles.profileIdentity}>
           {profile?.photo_url ? (
             <img
               src={profile.photo_url}
               alt={profile.name}
-              style={{
-                width: 78,
-                height: 78,
-                borderRadius: "50%",
-                objectFit: "cover",
-                border: `3px solid ${BVC.PRIMARY}`
-              }}
+              className={styles.profilePhoto}
             />
           ) : (
-            <div
-              style={{
-                width: 78,
-                height: 78,
-                borderRadius: "50%",
-                background: `linear-gradient(135deg, ${BVC.PRIMARY}, ${BVC.DEEPEST})`,
-                color: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 28,
-                fontWeight: 800,
-                letterSpacing: 1,
-                boxShadow: "0 6px 16px rgba(200,16,46,0.30)"
-              }}
-            >
+            <div className={styles.profileAvatar}>
               {initials}
             </div>
           )}
 
           <div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: BVC.INK, marginBottom: 2 }}>
+            <div className={styles.profileName}>
               {profile?.name || "Employee"}
             </div>
-            <div style={{ fontSize: 12, color: BVC.MUTED, fontWeight: 700, letterSpacing: 0.4 }}>
+            <div className={styles.profileCode}>
               {profile?.employee_code || "—"}
             </div>
-            <div style={{ marginTop: 6, fontSize: 13, color: "#475569" }}>
+            <div className={styles.profileRole}>
               {profile?.designation || "—"}
               {profile?.department ? ` · ${profile.department}` : ""}
             </div>
@@ -1057,49 +923,24 @@ function ProfileStrip({ profile, productivity }) {
         </div>
 
         {/* RIGHT — score + rating + badge */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 22,
-            paddingLeft: 18,
-            borderLeft: "1px solid #f1f5f9"
-          }}
-        >
-          <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                fontSize: 56,
-                fontWeight: 900,
-                lineHeight: 1,
-                color: BVC.PRIMARY
-              }}
-            >
+        <div className={styles.profileScoreBlock}>
+          <div className={styles.profileScoreCenter}>
+            <div className={styles.profileScoreNum}>
               {score}
             </div>
-            <div style={{ ...SECTION_LABEL, marginTop: 4 }}>
+            <div className={styles.profileScoreLabel}>
               Productivity
             </div>
           </div>
 
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 22, color: BVC.ACCENT, letterSpacing: 2 }}>
+          <div className={styles.profileScoreCenter}>
+            <div className={styles.profileStars}>
               {"★".repeat(rating)}
-              <span style={{ color: "#e5e7eb" }}>{"★".repeat(5 - rating)}</span>
+              <span className={styles.profileStarsEmpty}>{"★".repeat(5 - rating)}</span>
             </div>
             <div
-              style={{
-                marginTop: 8,
-                display: "inline-block",
-                padding: "5px 12px",
-                borderRadius: 999,
-                background: badgeTheme.bg,
-                color: badgeTheme.fg,
-                fontSize: 11,
-                fontWeight: 800,
-                letterSpacing: 0.8,
-                textTransform: "uppercase"
-              }}
+              className={styles.profileBadgePill}
+              style={{ background: badgeTheme.bg, color: badgeTheme.fg }}
             >
               {badge === "On Fire" ? "🔥 " : ""}{badge}
             </div>
@@ -1118,49 +959,29 @@ function ProfileStrip({ profile, productivity }) {
 function KpiGrid({ kpis }) {
   const tiles = [
     { key: "total_assigned", label: "Total Assigned", color: BVC.PRIMARY },
-    { key: "today",          label: "Today",          color: BVC.ACCENT },
-    { key: "pending",        label: "Pending",        color: "#64748b" },
-    { key: "in_progress",    label: "In Progress",    color: "#1d4ed8" },
-    { key: "on_hold",        label: "On Hold",        color: "#d97706" },
-    { key: "completed",      label: "Completed",      color: "#16a34a" },
-    { key: "upcoming",       label: "Upcoming",       color: "#7c3aed" },
-    { key: "overdue",        label: "Overdue",        color: "#dc2626" }
+    { key: "today", label: "Today", color: BVC.ACCENT },
+    { key: "pending", label: "Pending", color: "#64748b" },
+    { key: "in_progress", label: "In Progress", color: "#1d4ed8" },
+    { key: "on_hold", label: "On Hold", color: "#d97706" },
+    { key: "completed", label: "Completed", color: "#16a34a" },
+    { key: "upcoming", label: "Upcoming", color: "#7c3aed" },
+    { key: "overdue", label: "Overdue", color: "#dc2626" }
   ];
 
   return (
-    <section style={{ marginBottom: 18 }}>
-      <div style={{ ...SECTION_LABEL, marginBottom: 10 }}>Task KPIs</div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-          gap: 12
-        }}
-      >
+    <section className={styles.kpiSection}>
+      <div className={styles.kpiSectionLabel}>Task KPIs</div>
+      <div className={styles.kpiTileGrid}>
         {tiles.map((t) => (
           <div
             key={t.key}
-            style={{
-              ...cardBase,
-              padding: "14px 14px 12px 16px",
-              borderLeft: `4px solid ${t.color}`,
-              display: "flex",
-              flexDirection: "column",
-              gap: 2
-            }}
+            className={styles.kpiTile}
+            style={{ borderLeft: `4px solid ${t.color}` }}
           >
-            <div style={{ fontSize: 30, fontWeight: 900, color: t.color, lineHeight: 1.1 }}>
+            <div className={styles.kpiTileNum} style={{ color: t.color }}>
               {kpis?.[t.key] ?? 0}
             </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: BVC.MUTED,
-                fontWeight: 700,
-                letterSpacing: 0.5,
-                textTransform: "uppercase"
-              }}
-            >
+            <div className={styles.kpiTileLabel}>
               {t.label}
             </div>
           </div>
@@ -1177,43 +998,17 @@ function KpiGrid({ kpis }) {
 
 function TodayTasksCard({ tasks, busyMap, onUpdate }) {
   return (
-    <section style={{ ...cardBase, padding: 0, marginBottom: 18, overflow: "hidden" }}>
-      <div
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 1,
-          background: `linear-gradient(135deg, ${BVC.PRIMARY}, ${BVC.DEEPEST})`,
-          color: "#fff",
-          padding: "12px 18px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between"
-        }}
-      >
-        <div
-          style={{
-            ...SECTION_LABEL,
-            color: "#fff"
-          }}
-        >
+    <section className={styles.todayCard}>
+      <div className={styles.todayCardHeader}>
+        <div className={styles.todayCardHeaderLabel}>
           📌 Today's Tasks
         </div>
-        <span
-          style={{
-            background: "rgba(255,255,255,0.18)",
-            color: "#fff",
-            fontWeight: 800,
-            fontSize: 12,
-            padding: "3px 10px",
-            borderRadius: 999
-          }}
-        >
+        <span className={styles.todayCardCount}>
           {tasks.length} task{tasks.length === 1 ? "" : "s"}
         </span>
       </div>
 
-      <div style={{ padding: 16 }}>
+      <div className={styles.todayCardBody}>
         {tasks.length === 0 ? (
           <EmptyState message="No tasks scheduled for today. Enjoy the breathing room." />
         ) : (
@@ -1239,25 +1034,16 @@ function TodayTasksCard({ tasks, busyMap, onUpdate }) {
 function TabbedTaskLists({ tab, onTabChange, counts, tasks, busyMap, onUpdate }) {
 
   const tabs = [
-    { key: "pending",     label: "Pending" },
+    { key: "pending", label: "Pending" },
     { key: "in_progress", label: "In Progress" },
-    { key: "on_hold",     label: "On Hold" },
-    { key: "upcoming",    label: "Upcoming" },
-    { key: "completed",   label: "Completed" }
+    { key: "on_hold", label: "On Hold" },
+    { key: "upcoming", label: "Upcoming" },
+    { key: "completed", label: "Completed" }
   ];
 
   return (
-    <section style={{ ...cardBase, padding: 0, marginBottom: 18, overflow: "hidden" }}>
-      <div
-        style={{
-          display: "flex",
-          gap: 0,
-          borderBottom: "1px solid #f1f5f9",
-          padding: "0 16px",
-          background: "#fafbff",
-          flexWrap: "wrap"
-        }}
-      >
+    <section className={styles.tabbedCard}>
+      <div className={styles.tabbedCardTabBar}>
         {tabs.map((t) => {
           const active = tab === t.key;
           return (
@@ -1299,7 +1085,7 @@ function TabbedTaskLists({ tab, onTabChange, counts, tasks, busyMap, onUpdate })
         })}
       </div>
 
-      <div style={{ padding: 16 }}>
+      <div className={styles.tabbedCardBody}>
         {(!tasks || tasks.length === 0) ? (
           <EmptyState message={`No ${tab.replace("_", " ")} tasks.`} />
         ) : (
@@ -1349,28 +1135,11 @@ function TaskRow({ task, busy, onUpdate }) {
   const actions = actionsForStatus(status);
 
   return (
-    <div
-      style={{
-        background: "#fff",
-        border: "1px solid #f1f5f9",
-        borderLeft: `4px solid ${BVC.PRIMARY}`,
-        borderRadius: 12,
-        padding: 14,
-        marginBottom: 10,
-        boxShadow: CARD_SHADOW
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          alignItems: "flex-start",
-          flexWrap: "wrap"
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 240 }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: BVC.INK }}>
+    <div className={styles.taskCard}>
+      <div className={styles.taskCardRow}>
+        <div className={styles.taskCardLeft}>
+          <div className={styles.taskCardTitleRow}>
+            <div className={styles.taskCardTitle}>
               {task?.title || task?.task_name || "Untitled task"}
             </div>
             <span
@@ -1403,21 +1172,13 @@ function TaskRow({ task, busy, onUpdate }) {
             </span>
           </div>
 
-          <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
+          <div className={styles.taskCardMeta}>
             {task?.project_name ? `📁 ${task.project_name}` : ""}
             {task?.stage_name ? ` · 🔧 ${task.stage_name}` : ""}
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              alignItems: "center",
-              flexWrap: "wrap",
-              marginTop: 6
-            }}
-          >
-            <span style={{ fontSize: 12, color: "#475569" }}>
+          <div className={styles.taskCardDueRow}>
+            <span className={styles.taskCardDueLabel}>
               ⏰ Due {fmtDate(task?.due_date)}
             </span>
             <span
@@ -1435,15 +1196,7 @@ function TaskRow({ task, busy, onUpdate }) {
           </div>
 
           {task?.description && (
-            <div
-              style={{
-                marginTop: 6,
-                fontSize: 12,
-                color: "#475569",
-                whiteSpace: "pre-wrap",
-                lineHeight: 1.4
-              }}
-            >
+            <div className={styles.taskCardDesc}>
               {task.description.length > 200
                 ? task.description.slice(0, 200) + "…"
                 : task.description}
@@ -1451,18 +1204,9 @@ function TaskRow({ task, busy, onUpdate }) {
           )}
         </div>
 
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <div className={styles.taskCardActions}>
           {actions.length === 0 ? (
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 800,
-                padding: "6px 12px",
-                borderRadius: 999,
-                background: "#dcfce7",
-                color: "#166534"
-              }}
-            >
+            <span className={styles.taskDoneChip}>
               ✓ Done
             </span>
           ) : (
@@ -1489,18 +1233,18 @@ function actionsForStatus(status) {
     case "PENDING":
       return [
         { target: "IN_PROGRESS", label: "▶ Start Task", color: "#1d4ed8" },
-        { target: "ON_HOLD",     label: "⏸ Hold",       color: "#d97706" },
-        { target: "COMPLETED",   label: "✓ Complete",   color: "#16a34a" }
+        { target: "ON_HOLD", label: "⏸ Hold", color: "#d97706" },
+        { target: "COMPLETED", label: "✓ Complete", color: "#16a34a" }
       ];
     case "IN_PROGRESS":
       return [
-        { target: "ON_HOLD",   label: "⏸ Hold",     color: "#d97706" },
+        { target: "ON_HOLD", label: "⏸ Hold", color: "#d97706" },
         { target: "COMPLETED", label: "✓ Complete", color: "#16a34a" }
       ];
     case "ON_HOLD":
       return [
-        { target: "IN_PROGRESS", label: "▶ Resume",   color: "#1d4ed8" },
-        { target: "COMPLETED",   label: "✓ Complete", color: "#16a34a" }
+        { target: "IN_PROGRESS", label: "▶ Resume", color: "#1d4ed8" },
+        { target: "COMPLETED", label: "✓ Complete", color: "#16a34a" }
       ];
     case "COMPLETED":
     default:
@@ -1530,21 +1274,15 @@ function taskActionBtn(color, busy) {
 
 function AssignedProjectsCard({ projects }) {
   return (
-    <section style={{ ...cardBase, padding: 18, marginBottom: 18 }}>
-      <div style={{ ...SECTION_LABEL, marginBottom: 12 }}>
+    <section className={styles.projectsCard}>
+      <div className={styles.kpiSectionLabel} style={{ marginBottom: 12 }}>
         Assigned Projects
       </div>
 
       {(!projects || projects.length === 0) ? (
         <EmptyState message="You have no projects assigned yet." />
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: 12
-          }}
-        >
+        <div className={styles.projectsGrid}>
           {projects.map((p) => {
             const total = Number(p.my_stages_count || 0);
             const done = Number(p.my_completed_count || 0);
@@ -1554,44 +1292,15 @@ function AssignedProjectsCard({ projects }) {
             return (
               <div
                 key={p.project_id || p.id || p.name}
-                style={{
-                  border: "1px solid #f1f5f9",
-                  borderRadius: 12,
-                  padding: 14,
-                  background: "#fff"
-                }}
+                className={styles.projectCard}
               >
-                <div
-                  style={{
-                    fontWeight: 800,
-                    fontSize: 14,
-                    color: BVC.INK,
-                    marginBottom: 6
-                  }}
-                >
+                <div className={styles.projectCardName}>
                   {p.project_name || p.name || "Untitled project"}
                 </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 6,
-                    flexWrap: "wrap",
-                    marginBottom: 10
-                  }}
-                >
+                <div className={styles.projectCardPills}>
                   {p.customer_name && (
-                    <span
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        padding: "3px 9px",
-                        borderRadius: 999,
-                        background: BVC.TINT,
-                        color: BVC.DARK,
-                        border: `1px solid ${BVC.BORDER}`
-                      }}
-                    >
+                    <span className={styles.projectCustomerPill}>
                       👤 {p.customer_name}
                     </span>
                   )}
@@ -1609,34 +1318,16 @@ function AssignedProjectsCard({ projects }) {
                   </span>
                 </div>
 
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: BVC.MUTED,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginBottom: 4
-                  }}
-                >
+                <div className={styles.projectProgressRow}>
                   <span>My progress</span>
-                  <span style={{ color: BVC.DARK, fontWeight: 700 }}>
+                  <span className={styles.projectProgressDone}>
                     {done} / {total} stages · {pct}%
                   </span>
                 </div>
-                <div
-                  style={{
-                    height: 8,
-                    background: "#f1f5f9",
-                    borderRadius: 999,
-                    overflow: "hidden"
-                  }}
-                >
+                <div className={styles.progressTrack}>
                   <div
-                    style={{
-                      width: `${pct}%`,
-                      height: "100%",
-                      background: `linear-gradient(135deg, ${BVC.PRIMARY}, ${BVC.DEEPEST})`
-                    }}
+                    className={styles.progressBar}
+                    style={{ width: `${pct}%` }}
                   />
                 </div>
               </div>
@@ -1667,60 +1358,33 @@ function PerformanceBreakdownCard({ productivity }) {
   ];
 
   return (
-    <section style={{ ...cardBase, padding: 18, marginBottom: 18 }}>
-      <div style={{ ...SECTION_LABEL, marginBottom: 12 }}>
+    <section className={styles.perfCard}>
+      <div className={styles.kpiSectionLabel} style={{ marginBottom: 12 }}>
         Performance Breakdown
       </div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr",
-          gap: 8
-        }}
-      >
+      <div className={styles.perfRowGrid}>
         {rows.map((r) => (
-          <div
-            key={r.label}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "200px 1fr 100px",
-              gap: 12,
-              alignItems: "center",
-              padding: "10px 12px",
-              background: "#fafbff",
-              borderRadius: 10
-            }}
-          >
-            <div style={{ fontSize: 12, color: "#475569", fontWeight: 700 }}>
+          <div key={r.label} className={styles.perfRow}>
+            <div className={styles.perfRowLabel}>
               {r.label}
             </div>
             <div>
               {r.bar != null ? (
-                <div
-                  style={{
-                    height: 10,
-                    background: "#f1f5f9",
-                    borderRadius: 999,
-                    overflow: "hidden"
-                  }}
-                >
+                <div className={styles.perfBarTrack}>
                   <div
-                    style={{
-                      width: `${Math.max(0, Math.min(100, Number(r.bar) || 0))}%`,
-                      height: "100%",
-                      background: `linear-gradient(135deg, ${BVC.PRIMARY}, ${BVC.DEEPEST})`
-                    }}
+                    className={styles.perfBarFill}
+                    style={{ width: `${Math.max(0, Math.min(100, Number(r.bar) || 0))}%` }}
                   />
                 </div>
               ) : (
-                <div style={{ height: 10 }} />
+                <div className={styles.perfBarSpacer} />
               )}
             </div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: BVC.DARK, textAlign: "right" }}>
+            <div className={styles.perfRowValue}>
               {r.stars != null
-                ? <span style={{ color: BVC.ACCENT, letterSpacing: 2 }}>
-                    {"★".repeat(r.stars)}<span style={{ color: "#e5e7eb" }}>{"★".repeat(5 - r.stars)}</span>
-                  </span>
+                ? <span className={styles.perfStars}>
+                  {"★".repeat(r.stars)}<span className={styles.perfStarsEmpty}>{"★".repeat(5 - r.stars)}</span>
+                </span>
                 : `${r.value ?? 0}${r.suffix}`}
             </div>
           </div>
@@ -1742,8 +1406,8 @@ function MonthlyProductivityChart({ data }) {
 
   if (months.length === 0) {
     return (
-      <section style={{ ...cardBase, padding: 18, marginBottom: 18 }}>
-        <div style={{ ...SECTION_LABEL, marginBottom: 12 }}>Monthly Productivity</div>
+      <section className={styles.chartCard}>
+        <div className={styles.kpiSectionLabel} style={{ marginBottom: 12 }}>Monthly Productivity</div>
         <EmptyState message="Monthly productivity data will appear after your first completed month." />
       </section>
     );
@@ -1761,15 +1425,15 @@ function MonthlyProductivityChart({ data }) {
   const yFor = (v) => padT + (1 - v / yMax) * innerH;
 
   return (
-    <section style={{ ...cardBase, padding: 18, marginBottom: 18 }}>
-      <div style={{ ...SECTION_LABEL, marginBottom: 12 }}>
+    <section className={styles.chartCard}>
+      <div className={styles.kpiSectionLabel} style={{ marginBottom: 12 }}>
         Monthly Productivity (last 6 months)
       </div>
 
-      <div style={{ position: "relative" }}>
+      <div className={styles.chartRelative}>
         <svg
           viewBox={`0 0 ${W} ${H}`}
-          style={{ width: "100%", height: "auto", maxHeight: 280 }}
+          className={styles.chartSvg}
           role="img"
         >
           {/* gridlines */}
@@ -1844,22 +1508,13 @@ function MonthlyProductivityChart({ data }) {
 
         {hover && (
           <div
+            className={styles.chartTooltip}
             style={{
-              position: "absolute",
               left: `${(hover.x / W) * 100}%`,
-              top: `${(hover.y / H) * 100}%`,
-              transform: "translate(-50%, -110%)",
-              background: BVC.INK,
-              color: "#fff",
-              padding: "8px 10px",
-              borderRadius: 8,
-              fontSize: 11,
-              pointerEvents: "none",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
-              whiteSpace: "nowrap"
+              top: `${(hover.y / H) * 100}%`
             }}
           >
-            <div style={{ fontWeight: 800, marginBottom: 2 }}>
+            <div className={styles.chartTooltipTitle}>
               {hover.m.month_label || hover.m.label}
             </div>
             <div>Score: {hover.m.score ?? 0}</div>
@@ -1880,85 +1535,43 @@ function MonthlyProductivityChart({ data }) {
 function AttendanceSummaryCard({ attendance }) {
 
   const tiles = [
-    { key: "present",    label: "Present",    color: "#16a34a" },
-    { key: "absent",     label: "Absent",     color: "#dc2626" },
-    { key: "leave",      label: "Leave",      color: BVC.ACCENT },
+    { key: "present", label: "Present", color: "#16a34a" },
+    { key: "absent", label: "Absent", color: "#dc2626" },
+    { key: "leave", label: "Leave", color: BVC.ACCENT },
     { key: "permission", label: "Permission", color: "#0891b2" }
   ];
 
   const pct = Math.max(0, Math.min(100, Number(attendance?.percentage || 0)));
 
   return (
-    <section style={{ ...cardBase, padding: 18, marginBottom: 18 }}>
-      <div style={{ ...SECTION_LABEL, marginBottom: 12 }}>
+    <section className={styles.attendanceCard}>
+      <div className={styles.kpiSectionLabel} style={{ marginBottom: 12 }}>
         Attendance — this month
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr auto",
-          gap: 18,
-          alignItems: "center"
-        }}
-      >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-            gap: 10
-          }}
-        >
+      <div className={styles.attendanceLayout}>
+        <div className={styles.attendanceTileGrid}>
           {tiles.map((t) => (
             <div
               key={t.key}
-              style={{
-                border: "1px solid #f1f5f9",
-                borderLeft: `4px solid ${t.color}`,
-                borderRadius: 10,
-                padding: "12px 14px"
-              }}
+              className={styles.attendanceTile}
+              style={{ borderLeft: `4px solid ${t.color}` }}
             >
-              <div style={{ fontSize: 24, fontWeight: 900, color: t.color, lineHeight: 1.1 }}>
+              <div className={styles.attendanceTileNum} style={{ color: t.color }}>
                 {attendance?.[t.key] ?? 0}
               </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: BVC.MUTED,
-                  fontWeight: 700,
-                  letterSpacing: 0.5,
-                  textTransform: "uppercase"
-                }}
-              >
+              <div className={styles.attendanceTileLabel}>
                 {t.label}
               </div>
             </div>
           ))}
         </div>
 
-        <div
-          style={{
-            background: `linear-gradient(135deg, ${BVC.PRIMARY}, ${BVC.DEEPEST})`,
-            color: "#fff",
-            borderRadius: 12,
-            padding: "16px 22px",
-            textAlign: "center",
-            minWidth: 140,
-            boxShadow: "0 8px 22px rgba(200,16,46,0.25)"
-          }}
-        >
-          <div style={{ fontSize: 38, fontWeight: 900, lineHeight: 1 }}>
+        <div className={styles.attendancePctBox}>
+          <div className={styles.attendancePctNum}>
             {pct}%
           </div>
-          <div
-            style={{
-              ...SECTION_LABEL,
-              color: "#fff",
-              opacity: 0.85,
-              marginTop: 6
-            }}
-          >
+          <div className={styles.attendancePctLabel}>
             Monthly
           </div>
         </div>
@@ -1984,94 +1597,33 @@ function RewardsCard({ productivity }) {
       : { bg: "#e5e7eb", fg: "#475569" };
 
   return (
-    <section style={{ ...cardBase, padding: 18, marginBottom: 18 }}>
-      <div style={{ ...SECTION_LABEL, marginBottom: 12 }}>
+    <section className={styles.rewardsCard}>
+      <div className={styles.kpiSectionLabel} style={{ marginBottom: 12 }}>
         Rewards
       </div>
-      <div
-        style={{
-          display: "flex",
-          gap: 18,
-          alignItems: "center",
-          flexWrap: "wrap"
-        }}
-      >
-        <div
-          style={{
-            flex: 1,
-            minWidth: 200,
-            background: `linear-gradient(135deg, ${BVC.DEEPEST}, ${BVC.INK})`,
-            color: "#fff",
-            borderRadius: 12,
-            padding: "20px 22px"
-          }}
-        >
-          <div
-            style={{
-              ...SECTION_LABEL,
-              color: BVC.ACCENT,
-              opacity: 0.9
-            }}
-          >
+      <div className={styles.rewardsRow}>
+        <div className={styles.rewardPointsBox}>
+          <div className={styles.rewardPointsLabel}>
             Points Total
           </div>
-          <div style={{ fontSize: 44, fontWeight: 900, lineHeight: 1, marginTop: 6 }}>
+          <div className={styles.rewardPointsNum}>
             {points.toLocaleString()}
           </div>
         </div>
 
-        <div
-          style={{
-            flex: 1,
-            minWidth: 200,
-            border: `1px solid ${BVC.BORDER}`,
-            borderRadius: 12,
-            padding: "18px 22px",
-            background: "#fff"
-          }}
-        >
-          <div style={SECTION_LABEL}>Current Streak</div>
-          <div
-            style={{
-              fontSize: 30,
-              fontWeight: 900,
-              color: BVC.DARK,
-              marginTop: 4,
-              display: "flex",
-              alignItems: "center",
-              gap: 8
-            }}
-          >
+        <div className={styles.rewardStreakBox}>
+          <div className={styles.rewardStreakLabel}>Current Streak</div>
+          <div className={styles.rewardStreakNum}>
             {streak >= 5 && <span aria-hidden="true">🔥</span>}
             {streak} day{streak === 1 ? "" : "s"}
           </div>
         </div>
 
-        <div
-          style={{
-            flex: 1,
-            minWidth: 200,
-            border: `1px solid ${BVC.BORDER}`,
-            borderRadius: 12,
-            padding: "18px 22px",
-            background: "#fff",
-            textAlign: "center"
-          }}
-        >
-          <div style={SECTION_LABEL}>Badge</div>
+        <div className={styles.rewardBadgeBox}>
+          <div className={styles.rewardBadgeLabel}>Badge</div>
           <div
-            style={{
-              marginTop: 8,
-              display: "inline-block",
-              padding: "8px 16px",
-              borderRadius: 999,
-              background: badgeTheme.bg,
-              color: badgeTheme.fg,
-              fontSize: 13,
-              fontWeight: 800,
-              letterSpacing: 0.8,
-              textTransform: "uppercase"
-            }}
+            className={styles.rewardBadgePill}
+            style={{ background: badgeTheme.bg, color: badgeTheme.fg }}
           >
             {badge === "On Fire" ? "🔥 " : ""}{badge}
           </div>
@@ -2086,37 +1638,11 @@ function RewardsCard({ productivity }) {
 // SHARED — empty state, card base, topbar btn
 // =================================================================
 
-const cardBase = {
-  background: "#fff",
-  borderRadius: 12,
-  boxShadow: CARD_SHADOW,
-  padding: 16
-};
-
-const topbarBtn = {
-  background: "rgba(255,255,255,0.12)",
-  color: "#fff",
-  border: "1px solid rgba(255,255,255,0.2)",
-  padding: "6px 12px",
-  borderRadius: 8,
-  cursor: "pointer",
-  fontSize: 12,
-  fontWeight: 700
-};
+// cardBase and topbarBtn inline style objects removed — replaced by CSS module classes
 
 function EmptyState({ message }) {
   return (
-    <div
-      style={{
-        padding: "22px 16px",
-        textAlign: "center",
-        color: BVC.MUTED,
-        background: "#fafbff",
-        border: "1px dashed #e2e8f0",
-        borderRadius: 10,
-        fontSize: 13
-      }}
-    >
+    <div className={styles.emptyBox}>
       {message}
     </div>
   );
@@ -2132,21 +1658,12 @@ function LeavePermissionSection({
   onSubmitLeave, onSubmitPermission, onCancel
 }) {
   return (
-    <section
-      style={{
-        marginTop: 18,
-        background: `linear-gradient(135deg, ${BVC.TINT} 0%, #fff7ed 100%)`,
-        border: `1px solid ${BVC.BORDER}`,
-        borderRadius: 14,
-        padding: 18,
-        boxShadow: CARD_SHADOW
-      }}
-    >
-      <div style={{ marginBottom: 14 }}>
-        <div style={SECTION_LABEL}>
+    <section className={styles.leaveSection}>
+      <div className={styles.leaveSectionHeader}>
+        <div className={styles.kpiSectionLabel}>
           🌴 Leave &amp; Permission
         </div>
-        <div style={{ fontSize: 13, color: "#7c2d12", marginTop: 2 }}>
+        <div className={styles.leaveSectionNote}>
           Apply for leave or a short-duration permission. All requests are
           emailed to your manager for approval.
         </div>
@@ -2154,19 +1671,13 @@ function LeavePermissionSection({
 
       {balance && <InlineBalanceRow balance={balance} />}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
-          gap: 16
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className={styles.leaveGrid}>
+        <div className={styles.leaveFormCol}>
           <InlineApplyLeaveForm onSubmit={onSubmitLeave} />
           <InlineApplyPermissionForm onSubmit={onSubmitPermission} />
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className={styles.leaveHistoryCol}>
           <LeaveHistoryList
             rows={leaveHistory.filter(
               (r) => (r.LEAVE_TYPE || "").toUpperCase() !== "PERMISSION"
@@ -2187,14 +1698,7 @@ function LeavePermissionSection({
 function InlineBalanceRow({ balance }) {
   const types = ["CASUAL", "SICK", "EARNED"];
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gap: 10,
-        marginBottom: 14
-      }}
-    >
+    <div className={styles.balanceGrid}>
       {types.map((t) => {
         const b = balance[t];
         if (!b) return null;
@@ -2202,30 +1706,19 @@ function InlineBalanceRow({ balance }) {
         return (
           <div
             key={t}
-            style={{
-              background: "white",
-              padding: 12,
-              borderRadius: 10,
-              border: `1px solid ${BVC.BORDER}`,
-              borderTop: `3px solid ${LEAVE_TYPE_THEMES[t]}`
-            }}
+            className={styles.balanceTile}
+            style={{ borderTop: `3px solid ${LEAVE_TYPE_THEMES[t]}` }}
           >
-            <div style={{
-              fontSize: 10, fontWeight: 700, letterSpacing: 0.8,
-              color: "#64748b", textTransform: "uppercase"
-            }}>
+            <div className={styles.balanceTileLabel}>
               {t} leave
             </div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: BVC.TEXT, marginTop: 2 }}>
+            <div className={styles.balanceTileNum}>
               {b.remaining}
-              <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>
+              <span className={styles.balanceTileSub}>
                 {" "}/ {b.total}d
               </span>
             </div>
-            <div style={{
-              height: 4, background: "#f1f5f9", borderRadius: 999,
-              marginTop: 6, overflow: "hidden"
-            }}>
+            <div className={styles.balanceProgressTrack}>
               <div style={{
                 height: "100%", width: `${pct}%`,
                 background: LEAVE_TYPE_THEMES[t], borderRadius: 999
@@ -2283,33 +1776,13 @@ function InlineApplyLeaveForm({ onSubmit }) {
   };
 
   return (
-    <form
-      onSubmit={submit}
-      style={{
-        background: "white",
-        border: `1px solid ${BVC.BORDER}`,
-        borderRadius: 12,
-        padding: 16,
-        boxShadow: CARD_SHADOW
-      }}
-    >
-      <div style={{
-        fontSize: 14, fontWeight: 800, color: BVC.DARK,
-        marginBottom: 12, display: "flex", alignItems: "center", gap: 8
-      }}>
-        <span style={{
-          background: BVC.PRIMARY, color: "white",
-          width: 24, height: 24, borderRadius: 6,
-          display: "inline-flex", alignItems: "center", justifyContent: "center",
-          fontSize: 13
-        }}>📅</span>
+    <form onSubmit={submit} className={styles.formCard}>
+      <div className={styles.formCardTitle}>
+        <span className={styles.formCardIconPrimary}>📅</span>
         Apply for Leave
       </div>
 
-      <div style={{
-        display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
-        gap: 8, marginBottom: 10
-      }}>
+      <div className={styles.formRow3}>
         <LabeledField label="Type">
           <select
             value={leaveType}
@@ -2348,10 +1821,7 @@ function InlineApplyLeaveForm({ onSubmit }) {
         </LabeledField>
       </div>
 
-      <label style={{
-        display: "inline-flex", alignItems: "center", gap: 6,
-        fontSize: 12, color: "#475569", marginBottom: 10, cursor: "pointer"
-      }}>
+      <label className={styles.halfDayLabel}>
         <input
           type="checkbox"
           checked={halfDay}
@@ -2373,40 +1843,14 @@ function InlineApplyLeaveForm({ onSubmit }) {
         />
       </LabeledField>
 
-      {err && (
-        <div style={{
-          background: "#fef2f2", border: "1px solid #fecaca",
-          color: "#b91c1c", padding: 8, borderRadius: 6,
-          fontSize: 12, marginTop: 8
-        }}>{err}</div>
-      )}
-
-      {ok && (
-        <div style={{
-          background: "#dcfce7", border: "1px solid #86efac",
-          color: "#166534", padding: 8, borderRadius: 6,
-          fontSize: 12, marginTop: 8
-        }}>{ok}</div>
-      )}
+      {err && <div className={styles.formErrorMsg}>{err}</div>}
+      {ok && <div className={styles.formSuccessMsg}>{ok}</div>}
 
       <button
         type="submit"
         disabled={busy}
-        style={{
-          marginTop: 12,
-          width: "100%",
-          border: "none",
-          background: busy
-            ? "#94a3b8"
-            : `linear-gradient(135deg, ${BVC.PRIMARY}, ${BVC.DARK})`,
-          color: "white",
-          padding: "10px 16px",
-          borderRadius: 8,
-          fontWeight: 800,
-          cursor: busy ? "not-allowed" : "pointer",
-          fontSize: 13,
-          boxShadow: "0 6px 14px rgba(200,16,46,0.25)"
-        }}
+        className={styles.formSubmitBtn}
+        style={{ background: busy ? "#94a3b8" : "#ef4444", cursor: busy ? "not-allowed" : "pointer" }}
       >
         {busy ? "Submitting…" : `📧 Submit Leave (${days || 0} day${days === 1 ? "" : "s"})`}
       </button>
@@ -2447,33 +1891,13 @@ function InlineApplyPermissionForm({ onSubmit }) {
   };
 
   return (
-    <form
-      onSubmit={submit}
-      style={{
-        background: "white",
-        border: `1px solid ${BVC.BORDER}`,
-        borderRadius: 12,
-        padding: 16,
-        boxShadow: CARD_SHADOW
-      }}
-    >
-      <div style={{
-        fontSize: 14, fontWeight: 800, color: BVC.DARK,
-        marginBottom: 12, display: "flex", alignItems: "center", gap: 8
-      }}>
-        <span style={{
-          background: BVC.ACCENT, color: BVC.DARK,
-          width: 24, height: 24, borderRadius: 6,
-          display: "inline-flex", alignItems: "center", justifyContent: "center",
-          fontSize: 13
-        }}>⏱</span>
+    <form onSubmit={submit} className={styles.formCard}>
+      <div className={styles.formCardTitle}>
+        <span className={styles.formCardIconAccent}>⏱</span>
         Apply for Permission (short hours)
       </div>
 
-      <div style={{
-        display: "grid", gridTemplateColumns: "2fr 1fr",
-        gap: 8, marginBottom: 10
-      }}>
+      <div className={styles.formRow2}>
         <LabeledField label="Start (date & time)">
           <input
             type="datetime-local"
@@ -2505,40 +1929,14 @@ function InlineApplyPermissionForm({ onSubmit }) {
         />
       </LabeledField>
 
-      {err && (
-        <div style={{
-          background: "#fef2f2", border: "1px solid #fecaca",
-          color: "#b91c1c", padding: 8, borderRadius: 6,
-          fontSize: 12, marginTop: 8
-        }}>{err}</div>
-      )}
-
-      {ok && (
-        <div style={{
-          background: "#dcfce7", border: "1px solid #86efac",
-          color: "#166534", padding: 8, borderRadius: 6,
-          fontSize: 12, marginTop: 8
-        }}>{ok}</div>
-      )}
+      {err && <div className={styles.formErrorMsg}>{err}</div>}
+      {ok && <div className={styles.formSuccessMsg}>{ok}</div>}
 
       <button
         type="submit"
         disabled={busy}
-        style={{
-          marginTop: 12,
-          width: "100%",
-          border: "none",
-          background: busy
-            ? "#94a3b8"
-            : `linear-gradient(135deg, ${BVC.ACCENT}, #d97706)`,
-          color: "white",
-          padding: "10px 16px",
-          borderRadius: 8,
-          fontWeight: 800,
-          cursor: busy ? "not-allowed" : "pointer",
-          fontSize: 13,
-          boxShadow: "0 6px 14px rgba(244,179,36,0.3)"
-        }}
+        className={styles.formSubmitBtn}
+        style={{ background: busy ? "#94a3b8" : BVC.ACCENT, cursor: busy ? "not-allowed" : "pointer" }}
       >
         {busy ? "Submitting…" : `⏱ Submit Permission (${Number(durationHours) || 0}h)`}
       </button>
@@ -2549,53 +1947,28 @@ function InlineApplyPermissionForm({ onSubmit }) {
 
 function LeaveHistoryList({ rows, onCancel }) {
   return (
-    <div style={{
-      background: "white",
-      border: `1px solid ${BVC.BORDER}`,
-      borderRadius: 12,
-      padding: 14,
-      boxShadow: CARD_SHADOW
-    }}>
-      <div style={{
-        fontSize: 13, fontWeight: 800, color: BVC.DARK,
-        marginBottom: 10, display: "flex", justifyContent: "space-between"
-      }}>
+    <div className={styles.historyCard}>
+      <div className={styles.historyCardTitle}>
         <span>📜 Leave History</span>
-        <span style={{
-          fontSize: 11, color: "#94a3b8", fontWeight: 600
-        }}>
+        <span className={styles.historyCardCount}>
           {rows.length} request{rows.length === 1 ? "" : "s"}
         </span>
       </div>
 
       {rows.length === 0 && (
-        <div style={{
-          fontSize: 12, color: "#94a3b8",
-          textAlign: "center", padding: 20
-        }}>
+        <div className={styles.historyEmpty}>
           No leave requests yet.
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className={styles.historyList}>
         {rows.map((r) => {
           const pill = LEAVE_STATUS_PILL[r.STATUS] || LEAVE_STATUS_PILL.PENDING_APPROVAL;
           const canCancel = r.STATUS === "PENDING_APPROVAL" || r.STATUS === "APPROVED";
           return (
-            <div
-              key={r.ID}
-              style={{
-                background: "#fafafa",
-                border: "1px solid #f1f5f9",
-                borderRadius: 8,
-                padding: "10px 12px"
-              }}
-            >
-              <div style={{
-                display: "flex", justifyContent: "space-between",
-                alignItems: "center", gap: 8, marginBottom: 4
-              }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div key={r.ID} className={styles.historyItem}>
+              <div className={styles.historyItemTopRow}>
+                <div className={styles.historyItemLeft}>
                   <span style={{
                     fontSize: 10,
                     fontWeight: 800,
@@ -2607,7 +1980,7 @@ function LeaveHistoryList({ rows, onCancel }) {
                   }}>
                     {r.LEAVE_TYPE}
                   </span>
-                  <span style={{ fontSize: 12, color: "#475569" }}>
+                  <span className={styles.historyItemMeta}>
                     {r.START_DATE}
                     {r.END_DATE !== r.START_DATE ? ` → ${r.END_DATE}` : ""}
                     {" · "}
@@ -2623,33 +1996,19 @@ function LeaveHistoryList({ rows, onCancel }) {
                 </span>
               </div>
               {r.REASON && (
-                <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
-                  {r.REASON}
-                </div>
+                <div className={styles.historyItemReason}>{r.REASON}</div>
               )}
               {r.REJECTION_REASON && (
-                <div style={{
-                  fontSize: 11, color: "#b91c1c",
-                  marginTop: 4, fontStyle: "italic"
-                }}>
+                <div className={styles.historyItemRejection}>
                   ⚠ {r.REJECTION_REASON}
                 </div>
               )}
               {canCancel && (
-                <div style={{ textAlign: "right", marginTop: 6 }}>
+                <div className={styles.historyItemCancelRow}>
                   <button
                     type="button"
                     onClick={() => onCancel(r.ID)}
-                    style={{
-                      border: `1px solid ${BVC.BORDER}`,
-                      background: "white",
-                      color: BVC.DARK,
-                      padding: "3px 10px",
-                      borderRadius: 6,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      cursor: "pointer"
-                    }}
+                    className={styles.historyItemCancelBtn}
                   >
                     Cancel request
                   </button>
@@ -2666,54 +2025,29 @@ function LeaveHistoryList({ rows, onCancel }) {
 
 function PermissionHistoryList({ rows, onCancel }) {
   return (
-    <div style={{
-      background: "white",
-      border: `1px solid ${BVC.BORDER}`,
-      borderRadius: 12,
-      padding: 14,
-      boxShadow: CARD_SHADOW
-    }}>
-      <div style={{
-        fontSize: 13, fontWeight: 800, color: BVC.DARK,
-        marginBottom: 10, display: "flex", justifyContent: "space-between"
-      }}>
+    <div className={styles.historyCard}>
+      <div className={styles.historyCardTitle}>
         <span>⏱ Permission History</span>
-        <span style={{
-          fontSize: 11, color: "#94a3b8", fontWeight: 600
-        }}>
+        <span className={styles.historyCardCount}>
           {rows.length} request{rows.length === 1 ? "" : "s"}
         </span>
       </div>
 
       {rows.length === 0 && (
-        <div style={{
-          fontSize: 12, color: "#94a3b8",
-          textAlign: "center", padding: 20
-        }}>
+        <div className={styles.historyEmpty}>
           No permission requests yet.
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className={styles.historyList}>
         {rows.map((r) => {
           const pill = LEAVE_STATUS_PILL[r.STATUS] || LEAVE_STATUS_PILL.PENDING_APPROVAL;
           const canCancel = r.STATUS === "PENDING_APPROVAL" || r.STATUS === "APPROVED";
           const startLabel = r.START_TIME ? fmtDateTime(r.START_TIME) : (r.START_DATE || "—");
           return (
-            <div
-              key={r.ID}
-              style={{
-                background: "#fafafa",
-                border: "1px solid #f1f5f9",
-                borderRadius: 8,
-                padding: "10px 12px"
-              }}
-            >
-              <div style={{
-                display: "flex", justifyContent: "space-between",
-                alignItems: "center", gap: 8, marginBottom: 4
-              }}>
-                <div style={{ fontSize: 12, color: "#475569" }}>
+            <div key={r.ID} className={styles.historyItem}>
+              <div className={styles.historyItemTopRow}>
+                <div className={styles.historyItemMeta}>
                   🕒 <strong>{startLabel}</strong>
                   {" · "}
                   <span style={{ color: BVC.DARK, fontWeight: 700 }}>
@@ -2729,33 +2063,19 @@ function PermissionHistoryList({ rows, onCancel }) {
                 </span>
               </div>
               {r.REASON && (
-                <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
-                  {r.REASON}
-                </div>
+                <div className={styles.historyItemReason}>{r.REASON}</div>
               )}
               {r.REJECTION_REASON && (
-                <div style={{
-                  fontSize: 11, color: "#b91c1c",
-                  marginTop: 4, fontStyle: "italic"
-                }}>
+                <div className={styles.historyItemRejection}>
                   ⚠ {r.REJECTION_REASON}
                 </div>
               )}
               {canCancel && (
-                <div style={{ textAlign: "right", marginTop: 6 }}>
+                <div className={styles.historyItemCancelRow}>
                   <button
                     type="button"
                     onClick={() => onCancel(r.ID)}
-                    style={{
-                      border: `1px solid ${BVC.BORDER}`,
-                      background: "white",
-                      color: BVC.DARK,
-                      padding: "3px 10px",
-                      borderRadius: 6,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      cursor: "pointer"
-                    }}
+                    className={styles.historyItemCancelBtn}
                   >
                     Cancel request
                   </button>
@@ -2787,12 +2107,7 @@ const inputStyle = {
 function LabeledField({ label, children }) {
   return (
     <div>
-      <label style={{
-        fontSize: 10, color: "#64748b",
-        display: "block", marginBottom: 4,
-        fontWeight: 700, letterSpacing: 0.5,
-        textTransform: "uppercase"
-      }}>
+      <label className={styles.fieldLabel}>
         {label}
       </label>
       {children}
@@ -2821,23 +2136,13 @@ function ProductionStagesSection({ stages, busyMap, onUpdate }) {
   };
 
   return (
-    <div style={{
-      background: `linear-gradient(135deg, ${BVC.TINT} 0%, #fff7ed 100%)`,
-      border: `1px solid ${BVC.BORDER}`,
-      borderRadius: 14,
-      padding: 18,
-      marginBottom: 18,
-      boxShadow: CARD_SHADOW
-    }}>
-      <div style={{
-        display: "flex", justifyContent: "space-between",
-        alignItems: "center", marginBottom: 12
-      }}>
+    <div className={styles.productionSection}>
+      <div className={styles.productionHeader}>
         <div>
-          <div style={SECTION_LABEL}>
+          <div className={styles.kpiSectionLabel}>
             🏭 Production Stages ({stages.length})
           </div>
-          <div style={{ fontSize: 13, color: "#7c2d12", marginTop: 2 }}>
+          <div className={styles.productionNote}>
             Work-Order tasks assigned to you. Tap <b>Start</b> when you
             begin and <b>Complete</b> when done — production tracking
             updates automatically.
@@ -2845,11 +2150,7 @@ function ProductionStagesSection({ stages, busyMap, onUpdate }) {
         </div>
       </div>
 
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-        gap: 12
-      }}>
+      <div className={styles.productionGrid}>
         {stages.map((s) => {
           const key = `${s.WORK_ORDER_ID}-${s.STAGE_ID}`;
           const busy = busyMap?.[key];
@@ -2858,41 +2159,26 @@ function ProductionStagesSection({ stages, busyMap, onUpdate }) {
           return (
             <div
               key={key}
+              className={styles.stageCard}
               style={{
-                background: "white",
-                borderRadius: 12,
-                padding: 14,
-                border: `1.5px solid ${inProgress ? "#f59e0b" : BVC.BORDER}`,
+                border: `1.5px solid ${inProgress ? "#f59e0b" : "#fecaca"}`,
                 boxShadow: inProgress
                   ? "0 6px 18px rgba(245,158,11,0.18)"
-                  : CARD_SHADOW
+                  : "0 4px 12px rgba(0,0,0,0.06)"
               }}
             >
-              <div style={{
-                display: "flex", gap: 8,
-                alignItems: "center", marginBottom: 8
-              }}>
-                <div style={{
-                  width: 28, height: 28, borderRadius: "50%",
-                  background: `${typeColor}22`,
-                  color: typeColor,
-                  fontSize: 12, fontWeight: 800,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontFamily: "ui-monospace, monospace"
-                }}>
+              <div className={styles.stageCardTop}>
+                <div
+                  className={styles.stageSeqBadge}
+                  style={{ background: `${typeColor}22`, color: typeColor }}
+                >
                   {s.SEQUENCE}
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    fontSize: 14, fontWeight: 800, color: "#0f172a",
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
-                  }}>
+                <div className={styles.stageCardMeta}>
+                  <div className={styles.stageName}>
                     {s.STAGE_NAME}
                   </div>
-                  <div style={{
-                    fontSize: 10, color: typeColor,
-                    fontWeight: 700, letterSpacing: 0.5
-                  }}>
+                  <div className={styles.stageType} style={{ color: typeColor }}>
                     {s.STAGE_TYPE} · {s.ESTIMATED_HOURS}h
                   </div>
                 </div>
@@ -2906,30 +2192,26 @@ function ProductionStagesSection({ stages, busyMap, onUpdate }) {
                 </span>
               </div>
 
-              <div style={{
-                fontSize: 11, color: "#475569", lineHeight: 1.5,
-                padding: "8px 10px", background: "#f8fafc",
-                borderRadius: 8, marginBottom: 10
-              }}>
+              <div className={styles.stageInfo}>
                 <div>
                   📦 <b>{s.PRODUCT_NAME || "—"}</b>
                   {s.QUANTITY ? ` × ${s.QUANTITY}` : ""}
                 </div>
                 {s.CUSTOMER_NAME && <div>👤 {s.CUSTOMER_NAME}</div>}
-                <div style={{ color: "#94a3b8", fontSize: 10, marginTop: 2 }}>
+                <div className={styles.stageInfoSub}>
                   {s.WO_NUMBER}
                   {s.PROJECT_NAME ? ` · ${s.PROJECT_NAME}` : ""}
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: 8 }}>
+              <div className={styles.stageActions}>
                 {s.STATUS === "PENDING" && (
                   <button
                     disabled={busy}
                     onClick={() => onUpdate(s, "IN_PROGRESS")}
                     style={{
                       flex: 1, padding: "9px 12px",
-                      background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                      background: "#f59e0b",
                       color: "white", border: "none", borderRadius: 8,
                       fontWeight: 800, fontSize: 12,
                       cursor: busy ? "wait" : "pointer",
@@ -2946,7 +2228,7 @@ function ProductionStagesSection({ stages, busyMap, onUpdate }) {
                     onClick={() => onUpdate(s, "DONE")}
                     style={{
                       flex: 1, padding: "9px 12px",
-                      background: "linear-gradient(135deg, #16a34a, #15803d)",
+                      background: "#16a34a",
                       color: "white", border: "none", borderRadius: 8,
                       fontWeight: 800, fontSize: 12,
                       cursor: busy ? "wait" : "pointer",
@@ -3031,14 +2313,14 @@ function MyMemosCard({ employeeId }) {
 
     load();
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employeeId]);
 
   const filtered = memos.filter((m) => {
 
-    if (filter === "PENDING")      return !m.ACKNOWLEDGED_BY_EMPLOYEE;
+    if (filter === "PENDING") return !m.ACKNOWLEDGED_BY_EMPLOYEE;
 
-    if (filter === "ACKNOWLEDGED") return  m.ACKNOWLEDGED_BY_EMPLOYEE;
+    if (filter === "ACKNOWLEDGED") return m.ACKNOWLEDGED_BY_EMPLOYEE;
 
     return true;
   });
@@ -3046,9 +2328,9 @@ function MyMemosCard({ employeeId }) {
   const visible = showAll ? filtered : filtered.slice(0, 5);
 
   const counts = {
-    total:        memos.length,
-    pendingAck:   memos.filter((m) => !m.ACKNOWLEDGED_BY_EMPLOYEE).length,
-    warnings:     memos.filter((m) => m.MEMO_TYPE === "WARNING").length,
+    total: memos.length,
+    pendingAck: memos.filter((m) => !m.ACKNOWLEDGED_BY_EMPLOYEE).length,
+    warnings: memos.filter((m) => m.MEMO_TYPE === "WARNING").length,
     appreciations: memos.filter((m) =>
       m.MEMO_TYPE === "APPRECIATION" || m.MEMO_TYPE === "PERFORMANCE_RECOGNITION"
     ).length
@@ -3080,54 +2362,35 @@ function MyMemosCard({ employeeId }) {
 
   return (
 
-    <section style={{ ...cardBase, padding: 18, marginBottom: 18 }}>
+    <section className={styles.memosCard}>
 
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "flex-start",
-        marginBottom: 12,
-        gap: 12,
-        flexWrap: "wrap"
-      }}>
+      <div className={styles.memosHeader}>
         <div>
-          <div style={{ ...SECTION_LABEL }}>📋 My Memos</div>
-          <div style={{ fontSize: 12, color: BVC.MUTED, marginTop: 2 }}>
+          <div className={styles.memosTitle}>📋 My Memos</div>
+          <div className={styles.memosTitleNote}>
             Official records issued to you by HR / Management.
           </div>
         </div>
 
         {memos.length > 0 && (
-
-          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-            <MiniStat label="Total"        value={counts.total}        color={BVC.INK} />
-            <MiniStat label="To Ack"       value={counts.pendingAck}   color="#f59e0b" />
-            <MiniStat label="Warnings"     value={counts.warnings}     color="#dc2626" />
-            <MiniStat label="Appreciations"value={counts.appreciations}color="#16a34a" />
+          <div className={styles.memosStats}>
+            <MiniStat label="Total" value={counts.total} color={BVC.INK} />
+            <MiniStat label="To Ack" value={counts.pendingAck} color="#f59e0b" />
+            <MiniStat label="Warnings" value={counts.warnings} color="#dc2626" />
+            <MiniStat label="Appreciations" value={counts.appreciations} color="#16a34a" />
           </div>
         )}
       </div>
 
       {/* Pending Ack callout */}
       {counts.pendingAck > 0 && filter === "ALL" && (
-
         <div
           onClick={() => setFilter("PENDING")}
-          style={{
-            background: "#fff7ed",
-            border: "1px solid #fed7aa",
-            borderRadius: 10,
-            padding: "10px 14px",
-            marginBottom: 12,
-            fontSize: 13,
-            color: "#9a3412",
-            cursor: "pointer",
-            fontWeight: 700
-          }}
+          className={styles.memosPendingBanner}
         >
           ⏳ You have <strong>{counts.pendingAck}</strong> memo
           {counts.pendingAck !== 1 ? "s" : ""} waiting for your acknowledgement.
-          <span style={{ marginLeft: 6, color: "#c2410c", textDecoration: "underline" }}>
+          <span className={styles.memosPendingBannerLink}>
             Show only those →
           </span>
         </div>
@@ -3135,21 +2398,19 @@ function MyMemosCard({ employeeId }) {
 
       {/* Filter chips */}
       {memos.length > 0 && (
-
-        <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+        <div className={styles.memosFilterRow}>
           {[
-            { key: "ALL",          label: "All" },
-            { key: "PENDING",      label: `Pending (${counts.pendingAck})` },
+            { key: "ALL", label: "All" },
+            { key: "PENDING", label: `Pending (${counts.pendingAck})` },
             { key: "ACKNOWLEDGED", label: `Acknowledged (${counts.total - counts.pendingAck})` }
           ].map((c) => (
-
             <button
               key={c.key}
               onClick={() => setFilter(c.key)}
               style={{
                 background: filter === c.key ? BVC.PRIMARY : "white",
-                color:      filter === c.key ? "white" : BVC.TEXT,
-                border:    `1px solid ${filter === c.key ? BVC.PRIMARY : "#e2e8f0"}`,
+                color: filter === c.key ? "white" : BVC.TEXT,
+                border: `1px solid ${filter === c.key ? BVC.PRIMARY : "#e2e8f0"}`,
                 padding: "5px 12px",
                 borderRadius: 6,
                 fontSize: 11,
@@ -3166,17 +2427,13 @@ function MyMemosCard({ employeeId }) {
 
       {/* Loading / empty / error states */}
       {loading && (
-        <div style={{ padding: 20, color: BVC.MUTED, fontSize: 13 }}>
+        <div className={styles.memosLoading}>
           Loading memos…
         </div>
       )}
 
       {error && (
-        <div style={{
-          padding: "10px 14px", background: "#fef2f2",
-          border: "1px solid #fecaca", borderRadius: 8,
-          color: "#991b1b", fontSize: 13
-        }}>
+        <div className={styles.memosError}>
           {error}
         </div>
       )}
@@ -3186,17 +2443,14 @@ function MyMemosCard({ employeeId }) {
       )}
 
       {!loading && !error && filtered.length === 0 && memos.length > 0 && (
-        <div style={{
-          padding: 24, textAlign: "center", color: BVC.MUTED, fontSize: 13
-        }}>
+        <div className={styles.memosFilterEmpty}>
           No memos match this filter.
         </div>
       )}
 
       {/* Memo list */}
       {!loading && visible.length > 0 && (
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className={styles.memosList}>
           {visible.map((m) => (
             <MemoRow key={m.ID} memo={m} onOpen={() => setOpenMemo(m)} />
           ))}
@@ -3204,14 +2458,10 @@ function MyMemosCard({ employeeId }) {
       )}
 
       {filtered.length > 5 && !showAll && (
-        <div style={{ marginTop: 10, textAlign: "center" }}>
+        <div className={styles.memosShowAllRow}>
           <button
             onClick={() => setShowAll(true)}
-            style={{
-              background: "white", border: `1px solid ${BVC.BORDER}`,
-              color: BVC.DARK, padding: "6px 14px", borderRadius: 6,
-              fontSize: 12, fontWeight: 700, cursor: "pointer"
-            }}
+            className={styles.memosShowAllBtn}
           >
             Show all {filtered.length} memos →
           </button>
@@ -3235,16 +2485,11 @@ function MyMemosCard({ employeeId }) {
 function MiniStat({ label, value, color }) {
 
   return (
-    <div style={{ textAlign: "center" }}>
-      <div style={{
-        fontSize: 9, fontWeight: 800, letterSpacing: 0.8, color: BVC.MUTED,
-        textTransform: "uppercase"
-      }}>
+    <div className={styles.miniStatBox}>
+      <div className={styles.miniStatLabel}>
         {label}
       </div>
-      <div style={{
-        fontSize: 20, fontWeight: 800, color, letterSpacing: -0.3, marginTop: 1
-      }}>
+      <div className={styles.miniStatNum} style={{ color }}>
         {value}
       </div>
     </div>
@@ -3253,20 +2498,20 @@ function MiniStat({ label, value, color }) {
 
 
 const MEMO_TYPE_THEME = {
-  WARNING:                { emoji: "⚠️", color: "#dc2626", bg: "#fef2f2", label: "Warning" },
-  APPRECIATION:           { emoji: "👏", color: "#16a34a", bg: "#dcfce7", label: "Appreciation" },
-  DISCIPLINARY:           { emoji: "🚫", color: "#991b1b", bg: "#fee2e2", label: "Disciplinary" },
-  INFORMATION:            { emoji: "ℹ️", color: "#2563eb", bg: "#dbeafe", label: "Information" },
-  CUSTOMER_COMPLAINT:     { emoji: "📨", color: "#ea580c", bg: "#fff7ed", label: "Customer Complaint" },
-  PERFORMANCE_RECOGNITION:{ emoji: "🏆", color: "#0d9488", bg: "#ccfbf1", label: "Recognition" },
-  SHOW_CAUSE_NOTICE:      { emoji: "📜", color: "#7c2d12", bg: "#fef3c7", label: "Show Cause" }
+  WARNING: { emoji: "⚠️", color: "#dc2626", bg: "#fef2f2", label: "Warning" },
+  APPRECIATION: { emoji: "👏", color: "#16a34a", bg: "#dcfce7", label: "Appreciation" },
+  DISCIPLINARY: { emoji: "🚫", color: "#991b1b", bg: "#fee2e2", label: "Disciplinary" },
+  INFORMATION: { emoji: "ℹ️", color: "#2563eb", bg: "#dbeafe", label: "Information" },
+  CUSTOMER_COMPLAINT: { emoji: "📨", color: "#ea580c", bg: "#fff7ed", label: "Customer Complaint" },
+  PERFORMANCE_RECOGNITION: { emoji: "🏆", color: "#0d9488", bg: "#ccfbf1", label: "Recognition" },
+  SHOW_CAUSE_NOTICE: { emoji: "📜", color: "#7c2d12", bg: "#fef3c7", label: "Show Cause" }
 };
 
 
 const MEMO_SEV_THEME = {
-  LOW:      { color: "#10b981", bg: "#dcfce7" },
-  MEDIUM:   { color: "#f59e0b", bg: "#fef3c7" },
-  HIGH:     { color: "#ef4444", bg: "#fee2e2" },
+  LOW: { color: "#10b981", bg: "#dcfce7" },
+  MEDIUM: { color: "#f59e0b", bg: "#fef3c7" },
+  HIGH: { color: "#ef4444", bg: "#fee2e2" },
   CRITICAL: { color: "#7c2d12", bg: "#fef2f2" }
 };
 
@@ -3275,47 +2520,34 @@ function MemoRow({ memo, onOpen }) {
 
   const tt = MEMO_TYPE_THEME[memo.MEMO_TYPE] || MEMO_TYPE_THEME.INFORMATION;
 
-  const st = MEMO_SEV_THEME[memo.SEVERITY]   || MEMO_SEV_THEME.LOW;
+  const st = MEMO_SEV_THEME[memo.SEVERITY] || MEMO_SEV_THEME.LOW;
 
   return (
     <div
       onClick={onOpen}
+      className={styles.memoRow}
       style={{
-        display: "grid",
-        gridTemplateColumns: "auto 1fr auto auto",
-        gap: 12,
-        alignItems: "center",
-        padding: "12px 14px",
         border: `1px solid ${memo.ACKNOWLEDGED_BY_EMPLOYEE ? "#e2e8f0" : tt.color + "55"}`,
-        borderRadius: 10,
-        background: memo.ACKNOWLEDGED_BY_EMPLOYEE ? "white" : tt.bg + "55",
-        cursor: "pointer",
-        transition: "all 0.15s"
+        background: memo.ACKNOWLEDGED_BY_EMPLOYEE ? "white" : tt.bg + "55"
       }}
       onMouseEnter={(e) => e.currentTarget.style.boxShadow = "0 4px 12px rgba(15,23,42,0.08)"}
       onMouseLeave={(e) => e.currentTarget.style.boxShadow = "none"}
     >
       {/* Type emoji avatar */}
-      <div style={{
-        width: 40, height: 40, borderRadius: 10,
-        background: tt.color + "22",
-        color: tt.color,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 18
-      }}>
+      <div
+        className={styles.memoRowTypeAvatar}
+        style={{ background: tt.color + "22", color: tt.color }}
+      >
         {tt.emoji}
       </div>
 
       {/* Subject + meta */}
-      <div style={{ minWidth: 0 }}>
-        <div style={{
-          fontSize: 13, fontWeight: 700, color: BVC.INK, marginBottom: 2,
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
-        }}>
+      <div className={styles.memoRowContent}>
+        <div className={styles.memoRowSubject}>
           {memo.SUBJECT}
         </div>
-        <div style={{ fontSize: 11, color: BVC.MUTED, display: "flex", gap: 10 }}>
-          <span style={{ fontFamily: "ui-monospace, monospace", fontWeight: 700, color: "#475569" }}>
+        <div className={styles.memoRowMetaRow}>
+          <span className={styles.memoRowNumber}>
             {memo.MEMO_NUMBER}
           </span>
           <span>·</span>
@@ -3330,7 +2562,7 @@ function MemoRow({ memo, onOpen }) {
       </div>
 
       {/* Type + Severity pills */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
+      <div className={styles.memoRowPills}>
         <span style={{
           background: tt.bg, color: tt.color, padding: "2px 8px",
           borderRadius: 999, fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
@@ -3347,12 +2579,10 @@ function MemoRow({ memo, onOpen }) {
       </div>
 
       {/* Ack badge */}
-      <div style={{
-        width: 90, textAlign: "right", fontSize: 11, fontWeight: 800
-      }}>
+      <div className={styles.memoRowAckCol}>
         {memo.ACKNOWLEDGED_BY_EMPLOYEE
-          ? <span style={{ color: "#16a34a" }}>✓ Acknowledged</span>
-          : <span style={{ color: "#f59e0b" }}>○ Pending</span>}
+          ? <span className={styles.memoAckGreen}>✓ Acknowledged</span>
+          : <span className={styles.memoAckAmber}>○ Pending</span>}
       </div>
     </div>
   );
@@ -3387,9 +2617,9 @@ function downloadMemoPdf(memo) {
 
   const tt = MEMO_TYPE_THEME[memo.MEMO_TYPE] || MEMO_TYPE_THEME.INFORMATION;
 
-  const logoUrl = `${window.location.origin}/bharath-logo.png`;
+  const logoUrl = `${window.location.origin}/logo.webp`;
 
-  const attUrl  = resolveMemoAsset(memo.ATTACHMENT_URL);
+  const attUrl = resolveMemoAsset(memo.ATTACHMENT_URL);
 
   const showImage = !!attUrl && memoAttachmentIsImage(memo);
 
@@ -3498,65 +2728,38 @@ function MyMemoDetail({ memo, onClose, onAcknowledge, ackBusy }) {
 
   const tt = MEMO_TYPE_THEME[memo.MEMO_TYPE] || MEMO_TYPE_THEME.INFORMATION;
 
-  const st = MEMO_SEV_THEME[memo.SEVERITY]   || MEMO_SEV_THEME.LOW;
+  const st = MEMO_SEV_THEME[memo.SEVERITY] || MEMO_SEV_THEME.LOW;
 
   return (
 
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0,
-        background: "rgba(15,23,42,0.55)",
-        zIndex: 1100,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 20
-      }}
-    >
+    <div onClick={onClose} className={styles.modalOverlay}>
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "white",
-          borderRadius: 14,
-          width: "min(620px, 100%)",
-          maxHeight: "88vh",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
-          boxShadow: "0 30px 80px rgba(0,0,0,0.3)"
-        }}
+        className={styles.modalPanel}
       >
 
         {/* Header */}
-        <div style={{
-          padding: "18px 24px",
-          background: `linear-gradient(135deg, ${tt.color}, ${tt.color}dd)`,
-          color: "white"
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div className={styles.modalHeaderBar} style={{ background: tt.color }}>
+          <div className={styles.modalHeaderTopRow}>
             <div>
-              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.6, opacity: 0.85, textTransform: "uppercase" }}>
+              <div className={styles.modalHeaderNumber}>
                 {memo.MEMO_NUMBER}
               </div>
-              <div style={{ fontSize: 18, fontWeight: 800, marginTop: 4, letterSpacing: -0.2 }}>
+              <div className={styles.modalHeaderType}>
                 {tt.emoji} {tt.label}
               </div>
-              <div style={{ fontSize: 12, opacity: 0.92, marginTop: 4 }}>
+              <div className={styles.modalHeaderIssuedBy}>
                 Issued {memo.ISSUE_DATE || "—"}{memo.ISSUED_BY ? ` · by ${memo.ISSUED_BY}` : ""}
               </div>
             </div>
-            <button onClick={onClose} style={{
-              background: "rgba(255,255,255,0.2)", color: "white", border: "none",
-              padding: "4px 12px", borderRadius: 6, fontSize: 18, cursor: "pointer"
-            }}>×</button>
+            <button onClick={onClose} className={styles.modalCloseX}>×</button>
           </div>
         </div>
 
         {/* Body */}
-        <div style={{ flex: 1, overflowY: "auto", padding: 22 }}>
+        <div className={styles.modalBody}>
 
-          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+          <div className={styles.modalPillRow}>
             <span style={{
               background: st.bg, color: st.color, padding: "3px 10px",
               borderRadius: 999, fontSize: 10, fontWeight: 800, letterSpacing: 0.6,
@@ -3582,69 +2785,44 @@ function MyMemoDetail({ memo, onClose, onAcknowledge, ackBusy }) {
             )}
           </div>
 
-          <div style={{ fontSize: 17, fontWeight: 800, color: BVC.INK, marginBottom: 12, letterSpacing: -0.2 }}>
+          <div className={styles.modalSubject}>
             {memo.SUBJECT}
           </div>
 
           {memo.DESCRIPTION && (
-            <div style={{
-              padding: 14, background: "#f8fafc", border: "1px solid #e2e8f0",
-              borderRadius: 10, fontSize: 13, color: "#334155",
-              whiteSpace: "pre-wrap", lineHeight: 1.6, marginBottom: 14
-            }}>
+            <div className={styles.modalDescBox}>
               {memo.DESCRIPTION}
             </div>
           )}
 
           {memo.ATTACHMENT_URL && (
-            <div style={{ marginBottom: 14 }}>
+            <div className={styles.modalAttachRow}>
               <a href={memo.ATTACHMENT_URL} target="_blank" rel="noreferrer"
-                 style={{
-                   display: "inline-flex", alignItems: "center", gap: 6,
-                   color: "#2563eb", fontWeight: 700, textDecoration: "none",
-                   padding: "8px 12px", border: "1px solid #bfdbfe",
-                   borderRadius: 8, background: "#eff6ff", fontSize: 12
-                 }}>
+                className={styles.modalAttachLink}>
                 📎 {memo.ATTACHMENT_NAME || "Download attachment"}
               </a>
             </div>
           )}
 
           {memo.ACKNOWLEDGED_BY_EMPLOYEE && memo.ACKNOWLEDGED_DATE && (
-            <div style={{
-              fontSize: 11, color: "#15803d", padding: "8px 12px",
-              background: "#f0fdf4", border: "1px solid #bbf7d0",
-              borderRadius: 8
-            }}>
+            <div className={styles.modalAckBanner}>
               ✓ You acknowledged this on {new Date(memo.ACKNOWLEDGED_DATE).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div style={{
-          padding: "14px 22px",
-          background: "#f8fafc",
-          borderTop: "1px solid #e2e8f0",
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 10
-        }}>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={onClose} style={{
-              background: "white", border: "1px solid #cbd5e1",
-              color: "#475569", padding: "8px 16px", borderRadius: 8,
-              fontWeight: 700, fontSize: 12, cursor: "pointer"
-            }}>
+        <div className={styles.modalFooter}>
+          <div className={styles.modalFooterLeft}>
+            <button onClick={onClose} className={styles.modalCloseBtn}>
               Close
             </button>
 
-            <button onClick={() => downloadMemoPdf(memo)} style={{
-              background: "white", border: `1px solid ${tt.color}`,
-              color: tt.color, padding: "8px 16px", borderRadius: 8,
-              fontWeight: 800, fontSize: 12, cursor: "pointer",
-              display: "inline-flex", alignItems: "center", gap: 6
-            }}>
+            <button
+              onClick={() => downloadMemoPdf(memo)}
+              className={styles.modalDownloadBtn}
+              style={{ border: `1px solid ${tt.color}`, color: tt.color }}
+            >
               ⬇ Download PDF
             </button>
           </div>
@@ -3654,7 +2832,7 @@ function MyMemoDetail({ memo, onClose, onAcknowledge, ackBusy }) {
               onClick={onAcknowledge}
               disabled={ackBusy}
               style={{
-                background: ackBusy ? "#94a3b8" : "linear-gradient(135deg, #10b981, #059669)",
+                background: ackBusy ? "#94a3b8" : "#10b981",
                 color: "white", border: "none",
                 padding: "9px 22px", borderRadius: 8,
                 fontWeight: 800, fontSize: 13,
@@ -3674,3 +2852,4 @@ function MyMemoDetail({ memo, onClose, onAcknowledge, ackBusy }) {
 
 
 export default EmployeeDashboard;
+

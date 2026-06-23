@@ -1,0 +1,940 @@
+/* =================================================================
+   Inventory.module.css — CSS Modules for Inventory page
+   All colors use design-token CSS variables; no hardcoded hex/rgba.
+   Badge/status chip accent colors are the only hardcoded exceptions.
+   ================================================================= */
+
+/* ---------------------------------------------------------------
+   Page wrapper
+   --------------------------------------------------------------- */
+.pageWrapper {
+  padding: 24px;
+  background: var(--layout-bg, #f8fafc);
+  min-height: 100%;
+}
+
+/* ---------------------------------------------------------------
+   Hero banner
+   --------------------------------------------------------------- */
+.hero {
+  background: var(--card-bg);
+  border-left: 4px solid var(--clr-primary);
+  color: var(--text-primary);
+  padding: 20px 28px;
+  border-radius: var(--radius, 14px);
+  margin-bottom: 22px;
+  box-shadow: var(--shadow-md, 0 6px 18px rgba(139, 11, 31, 0.18));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.heroEyebrow {
+  font-size: var(--font-xs, 10px);
+  letter-spacing: 2px;
+  color: var(--text-secondary);
+  /* amber accent — acceptable badge exception */
+  font-weight: var(--fw-bold, 700);
+  text-transform: uppercase;
+}
+
+.heroTitle {
+  font-size: 22px;
+  font-weight: var(--fw-bold, 700);
+  margin: 4px 0 0;
+  line-height: 1.2;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+
+/* ---------------------------------------------------------------
+   KPI grid
+   --------------------------------------------------------------- */
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+/* ---------------------------------------------------------------
+   Stat tile
+   --------------------------------------------------------------- */
+.statTile {
+  background: var(--card-bg, white);
+  padding: 18px 22px;
+  border-radius: var(--radius, 14px);
+  box-shadow: var(--shadow-sm, 0 6px 20px rgba(15, 23, 42, 0.07));
+  position: relative;
+  overflow: hidden;
+  /* border-top color is set dynamically via inline style */
+  border-top-width: 3px;
+  border-top-style: solid;
+}
+
+.statTileBgIcon {
+  position: absolute;
+  top: -18px;
+  right: -12px;
+  font-size: 64px;
+  opacity: 0.06;
+  pointer-events: none;
+}
+
+.statTileLabel {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-secondary, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  font-weight: var(--fw-bold, 700);
+}
+
+.statTileValue {
+  font-size: 26px;
+  font-weight: var(--fw-extrabold, 800);
+  color: var(--text-primary, #0f172a);
+  margin-top: 6px;
+}
+
+.statTileSub {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-muted, #94a3b8);
+  margin-top: 2px;
+}
+
+/* ---------------------------------------------------------------
+   Filter bar
+   --------------------------------------------------------------- */
+.filterBar {
+  background: var(--card-bg, white);
+  padding: 14px;
+  border-radius: var(--radius, 12px);
+  box-shadow: var(--shadow-sm, 0 4px 14px rgba(15, 23, 42, 0.06));
+  margin-bottom: 16px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filterSearch {
+  flex: 1;
+  min-width: 240px;
+  padding: 10px 14px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius, 8px);
+  font-size: var(--font-sm, 13px);
+  background: var(--card-bg, white);
+  color: var(--text-primary, #0f172a);
+  outline: none;
+}
+
+.filterSearch:focus {
+  border-color: var(--clr-primary);
+}
+
+.filterSelect {
+  padding: 10px 14px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius, 8px);
+  font-size: var(--font-sm, 13px);
+  background: var(--card-bg, white);
+  color: var(--text-primary, #0f172a);
+  min-width: 180px;
+  outline: none;
+}
+
+.filterSelect:focus {
+  border-color: var(--clr-primary);
+}
+
+.statusBtns {
+  display: flex;
+  gap: 6px;
+}
+
+.statusBtn {
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--card-bg, white);
+  color: var(--text-secondary, #475569);
+  padding: 8px 14px;
+  border-radius: var(--radius, 8px);
+  font-size: 12px;
+  font-weight: var(--fw-bold, 700);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.statusBtnActive {
+  border-color: var(--clr-primary);
+  background: #fef2f2;
+  /* light red tint — badge exception */
+  color: var(--clr-primary);
+}
+
+.refreshBtn {
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--card-bg, white);
+  padding: 10px 14px;
+  border-radius: var(--radius, 8px);
+  cursor: pointer;
+  font-size: var(--font-sm, 13px);
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-secondary, #475569);
+  transition: background 0.15s;
+}
+
+.refreshBtn:hover {
+  background: var(--surface, #f8fafc);
+}
+
+/* ---------------------------------------------------------------
+   Material card grid
+   --------------------------------------------------------------- */
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+
+/* ---------------------------------------------------------------
+   Material card
+   --------------------------------------------------------------- */
+.materialCard {
+  background: var(--card-bg, white);
+  border-radius: var(--radius, 14px);
+  padding: 16px;
+  box-shadow: var(--shadow-sm, 0 6px 18px rgba(15, 23, 42, 0.07));
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.16s, box-shadow 0.16s, border-color 0.16s;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid transparent;
+}
+
+.materialCard:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md, 0 14px 32px rgba(15, 23, 42, 0.14));
+  border-color: #ef444422;
+  /* subtle red tint — badge exception */
+}
+
+/* status stripe at top — color set dynamically */
+.cardStatusStripe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  /* background color set via inline style using statusTheme color */
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.cardTitleArea {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardMaterialName {
+  font-size: 14px;
+  font-weight: var(--fw-extrabold, 800);
+  color: var(--text-primary, #0f172a);
+  line-height: 1.25;
+  margin-bottom: 6px;
+}
+
+/* category chip — bg/fg set inline from CATEGORY_THEME */
+.categoryChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: var(--fw-bold, 700);
+  letter-spacing: 0.4px;
+}
+
+.cardBadges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* status badge — bg/fg set inline from STATUS_THEME */
+.statusBadge {
+  padding: 3px 9px;
+  border-radius: var(--radius-full, 999px);
+  font-size: 10px;
+  font-weight: var(--fw-extrabold, 800);
+  letter-spacing: 0.6px;
+}
+
+/* reorder alert chip */
+.reorderChip {
+  background: #fee2e2;
+  /* light red — badge exception */
+  color: #7f1d1d;
+  /* dark red — badge exception */
+  padding: 2px 8px;
+  border-radius: var(--radius-full, 999px);
+  font-size: 9px;
+  font-weight: var(--fw-extrabold, 800);
+  letter-spacing: 0.6px;
+}
+
+/* ---------------------------------------------------------------
+   Quantity / progress area
+   --------------------------------------------------------------- */
+.quantityArea {
+  margin-top: 14px;
+  margin-bottom: 10px;
+}
+
+.quantityRow {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.quantityValue {
+  font-size: 32px;
+  font-weight: var(--fw-black, 900);
+  color: var(--text-primary, #0f172a);
+  line-height: 1;
+}
+
+.quantityUnit {
+  font-size: 12px;
+  color: var(--text-secondary, #64748b);
+  font-weight: var(--fw-bold, 700);
+  letter-spacing: 0.6px;
+}
+
+.progressTrack {
+  margin-top: 6px;
+  height: 6px;
+  background: var(--surface, #f1f5f9);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* fill width set dynamically via inline style */
+.progressFill {
+  height: 100%;
+  transition: width 0.4s;
+  /* background color set via inline style using statusTheme color */
+}
+
+.reorderNote {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.reorderNoteAlert {
+  color: #b91c1c;
+  /* red alert — badge exception */
+}
+
+.reorderNoteNormal {
+  color: var(--text-secondary, #64748b);
+}
+
+/* ---------------------------------------------------------------
+   Card footer — price grid
+   --------------------------------------------------------------- */
+.cardPriceGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #f1f5f9);
+}
+
+.priceLabel {
+  font-size: 9px;
+  color: var(--text-muted, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: var(--fw-bold, 700);
+}
+
+.priceValue {
+  font-size: 13px;
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-secondary, #475569);
+  margin-top: 1px;
+}
+
+.priceValueRight {
+  text-align: right;
+}
+
+.totalValue {
+  color: #047857;
+  /* green — badge exception for positive financial value */
+}
+
+/* ---------------------------------------------------------------
+   Card footer — supplier/date row
+   --------------------------------------------------------------- */
+.cardMeta {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border, #f1f5f9);
+  font-size: 10px;
+  color: var(--text-secondary, #64748b);
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.supplierLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+/* ---------------------------------------------------------------
+   Adjust stock button (card)
+   --------------------------------------------------------------- */
+.adjustBtn {
+  margin-top: 10px;
+  border: 1px solid #fecaca;
+  /* light red border — badge exception */
+  background: #fef2f2;
+  /* light red bg — badge exception */
+  color: var(--clr-primary);
+  padding: 6px 10px;
+  border-radius: var(--radius, 8px);
+  font-size: 11px;
+  font-weight: var(--fw-bold, 700);
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.15s;
+}
+
+.adjustBtn:hover {
+  background: #fee2e2;
+  /* badge exception */
+}
+
+/* ---------------------------------------------------------------
+   Loading / empty state
+   --------------------------------------------------------------- */
+.loadingState {
+  padding: 50px;
+  text-align: center;
+  color: var(--text-muted, #94a3b8);
+  font-size: 14px;
+}
+
+.emptyState {
+  padding: 60px;
+  text-align: center;
+  background: var(--card-bg, white);
+  border-radius: var(--radius, 14px);
+  color: var(--text-secondary, #64748b);
+  font-size: 14px;
+  border: 1px dashed var(--border, #cbd5e1);
+}
+
+.emptyStateSub {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+/* ---------------------------------------------------------------
+   Adjust modal overlay + panel
+   --------------------------------------------------------------- */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+}
+
+.modalPanel {
+  width: 480px;
+  max-width: 94%;
+  background: var(--card-bg, white);
+  border-radius: var(--radius, 14px);
+  padding: 22px;
+  box-shadow: var(--shadow-md, 0 24px 60px rgba(0, 0, 0, 0.35));
+}
+
+.modalTitle {
+  font-size: 17px;
+  font-weight: var(--fw-extrabold, 800);
+  color: var(--text-primary, #0f172a);
+  margin-bottom: 4px;
+}
+
+.modalSubtitle {
+  font-size: 12px;
+  color: var(--text-secondary, #64748b);
+  margin-bottom: 18px;
+}
+
+.modalQtyGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.modalFieldLabel {
+  font-size: 10px;
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-muted, #94a3b8);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.modalCurrentQty {
+  font-size: 22px;
+  font-weight: var(--fw-extrabold, 800);
+  color: var(--text-secondary, #475569);
+}
+
+.modalInput {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: var(--radius, 8px);
+  font-size: 18px;
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-primary, #0f172a);
+  background: var(--card-bg, white);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.modalInput:focus {
+  border-color: var(--clr-primary);
+}
+
+/* delta feedback — bg/color set inline (green/amber) */
+.deltaBadge {
+  padding: 8px 12px;
+  border-radius: var(--radius, 8px);
+  font-size: 12px;
+  font-weight: var(--fw-bold, 700);
+  margin-bottom: 14px;
+}
+
+.modalSelect {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: var(--radius, 8px);
+  font-size: var(--font-sm, 13px);
+  background: var(--card-bg, white);
+  color: var(--text-primary, #0f172a);
+  outline: none;
+}
+
+.modalSelect:focus {
+  border-color: var(--clr-primary);
+}
+
+.modalTextarea {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: var(--radius, 8px);
+  font-size: var(--font-sm, 13px);
+  resize: vertical;
+  font-family: inherit;
+  color: var(--text-primary, #0f172a);
+  background: var(--card-bg, white);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.modalTextarea:focus {
+  border-color: var(--clr-primary);
+}
+
+.modalFieldGroup {
+  margin-bottom: 14px;
+}
+
+/* reorder section in modal */
+.reorderBox {
+  margin-bottom: 14px;
+  background: #fffbeb;
+  /* amber tint — badge exception */
+  border: 1px solid #fde68a;
+  /* amber border — badge exception */
+  border-radius: var(--radius, 10px);
+  padding: 12px;
+}
+
+.reorderBoxTitle {
+  font-size: 10px;
+  font-weight: var(--fw-extrabold, 800);
+  color: #854d0e;
+  /* amber text — badge exception */
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reorderBoxRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.reorderBoxText {
+  font-size: 12px;
+  color: #854d0e;
+  /* badge exception */
+}
+
+.reorderInput {
+  width: 90px;
+  padding: 6px 10px;
+  border: 1px solid #fcd34d;
+  /* amber border — badge exception */
+  border-radius: 6px;
+  font-size: var(--font-sm, 13px);
+  font-weight: var(--fw-bold, 700);
+  color: #854d0e;
+  /* badge exception */
+  text-align: center;
+  background: var(--card-bg, white);
+  outline: none;
+}
+
+.reorderBoxNote {
+  font-size: 10px;
+  color: #92400e;
+  /* badge exception */
+  margin-top: 6px;
+  opacity: 0.85;
+}
+
+/* modal action buttons */
+.modalActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.modalCancelBtn {
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--card-bg, white);
+  color: var(--text-secondary, #475569);
+  padding: 9px 18px;
+  border-radius: var(--radius, 8px);
+  font-size: var(--font-sm, 13px);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.modalCancelBtn:hover:not(:disabled) {
+  background: var(--surface, #f8fafc);
+}
+
+.modalCancelBtn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.modalSaveBtn {
+  border: none;
+  background: var(--clr-primary);
+  color: #fff;
+  padding: 9px 22px;
+  border-radius: var(--radius, 8px);
+  font-weight: var(--fw-extrabold, 800);
+  font-size: var(--font-sm, 13px);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.modalSaveBtn:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.modalSaveBtn:disabled {
+  cursor: not-allowed;
+  background: var(--text-muted, #94a3b8);
+}
+
+/* ---------------------------------------------------------------
+   Detail drawer overlay + panel
+   --------------------------------------------------------------- */
+.drawerOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.drawerPanel {
+  width: 460px;
+  max-width: 94%;
+  background: var(--card-bg, white);
+  overflow: auto;
+  box-shadow: var(--shadow-md, -24px 0 60px rgba(0, 0, 0, 0.35));
+}
+
+/* drawer header — solid primary color instead of gradient */
+.drawerHeader {
+  background: var(--clr-primary);
+  color: #fff;
+  padding: 24px 26px;
+  position: relative;
+}
+
+.drawerCloseBtn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius, 8px);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: var(--fw-bold, 700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.drawerCloseBtn:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.drawerEyebrow {
+  font-size: 10px;
+  font-weight: var(--fw-extrabold, 800);
+  letter-spacing: 2px;
+  opacity: 0.85;
+  margin-bottom: 6px;
+}
+
+.drawerTitle {
+  margin: 0;
+  font-size: 21px;
+  font-weight: var(--fw-black, 900);
+  line-height: 1.2;
+}
+
+.drawerBadges {
+  margin-top: 10px;
+  display: flex;
+  gap: 6px;
+}
+
+/* category chip inside drawer header */
+.drawerCatChip {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: var(--fw-bold, 700);
+}
+
+/* status chip inside drawer header — bg/color from STATUS_THEME */
+.drawerStatusChip {
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: var(--fw-extrabold, 800);
+}
+
+.drawerBody {
+  padding: 22px;
+}
+
+.summaryBoxGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+/* ---------------------------------------------------------------
+   Summary box (inside drawer)
+   --------------------------------------------------------------- */
+.summaryBox {
+  background: var(--surface, #f8fafc);
+  padding: 12px;
+  border-radius: var(--radius, 10px);
+  border: 1px solid var(--border, #e2e8f0);
+}
+
+.summaryBoxLabel {
+  font-size: 9px;
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-muted, #94a3b8);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.summaryBoxValue {
+  font-weight: var(--fw-extrabold, 800);
+  margin-top: 4px;
+  /* font-size & color set inline */
+}
+
+/* ---------------------------------------------------------------
+   Section heading (inside drawer)
+   --------------------------------------------------------------- */
+.sectionWrapper {
+  margin-bottom: 22px;
+}
+
+.sectionTitle {
+  font-size: 11px;
+  font-weight: var(--fw-extrabold, 800);
+  letter-spacing: 1.5px;
+  color: var(--clr-primary);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+/* ---------------------------------------------------------------
+   Supplier block (inside drawer)
+   --------------------------------------------------------------- */
+.supplierBlock {
+  background: #fef2f2;
+  /* badge exception — light red */
+  border: 1px solid #fecaca;
+  /* badge exception */
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.supplierName {
+  font-weight: var(--fw-extrabold, 800);
+  color: var(--text-primary, #0f172a);
+  font-size: 14px;
+}
+
+.supplierMeta {
+  font-size: 11px;
+  color: var(--text-secondary, #64748b);
+  margin-top: 2px;
+}
+
+/* ---------------------------------------------------------------
+   Product chips (inside drawer)
+   --------------------------------------------------------------- */
+.productChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.productChip {
+  background: #eef2ff;
+  /* indigo tint — badge exception */
+  color: #4338ca;
+  /* indigo — badge exception */
+  padding: 5px 11px;
+  border-radius: var(--radius-full, 999px);
+  font-size: 11px;
+  font-weight: var(--fw-bold, 700);
+}
+
+/* ---------------------------------------------------------------
+   Movement rows (inside drawer)
+   --------------------------------------------------------------- */
+.movementList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.movementRow {
+  background: var(--surface, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.movementGRN {
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-primary, #0f172a);
+  font-size: 12px;
+}
+
+.movementMeta {
+  font-size: 10px;
+  color: var(--text-secondary, #64748b);
+  margin-top: 1px;
+}
+
+.movementQty {
+  color: #047857;
+  /* green — badge exception */
+  font-weight: var(--fw-extrabold, 800);
+  font-size: 14px;
+}
+
+.movementRejected {
+  font-size: 10px;
+  color: #b91c1c;
+  /* red — badge exception */
+  font-weight: var(--fw-bold, 700);
+}
+
+.movementRight {
+  text-align: right;
+}
+
+.movementsEmpty {
+  background: var(--surface, #f8fafc);
+  padding: 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: var(--text-secondary, #64748b);
+  text-align: center;
+}
+
+.movementsLoading {
+  color: var(--text-muted, #94a3b8);
+  font-size: 12px;
+}

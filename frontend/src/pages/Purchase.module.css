@@ -1,0 +1,525 @@
+/* Purchase — scoped styles */
+
+.page {
+  padding: var(--sp-5);
+  background: var(--layout-bg);
+  min-height: 100%;
+}
+
+.pageTitle {
+  font-size: var(--font-xl);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin-bottom: var(--sp-1);
+}
+
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.kpiCard {
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.kpiLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.kpiValue {
+  font-size: 28px;
+  font-weight: var(--fw-black);
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+.kpiSub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.cardHeader {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cardTitle {
+  font-size: var(--font-md);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.filterBar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.filterInput {
+  flex: 1;
+  min-width: 200px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  background: var(--card-bg);
+  color: var(--text-primary);
+}
+
+.filterInput:focus {
+  outline: none;
+  border-color: var(--clr-primary);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-sm);
+}
+
+.table th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary);
+}
+
+.table tr:hover td {
+  background: var(--surface);
+}
+
+.statusBadge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+}
+
+.btnPrimary {
+  background: var(--clr-primary);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+}
+
+.btnGhost {
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+}
+
+.btnGhost:hover {
+  background: var(--surface);
+}
+
+.emptyState {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+/* ── Page header row ─────────────────────────────────────────── */
+.pageHeaderRow {
+  margin-bottom: 20px;
+}
+
+/* ── Model selector bar ──────────────────────────────────────── */
+.selectorBar {
+  background: var(--card-bg);
+  padding: 16px;
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 16px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.selectorLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.selectorSelect {
+  flex: 1;
+  min-width: 280px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-md);
+  background: var(--card-bg);
+  color: var(--text-primary);
+}
+
+.modelBadge {
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  background: #eff6ff;
+  font-size: var(--font-xs);
+  color: #1e40af;
+}
+
+/* ── Placeholder / loading states ────────────────────────────── */
+.placeholder {
+  background: var(--card-bg);
+  padding: 40px;
+  border-radius: var(--radius-lg);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+.loadingBox {
+  background: var(--card-bg);
+  padding: 30px;
+  border-radius: var(--radius-lg);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* ── Stats grid ──────────────────────────────────────────────── */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.statCard {
+  background: var(--card-bg);
+  padding: 16px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.statCardBlue {
+  border-top: 3px solid #1e40af;
+}
+
+.statCardPurple {
+  border-top: 3px solid #7c3aed;
+}
+
+.statLabel {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.8px;
+}
+
+.statValue {
+  font-size: 26px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+.statValueDanger {
+  font-size: 26px;
+  font-weight: var(--fw-bold);
+  color: #b91c1c;
+  margin-top: 4px;
+}
+
+.statValueGood {
+  font-size: 26px;
+  font-weight: var(--fw-bold);
+  color: #166534;
+  margin-top: 4px;
+}
+
+.statSub {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── BOM section card ────────────────────────────────────────── */
+.bomCard {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+}
+
+.bomCardTitle {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.bomCardTitlePurple {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1px;
+  color: #7c3aed;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.bomCardMt {
+  margin-top: 14px;
+}
+
+.emptyItems {
+  color: var(--text-muted);
+  padding: 20px;
+}
+
+/* ── BOM line row ────────────────────────────────────────────── */
+.bomLineRow {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+
+.bomLineHeader {
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  gap: 12px;
+}
+
+.bomLineBody {
+  flex: 2;
+}
+
+.bomLineName {
+  font-size: var(--font-md);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.bomLineSub {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.bomSupplierCol {
+  flex: 2;
+}
+
+.bomSupplierName {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semibold);
+  color: #1e40af;
+}
+
+.bomSupplierCode {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.bomExpandToggle {
+  color: #1e40af;
+  font-size: var(--font-xs);
+  font-weight: var(--fw-semibold);
+}
+
+.bomExpandedPanel {
+  padding: 14px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+/* ── Process line row ────────────────────────────────────────── */
+.processLineRow {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-light, #f1f5f9);
+  display: flex;
+  gap: 12px;
+}
+
+.processLineName {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.processLineSub {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.processLineStage {
+  font-size: var(--font-xs);
+  color: #7c3aed;
+  font-weight: var(--fw-semibold);
+  align-self: center;
+}
+
+/* ── Assign supplier dropdown ────────────────────────────────── */
+.assignSelect {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-xs);
+  background: var(--card-bg);
+  color: var(--text-primary);
+}
+
+/* ── SupplierCard ────────────────────────────────────────────── */
+.supplierCardEmpty {
+  padding: 18px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  color: #b91c1c;
+  font-size: var(--font-xs);
+}
+
+.supplierCard {
+  padding: 18px;
+  background: var(--card-bg);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  margin-top: 10px;
+}
+
+.supplierCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.supplierCode {
+  font-size: var(--font-xs);
+  font-family: ui-monospace, monospace;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.supplierName {
+  font-size: var(--font-lg);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.supplierCategoryBadge {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-semibold);
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.supplierStatusBadge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+}
+
+.supplierStatusActive {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.supplierStatusInactive {
+  background: #f1f5f9;
+  color: var(--text-secondary);
+}
+
+.supplierInfoGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  font-size: var(--font-sm);
+}
+
+.supplierSectionLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.supplierPrimaryText {
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
+}
+
+.supplierMutedText {
+  color: var(--text-secondary);
+}
+
+.supplierMutedTextSm {
+  color: var(--text-muted);
+}
+
+.supplierMonoText {
+  color: var(--text-primary);
+  font-family: ui-monospace, monospace;
+  font-size: var(--font-xs);
+}
+
+.supplierMonoMuted {
+  color: var(--text-secondary);
+  font-family: ui-monospace, monospace;
+  font-size: var(--font-xs);
+}

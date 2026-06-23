@@ -1,0 +1,305 @@
+/* PublicEnquiry — public chatbot intake page, scoped styles */
+
+/* ─── Page shell ─────────────────────────────────────────────── */
+
+.shell {
+  min-height: 100vh;
+  background: var(--layout-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  font-family: var(--font, system-ui, -apple-system, sans-serif);
+}
+
+/* ─── Card ───────────────────────────────────────────────────── */
+
+.card {
+  width: 100%;
+  max-width: 640px;
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+/* ─── Header ─────────────────────────────────────────────────── */
+
+.header {
+  padding: 22px 28px;
+  background: var(--clr-primary);
+  color: var(--text-inverse);
+}
+
+.headerEyebrow {
+  font-size: var(--font-xs);
+  letter-spacing: 2px;
+  font-weight: var(--fw-bold);
+  opacity: 0.85;
+  text-transform: uppercase;
+}
+
+.headerTitle {
+  font-size: 22px;
+  font-weight: var(--fw-black);
+  margin-top: 2px;
+  letter-spacing: -0.4px;
+}
+
+/* Progress bar */
+.progressWrap {
+  margin-top: 14px;
+}
+
+.progressTrack {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: white;
+  transition: width 0.4s ease;
+}
+
+.progressLabel {
+  font-size: 11px;
+  margin-top: 6px;
+  opacity: 0.9;
+  font-weight: var(--fw-bold);
+}
+
+/* ─── Body ───────────────────────────────────────────────────── */
+
+.body {
+  padding: 28px 28px 22px;
+}
+
+/* ─── Question screen ────────────────────────────────────────── */
+
+.questionLabel {
+  font-size: 18px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  line-height: 1.4;
+}
+
+.required {
+  color: var(--clr-primary);
+  margin-left: 4px;
+}
+
+.input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-lg);
+  font-size: 15px;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+  background: var(--card-bg);
+  color: var(--text-primary);
+}
+
+.input:focus {
+  border-color: var(--clr-primary);
+}
+
+.errorMsg {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-light);
+  border-radius: var(--radius);
+  color: var(--danger-dark);
+  font-size: 13px;
+}
+
+/* ─── Buttons ────────────────────────────────────────────────── */
+
+.btnRow {
+  margin-top: 22px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.btnRight {
+  display: flex;
+  gap: 10px;
+}
+
+.btnPrimary {
+  background: var(--clr-primary);
+  color: var(--text-inverse);
+  border: none;
+  padding: 12px 24px;
+  border-radius: var(--radius-lg);
+  font-weight: var(--fw-black);
+  font-size: 14px;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  box-shadow: var(--shadow);
+  transition: opacity var(--ease, 0.15s);
+}
+
+.btnPrimary:hover {
+  opacity: 0.88;
+}
+
+.btnPrimary:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.btnGhost {
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  padding: 10px 18px;
+  border-radius: var(--radius-lg);
+  font-weight: var(--fw-bold);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background var(--ease, 0.15s);
+}
+
+.btnGhost:hover {
+  background: var(--surface);
+}
+
+.btnGhost:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ─── Review screen ──────────────────────────────────────────── */
+
+.reviewTitle {
+  font-size: 18px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.reviewSub {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 18px;
+}
+
+.reviewSection {
+  margin-bottom: 18px;
+}
+
+.reviewSectionTitle {
+  font-size: 10px;
+  font-weight: var(--fw-black);
+  letter-spacing: 1px;
+  color: var(--clr-primary);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.reviewTable {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.reviewRow {
+  padding: 10px 14px;
+  cursor: pointer;
+  background: var(--card-bg);
+  transition: background var(--ease, 0.15s);
+}
+
+.reviewRowBordered {
+  border-bottom: 1px solid var(--surface);
+}
+
+.reviewRow:hover {
+  background: var(--surface);
+}
+
+.reviewRowKey {
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.reviewRowVal {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: var(--fw-bold);
+  margin-top: 2px;
+}
+
+.reviewRowEmpty {
+  color: var(--text-muted);
+}
+
+.reviewBtnRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* ─── Done screen ────────────────────────────────────────────── */
+
+.doneWrap {
+  text-align: center;
+  padding: 22px 10px;
+}
+
+.doneEmoji {
+  font-size: 64px;
+  line-height: 1;
+  margin-bottom: 12px;
+}
+
+.doneTitle {
+  font-size: 22px;
+  font-weight: var(--fw-black);
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.doneMessage {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 18px;
+}
+
+.doneRef {
+  padding: 10px 16px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  display: inline-block;
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+  color: var(--text-secondary);
+}
+
+.doneActions {
+  margin-top: 22px;
+}
+
+/* ─── Footer ─────────────────────────────────────────────────── */
+
+.footer {
+  padding: 12px 24px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+}

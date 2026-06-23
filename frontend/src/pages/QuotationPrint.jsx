@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 
 import API from "../services/api";
+import styles from "./QuotationPrint.module.css";
 
 
 // ===================================================================
@@ -67,7 +68,7 @@ function QuotationPrint() {
   if (error) {
 
     return (
-      <div style={{ padding: 40, color: "#b91c1c", fontFamily: "Arial" }}>
+      <div className={styles.stateError}>
         Error: {error}
       </div>
     );
@@ -76,7 +77,7 @@ function QuotationPrint() {
   if (!q) {
 
     return (
-      <div style={{ padding: 40, color: "#94a3b8", fontFamily: "Arial" }}>
+      <div className={styles.stateLoading}>
         Loading…
       </div>
     );
@@ -91,175 +92,6 @@ function QuotationPrint() {
           .no-print { display: none !important; }
         }
         body { background: #f1f5f9; }
-        .quot-page {
-          width: 210mm;
-          min-height: 297mm;
-          margin: 0 auto;
-          background: white;
-          padding: 18mm;
-          box-shadow: 0 8px 30px rgba(0,0,0,0.1);
-          font-family: 'Arial', 'Helvetica', sans-serif;
-          color: #1f2937;
-          font-size: 11.5pt;
-        }
-        .quot-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          border-bottom: 3px solid #0ea5e9;
-          padding-bottom: 14px;
-          margin-bottom: 18px;
-        }
-        .vendor-block h1 {
-          margin: 0;
-          font-size: 22pt;
-          color: #0f172a;
-          letter-spacing: -0.5px;
-        }
-        .vendor-block .tag {
-          color: #0ea5e9;
-          font-weight: 800;
-          font-size: 9pt;
-          letter-spacing: 1.5px;
-          margin-top: 2px;
-        }
-        .vendor-block .info {
-          font-size: 9pt;
-          color: #475569;
-          line-height: 1.4;
-          margin-top: 8px;
-        }
-        .quot-title {
-          text-align: right;
-        }
-        .quot-title h2 {
-          margin: 0;
-          font-size: 18pt;
-          letter-spacing: 4px;
-          color: #475569;
-        }
-        .quot-title .num {
-          font-size: 13pt;
-          font-weight: 800;
-          color: #0f172a;
-          margin-top: 4px;
-        }
-        .quot-title .meta {
-          font-size: 9pt;
-          color: #64748b;
-          margin-top: 8px;
-        }
-        .meta-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 14px;
-          margin-bottom: 18px;
-        }
-        .meta-card {
-          border: 1px solid #e2e8f0;
-          border-radius: 6px;
-          padding: 10px 12px;
-          background: #f8fafc;
-        }
-        .meta-card .label {
-          font-size: 8pt;
-          color: #94a3b8;
-          text-transform: uppercase;
-          letter-spacing: 1.2px;
-        }
-        .meta-card .value {
-          font-size: 11pt;
-          font-weight: 700;
-          color: #0f172a;
-          margin-top: 2px;
-        }
-        .meta-card .sub {
-          font-size: 9pt;
-          color: #475569;
-          margin-top: 1px;
-        }
-        table.lines {
-          width: 100%;
-          border-collapse: collapse;
-          margin-bottom: 14px;
-          font-size: 10.5pt;
-        }
-        table.lines thead {
-          background: linear-gradient(135deg,#C8102E,#8B0B1F);
-          color: white;
-        }
-        table.lines th {
-          padding: 8px;
-          text-align: left;
-          font-size: 9.5pt;
-          letter-spacing: 0.5px;
-        }
-        table.lines td {
-          padding: 8px;
-          border-bottom: 1px solid #e2e8f0;
-          vertical-align: top;
-        }
-        table.lines tbody tr:nth-child(even) td {
-          background: #f8fafc;
-        }
-        .total-grid {
-          width: 280px;
-          margin-left: auto;
-          font-size: 10.5pt;
-        }
-        .total-grid .row {
-          display: flex;
-          justify-content: space-between;
-          padding: 4px 0;
-        }
-        .total-grid .grand {
-          font-size: 13pt;
-          font-weight: 800;
-          color: #047857;
-          border-top: 2px solid #0f172a;
-          margin-top: 6px;
-          padding-top: 8px;
-        }
-        .section-title {
-          font-size: 9pt;
-          font-weight: 800;
-          letter-spacing: 1.5px;
-          color: #0ea5e9;
-          text-transform: uppercase;
-          margin: 18px 0 6px;
-        }
-        .terms {
-          font-size: 9.5pt;
-          color: #475569;
-          white-space: pre-line;
-          line-height: 1.5;
-          background: #fafafa;
-          padding: 10px 14px;
-          border-left: 3px solid #0ea5e9;
-          border-radius: 4px;
-        }
-        .footer {
-          margin-top: 28px;
-          padding-top: 14px;
-          border-top: 1px solid #e2e8f0;
-          display: flex;
-          justify-content: space-between;
-          font-size: 9pt;
-          color: #64748b;
-        }
-        .sig-block {
-          margin-top: 30px;
-          display: flex;
-          justify-content: space-between;
-          font-size: 10pt;
-        }
-        .sig-block .sig {
-          width: 200px;
-          text-align: center;
-          border-top: 1px solid #94a3b8;
-          padding-top: 6px;
-          color: #475569;
-        }
       `}</style>
 
       {/* {isDownload && (
@@ -280,7 +112,7 @@ function QuotationPrint() {
           <button
             onClick={() => window.print()}
             style={{
-              background: "#C8102E",
+              background: "#ef4444",
               color: "white",
               border: "none",
               padding: "6px 16px",
@@ -295,10 +127,10 @@ function QuotationPrint() {
         </div>
       )} */}
 
-      <div className="quot-page" style={isDownload ? { marginTop: 48 } : {}}>
+      <div className={`${styles.quotPage}${isDownload ? ` ${styles.quotPageDownload}` : ""}`}>
 
-        <div className="quot-header">
-          <div className="vendor-block">
+        <div className={styles.quotHeader}>
+          <div className={styles.vendorBlock}>
             <div className="tag">
               {(company?.SHORT_NAME || "BVC24")} · QUOTATION
             </div>
@@ -320,7 +152,7 @@ function QuotationPrint() {
               {company?.WEBSITE || "www.bvc24.in"}
             </div>
           </div>
-          <div className="quot-title">
+          <div className={styles.quotTitle}>
             <h2>QUOTATION</h2>
             <div className="num">{q.QUOTATION_NUMBER}</div>
             <div className="meta">
@@ -331,8 +163,8 @@ function QuotationPrint() {
           </div>
         </div>
 
-        <div className="meta-grid">
-          <div className="meta-card">
+        <div className={styles.metaGrid}>
+          <div className={styles.metaCard}>
             <div className="label">Quotation To</div>
             <div className="value">{q.CUSTOMER_NAME}</div>
             <div className="sub">{q.CUSTOMER_CODE}</div>
@@ -342,27 +174,27 @@ function QuotationPrint() {
             )}
             <div className="sub">{q.CUSTOMER_PHONE} · {q.CUSTOMER_EMAIL}</div>
           </div>
-          <div className="meta-card">
+          <div className={styles.metaCard}>
             <div className="label">Prepared By</div>
             <div className="value">{q.PREPARED_BY_NAME || "—"}</div>
-            <div className="sub" style={{ marginTop: 8 }}>
+            <div className={styles.metaCardSubSpaced}>
               <span className="label">Tax Rate</span><br/>
               GST {q.TAX_PERCENT}%
             </div>
           </div>
         </div>
 
-        <table className="lines">
+        <table className={styles.linesTable}>
           <thead>
             <tr>
-              <th style={{ width: "5%" }}>#</th>
+              <th className={styles.colNum}>#</th>
               <th>Description</th>
-              <th style={{ width: "12%" }}>HSN</th>
-              <th style={{ width: "8%", textAlign: "right" }}>Qty</th>
-              <th style={{ width: "8%" }}>Unit</th>
-              <th style={{ width: "13%", textAlign: "right" }}>Rate</th>
-              <th style={{ width: "8%", textAlign: "right" }}>Disc</th>
-              <th style={{ width: "16%", textAlign: "right" }}>Amount</th>
+              <th className={styles.colHsn}>HSN</th>
+              <th className={styles.colQty}>Qty</th>
+              <th className={styles.colUnit}>Unit</th>
+              <th className={styles.colRate}>Rate</th>
+              <th className={styles.colDisc}>Disc</th>
+              <th className={styles.colAmt}>Amount</th>
             </tr>
           </thead>
           <tbody>
@@ -371,32 +203,32 @@ function QuotationPrint() {
                 <td>{idx + 1}</td>
                 <td>{l.DESCRIPTION}</td>
                 <td>{l.HSN_CODE || "—"}</td>
-                <td style={{ textAlign: "right" }}>{l.QUANTITY}</td>
+                <td className={styles.textRight}>{l.QUANTITY}</td>
                 <td>{l.UNIT}</td>
-                <td style={{ textAlign: "right" }}>{inr(l.UNIT_PRICE)}</td>
-                <td style={{ textAlign: "right" }}>{l.DISCOUNT_PERCENT}%</td>
-                <td style={{ textAlign: "right", fontWeight: 700 }}>{inr(l.LINE_TOTAL)}</td>
+                <td className={styles.textRight}>{inr(l.UNIT_PRICE)}</td>
+                <td className={styles.textRight}>{l.DISCOUNT_PERCENT}%</td>
+                <td className={styles.textRightBold}>{inr(l.LINE_TOTAL)}</td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        <div className="total-grid">
-          <div className="row">
+        <div className={styles.totalGrid}>
+          <div className={styles.totalRow}>
             <span>Subtotal</span>
             <span>{inr(q.SUBTOTAL)}</span>
           </div>
           {q.DISCOUNT_PERCENT > 0 && (
-            <div className="row">
+            <div className={styles.totalRow}>
               <span>Discount ({q.DISCOUNT_PERCENT}%)</span>
               <span>− {inr(q.DISCOUNT_AMOUNT)}</span>
             </div>
           )}
-          <div className="row">
+          <div className={styles.totalRow}>
             <span>GST ({q.TAX_PERCENT}%)</span>
             <span>{inr(q.TAX_AMOUNT)}</span>
           </div>
-          <div className="row grand">
+          <div className={styles.grandRow}>
             <span>Grand Total</span>
             <span>{inr(q.GRAND_TOTAL)}</span>
           </div>
@@ -404,45 +236,33 @@ function QuotationPrint() {
 
         {q.NOTES && (
           <>
-            <div className="section-title">Notes</div>
-            <div className="terms">{q.NOTES}</div>
+            <div className={styles.sectionTitle}>Notes</div>
+            <div className={styles.terms}>{q.NOTES}</div>
           </>
         )}
 
         {q.TERMS_AND_CONDITIONS && (
           <>
-            <div className="section-title">Terms & Conditions</div>
-            <div className="terms">{q.TERMS_AND_CONDITIONS}</div>
+            <div className={styles.sectionTitle}>Terms & Conditions</div>
+            <div className={styles.terms}>{q.TERMS_AND_CONDITIONS}</div>
           </>
         )}
 
-        <div className="sig-block">
-          <div className="sig">Customer Signature</div>
-          <div className="sig">For {company?.LEGAL_NAME || "Bharath Vending Corp."}</div>
+        <div className={styles.sigBlock}>
+          <div className={styles.sig}>Customer Signature</div>
+          <div className={styles.sig}>For {company?.LEGAL_NAME || "Bharath Vending Corp."}</div>
         </div>
 
-        <div className="footer">
+        <div className={styles.footer}>
           <span>Generated by BVC24 ERP · {new Date().toLocaleString("en-IN")}</span>
           <span>Page 1 of 1</span>
         </div>
       </div>
 
-      <div className="no-print" style={{
-        position: "fixed", top: 16, right: 16,
-        background: "white", border: "1px solid #e2e8f0",
-        borderRadius: 8, padding: 8, boxShadow: "0 6px 20px rgba(0,0,0,0.1)"
-      }}>
+      <div className={`no-print ${styles.printButtonWrap}`}>
         <button
           onClick={() => window.print()}
-          style={{
-            border: "none",
-            background: "linear-gradient(135deg,#C8102E,#8B0B1F)",
-            color: "white",
-            padding: "8px 18px",
-            borderRadius: 6,
-            fontWeight: 700,
-            cursor: "pointer"
-          }}
+          className={styles.printButton}
         >
           🖨️ Print / Save as PDF
         </button>

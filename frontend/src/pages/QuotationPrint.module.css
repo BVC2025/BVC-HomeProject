@@ -1,0 +1,270 @@
+/* ===================================================================
+   QuotationPrint.module.css
+   A4-styled printable quotation view.
+   Global print/page rules stay in the JSX <style> tag.
+=================================================================== */
+
+/* Error / loading states */
+.stateError {
+  padding: 40px;
+  color: #b91c1c;
+  font-family: Arial, sans-serif;
+}
+
+.stateLoading {
+  padding: 40px;
+  color: #94a3b8;
+  font-family: Arial, sans-serif;
+}
+
+/* ── Page shell ── */
+.quotPage {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  background: white;
+  padding: 18mm;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+  font-family: 'Arial', 'Helvetica', sans-serif;
+  color: #1f2937;
+  font-size: 11.5pt;
+}
+
+.quotPageDownload {
+  margin-top: 48px;
+}
+
+/* ── Header ── */
+.quotHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 3px solid #0ea5e9;
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+}
+
+.vendorBlock h1 {
+  margin: 0;
+  font-size: 22pt;
+  color: #0f172a;
+  letter-spacing: -0.5px;
+}
+
+.vendorBlock .tag {
+  color: #0ea5e9;
+  font-weight: 800;
+  font-size: 9pt;
+  letter-spacing: 1.5px;
+  margin-top: 2px;
+}
+
+.vendorBlock .info {
+  font-size: 9pt;
+  color: #475569;
+  line-height: 1.4;
+  margin-top: 8px;
+}
+
+.quotTitle {
+  text-align: right;
+}
+
+.quotTitle h2 {
+  margin: 0;
+  font-size: 18pt;
+  letter-spacing: 4px;
+  color: #475569;
+}
+
+.quotTitle .num {
+  font-size: 13pt;
+  font-weight: 800;
+  color: #0f172a;
+  margin-top: 4px;
+}
+
+.quotTitle .meta {
+  font-size: 9pt;
+  color: #64748b;
+  margin-top: 8px;
+}
+
+/* ── Meta grid ── */
+.metaGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.metaCard {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: #f8fafc;
+}
+
+.metaCard .label {
+  font-size: 8pt;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+}
+
+.metaCard .value {
+  font-size: 11pt;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 2px;
+}
+
+.metaCard .sub {
+  font-size: 9pt;
+  color: #475569;
+  margin-top: 1px;
+}
+
+.metaCardSubSpaced {
+  margin-top: 8px;
+  font-size: 9pt;
+  color: #475569;
+}
+
+/* ── Lines table ── */
+.linesTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 14px;
+  font-size: 10.5pt;
+}
+
+.linesTable thead {
+  background: #ef4444;
+  color: white;
+}
+
+.linesTable th {
+  padding: 8px;
+  text-align: left;
+  font-size: 9.5pt;
+  letter-spacing: 0.5px;
+}
+
+.linesTable td {
+  padding: 8px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: top;
+}
+
+.linesTable tbody tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+/* Column widths */
+.colNum   { width: 5%; }
+.colHsn   { width: 12%; }
+.colQty   { width: 8%; text-align: right; }
+.colUnit  { width: 8%; }
+.colRate  { width: 13%; text-align: right; }
+.colDisc  { width: 8%; text-align: right; }
+.colAmt   { width: 16%; text-align: right; }
+
+/* Cell alignment helpers */
+.textRight { text-align: right; }
+.bold      { font-weight: 700; }
+.textRightBold { text-align: right; font-weight: 700; }
+
+/* ── Totals ── */
+.totalGrid {
+  width: 280px;
+  margin-left: auto;
+  font-size: 10.5pt;
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.grandRow {
+  font-size: 13pt;
+  font-weight: 800;
+  color: #047857;
+  border-top: 2px solid #0f172a;
+  margin-top: 6px;
+  padding-top: 8px;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ── Notes / Terms ── */
+.sectionTitle {
+  font-size: 9pt;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #0ea5e9;
+  text-transform: uppercase;
+  margin: 18px 0 6px;
+}
+
+.terms {
+  font-size: 9.5pt;
+  color: #475569;
+  white-space: pre-line;
+  line-height: 1.5;
+  background: #fafafa;
+  padding: 10px 14px;
+  border-left: 3px solid #0ea5e9;
+  border-radius: 4px;
+}
+
+/* ── Signature ── */
+.sigBlock {
+  margin-top: 30px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 10pt;
+}
+
+.sig {
+  width: 200px;
+  text-align: center;
+  border-top: 1px solid #94a3b8;
+  padding-top: 6px;
+  color: #475569;
+}
+
+/* ── Footer ── */
+.footer {
+  margin-top: 28px;
+  padding-top: 14px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  font-size: 9pt;
+  color: #64748b;
+}
+
+/* ── Floating print button ── */
+.printButtonWrap {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.printButton {
+  border: none;
+  background: #ef4444;
+  color: white;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+}

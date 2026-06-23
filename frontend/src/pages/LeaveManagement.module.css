@@ -1,0 +1,437 @@
+/* LeaveManagement page — scoped styles */
+
+/* ─── Page wrapper ──────────────────────────────────────────── */
+
+.page {
+  padding: var(--sp-6);
+  background: var(--layout-bg);
+  min-height: 100%;
+}
+
+.header {
+  margin-bottom: var(--sp-5);
+}
+
+.pageTitle {
+  font-size: var(--font-2xl);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.pageSub {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: var(--sp-1);
+}
+
+/* ─── Policy banner ─────────────────────────────────────────── */
+
+.policyBanner {
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
+  border-left: 4px solid var(--info);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-5);
+  display: flex;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.policyLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1px;
+  color: var(--info);
+  text-transform: uppercase;
+  flex-basis: 100%;
+}
+
+.policyItem {
+  flex: 1;
+  min-width: 260px;
+}
+
+.policyItemTitle {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin-bottom: var(--sp-1);
+}
+
+.policyItemText {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  line-height: var(--lh);
+}
+
+/* ─── KPI tiles grid ────────────────────────────────────────── */
+
+.tilesGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+  margin-bottom: var(--sp-5);
+}
+
+.tile {
+  background: var(--card-bg);
+  padding: var(--sp-5);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border-top: 3px solid var(--tile-color, var(--border));
+}
+
+.tileLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.tileValue {
+  font-size: 28px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin-top: 6px;
+}
+
+.tileSub {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ─── Tab bar ───────────────────────────────────────────────── */
+
+.tabBar {
+  display: flex;
+  gap: var(--sp-1);
+  margin-bottom: var(--sp-5);
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  border: none;
+  background: transparent;
+  padding: var(--sp-2) var(--sp-5);
+  font-size: var(--font-base);
+  font-weight: var(--fw-semi);
+  font-family: var(--font);
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  transition: color var(--ease), border-color var(--ease);
+}
+
+.tabActive {
+  color: var(--info);
+  border-bottom-color: var(--info);
+}
+
+/* ─── Filter row ────────────────────────────────────────────── */
+
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.searchWrap {
+  position: relative;
+  flex: 0 0 300px;
+  max-width: 100%;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 30px 9px 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  outline: none;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  transition: border-color var(--ease);
+}
+
+.searchInput:focus {
+  border-color: var(--clr-primary);
+}
+
+.clearBtn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px;
+}
+
+.filterResult {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+/* ─── Status filter buttons ─────────────────────────────────── */
+
+.statusFilterRow {
+  display: flex;
+  gap: var(--sp-2);
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.statusBtn {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--slate-600);
+  padding: 6px var(--sp-3);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semi);
+  font-family: var(--font);
+  transition: all var(--ease);
+}
+
+.statusBtnActive {
+  background: var(--info);
+  color: var(--text-inverse);
+  border-color: var(--info);
+}
+
+/* ─── Leave table ───────────────────────────────────────────── */
+
+.tableWrap {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+}
+
+.tableScroll {
+  overflow: auto;
+}
+
+.tableEl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-sm);
+}
+
+.thead {
+  background: var(--surface);
+  color: var(--slate-600);
+  font-size: var(--font-xs);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.th {
+  text-align: left;
+  padding: var(--sp-3);
+  font-weight: var(--fw-semi);
+}
+
+.thRight {
+  text-align: right;
+  padding: var(--sp-3);
+  font-weight: var(--fw-semi);
+}
+
+.tdRow {
+  border-bottom: 1px solid var(--border-light);
+}
+
+.tdCell {
+  padding: var(--sp-3);
+  color: var(--text-secondary);
+}
+
+.empName {
+  font-weight: var(--fw-semi);
+  color: var(--text-primary);
+}
+
+.empCode {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.tdCellRight {
+  padding: var(--sp-3);
+  text-align: right;
+  font-weight: var(--fw-bold);
+  font-size: var(--font-md);
+  color: var(--text-primary);
+}
+
+.tdCellReason {
+  padding: var(--sp-3);
+  color: var(--text-secondary);
+  max-width: 240px;
+}
+
+.rejReason {
+  font-size: var(--font-xs);
+  color: var(--danger);
+  margin-top: var(--sp-1);
+  font-style: italic;
+}
+
+.endDate {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.tdCellActions {
+  padding: var(--sp-3);
+  text-align: right;
+}
+
+.actionBtns {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.approveBtn {
+  border: none;
+  background: var(--success);
+  color: var(--text-inverse);
+  padding: 5px var(--sp-3);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semi);
+  font-family: var(--font);
+}
+
+.rejectBtn {
+  border: none;
+  background: var(--clr-primary);
+  color: var(--text-inverse);
+  padding: 5px var(--sp-3);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semi);
+  font-family: var(--font);
+}
+
+.emptyCell {
+  padding: 30px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.noAction {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+/* ─── Reject dialog ─────────────────────────────────────────── */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 950;
+}
+
+.dialog {
+  background: var(--card-bg);
+  padding: var(--sp-6);
+  border-radius: var(--radius-lg);
+  width: 460px;
+  max-width: 90%;
+  box-shadow: var(--shadow-lg);
+}
+
+.dialogTitle {
+  font-size: var(--font-lg);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin-bottom: 14px;
+}
+
+.dialogTextarea {
+  width: 100%;
+  padding: var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  color: var(--text-primary);
+  background: var(--surface);
+  resize: vertical;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.dialogTextarea:focus {
+  border-color: var(--clr-primary);
+}
+
+.dialogActions {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-4);
+  justify-content: flex-end;
+}
+
+.dialogCancelBtn {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  padding: var(--sp-2) var(--sp-5);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: var(--font-sm);
+  font-family: var(--font);
+}
+
+.dialogSubmitBtn {
+  border: none;
+  background: var(--clr-primary);
+  color: var(--text-inverse);
+  padding: var(--sp-2) var(--sp-5);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: var(--fw-semi);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+}
+
+.dialogSubmitBtn:disabled {
+  background: var(--slate-400);
+  cursor: not-allowed;
+}

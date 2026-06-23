@@ -1,0 +1,1038 @@
+/* ================================================================
+   Quality.module.css
+   ================================================================ */
+
+/* ---- Page shell ---- */
+.page {
+  padding: 24px;
+  background: var(--layout-bg, #f1f5f9);
+  min-height: 100%;
+}
+
+/* ---- Page header ---- */
+.pageTitle {
+  font-size: 26px;
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-primary, #0f172a);
+  margin: 0;
+}
+
+.pageSubtitle {
+  font-size: var(--font-sm, 13px);
+  color: var(--text-secondary, #64748b);
+  margin-top: 4px;
+}
+
+/* ---- Tab bar ---- */
+.tabBar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.tabBtn {
+  border: none;
+  background: transparent;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: var(--fw-bold, 600);
+  color: var(--text-secondary, #64748b);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s;
+}
+
+.tabBtn:hover {
+  color: var(--clr-primary, #1e40af);
+}
+
+.tabBtnActive {
+  color: var(--clr-primary, #1e40af);
+  border-bottom-color: var(--clr-primary, #1e40af);
+}
+
+/* ---- Summary stat tiles grid ---- */
+.tilesGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+/* ---- Tile card ---- */
+.tile {
+  background: var(--card-bg, white);
+  padding: 18px;
+  border-radius: var(--radius, 12px);
+  box-shadow: var(--shadow-sm, 0 4px 14px rgba(15, 23, 42, 0.06));
+}
+
+.tileLabel {
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+  letter-spacing: 1px;
+  color: var(--text-muted, #64748b);
+  text-transform: uppercase;
+}
+
+.tileValue {
+  font-size: 28px;
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-primary, #0f172a);
+  margin-top: 6px;
+}
+
+.tileSub {
+  font-size: 12px;
+  color: var(--text-muted, #94a3b8);
+  margin-top: 2px;
+}
+
+/* ---- Card (generic white panel) ---- */
+.card {
+  background: var(--card-bg, white);
+  border-radius: var(--radius, 12px);
+  padding: 20px;
+  box-shadow: var(--shadow-sm, 0 4px 14px rgba(15, 23, 42, 0.06));
+}
+
+.cardSectionTitle {
+  font-size: var(--font-xs, 12px);
+  font-weight: var(--fw-bold, 700);
+  letter-spacing: 1px;
+  color: var(--text-secondary, #475569);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+/* ---- Status chips row ---- */
+.statusChipsRow {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.statusChip {
+  flex: 1;
+  min-width: 140px;
+  padding: 14px;
+  border-radius: var(--radius, 10px);
+}
+
+.statusChipLabel {
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.statusChipValue {
+  font-size: 26px;
+  font-weight: var(--fw-bold, 700);
+  margin-top: 4px;
+}
+
+/* ---- Checklists tab layout ---- */
+.checklistsLayout {
+  display: flex;
+  gap: 16px;
+}
+
+.modelList {
+  width: 280px;
+  background: var(--card-bg, white);
+  border-radius: var(--radius, 12px);
+  padding: 12px;
+  box-shadow: var(--shadow-sm, 0 4px 14px rgba(15, 23, 42, 0.06));
+  height: fit-content;
+}
+
+.modelListTitle {
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-muted, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 8px 10px 10px;
+}
+
+.modelBtn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 10px 12px;
+  border-radius: var(--radius, 8px);
+  cursor: pointer;
+  margin-bottom: 4px;
+  transition: background 0.15s;
+}
+
+.modelBtn:hover {
+  background: #f0f6ff;
+}
+
+.modelBtnActive {
+  background: #eff6ff;
+}
+
+.modelBtnName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+}
+
+.modelBtnNameActive {
+  color: var(--clr-primary, #1e40af);
+}
+
+.modelBtnCode {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-muted, #94a3b8);
+  font-family: ui-monospace, monospace;
+  margin-top: 2px;
+}
+
+/* ---- Checklist items panel ---- */
+.checklistPanel {
+  flex: 1;
+  background: var(--card-bg, white);
+  border-radius: var(--radius, 12px);
+  padding: 20px;
+  box-shadow: var(--shadow-sm, 0 4px 14px rgba(15, 23, 42, 0.06));
+}
+
+.checklistPanelTitle {
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-muted, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+.checklistRow {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--surface, #f1f5f9);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.checklistSeq {
+  font-size: 12px;
+  color: var(--text-muted, #94a3b8);
+  font-family: ui-monospace, monospace;
+  min-width: 24px;
+  margin-top: 2px;
+}
+
+.checklistBody {
+  flex: 1;
+}
+
+.checklistPoint {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+}
+
+.checklistDesc {
+  font-size: 12px;
+  color: var(--text-secondary, #64748b);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+/* ---- Inspection form ---- */
+.createForm {
+  background: var(--card-bg, white);
+  padding: 14px;
+  border-radius: var(--radius, 10px);
+  box-shadow: var(--shadow, 0 2px 8px rgba(0, 0, 0, 0.05));
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 14px;
+}
+
+.formField {
+  flex: 2;
+  min-width: 220px;
+}
+
+.formFieldNarrow {
+  flex: 1;
+  min-width: 180px;
+}
+
+.formLabel {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-secondary, #64748b);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.formSelect {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius, 6px);
+  font-size: 13px;
+}
+
+.formHint {
+  font-size: 10px;
+  color: var(--text-muted, #94a3b8);
+  margin-top: 4px;
+}
+
+/* ---- Filter buttons ---- */
+.filterRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.filterBtn {
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--card-bg, white);
+  color: var(--text-secondary, #475569);
+  padding: 6px 12px;
+  border-radius: var(--radius, 6px);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.15s, color 0.15s;
+}
+
+.filterBtn:hover {
+  background: var(--surface, #f1f5f9);
+}
+
+.filterBtnActive {
+  background: var(--clr-primary, #1e40af);
+  color: white;
+  border-color: var(--clr-primary, #1e40af);
+}
+
+/* ---- Primary action button ---- */
+.btnPrimary {
+  border: none;
+  background: var(--clr-primary, #1e40af);
+  color: white;
+  padding: 9px 18px;
+  border-radius: var(--radius, 6px);
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 13px;
+  transition: opacity 0.15s;
+}
+
+.btnPrimary:hover {
+  opacity: 0.88;
+}
+
+/* ---- Table wrapper ---- */
+.tableCard {
+  background: var(--card-bg, white);
+  border-radius: var(--radius, 12px);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm, 0 4px 14px rgba(15, 23, 42, 0.06));
+}
+
+.tableScroll {
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.thead tr {
+  background: var(--surface, #f8fafc);
+  color: var(--text-secondary, #475569);
+  font-size: var(--font-xs, 11px);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.thLeft {
+  text-align: left;
+  padding: 12px;
+}
+
+.thCenter {
+  text-align: center;
+  padding: 12px;
+}
+
+.thRight {
+  text-align: right;
+  padding: 12px;
+}
+
+.tbodyRow {
+  border-bottom: 1px solid var(--surface, #f1f5f9);
+}
+
+.tdMono {
+  padding: 12px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.tdPad {
+  padding: 12px;
+}
+
+.tdCenter {
+  padding: 12px;
+  text-align: center;
+}
+
+.tdRight {
+  padding: 12px;
+  text-align: right;
+}
+
+.tdModelName {
+  font-weight: 600;
+}
+
+.tdModelCode {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-muted, #94a3b8);
+}
+
+.tdInspector {
+  color: var(--text-secondary, #475569);
+}
+
+.tdDate {
+  color: var(--text-muted, #94a3b8);
+  font-size: 12px;
+}
+
+.tdEmpty {
+  padding: 30px;
+  text-align: center;
+  color: var(--text-muted, #94a3b8);
+}
+
+/* ---- Inspect / View button ---- */
+.btnInspect {
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--card-bg, white);
+  padding: 5px 12px;
+  border-radius: var(--radius, 6px);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--clr-primary, #1e40af);
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.btnInspect:hover {
+  background: #eff6ff;
+}
+
+/* ---- NCR advance button ---- */
+.btnAdvance {
+  border: none;
+  background: var(--clr-primary, #1e40af);
+  color: white;
+  padding: 5px 12px;
+  border-radius: var(--radius, 6px);
+  cursor: pointer;
+  font-size: var(--font-xs, 11px);
+  font-weight: 600;
+  transition: opacity 0.15s;
+}
+
+.btnAdvance:hover {
+  opacity: 0.88;
+}
+
+.tdDash {
+  color: var(--text-muted, #94a3b8);
+}
+
+/* ---- NCR desc cell ---- */
+.ncrTitle {
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+}
+
+.ncrDesc {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-muted, #94a3b8);
+  margin-top: 2px;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Inspection Drawer overlay ---- */
+.drawerOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 900;
+}
+
+.drawerPanel {
+  width: 680px;
+  max-width: 100%;
+  background: var(--card-bg, white);
+  padding: 24px;
+  overflow: auto;
+  box-shadow: -20px 0 60px rgba(0, 0, 0, 0.3);
+}
+
+.drawerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.drawerTitle {
+  font-size: 20px;
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-primary, #0f172a);
+}
+
+.drawerMeta {
+  font-size: 13px;
+  color: var(--text-secondary, #64748b);
+  margin-top: 2px;
+}
+
+.drawerStatus {
+  margin-top: 8px;
+}
+
+.drawerCloseBtn {
+  border: none;
+  background: var(--surface, #f1f5f9);
+  padding: 4px 12px;
+  border-radius: var(--radius, 8px);
+  cursor: pointer;
+  font-size: 18px;
+  transition: background 0.15s;
+}
+
+.drawerCloseBtn:hover {
+  background: var(--border, #e2e8f0);
+}
+
+.drawerResultsTitle {
+  font-size: 12px;
+  font-weight: var(--fw-bold, 700);
+  letter-spacing: 1px;
+  color: var(--text-secondary, #475569);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.drawerResultRow {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--surface, #f1f5f9);
+}
+
+.drawerCheckPoint {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+  margin-bottom: 8px;
+}
+
+.resultBtnsRow {
+  display: flex;
+  gap: 6px;
+}
+
+.drawerFinaliseWrap {
+  margin-top: 24px;
+}
+
+.btnFinalise {
+  width: 100%;
+  border: none;
+  color: white;
+  padding: 12px 18px;
+  border-radius: var(--radius, 8px);
+  font-weight: var(--fw-bold, 700);
+  font-size: 14px;
+  transition: opacity 0.15s;
+}
+
+.btnFinaliseReady {
+  background: var(--clr-primary, #1e40af);
+  cursor: pointer;
+}
+
+.btnFinaliseReady:hover {
+  opacity: 0.88;
+}
+
+.btnFinaliseDisabled {
+  background: var(--text-muted, #94a3b8);
+  cursor: not-allowed;
+}
+
+/* ---- Muted loading / error states ---- */
+.textMuted {
+  color: var(--text-muted, #94a3b8);
+}
+
+.textError {
+  color: #b91c1c;
+}
+
+/* ---- Pill (badge) — status/severity chips keep hardcoded badge colors ---- */
+.pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-full, 999px);
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+}
+
+/* ---- Page header wrapper ---- */
+.pageHeaderWrap {
+  margin-bottom: 20px;
+}
+
+/* ---- Dashboard tiles grid wrapper ---- */
+.dashTilesGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+/* ---- Tile card (static parts) — borderTop color is injected via inline style ---- */
+.tileCard {
+  background: var(--card-bg, white);
+  padding: 18px;
+  border-radius: var(--radius-xl, 12px);
+  box-shadow: var(--shadow-md, 0 4px 14px rgba(15, 23, 42, 0.06));
+}
+
+.tileLabelText {
+  font-size: var(--font-xs, 11px);
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--text-muted, #64748b);
+  text-transform: uppercase;
+}
+
+.tileValueText {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  margin-top: 6px;
+}
+
+.tileSubText {
+  font-size: 12px;
+  color: var(--text-muted, #94a3b8);
+  margin-top: 2px;
+}
+
+/* ---- Dashboard status-by-status card ---- */
+.dashStatusCard {
+  background: var(--card-bg, white);
+  border-radius: var(--radius-xl, 12px);
+  padding: 20px;
+  box-shadow: var(--shadow-md, 0 4px 14px rgba(15, 23, 42, 0.06));
+}
+
+.dashStatusCardTitle {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--text-secondary, #475569);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.dashStatusChipsRow {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* ---- Status chip (bg + fg come from STATUS_THEMES → kept as inline style) ---- */
+.statusChipInner {
+  flex: 1;
+  min-width: 140px;
+  padding: 14px;
+  border-radius: var(--radius-lg, 10px);
+}
+
+.statusChipInnerLabel {
+  font-size: var(--font-xs, 11px);
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.statusChipInnerValue {
+  font-size: 26px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+/* ---- Checklist tab outer flex ---- */
+.checklistsFlexRow {
+  display: flex;
+  gap: 16px;
+}
+
+/* ---- Model code span in model list buttons ---- */
+.modelCodeText {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-muted, #94a3b8);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  margin-top: 2px;
+}
+
+/* ---- Checklist item row parts ---- */
+.checklistItemRow {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--surface, #f1f5f9);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.checklistItemSeq {
+  font-size: 12px;
+  color: var(--text-muted, #94a3b8);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  min-width: 24px;
+  margin-top: 2px;
+}
+
+.checklistItemBody {
+  flex: 1;
+}
+
+.checklistItemPoint {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+}
+
+.checklistItemDesc {
+  font-size: 12px;
+  color: var(--text-secondary, #64748b);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+/* ---- Inspection Drawer ---- */
+.drawerOverlayPanel {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 900;
+}
+
+.drawerPanelInner {
+  width: 680px;
+  max-width: 100%;
+  background: var(--card-bg, white);
+  padding: 24px;
+  overflow: auto;
+  box-shadow: -20px 0 60px rgba(0, 0, 0, 0.3);
+}
+
+.drawerHeaderRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.drawerTitleText {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+}
+
+.drawerMetaText {
+  font-size: 13px;
+  color: var(--text-secondary, #64748b);
+  margin-top: 2px;
+}
+
+.drawerStatusWrap {
+  margin-top: 8px;
+}
+
+.drawerCloseBtnEl {
+  border: none;
+  background: var(--surface, #f1f5f9);
+  padding: 4px 12px;
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  font-size: 18px;
+  transition: background 0.15s;
+}
+
+.drawerCloseBtnEl:hover {
+  background: var(--border, #e2e8f0);
+}
+
+.drawerResultsTitleText {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--text-secondary, #475569);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.drawerResultRowItem {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--surface, #f1f5f9);
+}
+
+.drawerCheckPointText {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+  margin-bottom: 8px;
+}
+
+.resultBtnsRowEl {
+  display: flex;
+  gap: 6px;
+}
+
+.drawerFinaliseWrapEl {
+  margin-top: 24px;
+}
+
+/* ---- Finalise button — bg and cursor depend on finalising/pendingCount (dynamic) ---- */
+.btnFinaliseBase {
+  width: 100%;
+  border: none;
+  color: white;
+  padding: 12px 18px;
+  border-radius: var(--radius-md, 8px);
+  font-weight: 700;
+  font-size: 14px;
+  transition: opacity 0.15s;
+}
+
+/* ---- Inspection form ---- */
+.inspectionForm {
+  background: var(--card-bg, white);
+  padding: 14px;
+  border-radius: var(--radius-lg, 10px);
+  box-shadow: var(--shadow, 0 2px 8px rgba(0, 0, 0, 0.05));
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 14px;
+}
+
+.formFieldWide {
+  flex: 2;
+  min-width: 220px;
+}
+
+.formFieldNarrowEl {
+  flex: 1;
+  min-width: 180px;
+}
+
+.formLabelEl {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-secondary, #64748b);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.formSelectEl {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius, 6px);
+  font-size: 13px;
+}
+
+.formHintEl {
+  font-size: 10px;
+  color: var(--text-muted, #94a3b8);
+  margin-top: 4px;
+}
+
+/* ---- Filter row ---- */
+.filterRowEl {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+/* ---- Table card wrapper ---- */
+.tableCardWrap {
+  background: var(--card-bg, white);
+  border-radius: var(--radius-xl, 12px);
+  overflow: hidden;
+  box-shadow: var(--shadow-md, 0 4px 14px rgba(15, 23, 42, 0.06));
+}
+
+.tableScrollWrap {
+  overflow: auto;
+}
+
+.tableEl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.theadRow {
+  background: var(--surface, #f8fafc);
+  color: var(--text-secondary, #475569);
+  font-size: var(--font-xs, 11px);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+/* th alignment helpers */
+.thL {
+  text-align: left;
+  padding: 12px;
+}
+
+.thC {
+  text-align: center;
+  padding: 12px;
+}
+
+.thR {
+  text-align: right;
+  padding: 12px;
+}
+
+/* tbody row */
+.tbodyRowEl {
+  border-bottom: 1px solid var(--surface, #f1f5f9);
+}
+
+/* td variants */
+.tdMonoEl {
+  padding: 12px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+}
+
+.tdPadEl {
+  padding: 12px;
+}
+
+.tdCenterEl {
+  padding: 12px;
+  text-align: center;
+}
+
+.tdRightEl {
+  padding: 12px;
+  text-align: right;
+}
+
+.tdEmptyEl {
+  padding: 30px;
+  text-align: center;
+  color: var(--text-muted, #94a3b8);
+}
+
+/* model name / code inside a td */
+.tdModelNameText {
+  font-weight: 600;
+}
+
+.tdModelCodeText {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-muted, #94a3b8);
+}
+
+/* inspector cell */
+.tdInspectorText {
+  color: var(--text-secondary, #475569);
+}
+
+/* date cell */
+.tdDateText {
+  color: var(--text-muted, #94a3b8);
+  font-size: 12px;
+}
+
+/* pass count cell — always green */
+.tdPassCount {
+  padding: 12px;
+  text-align: center;
+  color: #166534;
+  font-weight: 700;
+}
+
+/* NCR title / desc in checkpoint td */
+.tdNcrTitle {
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+}
+
+.tdNcrDesc {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-muted, #94a3b8);
+  margin-top: 2px;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tdNcrCheckpointCell {
+  padding: 12px;
+  max-width: 360px;
+}
+
+/* dash span */
+.tdDashSpan {
+  color: var(--text-muted, #94a3b8);
+}
+
+/* loading / muted text */
+.textMutedEl {
+  color: var(--text-muted, #94a3b8);
+}
+
+.textMutedPadded {
+  color: var(--text-muted, #94a3b8);
+  padding: 20px;
+}
+
+.textErrorEl {
+  color: #b91c1c;
+}
