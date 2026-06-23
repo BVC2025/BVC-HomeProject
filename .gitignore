@@ -1,0 +1,115 @@
+# =========================
+# ENV FILES
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# NODE / REACT / VITE
+# =========================
+node_modules/
+dist/
+build/
+.vite/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# REACT CACHE
+# =========================
+.eslintcache
+.cache/
+
+# =========================
+# TYPESCRIPT
+# =========================
+*.tsbuildinfo
+
+# =========================
+# PYTHON / FASTAPI
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python Build
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Mypy
+.mypy_cache/
+
+# Ruff
+.ruff_cache/
+
+# =========================
+# DATABASE
+# =========================
+*.db
+*.sqlite
+*.sqlite3
+
+# =========================
+# LOG FILES
+# =========================
+logs/
+*.log
+
+# =========================
+# UPLOADS
+# =========================
+uploads/
+media/
+temp/
+tmp/
+
+# =========================
+# IDE
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# OS FILES
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# SECRETS
+# =========================
+*.pem
+*.key
+*.crt
+*.pfx
+
+# =========================
+# FASTAPI GENERATED
+# =========================
+__pycache__/
+.pytest_cache/
+
+# =========================
+# NEXT / REACT ENV FILES
+# =========================
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
