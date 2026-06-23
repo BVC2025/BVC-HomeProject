@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import API from "../services/api";
+import styles from "./GRNPrint.module.css";
 
 
 // ===================================================================
@@ -47,7 +48,7 @@ function GRNPrint() {
   if (error) {
 
     return (
-      <div style={{ padding: 40, color: "#b91c1c", fontFamily: "Arial" }}>
+      <div className={styles.stateError}>
         Error: {error}
       </div>
     );
@@ -56,7 +57,7 @@ function GRNPrint() {
   if (!grn) {
 
     return (
-      <div style={{ padding: 40, color: "#94a3b8", fontFamily: "Arial" }}>
+      <div className={styles.stateLoading}>
         Loading GRN…
       </div>
     );
@@ -77,117 +78,13 @@ function GRNPrint() {
           .no-print { display: none !important; }
         }
         body { background: #f1f5f9; }
-        .grn-page {
-          width: 210mm; min-height: 297mm; margin: 0 auto;
-          background: white; padding: 18mm;
-          box-shadow: 0 8px 30px rgba(0,0,0,0.1);
-          font-family: Arial, sans-serif; color: #1f2937; font-size: 11.5pt;
-        }
-        .grn-header {
-          display: flex; justify-content: space-between; align-items: flex-start;
-          border-bottom: 3px solid #0ea5e9; padding-bottom: 14px; margin-bottom: 18px;
-        }
-        .vendor-block h1 { margin: 0; font-size: 22pt; color: #0f172a; }
-        .vendor-block .tag {
-          color: #0ea5e9; font-weight: 800; font-size: 9pt;
-          letter-spacing: 1.5px; margin-top: 2px;
-        }
-        .vendor-block .info { font-size: 9pt; color: #475569; line-height: 1.4; margin-top: 8px; }
-        .grn-title { text-align: right; }
-        .grn-title h2 {
-          margin: 0; font-size: 16pt; letter-spacing: 3px; color: #475569;
-        }
-        .grn-title .num { font-size: 13pt; font-weight: 800; color: #0f172a; margin-top: 4px; }
-        .grn-title .meta { font-size: 9pt; color: #64748b; margin-top: 8px; }
-        .status-stamp {
-          display: inline-block;
-          margin-top: 6px;
-          padding: 4px 14px;
-          border-radius: 6px;
-          font-weight: 800;
-          font-size: 11pt;
-          letter-spacing: 2px;
-        }
-        .status-final { background: #dcfce7; color: #166534; border: 2px solid #166534; }
-        .status-draft { background: #fef3c7; color: #854d0e; border: 2px dashed #854d0e; }
-
-        .meta-grid {
-          display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px;
-        }
-        .meta-card {
-          border: 1px solid #e2e8f0; border-radius: 6px;
-          padding: 10px 12px; background: #f8fafc;
-        }
-        .meta-card .label {
-          font-size: 8pt; color: #94a3b8;
-          text-transform: uppercase; letter-spacing: 1.2px;
-        }
-        .meta-card .value { font-size: 11pt; font-weight: 700; color: #0f172a; margin-top: 2px; }
-        .meta-card .sub { font-size: 9pt; color: #475569; }
-
-        table.grn-lines {
-          width: 100%; border-collapse: collapse;
-          margin-bottom: 14px; font-size: 10.5pt;
-        }
-        table.grn-lines thead {
-          background: linear-gradient(135deg,#C8102E,#8B0B1F); color: white;
-        }
-        table.grn-lines th { padding: 8px; text-align: left; font-size: 9.5pt; }
-        table.grn-lines td { padding: 8px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
-        table.grn-lines tbody tr:nth-child(even) td { background: #f8fafc; }
-
-        .totals-box {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 12px;
-          margin: 14px 0 18px;
-        }
-        .totals-tile {
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          padding: 10px 14px;
-          background: #f8fafc;
-        }
-        .totals-tile.accepted { border-left: 4px solid #10b981; }
-        .totals-tile.rejected { border-left: 4px solid #ef4444; }
-        .totals-tile.arrived  { border-left: 4px solid #0ea5e9; }
-        .totals-tile .lbl { font-size: 9pt; color: #64748b; text-transform: uppercase; letter-spacing: 1.2px; }
-        .totals-tile .val { font-size: 18pt; font-weight: 800; margin-top: 2px; color: #0f172a; }
-
-        .rejection-block {
-          background: #fef2f2;
-          border-left: 3px solid #ef4444;
-          padding: 10px 14px;
-          border-radius: 4px;
-          font-size: 10pt;
-          color: #7f1d1d;
-          margin-bottom: 14px;
-        }
-
-        .sig-block {
-          margin-top: 36px; display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 30px; font-size: 10pt;
-        }
-        .sig {
-          text-align: center;
-          border-top: 1px solid #94a3b8;
-          padding-top: 6px; color: #475569;
-        }
-
-        .footer {
-          margin-top: 28px; padding-top: 14px;
-          border-top: 1px solid #e2e8f0;
-          display: flex; justify-content: space-between;
-          font-size: 9pt; color: #64748b;
-        }
       `}</style>
 
-      <div className="grn-page">
+      <div className={styles.grnPage}>
 
-        <div className="grn-header">
+        <div className={styles.grnHeader}>
 
-          <div className="vendor-block">
+          <div className={styles.vendorBlock}>
             <div className="tag">
               {(company?.SHORT_NAME || "BVC24")} · WAREHOUSE
             </div>
@@ -205,7 +102,7 @@ function GRNPrint() {
             </div>
           </div>
 
-          <div className="grn-title">
+          <div className={styles.grnTitle}>
             <h2>GOODS RECEIPT NOTE</h2>
             <div className="num">{grn.GRN_NUMBER}</div>
             <div className="meta">
@@ -217,37 +114,35 @@ function GRNPrint() {
                 </>
               )}
             </div>
-            <div className={
-              "status-stamp " + (grn.STATUS === "FINAL" ? "status-final" : "status-draft")
-            }>
+            <div className={`${styles.statusStamp} ${grn.STATUS === "FINAL" ? styles.statusFinal : styles.statusDraft}`}>
               {grn.STATUS}
             </div>
           </div>
 
         </div>
 
-        <div className="meta-grid">
-          <div className="meta-card">
+        <div className={styles.metaGrid}>
+          <div className={styles.metaCard}>
             <div className="label">Supplier</div>
             <div className="value">{grn.SUPPLIER_NAME || "—"}</div>
             <div className="sub">{grn.SUPPLIER_CODE || ""}</div>
           </div>
-          <div className="meta-card">
+          <div className={styles.metaCard}>
             <div className="label">Received By (Warehouse)</div>
             <div className="value">{grn.RECEIVED_BY_NAME || "—"}</div>
             <div className="sub">{grn.RECEIVED_DATE}</div>
           </div>
         </div>
 
-        <table className="grn-lines">
+        <table className={styles.grnLines}>
           <thead>
             <tr>
-              <th style={{ width: "5%" }}>#</th>
+              <th className={styles.colNum}>#</th>
               <th>Material / Description</th>
-              <th style={{ width: "10%", textAlign: "right" }}>Ordered</th>
-              <th style={{ width: "12%", textAlign: "right" }}>Accepted</th>
-              <th style={{ width: "12%", textAlign: "right" }}>Rejected</th>
-              <th style={{ width: "10%" }}>Unit</th>
+              <th className={styles.colOrdered}>Ordered</th>
+              <th className={styles.colAccepted}>Accepted</th>
+              <th className={styles.colRejected}>Rejected</th>
+              <th className={styles.colUnit}>Unit</th>
             </tr>
           </thead>
           <tbody>
@@ -257,16 +152,21 @@ function GRNPrint() {
                 <td>
                   {l.DESCRIPTION || `PO Line #${l.PO_LINE_ID}`}
                   {Number(l.QUANTITY_REJECTED) > 0 && l.REJECTION_REASON && (
-                    <div style={{ fontSize: "9pt", color: "#b91c1c", marginTop: 2, fontStyle: "italic" }}>
+                    <div className={styles.rejectNote}>
                       Reject reason: {l.REJECTION_REASON}
                     </div>
                   )}
                 </td>
-                <td style={{ textAlign: "right", color: "#475569" }}>{l.ORDERED || "—"}</td>
-                <td style={{ textAlign: "right", fontWeight: 700, color: "#047857" }}>
+                <td className={styles.cellOrdered}>{l.ORDERED || "—"}</td>
+                <td className={styles.cellAccepted}>
                   {l.QUANTITY_RECEIVED || 0}
                 </td>
-                <td style={{ textAlign: "right", fontWeight: 700, color: Number(l.QUANTITY_REJECTED) > 0 ? "#b91c1c" : "#cbd5e1" }}>
+                {/* Rejected qty color is runtime-dynamic: red when > 0, muted otherwise */}
+                <td style={{
+                  textAlign: "right",
+                  fontWeight: 700,
+                  color: Number(l.QUANTITY_REJECTED) > 0 ? "#b91c1c" : "#cbd5e1"
+                }}>
                   {l.QUANTITY_REJECTED || 0}
                 </td>
                 <td>{l.UNIT || "—"}</td>
@@ -275,43 +175,43 @@ function GRNPrint() {
           </tbody>
         </table>
 
-        <div className="totals-box">
-          <div className="totals-tile arrived">
+        <div className={styles.totalsBox}>
+          <div className={`${styles.totalsTile} ${styles.totalsTileArrived}`}>
             <div className="lbl">Total Arrived</div>
             <div className="val">{(totalAccepted + totalRejected).toFixed(2)}</div>
-            <div style={{ fontSize: "8.5pt", color: "#64748b", marginTop: 2 }}>
+            <div className={styles.tileSubText}>
               accepted + rejected
             </div>
           </div>
-          <div className="totals-tile accepted">
+          <div className={`${styles.totalsTile} ${styles.totalsTileAccepted}`}>
             <div className="lbl">✅ Accepted</div>
-            <div className="val" style={{ color: "#047857" }}>{totalAccepted.toFixed(2)}</div>
-            <div style={{ fontSize: "8.5pt", color: "#64748b", marginTop: 2 }}>
+            <div className={`val ${styles.valAccepted}`}>{totalAccepted.toFixed(2)}</div>
+            <div className={styles.tileSubText}>
               added to inventory
             </div>
           </div>
-          <div className="totals-tile rejected">
+          <div className={`${styles.totalsTile} ${styles.totalsTileRejected}`}>
             <div className="lbl">❌ Rejected</div>
-            <div className="val" style={{ color: "#b91c1c" }}>{totalRejected.toFixed(2)}</div>
-            <div style={{ fontSize: "8.5pt", color: "#64748b", marginTop: 2 }}>
+            <div className={`val ${styles.valRejected}`}>{totalRejected.toFixed(2)}</div>
+            <div className={styles.tileSubText}>
               sent back / debit note
             </div>
           </div>
         </div>
 
         {grn.NOTES && (
-          <div className="rejection-block" style={{ background: "#fffbeb", borderColor: "#f59e0b", color: "#78350f" }}>
+          <div className={styles.notesBlock}>
             <b>Notes:</b> {grn.NOTES}
           </div>
         )}
 
-        <div className="sig-block">
-          <div className="sig">Supplier Representative</div>
-          <div className="sig">Warehouse Supervisor</div>
-          <div className="sig">QC / Inspection</div>
+        <div className={styles.sigBlock}>
+          <div className={styles.sig}>Supplier Representative</div>
+          <div className={styles.sig}>Warehouse Supervisor</div>
+          <div className={styles.sig}>QC / Inspection</div>
         </div>
 
-        <div className="footer">
+        <div className={styles.footer}>
           <span>
             Generated by BVC24 ERP · {new Date().toLocaleString("en-IN")}
             {grn.STATUS === "FINAL" && grn.FINALIZED_AT && (
@@ -322,16 +222,8 @@ function GRNPrint() {
         </div>
       </div>
 
-      <div className="no-print" style={{
-        position: "fixed", top: 16, right: 16, background: "white",
-        border: "1px solid #e2e8f0", borderRadius: 8, padding: 8,
-        boxShadow: "0 6px 20px rgba(0,0,0,0.1)"
-      }}>
-        <button onClick={() => window.print()} style={{
-          border: "none", background: "linear-gradient(135deg,#C8102E,#8B0B1F)",
-          color: "white", padding: "8px 18px", borderRadius: 6,
-          fontWeight: 700, cursor: "pointer"
-        }}>
+      <div className={`no-print ${styles.printButtonWrap}`}>
+        <button onClick={() => window.print()} className={styles.printButton}>
           🖨️ Print / Save as PDF
         </button>
       </div>

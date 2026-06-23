@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 
 import API from "../services/api";
+import styles from "./PublicQuotation.module.css";
 
 
 // ===================================================================
@@ -170,7 +171,7 @@ function NegotiationChat({ token, quotationStatus, onTotalsUpdated }) {
           position: fixed;
           right: 24px;
           bottom: 24px;
-          background: linear-gradient(135deg, #C8102E, #8B0B1F);
+          background: #ef4444;
           color: white;
           border: none;
           border-radius: 999px;
@@ -205,7 +206,7 @@ function NegotiationChat({ token, quotationStatus, onTotalsUpdated }) {
           to   { transform: translateY(0);    opacity: 1; }
         }
         .nego-header {
-          background: linear-gradient(135deg, #C8102E, #8B0B1F);
+          background: #ef4444;
           color: white;
           padding: 14px 16px;
           display: flex;
@@ -244,7 +245,7 @@ function NegotiationChat({ token, quotationStatus, onTotalsUpdated }) {
           white-space: pre-wrap;
         }
         .nego-msg.customer .bubble {
-          background: linear-gradient(135deg, #C8102E, #8B0B1F);
+          background: #ef4444;
           color: white;
           border-bottom-right-radius: 4px;
         }
@@ -268,7 +269,7 @@ function NegotiationChat({ token, quotationStatus, onTotalsUpdated }) {
         .nego-tag.DECLINE      { background:#fee2e2; color:#991b1b; }
         .nego-tag.INFO_ONLY    { background:#e0f2fe; color:#075985; }
         .nego-update-banner {
-          background: linear-gradient(135deg,#10b981,#059669);
+          background: #10b981;
           color: white;
           padding: 10px 12px;
           border-radius: 10px;
@@ -297,9 +298,9 @@ function NegotiationChat({ token, quotationStatus, onTotalsUpdated }) {
           font-size: 13px;
           outline: none;
         }
-        .nego-input-row input:focus { border-color: #C8102E; }
+        .nego-input-row input:focus { border-color: #ef4444; }
         .nego-input-row button {
-          background: linear-gradient(135deg, #C8102E, #8B0B1F);
+          background: #ef4444;
           color: white;
           border: none;
           padding: 0 16px;
@@ -513,26 +514,11 @@ function PublicQuotation() {
   if (error) {
 
     return (
-      <div style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#f1f5f9",
-        fontFamily: "Arial",
-        color: "#b91c1c"
-      }}>
-        <div style={{
-          background: "white",
-          padding: 40,
-          borderRadius: 12,
-          boxShadow: "0 6px 30px rgba(0,0,0,0.1)",
-          textAlign: "center",
-          maxWidth: 480
-        }}>
-          <div style={{ fontSize: 50, marginBottom: 14 }}>🔒</div>
-          <h2 style={{ margin: "0 0 12px", color: "#0f172a" }}>Link not available</h2>
-          <div style={{ color: "#64748b", fontSize: 14 }}>
+      <div className={styles.errorPage}>
+        <div className={styles.errorCard}>
+          <div className={styles.errorIcon}>🔒</div>
+          <h2 className={styles.errorTitle}>Link not available</h2>
+          <div className={styles.errorText}>
             This quotation link may be invalid, expired, or no longer
             available. Please contact the sender at <b>contact@bvc24.in</b>.
           </div>
@@ -544,14 +530,7 @@ function PublicQuotation() {
   if (!q) {
 
     return (
-      <div style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#f1f5f9",
-        color: "#94a3b8"
-      }}>
+      <div className={styles.loadingPage}>
         Loading quotation…
       </div>
     );
@@ -576,7 +555,7 @@ function PublicQuotation() {
         .public-action-bar {
           max-width: 210mm;
           margin: 0 auto 16px;
-          background: linear-gradient(135deg,#C8102E,#8B0B1F);
+          background: #ef4444;
           color: white;
           padding: 14px 22px;
           border-radius: 12px;
@@ -674,7 +653,7 @@ function PublicQuotation() {
           margin-bottom: 14px; font-size: 10.5pt;
         }
         table.lines thead {
-          background: linear-gradient(135deg,#C8102E,#8B0B1F);
+          background: #ef4444;
           color: white;
         }
         table.lines th { padding: 8px; text-align: left; font-size: 9.5pt; }
@@ -724,16 +703,11 @@ function PublicQuotation() {
               From Bharath Vending Corporation · Valid till {q.EXPIRY_DATE}
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center" }}>
+          <div className={styles.actionBarRight}>
 
             {isFinal && (
               <span
-                className="status-badge"
-                style={{
-                  background: q.STATUS === "APPROVED" ? "#dcfce7" : "#fef3c7",
-                  color: q.STATUS === "APPROVED" ? "#166534" : "#854d0e",
-                  marginRight: 10
-                }}
+                className={`status-badge ${q.STATUS === "APPROVED" ? styles.badgeApproved : styles.badgePending}`}
               >
                 {q.STATUS}
               </span>
@@ -799,7 +773,7 @@ function PublicQuotation() {
             <div className="meta-card">
               <div className="label">Prepared By</div>
               <div className="value">{q.PREPARED_BY_NAME || "—"}</div>
-              <div className="sub" style={{ marginTop: 8 }}>
+              <div className={`sub ${styles.subMargin}`}>
                 <span className="label">Tax Rate</span><br/>
                 GST {q.TAX_PERCENT}%
               </div>
@@ -809,14 +783,14 @@ function PublicQuotation() {
           <table className="lines">
             <thead>
               <tr>
-                <th style={{ width: "5%" }}>#</th>
+                <th className={styles.colNum}>#</th>
                 <th>Description</th>
-                <th style={{ width: "12%" }}>HSN</th>
-                <th style={{ width: "8%", textAlign: "right" }}>Qty</th>
-                <th style={{ width: "8%" }}>Unit</th>
-                <th style={{ width: "13%", textAlign: "right" }}>Rate</th>
-                <th style={{ width: "8%", textAlign: "right" }}>Disc</th>
-                <th style={{ width: "16%", textAlign: "right" }}>Amount</th>
+                <th className={styles.colHsn}>HSN</th>
+                <th className={styles.colQty}>Qty</th>
+                <th className={styles.colUnit}>Unit</th>
+                <th className={styles.colRate}>Rate</th>
+                <th className={styles.colDisc}>Disc</th>
+                <th className={styles.colAmt}>Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -825,11 +799,11 @@ function PublicQuotation() {
                   <td>{idx + 1}</td>
                   <td>{l.DESCRIPTION}</td>
                   <td>{l.HSN_CODE || "—"}</td>
-                  <td style={{ textAlign: "right" }}>{l.QUANTITY}</td>
+                  <td className={styles.tdRight}>{l.QUANTITY}</td>
                   <td>{l.UNIT}</td>
-                  <td style={{ textAlign: "right" }}>{inr(l.UNIT_PRICE)}</td>
-                  <td style={{ textAlign: "right" }}>{l.DISCOUNT_PERCENT}%</td>
-                  <td style={{ textAlign: "right", fontWeight: 700 }}>{inr(l.LINE_TOTAL)}</td>
+                  <td className={styles.tdRight}>{inr(l.UNIT_PRICE)}</td>
+                  <td className={styles.tdRight}>{l.DISCOUNT_PERCENT}%</td>
+                  <td className={styles.tdRightBold}>{inr(l.LINE_TOTAL)}</td>
                 </tr>
               ))}
             </tbody>

@@ -1,0 +1,1871 @@
+/* ==========================================================================
+   Customers.module.css — CSS Modules migration
+   All colours via CSS vars; no hardcoded hex/rgba/fonts except semantic
+   badge accent colours (status chips) which are intentional design tokens.
+   ========================================================================== */
+
+/* ------------------------------------------------------------------ */
+/* Layout — page wrapper                                               */
+/* ------------------------------------------------------------------ */
+
+.pageWrapper {
+  padding: 26px;
+  background: var(--layout-bg);
+  min-height: 100%;
+}
+
+/* ------------------------------------------------------------------ */
+/* Keyframe animations (kept here, referenced by .card)                */
+/* ------------------------------------------------------------------ */
+
+@keyframes custFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ------------------------------------------------------------------ */
+/* Hero banner                                                          */
+/* ------------------------------------------------------------------ */
+
+.hero {
+  background: var(--clr-primary);
+  color: #fff;
+  padding: 20px 28px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 22px;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.heroLabel {
+  font-size: var(--font-xs);
+  letter-spacing: 2px;
+  color: #f59e0b;
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+}
+
+.heroTitle {
+  font-size: 22px;
+  font-weight: var(--fw-bold);
+  margin: 4px 0 0;
+  line-height: 1.2;
+  color: #fff;
+  letter-spacing: -0.3px;
+}
+
+.heroActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.heroBtnOutline {
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  padding: 10px 18px;
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  transition: background 0.15s;
+}
+
+.heroBtnOutline:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.heroBtnSolid {
+  background: var(--card-bg);
+  color: #dc2626;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-weight: var(--fw-extrabold);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: box-shadow 0.15s;
+}
+
+.heroBtnSolid:hover {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+}
+
+/* ------------------------------------------------------------------ */
+/* Stat tiles grid                                                      */
+/* ------------------------------------------------------------------ */
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+/* StatTile — most styles are dynamic (color prop), so only structural
+   classes are needed here. */
+
+.statTile {
+  background: var(--card-bg);
+  padding: 18px 20px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.statTileIcon {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  opacity: 0.6;
+  display: flex;
+}
+
+.statTileLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.statTileValue {
+  font-size: 28px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  margin-top: 4px;
+  letter-spacing: -0.5px;
+}
+
+.statTileSub {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Search + filter bar                                                  */
+/* ------------------------------------------------------------------ */
+
+.filterBar {
+  background: var(--card-bg);
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.searchWrap {
+  position: relative;
+  flex: 1;
+  min-width: 260px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  display: flex;
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 10px 14px 10px 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  box-sizing: border-box;
+}
+
+.filterSelect {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+}
+
+.filterCount {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: 6px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Cards grid + empty states                                            */
+/* ------------------------------------------------------------------ */
+
+.cardsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+}
+
+.loadingMsg {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.emptyState {
+  padding: 50px;
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--border);
+}
+
+/* ------------------------------------------------------------------ */
+/* Customer card                                                        */
+/* ------------------------------------------------------------------ */
+
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  padding: 18px;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  animation: custFadeIn 0.4s ease-out both;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.14);
+}
+
+/* Coloured top accent bar — background set dynamically via inline style */
+.cardAccentBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+}
+
+/* Card action buttons */
+.cardBtnQuote {
+  position: absolute;
+  top: 10px;
+  right: 78px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius);
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #dc2626;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 5;
+  transition: background 0.15s;
+}
+
+.cardBtnQuote:hover {
+  background: #fee2e2;
+}
+
+.cardBtnEdit {
+  position: absolute;
+  top: 10px;
+  right: 44px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 5;
+  transition: background 0.15s;
+}
+
+.cardBtnEdit:hover {
+  background: var(--border);
+}
+
+.cardBtnDelete {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius);
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  z-index: 5;
+  transition: background 0.15s;
+}
+
+.cardBtnDelete:hover {
+  background: #fee2e2;
+}
+
+.cardBtnDelete:disabled {
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: default;
+}
+
+/* Avatar header row */
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+/* Avatar circle — background/shadow set dynamically via inline style */
+.cardAvatar {
+  width: 50px;
+  height: 50px;
+  border-radius: var(--radius-lg);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: var(--fw-extrabold);
+  flex-shrink: 0;
+}
+
+.cardMeta {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardCode {
+  font-size: var(--font-xs);
+  font-family: ui-monospace, monospace;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+.cardName {
+  font-size: 15px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardBadgeRow {
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.highPriorityBadge {
+  font-size: 9px;
+  font-weight: var(--fw-extrabold);
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  background: #fee2e2;
+  color: #991b1b;
+  letter-spacing: 0.4px;
+}
+
+/* Sales owner banner */
+.salesOwnerBanner {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  background: var(--surface);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--border);
+}
+
+/* Follow-up banner */
+.followUpBanner {
+  font-size: var(--font-xs);
+  color: #92400e;
+  margin-bottom: 10px;
+  background: #fef3c7;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid #fde68a;
+}
+
+/* Contact info block */
+.contactBlock {
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.contactName {
+  color: var(--text-primary);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.contactRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.contactRowTruncate {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contactRowTruncate span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.contactLocation {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Tag chips row */
+.tagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+/* Semantic badge accent colours — intentional hardcoded exceptions */
+.tagIndustry {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.tagSource {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.tagGst {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-family: ui-monospace, monospace;
+}
+
+/* View profile footer */
+.cardFooter {
+  padding: 8px 12px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  font-weight: var(--fw-bold);
+  text-align: center;
+  letter-spacing: 0.4px;
+  border: 1px solid var(--border);
+  transition: background 0.15s;
+}
+
+.card:hover .cardFooter {
+  background: var(--border);
+}
+
+/* ------------------------------------------------------------------ */
+/* Status pills                                                         */
+/* ------------------------------------------------------------------ */
+
+.statusPill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.leadStatusPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* ------------------------------------------------------------------ */
+/* CustomerEditor slide-in panel                                        */
+/* ------------------------------------------------------------------ */
+
+.editorOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.editorPanel {
+  width: 720px;
+  max-width: 94%;
+  background: var(--card-bg);
+  overflow: auto;
+  padding: 26px;
+  box-shadow: -24px 0 60px rgba(0, 0, 0, 0.35);
+}
+
+.editorHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.editorHeaderLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1.4px;
+  color: #06b6d4;
+  text-transform: uppercase;
+}
+
+.editorHeaderTitle {
+  font-size: 22px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+
+.editorHeaderSub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.editorCloseBtn {
+  border: none;
+  background: var(--surface);
+  padding: 4px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 20px;
+}
+
+/* Section heading rows inside the form */
+.formSectionHeading {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.formSectionHeadingCyan  { color: #06b6d4; }
+.formSectionHeadingBlue  { color: #3b82f6; }
+.formSectionHeadingGreen { color: #10b981; }
+.formSectionHeadingGray  { color: var(--text-primary); }
+.formSectionHeadingPurple{ color: #8b5cf6; }
+.formSectionHeadingAmber { color: #f59e0b; }
+
+.formSectionBadge {
+  background: var(--surface);
+  color: var(--text-secondary);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+}
+
+/* 2-col, 3-col, 4-col grids */
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.grid4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+/* Lead pipeline + Machine requested sub-panels */
+.subPanel {
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+/* FormField label */
+.fieldLabel {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.5px;
+  display: block;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+/* Standard form input / select / textarea */
+.input {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  font-family: inherit;
+  background: var(--card-bg);
+}
+
+.inputError {
+  border-color: #dc2626;
+}
+
+.errorMsg {
+  color: #dc2626;
+  font-size: var(--font-xs);
+  margin-top: 3px;
+}
+
+/* "Save first" hint box */
+.saveHintBox {
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 18px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Sub-section boxes (requirements / quotations in edit mode) */
+.subSection {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom: 18px;
+}
+
+/* Form action row */
+.formActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.btnCancel {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  padding: 10px 22px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: var(--font-sm);
+}
+
+/* Primary submit — uses flat red (no gradient) */
+.btnSubmit {
+  border: none;
+  background: var(--clr-primary);
+  color: #fff;
+  padding: 10px 26px;
+  border-radius: var(--radius);
+  font-weight: var(--fw-extrabold);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(200, 16, 46, 0.35);
+  transition: background 0.15s;
+}
+
+.btnSubmit:hover {
+  background: #dc2626;
+}
+
+.btnSubmit:disabled {
+  background: var(--text-muted);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* RequirementsManager                                                  */
+/* ------------------------------------------------------------------ */
+
+.reqHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.reqTitle {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1.4px;
+  color: var(--text-primary);
+  text-transform: uppercase;
+}
+
+.reqAddBtn {
+  border: none;
+  background: var(--text-primary);
+  color: #fff;
+  padding: 7px 14px;
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reqList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.reqItem {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--layout-bg);
+}
+
+.reqItemRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.reqItemName {
+  font-weight: var(--fw-bold);
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.reqItemMeta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.reqItemSite {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.reqItemNotes {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  font-style: italic;
+}
+
+.reqItemActions {
+  display: flex;
+  gap: 6px;
+}
+
+.reqBtnConvert {
+  border: 1px solid var(--border);
+  background: var(--text-primary);
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+}
+
+.reqBtnEdit {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  padding: 5px 8px;
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-secondary);
+}
+
+.reqBtnDelete {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
+.reqEmpty {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 18px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  margin-bottom: 18px;
+}
+
+.reqLoading {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 12px;
+}
+
+/* RequirementForm */
+.reqForm {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: 16px;
+  margin-bottom: 18px;
+}
+
+.reqFormTitle {
+  font-size: 12px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  letter-spacing: 0.8px;
+}
+
+.reqFormGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.reqFormActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.reqFormCancelBtn {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.reqFormSaveBtn {
+  border: none;
+  background: var(--text-primary);
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.reqFormSaveBtn:disabled {
+  background: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------------------------------ */
+/* CustomerQuotationsSection                                            */
+/* ------------------------------------------------------------------ */
+
+.quotHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.quotTitle {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1.4px;
+  color: var(--text-primary);
+  text-transform: uppercase;
+}
+
+.quotActions {
+  display: flex;
+  gap: 6px;
+}
+
+/* "Create from requirements" — flat red */
+.quotBtnCreate {
+  border: none;
+  background: var(--clr-primary);
+  color: #fff;
+  padding: 7px 14px;
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.quotBtnCreate:hover {
+  background: #dc2626;
+}
+
+.quotBtnOpen {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  padding: 7px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.quotList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.quotRow {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: var(--card-bg);
+  display: grid;
+  grid-template-columns: 150px 1fr 110px 100px 130px;
+  gap: 12px;
+  align-items: center;
+}
+
+.quotNumber {
+  font-size: 12px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+}
+
+.quotDate {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+.quotExpLabel {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.quotExpDate {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.quotTotalLabel {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.quotTotal {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-extrabold);
+  color: #047857;
+}
+
+.quotBtnView {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+.quotEmpty {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+}
+
+/* ------------------------------------------------------------------ */
+/* RequirementPickerModal                                               */
+/* ------------------------------------------------------------------ */
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  z-index: 1100;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.pickerModal {
+  width: 640px;
+  max-width: 94%;
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+}
+
+.pickerTitle {
+  font-size: 17px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.pickerNoReqs {
+  padding: 16px;
+  background: #fef3c7;
+  border-radius: var(--radius);
+  color: #854d0e;
+  font-size: var(--font-sm);
+  margin-bottom: 12px;
+}
+
+.pickerHint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.pickerList {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  max-height: 280px;
+  overflow: auto;
+  margin-bottom: 14px;
+}
+
+.pickerRow {
+  display: flex;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--surface);
+  cursor: pointer;
+}
+
+.pickerRowSelected {
+  background: #f0fdf4;
+}
+
+.pickerRowDefault {
+  background: var(--card-bg);
+}
+
+.pickerRowName {
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+}
+
+.pickerRowMeta {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.pickerStatusBadge {
+  font-size: 9px;
+  font-weight: var(--fw-bold);
+  color: var(--text-secondary);
+  background: var(--surface);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  height: fit-content;
+}
+
+.pickerMarginRow {
+  margin-bottom: 14px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.pickerMarginLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: var(--fw-bold);
+}
+
+.pickerMarginInput {
+  width: 100px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+}
+
+.pickerActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.pickerCancelBtn {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  padding: 9px 18px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: var(--font-sm);
+}
+
+/* Picker confirm — flat red */
+.pickerConfirmBtn {
+  border: none;
+  background: var(--clr-primary);
+  color: #fff;
+  padding: 9px 22px;
+  border-radius: var(--radius);
+  font-weight: var(--fw-extrabold);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(200, 16, 46, 0.35);
+  transition: background 0.15s;
+}
+
+.pickerConfirmBtn:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.pickerConfirmBtn:disabled {
+  background: var(--text-muted);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* GenerateQuotationModal + InviteCustomerModal shared modal shell     */
+/* ------------------------------------------------------------------ */
+
+.fullModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: 20px;
+}
+
+.fullModal {
+  width: min(680px, 100%);
+  max-height: 92vh;
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+}
+
+.fullModalWide {
+  width: min(720px, 100%);
+  max-height: 92vh;
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+}
+
+/* Modal header strip — flat red */
+.modalHeader {
+  background: var(--clr-primary);
+  color: #fff;
+  padding: 20px 24px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modalHeaderLabel {
+  font-size: 10px;
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 2px;
+  opacity: 0.85;
+}
+
+.modalHeaderTitle {
+  margin: 4px 0 0;
+  font-size: 18px;
+}
+
+.modalCloseBtn {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border: none;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.modalBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 22px;
+}
+
+/* Customer header card inside GenerateQuotation modal */
+.quotModalCustCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  margin-bottom: 18px;
+}
+
+.quotModalAvatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--text-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--fw-extrabold);
+  font-size: 16px;
+}
+
+.quotModalCustLabel {
+  font-size: 10px;
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 1.2px;
+  color: var(--text-secondary);
+}
+
+.quotModalCustName {
+  font-size: 15px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quotModalCustCode {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  font-family: ui-monospace, monospace;
+  margin-top: 1px;
+}
+
+/* Error banners */
+.errBannerRed {
+  padding: 10px 12px;
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  margin-bottom: 14px;
+}
+
+.errBannerOrange {
+  padding: 14px;
+  background: #fff7ed;
+  color: #7c2d12;
+  border: 1px solid #fed7aa;
+  border-radius: 10px;
+  font-size: var(--font-sm);
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+
+.errBannerOrangeTitle {
+  font-weight: var(--fw-extrabold);
+  margin-bottom: 4px;
+}
+
+/* "Open customer → Add requirement" CTA button — flat red */
+.errOpenCustBtn {
+  padding: 10px 16px;
+  background: var(--clr-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: var(--fw-extrabold);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(200, 16, 46, 0.35);
+  transition: background 0.15s;
+}
+
+.errOpenCustBtn:hover {
+  background: #dc2626;
+}
+
+/* Quotation form 2-col grid */
+.quotFormGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+/* Auto-send checkbox row */
+.autoSendRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  margin-bottom: 16px;
+}
+
+.autoSendTitle {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.autoSendSub {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* "What will be auto-filled" callout */
+.autoFillCallout {
+  background: #fffbeb;
+  border: 1px solid #f59e0b;
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.autoFillCalloutLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 1.2px;
+  color: #8B4500;
+  margin-bottom: 6px;
+}
+
+.autoFillCalloutList {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: #7c2d12;
+  line-height: 1.7;
+}
+
+/* Modal form action row */
+.modalFormActions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.modalCancelBtn {
+  padding: 11px 18px;
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+  cursor: pointer;
+}
+
+/* Primary modal submit — flat red */
+.modalSubmitBtn {
+  padding: 11px 22px;
+  background: var(--clr-primary);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-weight: var(--fw-extrabold);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(200, 16, 46, 0.35);
+  transition: background 0.15s;
+}
+
+.modalSubmitBtn:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.modalSubmitBtn:disabled {
+  background: var(--text-muted);
+  cursor: wait;
+  box-shadow: none;
+}
+
+/* Quotation generated success panel */
+.quotSuccessPanel {
+  background: #f0fdf4;
+  border: 1px solid #16a34a;
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  margin-bottom: 8px;
+}
+
+.quotSuccessLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 1.5px;
+  color: #14532d;
+  margin-bottom: 8px;
+}
+
+.quotSuccessNumber {
+  font-size: 20px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+
+.quotSuccessMeta {
+  font-size: var(--font-sm);
+  color: #166534;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+.quotEmailedBadge {
+  margin-top: 12px;
+  display: inline-block;
+  padding: 6px 12px;
+  background: #16a34a;
+  color: #fff;
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 0.5px;
+}
+
+.quotEmailFailBanner {
+  margin-top: 12px;
+  padding: 8px 12px;
+  background: #fff7ed;
+  color: #7c2d12;
+  border: 1px solid #fed7aa;
+  border-radius: var(--radius);
+  font-size: 12px;
+}
+
+.quotWarnPanel {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius);
+}
+
+.quotWarnLabel {
+  font-size: 10px;
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 1px;
+  color: #92400e;
+  margin-bottom: 4px;
+}
+
+.quotWarnList {
+  margin: 0;
+  padding-left: 18px;
+  font-size: var(--font-xs);
+  color: #78350f;
+  line-height: 1.5;
+}
+
+.quotSuccessActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+/* "Open Quotation" — flat red */
+.quotOpenBtn {
+  padding: 10px 18px;
+  background: var(--clr-primary);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-weight: var(--fw-extrabold);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(200, 16, 46, 0.35);
+  transition: background 0.15s;
+}
+
+.quotOpenBtn:hover {
+  background: #dc2626;
+}
+
+/* "Copy public link" — toggles green when copied */
+.quotCopyBtn {
+  padding: 10px 14px;
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-weight: var(--fw-bold);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.quotCopyBtnCopied {
+  padding: 10px 14px;
+  background: #16a34a;
+  color: #fff;
+  border: 1px solid #16a34a;
+  border-radius: 10px;
+  font-weight: var(--fw-bold);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.quotCloseBtn {
+  padding: 10px 14px;
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-weight: var(--fw-bold);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* ------------------------------------------------------------------ */
+/* InviteCustomerModal                                                  */
+/* ------------------------------------------------------------------ */
+
+.inviteBody {
+  margin: 0 0 16px;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  line-height: 1.5;
+}
+
+.inviteFormGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+/* Invite submit — flat red */
+.inviteSubmitBtn {
+  padding: 11px 22px;
+  background: var(--clr-primary);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-weight: var(--fw-extrabold);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(200, 16, 46, 0.35);
+  transition: background 0.15s;
+}
+
+.inviteSubmitBtn:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.inviteSubmitBtn:disabled {
+  cursor: wait;
+  background: var(--text-muted);
+  box-shadow: none;
+}
+
+.inviteResultPanel {
+  background: #fffbeb;
+  border: 1px solid #f59e0b;
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+
+.inviteResultLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 1.5px;
+  color: #8B4500;
+  margin-bottom: 8px;
+}
+
+.inviteResultUrl {
+  background: var(--card-bg);
+  padding: 10px;
+  border-radius: var(--radius);
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  word-break: break-all;
+  color: var(--text-primary);
+  border: 1px solid #fcd34d;
+}
+
+.inviteResultActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.inviteCopyBtn {
+  padding: 8px 14px;
+  background: var(--text-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.inviteCopyBtnCopied {
+  padding: 8px 14px;
+  background: #16a34a;
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.inviteOpenLink {
+  padding: 8px 14px;
+  background: var(--clr-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  font-size: 12px;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.inviteGenerateAnotherBtn {
+  padding: 8px 14px;
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.inviteEmailSent {
+  margin-top: 10px;
+  font-size: var(--font-xs);
+  color: #166534;
+}
+
+.inviteEmailFail {
+  margin-top: 10px;
+  font-size: var(--font-xs);
+  color: #854d0e;
+}
+
+/* Pending invitations list */
+.pendingSection {
+  margin-top: 22px;
+}
+
+.pendingHeader {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 1.4px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pendingRefreshBtn {
+  font-size: 10px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  padding: 3px 8px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.3px;
+}
+
+.pendingEmpty {
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 14px;
+  text-align: center;
+}
+
+.pendingTable {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.pendingTableHead {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 70px 70px 90px 80px;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface);
+  font-size: 9px;
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.pendingTableRow {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 70px 70px 90px 80px;
+  gap: 8px;
+  padding: 10px 12px;
+  align-items: center;
+  font-size: 12px;
+  border-bottom: 1px solid var(--surface);
+}
+
+.pendingName {
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.pendingSub {
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.pendingDeleteBtn {
+  padding: 6px 8px;
+  background: var(--card-bg);
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-sm, 6px);
+  font-size: 10px;
+  cursor: pointer;
+  font-weight: var(--fw-bold);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Field / inviteInputStyle shared atoms                                */
+/* ------------------------------------------------------------------ */
+
+.fieldAtomLabel {
+  display: block;
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  letter-spacing: 0.5px;
+}
+
+.inviteInput {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  font-family: inherit;
+  background: var(--card-bg);
+  box-sizing: border-box;
+}

@@ -5,6 +5,7 @@ import API from "../services/api";
 import TablePagination from "../components/TablePagination";
 
 import IconButton from "../components/IconButton";
+import styles from "./Organization.module.css";
 
 const VENDOR_ID = 1;
 
@@ -15,11 +16,11 @@ function Organization() {
 
   return (
 
-    <div>
+    <div className={styles.page}>
 
       <h1>Organization Setup</h1>
 
-      <p style={{ color: "#64748b", marginBottom: 18 }}>
+      <p className={styles.pageDesc}>
         Define your company's departments, designations, and
         roles. This is the foundation — employees, projects,
         and permissions all build on top.
@@ -27,23 +28,10 @@ function Organization() {
 
       <SeedBar />
 
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          marginBottom: 16,
-          borderBottom: "1px solid #e5e7eb"
-        }}
-      >
-        <Tab id="departments" current={tab} onSelect={setTab}>
-          Departments
-        </Tab>
-        <Tab id="designations" current={tab} onSelect={setTab}>
-          Designations
-        </Tab>
-        <Tab id="roles" current={tab} onSelect={setTab}>
-          Roles & Permissions
-        </Tab>
+      <div className={styles.tabBar}>
+        <Tab id="departments" current={tab} onSelect={setTab}>Departments</Tab>
+        <Tab id="designations" current={tab} onSelect={setTab}>Designations</Tab>
+        <Tab id="roles" current={tab} onSelect={setTab}>Roles & Permissions</Tab>
       </div>
 
       {tab === "departments" && <DepartmentsTab />}
@@ -63,19 +51,7 @@ function Tab({ id, current, onSelect, children }) {
     <button
       type="button"
       onClick={() => onSelect(id)}
-      style={{
-        padding: "10px 18px",
-        background: "transparent",
-        border: "none",
-        borderBottom: active
-          ? "3px solid #2563eb"
-          : "3px solid transparent",
-        color: active ? "#2563eb" : "#64748b",
-        fontWeight: active ? 700 : 500,
-        fontSize: 14,
-        cursor: "pointer",
-        marginBottom: -1
-      }}
+      className={`${styles.tab}${active ? ` ${styles.tabActive}` : ""}`}
     >
       {children}
     </button>
@@ -137,62 +113,27 @@ function SeedBar() {
 
   return (
 
-    <div
-      style={{
-        background: "#f0f9ff",
-        border: "1px solid #7dd3fc",
-        borderRadius: 8,
-        padding: 14,
-        marginBottom: 18,
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        flexWrap: "wrap"
-      }}
-    >
-      <div style={{ flex: 1, minWidth: 200 }}>
-        <strong style={{ color: "#0c4a6e" }}>
-          One-click setup
-        </strong>
-        <div style={{ fontSize: 12, color: "#0369a1", marginTop: 2 }}>
-          Pick an industry preset and we'll seed standard
-          departments, designations, roles, and permissions.
-          Idempotent — safe to re-run.
+    <div className={styles.seedBar}>
+      <div className={styles.seedBarContent}>
+        <strong className={styles.seedBarTitle}>One-click setup</strong>
+        <div className={styles.seedBarDesc}>
+          Pick an industry preset and we'll seed standard departments,
+          designations, roles, and permissions. Idempotent — safe to re-run.
         </div>
       </div>
 
-      <select
-        value={chosen}
-        onChange={(e) => setChosen(e.target.value)}
-        style={selectStyle}
-      >
+      <select value={chosen} onChange={(e) => setChosen(e.target.value)} className={styles.select}>
         {presets.map((p) => (
-          <option key={p.key} value={p.key}>
-            {p.label}
-          </option>
+          <option key={p.key} value={p.key}>{p.label}</option>
         ))}
       </select>
 
-      <button
-        type="button"
-        onClick={runSeed}
-        disabled={busy}
-        style={primaryBtnStyle}
-      >
+      <button type="button" onClick={runSeed} disabled={busy} className={styles.primaryBtn}>
         {busy ? "Seeding…" : "Run seed"}
       </button>
 
       {msg && (
-        <div
-          style={{
-            width: "100%",
-            padding: 8,
-            borderRadius: 6,
-            fontSize: 12,
-            color: msg.ok ? "#166534" : "#b91c1c",
-            background: msg.ok ? "#dcfce7" : "#fee2e2"
-          }}
-        >
+        <div className={`${styles.seedMsg} ${msg.ok ? styles.seedMsgOk : styles.seedMsgFail}`}>
           {msg.text}
         </div>
       )}
@@ -361,7 +302,7 @@ function DepartmentsTab() {
               <th>ID</th>
               <th>Code</th>
               <th>Name</th>
-              <th style={{ minWidth: 260 }}>
+              <th className={styles.thHead}>
                 Head / Supervisor
               </th>
               <th>Actions</th>
@@ -369,7 +310,7 @@ function DepartmentsTab() {
           </thead>
           <tbody>
             {rows.length === 0 && (
-              <tr><td colSpan={5} style={{ color: "#6b7280" }}>
+              <tr><td colSpan={5} className={styles.tdEmpty}>
                 No departments yet. Run the seed above or add manually.
               </td></tr>
             )}
@@ -433,40 +374,18 @@ function DepartmentsTab() {
                 <td><strong>{d.CODE}</strong></td>
                 <td>{d.NAME}</td>
                 <td>
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 8,
-                      alignItems: "center",
-                      flexWrap: "wrap"
-                    }}
-                  >
+                  <div className={styles.headRow}>
                     <select
                       value={currentValue}
                       onChange={(e) =>
-                        setPendingHead((p) => ({
-                          ...p,
-                          [d.ID]: e.target.value
-                        }))
+                        setPendingHead((p) => ({ ...p, [d.ID]: e.target.value }))
                       }
-                      style={{
-                        padding: "6px 10px",
-                        border: "1px solid #d1d5db",
-                        borderRadius: 6,
-                        background: "#fff",
-                        fontSize: 13,
-                        minWidth: 200
-                      }}
+                      className={styles.headSelect}
                     >
                       <option value="">— no head set —</option>
                       {candidates.map((e) => {
-
-                        const sameDept =
-                          e.DEPARTMENT?.ID === d.ID ||
-                          e.DEPARTMENT_ID === d.ID;
-
+                        const sameDept = e.DEPARTMENT?.ID === d.ID || e.DEPARTMENT_ID === d.ID;
                         return (
-
                           <option key={e.ID} value={e.ID}>
                             {sameDept ? "★ " : ""}
                             {e.NAME} ({e.EMPLOYEE_CODE})
@@ -480,46 +399,17 @@ function DepartmentsTab() {
                       type="button"
                       onClick={() => setHead(d.ID, currentValue)}
                       disabled={!isDirty}
-                      style={{
-                        padding: "6px 14px",
-                        borderRadius: 6,
-                        border: "none",
-                        fontWeight: 700,
-                        fontSize: 12,
-                        cursor: isDirty ? "pointer" : "default",
-                        color: "white",
-                        background: isDirty
-                          ? "linear-gradient(135deg, #2563eb, #1e40af)"
-                          : "#cbd5e1",
-                        transition: "all 0.15s"
-                      }}
+                      className={`${styles.saveBtn}${!isDirty ? ` ${styles.saveBtnDisabled}` : ""}`}
                     >
                       Save
                     </button>
 
-                    {wasJustSaved && (
-                      <span
-                        style={{
-                          fontSize: 11,
-                          color: "#16a34a",
-                          fontWeight: 700
-                        }}
-                      >
-                        ✓ saved
-                      </span>
-                    )}
+                    {wasJustSaved && <span className={styles.savedConfirm}>✓ saved</span>}
                   </div>
 
                   {d.HEAD_EMPLOYEE_ID && !isDirty && (
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: "#64748b",
-                        marginTop: 4
-                      }}
-                    >
-                      Current head:{" "}
-                      <strong>{employeeName(d.HEAD_EMPLOYEE_ID)}</strong>
+                    <div className={styles.headInfo}>
+                      Current head: <strong>{employeeName(d.HEAD_EMPLOYEE_ID)}</strong>
                     </div>
                   )}
                 </td>
@@ -640,22 +530,12 @@ function DesignationsTab() {
 
     <div>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 12,
-          flexWrap: "wrap"
-        }}
-      >
-        <label style={{ fontWeight: 600, color: "#374151" }}>
-          Filter by department:
-        </label>
+      <div className={styles.filterRow}>
+        <label className={styles.filterLabel}>Filter by department:</label>
         <select
           value={filterDept}
           onChange={(e) => setFilterDept(e.target.value)}
-          style={selectStyle}
+          className={styles.select}
         >
           <option value="">All departments</option>
           {depts.map((d) => (
@@ -676,7 +556,7 @@ function DesignationsTab() {
         <select
           value={deptId}
           onChange={(e) => setDeptId(e.target.value)}
-          style={selectStyle}
+          className={styles.select}
         >
           <option value="">— Department —</option>
           {depts.map((d) => (
@@ -707,7 +587,7 @@ function DesignationsTab() {
           </thead>
           <tbody>
             {visible.length === 0 && (
-              <tr><td colSpan={5} style={{ color: "#6b7280" }}>
+              <tr><td colSpan={5} className={styles.tdEmpty}>
                 No designations. Run the seed or add manually.
               </td></tr>
             )}
@@ -857,204 +737,69 @@ function RolesTab() {
 
   return (
 
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "240px 1fr",
-        gap: 16
-      }}
-    >
+    <div className={styles.rolesLayout}>
       {/* Role list */}
-      <div
-        style={{
-          border: "1px solid #e5e7eb",
-          borderRadius: 8,
-          padding: 8,
-          background: "#fff",
-          maxHeight: "70vh",
-          overflowY: "auto"
-        }}
-      >
-        <div
-          style={{
-            fontSize: 12,
-            color: "#64748b",
-            textTransform: "uppercase",
-            padding: "6px 8px",
-            fontWeight: 700
-          }}
-        >
-          Roles
-        </div>
+      <div className={styles.roleListPanel}>
+        <div className={styles.roleListTitle}>Roles</div>
 
         {roles.length === 0 && (
-          <div style={{ padding: 12, color: "#6b7280", fontSize: 13 }}>
-            No roles yet. Run the seed above.
-          </div>
+          <div className={styles.roleListEmpty}>No roles yet. Run the seed above.</div>
         )}
 
         {roles.map((r) => {
-
           const isActive = r.ID === activeRoleId;
-
           return (
             <button
               key={r.ID}
               type="button"
               onClick={() => selectRole(r)}
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "left",
-                padding: "10px 12px",
-                marginBottom: 4,
-                background: isActive ? "#eff6ff" : "transparent",
-                border: "1px solid "
-                  + (isActive ? "#2563eb" : "transparent"),
-                borderRadius: 6,
-                cursor: "pointer",
-                color: "#0f172a",
-                fontSize: 13,
-                fontWeight: isActive ? 700 : 500
-              }}
+              className={`${styles.roleBtn}${isActive ? ` ${styles.roleBtnActive}` : ""}`}
             >
               {r.ROLE_NAME}
               {r.IS_SYSTEM ? (
-                <span
-                  style={{
-                    fontSize: 9,
-                    marginLeft: 6,
-                    padding: "1px 5px",
-                    borderRadius: 3,
-                    background: "#dbeafe",
-                    color: "#1e40af",
-                    fontWeight: 600
-                  }}
-                >
-                  SYSTEM
-                </span>
+                <span className={styles.roleBtnBadge}>SYSTEM</span>
               ) : null}
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "#64748b",
-                  fontWeight: 400,
-                  marginTop: 2
-                }}
-              >
-                {r.PERMISSION_IDS.length} permissions
-              </div>
+              <div className={styles.roleBtnCount}>{r.PERMISSION_IDS.length} permissions</div>
             </button>
           );
         })}
       </div>
 
       {/* Permission grid */}
-      <div
-        style={{
-          border: "1px solid #e5e7eb",
-          borderRadius: 8,
-          padding: 16,
-          background: "#fff"
-        }}
-      >
+      <div className={styles.permPanel}>
         {!activeRole && (
-          <p style={{ color: "#6b7280", margin: 0 }}>
-            Pick a role on the left to manage its permissions.
-          </p>
+          <p className={styles.permPanelEmpty}>Pick a role on the left to manage its permissions.</p>
         )}
 
         {activeRole && (
           <>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 14
-              }}
-            >
+            <div className={styles.permPanelHeader}>
               <div>
-                <h3 style={{ margin: 0 }}>
-                  {activeRole.ROLE_NAME}
-                </h3>
+                <h3 className={styles.roleHeading}>{activeRole.ROLE_NAME}</h3>
                 {activeRole.DESCRIPTION && (
-                  <div
-                    style={{ fontSize: 12, color: "#64748b" }}
-                  >
-                    {activeRole.DESCRIPTION}
-                  </div>
+                  <div className={styles.permPanelDesc}>{activeRole.DESCRIPTION}</div>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={save}
-                disabled={saving}
-                style={primaryBtnStyle}
-              >
+              <button type="button" onClick={save} disabled={saving} className={styles.primaryBtn}>
                 {saving ? "Saving…" : "Save permissions"}
               </button>
             </div>
 
             {Object.keys(byCategory).sort().map((cat) => (
-              <div key={cat} style={{ marginBottom: 16 }}>
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: "#0f172a",
-                    textTransform: "uppercase",
-                    letterSpacing: 0.5,
-                    marginBottom: 6,
-                    paddingBottom: 4,
-                    borderBottom: "1px solid #e5e7eb"
-                  }}
-                >
-                  {cat}
-                </div>
-
+              <div key={cat} className={styles.permCategory}>
+                <div className={styles.permCatTitle}>{cat}</div>
                 {byCategory[cat].map((p) => {
-
                   const isOn = selectedPerms.has(p.ID);
-
                   return (
                     <label
                       key={p.ID}
-                      style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: 8,
-                        padding: "6px 8px",
-                        borderRadius: 4,
-                        cursor: "pointer",
-                        background: isOn ? "#f0fdf4" : "transparent"
-                      }}
+                      className={`${styles.permItem}${isOn ? ` ${styles.permItemOn}` : ""}`}
                     >
-                      <input
-                        type="checkbox"
-                        checked={isOn}
-                        onChange={() => toggle(p.ID)}
-                        style={{ marginTop: 3 }}
-                      />
+                      <input type="checkbox" checked={isOn} onChange={() => toggle(p.ID)} className={styles.permCheckbox} />
                       <div>
-                        <div
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 600,
-                            color: "#0f172a"
-                          }}
-                        >
-                          {p.NAME}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 11,
-                            color: "#64748b",
-                            fontFamily: "monospace"
-                          }}
-                        >
-                          {p.CODE}
-                          {p.DESCRIPTION ? " — " + p.DESCRIPTION : ""}
+                        <div className={styles.permName}>{p.NAME}</div>
+                        <div className={styles.permMeta}>
+                          {p.CODE}{p.DESCRIPTION ? " — " + p.DESCRIPTION : ""}
                         </div>
                       </div>
                     </label>
@@ -1070,26 +815,6 @@ function RolesTab() {
 }
 
 
-const selectStyle = {
-  padding: "10px",
-  borderRadius: 8,
-  border: "1px solid #d1d5db",
-  background: "#fff",
-  fontSize: 14,
-  minWidth: 180
-};
-
-
-const primaryBtnStyle = {
-  padding: "8px 16px",
-  borderRadius: 8,
-  border: "none",
-  background: "#2563eb",
-  color: "#fff",
-  fontSize: 13,
-  fontWeight: 600,
-  cursor: "pointer"
-};
 
 
 export default Organization;

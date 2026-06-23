@@ -1,0 +1,263 @@
+/* VoiceLeaveTest.module.css */
+
+/* ---- Card shell ---- */
+.card {
+  background: var(--card-bg);
+  /* amber accent border — acceptable exception for POC badge */
+  border: 1px solid #fde68a;
+  border-left: 4px solid #f59e0b;
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---- Badge row ---- */
+.badgeRow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.pocBadge {
+  font-size: 9px;
+  font-weight: var(--fw-extrabold);
+  /* amber label — acceptable exception */
+  color: #92400e;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.pocSub {
+  font-size: 11px;
+  color: #92400e;
+  opacity: 0.7;
+}
+
+/* ---- Title / description ---- */
+.title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
+}
+
+.description {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ---- Unsupported warning ---- */
+.unsupported {
+  /* error — status chip exception */
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+/* ---- Language picker ---- */
+.langSection {
+  margin-bottom: 14px;
+}
+
+.langLabel {
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  color: var(--text-muted);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.langRow {
+  display: flex;
+  gap: 6px;
+}
+
+.langBtn {
+  flex: 1;
+  padding: 8px 6px;
+  border-radius: 8px;
+  font-weight: var(--fw-extrabold);
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+}
+
+.langBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Active language button — red accent exception (brand color) */
+.langBtnActive {
+  border-color: var(--clr-primary);
+  background: var(--surface, #fee2e2);
+  color: var(--clr-primary);
+}
+
+/* ---- Mic button area ---- */
+.micArea {
+  text-align: center;
+  margin: 8px 0 16px;
+}
+
+.micBtn {
+  width: 96px;
+  height: 96px;
+  border-radius: var(--radius-full);
+  border: none;
+  background: var(--clr-primary);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.micBtn:disabled {
+  background: var(--border, #cbd5e1);
+  cursor: not-allowed;
+}
+
+.micBtnListening {
+  box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.15),
+    0 6px 24px rgba(185, 28, 28, 0.4);
+  animation: voicePulse 1.4s ease-in-out infinite;
+}
+
+.micBtnIdle {
+  box-shadow: 0 4px 14px rgba(139, 11, 31, 0.30);
+}
+
+@keyframes voicePulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.15),
+      0 6px 24px rgba(185, 28, 28, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 14px rgba(239, 68, 68, 0.05),
+      0 6px 24px rgba(185, 28, 28, 0.4);
+  }
+}
+
+.micLabel {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.micLabelListening {
+  color: var(--clr-primary, #b91c1c);
+}
+
+.micLabelIdle {
+  color: var(--text-muted);
+}
+
+/* ---- Transcript box ---- */
+.transcriptBox {
+  background: var(--surface, #f8fafc);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  min-height: 90px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-primary);
+}
+
+.transcriptPlaceholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.transcriptInterim {
+  color: var(--text-muted);
+}
+
+/* ---- Confidence + diagnostic row ---- */
+.diagRow {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Confidence chips — status color exceptions */
+.confHigh {
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: #dcfce7;
+  color: #166534;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.3px;
+}
+
+.confMid {
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.3px;
+}
+
+.confLow {
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  background: #fee2e2;
+  color: #991b1b;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.3px;
+}
+
+.clearBtn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.clearBtn:hover {
+  opacity: 0.7;
+}
+
+/* ---- Error box ---- */
+.errorBox {
+  margin-top: 12px;
+  padding: 10px 12px;
+  /* error — status chip exception */
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  font-size: 12px;
+}

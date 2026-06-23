@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import API from "../services/api";
+import styles from "./Quality.module.css";
 
 
 // ----------------------------------------------------------------
@@ -41,15 +42,8 @@ function Pill({ themes, value, label }) {
   return (
 
     <span
-      style={{
-        display: "inline-block",
-        padding: "3px 10px",
-        borderRadius: 999,
-        fontSize: 11,
-        fontWeight: 700,
-        background: t.bg,
-        color: t.fg
-      }}
+      className={styles.pill}
+      style={{ background: t.bg, color: t.fg }}
     >
       {label || value?.replaceAll("_", " ")}
     </span>
@@ -62,47 +56,20 @@ function Tile({ label, value, sub, color }) {
   return (
 
     <div
-      style={{
-        background: "white",
-        padding: 18,
-        borderRadius: 12,
-        boxShadow: "0 4px 14px rgba(15,23,42,0.06)",
-        borderTop: `3px solid ${color}`
-      }}
+      className={styles.tileCard}
+      style={{ borderTop: `3px solid ${color}` }}
     >
 
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: 1,
-          color: "#64748b",
-          textTransform: "uppercase"
-        }}
-      >
+      <div className={styles.tileLabelText}>
         {label}
       </div>
 
-      <div
-        style={{
-          fontSize: 28,
-          fontWeight: 700,
-          color: "#0f172a",
-          marginTop: 6
-        }}
-      >
+      <div className={styles.tileValueText}>
         {value}
       </div>
 
       {sub && (
-
-        <div
-          style={{
-            fontSize: 12,
-            color: "#94a3b8",
-            marginTop: 2
-          }}
-        >
+        <div className={styles.tileSubText}>
           {sub}
         </div>
       )}
@@ -130,22 +97,15 @@ function DashboardTab() {
 
   }, []);
 
-  if (loading) return <div style={{ color: "#94a3b8" }}>Loading…</div>;
+  if (loading) return <div className={styles.textMutedEl}>Loading…</div>;
 
-  if (!data) return <div style={{ color: "#b91c1c" }}>Failed to load.</div>;
+  if (!data) return <div className={styles.textErrorEl}>Failed to load.</div>;
 
   return (
 
     <div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 14,
-          marginBottom: 20
-        }}
-      >
+      <div className={styles.dashTilesGrid}>
 
         <Tile
           label="Pass Rate"
@@ -175,50 +135,27 @@ function DashboardTab() {
         />
       </div>
 
-      <div
-        style={{
-          background: "white",
-          borderRadius: 12,
-          padding: 20,
-          boxShadow: "0 4px 14px rgba(15,23,42,0.06)"
-        }}
-      >
+      <div className={styles.dashStatusCard}>
 
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: 1,
-            color: "#475569",
-            textTransform: "uppercase",
-            marginBottom: 14
-          }}
-        >
+        <div className={styles.dashStatusCardTitle}>
           Inspections by Status
         </div>
 
-        <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+        <div className={styles.dashStatusChipsRow}>
 
           {Object.entries(data.by_status || {}).map(([status, count]) => (
 
             <div
               key={status}
+              className={styles.statusChipInner}
               style={{
-                flex: 1,
-                minWidth: 140,
-                padding: 14,
-                borderRadius: 10,
-                background:
-                  (STATUS_THEMES[status] || {}).bg || "#f1f5f9"
+                background: (STATUS_THEMES[status] || {}).bg || "#f1f5f9"
               }}
             >
 
               <div
+                className={styles.statusChipInnerLabel}
                 style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: 0.8,
-                  textTransform: "uppercase",
                   color: (STATUS_THEMES[status] || {}).fg || "#475569"
                 }}
               >
@@ -226,11 +163,9 @@ function DashboardTab() {
               </div>
 
               <div
+                className={styles.statusChipInnerValue}
                 style={{
-                  fontSize: 26,
-                  fontWeight: 700,
-                  color: (STATUS_THEMES[status] || {}).fg || "#0f172a",
-                  marginTop: 4
+                  color: (STATUS_THEMES[status] || {}).fg || "#0f172a"
                 }}
               >
                 {count}
@@ -286,30 +221,12 @@ function ChecklistsTab() {
 
   return (
 
-    <div style={{ display: "flex", gap: 16 }}>
+    <div className={styles.checklistsFlexRow}>
 
       {/* Model list */}
-      <div
-        style={{
-          width: 280,
-          background: "white",
-          borderRadius: 12,
-          padding: 12,
-          boxShadow: "0 4px 14px rgba(15,23,42,0.06)",
-          height: "fit-content"
-        }}
-      >
+      <div className={styles.modelList}>
 
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: "#64748b",
-            textTransform: "uppercase",
-            letterSpacing: 1,
-            padding: "8px 10px 10px"
-          }}
-        >
+        <div className={styles.modelListTitle}>
           Machine Models
         </div>
 
@@ -318,38 +235,16 @@ function ChecklistsTab() {
           <button
             key={m.ID}
             onClick={() => setSelectedId(m.ID)}
-            style={{
-              display: "block",
-              width: "100%",
-              textAlign: "left",
-              border: "none",
-              background:
-                selectedId === m.ID ? "#eff6ff" : "transparent",
-              padding: "10px 12px",
-              borderRadius: 8,
-              cursor: "pointer",
-              marginBottom: 4
-            }}
+            className={`${styles.modelBtn}${selectedId === m.ID ? ` ${styles.modelBtnActive}` : ""}`}
           >
 
             <div
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: selectedId === m.ID ? "#1e40af" : "#0f172a"
-              }}
+              className={`${styles.modelBtnName}${selectedId === m.ID ? ` ${styles.modelBtnNameActive}` : ""}`}
             >
               {m.MODEL_NAME}
             </div>
 
-            <div
-              style={{
-                fontSize: 11,
-                color: "#94a3b8",
-                fontFamily: "ui-monospace, monospace",
-                marginTop: 2
-              }}
-            >
+            <div className={styles.modelCodeText}>
               {m.MODEL_CODE}
             </div>
           </button>
@@ -357,36 +252,19 @@ function ChecklistsTab() {
       </div>
 
       {/* Checklist items */}
-      <div
-        style={{
-          flex: 1,
-          background: "white",
-          borderRadius: 12,
-          padding: 20,
-          boxShadow: "0 4px 14px rgba(15,23,42,0.06)"
-        }}
-      >
+      <div className={styles.checklistPanel}>
 
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: "#64748b",
-            textTransform: "uppercase",
-            letterSpacing: 1,
-            marginBottom: 12
-          }}
-        >
+        <div className={styles.checklistPanelTitle}>
           Pre-Dispatch Checklist ({items.length} items)
         </div>
 
         {loadingItems && (
-          <div style={{ color: "#94a3b8" }}>Loading…</div>
+          <div className={styles.textMutedEl}>Loading…</div>
         )}
 
         {!loadingItems && items.length === 0 && (
 
-          <div style={{ color: "#94a3b8", padding: 20 }}>
+          <div className={styles.textMutedPadded}>
             No checklist items for this model. Re-run{" "}
             <code>/demo/seed-bvc24</code> to populate.
           </div>
@@ -394,51 +272,21 @@ function ChecklistsTab() {
 
         {items.map((it) => (
 
-          <div
-            key={it.ID}
-            style={{
-              padding: "12px 14px",
-              borderBottom: "1px solid #f1f5f9",
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 12
-            }}
-          >
+          <div key={it.ID} className={styles.checklistItemRow}>
 
-            <div
-              style={{
-                fontSize: 12,
-                color: "#94a3b8",
-                fontFamily: "ui-monospace, monospace",
-                minWidth: 24,
-                marginTop: 2
-              }}
-            >
+            <div className={styles.checklistItemSeq}>
               {it.SEQUENCE}.
             </div>
 
-            <div style={{ flex: 1 }}>
+            <div className={styles.checklistItemBody}>
 
-              <div
-                style={{
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: "#0f172a"
-                }}
-              >
+              <div className={styles.checklistItemPoint}>
                 {it.CHECK_POINT}
               </div>
 
               {it.DESCRIPTION && (
 
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "#64748b",
-                    marginTop: 4,
-                    lineHeight: 1.5
-                  }}
-                >
+                <div className={styles.checklistItemDesc}>
                   {it.DESCRIPTION}
                 </div>
               )}
@@ -544,57 +392,24 @@ function InspectionDrawer({ inspectionId, onClose, onChanged }) {
   return (
 
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,0.5)",
-        display: "flex",
-        justifyContent: "flex-end",
-        zIndex: 900
-      }}
+      className={styles.drawerOverlayPanel}
       onClick={onClose}
     >
 
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 680,
-          maxWidth: "100%",
-          background: "white",
-          padding: 24,
-          overflow: "auto",
-          boxShadow: "-20px 0 60px rgba(0,0,0,0.3)"
-        }}
+        className={styles.drawerPanelInner}
       >
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            marginBottom: 18
-          }}
-        >
+        <div className={styles.drawerHeaderRow}>
 
           <div>
 
-            <div
-              style={{
-                fontSize: 20,
-                fontWeight: 700,
-                color: "#0f172a"
-              }}
-            >
+            <div className={styles.drawerTitleText}>
               Inspection #{insp?.ID}
             </div>
 
-            <div
-              style={{
-                fontSize: 13,
-                color: "#64748b",
-                marginTop: 2
-              }}
-            >
+            <div className={styles.drawerMetaText}>
               {insp?.WO_NUMBER}
               {" · "}
               {insp?.MODEL_NAME}
@@ -602,69 +417,40 @@ function InspectionDrawer({ inspectionId, onClose, onChanged }) {
               by {insp?.INSPECTOR_NAME || "—"}
             </div>
 
-            <div style={{ marginTop: 8 }}>
+            <div className={styles.drawerStatusWrap}>
               <Pill themes={STATUS_THEMES} value={insp?.STATUS} />
             </div>
           </div>
 
           <button
             onClick={onClose}
-            style={{
-              border: "none",
-              background: "#f1f5f9",
-              padding: "4px 12px",
-              borderRadius: 8,
-              cursor: "pointer",
-              fontSize: 18
-            }}
+            className={styles.drawerCloseBtnEl}
           >
             ×
           </button>
         </div>
 
-        {loading && <div style={{ color: "#94a3b8" }}>Loading…</div>}
+        {loading && <div className={styles.textMutedEl}>Loading…</div>}
 
         {!loading && (
 
           <>
 
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: 1,
-                color: "#475569",
-                textTransform: "uppercase",
-                marginBottom: 10
-              }}
-            >
+            <div className={styles.drawerResultsTitleText}>
               Checklist Results ({results.length} items, {pendingCount} pending)
             </div>
 
             {results.map((r) => (
 
-              <div
-                key={r.ID}
-                style={{
-                  padding: "14px 0",
-                  borderBottom: "1px solid #f1f5f9"
-                }}
-              >
+              <div key={r.ID} className={styles.drawerResultRowItem}>
 
-                <div
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: "#0f172a",
-                    marginBottom: 8
-                  }}
-                >
+                <div className={styles.drawerCheckPointText}>
                   {r.CHECK_POINT}
                 </div>
 
                 {canFinalise ? (
 
-                  <div style={{ display: "flex", gap: 6 }}>
+                  <div className={styles.resultBtnsRowEl}>
 
                     {["PASS", "FAIL", "NEEDS_REWORK", "NA"].map((v) => {
 
@@ -708,27 +494,15 @@ function InspectionDrawer({ inspectionId, onClose, onChanged }) {
 
             {canFinalise && (
 
-              <div style={{ marginTop: 24 }}>
+              <div className={styles.drawerFinaliseWrapEl}>
 
                 <button
                   onClick={finalise}
                   disabled={finalising || pendingCount > 0}
+                  className={styles.btnFinaliseBase}
                   style={{
-                    width: "100%",
-                    border: "none",
-                    background:
-                      finalising || pendingCount > 0
-                        ? "#94a3b8"
-                        : "#1e40af",
-                    color: "white",
-                    padding: "12px 18px",
-                    borderRadius: 8,
-                    fontWeight: 700,
-                    cursor:
-                      finalising || pendingCount > 0
-                        ? "not-allowed"
-                        : "pointer",
-                    fontSize: 14
+                    background: finalising || pendingCount > 0 ? "#94a3b8" : "#1e40af",
+                    cursor: finalising || pendingCount > 0 ? "not-allowed" : "pointer"
                   }}
                 >
                   {finalising
@@ -868,42 +642,19 @@ function InspectionsTab() {
 
       <form
         onSubmit={createInspection}
-        style={{
-          background: "white",
-          padding: 14,
-          borderRadius: 10,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-          display: "flex",
-          gap: 10,
-          flexWrap: "wrap",
-          alignItems: "flex-end",
-          marginBottom: 14
-        }}
+        className={styles.inspectionForm}
       >
 
-        <div style={{ flex: 2, minWidth: 220 }}>
+        <div className={styles.formFieldWide}>
 
-          <label
-            style={{
-              fontSize: 11,
-              color: "#64748b",
-              display: "block",
-              marginBottom: 4
-            }}
-          >
+          <label className={styles.formLabelEl}>
             Work Order
           </label>
 
           <select
             value={createWO}
             onChange={(e) => setCreateWO(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "8px 10px",
-              border: "1px solid #e2e8f0",
-              borderRadius: 6,
-              fontSize: 13
-            }}
+            className={styles.formSelectEl}
           >
             <option value="">Pick a work order…</option>
             {wos.map((w) => (
@@ -914,29 +665,16 @@ function InspectionsTab() {
           </select>
         </div>
 
-        <div style={{ flex: 1, minWidth: 180 }}>
+        <div className={styles.formFieldNarrowEl}>
 
-          <label
-            style={{
-              fontSize: 11,
-              color: "#64748b",
-              display: "block",
-              marginBottom: 4
-            }}
-          >
+          <label className={styles.formLabelEl}>
             Inspector (optional)
           </label>
 
           <select
             value={createInspector}
             onChange={(e) => setCreateInspector(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "8px 10px",
-              border: "1px solid #e2e8f0",
-              borderRadius: 6,
-              fontSize: 13
-            }}
+            className={styles.formSelectEl}
           >
             <option value="">— none —</option>
             {qaEmployees.length === 0 && (
@@ -951,102 +689,50 @@ function InspectionsTab() {
             ))}
           </select>
 
-          <div
-            style={{
-              fontSize: 10,
-              color: "#94a3b8",
-              marginTop: 4
-            }}
-          >
+          <div className={styles.formHintEl}>
             Filtered to employees with QA / inspection skills.
           </div>
         </div>
 
         <button
           type="submit"
-          style={{
-            border: "none",
-            background: "#1e40af",
-            color: "white",
-            padding: "9px 18px",
-            borderRadius: 6,
-            fontWeight: 600,
-            cursor: "pointer",
-            fontSize: 13
-          }}
+          className={styles.btnPrimary}
         >
           + Start Inspection
         </button>
       </form>
 
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          marginBottom: 14,
-          flexWrap: "wrap"
-        }}
-      >
+      <div className={styles.filterRowEl}>
 
         {["", "PENDING", "PASS", "FAIL", "REWORK"].map((s) => (
 
           <button
             key={s || "all"}
             onClick={() => setStatusFilter(s)}
-            style={{
-              border: "1px solid #e2e8f0",
-              background: statusFilter === s ? "#1e40af" : "white",
-              color: statusFilter === s ? "white" : "#475569",
-              padding: "6px 12px",
-              borderRadius: 6,
-              cursor: "pointer",
-              fontSize: 12,
-              fontWeight: 600
-            }}
+            className={`${styles.filterBtn}${statusFilter === s ? ` ${styles.filterBtnActive}` : ""}`}
           >
             {s || "All"}
           </button>
         ))}
       </div>
 
-      <div
-        style={{
-          background: "white",
-          borderRadius: 12,
-          overflow: "hidden",
-          boxShadow: "0 4px 14px rgba(15,23,42,0.06)"
-        }}
-      >
+      <div className={styles.tableCardWrap}>
 
-        <div style={{ overflow: "auto" }}>
+        <div className={styles.tableScrollWrap}>
 
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: 13
-            }}
-          >
+          <table className={styles.tableEl}>
 
             <thead>
-              <tr
-                style={{
-                  background: "#f8fafc",
-                  color: "#475569",
-                  fontSize: 11,
-                  letterSpacing: 0.8,
-                  textTransform: "uppercase"
-                }}
-              >
-                <th style={{ textAlign: "left", padding: 12 }}>#</th>
-                <th style={{ textAlign: "left", padding: 12 }}>WO</th>
-                <th style={{ textAlign: "left", padding: 12 }}>Model</th>
-                <th style={{ textAlign: "left", padding: 12 }}>Inspector</th>
-                <th style={{ textAlign: "left", padding: 12 }}>Date</th>
-                <th style={{ textAlign: "center", padding: 12 }}>Pass</th>
-                <th style={{ textAlign: "center", padding: 12 }}>Fail</th>
-                <th style={{ textAlign: "left", padding: 12 }}>Status</th>
-                <th style={{ textAlign: "right", padding: 12 }}>Action</th>
+              <tr className={styles.theadRow}>
+                <th className={styles.thL}>#</th>
+                <th className={styles.thL}>WO</th>
+                <th className={styles.thL}>Model</th>
+                <th className={styles.thL}>Inspector</th>
+                <th className={styles.thL}>Date</th>
+                <th className={styles.thC}>Pass</th>
+                <th className={styles.thC}>Fail</th>
+                <th className={styles.thL}>Status</th>
+                <th className={styles.thR}>Action</th>
               </tr>
             </thead>
 
@@ -1055,14 +741,7 @@ function InspectionsTab() {
               {loading && (
 
                 <tr>
-                  <td
-                    colSpan="9"
-                    style={{
-                      padding: 30,
-                      textAlign: "center",
-                      color: "#94a3b8"
-                    }}
-                  >
+                  <td colSpan="9" className={styles.tdEmptyEl}>
                     Loading…
                   </td>
                 </tr>
@@ -1071,14 +750,7 @@ function InspectionsTab() {
               {!loading && inspections.length === 0 && (
 
                 <tr>
-                  <td
-                    colSpan="9"
-                    style={{
-                      padding: 30,
-                      textAlign: "center",
-                      color: "#94a3b8"
-                    }}
-                  >
+                  <td colSpan="9" className={styles.tdEmptyEl}>
                     No inspections. Start one above.
                   </td>
                 </tr>
@@ -1086,78 +758,46 @@ function InspectionsTab() {
 
               {inspections.map((i) => (
 
-                <tr
-                  key={i.ID}
-                  style={{ borderBottom: "1px solid #f1f5f9" }}
-                >
+                <tr key={i.ID} className={styles.tbodyRowEl}>
 
-                  <td
-                    style={{
-                      padding: 12,
-                      fontFamily: "ui-monospace, monospace",
-                      fontSize: 12
-                    }}
-                  >
+                  <td className={styles.tdMonoEl}>
                     #{i.ID}
                   </td>
 
-                  <td
-                    style={{
-                      padding: 12,
-                      fontFamily: "ui-monospace, monospace",
-                      fontSize: 12
-                    }}
-                  >
+                  <td className={styles.tdMonoEl}>
                     {i.WO_NUMBER || "—"}
                   </td>
 
-                  <td style={{ padding: 12 }}>
+                  <td className={styles.tdPadEl}>
 
-                    <div style={{ fontWeight: 600 }}>
+                    <div className={styles.tdModelNameText}>
                       {i.MODEL_NAME || "—"}
                     </div>
 
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: "#94a3b8"
-                      }}
-                    >
+                    <div className={styles.tdModelCodeText}>
                       {i.MODEL_CODE}
                     </div>
                   </td>
 
-                  <td
-                    style={{ padding: 12, color: "#475569" }}
-                  >
-                    {i.INSPECTOR_NAME || "—"}
+                  <td className={styles.tdPadEl}>
+                    <span className={styles.tdInspectorText}>
+                      {i.INSPECTOR_NAME || "—"}
+                    </span>
                   </td>
 
-                  <td
-                    style={{
-                      padding: 12,
-                      color: "#94a3b8",
-                      fontSize: 12
-                    }}
-                  >
-                    {i.INSPECTION_DATE}
+                  <td className={styles.tdPadEl}>
+                    <span className={styles.tdDateText}>
+                      {i.INSPECTION_DATE}
+                    </span>
                   </td>
 
-                  <td
-                    style={{
-                      padding: 12,
-                      textAlign: "center",
-                      color: "#166534",
-                      fontWeight: 700
-                    }}
-                  >
+                  <td className={styles.tdPassCount}>
                     {i.PASS_COUNT}
                   </td>
 
                   <td
+                    className={styles.tdCenterEl}
                     style={{
-                      padding: 12,
-                      textAlign: "center",
                       color: i.FAIL_COUNT > 0 ? "#b91c1c" : "#94a3b8",
                       fontWeight: 700
                     }}
@@ -1165,26 +805,15 @@ function InspectionsTab() {
                     {i.FAIL_COUNT}
                   </td>
 
-                  <td style={{ padding: 12 }}>
+                  <td className={styles.tdPadEl}>
                     <Pill themes={STATUS_THEMES} value={i.STATUS} />
                   </td>
 
-                  <td
-                    style={{ padding: 12, textAlign: "right" }}
-                  >
+                  <td className={styles.tdRightEl}>
 
                     <button
                       onClick={() => setSelectedId(i.ID)}
-                      style={{
-                        border: "1px solid #e2e8f0",
-                        background: "white",
-                        padding: "5px 12px",
-                        borderRadius: 6,
-                        cursor: "pointer",
-                        fontSize: 12,
-                        color: "#1e40af",
-                        fontWeight: 600
-                      }}
+                      className={styles.btnInspect}
                     >
                       {i.STATUS === "PENDING" ? "Inspect" : "View"}
                     </button>
@@ -1266,71 +895,34 @@ function NCRsTab() {
 
     <div>
 
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          marginBottom: 14,
-          flexWrap: "wrap"
-        }}
-      >
+      <div className={styles.filterRowEl}>
 
         {["", "OPEN", "IN_PROGRESS", "CLOSED"].map((s) => (
 
           <button
             key={s || "all"}
             onClick={() => setStatusFilter(s)}
-            style={{
-              border: "1px solid #e2e8f0",
-              background: statusFilter === s ? "#1e40af" : "white",
-              color: statusFilter === s ? "white" : "#475569",
-              padding: "6px 12px",
-              borderRadius: 6,
-              cursor: "pointer",
-              fontSize: 12,
-              fontWeight: 600
-            }}
+            className={`${styles.filterBtn}${statusFilter === s ? ` ${styles.filterBtnActive}` : ""}`}
           >
             {s ? s.replaceAll("_", " ") : "All"}
           </button>
         ))}
       </div>
 
-      <div
-        style={{
-          background: "white",
-          borderRadius: 12,
-          overflow: "hidden",
-          boxShadow: "0 4px 14px rgba(15,23,42,0.06)"
-        }}
-      >
+      <div className={styles.tableCardWrap}>
 
-        <div style={{ overflow: "auto" }}>
+        <div className={styles.tableScrollWrap}>
 
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: 13
-            }}
-          >
+          <table className={styles.tableEl}>
 
             <thead>
-              <tr
-                style={{
-                  background: "#f8fafc",
-                  color: "#475569",
-                  fontSize: 11,
-                  letterSpacing: 0.8,
-                  textTransform: "uppercase"
-                }}
-              >
-                <th style={{ textAlign: "left", padding: 12 }}>NCR #</th>
-                <th style={{ textAlign: "left", padding: 12 }}>Check Point</th>
-                <th style={{ textAlign: "left", padding: 12 }}>Severity</th>
-                <th style={{ textAlign: "left", padding: 12 }}>Status</th>
-                <th style={{ textAlign: "left", padding: 12 }}>Opened</th>
-                <th style={{ textAlign: "right", padding: 12 }}>Action</th>
+              <tr className={styles.theadRow}>
+                <th className={styles.thL}>NCR #</th>
+                <th className={styles.thL}>Check Point</th>
+                <th className={styles.thL}>Severity</th>
+                <th className={styles.thL}>Status</th>
+                <th className={styles.thL}>Opened</th>
+                <th className={styles.thR}>Action</th>
               </tr>
             </thead>
 
@@ -1339,14 +931,7 @@ function NCRsTab() {
               {loading && (
 
                 <tr>
-                  <td
-                    colSpan="6"
-                    style={{
-                      padding: 30,
-                      textAlign: "center",
-                      color: "#94a3b8"
-                    }}
-                  >
+                  <td colSpan="6" className={styles.tdEmptyEl}>
                     Loading…
                   </td>
                 </tr>
@@ -1355,14 +940,7 @@ function NCRsTab() {
               {!loading && ncrs.length === 0 && (
 
                 <tr>
-                  <td
-                    colSpan="6"
-                    style={{
-                      padding: 30,
-                      textAlign: "center",
-                      color: "#94a3b8"
-                    }}
-                  >
+                  <td colSpan="6" className={styles.tdEmptyEl}>
                     No NCRs in this filter. NCRs auto-open when an
                     inspection finalises with FAIL/REWORK items.
                   </td>
@@ -1379,91 +957,55 @@ function NCRsTab() {
 
                 return (
 
-                  <tr
-                    key={n.ID}
-                    style={{ borderBottom: "1px solid #f1f5f9" }}
-                  >
+                  <tr key={n.ID} className={styles.tbodyRowEl}>
 
-                    <td
-                      style={{
-                        padding: 12,
-                        fontFamily: "ui-monospace, monospace",
-                        fontSize: 12
-                      }}
-                    >
+                    <td className={styles.tdMonoEl}>
                       {n.NCR_NUMBER}
                     </td>
 
-                    <td style={{ padding: 12, maxWidth: 360 }}>
+                    <td className={styles.tdNcrCheckpointCell}>
 
-                      <div
-                        style={{ fontWeight: 600, color: "#0f172a" }}
-                      >
+                      <div className={styles.tdNcrTitle}>
                         {n.CHECK_POINT}
                       </div>
 
                       {n.DESCRIPTION && (
 
-                        <div
-                          style={{
-                            fontSize: 11,
-                            color: "#94a3b8",
-                            marginTop: 2,
-                            maxWidth: 360,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap"
-                          }}
-                        >
+                        <div className={styles.tdNcrDesc}>
                           {n.DESCRIPTION}
                         </div>
                       )}
                     </td>
 
-                    <td style={{ padding: 12 }}>
+                    <td className={styles.tdPadEl}>
                       <Pill
                         themes={SEVERITY_THEMES}
                         value={n.SEVERITY}
                       />
                     </td>
 
-                    <td style={{ padding: 12 }}>
+                    <td className={styles.tdPadEl}>
                       <Pill themes={STATUS_THEMES} value={n.STATUS} />
                     </td>
 
-                    <td
-                      style={{
-                        padding: 12,
-                        color: "#94a3b8",
-                        fontSize: 12
-                      }}
-                    >
-                      {n.OPENED_AT?.slice(0, 10)}
+                    <td className={styles.tdPadEl}>
+                      <span className={styles.tdDateText}>
+                        {n.OPENED_AT?.slice(0, 10)}
+                      </span>
                     </td>
 
-                    <td
-                      style={{ padding: 12, textAlign: "right" }}
-                    >
+                    <td className={styles.tdRightEl}>
 
                       {nextStatus ? (
 
                         <button
                           onClick={() => advanceStatus(n.ID, nextStatus)}
-                          style={{
-                            border: "none",
-                            background: "#1e40af",
-                            color: "white",
-                            padding: "5px 12px",
-                            borderRadius: 6,
-                            cursor: "pointer",
-                            fontSize: 11,
-                            fontWeight: 600
-                          }}
+                          className={styles.btnAdvance}
                         >
                           → {nextStatus.replaceAll("_", " ")}
                         </button>
                       ) : (
-                        <span style={{ color: "#94a3b8" }}>—</span>
+                        <span className={styles.tdDashSpan}>—</span>
                       )}
                     </td>
                   </tr>
@@ -1488,47 +1030,21 @@ function Quality() {
 
   return (
 
-    <div
-      style={{
-        padding: 24,
-        background: "#f1f5f9",
-        minHeight: "100%"
-      }}
-    >
+    <div className={styles.page}>
 
-      <div style={{ marginBottom: 20 }}>
+      <div className={styles.pageHeaderWrap}>
 
-        <h1
-          style={{
-            fontSize: 26,
-            fontWeight: 700,
-            color: "#0f172a",
-            margin: 0
-          }}
-        >
+        <h1 className={styles.pageTitle}>
           Quality Management
         </h1>
 
-        <div
-          style={{
-            fontSize: 13,
-            color: "#64748b",
-            marginTop: 4
-          }}
-        >
+        <div className={styles.pageSubtitle}>
           Pre-dispatch checklists · Inspections · NCR tracking ·
           Work Order DONE gate
         </div>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          gap: 4,
-          marginBottom: 20,
-          borderBottom: "1px solid #e2e8f0"
-        }}
-      >
+      <div className={styles.tabBar}>
 
         {[
           { key: "dashboard", label: "Dashboard" },
@@ -1540,20 +1056,7 @@ function Quality() {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            style={{
-              border: "none",
-              background: "transparent",
-              padding: "10px 18px",
-              fontSize: 14,
-              fontWeight: 600,
-              color: tab === t.key ? "#1e40af" : "#64748b",
-              cursor: "pointer",
-              borderBottom:
-                tab === t.key
-                  ? "3px solid #1e40af"
-                  : "3px solid transparent",
-              marginBottom: -1
-            }}
+            className={`${styles.tabBtn}${tab === t.key ? ` ${styles.tabBtnActive}` : ""}`}
           >
             {t.label}
           </button>

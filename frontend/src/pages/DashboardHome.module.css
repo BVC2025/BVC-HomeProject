@@ -1,0 +1,641 @@
+/* DashboardHome — scoped styles */
+
+@keyframes dhFadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dhPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.40); }
+  70%  { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+@keyframes dhSkeletonPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+
+/* ─── Page ──────────────────────────────────────────────────── */
+
+.page {
+  padding: 20px;
+  background: var(--layout-bg);
+  min-height: 100%;
+}
+
+/* ─── Shared card base ───────────────────────────────────────── */
+
+.bvcCard {
+  animation: dhFadeUp 0.45s ease-out both;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.bvcCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
+}
+
+/* ─── Live indicator dot ─────────────────────────────────────── */
+
+.bvcLiveDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  display: inline-block;
+  animation: dhPulse 1.8s ease-out infinite;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+/* ─── Skeleton placeholder ───────────────────────────────────── */
+
+.bvcSkeleton {
+  background: var(--surface);
+  border-radius: 6px;
+  animation: dhSkeletonPulse 1.4s ease-in-out infinite;
+}
+
+/* ─── Hero ───────────────────────────────────────────────────── */
+
+.hero {
+  position: relative;
+  border-radius: var(--radius-xl);
+  padding: 28px 32px;
+  margin-bottom: 24px;
+  color: var(--text-primary);
+  overflow: hidden;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--clr-primary);
+  box-shadow: var(--shadow);
+}
+
+.heroInner {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.heroLeft {
+  flex: 1;
+  min-width: 280px;
+}
+
+.heroEyebrow {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  opacity: 0.85;
+  margin-bottom: 8px;
+}
+
+.heroTitle {
+  font-size: 28px;
+  font-weight: var(--fw-black);
+  margin: 0;
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+  color: var(--text-primary);
+}
+
+.heroSub {
+  font-size: 16px;
+  opacity: 0.92;
+  margin-top: 10px;
+  max-width: 600px;
+  font-weight: var(--fw-medium);
+  line-height: 1.5;
+}
+
+.heroBadgeRow {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.heroBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #16a34a;
+}
+
+.heroBadgeDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  display: inline-block;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.heroBadgeMuted {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.heroClock {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 16px 22px;
+  border-radius: var(--radius-xl);
+  text-align: right;
+  min-width: 200px;
+}
+
+.heroClockTime {
+  font-size: 34px;
+  font-weight: var(--fw-black);
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+}
+
+.heroClockDate {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-top: 2px;
+  letter-spacing: 0.8px;
+}
+
+.heroClockLive {
+  font-size: 10px;
+  opacity: 0.7;
+  margin-top: 6px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+
+/* ─── KPI grid ───────────────────────────────────────────────── */
+
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+/* ─── KPI card ───────────────────────────────────────────────── */
+
+.kpiCard {
+  position: relative;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  padding: 20px 22px;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  animation: dhFadeUp 0.45s ease-out both;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  /* borderTop set inline (dynamic per palette) */
+}
+
+.kpiCard:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.kpiLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.kpiSub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 5px;
+}
+
+.kpiIconBubble {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  /* background set inline (dynamic palette.ring) */
+}
+
+/* ─── Section card wrapper ───────────────────────────────────── */
+
+.sectionCard {
+  background: var(--card-bg);
+  border-radius: 18px;
+  padding: 20px 22px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  position: relative;
+  overflow: hidden;
+  animation: dhFadeUp 0.45s ease-out both;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.sectionCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
+}
+
+.sectionAccentBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  /* background set inline (dynamic accent color) */
+}
+
+.sectionSubtitle {
+  font-size: var(--font-xs);
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  font-weight: var(--fw-bold);
+  color: var(--text-secondary);
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin-top: 2px;
+  margin-bottom: 14px;
+}
+
+/* ─── Grid layouts ───────────────────────────────────────────── */
+
+.col2x1 {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.col3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+/* ─── Activity feed ──────────────────────────────────────────── */
+
+.activityCard {
+  background: var(--card-bg);
+  border-radius: 18px;
+  padding: 20px 22px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+  height: 100%;
+  animation: dhFadeUp 0.45s ease-out both;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.activityCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
+}
+
+.activityHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.activityLiveLabel {
+  font-size: var(--font-xs);
+  color: #10b981;
+  font-weight: var(--fw-bold);
+}
+
+.activityList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ─── Quick actions ──────────────────────────────────────────── */
+
+.quickGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.quickLink {
+  color: white;
+  padding: 16px 14px;
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  text-align: center;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+  animation: dhFadeUp 0.45s ease-out both;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  /* background set inline (per action color) */
+}
+
+.quickLink:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.14);
+}
+
+/* ─── Footer ─────────────────────────────────────────────────── */
+
+.footerNote {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+/* ─── KPI value display ──────────────────────────────────────── */
+
+.kpiValue {
+  font-size: var(--font-3xl);
+  font-weight: var(--fw-black);
+  letter-spacing: -0.5px;
+  margin-top: 6px;
+  line-height: 1.1;
+  /* color set inline (dynamic palette.grad) */
+}
+
+.bvcSkeletonInline {
+  display: inline-block;
+  width: 90px;
+  height: 32px;
+  background: var(--surface);
+  border-radius: 6px;
+  animation: dhSkeletonPulse 1.4s ease-in-out infinite;
+}
+
+/* ─── Section title variant (no bottom margin) ───────────────── */
+
+.sectionTitleNoMb {
+  font-size: 18px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin-top: 2px;
+  margin-bottom: 0;
+}
+
+/* ─── Activity feed rows ─────────────────────────────────────── */
+
+.activitySkeleton {
+  height: 48px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  animation: dhSkeletonPulse 1.4s ease-in-out infinite;
+}
+
+.activityEmpty {
+  color: var(--text-muted);
+  padding: 20px;
+  text-align: center;
+  font-size: var(--font-sm);
+}
+
+.activityRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  animation: dhFadeUp 0.4s ease-out both;
+}
+
+.activityRowFail {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  animation: dhFadeUp 0.4s ease-out both;
+}
+
+.activityAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--success);
+  color: var(--text-inverse);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+  flex-shrink: 0;
+}
+
+.activityAvatarFail {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: var(--text-inverse);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+  flex-shrink: 0;
+}
+
+.activityInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.activityName {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activityMeta {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+.activityTime {
+  text-align: right;
+  font-size: var(--font-xs);
+  color: var(--success-dark);
+  font-weight: var(--fw-bold);
+}
+
+.activityTimeFail {
+  text-align: right;
+  font-size: var(--font-xs);
+  color: var(--danger-dark);
+  font-weight: var(--fw-bold);
+}
+
+.activityTimestamp {
+  font-size: var(--font-sm);
+  font-family: var(--font-mono);
+}
+
+.activityResult {
+  margin-top: 2px;
+}
+
+/* ─── Donut chart ────────────────────────────────────────────── */
+
+.donutWrap {
+  height: 260px;
+  position: relative;
+}
+
+.donutCenter {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.donutLabel {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+.donutTotal {
+  font-size: 26px;
+  font-weight: var(--fw-black);
+  color: var(--text-primary);
+}
+
+/* ─── Area chart wrapper ─────────────────────────────────────── */
+
+.areaWrap {
+  height: 240px;
+}
+
+/* ─── Quick action icon / label ──────────────────────────────── */
+
+.quickIcon {
+  font-size: 22px;
+}
+
+.quickLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.8px;
+  margin-top: 4px;
+}
+
+/* ─── Department empty state ─────────────────────────────────── */
+
+.deptEmpty {
+  color: var(--text-muted);
+  padding: 30px;
+  text-align: center;
+}
+
+/* ─── Quality inspections grid ───────────────────────────────── */
+
+.qualityGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.qualityTilePass {
+  background: var(--success-bg);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  text-align: center;
+}
+
+.qualityTileFail {
+  background: var(--danger-bg);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  text-align: center;
+}
+
+.qualityTilePending {
+  background: var(--warning-bg);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  text-align: center;
+}
+
+.qualityTileRework {
+  background: #fff7ed;
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  text-align: center;
+}
+
+.qualityTileKey {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+}
+
+.qualityTileVal {
+  font-size: 24px;
+  font-weight: var(--fw-black);
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+.qualityFooter {
+  margin-top: 14px;
+  padding: 12px;
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.qualityFooterDanger {
+  color: var(--danger-dark);
+  font-weight: var(--fw-bold);
+}
+
+.qualityFooterOk {
+  color: var(--success);
+  font-weight: var(--fw-semibold);
+}

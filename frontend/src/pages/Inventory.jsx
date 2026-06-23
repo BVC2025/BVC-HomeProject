@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import API from "../services/api";
+import styles from "./Inventory.module.css";
 
 
 // ===================================================================
@@ -13,28 +14,28 @@ import API from "../services/api";
 
 
 const STATUS_THEME = {
-  OUT: { bg: "#fee2e2", fg: "#991b1b", grad: "linear-gradient(135deg,#ef4444,#b91c1c)", icon: "🛑", label: "Out of stock" },
-  LOW: { bg: "#fef3c7", fg: "#854d0e", grad: "linear-gradient(135deg,#F4B324,#d97706)", icon: "⚠️", label: "Low stock" },
-  OK: { bg: "#dcfce7", fg: "#166534", grad: "linear-gradient(135deg,#10b981,#047857)", icon: "✅", label: "In stock" }
+  OUT: { bg: "#fee2e2", fg: "#991b1b", color: "#ef4444", icon: "🛑", label: "Out of stock" },
+  LOW: { bg: "#fef3c7", fg: "#854d0e", color: "#f59e0b", icon: "⚠️", label: "Low stock" },
+  OK:  { bg: "#dcfce7", fg: "#166534", color: "#10b981", icon: "✅", label: "In stock" }
 };
 
 
 const CATEGORY_THEME = {
-  "Sheet Metal": { bg: "#f1f5f9", fg: "#475569", icon: "🪙" },
+  "Sheet Metal":   { bg: "#f1f5f9", fg: "#475569", icon: "🪙" },
   "Refrigeration": { bg: "#dbeafe", fg: "#1e40af", icon: "🧊" },
-  "Electronics": { bg: "#e0e7ff", fg: "#4338ca", icon: "🔌" },
-  "Display": { bg: "#fae8ff", fg: "#86198f", icon: "🖥️" },
-  "Motors": { bg: "#fff7ed", fg: "#9a3412", icon: "⚙️" },
-  "Payment": { bg: "#ecfeff", fg: "#155e75", icon: "💳" },
-  "Glass": { bg: "#f0fdf4", fg: "#166534", icon: "🪟" },
-  "Wires": { bg: "#fef3c7", fg: "#854d0e", icon: "🔌" },
-  "Hardware": { bg: "#fef2f2", fg: "#8B0B1F", icon: "🔩" },
-  "Insulation": { bg: "#f8fafc", fg: "#475569", icon: "🧱" },
-  "Plumbing": { bg: "#e0f2fe", fg: "#0c4a6e", icon: "🚰" },
-  "Heating": { bg: "#fef2f2", fg: "#991b1b", icon: "🔥" },
-  "Power": { bg: "#fef9c3", fg: "#713f12", icon: "⚡" },
-  "Packaging": { bg: "#fef3c7", fg: "#92400e", icon: "📦" },
-  "Other": { bg: "#f1f5f9", fg: "#64748b", icon: "🧰" }
+  "Electronics":   { bg: "#e0e7ff", fg: "#4338ca", icon: "🔌" },
+  "Display":       { bg: "#fae8ff", fg: "#86198f", icon: "🖥️" },
+  "Motors":        { bg: "#fff7ed", fg: "#9a3412", icon: "⚙️" },
+  "Payment":       { bg: "#ecfeff", fg: "#155e75", icon: "💳" },
+  "Glass":         { bg: "#f0fdf4", fg: "#166534", icon: "🪟" },
+  "Wires":         { bg: "#fef3c7", fg: "#854d0e", icon: "🔌" },
+  "Hardware":      { bg: "#fef2f2", fg: "#dc2626", icon: "🔩" },
+  "Insulation":    { bg: "#f8fafc", fg: "#475569", icon: "🧱" },
+  "Plumbing":      { bg: "#e0f2fe", fg: "#0c4a6e", icon: "🚰" },
+  "Heating":       { bg: "#fef2f2", fg: "#991b1b", icon: "🔥" },
+  "Power":         { bg: "#fef9c3", fg: "#713f12", icon: "⚡" },
+  "Packaging":     { bg: "#fef3c7", fg: "#92400e", icon: "📦" },
+  "Other":         { bg: "#f1f5f9", fg: "#64748b", icon: "🧰" }
 };
 
 
@@ -70,30 +71,11 @@ function compactNum(n) {
 function StatTile({ label, value, sub, color, icon }) {
 
   return (
-    <div style={{
-      background: "white",
-      padding: "18px 22px",
-      borderRadius: 14,
-      boxShadow: "0 6px 20px rgba(15,23,42,0.07)",
-      borderTop: `3px solid ${color}`,
-      position: "relative",
-      overflow: "hidden"
-    }}>
-      <div style={{
-        position: "absolute", top: -18, right: -12,
-        fontSize: 64, opacity: 0.06
-      }}>
-        {icon}
-      </div>
-      <div style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", letterSpacing: 1.2, fontWeight: 700 }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 26, fontWeight: 800, color: "#0f172a", marginTop: 6 }}>
-        {value}
-      </div>
-      {sub && (
-        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{sub}</div>
-      )}
+    <div className={styles.statTile} style={{ borderTopColor: color }}>
+      <div className={styles.statTileBgIcon}>{icon}</div>
+      <div className={styles.statTileLabel}>{label}</div>
+      <div className={styles.statTileValue}>{value}</div>
+      {sub && <div className={styles.statTileSub}>{sub}</div>}
     </div>
   );
 }
@@ -112,72 +94,40 @@ function MaterialCard({ item, onOpen, onAdjust }) {
 
   return (
     <div
+      className={styles.materialCard}
       onClick={() => onOpen(item)}
-      style={{
-        background: "white",
-        borderRadius: 14,
-        padding: 16,
-        boxShadow: "0 6px 18px rgba(15,23,42,0.07)",
-        cursor: "pointer",
-        position: "relative",
-        overflow: "hidden",
-        transition: "transform 0.16s, box-shadow 0.16s, border-color 0.16s",
-        display: "flex",
-        flexDirection: "column",
-        height: "100%",
-        border: "1px solid transparent"
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "translateY(-3px)";
-        e.currentTarget.style.boxShadow = "0 14px 32px rgba(15,23,42,0.14)";
-        e.currentTarget.style.borderColor = "#C8102E22";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "0 6px 18px rgba(15,23,42,0.07)";
-        e.currentTarget.style.borderColor = "transparent";
-      }}
     >
-      <div style={{
-        position: "absolute", top: 0, left: 0, right: 0,
-        height: 3, background: statusTheme.grad
-      }} />
+      {/* status stripe — flat color instead of gradient */}
+      <div
+        className={styles.cardStatusStripe}
+        style={{ background: statusTheme.color }}
+      />
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            fontSize: 14, fontWeight: 800, color: "#0f172a",
-            lineHeight: 1.25, marginBottom: 6
-          }}>
+      <div className={styles.cardHeader}>
+        <div className={styles.cardTitleArea}>
+          <div className={styles.cardMaterialName}>
             {item.MATERIAL_NAME}
           </div>
-          <span style={{
-            display: "inline-flex", alignItems: "center", gap: 4,
-            background: catTheme.bg, color: catTheme.fg,
-            padding: "2px 8px", borderRadius: 6,
-            fontSize: 10, fontWeight: 700, letterSpacing: 0.4
-          }}>
+          <span
+            className={styles.categoryChip}
+            style={{ background: catTheme.bg, color: catTheme.fg }}
+          >
             <span>{catTheme.icon}</span>
             {item.CATEGORY}
           </span>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
-          <span style={{
-            background: statusTheme.bg, color: statusTheme.fg,
-            padding: "3px 9px", borderRadius: 999,
-            fontSize: 10, fontWeight: 800, letterSpacing: 0.6
-          }}>
+        <div className={styles.cardBadges}>
+          <span
+            className={styles.statusBadge}
+            style={{ background: statusTheme.bg, color: statusTheme.fg }}
+          >
             {statusTheme.icon} {statusTheme.label}
           </span>
           {item.BELOW_MIN && (
             <span
+              className={styles.reorderChip}
               title={`Stock ${item.QUANTITY} is at or below reorder threshold ${item.MIN_STOCK}`}
-              style={{
-                background: "#fee2e2", color: "#7f1d1d",
-                padding: "2px 8px", borderRadius: 999,
-                fontSize: 9, fontWeight: 800, letterSpacing: 0.6
-              }}
             >
               🔔 Reorder alert
             </span>
@@ -185,73 +135,41 @@ function MaterialCard({ item, onOpen, onAdjust }) {
         </div>
       </div>
 
-      <div style={{ marginTop: 14, marginBottom: 10 }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-          <div style={{ fontSize: 32, fontWeight: 900, color: "#0f172a", lineHeight: 1 }}>
-            {item.QUANTITY}
-          </div>
-          <div style={{ fontSize: 12, color: "#64748b", fontWeight: 700, letterSpacing: 0.6 }}>
-            in stock
-          </div>
+      <div className={styles.quantityArea}>
+        <div className={styles.quantityRow}>
+          <div className={styles.quantityValue}>{item.QUANTITY}</div>
+          <div className={styles.quantityUnit}>in stock</div>
         </div>
 
-        <div style={{
-          marginTop: 6, height: 6, background: "#f1f5f9",
-          borderRadius: 4, overflow: "hidden"
-        }}>
-          <div style={{
-            width: `${fillPct}%`, height: "100%",
-            background: statusTheme.grad, transition: "width 0.4s"
-          }} />
+        <div className={styles.progressTrack}>
+          <div
+            className={styles.progressFill}
+            style={{ width: `${fillPct}%`, background: statusTheme.color }}
+          />
         </div>
 
         {item.MIN_STOCK > 0 && (
-          <div style={{
-            marginTop: 6, fontSize: 11,
-            color: item.BELOW_MIN ? "#b91c1c" : "#64748b",
-            fontWeight: 600
-          }}>
+          <div className={`${styles.reorderNote} ${item.BELOW_MIN ? styles.reorderNoteAlert : styles.reorderNoteNormal}`}>
             Reorder at: <strong>{item.MIN_STOCK}</strong>
           </div>
         )}
       </div>
 
-      <div style={{
-        display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8,
-        marginTop: "auto", paddingTop: 12,
-        borderTop: "1px solid #f1f5f9"
-      }}>
+      <div className={styles.cardPriceGrid}>
         <div>
-          <div style={{ fontSize: 9, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>
-            Unit price
-          </div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#475569", marginTop: 1 }}>
-            {inr(item.UNIT_PRICE)}
-          </div>
+          <div className={styles.priceLabel}>Unit price</div>
+          <div className={styles.priceValue}>{inr(item.UNIT_PRICE)}</div>
         </div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 9, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 0.8, fontWeight: 700 }}>
-            Total value
-          </div>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#047857", marginTop: 1 }}>
-            {inr(item.TOTAL_VALUE)}
-          </div>
+        <div className={styles.priceValueRight}>
+          <div className={styles.priceLabel}>Total value</div>
+          <div className={`${styles.priceValue} ${styles.totalValue}`}>{inr(item.TOTAL_VALUE)}</div>
         </div>
       </div>
 
       {(item.SUPPLIER || item.LAST_RECEIVED) && (
-        <div style={{
-          marginTop: 10, paddingTop: 10,
-          borderTop: "1px solid #f1f5f9",
-          fontSize: 10, color: "#64748b",
-          display: "flex", justifyContent: "space-between",
-          gap: 8, flexWrap: "wrap"
-        }}>
+        <div className={styles.cardMeta}>
           {item.SUPPLIER && (
-            <span title="Preferred supplier" style={{
-              overflow: "hidden", textOverflow: "ellipsis",
-              whiteSpace: "nowrap", maxWidth: 160
-            }}>
+            <span className={styles.supplierLabel} title="Preferred supplier">
               🚚 {item.SUPPLIER.COMPANY_NAME}
             </span>
           )}
@@ -264,19 +182,8 @@ function MaterialCard({ item, onOpen, onAdjust }) {
       )}
 
       <button
+        className={styles.adjustBtn}
         onClick={(e) => { e.stopPropagation(); onAdjust(item); }}
-        style={{
-          marginTop: 10,
-          border: "1px solid #fecaca",
-          background: "#fef2f2",
-          color: "#8B0B1F",
-          padding: "6px 10px",
-          borderRadius: 8,
-          fontSize: 11,
-          fontWeight: 700,
-          cursor: "pointer",
-          width: "100%"
-        }}
       >
         ⚖️ Adjust stock
       </button>
@@ -357,82 +264,49 @@ function AdjustModal({ item, onClose, onSaved }) {
   };
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0,
-        background: "rgba(15,23,42,0.55)",
-        zIndex: 1000,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        padding: 30
-      }}
-    >
+    <div className={styles.modalOverlay} onClick={onClose}>
       <div
+        className={styles.modalPanel}
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 480, maxWidth: "94%",
-          background: "white", borderRadius: 14,
-          padding: 22, boxShadow: "0 24px 60px rgba(0,0,0,0.35)"
-        }}
       >
-        <div style={{ fontSize: 17, fontWeight: 800, color: "#0f172a", marginBottom: 4 }}>
-          ⚖️ Adjust stock
-        </div>
-        <div style={{ fontSize: 12, color: "#64748b", marginBottom: 18 }}>
-          {item.MATERIAL_NAME}
-        </div>
+        <div className={styles.modalTitle}>⚖️ Adjust stock</div>
+        <div className={styles.modalSubtitle}>{item.MATERIAL_NAME}</div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+        <div className={styles.modalQtyGrid}>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 4 }}>
-              Current
-            </div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: "#475569" }}>
-              {item.QUANTITY}
-            </div>
+            <div className={styles.modalFieldLabel}>Current</div>
+            <div className={styles.modalCurrentQty}>{item.QUANTITY}</div>
           </div>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 4 }}>
-              New
-            </div>
+            <div className={styles.modalFieldLabel}>New</div>
             <input
-              type="number" min="0" value={qty}
+              type="number"
+              min="0"
+              value={qty}
               onChange={(e) => setQty(e.target.value)}
-              style={{
-                width: "100%", padding: "9px 12px",
-                border: "1px solid #cbd5e1", borderRadius: 8,
-                fontSize: 18, fontWeight: 700
-              }}
+              className={styles.modalInput}
             />
           </div>
         </div>
 
         {delta !== 0 && (
-          <div style={{
-            background: delta > 0 ? "#dcfce7" : "#fef3c7",
-            color: delta > 0 ? "#166534" : "#854d0e",
-            padding: "8px 12px",
-            borderRadius: 8,
-            fontSize: 12,
-            fontWeight: 700,
-            marginBottom: 14
-          }}>
+          <div
+            className={styles.deltaBadge}
+            style={{
+              background: delta > 0 ? "#dcfce7" : "#fef3c7",
+              color: delta > 0 ? "#166534" : "#854d0e"
+            }}
+          >
             {delta > 0 ? `+${delta} units added` : `${delta} units removed`}
           </div>
         )}
 
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 4 }}>
-            Reason *
-          </div>
+        <div className={styles.modalFieldGroup}>
+          <div className={styles.modalFieldLabel}>Reason *</div>
           <select
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            style={{
-              width: "100%", padding: "9px 12px",
-              border: "1px solid #cbd5e1", borderRadius: 8,
-              fontSize: 13, background: "white"
-            }}
+            className={styles.modalSelect}
           >
             <option value="">— pick a reason —</option>
             <option value="Opening stock">Opening stock</option>
@@ -445,18 +319,13 @@ function AdjustModal({ item, onClose, onSaved }) {
           </select>
         </div>
 
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 4 }}>
-            Notes (optional)
-          </div>
+        <div className={styles.modalFieldGroup}>
+          <div className={styles.modalFieldLabel}>Notes (optional)</div>
           <textarea
-            rows={2} value={notes}
+            rows={2}
+            value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            style={{
-              width: "100%", padding: "9px 12px",
-              border: "1px solid #cbd5e1", borderRadius: 8,
-              fontSize: 13, resize: "vertical", fontFamily: "inherit"
-            }}
+            className={styles.modalTextarea}
             placeholder="Any extra context for the audit log..."
           />
         </div>
@@ -464,67 +333,42 @@ function AdjustModal({ item, onClose, onSaved }) {
         {/* Reorder threshold — independent of the quantity change above.
             Setting it to 0 (or leaving blank when it was 0) disables
             alerting for this row. */}
-        <div style={{
-          marginBottom: 14,
-          background: "#fffbeb",
-          border: "1px solid #fde68a",
-          borderRadius: 10,
-          padding: 12
-        }}>
-          <div style={{
-            fontSize: 10, fontWeight: 800, color: "#854d0e",
-            letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 6,
-            display: "flex", alignItems: "center", gap: 6
-          }}>
+        <div className={styles.reorderBox}>
+          <div className={styles.reorderBoxTitle}>
             🔔 Reorder alert
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 12, color: "#854d0e" }}>
+          <div className={styles.reorderBoxRow}>
+            <span className={styles.reorderBoxText}>
               Notify when stock falls at or below
             </span>
             <input
-              type="number" min="0"
+              type="number"
+              min="0"
               value={minStock}
               onChange={(e) => setMinStock(e.target.value)}
               placeholder="0 = off"
-              style={{
-                width: 90, padding: "6px 10px",
-                border: "1px solid #fcd34d", borderRadius: 6,
-                fontSize: 13, fontWeight: 700, color: "#854d0e",
-                textAlign: "center", background: "white"
-              }}
+              className={styles.reorderInput}
             />
-            <span style={{ fontSize: 12, color: "#854d0e" }}>units</span>
+            <span className={styles.reorderBoxText}>units</span>
           </div>
-          <div style={{ fontSize: 10, color: "#92400e", marginTop: 6, opacity: 0.85 }}>
+          <div className={styles.reorderBoxNote}>
             Current threshold: <strong>{initialMin || "off"}</strong>
             {minChanged && <> · will change to <strong>{targetMin || "off"}</strong></>}
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <div className={styles.modalActions}>
           <button
+            className={styles.modalCancelBtn}
             onClick={onClose}
             disabled={saving}
-            style={{
-              border: "1px solid #e2e8f0", background: "white",
-              padding: "9px 18px", borderRadius: 8, fontSize: 13,
-              cursor: saving ? "default" : "pointer"
-            }}
           >
             Cancel
           </button>
           <button
+            className={styles.modalSaveBtn}
             onClick={save}
             disabled={saving}
-            style={{
-              border: "none",
-              background: saving ? "#94a3b8" : "linear-gradient(135deg,#C8102E,#8B0B1F)",
-              color: "white",
-              padding: "9px 22px", borderRadius: 8,
-              fontWeight: 800, fontSize: 13,
-              cursor: saving ? "not-allowed" : "pointer"
-            }}
           >
             {saving ? "Saving…" : "💾 Save adjustment"}
           </button>
@@ -561,84 +405,50 @@ function DetailDrawer({ item, onClose }) {
   const statusTheme = STATUS_THEME[item.STOCK_STATUS] || STATUS_THEME.OK;
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0,
-        background: "rgba(15,23,42,0.5)",
-        zIndex: 1000,
-        display: "flex", justifyContent: "flex-end"
-      }}
-    >
+    <div className={styles.drawerOverlay} onClick={onClose}>
       <div
+        className={styles.drawerPanel}
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 460, maxWidth: "94%",
-          background: "white",
-          overflow: "auto",
-          boxShadow: "-24px 0 60px rgba(0,0,0,0.35)"
-        }}
       >
-        <div style={{
-          background: "linear-gradient(135deg, #C8102E, #8B0B1F)",
-          color: "white", padding: "24px 26px",
-          position: "relative"
-        }}>
+        <div className={styles.drawerHeader}>
           <button
+            className={styles.drawerCloseBtn}
             onClick={onClose}
-            style={{
-              position: "absolute", top: 14, right: 14,
-              background: "rgba(255,255,255,0.18)",
-              color: "white", border: "1px solid rgba(255,255,255,0.3)",
-              width: 30, height: 30, borderRadius: 8,
-              cursor: "pointer", fontSize: 16, fontWeight: 700
-            }}
           >×</button>
 
-          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2, opacity: 0.85, marginBottom: 6 }}>
+          <div className={styles.drawerEyebrow}>
             INVENTORY · MATERIAL DETAIL
           </div>
-          <h2 style={{ margin: 0, fontSize: 21, fontWeight: 900, lineHeight: 1.2 }}>
+          <h2 className={styles.drawerTitle}>
             {item.MATERIAL_NAME}
           </h2>
-          <div style={{ marginTop: 10, display: "flex", gap: 6 }}>
-            <span style={{
-              background: "rgba(255,255,255,0.18)",
-              color: "white", padding: "3px 10px",
-              borderRadius: 6, fontSize: 11, fontWeight: 700
-            }}>
+          <div className={styles.drawerBadges}>
+            <span className={styles.drawerCatChip}>
               {catTheme.icon} {item.CATEGORY}
             </span>
-            <span style={{
-              background: statusTheme.bg, color: statusTheme.fg,
-              padding: "3px 10px", borderRadius: 6,
-              fontSize: 11, fontWeight: 800
-            }}>
+            <span
+              className={styles.drawerStatusChip}
+              style={{ background: statusTheme.bg, color: statusTheme.fg }}
+            >
               {statusTheme.icon} {statusTheme.label}
             </span>
           </div>
         </div>
 
-        <div style={{ padding: 22 }}>
-          <div style={{
-            display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
-            gap: 10, marginBottom: 20
-          }}>
-            <SummaryBox label="In Stock" value={item.QUANTITY} color="#0f172a" />
-            <SummaryBox label="Unit Price" value={inr(item.UNIT_PRICE)} color="#475569" small />
+        <div className={styles.drawerBody}>
+          <div className={styles.summaryBoxGrid}>
+            <SummaryBox label="In Stock" value={item.QUANTITY} color="var(--text-primary, #0f172a)" />
+            <SummaryBox label="Unit Price" value={inr(item.UNIT_PRICE)} color="var(--text-secondary, #475569)" small />
             <SummaryBox label="Total Value" value={inr(item.TOTAL_VALUE)} color="#047857" small />
           </div>
 
           {item.SUPPLIER && (
             <Section title="🚚 Preferred Supplier">
-              <div style={{
-                background: "#fef2f2", border: "1px solid #fecaca",
-                borderRadius: 10, padding: 12
-              }}>
-                <div style={{ fontWeight: 800, color: "#0f172a", fontSize: 14 }}>
+              <div className={styles.supplierBlock}>
+                <div className={styles.supplierName}>
                   {item.SUPPLIER.COMPANY_NAME}
                 </div>
-                <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+                <div className={styles.supplierMeta}>
                   Code: {item.SUPPLIER.SUPPLIER_CODE}
                   {item.SUPPLIER.CATEGORY && ` · ${item.SUPPLIER.CATEGORY}`}
                 </div>
@@ -648,13 +458,9 @@ function DetailDrawer({ item, onClose }) {
 
           {(item.USED_IN_PRODUCTS?.length || 0) > 0 && (
             <Section title="🏭 Used in Products">
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              <div className={styles.productChips}>
                 {item.USED_IN_PRODUCTS.map((p) => (
-                  <span key={p.ID} style={{
-                    background: "#eef2ff", color: "#4338ca",
-                    padding: "5px 11px", borderRadius: 999,
-                    fontSize: 11, fontWeight: 700
-                  }}>
+                  <span key={p.ID} className={styles.productChip}>
                     {p.MODEL_CODE}
                   </span>
                 ))}
@@ -664,42 +470,28 @@ function DetailDrawer({ item, onClose }) {
 
           <Section title="📥 Recent Stock Movements (from GRN)">
             {movements === null && (
-              <div style={{ color: "#94a3b8", fontSize: 12 }}>Loading…</div>
+              <div className={styles.movementsLoading}>Loading…</div>
             )}
             {movements?.length === 0 && (
-              <div style={{
-                background: "#f8fafc", padding: 14, borderRadius: 10,
-                fontSize: 12, color: "#64748b", textAlign: "center"
-              }}>
+              <div className={styles.movementsEmpty}>
                 No goods receipts yet. Stock changes appear here once
                 a Purchase Order's GRN is finalized.
               </div>
             )}
             {(movements?.length || 0) > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div className={styles.movementList}>
                 {movements.map((m, i) => (
-                  <div key={i} style={{
-                    background: "#f8fafc",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: 10,
-                    padding: "10px 14px",
-                    display: "flex", justifyContent: "space-between",
-                    alignItems: "center", gap: 10
-                  }}>
+                  <div key={i} className={styles.movementRow}>
                     <div>
-                      <div style={{ fontWeight: 700, color: "#0f172a", fontSize: 12 }}>
-                        {m.GRN_NUMBER}
-                      </div>
-                      <div style={{ fontSize: 10, color: "#64748b", marginTop: 1 }}>
+                      <div className={styles.movementGRN}>{m.GRN_NUMBER}</div>
+                      <div className={styles.movementMeta}>
                         Received {m.RECEIVED_DATE} · {inr(m.UNIT_PRICE)} / unit
                       </div>
                     </div>
-                    <div style={{ textAlign: "right" }}>
-                      <div style={{ color: "#047857", fontWeight: 800, fontSize: 14 }}>
-                        +{m.QUANTITY_RECEIVED}
-                      </div>
+                    <div className={styles.movementRight}>
+                      <div className={styles.movementQty}>+{m.QUANTITY_RECEIVED}</div>
                       {m.QUANTITY_REJECTED > 0 && (
-                        <div style={{ fontSize: 10, color: "#b91c1c", fontWeight: 700 }}>
+                        <div className={styles.movementRejected}>
                           {m.QUANTITY_REJECTED} rejected
                         </div>
                       )}
@@ -719,14 +511,12 @@ function DetailDrawer({ item, onClose }) {
 function SummaryBox({ label, value, color, small }) {
 
   return (
-    <div style={{
-      background: "#f8fafc", padding: 12,
-      borderRadius: 10, border: "1px solid #e2e8f0"
-    }}>
-      <div style={{ fontSize: 9, fontWeight: 700, color: "#94a3b8", letterSpacing: 0.8, textTransform: "uppercase" }}>
-        {label}
-      </div>
-      <div style={{ fontSize: small ? 15 : 22, fontWeight: 800, color, marginTop: 4 }}>
+    <div className={styles.summaryBox}>
+      <div className={styles.summaryBoxLabel}>{label}</div>
+      <div
+        className={styles.summaryBoxValue}
+        style={{ fontSize: small ? 15 : 22, color }}
+      >
         {value}
       </div>
     </div>
@@ -737,13 +527,8 @@ function SummaryBox({ label, value, color, small }) {
 function Section({ title, children }) {
 
   return (
-    <div style={{ marginBottom: 22 }}>
-      <div style={{
-        fontSize: 11, fontWeight: 800, letterSpacing: 1.5,
-        color: "#8B0B1F", textTransform: "uppercase", marginBottom: 10
-      }}>
-        {title}
-      </div>
+    <div className={styles.sectionWrapper}>
+      <div className={styles.sectionTitle}>{title}</div>
       {children}
     </div>
   );
@@ -814,56 +599,23 @@ function Inventory() {
   const allCategories = Object.keys(summary.categories || {}).sort();
 
   return (
-    <div style={{ padding: 24, background: "#f8fafc", minHeight: "100%" }}>
+    <div className={styles.pageWrapper}>
 
       {/* HERO */}
-      <div style={{
-        background: "linear-gradient(135deg, #C8102E 0%, #A60F26 50%, #8B0B1F 100%)",
-        color: "white",
-        padding: "20px 28px",
-        borderRadius: 14,
-        marginBottom: 22,
-        boxShadow: "0 6px 18px rgba(139,11,31,0.18)",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        flexWrap: "wrap",
-        gap: 16
-      }}>
+      <div className={styles.hero}>
         <div>
-          <div style={{
-            fontSize: 10,
-            letterSpacing: 2,
-            color: "#fde047",
-            fontWeight: 700,
-            textTransform: "uppercase"
-          }}>
-            Warehouse
-          </div>
-          <h1 style={{
-            fontSize: 22,
-            fontWeight: 700,
-            margin: "4px 0 0",
-            lineHeight: 1.2,
-            color: "white",
-            letterSpacing: -0.3
-          }}>
-            Inventory
-          </h1>
+          <div className={styles.heroEyebrow}>Warehouse</div>
+          <h1 className={styles.heroTitle}>Inventory</h1>
         </div>
       </div>
 
       {/* KPIs */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-        gap: 14, marginBottom: 22
-      }}>
+      <div className={styles.kpiGrid}>
         <StatTile
           label="Total Materials"
           value={summary.total_materials ?? "—"}
           sub={`${summary.in_stock_count ?? 0} in stock`}
-          color="#C8102E"
+          color="#ef4444"
           icon="📦"
         />
         <StatTile
@@ -877,7 +629,7 @@ function Inventory() {
           label="Low Stock"
           value={summary.low_stock_count ?? 0}
           sub={`≤ ${summary.low_threshold ?? 5} units`}
-          color="#F4B324"
+          color="#f59e0b"
           icon="⚠️"
         />
         <StatTile
@@ -890,34 +642,19 @@ function Inventory() {
       </div>
 
       {/* Filter bar */}
-      <div style={{
-        background: "white", padding: 14, borderRadius: 12,
-        boxShadow: "0 4px 14px rgba(15,23,42,0.06)",
-        marginBottom: 16,
-        display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center"
-      }}>
+      <div className={styles.filterBar}>
         <input
           type="text"
           placeholder="🔍 Search materials, suppliers, categories..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{
-            flex: 1, minWidth: 240,
-            padding: "10px 14px",
-            border: "1px solid #e2e8f0",
-            borderRadius: 8, fontSize: 13
-          }}
+          className={styles.filterSearch}
         />
 
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          style={{
-            padding: "10px 14px",
-            border: "1px solid #e2e8f0",
-            borderRadius: 8, fontSize: 13,
-            background: "white", minWidth: 180
-          }}
+          className={styles.filterSelect}
         >
           <option value="">All categories</option>
           {allCategories.map((c) => (
@@ -927,7 +664,7 @@ function Inventory() {
           ))}
         </select>
 
-        <div style={{ display: "flex", gap: 6 }}>
+        <div className={styles.statusBtns}>
           {["", "OK", "LOW", "OUT"].map((s) => {
 
             const theme = s ? STATUS_THEME[s] : null;
@@ -940,14 +677,7 @@ function Inventory() {
               <button
                 key={s || "ALL"}
                 onClick={() => setStatusFilter(s)}
-                style={{
-                  border: active ? "1px solid #8B0B1F" : "1px solid #e2e8f0",
-                  background: active ? "#fef2f2" : "white",
-                  color: active ? "#8B0B1F" : "#475569",
-                  padding: "8px 14px",
-                  borderRadius: 8, fontSize: 12,
-                  fontWeight: 700, cursor: "pointer"
-                }}
+                className={`${styles.statusBtn} ${active ? styles.statusBtnActive : ""}`}
               >
                 {s ? `${theme.icon} ${label}` : label}
               </button>
@@ -958,12 +688,7 @@ function Inventory() {
         <button
           onClick={load}
           title="Refresh"
-          style={{
-            border: "1px solid #e2e8f0", background: "white",
-            padding: "10px 14px", borderRadius: 8,
-            cursor: "pointer", fontSize: 13,
-            fontWeight: 700, color: "#475569"
-          }}
+          className={styles.refreshBtn}
         >
           ↻ Refresh
         </button>
@@ -971,22 +696,17 @@ function Inventory() {
 
       {/* Grid */}
       {loading && (
-        <div style={{ padding: 50, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>
+        <div className={styles.loadingState}>
           Loading inventory…
         </div>
       )}
 
       {!loading && filtered.length === 0 && (
-        <div style={{
-          padding: 60, textAlign: "center",
-          background: "white", borderRadius: 14,
-          color: "#64748b", fontSize: 14,
-          border: "1px dashed #cbd5e1"
-        }}>
+        <div className={styles.emptyState}>
           📭 No materials match your filters.
           {(!data?.items?.length) && (
-            <div style={{ marginTop: 8, fontSize: 12 }}>
-              Hit <b>Suppliers → 🔄 Reset & Seed Demo Data</b> to load
+            <div className={styles.emptyStateSub}>
+              Hit <b>Suppliers → 🔄 Reset &amp; Seed Demo Data</b> to load
               the 47 starter materials.
             </div>
           )}
@@ -994,11 +714,7 @@ function Inventory() {
       )}
 
       {!loading && filtered.length > 0 && (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-          gap: 16, alignItems: "stretch"
-        }}>
+        <div className={styles.cardGrid}>
           {filtered.map((item) => (
             <MaterialCard
               key={item.ID}

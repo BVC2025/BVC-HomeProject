@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import API from "../services/api";
+import styles from "./ChatBot.module.css";
 
 
 function BotIcon() {
@@ -404,155 +405,13 @@ export default function ChatBot() {
   };
 
 
-  // ---- Styles (inline so this drops in without CSS edits) ----
-
-  const bubbleStyle = {
-    position: "fixed",
-    bottom: "24px",
-    right: "24px",
-    width: "60px",
-    height: "60px",
-    borderRadius: "50%",
-    background: "linear-gradient(135deg, #C8102E, #8B0B1F)",
-    color: "white",
-    border: "none",
-    cursor: "pointer",
-    boxShadow: "0 8px 24px rgba(37, 99, 235, 0.45)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 9999,
-    transition: "transform 0.2s ease"
-  };
-
-  const panelStyle = {
-    position: "fixed",
-    bottom: "24px",
-    right: "24px",
-    width: "380px",
-    maxWidth: "92vw",
-    height: "560px",
-    maxHeight: "82vh",
-    background: "white",
-    borderRadius: "16px",
-    boxShadow: "0 20px 50px rgba(0,0,0,0.22)",
-    display: "flex",
-    flexDirection: "column",
-    overflow: "hidden",
-    zIndex: 9999,
-    fontFamily: "Segoe UI, Arial, sans-serif"
-  };
-
-  const headerStyle = {
-    background: "linear-gradient(135deg, #C8102E, #8B0B1F)",
-    color: "white",
-    padding: "14px 16px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between"
-  };
-
-  const bodyStyle = {
-    flex: 1,
-    overflowY: "auto",
-    padding: "14px",
-    background: "#f8fafc"
-  };
-
-  const inputBarStyle = {
-    borderTop: "1px solid #e5e7eb",
-    padding: "10px 12px",
-    display: "flex",
-    gap: "8px",
-    background: "white"
-  };
-
-  const inputStyle = {
-    flex: 1,
-    border: "1px solid #cbd5e1",
-    borderRadius: "10px",
-    padding: "9px 12px",
-    fontSize: "14px",
-    outline: "none",
-    fontFamily: "inherit"
-  };
-
-  const sendBtnStyle = {
-    background: "linear-gradient(135deg, #C8102E, #8B0B1F)",
-    color: "white",
-    border: "none",
-    borderRadius: "10px",
-    padding: "0 14px",
-    cursor: loading ? "not-allowed" : "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    opacity: loading ? 0.6 : 1
-  };
-
-  const userBubbleStyle = {
-    background: "linear-gradient(135deg, #C8102E, #8B0B1F)",
-    color: "white",
-    padding: "10px 14px",
-    borderRadius: "14px 14px 4px 14px",
-    maxWidth: "78%",
-    fontSize: "14px",
-    lineHeight: 1.45,
-    alignSelf: "flex-end",
-    whiteSpace: "pre-wrap"
-  };
-
-  const botBubbleStyle = {
-    background: "white",
-    color: "#0f172a",
-    padding: "10px 14px",
-    borderRadius: "14px 14px 14px 4px",
-    maxWidth: "85%",
-    fontSize: "14px",
-    lineHeight: 1.5,
-    alignSelf: "flex-start",
-    border: "1px solid #e5e7eb",
-    whiteSpace: "pre-wrap",
-    boxShadow: "0 1px 2px rgba(0,0,0,0.04)"
-  };
-
-  const itemRowStyle = {
-    background: "#f1f5f9",
-    border: "1px solid #e2e8f0",
-    borderRadius: "8px",
-    padding: "6px 10px",
-    marginTop: "6px",
-    fontSize: "13px",
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "8px"
-  };
-
-  const chipStyle = {
-    background: "#fef2f2",
-    color: "#8B0B1F",
-    border: "1px solid #fecaca",
-    padding: "5px 11px",
-    borderRadius: "999px",
-    fontSize: "12px",
-    cursor: "pointer",
-    fontFamily: "inherit"
-  };
-
-
   if (!open) {
 
     return (
       <button
-        style={bubbleStyle}
+        className={styles.bubble}
         onClick={() => setOpen(true)}
         title="ERP Assistant"
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = "scale(1.06)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = "scale(1)";
-        }}
       >
         <BotIcon />
       </button>
@@ -561,29 +420,21 @@ export default function ChatBot() {
 
 
   return (
-    <div style={panelStyle}>
+    <div className={styles.panel}>
 
-      <div style={headerStyle}>
+      <div className={styles.header}>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div className={styles.headerLeft}>
 
-          <div style={{
-            width: 32,
-            height: 32,
-            borderRadius: "50%",
-            background: "rgba(255,255,255,0.18)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center"
-          }}>
+          <div className={styles.headerAvatar}>
             <BotIcon />
           </div>
 
           <div>
-            <div style={{ fontWeight: 700, fontSize: "14px" }}>
+            <div className={styles.headerTitle}>
               ERP Assistant
             </div>
-            <div style={{ fontSize: "11px", opacity: 0.85 }}>
+            <div className={styles.headerSub}>
               Always free · No API cost
             </div>
           </div>
@@ -592,15 +443,7 @@ export default function ChatBot() {
 
         <button
           onClick={() => setOpen(false)}
-          style={{
-            background: "transparent",
-            border: "none",
-            color: "white",
-            cursor: "pointer",
-            padding: 4,
-            display: "flex",
-            alignItems: "center"
-          }}
+          className={styles.closeBtn}
           title="Close"
         >
           <CloseIcon />
@@ -608,43 +451,30 @@ export default function ChatBot() {
 
       </div>
 
-      <div ref={scrollRef} style={bodyStyle}>
+      <div ref={scrollRef} className={styles.body}>
 
-        <div style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "10px"
-        }}>
+        <div className={styles.messageList}>
 
           {messages.map((m, i) => (
 
             <div
               key={i}
-              style={
+              className={
                 m.from === "user"
-                  ? userBubbleStyle
-                  : botBubbleStyle
+                  ? styles.userBubble
+                  : styles.botBubble
               }
             >
 
               {/* Source badge — small chip showing rules vs gemini */}
               {m.from === "bot" && m.source && (
-                <div style={{ marginBottom: 6 }}>
+                <div className={styles.sourceBadge}>
                   <span
-                    style={{
-                      fontSize: 9,
-                      fontWeight: 700,
-                      letterSpacing: 0.8,
-                      textTransform: "uppercase",
-                      padding: "2px 8px",
-                      borderRadius: 999,
-                      background:
-                        m.source === "gemini"
-                          ? "linear-gradient(90deg,#C8102E,#F4B324)"
-                          : "#e2e8f0",
-                      color:
-                        m.source === "gemini" ? "#fff" : "#475569"
-                    }}
+                    className={
+                      m.source === "gemini"
+                        ? styles.sourceBadgeGemini
+                        : styles.sourceBadgeRule
+                    }
                   >
                     {m.source === "gemini"
                       ? "✨ Gemini AI"
@@ -655,24 +485,15 @@ export default function ChatBot() {
 
               {/* Tool-call breadcrumbs */}
               {m.from === "bot" && m.tools && m.tools.length > 0 && (
-                <div style={{ marginBottom: 8 }}>
+                <div className={styles.toolCrumbs}>
                   {m.tools.map((tc, k) => (
                     <div
                       key={k}
-                      style={{
-                        fontSize: 11,
-                        color: "#6366f1",
-                        background: "#eef2ff",
-                        border: "1px solid #c7d2fe",
-                        borderRadius: 8,
-                        padding: "4px 10px",
-                        marginBottom: 4,
-                        fontFamily: "ui-monospace, monospace"
-                      }}
+                      className={styles.toolCrumb}
                     >
                       🔧 {tc.name}
                       {tc.args && Object.keys(tc.args).length > 0 && (
-                        <span style={{ opacity: 0.65, marginLeft: 4 }}>
+                        <span className={styles.toolCrumbArgs}>
                           ({Object.entries(tc.args)
                             .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
                             .join(", ")})
@@ -683,29 +504,19 @@ export default function ChatBot() {
                 </div>
               )}
 
-              <div style={{ whiteSpace: "pre-wrap" }}>
+              <div>
                 {m.reply}
                 {m.streaming && (
-                  <span
-                    style={{
-                      display: "inline-block",
-                      width: 6,
-                      height: 14,
-                      background: "#6366f1",
-                      marginLeft: 2,
-                      verticalAlign: "middle",
-                      animation: "bvcChatCursor 0.9s steps(2) infinite"
-                    }}
-                  />
+                  <span className={styles.cursor} />
                 )}
               </div>
 
               {m.items && m.items.length > 0 && (
-                <div style={{ marginTop: "8px" }}>
+                <div className={styles.itemList}>
                   {m.items.map((it, j) => (
-                    <div key={j} style={itemRowStyle}>
-                      <span style={{ fontWeight: 600 }}>{it.label}</span>
-                      <span style={{ color: "#64748b" }}>
+                    <div key={j} className={styles.itemRow}>
+                      <span className={styles.itemLabel}>{it.label}</span>
+                      <span className={styles.itemValue}>
                         {it.value != null ? it.value : it.meta}
                       </span>
                     </div>
@@ -714,16 +525,11 @@ export default function ChatBot() {
               )}
 
               {m.suggestions && m.suggestions.length > 0 && (
-                <div style={{
-                  marginTop: "10px",
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: "6px"
-                }}>
+                <div className={styles.chipRow}>
                   {m.suggestions.map((s, j) => (
                     <button
                       key={j}
-                      style={chipStyle}
+                      className={styles.chip}
                       onClick={() => send(s)}
                     >
                       {s}
@@ -736,32 +542,20 @@ export default function ChatBot() {
 
           ))}
 
-          <style>{`
-            @keyframes bvcChatCursor {
-              0%, 100% { opacity: 1; }
-              50% { opacity: 0; }
-            }
-          `}</style>
-
           {loading && !messages.some(
             (m) => m.from === "bot" && m.streaming
           ) && (
-            <div style={{ ...botBubbleStyle, fontStyle: "italic", color: "#64748b" }}>
+            <div className={`${styles.botBubble} ${styles.botBubbleThinking}`}>
               Thinking...
             </div>
           )}
 
           {messages.length <= 1 && !loading && (
-            <div style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "6px",
-              marginTop: "4px"
-            }}>
+            <div className={styles.quickChipRow}>
               {quickSuggestions.map((s, j) => (
                 <button
                   key={j}
-                  style={chipStyle}
+                  className={styles.chip}
                   onClick={() => send(s)}
                 >
                   {s}
@@ -774,7 +568,7 @@ export default function ChatBot() {
 
       </div>
 
-      <div style={inputBarStyle}>
+      <div className={styles.inputBar}>
 
         <input
           type="text"
@@ -782,13 +576,13 @@ export default function ChatBot() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKey}
           placeholder="Ask about tasks, projects, stock..."
-          style={inputStyle}
+          className={styles.input}
           disabled={loading}
         />
 
         <button
           onClick={() => send()}
-          style={sendBtnStyle}
+          className={styles.sendBtn}
           disabled={loading}
           title="Send"
         >

@@ -1,0 +1,1087 @@
+/* ============================================================
+   PurchaseOrders.module.css
+   All layout/structural styles for PurchaseOrders.jsx.
+   No hardcoded hex/rgba/font values — uses CSS custom props.
+   Badge/status chip accent colors remain inline in JSX.
+   ============================================================ */
+
+/* ---- Page shell ---- */
+.page {
+  padding: var(--sp-6, 24px);
+}
+
+/* ---- Page header ---- */
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 24px;
+  color: var(--text-primary);
+}
+
+.pageSubtitle {
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  margin-top: 4px;
+}
+
+.headerActions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ---- Stat tiles ---- */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.statTile {
+  background: var(--card-bg);
+  padding: 16px 20px;
+  border-radius: var(--radius-lg, 14px);
+  box-shadow: var(--shadow);
+  /* border-top color is set inline (runtime color) */
+}
+
+.statTileLabel {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.statTileValue {
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+.statTileValueNum {
+  font-size: 28px;
+}
+
+.statTileValueText {
+  font-size: 18px;
+}
+
+/* ---- Toolbar / filters ---- */
+.toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+/* ---- PO list ---- */
+.poList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.poRow {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 12px);
+  padding: 14px 18px;
+  display: grid;
+  grid-template-columns: 180px 1fr 180px 140px 160px;
+  gap: 14px;
+  align-items: center;
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.poRow:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--clr-primary);
+}
+
+.poRowNumber {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+}
+
+.poRowDate {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+.poRowSupplier {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.poRowMeta {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+.poRowDeliveryLabel {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.poRowDeliveryValue {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.poRowTotalLabel {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.poRowTotalValue {
+  font-size: 15px;
+  font-weight: var(--fw-extrabold);
+  color: #b45309; /* amber — intentional accent */
+}
+
+.poRowRight {
+  text-align: right;
+}
+
+/* ---- Empty / loading states ---- */
+.loadingState {
+  padding: 30px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.emptyState {
+  padding: 40px;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg, 12px);
+  color: var(--text-secondary);
+}
+
+/* ---- Buttons ---- */
+.btnAutoProject {
+  border: 1px solid #c7d2fe;
+  background: var(--card-bg);
+  color: #4338ca;
+  padding: 11px 18px;
+  border-radius: var(--radius, 10px);
+  font-weight: var(--fw-extrabold);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+.btnAutoProject:hover {
+  background: #eef2ff;
+  box-shadow: var(--shadow-sm);
+}
+
+.btnNewPO {
+  border: none;
+  background: var(--clr-primary);
+  color: #fff;
+  padding: 11px 22px;
+  border-radius: var(--radius, 10px);
+  font-weight: var(--fw-extrabold);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(239, 68, 68, 0.35);
+  transition: opacity 0.15s, box-shadow 0.15s;
+}
+
+.btnNewPO:hover {
+  opacity: 0.9;
+  box-shadow: 0 8px 22px rgba(239, 68, 68, 0.45);
+}
+
+/* ---- Modal shell ---- */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 30px;
+}
+
+.modalBox {
+  max-width: 98%;
+  max-height: 92vh;
+  background: var(--card-bg);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modalBoxNormal {
+  width: 720px;
+}
+
+.modalBoxWide {
+  width: 1100px;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--card-bg);
+}
+
+.modalTitle {
+  font-size: 17px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+}
+
+.modalClose {
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  line-height: 1;
+  padding: 0;
+}
+
+.modalClose:hover {
+  color: var(--text-primary);
+}
+
+.modalBody {
+  padding: 22px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ---- Form grid helpers ---- */
+.formGrid3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.formGrid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.fieldSpacer {
+  height: 12px;
+}
+
+/* ---- Field label ---- */
+.fieldLabel {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  display: block;
+}
+
+/* ---- Form inputs ---- */
+.input {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 8px);
+  font-size: var(--font-sm);
+  font-family: inherit;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--clr-primary);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.12);
+}
+
+.inputDualWrap {
+  display: flex;
+  gap: 6px;
+}
+
+/* ---- Line items section ---- */
+.lineItemsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.lineItemsLabel {
+  font-size: 12px;
+  font-weight: var(--fw-extrabold);
+  color: #d97706; /* amber accent — intentional */
+  letter-spacing: 1px;
+}
+
+.btnAddLine {
+  border: none;
+  background: var(--clr-primary);
+  color: #fff;
+  padding: 7px 14px;
+  border-radius: var(--radius, 8px);
+  font-weight: var(--fw-bold);
+  font-size: 12px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btnAddLine:hover {
+  opacity: 0.88;
+}
+
+/* ---- Tables ---- */
+.tableWrap {
+  margin-bottom: 16px;
+  overflow: auto;
+}
+
+.tableWrapSm {
+  margin-bottom: 14px;
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.tableHead tr {
+  background: var(--surface);
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.tableHead th {
+  padding: 8px;
+}
+
+.tableBody tr {
+  border-top: 1px solid var(--border);
+}
+
+.tdPad {
+  padding: 8px;
+}
+
+.tdPadSm {
+  padding: 6px;
+}
+
+.tdRight {
+  text-align: right;
+}
+
+/* ---- Totals box ---- */
+.totalsWrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.totalsBox {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 12px);
+  padding: 16px;
+  min-width: 280px;
+}
+
+.totalsDivider {
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+  padding-top: 6px;
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.totalRowNormal {
+  font-size: var(--font-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.totalRowBold {
+  font-size: 16px;
+  font-weight: var(--fw-extrabold);
+  color: #b45309; /* amber — intentional accent */
+}
+
+/* ---- Detail header card ---- */
+.detailHeaderCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 12px);
+  padding: 16px;
+  margin-bottom: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+/* ---- Info block ---- */
+.infoBlockLabel {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 2px;
+}
+
+.infoBlockValue {
+  font-size: 14px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.infoBlockSub {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+/* ---- Section label ---- */
+.sectionLabel {
+  font-size: 12px;
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.sectionLabelAmber {
+  color: #d97706;
+}
+
+.sectionLabelBlue {
+  color: #0ea5e9;
+}
+
+/* ---- Detail action row ---- */
+.detailActionRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ---- Email tracking banner ---- */
+.trackingBanner {
+  border-radius: var(--radius, 10px);
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  gap: 18px;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+
+.trackingBannerSuccess {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+}
+
+.trackingBannerFail {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+}
+
+.trackingBannerFailText {
+  color: #b91c1c;
+}
+
+/* ---- GRN section ---- */
+.grnCard {
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 10px);
+  padding: 12px 16px;
+  margin-bottom: 8px;
+}
+
+.grnCardFinal {
+  background: #f0fdf4;
+}
+
+.grnCardDraft {
+  background: #fffbeb;
+}
+
+.grnCardInner {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.grnCardLeft {
+  flex: 1;
+}
+
+.grnCardActions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.grnNumber {
+  font-weight: var(--fw-extrabold);
+  font-size: 14px;
+}
+
+.grnMeta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.grnChips {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.grnChipHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.grnRejectionDetail {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: #fee2e2;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #991b1b;
+}
+
+/* ---- GRN buttons ---- */
+.btnGrnPrint {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.btnGrnPrint:hover {
+  background: var(--surface);
+}
+
+.btnGrnNotify {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.btnGrnNotify:hover {
+  background: #fee2e2;
+}
+
+.btnGrnFinalize {
+  border: none;
+  background: #10b981;
+  color: #fff;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+
+.btnGrnFinalize:hover {
+  opacity: 0.88;
+}
+
+.btnGrnDelete {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.btnGrnDelete:hover {
+  background: #fee2e2;
+}
+
+/* ---- Activity timeline ---- */
+.activityWrap {
+  margin-top: 18px;
+}
+
+.activityInner {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 10px);
+  padding: 12px 16px;
+}
+
+.activityRow {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+  align-items: flex-start;
+}
+
+.activityRowBorder {
+  border-top: 1px solid var(--border);
+}
+
+.activityIcon {
+  font-size: 18px;
+  width: 26px;
+}
+
+.activityBody {
+  flex: 1;
+}
+
+.activityEvent {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+}
+
+.activityDetail {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.activityTime {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.btnRemoveActivity {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-muted);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.12s;
+}
+
+.btnRemoveActivity:hover {
+  color: var(--text-primary);
+}
+
+/* ---- GRN form ---- */
+.grnContextBanner {
+  background: #dbeafe;
+  border: 1px solid #c7d2fe;
+  border-radius: var(--radius, 10px);
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 12px;
+  color: #4338ca;
+}
+
+.grnAllReceived {
+  padding: 20px;
+  text-align: center;
+  background: #f0fdf4;
+  border: 1px dashed #86efac;
+  border-radius: var(--radius, 10px);
+  color: #166534;
+  font-size: var(--font-sm);
+  margin-bottom: 14px;
+}
+
+.grnSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.grnFinalizeToggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: var(--radius, 8px);
+  font-size: var(--font-sm);
+  cursor: pointer;
+}
+
+.grnFinalizeToggleCheckbox {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+}
+
+/* ---- GRN save button ---- */
+.btnGrnSave {
+  border: none;
+  color: #fff;
+  padding: 9px 22px;
+  border-radius: var(--radius, 8px);
+  font-weight: var(--fw-extrabold);
+  font-size: var(--font-sm);
+  transition: opacity 0.12s;
+}
+
+.btnGrnSaveActive {
+  background: var(--clr-primary);
+  cursor: pointer;
+}
+
+.btnGrnSaveActive:hover {
+  opacity: 0.88;
+}
+
+.btnGrnSaveDisabled {
+  background: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* ---- Auto-from-Project modal ---- */
+.autoProjectInfo {
+  background: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: var(--radius, 10px);
+  padding: 12px;
+  font-size: 12px;
+  color: #0c4a6e;
+  margin-bottom: 16px;
+}
+
+.btnGeneratePOs {
+  border: none;
+  color: #fff;
+  padding: 9px 22px;
+  border-radius: var(--radius, 8px);
+  font-weight: var(--fw-extrabold);
+  font-size: var(--font-sm);
+  transition: opacity 0.12s;
+}
+
+.btnGeneratePOsActive {
+  background: var(--clr-primary);
+  cursor: pointer;
+}
+
+.btnGeneratePOsActive:hover {
+  opacity: 0.88;
+}
+
+.btnGeneratePOsDisabled {
+  background: var(--text-muted);
+  cursor: not-allowed;
+}
+
+/* ---- Cancel buttons (shared) ---- */
+.btnCancel {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  padding: 9px 18px;
+  border-radius: var(--radius, 8px);
+  cursor: pointer;
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+  transition: background 0.12s;
+}
+
+.btnCancel:hover {
+  background: var(--surface);
+}
+
+.btnCancelWide {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  padding: 10px 22px;
+  border-radius: var(--radius, 8px);
+  cursor: pointer;
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+  transition: background 0.12s;
+}
+
+.btnCancelWide:hover {
+  background: var(--surface);
+}
+
+/* ---- Create PO button ---- */
+.btnCreatePO {
+  border: none;
+  background: var(--clr-primary);
+  color: #fff;
+  padding: 10px 26px;
+  border-radius: var(--radius, 8px);
+  font-weight: var(--fw-extrabold);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(239, 68, 68, 0.35);
+  transition: opacity 0.15s, box-shadow 0.15s;
+}
+
+.btnCreatePO:hover {
+  opacity: 0.9;
+  box-shadow: 0 8px 22px rgba(239, 68, 68, 0.45);
+}
+
+/* ---- Modal footer row ---- */
+.modalFooter {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+/* ---- Summary tile (GRN totals) ---- */
+.summaryTile {
+  background: var(--card-bg);
+  border-radius: var(--radius, 8px);
+  padding: 10px 14px;
+  /* border and borderLeft set inline (runtime color) */
+}
+
+.summaryTileLabel {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: var(--fw-bold);
+}
+
+.summaryTileValue {
+  font-size: 22px;
+  font-weight: var(--fw-extrabold);
+  margin-top: 2px;
+  /* color set inline (runtime color) */
+}
+
+.summaryTileSub {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ---- Action button (PODetail) ---- */
+.actionBtn {
+  border: none;
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: var(--radius, 8px);
+  font-weight: var(--fw-bold);
+  font-size: 12px;
+  cursor: pointer;
+  transition: opacity 0.12s;
+  /* background and box-shadow set inline (runtime color) */
+}
+
+.actionBtn:hover {
+  opacity: 0.88;
+}
+
+/* ---- Table column widths ---- */
+.thW40  { width: 40px; }
+.thW60  { width: 60px; }
+.thW70  { width: 70px; }
+.thW75  { width: 75px; }
+.thW80  { width: 80px; }
+.thW100 { width: 100px; }
+.thW110 { width: 110px; }
+.thW160 { width: 160px; }
+
+/* ---- Table cell alignment helpers ---- */
+.tdAlignRight     { text-align: right; }
+.tdAlignRightBold { text-align: right; font-weight: var(--fw-bold); }
+.tdAlignRightXB   { text-align: right; font-weight: var(--fw-extrabold); }
+.tdAlignRightW600 { text-align: right; font-weight: 600; }
+
+/* ---- Table th color accents (static) ---- */
+.thAcceptedColor { color: #047857; }
+.thRejectedColor { color: #b91c1c; }
+
+/* ---- td: accepted qty (static green) ---- */
+.tdAccepted {
+  text-align: right;
+  color: #047857;
+  font-weight: var(--fw-bold);
+}
+
+/* ---- td: ordered qty (static slate) ---- */
+.tdOrdered {
+  text-align: right;
+  color: #475569;
+  font-weight: 600;
+}
+
+/* ---- td: pending qty (static red) ---- */
+.tdPendingRed {
+  text-align: right;
+  color: #b91c1c;
+  font-weight: var(--fw-bold);
+}
+
+/* ---- Empty table row ---- */
+.tableEmptyRow {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* ---- GRN chip: accepted (always green) ---- */
+.grnChipAccepted {
+  background: #dcfce7;
+  color: #166534;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+}
+
+/* ---- GRN chip: rejected (always red) ---- */
+.grnChipRejected {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+}
+
+/* ---- GRN chip: lines count (always indigo) ---- */
+.grnChipLines {
+  background: #e0e7ff;
+  color: #4338ca;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+}
+
+/* ---- GRN line desc sub-text ---- */
+.grnLineUnit {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ---- GRN line error text ---- */
+.grnLineError {
+  font-size: 11px;
+  color: #b91c1c;
+  margin-top: 4px;
+  font-weight: var(--fw-bold);
+}
+
+/* ---- Resizable textareas ---- */
+.inputResizable {
+  resize: vertical;
+}
+
+/* ---- GRNs section wrapper ---- */
+.grnSectionWrap {
+  margin-top: 14px;
+}
+
+/* ---- Totals wrap bottom-margin variant ---- */
+.totalsWrapMb14 {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 14px;
+}
+
+/* ---- TotalRow large variant (Grand Total) ---- */
+.totalRowLarge {
+  font-size: 16px;
+}
+
+/* ---- Modal footer with top margin ---- */
+.modalFooterMt18 {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+/* ---- GRN form thead column widths ---- */
+.thGrnOrdered  { width: 80px; text-align: right; }
+.thGrnPending  { width: 80px; text-align: right; }
+.thGrnAccepted { width: 110px; color: #047857; }
+.thGrnRejected { width: 110px; color: #b91c1c; }
+
+/* ---- Cancel button: disabled state ---- */
+.btnCancelDisabled {
+  cursor: not-allowed;
+}
+
+/* ---- Toolbar input width caps ---- */
+.toolbarSearch {
+  max-width: 320px;
+}
+
+.toolbarSelect {
+  max-width: 220px;
+}
+
+/* ---- Status pill (bg/color set inline — runtime) ---- */
+.statusPill {
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-black);
+  letter-spacing: 0.8px;
+}
+
+/* ---- GRN status pill (bg/color set inline — runtime) ---- */
+.grnStatusPill {
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-black);
+  letter-spacing: 0.6px;
+}

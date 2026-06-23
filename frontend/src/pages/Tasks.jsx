@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import API from "../services/api";
+import styles from "./Tasks.module.css";
 
 function Tasks() {
 
@@ -195,7 +196,7 @@ function Tasks() {
 
   return (
 
-    <div>
+    <div className={styles.page}>
 
       <h1>Tasks</h1>
 

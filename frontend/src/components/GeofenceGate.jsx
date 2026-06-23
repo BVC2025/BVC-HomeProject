@@ -1,4 +1,4 @@
-// =====================================================================
+﻿// =====================================================================
 // GeofenceGate — reusable widget the Attendance pages render BEFORE
 // they enable the actual check-in / biometric / face-scan UI.
 //
@@ -21,6 +21,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import API from "../services/api";
+import styles from "./GeofenceGate.module.css";
 
 
 export default function GeofenceGate({
@@ -308,7 +309,7 @@ export default function GeofenceGate({
         <Title color="#475569">⚠ Geofence Enforcement Off</Title>
         <Body>
           The admin has turned <b>OFF</b> geofence enforcement at{" "}
-          <a href="/geofence" style={{ color: "#6366f1" }}>Geofence Settings</a>.
+          <a href="/geofence" className={styles.gpsLink}>Geofence Settings</a>.
           Check-in / Check-out are allowed from anywhere. Re-enable
           enforcement when you're ready for production.
         </Body>
@@ -393,7 +394,7 @@ export default function GeofenceGate({
         <Body>
           Your browser is blocking location access. To enable GPS:
           <ol style={{ marginTop: 8, paddingLeft: 20 }}>
-            <li>Open a new tab → <code style={kbd}>chrome://settings/content/location</code></li>
+            <li>Open a new tab → <code className={styles.kbd}>chrome://settings/content/location</code></li>
             <li>Find <b>localhost:5173</b> under "Not allowed" → click 🗑</li>
             <li>Come back to this tab and reload</li>
           </ol>
@@ -500,138 +501,50 @@ export default function GeofenceGate({
 // ---- Action button row + skip button helpers ----
 
 function ActionRow({ children }) {
-
-  return (
-    <div style={{
-      marginTop: 12,
-      display: "flex",
-      gap: 10,
-      flexWrap: "wrap",
-      alignItems: "center"
-    }}>
-      {children}
-    </div>
-  );
+  return <div className={styles.actionRow}>{children}</div>;
 }
-
 
 function SkipBtn({ onClick, children }) {
-
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        background: "linear-gradient(135deg, #f59e0b, #d97706)",
-        color: "white",
-        border: "none",
-        padding: "10px 18px",
-        borderRadius: 8,
-        fontWeight: 800,
-        fontSize: 13,
-        cursor: "pointer",
-        letterSpacing: 0.3,
-        boxShadow: "0 4px 12px rgba(245,158,11,0.30)"
-      }}
-    >
-      {children}
-    </button>
-  );
+  return <button onClick={onClick} className={styles.skipBtn}>{children}</button>;
 }
-
-
-const kbd = {
-  background: "#1e293b",
-  color: "#e2e8f0",
-  padding: "2px 6px",
-  borderRadius: 4,
-  fontFamily: "ui-monospace, monospace",
-  fontSize: 11
-};
-
 
 // ---- Sub-components --------------------------------------------------
 
 function Card({ border, bg, children }) {
-
   return (
-    <div style={{
-      border: `1px solid ${border}`,
-      background: bg,
-      borderRadius: 12,
-      padding: "16px 20px",
-      marginBottom: 16,
-      boxShadow: "0 4px 14px rgba(15,23,42,0.04)"
-    }}>
+    <div className={styles.card} style={{ border: `1px solid ${border}`, background: bg }}>
       {children}
     </div>
   );
 }
 
-
-function Title({ color = "#0f172a", children }) {
-
+function Title({ color = "var(--text-primary)", children }) {
   return (
-    <div style={{ fontSize: 15, fontWeight: 800, color, marginBottom: 6 }}>
+    <div className={styles.title} style={{ color }}>
       {children}
     </div>
   );
 }
-
 
 function Body({ children }) {
-
-  return (
-    <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.6 }}>
-      {children}
-    </div>
-  );
+  return <div className={styles.body}>{children}</div>;
 }
 
-
 function Coords({ coords }) {
-
   if (!coords) return null;
-
   return (
-    <div style={{
-      marginTop: 8,
-      fontSize: 11,
-      color: "#94a3b8",
-      fontFamily: "ui-monospace, monospace"
-    }}>
+    <div className={styles.coords}>
       {coords.lat?.toFixed(6)}, {coords.lng?.toFixed(6)}
       {coords.accuracy && <span> · ±{Math.round(coords.accuracy)}m accuracy</span>}
     </div>
   );
 }
 
-
 function Retry({ onClick, label, inline = false }) {
-
   const btn = (
-
-    <button
-      onClick={onClick}
-      style={{
-        background: "white",
-        border: "1px solid #cbd5e1",
-        padding: "8px 14px",
-        borderRadius: 8,
-        fontSize: 12,
-        fontWeight: 700,
-        color: "#475569",
-        cursor: "pointer"
-      }}
-    >
-      🔄 {label}
-    </button>
+    <button onClick={onClick} className={styles.retryBtn}>🔄 {label}</button>
   );
-
   if (inline) return btn;
-
-  return (
-    <div style={{ marginTop: 12 }}>
-      {btn}
-    </div>
-  );
+  return <div className={styles.retryWrap}>{btn}</div>;
 }
+
