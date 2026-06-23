@@ -564,7 +564,7 @@ class Journey:
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("--base", default="http://127.0.0.1:8001")
+    p.add_argument("--base", default="http://127.0.0.1:8000")
     p.add_argument("--admin-code", default="ADMIN")
     p.add_argument("--admin-pass", default="admin123")
     args = p.parse_args()
