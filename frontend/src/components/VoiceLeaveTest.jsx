@@ -1,4 +1,4 @@
-// =====================================================================
+﻿// =====================================================================
 // VoiceLeaveTest.jsx — POC validator for voice-driven leave requests.
 //
 // Goal of this card: prove that the browser's free Web Speech API can
@@ -26,6 +26,7 @@
 // =====================================================================
 
 import { useEffect, useRef, useState } from "react";
+import styles from "./VoiceLeaveTest.module.css";
 
 
 const LANGUAGES = [
@@ -157,93 +158,42 @@ function VoiceLeaveTest() {
   // -- Render -------------------------------------------------------
 
   return (
+    <div className={styles.card}>
 
-    <div style={{
-      background: "white",
-      border: "1px solid #fde68a",
-      borderLeft: "4px solid #f59e0b",
-      borderRadius: 14,
-      padding: 22,
-      marginBottom: 18,
-      boxShadow: "0 4px 14px rgba(15,23,42,0.06)"
-    }}>
-
-      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
-        <span style={{
-          fontSize: 9,
-          fontWeight: 800,
-          color: "#92400e",
-          letterSpacing: 2,
-          textTransform: "uppercase"
-        }}>
-          POC · Voice Test
-        </span>
-        <span style={{ fontSize: 11, color: "#92400e", opacity: 0.7 }}>
+      <div className={styles.badgeRow}>
+        <span className={styles.pocBadge}>POC · Voice Test</span>
+        <span className={styles.pocSub}>
           (backend not wired yet — this is to validate transcription quality)
         </span>
       </div>
 
-      <h3 style={{
-        margin: "0 0 6px",
-        fontSize: 18,
-        fontWeight: 800,
-        color: "#0f172a",
-        letterSpacing: -0.2
-      }}>
-        Speak your leave request
-      </h3>
+      <h3 className={styles.title}>Speak your leave request</h3>
 
-      <p style={{ margin: "0 0 14px", fontSize: 13, color: "#475569", lineHeight: 1.5 }}>
+      <p className={styles.description}>
         Pick a language, tap the mic, say your request the way you'd say it to your manager.
         We'll show what the browser heard. If it's accurate enough, voice-based leave is viable.
       </p>
 
       {!supported && (
-        <div style={{
-          background: "#fee2e2",
-          color: "#991b1b",
-          padding: 12,
-          borderRadius: 8,
-          fontSize: 13,
-          marginBottom: 12
-        }}>
+        <div className={styles.unsupported}>
           ⚠ Your browser doesn't expose the Web Speech API.
           Open this page in Chrome, Edge, or Safari (desktop or mobile).
         </div>
       )}
 
       {/* Language picker */}
-      <div style={{ marginBottom: 14 }}>
-        <div style={{
-          fontSize: 10, fontWeight: 700, color: "#64748b",
-          letterSpacing: 0.6, textTransform: "uppercase", marginBottom: 4
-        }}>
-          Language
-        </div>
-        <div style={{ display: "flex", gap: 6 }}>
+      <div className={styles.langSection}>
+        <div className={styles.langLabel}>Language</div>
+        <div className={styles.langRow}>
           {LANGUAGES.map((l) => {
-
             const isOn = lang === l.code;
-
             return (
               <button
                 key={l.code}
                 type="button"
                 disabled={listening}
                 onClick={() => setLang(l.code)}
-                style={{
-                  flex: 1,
-                  padding: "8px 6px",
-                  borderRadius: 8,
-                  border: `1px solid ${isOn ? "#8B0B1F" : "#cbd5e1"}`,
-                  background: isOn ? "#fee2e2" : "white",
-                  color: isOn ? "#8B0B1F" : "#475569",
-                  fontWeight: 800,
-                  fontSize: 11,
-                  letterSpacing: 0.4,
-                  cursor: listening ? "default" : "pointer",
-                  opacity: listening ? 0.6 : 1
-                }}
+                className={`${styles.langBtn}${isOn ? ` ${styles.langBtnActive}` : ""}`}
               >
                 {l.label}
               </button>
@@ -253,28 +203,12 @@ function VoiceLeaveTest() {
       </div>
 
       {/* Mic button */}
-      <div style={{ textAlign: "center", margin: "8px 0 16px" }}>
+      <div className={styles.micArea}>
         <button
           type="button"
           onClick={listening ? stop : start}
           disabled={!supported}
-          style={{
-            width: 96, height: 96, borderRadius: "50%",
-            border: "none",
-            background: listening
-              ? "linear-gradient(135deg, #ef4444, #b91c1c)"
-              : (supported
-                  ? "linear-gradient(135deg, #C8102E, #8B0B1F)"
-                  : "#cbd5e1"),
-            color: "white",
-            cursor: supported ? "pointer" : "not-allowed",
-            boxShadow: listening
-              ? "0 0 0 8px rgba(239,68,68,0.15), 0 6px 24px rgba(185,28,28,0.4)"
-              : "0 4px 14px rgba(139,11,31,0.30)",
-            transition: "all 0.15s ease",
-            animation: listening ? "voicePulse 1.4s ease-in-out infinite" : "none",
-            display: "inline-flex", alignItems: "center", justifyContent: "center"
-          }}
+          className={`${styles.micBtn} ${listening ? styles.micBtnListening : styles.micBtnIdle}`}
           title={listening ? "Stop" : "Tap to speak"}
         >
           {listening ? (
@@ -290,92 +224,37 @@ function VoiceLeaveTest() {
             </svg>
           )}
         </button>
-
-        <div style={{
-          marginTop: 10,
-          fontSize: 12,
-          color: listening ? "#b91c1c" : "#64748b",
-          fontWeight: 700,
-          letterSpacing: 0.4,
-          textTransform: "uppercase"
-        }}>
+        <div className={`${styles.micLabel} ${listening ? styles.micLabelListening : styles.micLabelIdle}`}>
           {listening ? "Listening… tap to stop" : "Tap to start"}
         </div>
       </div>
 
-      {/* Live + final transcript */}
-      <div style={{
-        background: "#f8fafc",
-        border: "1px solid #e2e8f0",
-        borderRadius: 10,
-        padding: 14,
-        minHeight: 90,
-        fontSize: 14,
-        lineHeight: 1.55,
-        color: "#0f172a"
-      }}>
+      {/* Transcript */}
+      <div className={styles.transcriptBox}>
         {finalText
           ? <span>{finalText}</span>
-          : <span style={{ color: "#94a3b8", fontStyle: "italic" }}>
-              Transcript will appear here…
-            </span>
+          : <span className={styles.transcriptPlaceholder}>Transcript will appear here…</span>
         }
-
-        {interim && (
-          <span style={{ color: "#94a3b8" }}>
-            {" "}{interim}
-          </span>
-        )}
+        {interim && <span className={styles.transcriptInterim}> {interim}</span>}
       </div>
 
       {/* Confidence + diagnostic */}
       {(finalText || error) && (
-        <div style={{
-          marginTop: 10,
-          display: "flex",
-          gap: 10,
-          flexWrap: "wrap",
-          alignItems: "center",
-          fontSize: 11,
-          color: "#64748b"
-        }}>
+        <div className={styles.diagRow}>
           {confidence !== null && (
-            <span style={{
-              padding: "3px 9px",
-              borderRadius: 999,
-              background: confidence >= 0.8 ? "#dcfce7"
-                        : confidence >= 0.6 ? "#fef3c7"
-                        : "#fee2e2",
-              color:      confidence >= 0.8 ? "#166534"
-                        : confidence >= 0.6 ? "#92400e"
-                        : "#991b1b",
-              fontWeight: 700,
-              letterSpacing: 0.3
-            }}>
+            <span className={
+              confidence >= 0.8 ? styles.confHigh :
+              confidence >= 0.6 ? styles.confMid :
+                                   styles.confLow
+            }>
               Confidence: {Math.round(confidence * 100)}%
             </span>
           )}
           {finalText && (
             <button
               type="button"
-              onClick={() => {
-                setFinalText("");
-                setInterim("");
-                setConfidence(null);
-                setError("");
-              }}
-              style={{
-                background: "transparent",
-                border: "1px solid #cbd5e1",
-                color: "#475569",
-                padding: "3px 10px",
-                borderRadius: 999,
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: 0.4,
-                textTransform: "uppercase",
-                cursor: "pointer"
-              }}
+              onClick={() => { setFinalText(""); setInterim(""); setConfidence(null); setError(""); }}
+              className={styles.clearBtn}
             >
               Clear
             </button>
@@ -383,29 +262,11 @@ function VoiceLeaveTest() {
         </div>
       )}
 
-      {error && (
-        <div style={{
-          marginTop: 12,
-          padding: "10px 12px",
-          background: "#fef2f2",
-          color: "#991b1b",
-          border: "1px solid #fecaca",
-          borderRadius: 8,
-          fontSize: 12
-        }}>
-          {error}
-        </div>
-      )}
-
-      <style>{`
-        @keyframes voicePulse {
-          0%, 100% { box-shadow: 0 0 0 8px rgba(239,68,68,0.15), 0 6px 24px rgba(185,28,28,0.4); }
-          50%      { box-shadow: 0 0 0 14px rgba(239,68,68,0.05), 0 6px 24px rgba(185,28,28,0.4); }
-        }
-      `}</style>
+      {error && <div className={styles.errorBox}>{error}</div>}
     </div>
   );
 }
 
 
 export default VoiceLeaveTest;
+

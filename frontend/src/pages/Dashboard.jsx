@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 
 import {
   Link,
@@ -71,6 +71,7 @@ import Payroll from "./Payroll";
 import StarPerformance from "./StarPerformance";
 import ChatBot from "../components/ChatBot";
 
+import styles from "./Dashboard.module.css";
 import {
   PALETTE as CHART_COLORS,
   TASK_STATUS_COLORS,
@@ -293,7 +294,7 @@ function NotificationBell() {
 
         <svg
           width="22" height="22" viewBox="0 0 24 24"
-          fill="none" stroke="#8B0B1F" strokeWidth="1.8"
+          fill="none" stroke="#dc2626" strokeWidth="1.8"
           strokeLinecap="round" strokeLinejoin="round"
         >
           <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
@@ -375,8 +376,8 @@ function NotificationBell() {
                           {
                             n.CREATED_AT
                               ? new Date(
-                                  n.CREATED_AT
-                                ).toLocaleString()
+                                n.CREATED_AT
+                              ).toLocaleString()
                               : ""
                           }
                         </div>
@@ -506,29 +507,13 @@ function InventorySummaryCard({ items, loading }) {
 
     <div className="chart-card">
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          marginBottom: 10,
-          flexWrap: "wrap"
-        }}
-      >
-        <h3 style={{ margin: 0 }}>
-          Inventory Summary
-        </h3>
+      <div className={styles.chartCardHeader}>
+        <h3 className={styles.chartCardTitle}>Inventory Summary</h3>
 
-        <div
-          style={{
-            fontSize: 12,
-            color: "#64748b"
-          }}
-        >
+        <div className={styles.chartCapNote}>
           {chartData.length} of {items.length} shown
           {isOverCap && (
-            <span style={{ color: "#d97706" }}>
+            <span className={styles.chartCapWarn}>
               {" "}· capped at {CHART_ITEM_CAP}
             </span>
           )}
@@ -537,39 +522,15 @@ function InventorySummaryCard({ items, loading }) {
 
       {/* Chip row */}
       {items.length > 0 && (
-
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 6,
-            marginBottom: 14,
-            maxHeight: 110,
-            overflowY: "auto",
-            padding: "4px 2px"
-          }}
-        >
+        <div className={styles.chipRow}>
           {items.map((it) => {
-
             const isOn = selected.has(it.name);
-
             return (
               <button
                 key={it.name}
                 type="button"
                 onClick={() => toggle(it.name)}
-                style={{
-                  padding: "4px 10px",
-                  borderRadius: 999,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                  border: "1px solid "
-                    + (isOn ? "#2563eb" : "#cbd5e1"),
-                  background: isOn ? "#2563eb" : "#fff",
-                  color: isOn ? "#fff" : "#475569"
-                }}
+                className={`${styles.chip}${isOn ? ` ${styles.chipOn}` : ""}`}
                 title={`₹${(it.value || 0).toLocaleString()}`}
               >
                 {isOn && <span>✓ </span>}
@@ -582,40 +543,17 @@ function InventorySummaryCard({ items, loading }) {
 
       {/* Quick actions */}
       {items.length > 0 && (
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            marginBottom: 12,
-            flexWrap: "wrap"
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => selectTopN(DEFAULT_TOP_N)}
-            style={miniBtnStyle(false)}
-          >
+        <div className={styles.quickRow}>
+          <button type="button" onClick={() => selectTopN(DEFAULT_TOP_N)} className={styles.miniBtn}>
             Top {DEFAULT_TOP_N} by value
           </button>
-          <button
-            type="button"
-            onClick={() => selectTopN(CHART_ITEM_CAP)}
-            style={miniBtnStyle(false)}
-          >
+          <button type="button" onClick={() => selectTopN(CHART_ITEM_CAP)} className={styles.miniBtn}>
             Top {CHART_ITEM_CAP}
           </button>
-          <button
-            type="button"
-            onClick={() => selectTopN(items.length)}
-            style={miniBtnStyle(false)}
-          >
+          <button type="button" onClick={() => selectTopN(items.length)} className={styles.miniBtn}>
             All ({items.length})
           </button>
-          <button
-            type="button"
-            onClick={clearAll}
-            style={miniBtnStyle(true)}
-          >
+          <button type="button" onClick={clearAll} className={`${styles.miniBtn} ${styles.miniBtnDanger}`}>
             Clear
           </button>
         </div>
@@ -701,8 +639,8 @@ function InventorySummaryCard({ items, loading }) {
           {loading
             ? "Loading…"
             : items.length === 0
-            ? "No inventory data"
-            : "Pick at least one item from the chips above."}
+              ? "No inventory data"
+              : "Pick at least one item from the chips above."}
         </p>
       )}
 
@@ -710,20 +648,6 @@ function InventorySummaryCard({ items, loading }) {
   );
 }
 
-
-function miniBtnStyle(isDanger) {
-
-  return {
-    padding: "4px 10px",
-    borderRadius: 6,
-    fontSize: 11,
-    fontWeight: 600,
-    cursor: "pointer",
-    border: "1px solid " + (isDanger ? "#fecaca" : "#cbd5e1"),
-    background: isDanger ? "#fef2f2" : "#f8fafc",
-    color: isDanger ? "#b91c1c" : "#475569"
-  };
-}
 
 
 function DashboardHomeLegacy() {
@@ -911,8 +835,8 @@ function DashboardHomeLegacy() {
               loading
                 ? "…"
                 : `₹ ${Number(
-                    stats?.inventory_value ?? 0
-                  ).toLocaleString()}`
+                  stats?.inventory_value ?? 0
+                ).toLocaleString()}`
             }
           </p>
 
@@ -1510,45 +1434,45 @@ const NAV_GROUPS = [
     key: "org",
     label: "Organization",
     items: [
-      { to: "/approvals",         icon: <SidebarIcon name="approvals"   />, label: "Approval Center" },
+      { to: "/approvals", icon: <SidebarIcon name="approvals" />, label: "Approval Center" },
       // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
-      { to: "/rbac",              icon: <SidebarIcon name="rbac"        />, label: "RBAC" },
-      { to: "/employees",         icon: <SidebarIcon name="employees"   />, label: "Employees" },
-      { to: "/memos",             icon: <SidebarIcon name="memos"       />, label: "Memos" },
-      { to: "/attendance",        icon: <SidebarIcon name="attendance"  />, label: "Attendance" },
-      { to: "/leave-management",  icon: <SidebarIcon name="leaves"      />, label: "Leave Management" },
-      { to: "/payroll",           icon: <SidebarIcon name="payroll"     />, label: "Payroll" },
-      { to: "/star-performance",  icon: <SidebarIcon name="star"        />, label: "Star Performance" }
+      { to: "/rbac", icon: <SidebarIcon name="rbac" />, label: "RBAC" },
+      { to: "/employees", icon: <SidebarIcon name="employees" />, label: "Employees" },
+      { to: "/memos", icon: <SidebarIcon name="memos" />, label: "Memos" },
+      { to: "/attendance", icon: <SidebarIcon name="attendance" />, label: "Attendance" },
+      { to: "/leave-management", icon: <SidebarIcon name="leaves" />, label: "Leave Management" },
+      { to: "/payroll", icon: <SidebarIcon name="payroll" />, label: "Payroll" },
+      { to: "/star-performance", icon: <SidebarIcon name="star" />, label: "Star Performance" }
     ]
   },
   {
     key: "crm",
     label: "CRM & Sales",
     items: [
-      { to: "/customers",     icon: <SidebarIcon name="customers"   />, label: "Customers" },
-      { to: "/quotations",    icon: <SidebarIcon name="quotations"  />, label: "Quotations" },
-      { to: "/sales-orders",  icon: <SidebarIcon name="salesorders" />, label: "Sales Orders" }
+      { to: "/customers", icon: <SidebarIcon name="customers" />, label: "Customers" },
+      { to: "/quotations", icon: <SidebarIcon name="quotations" />, label: "Quotations" },
+      { to: "/sales-orders", icon: <SidebarIcon name="salesorders" />, label: "Sales Orders" }
     ]
   },
   {
     key: "manufacturing",
     label: "Project & Manufacturing",
     items: [
-      { to: "/projects",      icon: <SidebarIcon name="projects"    />, label: "Projects" },
-      { to: "/machines",      icon: <SidebarIcon name="machines"    />, label: "Machines" },
-      { to: "/work-centers",  icon: <SidebarIcon name="workcenters" />, label: "Work Centers" },
-      { to: "/production",    icon: <SidebarIcon name="production"  />, label: "Production & BOM" },
-      { to: "/quality",       icon: <SidebarIcon name="quality"     />, label: "Quality Management" }
+      { to: "/projects", icon: <SidebarIcon name="projects" />, label: "Projects" },
+      { to: "/machines", icon: <SidebarIcon name="machines" />, label: "Machines" },
+      { to: "/work-centers", icon: <SidebarIcon name="workcenters" />, label: "Work Centers" },
+      { to: "/production", icon: <SidebarIcon name="production" />, label: "Production & BOM" },
+      { to: "/quality", icon: <SidebarIcon name="quality" />, label: "Quality Management" }
     ]
   },
   {
     key: "purchase",
     label: "Purchase & Inventory",
     items: [
-      { to: "/suppliers",       icon: <SidebarIcon name="suppliers"       />, label: "Suppliers" },
-      { to: "/purchase",        icon: <SidebarIcon name="purchase"        />, label: "BOM-Supplier Map" },
-      { to: "/purchase-orders", icon: <SidebarIcon name="purchaseorders"  />, label: "Purchase Orders" },
-      { to: "/inventory",       icon: <SidebarIcon name="inventory"       />, label: "Inventory" }
+      { to: "/suppliers", icon: <SidebarIcon name="suppliers" />, label: "Suppliers" },
+      { to: "/purchase", icon: <SidebarIcon name="purchase" />, label: "BOM-Supplier Map" },
+      { to: "/purchase-orders", icon: <SidebarIcon name="purchaseorders" />, label: "Purchase Orders" },
+      { to: "/inventory", icon: <SidebarIcon name="inventory" />, label: "Inventory" }
     ]
   },
   {
@@ -1562,10 +1486,10 @@ const NAV_GROUPS = [
     key: "system",
     label: "System",
     items: [
-      { to: "/company-settings", icon: <SidebarIcon name="company"  />, label: "Company Settings" },
-      { to: "/holidays",         icon: <SidebarIcon name="holidays" />, label: "Holiday Calendar" },
-      { to: "/geofence",         icon: <SidebarIcon name="geofence" />, label: "Geofence Settings" },
-      { to: "/settings",         icon: <SidebarIcon name="settings" />, label: "Settings" }
+      { to: "/company-settings", icon: <SidebarIcon name="company" />, label: "Company Settings" },
+      { to: "/holidays", icon: <SidebarIcon name="holidays" />, label: "Holiday Calendar" },
+      { to: "/geofence", icon: <SidebarIcon name="geofence" />, label: "Geofence Settings" },
+      { to: "/settings", icon: <SidebarIcon name="settings" />, label: "Settings" }
     ]
   }
 ];
@@ -1655,70 +1579,24 @@ function SidebarNav({ onItemClick }) {
             <button
               type="button"
               onClick={() => toggle(group.key)}
-              className={
-                "sidebar-section-header" +
-                (hasActive ? " sidebar-section-header-active" : "")
-              }
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "10px 14px",
-                marginTop: 14,
-                marginBottom: 4,
-                background: "transparent",
-                border: "none",
-                color: hasActive
-                  ? "#fde047"
-                  : "rgba(255,255,255,0.92)",
-                fontSize: 12,
-                fontWeight: 800,
-                letterSpacing: 1.6,
-                textTransform: "uppercase",
-                cursor: "pointer",
-                textAlign: "left",
-                borderRadius: 6,
-                transition: "color 0.15s, background 0.15s"
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = "#fde047";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = hasActive
-                  ? "#fde047"
-                  : "rgba(255,255,255,0.92)";
-              }}
+              className={`${styles.navGroupBtn}${hasActive ? ` ${styles.navGroupBtnActive}` : ""}`}
             >
-              <span style={{ flex: 1 }}>{group.label}</span>
-              <span
-                style={{
-                  fontSize: 9,
-                  opacity: 0.7,
-                  transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-                  transition: "transform 0.2s",
-                  display: "inline-block"
-                }}
-              >
+              <span className={styles.navGroupLabelSpan}>{group.label}</span>
+              <span className={`${styles.navGroupArrow}${isOpen ? ` ${styles.navGroupArrowOpen}` : ""}`}>
                 ▾
               </span>
             </button>
 
             <div
-              style={{
-                maxHeight: isOpen ? `${group.items.length * 46}px` : 0,
-                overflow: "hidden",
-                transition: "max-height 0.25s ease-in-out",
-                opacity: isOpen ? 1 : 0
-              }}
+              className={`${styles.navGroupItems} ${isOpen ? styles.navGroupItemsOpen : styles.navGroupItemsClosed}`}
+              style={{ maxHeight: isOpen ? `${group.items.length * 46}px` : 0 }}
             >
               {group.items.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
                   onClick={onItemClick}
-                  className={linkClass}
-                  style={{ paddingLeft: 28 }}
+                  className={`${linkClass} ${styles.navSubItem}`}
                 >
                   <span className="sidebar-icon">{item.icon}</span>
                   <span>{item.label}</span>
@@ -1747,10 +1625,10 @@ function Dashboard() {
 
   const handleLogout = () => {
 
-    if (!window.confirm("Log out of Vending ERP?")) {
+    // if (!window.confirm("Log out of Vending ERP?")) {
 
-      return;
-    }
+    //   return;
+    // }
 
     localStorage.removeItem("auth");
 
@@ -1791,7 +1669,7 @@ function Dashboard() {
         <div className="sidebar-brand">
 
           <img
-            src="/bharath-logo.png"
+            src="/logo.webp"
             alt="Bharath Vending Corporation"
             className="sidebar-logo"
           />
@@ -1828,7 +1706,7 @@ function Dashboard() {
             className="logout-btn"
             onClick={handleLogout}
           >
-            ⏻ Logout
+            ↪ Logout
           </button>
 
         </div>
@@ -1853,7 +1731,7 @@ function Dashboard() {
           <Route path="/dashboard-v1" element={<AdminDashboard />} />
 
           <Route path="/roles" element={<RoleManagement />} />
-          <Route path="/rbac"  element={<RbacPermissions />} />
+          <Route path="/rbac" element={<RbacPermissions />} />
 
           <Route path="/company-settings" element={<CompanySettings />} />
           <Route path="/holidays" element={<HolidayCalendar />} />

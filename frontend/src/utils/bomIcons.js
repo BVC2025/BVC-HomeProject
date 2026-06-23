@@ -1,4 +1,4 @@
-// =====================================================================
+﻿// =====================================================================
 // BOM material icon helper
 //
 // When a BOM line has no uploaded image, we render a category-based
@@ -49,7 +49,7 @@ const MATERIAL_CATEGORIES = [
     label: "Door",
     test: /\b(door)\b/i,
     icon: "🚪",
-    bg: "linear-gradient(135deg, #F4B324, #8B0B1F)",
+    bg: "linear-gradient(135deg, #f59e0b, #dc2626)",
     fg: "#ffffff",
     border: "#78350f"
   },
@@ -121,7 +121,7 @@ const MATERIAL_CATEGORIES = [
     label: "CVM Assembly",
     test: /\b(cvm|assembly|base)\b/i,
     icon: "🏭",
-    bg: "linear-gradient(135deg, #C8102E, #8B0B1F)",
+    bg: "linear-gradient(135deg, #ef4444, #dc2626)",
     fg: "#ffffff",
     border: "#9d174d"
   }

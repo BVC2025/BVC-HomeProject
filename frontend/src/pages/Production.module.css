@@ -1,0 +1,1850 @@
+/* ================================================================
+   Production.module.css
+   CSS Modules for Production.jsx — all colors via CSS variables.
+   Exceptions (acceptable one-off semantic colors documented inline).
+   ================================================================ */
+
+/* ── Page wrapper ──────────────────────────────────────────────── */
+
+.page {
+  padding: 24px;
+  background: var(--layout-bg);
+  min-height: 100%;
+}
+
+.pageTitle {
+  font-size: var(--font-2xl);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.pageSubtitle {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* ── Tab bar ───────────────────────────────────────────────────── */
+
+.tabBar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tabBtn {
+  border: none;
+  background: transparent;
+  padding: 10px 18px;
+  font-size: var(--font-base);
+  font-weight: var(--fw-semibold);
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s;
+}
+
+.tabBtnActive {
+  color: #1e40af; /* brand blue — no existing token */
+  border-bottom: 3px solid #1e40af;
+}
+
+/* ── Stat tile (Tile component) ────────────────────────────────── */
+
+.tile {
+  background: var(--card-bg);
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  /* border-top: 3px solid <color> — kept as inline (dynamic) */
+}
+
+.tileLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.tileValue {
+  font-size: 28px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin-top: 6px;
+}
+
+.tileSub {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── Dashboard tile grid ───────────────────────────────────────── */
+
+.dashTileGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+/* ── Dashboard active-models card ─────────────────────────────── */
+
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-md);
+}
+
+.sectionLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.emptyText {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+.loadingText {
+  color: var(--text-muted);
+}
+
+.errorText {
+  color: var(--danger);
+}
+
+/* ── Active-model row (dashboard) ─────────────────────────────── */
+
+.modelRow {
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.modelRowName {
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.modelRowCode {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.modelRowUnits {
+  font-size: 20px;
+  font-weight: var(--fw-bold);
+  color: #1e40af; /* dashboard accent blue */
+}
+
+.modelRowUnitsLabel {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-left: 6px;
+}
+
+/* ── Status badge ──────────────────────────────────────────────── */
+
+.statusBadge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  /* background + color kept inline — runtime STATUS_COLORS map */
+}
+
+/* ── BOM editable row ──────────────────────────────────────────── */
+
+.bomRow {
+  border-bottom: 1px solid var(--border-light);
+  vertical-align: middle;
+}
+
+.bomCellPreview {
+  padding: 6px;
+  border-right: 1px solid var(--border-light);
+  text-align: center;
+}
+
+.bomPreviewImg {
+  width: 76px;
+  height: 76px;
+  object-fit: contain;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.bomCellItemNo {
+  padding: 6px;
+  border-right: 1px solid var(--border-light);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-weight: var(--fw-bold);
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.bomCellPart {
+  padding: 8px;
+  border-right: 1px solid var(--border-light);
+}
+
+.bomPartName {
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  font-size: var(--font-sm);
+}
+
+.bomPartMeta {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* BOM type badges — semantic one-off colors (no existing token) */
+.bomBadgePurchase {
+  font-size: 10px;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  font-weight: var(--fw-bold);
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.bomBadgeProcess {
+  font-size: 10px;
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  font-weight: var(--fw-bold);
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.bomMetaText {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.bomMetaNoSupplier {
+  font-size: 10px;
+  color: var(--danger-dark);
+}
+
+.bomCellQty {
+  padding: 6px;
+  text-align: center;
+  border-right: 1px solid var(--border-light);
+  font-weight: var(--fw-extrabold);
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.bomQtyUnit {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-weight: var(--fw-medium);
+}
+
+.bomCellUpload {
+  padding: 6px;
+  text-align: center;
+}
+
+/* Upload label — base static styles (dynamic bg/color/cursor kept inline) */
+.bomUploadLabel {
+  display: inline-block;
+  padding: 6px 10px;
+  border: 1px solid #c7d2fe; /* indigo-200 — one-off, no token */
+  border-radius: var(--radius);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+}
+
+.bomUploadError {
+  font-size: 10px;
+  color: var(--danger-dark);
+  margin-top: 4px;
+}
+
+/* ── Model Detail Drawer ───────────────────────────────────────── */
+
+.drawerOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 900;
+}
+
+.drawerPanel {
+  width: 560px;
+  max-width: 100%;
+  background: var(--card-bg);
+  padding: 24px;
+  overflow: auto;
+  box-shadow: -20px 0 60px rgba(0, 0, 0, 0.3);
+}
+
+.drawerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.drawerTitle {
+  font-size: 20px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.drawerMeta {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: 2px;
+  font-family: var(--font-mono);
+}
+
+.drawerCloseBtn {
+  border: none;
+  background: var(--surface);
+  padding: 4px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.drawerDesc {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+  padding: 10px;
+  background: #f8fafc; /* near-white surface — close enough to --surface */
+  border-radius: var(--radius-md);
+}
+
+.drawerTileGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+/* ── BOM table inside drawer ───────────────────────────────────── */
+
+.bomTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-sm);
+  border: 1px solid var(--border-strong);
+}
+
+.bomThead {
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.bomTh {
+  padding: 8px;
+  border-bottom: 1px solid var(--border-strong);
+  text-align: center;
+}
+
+.bomThLeft {
+  padding: 8px;
+  border-bottom: 1px solid var(--border-strong);
+  text-align: left;
+}
+
+/* ── Stage rows inside model drawer ───────────────────────────── */
+
+.stageListWrapper {
+  margin-top: 28px;
+}
+
+.stageRow {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stageSeqBubble {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #eff6ff; /* info-bg semantic — no exact token */
+  color: #1e40af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+.stageName {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.stageMeta {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* ── Modal overlay / shell ─────────────────────────────────────── */
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 980;
+  padding: 20px;
+}
+
+.modalShell {
+  width: 720px;
+  max-width: 100%;
+  max-height: 92vh;
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.4);
+}
+
+/* ── BomResetModal header ──────────────────────────────────────── */
+
+.bomModalHeader {
+  flex-shrink: 0;
+  background: var(--clr-primary); /* gradient → flat per spec */
+  color: #ffffff;
+  padding: 20px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+/* ── StageResetModal header ────────────────────────────────────── */
+
+.stageModalHeader {
+  flex-shrink: 0;
+  background: #6366f1; /* indigo — spec says use #6366f1 flat */
+  color: #ffffff;
+  padding: 20px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.modalHeaderLabel {
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.modalHeaderTitle {
+  font-size: 22px;
+  font-weight: var(--fw-extrabold);
+  margin-top: 4px;
+  letter-spacing: -0.3px;
+}
+
+.modalHeaderDesc {
+  font-size: var(--font-sm);
+  opacity: 0.9;
+  margin-top: 4px;
+  max-width: 560px;
+}
+
+.modalCloseBtn {
+  border: none;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  padding: 4px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: var(--fw-bold);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.modalCloseBtnSquare {
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: #ffffff;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: var(--fw-bold);
+  flex-shrink: 0;
+}
+
+/* ── Modal body ────────────────────────────────────────────────── */
+
+.modalBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px;
+  background: #f8fafc;
+}
+
+.modalBodyPlain {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 22px;
+}
+
+/* ── Modal loading / error states ─────────────────────────────── */
+
+.modalLoading {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--font-base);
+}
+
+.modalErrorBox {
+  padding: 18px;
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-light);
+  border-radius: var(--radius-lg);
+  color: #991b1b;
+  font-size: var(--font-sm);
+  line-height: 1.6;
+}
+
+.modalErrorTitle {
+  font-weight: var(--fw-bold);
+  margin-bottom: 4px;
+}
+
+/* ── Preview summary cards (2-up: wipe / seed) ─────────────────── */
+
+.previewGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.previewCardWipe {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-light);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+}
+
+.previewWipeLabel {
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.8px;
+  color: #991b1b;
+  text-transform: uppercase;
+}
+
+.previewWipeValue {
+  font-size: 26px;
+  font-weight: var(--fw-extrabold);
+  color: #7f1d1d;
+  margin-top: 4px;
+}
+
+.previewWipeSub {
+  font-size: var(--font-xs);
+  color: #991b1b;
+}
+
+.previewCardSeed {
+  background: #ecfdf5; /* success-light — one-off */
+  border: 1px solid #a7f3d0;
+  border-radius: var(--radius-lg);
+  padding: 14px;
+}
+
+.previewSeedLabel {
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.8px;
+  color: #065f46;
+  text-transform: uppercase;
+}
+
+.previewSeedValue {
+  font-size: 26px;
+  font-weight: var(--fw-extrabold);
+  color: #064e3b;
+  margin-top: 4px;
+}
+
+.previewSeedSub {
+  font-size: var(--font-xs);
+  color: #065f46;
+}
+
+/* ── Per-product breakdown table (inside preview) ──────────────── */
+
+.breakdownWrapper {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.breakdownTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-sm);
+}
+
+.breakdownThead tr {
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.breakdownTh {
+  padding: 10px;
+  text-align: left;
+}
+
+.breakdownThRight {
+  padding: 10px;
+  text-align: right;
+  width: 110px;
+}
+
+.breakdownTr {
+  border-top: 1px solid var(--border-light);
+}
+
+.breakdownTdProduct {
+  padding: 10px;
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.breakdownTdMachine {
+  padding: 10px;
+}
+
+.machineTypeBadge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  background: #eef2ff; /* indigo-50 — semantic, no exact token */
+  color: #4338ca;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.breakdownTdCount {
+  padding: 10px;
+  text-align: right;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+/* ── Warning notice (bottom of preview) ───────────────────────── */
+
+.warningNotice {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--warning-bg);
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-lg);
+  font-size: var(--font-sm);
+  color: #92400e;
+  line-height: 1.6;
+}
+
+/* ── StageReset preview info bars ─────────────────────────────── */
+
+.infoBarIndigo {
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: var(--font-sm);
+  color: #3730a3;
+  margin-bottom: 14px;
+}
+
+.infoBarAmber {
+  background: var(--warning-bg);
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: var(--font-sm);
+  color: #854d0e;
+  margin-bottom: 14px;
+}
+
+/* ── Success card (BomResetModal) ─────────────────────────────── */
+
+.successCard {
+  padding: 22px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: var(--radius-xl);
+  color: #064e3b;
+}
+
+.successCardTitle {
+  font-size: 18px;
+  font-weight: var(--fw-extrabold);
+  margin-bottom: 6px;
+}
+
+.successCardMsg {
+  font-size: var(--font-sm);
+  margin-bottom: 14px;
+}
+
+.successStatGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.successStatCard {
+  background: var(--card-bg);
+  padding: 12px;
+  border-radius: var(--radius-lg);
+  border: 1px solid #d1fae5;
+}
+
+.successStatLabel {
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  color: #065f46;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.successStatValue {
+  font-size: 22px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+
+.successResultScroll {
+  background: var(--card-bg);
+  border: 1px solid #d1fae5;
+  border-radius: var(--radius-lg);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.successResultRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #ecfdf5;
+  font-size: var(--font-sm);
+}
+
+.successResultName {
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
+}
+
+.successResultMachineType {
+  margin-left: 6px;
+  font-size: 10px;
+  color: #4338ca;
+  text-transform: uppercase;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.5px;
+}
+
+.successResultCount {
+  font-weight: var(--fw-bold);
+  color: #065f46;
+}
+
+/* ── StageReset success card ───────────────────────────────────── */
+
+.stageSuccessCard {
+  background: #ecfdf5; /* spec says replace gradient with #ecfdf5 */
+  border: 2px solid var(--success);
+  border-radius: var(--radius-xl);
+  padding: 18px;
+}
+
+.stageSuccessLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 1.4px;
+  color: #14532d;
+  margin-bottom: 8px;
+}
+
+.stageSuccessMsg {
+  font-size: var(--font-sm);
+  color: #166534;
+}
+
+.stageSuccessAutoClose {
+  margin-top: 10px;
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+/* ── Modal footer ──────────────────────────────────────────────── */
+
+.modalFooter {
+  flex-shrink: 0;
+  padding: 14px 24px;
+  background: var(--card-bg);
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.modalFooterAlt {
+  flex-shrink: 0;
+  padding: 14px 22px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  background: #f8fafc;
+}
+
+/* ── Modal buttons ─────────────────────────────────────────────── */
+
+.btnCancel {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  padding: 10px 18px;
+  border-radius: var(--radius-lg);
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+  cursor: pointer;
+}
+
+.btnCancelAlt {
+  padding: 10px 18px;
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+  cursor: pointer;
+}
+
+/* BOM Confirm button (active state) — spec: replace gradient with #f59e0b */
+.btnConfirmBom {
+  border: none;
+  background: #f59e0b;
+  color: #ffffff;
+  padding: 10px 22px;
+  border-radius: var(--radius-lg);
+  font-weight: var(--fw-extrabold);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(200, 16, 46, 0.25);
+  letter-spacing: 0.4px;
+}
+
+/* BOM Confirm button (disabled / running) */
+.btnDisabled {
+  border: none;
+  background: var(--border-strong);
+  color: #ffffff;
+  padding: 10px 22px;
+  border-radius: var(--radius-lg);
+  font-weight: var(--fw-extrabold);
+  font-size: var(--font-sm);
+  cursor: not-allowed;
+}
+
+/* Stage Confirm button — spec: replace gradient with #6366f1 */
+.btnConfirmStage {
+  padding: 10px 22px;
+  background: #6366f1;
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: var(--fw-extrabold);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.35);
+}
+
+/* ── SummaryTile (shared between modals) ───────────────────────── */
+
+.summaryTile {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: 10px 12px;
+  /* border: 1px solid {color}33 and border-top: 3px solid {color} — kept inline (dynamic) */
+}
+
+.summaryTileLabel {
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.8px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.summaryTileValue {
+  font-size: 22px;
+  font-weight: 900;
+  margin-top: 4px;
+  /* color kept inline (dynamic) */
+}
+
+/* ── StageReset running state ─────────────────────────────────── */
+
+.runningBox {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-secondary);
+}
+
+.runningTitle {
+  font-size: var(--font-base);
+  font-weight: var(--fw-bold);
+}
+
+.runningSub {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+/* ── Models tab ────────────────────────────────────────────────── */
+
+.adminBar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.adminLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* Admin BOM button — spec: gradient → #f59e0b; disabled → #cbd5e1 */
+.btnAdminBom {
+  border: none;
+  background: #f59e0b;
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: var(--radius-lg);
+  font-weight: var(--fw-extrabold);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(200, 16, 46, 0.25);
+}
+
+.btnAdminBomDisabled {
+  border: none;
+  background: #cbd5e1;
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: var(--radius-lg);
+  font-weight: var(--fw-extrabold);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  cursor: not-allowed;
+}
+
+/* Admin Stage button — spec: gradient → #6366f1; disabled → #cbd5e1 */
+.btnAdminStage {
+  border: none;
+  background: #6366f1;
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: var(--radius-lg);
+  font-weight: var(--fw-extrabold);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.25);
+}
+
+.btnAdminStageDisabled {
+  border: none;
+  background: #cbd5e1;
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: var(--radius-lg);
+  font-weight: var(--fw-extrabold);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  cursor: not-allowed;
+}
+
+/* ── Model grid ─────────────────────────────────────────────────── */
+
+.modelsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.modelCard {
+  background: var(--card-bg);
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  transition: transform 0.15s;
+  /* border-left: 4px solid {color} — kept inline (dynamic status) */
+}
+
+.modelCard:hover {
+  transform: translateY(-2px);
+}
+
+.modelCardCode {
+  font-size: var(--font-xs);
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.modelCardName {
+  font-size: 16px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.modelCardCategory {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.modelCardDesc {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.modelsEmpty {
+  grid-column: 1 / -1;
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+}
+
+/* ── Gantt drawer overlay ─────────────────────────────────────── */
+
+.ganttOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 950;
+}
+
+.ganttPanel {
+  width: 98vw;
+  max-width: 100%;
+  height: 100vh;
+  background: var(--card-bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: -20px 0 60px rgba(0, 0, 0, 0.3);
+}
+
+.ganttPanelHeader {
+  flex-shrink: 0;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card-bg);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.ganttWoNumber {
+  font-size: var(--font-xs);
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+}
+
+.ganttWoTitle {
+  font-size: 22px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+
+.ganttWoMeta {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.ganttHeaderActions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Resync button — spec: gradient → #4f46e5 */
+.btnResync {
+  border: none;
+  background: #4f46e5;
+  color: #ffffff;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: var(--font-sm);
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 0.3px;
+  box-shadow: 0 4px 14px rgba(200, 16, 46, 0.3);
+}
+
+.btnResyncBusy {
+  border: none;
+  background: var(--text-muted);
+  color: #ffffff;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  cursor: wait;
+  font-size: var(--font-sm);
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 0.3px;
+}
+
+.ganttCloseBtn {
+  border: none;
+  background: var(--surface);
+  padding: 4px 12px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.ganttBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+/* ── Gantt summary tiles ─────────────────────────────────────────*/
+
+.ganttSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.ganttStatTile {
+  padding: 12px;
+  border-radius: var(--radius-md);
+  /* background set inline — semantic per-stat color */
+}
+
+.ganttStatLabel {
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.ganttStatValue {
+  font-size: 22px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+
+.ganttStatSub {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+/* ── Gantt legend ────────────────────────────────────────────────*/
+
+.ganttLegend {
+  display: flex;
+  gap: 16px;
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ganttLegendSwatch {
+  display: inline-block;
+  width: 18px;
+  height: 8px;
+  border-radius: 3px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.ganttLegendSwatchActual {
+  display: inline-block;
+  width: 18px;
+  height: 10px;
+  border-radius: 3px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+/* ── Gantt chart box ─────────────────────────────────────────────*/
+
+.ganttBox {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 8px 12px;
+}
+
+/* ── Month pagination toolbar ────────────────────────────────────*/
+
+.monthPaginator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.monthPaginatorCenter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: center;
+}
+
+.monthLabel {
+  font-size: 15px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+}
+
+.monthRangePill {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  padding: 3px 10px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  font-weight: var(--fw-bold);
+}
+
+.monthNavPills {
+  display: flex;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.monthNavPrevBtn {
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+}
+
+.monthNavPillBtn {
+  width: 26px;
+  height: 26px;
+  border: 1px solid;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: var(--fw-bold);
+  font-size: var(--font-xs);
+}
+
+/* ── Gantt column header row ─────────────────────────────────────*/
+
+.ganttColHeader {
+  display: grid;
+  grid-template-columns: 240px 1fr 180px;
+  gap: 10px;
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-light);
+  align-items: end;
+}
+
+.ganttColHeaderRight {
+  text-align: right;
+}
+
+/* ── GanttRow ────────────────────────────────────────────────────*/
+
+.ganttRow {
+  display: grid;
+  grid-template-columns: 240px 1fr 180px;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-light);
+  align-items: center;
+}
+
+.ganttRowLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ganttSeqBubble {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  /* background + color kept inline — typeColor is dynamic */
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ganttStageName {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.ganttStageMeta {
+  font-size: 10px;
+  font-weight: var(--fw-semibold);
+  margin-top: 2px;
+  /* color kept inline — typeColor dynamic */
+}
+
+.ganttAssigneeRow {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-xs);
+}
+
+.ganttAssigneeChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #eff6ff; /* info-bg — no exact token match */
+  color: #1d4ed8;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-weight: var(--fw-bold);
+  font-size: 10px;
+  border: 1px solid #bfdbfe;
+}
+
+.ganttAssigneeCode {
+  opacity: 0.7;
+  font-weight: var(--fw-medium);
+}
+
+.ganttUnassigned {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-style: italic;
+}
+
+/* ── Gantt bar track ─────────────────────────────────────────────*/
+
+.ganttTrack {
+  position: relative;
+  height: 42px;
+  background: #f8fafc;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+/* ── Gantt action column ─────────────────────────────────────────*/
+
+.ganttActions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.ganttStatusBadge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  /* background + color kept inline — theme.bg/fg dynamic */
+}
+
+.ganttActionBtns {
+  display: flex;
+  gap: 2px;
+  margin-left: 6px;
+}
+
+.ganttBtnStart {
+  border: none;
+  background: #f59e0b;
+  color: #ffffff;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  font-weight: var(--fw-bold);
+  font-size: 12px;
+}
+
+.ganttBtnDone {
+  border: none;
+  background: #22c55e;
+  color: #ffffff;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  font-weight: var(--fw-bold);
+  font-size: 14px;
+}
+
+.ganttBtnFail {
+  border: none;
+  background: var(--clr-primary);
+  color: #ffffff;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  font-weight: var(--fw-bold);
+  font-size: 14px;
+}
+
+/* ── TimelineHeader ──────────────────────────────────────────────*/
+
+.timelineHeader {
+  position: relative;
+  background: #f8fafc;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+/* ── Gantt empty month notice ────────────────────────────────────*/
+
+.ganttEmptyMonth {
+  padding: 30px 12px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+/* ── Status filter buttons (Work Orders tab) ─────────────────────*/
+
+.filterBar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.filterBtn {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.filterBtnActive {
+  background: #1e40af;
+  color: #ffffff;
+  border-color: #1e40af;
+}
+
+/* ── New WO form ─────────────────────────────────────────────────*/
+
+.newWoForm {
+  background: var(--card-bg);
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+
+.formFieldLabel {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.formInput {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+}
+
+.btnCreateWo {
+  border: none;
+  background: #1e40af;
+  color: #ffffff;
+  padding: 9px 18px;
+  border-radius: var(--radius);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  font-size: var(--font-sm);
+}
+
+.btnCreateWoDisabled {
+  border: none;
+  background: var(--text-muted);
+  color: #ffffff;
+  padding: 9px 18px;
+  border-radius: var(--radius);
+  font-weight: var(--fw-semibold);
+  cursor: not-allowed;
+  font-size: var(--font-sm);
+}
+
+/* ── Work orders table ───────────────────────────────────────────*/
+
+.woTableCard {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.woTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-sm);
+}
+
+.woTableHead tr {
+  background: #f8fafc;
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.woTh {
+  text-align: left;
+  padding: 12px;
+}
+
+.woThRight {
+  text-align: right;
+  padding: 12px;
+}
+
+.woTr {
+  border-bottom: 1px solid var(--border-light);
+}
+
+.woTdMono {
+  padding: 12px;
+  font-family: var(--font-mono);
+  font-size: var(--font-sm);
+}
+
+.woTd {
+  padding: 12px;
+}
+
+.woTdRight {
+  padding: 12px;
+  text-align: right;
+  font-weight: var(--fw-bold);
+  font-size: 15px;
+}
+
+.woTdMuted {
+  padding: 12px;
+  color: var(--text-secondary);
+  max-width: 280px;
+}
+
+.woTdDate {
+  padding: 12px;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+.woTdActions {
+  padding: 12px;
+  text-align: right;
+}
+
+.woProductName {
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.woProductCode {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.woLinkBtn {
+  border: none;
+  background: none;
+  color: #1e40af;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: var(--fw-semibold);
+}
+
+.woActionsRow {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+/* ── WO Timeline button ──────────────────────────────────────────*/
+
+.btnTimeline {
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  color: #4338ca;
+  padding: 5px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: var(--font-xs);
+  font-weight: var(--fw-semibold);
+}
+
+/* ── StatusButtons ───────────────────────────────────────────────*/
+
+.btnAdvance {
+  border: none;
+  background: #1e40af;
+  color: #ffffff;
+  padding: 5px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: var(--font-xs);
+  font-weight: var(--fw-semibold);
+}
+
+.btnHold {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  padding: 5px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+/* ── Delete WO button ────────────────────────────────────────────*/
+
+.btnDeleteWo {
+  border: 1px solid var(--danger-light);
+  background: var(--danger-bg);
+  color: #b91c1c;
+  padding: 5px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: var(--font-xs);
+  font-weight: var(--fw-semibold);
+}
+
+.btnDeleteWoBusy {
+  border: 1px solid var(--danger-light);
+  background: var(--surface);
+  color: var(--text-muted);
+  padding: 5px 10px;
+  border-radius: var(--radius);
+  cursor: default;
+  font-size: var(--font-xs);
+  font-weight: var(--fw-semibold);
+}
+
+/* ── Utility ─────────────────────────────────────────────────────*/
+
+.flexEnd {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.flex1 {
+  flex: 1;
+}
+
+/* ── Page header block ───────────────────────────────────────────*/
+
+.pageHeaderBlock {
+  margin-bottom: 20px;
+}
+
+/* ── Drawer meta category span ───────────────────────────────────*/
+
+.drawerMetaCategory {
+  margin-left: var(--sp-2);
+}
+
+/* ── Empty table cell (center/muted) ─────────────────────────────*/
+
+.tableEmptyCellCenter {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* ── Breakdown: product name bold, count right-aligned ───────────*/
+
+.breakdownProductName {
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.breakdownTdCountRight {
+  text-align: right;
+}
+
+/* ── successStatGrid spacing variants ────────────────────────────*/
+
+.successStatGridSpaced {
+  margin-bottom: 16px;
+}
+
+.successStatGridSpacedSm {
+  margin-bottom: 14px;
+}
+
+/* ── successStatLabel with bottom spacing ────────────────────────*/
+
+.successStatLabelSpaced {
+  margin-bottom: 6px;
+}
+
+/* ── GanttRow stage info flex wrapper ────────────────────────────*/
+
+.ganttStageInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── GanttRow stage meta text colors ─────────────────────────────*/
+
+.ganttStageMetaPrimary {
+  color: var(--text-primary);
+}
+
+.ganttStageMetaSecondary {
+  color: var(--text-secondary);
+}
+
+/* ── NewWorkOrderForm field wrappers ─────────────────────────────*/
+
+.newWoFieldModel {
+  flex: 2;
+  min-width: 200px;
+}
+
+.newWoFieldQty {
+  width: 90px;
+}
+
+.newWoFieldNotes {
+  flex: 2;
+  min-width: 180px;
+}
+
+/* ── WorkOrdersTab table scroll wrapper ──────────────────────────*/
+
+.tableScrollWrap {
+  overflow: auto;
+}
+
+/* ── Hidden file input (BomEditableRow) ──────────────────────────*/
+
+.hiddenInput {
+  display: none;
+}

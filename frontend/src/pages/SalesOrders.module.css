@@ -1,0 +1,884 @@
+/* ================================================================
+   SalesOrders.module.css
+   All colours reference CSS custom-properties only.
+   Badge / status-chip accent colours (StatusPill, PaymentMilestone)
+   are acceptable hardcoded exceptions per the project rule.
+   ================================================================ */
+
+/* ── Page layout ─────────────────────────────────────────── */
+.page {
+  padding: 24px;
+}
+
+.pageHeader {
+  background: var(--card-bg);
+  border-left: 4px solid var(--clr-primary);
+  border-radius: 18px;
+  padding: 20px 28px;
+  color: var(--text-primary);
+  margin-bottom: 22px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 24px;
+  color: var(--text-primary);
+}
+
+.pageSubtitle {
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  margin-top: 4px;
+}
+
+/* ── Primary action button (New SO / Create SO / Record) ─── */
+.btnPrimary {
+  border: none;
+  background: var(--clr-primary);
+  color: #fff;
+  padding: 11px 22px;
+  border-radius: var(--radius);
+  font-weight: var(--fw-extrabold);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: opacity 0.15s;
+}
+
+.btnPrimary:hover {
+  opacity: 0.88;
+}
+
+/* ── Small primary button (Add Line) ────────────────────── */
+.btnPrimarySmall {
+  border: none;
+  background: var(--clr-primary);
+  color: #fff;
+  padding: 7px 14px;
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  font-size: var(--font-xs);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btnPrimarySmall:hover {
+  opacity: 0.88;
+}
+
+/* ── Secondary / cancel button ──────────────────────────── */
+.btnSecondary {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  padding: 10px 22px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+  transition: background 0.15s;
+}
+
+.btnSecondary:hover {
+  background: var(--surface);
+}
+
+.btnSecondarySmall {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  padding: 9px 18px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+  transition: background 0.15s;
+}
+
+.btnSecondarySmall:hover {
+  background: var(--surface);
+}
+
+/* ── Stats grid ─────────────────────────────────────────── */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.statTile {
+  background: var(--card-bg);
+  padding: 16px 20px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
+.statLabel {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.statValue {
+  font-size: 28px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+.statValueText {
+  font-size: 18px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+/* ── Filters row ────────────────────────────────────────── */
+.filtersRow {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+/* ── Form input (replaces inputStyle() fn) ──────────────── */
+.input {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  font-family: inherit;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.input:focus {
+  outline: 2px solid var(--clr-primary);
+  outline-offset: 1px;
+}
+
+.inputSearch {
+  composes: input;
+  max-width: 380px;
+}
+
+.inputStatus {
+  composes: input;
+  max-width: 220px;
+}
+
+/* ── SO list card ───────────────────────────────────────── */
+.soList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.soCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 18px;
+  display: grid;
+  grid-template-columns: 170px 1fr 180px 140px 160px;
+  gap: 14px;
+  align-items: center;
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+
+.soCard:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--clr-primary);
+}
+
+.soNumber {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+}
+
+.soDate {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+.soCustomer {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.soCustomerSub {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+.soPaymentLabel {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.soPaymentValue {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  font-weight: var(--fw-bold);
+}
+
+.soTotalLabel {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.soTotalValue {
+  font-size: 15px;
+  font-weight: var(--fw-extrabold);
+  color: var(--clr-primary);
+}
+
+/* ── Empty-state placeholder ────────────────────────────── */
+.emptyState {
+  padding: 40px;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+}
+
+.loadingState {
+  padding: 30px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* ── Modal shell ────────────────────────────────────────── */
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 30px;
+}
+
+.modalBox {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: 92vh;
+  max-width: 98%;
+}
+
+.modalBoxNarrow {
+  composes: modalBox;
+  width: 720px;
+}
+
+.modalBoxWide {
+  composes: modalBox;
+  width: 1100px;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--card-bg);
+}
+
+.modalTitle {
+  font-size: 17px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+}
+
+.modalCloseBtn {
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  line-height: 1;
+}
+
+.modalCloseBtn:hover {
+  color: var(--text-primary);
+}
+
+.modalBody {
+  padding: 22px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── Form grid (inside modal) ───────────────────────────── */
+.formGrid3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.fieldLabel {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  display: block;
+}
+
+/* ── Payment milestones block ───────────────────────────── */
+.milestonesBlock {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.milestonesTitle {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-extrabold);
+  color: var(--clr-primary);
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.milestonesGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+/* ── Line items section header ──────────────────────────── */
+.lineItemsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.sectionTitle {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-extrabold);
+  color: var(--clr-primary);
+  letter-spacing: 1px;
+}
+
+/* ── Line items table ───────────────────────────────────── */
+.tableWrap {
+  margin-bottom: 16px;
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-xs);
+}
+
+.tableHead tr {
+  background: var(--layout-bg);
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.tableHead th {
+  padding: 8px;
+}
+
+.tableBody td {
+  padding: 6px;
+}
+
+.tableBodyRow {
+  border-top: 1px solid var(--border);
+}
+
+.tableEmptyRow td {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.btnRemoveLine {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: var(--font-xs);
+  transition: background 0.15s;
+}
+
+.btnRemoveLine:hover {
+  background: #fee2e2;
+}
+
+/* ── Totals summary box ─────────────────────────────────── */
+.totalsWrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.totalsBox {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  min-width: 280px;
+}
+
+.totalsBoxDetail {
+  composes: totalsBox;
+  margin-bottom: 14px;
+}
+
+.totalsDivider {
+  border-top: 1px solid var(--clr-primary);
+  margin-top: 6px;
+  padding-top: 6px;
+}
+
+/* ── Detail header card ─────────────────────────────────── */
+.detailHeaderCard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+/* ── Awaiting advance banner ────────────────────────────── */
+.advanceBanner {
+  background: var(--surface);
+  border: 2px solid #f59e0b;
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  margin-bottom: 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  align-items: center;
+}
+
+.advanceBannerLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 1.5px;
+  color: #8B4500;
+}
+
+.advanceBannerAmount {
+  font-size: 24px;
+  font-weight: var(--fw-black);
+  color: var(--clr-primary);
+  margin-top: 4px;
+}
+
+.advanceBannerSub {
+  font-size: var(--font-xs);
+  color: #6b4226;
+  margin-top: 2px;
+}
+
+.advanceBannerDueLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 1.5px;
+  color: #8B4500;
+}
+
+.advanceBannerDueDate {
+  font-size: 18px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
+.advanceBannerNote {
+  font-size: var(--font-xs);
+  color: #6b4226;
+  line-height: 1.5;
+}
+
+/* ── Payment progress card ──────────────────────────────── */
+.paymentProgressCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  margin-bottom: 14px;
+}
+
+.paymentProgressHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.paymentProgressTitle {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-extrabold);
+  color: var(--clr-primary);
+  letter-spacing: 1px;
+}
+
+.paymentProgressAmount {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  font-weight: var(--fw-bold);
+}
+
+.paymentProgressAmountMuted {
+  margin-left: 8px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.progressTrack {
+  height: 8px;
+  background: var(--surface);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--clr-primary);
+  transition: width 0.4s;
+}
+
+.paymentMilestonesGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  font-size: var(--font-xs);
+}
+
+/* ── InfoBlock atom ─────────────────────────────────────── */
+.infoBlockLabel {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 2px;
+}
+
+.infoBlockValue {
+  font-size: 14px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.infoBlockSub {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+/* ── TotalRow atom ──────────────────────────────────────── */
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: var(--font-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.totalRowBold {
+  composes: totalRow;
+  font-size: 16px;
+  font-weight: var(--fw-extrabold);
+  color: var(--clr-primary);
+}
+
+/* ── Activity timeline ──────────────────────────────────── */
+.activitySection {
+  margin-top: 14px;
+}
+
+.activityTitle {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-extrabold);
+  color: var(--clr-primary);
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.activityList {
+  background: var(--layout-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+}
+
+.activityItem {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+.activityItemFirst {
+  composes: activityItem;
+  border-top: none;
+}
+
+.activityIcon {
+  font-size: 18px;
+  width: 26px;
+}
+
+.activityEventType {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+}
+
+.activityDetail {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.activityTime {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── Payment record modal ───────────────────────────────── */
+.paymentModalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.paymentModalBox {
+  width: 420px;
+  max-width: 94%;
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  box-shadow: var(--shadow-md);
+}
+
+.paymentModalTitle {
+  font-size: 17px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  margin-bottom: 14px;
+}
+
+.paymentModalSpacer {
+  height: 10px;
+}
+
+.paymentModalFooter {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+/* ── Action buttons row (in SO detail) ──────────────────── */
+.actionBtnRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ── Spawned project cell ───────────────────────────────── */
+.spawnedProject {
+  color: #047857;
+  font-weight: var(--fw-bold);
+  font-size: var(--font-xs);
+}
+
+.spawnedProjectStatus {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.notSpawned {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+/* ── Detail table columns ───────────────────────────────── */
+.tableDetailWrap {
+  margin-bottom: 14px;
+  overflow: auto;
+}
+
+.tableDetailHead tr {
+  background: var(--layout-bg);
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.tableDetailHead th {
+  padding: 8px;
+}
+
+.tableDetailBody td {
+  padding: 8px;
+}
+
+.tableDetailBodyRow {
+  border-top: 1px solid var(--border);
+}
+
+.productModelCode {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── Detail SO action buttons footer ───────────────────── */
+.detailFooter {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+/* ── Status pill (StatusPill component) ─────────────────── */
+.statusPill {
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-black);
+  letter-spacing: 0.8px;
+  /* background + color kept inline — runtime STATUS_THEME map */
+}
+
+/* ── Action button (ActionBtn atom) ─────────────────────── */
+.actionBtn {
+  border: none;
+  color: var(--text-inverse);
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  font-size: var(--font-xs);
+  cursor: pointer;
+  /* background + box-shadow kept inline — dynamic color prop */
+}
+
+/* ── Milestone totals validation line ───────────────────── */
+.milestonesTotal {
+  margin-top: 6px;
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  /* color kept inline — conditional on payTotal === 100 */
+}
+
+/* ── Table helpers ──────────────────────────────────────── */
+.tableCellRight {
+  padding: 6px;
+  text-align: right;
+}
+
+.tableCellRightBold {
+  padding: 6px;
+  text-align: right;
+  font-weight: var(--fw-bold);
+}
+
+/* ── Textarea resize ────────────────────────────────────── */
+.inputTextarea {
+  resize: vertical;
+}
+
+/* ── Modal center message (loading / not-found) ─────────── */
+.modalCenterMsg {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* ── Detail line items section title ────────────────────── */
+.detailLineItemsTitle {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-black);
+  color: var(--danger);
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+/* ── SO card right-aligned cell ─────────────────────────── */
+.soCardRight {
+  text-align: right;
+}
+
+/* ── Activity content flex fill ─────────────────────────── */
+.activityContent {
+  flex: 1;
+}
+
+/* ── PaymentMilestone tile ──────────────────────────────── */
+.milestoneTile {
+  border-radius: var(--radius);
+  padding: var(--sp-2);
+  /* background + border kept inline — runtime done/pending state */
+}
+
+.milestoneTileLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.milestoneTileValue {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-black);
+  margin-top: 4px;
+  /* color kept inline — runtime done/pending state */
+}
+
+.milestoneMiniTrack {
+  margin-top: 4px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.milestoneMiniBar {
+  height: 100%;
+  transition: width 0.4s;
+  /* width + background kept inline — runtime pct + done state */
+}

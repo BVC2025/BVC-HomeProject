@@ -1,0 +1,884 @@
+/* =====================================================================
+   Quotations.module.css
+   All colors via CSS vars — no hardcoded hex/rgba/fonts.
+   Badge/status chip accent colors are the only hardcoded exceptions.
+   ===================================================================== */
+
+/* ----- Page shell ----- */
+.page {
+  padding: 24px;
+}
+
+/* ----- Page header row ----- */
+.pageHeader {
+  background: var(--card-bg);
+  border-left: 4px solid var(--clr-primary);
+  border-radius: 18px;
+  padding: 20px 28px;
+  color: var(--text-primary);
+  margin-bottom: 22px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 24px;
+  color: var(--text-primary);
+}
+
+.pageSubtitle {
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  margin-top: 4px;
+}
+
+/* ----- Primary action button ----- */
+.btnPrimary {
+  border: none;
+  background: var(--clr-primary);
+  color: #fff;
+  padding: 11px 22px;
+  border-radius: 10px;
+  font-weight: var(--fw-extrabold);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: opacity 0.15s;
+}
+
+.btnPrimary:hover {
+  opacity: 0.88;
+}
+
+/* ----- Dashboard stat tiles grid ----- */
+.statsGridDash {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.statsGridPipeline {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+/* ----- Single stat tile ----- */
+.statTile {
+  background: var(--card-bg);
+  padding: 16px 20px;
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+.statTileIcon {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  font-size: 20px;
+  opacity: 0.85;
+}
+
+.statTileLabel {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: var(--fw-bold);
+}
+
+.statTileValue {
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  margin-top: 4px;
+  letter-spacing: -0.3px;
+}
+
+.statTileValueNum {
+  font-size: 28px;
+}
+
+.statTileValueText {
+  font-size: 18px;
+}
+
+/* ----- Filters bar ----- */
+.filtersBar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ----- Empty state ----- */
+.emptyState {
+  padding: 40px;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  color: var(--text-secondary);
+}
+
+/* ----- Loading state ----- */
+.loadingState {
+  padding: 30px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* ----- List ----- */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ----- Quotation row card ----- */
+.rowCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: grid;
+  grid-template-columns: 180px 1fr 200px 140px 140px 60px;
+  gap: 14px;
+  align-items: center;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+
+.rowCard:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.rowNum {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+}
+
+.rowDate {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.rowCustomerName {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.rowCustomerSub {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+.rowExpiriesLabel {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.rowExpiriesValue {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.rowTotalLabel {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.rowTotalValue {
+  font-size: 15px;
+  font-weight: var(--fw-extrabold);
+  /* green accent kept as status-related exception */
+  color: #047857;
+}
+
+.rowTotalCell {
+  text-align: right;
+}
+
+.rowStatusCell {
+  text-align: right;
+}
+
+.rowActionsCell {
+  text-align: right;
+}
+
+/* ----- Delete row button ----- */
+.btnDeleteRow {
+  background: var(--card-bg);
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: var(--fw-bold);
+  transition: background 0.15s, color 0.15s;
+}
+
+.btnDeleteRow:hover {
+  background: #dc2626;
+  color: #fff;
+}
+
+/* ----- Status pill ----- */
+.statusPill {
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 0.8px;
+}
+
+/* ----- Modal overlay + shell ----- */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 30px;
+}
+
+.modalShell {
+  background: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: 92vh;
+  max-width: 98%;
+}
+
+.modalShellNormal {
+  width: 720px;
+}
+
+.modalShellWide {
+  width: 1100px;
+}
+
+.modalTitleBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--card-bg);
+}
+
+.modalTitle {
+  font-size: 17px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+}
+
+.modalCloseBtn {
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: color 0.15s;
+}
+
+.modalCloseBtn:hover {
+  color: var(--text-primary);
+}
+
+.modalBody {
+  padding: 22px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ----- Modal placeholder states (loading / not-found) ----- */
+.modalPlaceholder {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* ----- Create form grid ----- */
+.createFormGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+/* ----- Line items section header ----- */
+.lineItemsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.lineItemsSectionLabel {
+  font-size: 12px;
+  font-weight: var(--fw-extrabold);
+  color: var(--clr-primary);
+  letter-spacing: 1px;
+}
+
+/* ----- Add Line button ----- */
+.btnAddLine {
+  border: none;
+  background: #10b981;
+  color: #fff;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-weight: var(--fw-bold);
+  font-size: 12px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btnAddLine:hover {
+  opacity: 0.88;
+}
+
+/* ----- Line items table wrapper ----- */
+.tableWrapper {
+  margin-bottom: 16px;
+  overflow: auto;
+}
+
+/* ----- Shared table styles ----- */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.tableThead tr {
+  background: var(--surface);
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.tableThead th {
+  padding: 8px;
+}
+
+.tableBody tr {
+  border-top: 1px solid var(--border);
+}
+
+.tableBody td {
+  padding: 8px;
+}
+
+.tableBodyEditor td {
+  padding: 6px;
+}
+
+.tableEmptyRow td {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.tableAlignRight {
+  text-align: right;
+}
+
+.tableCellBold {
+  font-weight: var(--fw-bold);
+}
+
+/* ----- Remove line button (inside table) ----- */
+.btnRemoveLine {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  transition: background 0.15s;
+}
+
+.btnRemoveLine:hover {
+  background: #fecaca;
+}
+
+/* ----- Totals summary box ----- */
+.totalsWrapper {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.totalsBox {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  min-width: 300px;
+}
+
+.totalsBoxView {
+  min-width: 280px;
+}
+
+.totalsRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.totalsRowBoldLarge {
+  font-size: 16px;
+  font-weight: var(--fw-extrabold);
+  /* green accent kept for grand total — status-related */
+  color: #047857;
+}
+
+.totalsRowNormal {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.totalsTaxRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.totalsTaxRowLeft {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.totalsTaxPctLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.totalsDivider {
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+  padding-top: 6px;
+}
+
+/* ----- Tax input inside totals ----- */
+.taxInput {
+  width: 58px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  text-align: center;
+  font-family: inherit;
+  background: var(--card-bg);
+}
+
+/* ----- Notes / Terms textareas ----- */
+.notesBlock {
+  margin-top: 16px;
+}
+
+.notesLabel {
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.notesContent {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 13px;
+  white-space: pre-line;
+}
+
+.termsContent {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: pre-line;
+}
+
+/* ----- Rejection reason block ----- */
+.rejectionBlock {
+  margin-top: 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.rejectionLabel {
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  color: #991b1b;
+  margin-bottom: 4px;
+}
+
+.rejectionText {
+  font-size: 13px;
+  color: #7f1d1d;
+}
+
+/* ----- Action buttons row ----- */
+.actionRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ----- ActionBtn atom ----- */
+.actionBtn {
+  border: none;
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-weight: var(--fw-bold);
+  font-size: 12px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.actionBtn:hover {
+  opacity: 0.88;
+}
+
+/* ----- Tracking banner ----- */
+.trackingBanner {
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  gap: 18px;
+  font-size: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.trackingBannerViewed {
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.trackingBannerPending {
+  /* amber-tinted surface — acceptable status exception */
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+}
+
+.trackingViewedText {
+  /* green accent — status-related exception */
+  color: #166534;
+  font-weight: var(--fw-bold);
+}
+
+.trackingPendingText {
+  /* amber accent — status-related exception */
+  color: #854d0e;
+}
+
+.trackingErrorText {
+  /* red accent — status-related exception */
+  color: #b91c1c;
+}
+
+/* ----- Detail header card ----- */
+.detailHeaderCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+/* ----- InfoBlock atom ----- */
+.infoBlockLabel {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 2px;
+}
+
+.infoBlockValue {
+  font-size: 14px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.infoBlockSub {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* ----- Activity timeline ----- */
+.activitySection {
+  margin-top: 18px;
+}
+
+.activitySectionLabel {
+  font-size: 12px;
+  font-weight: var(--fw-extrabold);
+  color: var(--clr-primary);
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.activityList {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+
+.activityItem {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+  align-items: flex-start;
+}
+
+.activityItemBorder {
+  border-top: 1px solid var(--border);
+}
+
+.activityIcon {
+  font-size: 18px;
+  width: 26px;
+}
+
+.activityBody {
+  flex: 1;
+}
+
+.activityEventType {
+  font-size: 13px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.activityCustomerBadge {
+  margin-left: 8px;
+  font-size: 10px;
+  font-weight: var(--fw-extrabold);
+  /* amber accent — status-related exception */
+  background: #fef3c7;
+  color: #854d0e;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.6px;
+}
+
+.activityDetail {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.activityTimestamp {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.btnRemoveActivity {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-muted);
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.btnRemoveActivity:hover {
+  background: var(--border);
+  color: var(--text-primary);
+}
+
+/* ----- Form field atom ----- */
+.fieldLabel {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  display: block;
+}
+
+/* ----- Form actions footer (create modal) ----- */
+.formActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.btnCancel {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  padding: 10px 22px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-primary);
+  transition: background 0.15s;
+}
+
+.btnCancel:hover {
+  background: var(--surface);
+}
+
+.btnSave {
+  border: none;
+  background: var(--clr-primary);
+  color: #fff;
+  padding: 10px 26px;
+  border-radius: 8px;
+  font-weight: var(--fw-extrabold);
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: opacity 0.15s;
+}
+
+.btnSave:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.btnSave:disabled {
+  background: var(--text-muted);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ----- Shared form input (replaces inputStyle() helper) ----- */
+.input {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--clr-primary);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.12);
+}
+
+/* ----- Resizable textarea variant ----- */
+.inputResizable {
+  resize: vertical;
+}
+
+/* ----- Smaller font variant (terms textarea) ----- */
+.inputSm {
+  font-size: var(--font-xs);
+}
+
+/* ----- Toolbar width constraints ----- */
+.toolbarSearch {
+  max-width: 320px;
+}
+
+.toolbarSelectSm {
+  max-width: 200px;
+}
+
+/* ----- Table column widths ----- */
+.thW40  { width: 40px; }
+.thW60  { width: 60px; }
+.thW70  { width: 70px; }
+.thW80  { width: 80px; }
+.thW110 { width: 110px; }
+.thW130 { width: 130px; }
+.thW160 { width: 160px; }
+
+/* ----- Table cell alignment helpers ----- */
+.tdAlignRight     { text-align: right; }
+.tdAlignRightBold { text-align: right; font-weight: var(--fw-bold); }
+
+/* ----- Table cell padding (td: 6px — editor rows) ----- */
+.tdPadSm { padding: 6px; }
+
+/* ----- Line total cell (right-aligned, bold) ----- */
+.tdLineTotalRight {
+  text-align: right;
+  font-weight: var(--fw-bold);
+  padding: 6px;
+}
+
+/* ----- Tax amount span weight ----- */
+.taxAmountValue {
+  font-weight: 500;
+}
+
+/* ----- Section label with bottom margin variant ----- */
+.lineItemsSectionLabelMb {
+  font-size: 12px;
+  font-weight: var(--fw-extrabold);
+  color: var(--clr-primary);
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+/* ----- Table wrapper with smaller bottom margin ----- */
+.tableWrapperMb14 {
+  margin-bottom: 14px;
+  overflow: auto;
+}
+
+/* ----- Totals wrapper with no bottom margin ----- */
+.totalsWrapperMb0 {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0;
+}

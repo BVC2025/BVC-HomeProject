@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-
+import styles from "./PurchaseOrders.module.css";
 import API from "../services/api";
 
 
@@ -26,25 +26,12 @@ function StatusPill({ status }) {
 
   return (
     <span
-      style={{
-        background: t.bg, color: t.fg,
-        padding: "3px 10px", borderRadius: 999,
-        fontSize: 10, fontWeight: 800, letterSpacing: 0.8
-      }}
+      className={styles.statusPill}
+      style={{ background: t.bg, color: t.fg }}
     >
       {String(status || "").replace(/_/g, " ")}
     </span>
   );
-}
-
-
-function inputStyle() {
-
-  return {
-    width: "100%", padding: "9px 11px",
-    border: "1px solid #cbd5e1", borderRadius: 8,
-    fontSize: 13, fontFamily: "inherit", background: "white"
-  };
 }
 
 
@@ -234,9 +221,9 @@ function POEditor({ poId, onClose, onSaved }) {
     return (
       <ModalShell title="✨ New Purchase Order" onClose={onClose} wide>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 16 }}>
+        <div className={styles.formGrid3}>
           <Field label="Supplier *">
-            <select value={draft.SUPPLIER_ID} onChange={(e) => setDraft({ ...draft, SUPPLIER_ID: e.target.value })} style={inputStyle()}>
+            <select value={draft.SUPPLIER_ID} onChange={(e) => setDraft({ ...draft, SUPPLIER_ID: e.target.value })} className={styles.input}>
               <option value="">— pick supplier —</option>
               {suppliers.map((s) => (
                 <option key={s.ID} value={s.ID}>{s.COMPANY_NAME} ({s.SUPPLIER_CODE})</option>
@@ -245,15 +232,15 @@ function POEditor({ poId, onClose, onSaved }) {
           </Field>
 
           <Field label="PO Date">
-            <input type="date" value={draft.PO_DATE} onChange={(e) => setDraft({ ...draft, PO_DATE: e.target.value })} style={inputStyle()} />
+            <input type="date" value={draft.PO_DATE} onChange={(e) => setDraft({ ...draft, PO_DATE: e.target.value })} className={styles.input} />
           </Field>
 
           <Field label="Expected Delivery">
-            <input type="date" value={draft.EXPECTED_DELIVERY_DATE} onChange={(e) => setDraft({ ...draft, EXPECTED_DELIVERY_DATE: e.target.value })} style={inputStyle()} />
+            <input type="date" value={draft.EXPECTED_DELIVERY_DATE} onChange={(e) => setDraft({ ...draft, EXPECTED_DELIVERY_DATE: e.target.value })} className={styles.input} />
           </Field>
 
           <Field label="Prepared By">
-            <select value={draft.PREPARED_BY} onChange={(e) => setDraft({ ...draft, PREPARED_BY: e.target.value })} style={inputStyle()}>
+            <select value={draft.PREPARED_BY} onChange={(e) => setDraft({ ...draft, PREPARED_BY: e.target.value })} className={styles.input}>
               <option value="">— pick employee —</option>
               {employees.map((emp) => (
                 <option key={emp.ID} value={emp.ID}>{emp.NAME}</option>
@@ -262,7 +249,7 @@ function POEditor({ poId, onClose, onSaved }) {
           </Field>
 
           <Field label="Linked Project (optional)">
-            <select value={draft.LINKED_PROJECT_ID} onChange={(e) => setDraft({ ...draft, LINKED_PROJECT_ID: e.target.value })} style={inputStyle()}>
+            <select value={draft.LINKED_PROJECT_ID} onChange={(e) => setDraft({ ...draft, LINKED_PROJECT_ID: e.target.value })} className={styles.input}>
               <option value="">— none —</option>
               {projects.map((p) => (
                 <option key={p.ID} value={p.ID}>{p.PROJECT_NAME || `Project #${p.ID}`}</option>
@@ -271,64 +258,64 @@ function POEditor({ poId, onClose, onSaved }) {
           </Field>
 
           <Field label="GST % / Discount %">
-            <div style={{ display: "flex", gap: 6 }}>
-              <input type="number" placeholder="GST" min="0" value={draft.TAX_PERCENT} onChange={(e) => setDraft({ ...draft, TAX_PERCENT: e.target.value })} style={inputStyle()} />
-              <input type="number" placeholder="Disc" min="0" value={draft.DISCOUNT_PERCENT} onChange={(e) => setDraft({ ...draft, DISCOUNT_PERCENT: e.target.value })} style={inputStyle()} />
+            <div className={styles.inputDualWrap}>
+              <input type="number" placeholder="GST" min="0" value={draft.TAX_PERCENT} onChange={(e) => setDraft({ ...draft, TAX_PERCENT: e.target.value })} className={styles.input} />
+              <input type="number" placeholder="Disc" min="0" value={draft.DISCOUNT_PERCENT} onChange={(e) => setDraft({ ...draft, DISCOUNT_PERCENT: e.target.value })} className={styles.input} />
             </div>
           </Field>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: "#d97706", letterSpacing: 1 }}>📦 LINE ITEMS</div>
-          <button type="button" onClick={addLine} style={{ border: "none", background: "linear-gradient(135deg,#F4B324,#C8102E)", color: "white", padding: "7px 14px", borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+        <div className={styles.lineItemsHeader}>
+          <div className={styles.lineItemsLabel}>📦 LINE ITEMS</div>
+          <button type="button" onClick={addLine} className={styles.btnAddLine}>
             ➕ Add Line
           </button>
         </div>
 
-        <div style={{ marginBottom: 16, overflow: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-            <thead>
-              <tr style={{ background: "#f8fafc", color: "#475569", textAlign: "left" }}>
-                <th style={{ padding: 8, width: 40 }}>#</th>
-                <th style={{ padding: 8 }}>Description</th>
-                <th style={{ padding: 8, width: 160 }}>Material</th>
-                <th style={{ padding: 8, width: 70 }}>HSN</th>
-                <th style={{ padding: 8, width: 70 }}>Qty</th>
-                <th style={{ padding: 8, width: 60 }}>Unit</th>
-                <th style={{ padding: 8, width: 110 }}>Unit Price</th>
-                <th style={{ padding: 8, width: 70 }}>Disc%</th>
-                <th style={{ padding: 8, width: 110, textAlign: "right" }}>Total</th>
-                <th style={{ padding: 8, width: 40 }}></th>
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead className={styles.tableHead}>
+              <tr>
+                <th className={styles.thW40}>#</th>
+                <th>Description</th>
+                <th className={styles.thW160}>Material</th>
+                <th className={styles.thW70}>HSN</th>
+                <th className={styles.thW70}>Qty</th>
+                <th className={styles.thW60}>Unit</th>
+                <th className={styles.thW110}>Unit Price</th>
+                <th className={styles.thW70}>Disc%</th>
+                <th className={`${styles.thW110} ${styles.tdAlignRight}`}>Total</th>
+                <th className={styles.thW40}></th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className={styles.tableBody}>
               {draft.LINES.length === 0 && (
-                <tr><td colSpan="10" style={{ padding: 20, textAlign: "center", color: "#94a3b8" }}>No lines yet.</td></tr>
+                <tr><td colSpan="10" className={styles.tableEmptyRow}>No lines yet.</td></tr>
               )}
               {draft.LINES.map((l, idx) => {
 
                 const lineTotal = (Number(l.QUANTITY) || 0) * (Number(l.UNIT_PRICE) || 0) * (1 - (Number(l.DISCOUNT_PERCENT) || 0) / 100);
 
                 return (
-                  <tr key={idx} style={{ borderTop: "1px solid #e2e8f0" }}>
-                    <td style={{ padding: 6 }}>{idx + 1}</td>
-                    <td style={{ padding: 6 }}><input type="text" value={l.DESCRIPTION} onChange={(e) => updateLine(idx, "DESCRIPTION", e.target.value)} style={inputStyle()} /></td>
-                    <td style={{ padding: 6 }}>
-                      <select value={l.MATERIAL_ID} onChange={(e) => onMaterialPick(idx, e.target.value)} style={inputStyle()}>
+                  <tr key={idx}>
+                    <td className={styles.tdPadSm}>{idx + 1}</td>
+                    <td className={styles.tdPadSm}><input type="text" value={l.DESCRIPTION} onChange={(e) => updateLine(idx, "DESCRIPTION", e.target.value)} className={styles.input} /></td>
+                    <td className={styles.tdPadSm}>
+                      <select value={l.MATERIAL_ID} onChange={(e) => onMaterialPick(idx, e.target.value)} className={styles.input}>
                         <option value="">— link —</option>
                         {materials.map((m) => (
                           <option key={m.ID} value={m.MATERIAL_ID || m.ID}>{m.MATERIAL_NAME}</option>
                         ))}
                       </select>
                     </td>
-                    <td style={{ padding: 6 }}><input type="text" value={l.HSN_CODE} onChange={(e) => updateLine(idx, "HSN_CODE", e.target.value)} style={inputStyle()} /></td>
-                    <td style={{ padding: 6 }}><input type="number" min="0" step="0.01" value={l.QUANTITY} onChange={(e) => updateLine(idx, "QUANTITY", e.target.value)} style={inputStyle()} /></td>
-                    <td style={{ padding: 6 }}><input type="text" value={l.UNIT} onChange={(e) => updateLine(idx, "UNIT", e.target.value)} style={inputStyle()} /></td>
-                    <td style={{ padding: 6 }}><input type="number" min="0" step="0.01" value={l.UNIT_PRICE} onChange={(e) => updateLine(idx, "UNIT_PRICE", e.target.value)} style={inputStyle()} /></td>
-                    <td style={{ padding: 6 }}><input type="number" min="0" step="0.1" value={l.DISCOUNT_PERCENT} onChange={(e) => updateLine(idx, "DISCOUNT_PERCENT", e.target.value)} style={inputStyle()} /></td>
-                    <td style={{ padding: 6, textAlign: "right", fontWeight: 700 }}>{inr(lineTotal)}</td>
-                    <td style={{ padding: 6 }}>
-                      <button type="button" onClick={() => removeLine(idx)} style={{ border: "1px solid #fecaca", background: "#fef2f2", color: "#b91c1c", padding: "4px 8px", borderRadius: 6, cursor: "pointer", fontSize: 11 }}>🗑</button>
+                    <td className={styles.tdPadSm}><input type="text" value={l.HSN_CODE} onChange={(e) => updateLine(idx, "HSN_CODE", e.target.value)} className={styles.input} /></td>
+                    <td className={styles.tdPadSm}><input type="number" min="0" step="0.01" value={l.QUANTITY} onChange={(e) => updateLine(idx, "QUANTITY", e.target.value)} className={styles.input} /></td>
+                    <td className={styles.tdPadSm}><input type="text" value={l.UNIT} onChange={(e) => updateLine(idx, "UNIT", e.target.value)} className={styles.input} /></td>
+                    <td className={styles.tdPadSm}><input type="number" min="0" step="0.01" value={l.UNIT_PRICE} onChange={(e) => updateLine(idx, "UNIT_PRICE", e.target.value)} className={styles.input} /></td>
+                    <td className={styles.tdPadSm}><input type="number" min="0" step="0.1" value={l.DISCOUNT_PERCENT} onChange={(e) => updateLine(idx, "DISCOUNT_PERCENT", e.target.value)} className={styles.input} /></td>
+                    <td className={`${styles.tdPadSm} ${styles.tdAlignRightXB}`}>{inr(lineTotal)}</td>
+                    <td className={styles.tdPadSm}>
+                      <button type="button" onClick={() => removeLine(idx)} className={styles.btnGrnDelete}>🗑</button>
                     </td>
                   </tr>
                 );
@@ -337,32 +324,32 @@ function POEditor({ poId, onClose, onSaved }) {
           </table>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
-          <div style={{ background: "linear-gradient(135deg,#fef3c7,#fde68a)", border: "1px solid #fcd34d", borderRadius: 12, padding: 16, minWidth: 280 }}>
+        <div className={styles.totalsWrap}>
+          <div className={styles.totalsBox}>
             <TotalRow label="Subtotal" value={subtotal} />
             <TotalRow label={`Discount (${draft.DISCOUNT_PERCENT || 0}%)`} value={-discountAmount} />
             <TotalRow label={`GST (${draft.TAX_PERCENT || 0}%)`} value={taxAmount} />
-            <div style={{ borderTop: "1px solid #f59e0b", marginTop: 6, paddingTop: 6 }}>
+            <div className={styles.totalsDivider}>
               <TotalRow label="Grand Total" value={grandTotal} bold large />
             </div>
           </div>
         </div>
 
         <Field label="Delivery Address">
-          <textarea rows={2} value={draft.DELIVERY_ADDRESS} onChange={(e) => setDraft({ ...draft, DELIVERY_ADDRESS: e.target.value })} style={{ ...inputStyle(), resize: "vertical" }} />
+          <textarea rows={2} value={draft.DELIVERY_ADDRESS} onChange={(e) => setDraft({ ...draft, DELIVERY_ADDRESS: e.target.value })} className={`${styles.input} ${styles.inputResizable}`} />
         </Field>
 
         <Field label="Notes">
-          <textarea rows={2} value={draft.NOTES} onChange={(e) => setDraft({ ...draft, NOTES: e.target.value })} style={{ ...inputStyle(), resize: "vertical" }} />
+          <textarea rows={2} value={draft.NOTES} onChange={(e) => setDraft({ ...draft, NOTES: e.target.value })} className={`${styles.input} ${styles.inputResizable}`} />
         </Field>
 
         <Field label="Terms & Conditions">
-          <textarea rows={4} value={draft.TERMS_AND_CONDITIONS} onChange={(e) => setDraft({ ...draft, TERMS_AND_CONDITIONS: e.target.value })} style={{ ...inputStyle(), resize: "vertical" }} />
+          <textarea rows={4} value={draft.TERMS_AND_CONDITIONS} onChange={(e) => setDraft({ ...draft, TERMS_AND_CONDITIONS: e.target.value })} className={`${styles.input} ${styles.inputResizable}`} />
         </Field>
 
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
-          <button type="button" onClick={onClose} style={{ border: "1px solid #e2e8f0", background: "white", padding: "10px 22px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancel</button>
-          <button type="button" onClick={save} style={{ border: "none", background: "linear-gradient(135deg,#F4B324,#E63946,#C8102E)", color: "white", padding: "10px 26px", borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: "pointer", boxShadow: "0 6px 18px rgba(245,158,11,0.4)" }}>
+        <div className={styles.modalFooter}>
+          <button type="button" onClick={onClose} className={styles.btnCancelWide}>Cancel</button>
+          <button type="button" onClick={save} className={styles.btnCreatePO}>
             ✨ Create PO
           </button>
         </div>
@@ -372,9 +359,9 @@ function POEditor({ poId, onClose, onSaved }) {
   }
 
   // ============ DETAIL FLOW ============
-  if (loading) return <ModalShell title="Loading…" onClose={onClose}><div style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>Loading PO…</div></ModalShell>;
+  if (loading) return <ModalShell title="Loading…" onClose={onClose}><div className={styles.loadingState}>Loading PO…</div></ModalShell>;
 
-  if (!po) return <ModalShell title="Not found" onClose={onClose}><div style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>PO not found</div></ModalShell>;
+  if (!po) return <ModalShell title="Not found" onClose={onClose}><div className={styles.loadingState}>PO not found</div></ModalShell>;
 
   return <PODetail po={po} onClose={onClose} onChanged={() => { loadPO(); onSaved?.(); }} />;
 }
@@ -510,7 +497,7 @@ function PODetail({ po, onClose, onChanged }) {
     <ModalShell title={`📋 ${po.PO_NUMBER}`} onClose={onClose} wide>
 
       {/* Action buttons */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+      <div className={styles.detailActionRow}>
         <StatusPill status={po.STATUS} />
 
         {po.STATUS === "DRAFT" && (
@@ -547,26 +534,17 @@ function PODetail({ po, onClose, onChanged }) {
 
       {/* Tracking banner */}
       {(po.EMAIL_SENT_AT || po.LAST_EMAIL_STATUS) && (
-        <div style={{
-          background: po.EMAIL_SENT_AT ? "linear-gradient(135deg,#f0fdf4,#dcfce7)" : "linear-gradient(135deg,#fee2e2,#fecaca)",
-          border: po.EMAIL_SENT_AT ? "1px solid #86efac" : "1px solid #fca5a5",
-          borderRadius: 10, padding: "10px 14px", marginBottom: 14,
-          display: "flex", gap: 18, fontSize: 12, flexWrap: "wrap"
-        }}>
+        <div className={`${styles.trackingBanner} ${po.EMAIL_SENT_AT ? styles.trackingBannerSuccess : styles.trackingBannerFail}`}>
           {po.EMAIL_SENT_AT ? (
             <div><b>📧 Emailed</b> {po.EMAIL_SENT_COUNT > 1 ? `(${po.EMAIL_SENT_COUNT}×)` : ""} · {new Date(po.EMAIL_SENT_AT).toLocaleString("en-IN")}</div>
           ) : po.LAST_EMAIL_STATUS && (
-            <div style={{ color: "#b91c1c" }}>❌ {po.LAST_EMAIL_STATUS}</div>
+            <div className={styles.trackingBannerFailText}>❌ {po.LAST_EMAIL_STATUS}</div>
           )}
         </div>
       )}
 
       {/* Header card */}
-      <div style={{
-        background: "linear-gradient(135deg,#f8fafc,#ffffff)",
-        border: "1px solid #e2e8f0", borderRadius: 12, padding: 16, marginBottom: 14,
-        display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12
-      }}>
+      <div className={styles.detailHeaderCard}>
         <InfoBlock label="Supplier" value={po.SUPPLIER_NAME || `#${po.SUPPLIER_ID}`} sub={po.SUPPLIER_CODE} />
         <InfoBlock label="PO Date" value={po.PO_DATE || "—"} />
         <InfoBlock label="Expected Delivery" value={po.EXPECTED_DELIVERY_DATE || "—"} />
@@ -576,26 +554,26 @@ function PODetail({ po, onClose, onChanged }) {
       </div>
 
       {/* Line items */}
-      <div style={{ fontSize: 12, fontWeight: 800, color: "#d97706", letterSpacing: 1, marginBottom: 8 }}>
+      <div className={`${styles.sectionLabel} ${styles.sectionLabelAmber}`}>
         📦 LINE ITEMS ({po.LINES?.length || 0})
       </div>
 
-      <div style={{ marginBottom: 14, overflow: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-          <thead>
-            <tr style={{ background: "#f8fafc", color: "#475569", textAlign: "left" }}>
-              <th style={{ padding: 8, width: 40 }}>#</th>
-              <th style={{ padding: 8 }}>Description</th>
-              <th style={{ padding: 8, width: 70, textAlign: "right" }}>Ordered</th>
-              <th style={{ padding: 8, width: 75, textAlign: "right", color: "#047857" }}>✅ Accepted</th>
-              <th style={{ padding: 8, width: 75, textAlign: "right", color: "#b91c1c" }}>❌ Rejected</th>
-              <th style={{ padding: 8, width: 70, textAlign: "right" }}>Pending</th>
-              <th style={{ padding: 8, width: 50 }}>Unit</th>
-              <th style={{ padding: 8, width: 100, textAlign: "right" }}>Rate</th>
-              <th style={{ padding: 8, width: 110, textAlign: "right" }}>Total</th>
+      <div className={styles.tableWrapSm}>
+        <table className={styles.table}>
+          <thead className={styles.tableHead}>
+            <tr>
+              <th className={styles.thW40}>#</th>
+              <th>Description</th>
+              <th className={`${styles.thW70} ${styles.tdAlignRight}`}>Ordered</th>
+              <th className={`${styles.thW75} ${styles.tdAlignRight} ${styles.thAcceptedColor}`}>✅ Accepted</th>
+              <th className={`${styles.thW75} ${styles.tdAlignRight} ${styles.thRejectedColor}`}>❌ Rejected</th>
+              <th className={`${styles.thW70} ${styles.tdAlignRight}`}>Pending</th>
+              <th>Unit</th>
+              <th className={`${styles.thW100} ${styles.tdAlignRight}`}>Rate</th>
+              <th className={`${styles.thW110} ${styles.tdAlignRight}`}>Total</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className={styles.tableBody}>
             {(po.LINES || []).map((l, idx) => {
 
               // Use canonical fields when present, fall back to legacy aliases
@@ -613,35 +591,32 @@ function PODetail({ po, onClose, onChanged }) {
                 <tr
                   key={l.ID}
                   style={{
-                    borderTop: "1px solid #e2e8f0",
                     background: fullyReceived ? "#f0fdf4" : "white"
                   }}
                 >
-                  <td style={{ padding: 8 }}>{idx + 1}</td>
-                  <td style={{ padding: 8 }}>{l.DESCRIPTION}</td>
-                  <td style={{ padding: 8, textAlign: "right", fontWeight: 600 }}>{ordered}</td>
-                  <td style={{ padding: 8, textAlign: "right", color: "#047857", fontWeight: 700 }}>
+                  <td className={styles.tdPad}>{idx + 1}</td>
+                  <td className={styles.tdPad}>{l.DESCRIPTION}</td>
+                  <td className={`${styles.tdPad} ${styles.tdOrdered}`}>{ordered}</td>
+                  <td className={`${styles.tdPad} ${styles.tdAccepted}`}>
                     {accepted || 0}
                   </td>
-                  <td style={{
-                    padding: 8,
+                  <td className={styles.tdPad} style={{
                     textAlign: "right",
                     color: rejected > 0 ? "#b91c1c" : "#cbd5e1",
                     fontWeight: rejected > 0 ? 700 : 400
                   }}>
                     {rejected || 0}
                   </td>
-                  <td style={{
-                    padding: 8,
+                  <td className={styles.tdPad} style={{
                     textAlign: "right",
                     color: pending > 0 ? "#b91c1c" : "#94a3b8",
                     fontWeight: 700
                   }}>
                     {fullyReceived ? "✓" : pending.toFixed(2)}
                   </td>
-                  <td style={{ padding: 8 }}>{l.UNIT}</td>
-                  <td style={{ padding: 8, textAlign: "right" }}>{inr(l.UNIT_PRICE)}</td>
-                  <td style={{ padding: 8, textAlign: "right", fontWeight: 700 }}>{inr(l.LINE_TOTAL)}</td>
+                  <td className={styles.tdPad}>{l.UNIT}</td>
+                  <td className={`${styles.tdPad} ${styles.tdAlignRight}`}>{inr(l.UNIT_PRICE)}</td>
+                  <td className={`${styles.tdPad} ${styles.tdAlignRightXB}`}>{inr(l.LINE_TOTAL)}</td>
                 </tr>
               );
             })}
@@ -650,12 +625,12 @@ function PODetail({ po, onClose, onChanged }) {
       </div>
 
       {/* Totals */}
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
-        <div style={{ background: "linear-gradient(135deg,#fef3c7,#fde68a)", border: "1px solid #fcd34d", borderRadius: 12, padding: 16, minWidth: 280 }}>
+      <div className={styles.totalsWrapMb14}>
+        <div className={styles.totalsBox}>
           <TotalRow label="Subtotal" value={po.SUBTOTAL} />
           {po.DISCOUNT_PERCENT > 0 && <TotalRow label={`Discount (${po.DISCOUNT_PERCENT}%)`} value={-po.DISCOUNT_AMOUNT} />}
           <TotalRow label={`GST (${po.TAX_PERCENT}%)`} value={po.TAX_AMOUNT} />
-          <div style={{ borderTop: "1px solid #f59e0b", marginTop: 6, paddingTop: 6 }}>
+          <div className={styles.totalsDivider}>
             <TotalRow label="Grand Total" value={po.GRAND_TOTAL} bold large />
           </div>
         </div>
@@ -663,8 +638,8 @@ function PODetail({ po, onClose, onChanged }) {
 
       {/* GRNs section */}
       {grns.length > 0 && (
-        <div style={{ marginTop: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: "#0ea5e9", letterSpacing: 1, marginBottom: 8 }}>
+        <div className={styles.grnSectionWrap}>
+          <div className={`${styles.sectionLabel} ${styles.sectionLabelBlue}`}>
             📥 GOODS RECEIPTS ({grns.length})
           </div>
 
@@ -760,66 +735,49 @@ function PODetail({ po, onClose, onChanged }) {
             return (
               <div
                 key={g.ID}
-                style={{
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 10,
-                  padding: "12px 16px",
-                  marginBottom: 8,
-                  background: g.STATUS === "FINAL" ? "#f0fdf4" : "#fffbeb"
-                }}
+                className={`${styles.grnCard} ${g.STATUS === "FINAL" ? styles.grnCardFinal : styles.grnCardDraft}`}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14 }}>
+                <div className={styles.grnCardInner}>
 
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontWeight: 800, fontSize: 14 }}>
+                  <div className={styles.grnCardLeft}>
+                    <div className={styles.grnChipHead}>
+                      <span className={styles.grnNumber}>
                         {g.GRN_NUMBER}
                       </span>
-                      <span style={{
-                        background: g.STATUS === "FINAL" ? "#dcfce7" : "#fef3c7",
-                        color: g.STATUS === "FINAL" ? "#166534" : "#854d0e",
-                        padding: "3px 10px", borderRadius: 999,
-                        fontSize: 10, fontWeight: 800, letterSpacing: 0.6
-                      }}>
+                      <span
+                        className={styles.grnStatusPill}
+                        style={{
+                          background: g.STATUS === "FINAL" ? "#dcfce7" : "#fef3c7",
+                          color: g.STATUS === "FINAL" ? "#166534" : "#854d0e"
+                        }}
+                      >
                         {g.STATUS}
                       </span>
                     </div>
 
-                    <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+                    <div className={styles.grnMeta}>
                       📅 {g.RECEIVED_DATE} · 👤 {g.RECEIVED_BY_NAME || "—"}
                       {g.INVOICE_NUMBER ? ` · 🧾 Inv: ${g.INVOICE_NUMBER}` : ""}
                     </div>
 
                     {/* Receipt summary chips */}
-                    <div style={{ display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
-                      <span style={{
-                        background: "#dcfce7", color: "#166534",
-                        padding: "3px 9px", borderRadius: 6,
-                        fontSize: 11, fontWeight: 700
-                      }}>
+                    <div className={styles.grnChips}>
+                      <span className={styles.grnChipAccepted}>
                         ✅ Accepted: {accepted}
                       </span>
                       {rejected > 0 && (
-                        <span style={{
-                          background: "#fee2e2", color: "#991b1b",
-                          padding: "3px 9px", borderRadius: 6,
-                          fontSize: 11, fontWeight: 700
-                        }}>
+                        <span className={styles.grnChipRejected}>
                           ❌ Rejected: {rejected}
                         </span>
                       )}
-                      <span style={{
-                        background: "#e0e7ff", color: "#4338ca",
-                        padding: "3px 9px", borderRadius: 6,
-                        fontSize: 11, fontWeight: 700
-                      }}>
+                      <span className={styles.grnChipLines}>
                         📦 {g.LINES.length} line(s)
                       </span>
                     </div>
 
                     {/* Show line-level rejection reasons if any */}
                     {g.LINES.some((l) => Number(l.QUANTITY_REJECTED) > 0) && (
-                      <div style={{ marginTop: 8, padding: "6px 10px", background: "#fee2e2", borderRadius: 6, fontSize: 11, color: "#991b1b" }}>
+                      <div className={styles.grnRejectionDetail}>
                         {g.LINES.filter((l) => Number(l.QUANTITY_REJECTED) > 0).map((l, i) => (
                           <div key={i}>
                             <b>{l.DESCRIPTION || `Line #${l.PO_LINE_ID}`}:</b>{" "}
@@ -831,19 +789,12 @@ function PODetail({ po, onClose, onChanged }) {
                     )}
                   </div>
 
-                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <div className={styles.grnCardActions}>
 
                     <button
                       onClick={() => window.open(`/grn-print/${g.ID}`, "_blank")}
                       title="Print / PDF"
-                      style={{
-                        border: "1px solid #cbd5e1",
-                        background: "white",
-                        padding: "5px 10px",
-                        borderRadius: 6,
-                        fontSize: 11,
-                        cursor: "pointer"
-                      }}
+                      className={styles.btnGrnPrint}
                     >
                       🖨️
                     </button>
@@ -856,16 +807,7 @@ function PODetail({ po, onClose, onChanged }) {
                       <button
                         onClick={resendRejectionNotice}
                         title="Resend rejection notice to supplier"
-                        style={{
-                          border: "1px solid #fecaca",
-                          background: "#fef2f2",
-                          color: "#b91c1c",
-                          padding: "5px 10px",
-                          borderRadius: 6,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          cursor: "pointer"
-                        }}
+                        className={styles.btnGrnNotify}
                       >
                         📧 Notify
                       </button>
@@ -875,16 +817,7 @@ function PODetail({ po, onClose, onChanged }) {
                       <>
                         <button
                           onClick={finalizeGRN}
-                          style={{
-                            border: "none",
-                            background: "#10b981",
-                            color: "white",
-                            padding: "5px 12px",
-                            borderRadius: 6,
-                            fontSize: 11,
-                            fontWeight: 700,
-                            cursor: "pointer"
-                          }}
+                          className={styles.btnGrnFinalize}
                         >
                           ✓ Finalize
                         </button>
@@ -892,15 +825,7 @@ function PODetail({ po, onClose, onChanged }) {
                         <button
                           onClick={deleteGRN}
                           title="Delete draft"
-                          style={{
-                            border: "1px solid #fecaca",
-                            background: "#fef2f2",
-                            color: "#b91c1c",
-                            padding: "5px 10px",
-                            borderRadius: 6,
-                            fontSize: 11,
-                            cursor: "pointer"
-                          }}
+                          className={styles.btnGrnDelete}
                         >
                           🗑
                         </button>
@@ -916,9 +841,9 @@ function PODetail({ po, onClose, onChanged }) {
 
       {/* Activity timeline */}
       {activity.length > 0 && (
-        <div style={{ marginTop: 18 }}>
-          <div style={{ fontSize: 12, fontWeight: 800, color: "#0ea5e9", letterSpacing: 1, marginBottom: 8 }}>📋 ACTIVITY TIMELINE</div>
-          <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: "12px 16px" }}>
+        <div className={styles.activityWrap}>
+          <div className={`${styles.sectionLabel} ${styles.sectionLabelBlue}`}>📋 ACTIVITY TIMELINE</div>
+          <div className={styles.activityInner}>
             {activity.map((a, idx) => {
 
               const icons = {
@@ -941,14 +866,14 @@ function PODetail({ po, onClose, onChanged }) {
               };
 
               return (
-                <div key={a.ID} style={{ display: "flex", gap: 12, padding: "8px 0", borderTop: idx === 0 ? "none" : "1px solid #e2e8f0", alignItems: "flex-start" }}>
-                  <div style={{ fontSize: 18, width: 26 }}>{icons[a.EVENT_TYPE] || "•"}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>{a.EVENT_TYPE.replace(/_/g, " ")}</div>
-                    {a.EVENT_DETAIL && <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{a.EVENT_DETAIL}</div>}
-                    <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>{a.CREATED_AT ? new Date(a.CREATED_AT).toLocaleString("en-IN") : ""}</div>
+                <div key={a.ID} className={`${styles.activityRow} ${idx !== 0 ? styles.activityRowBorder : ""}`}>
+                  <div className={styles.activityIcon}>{icons[a.EVENT_TYPE] || "•"}</div>
+                  <div className={styles.activityBody}>
+                    <div className={styles.activityEvent}>{a.EVENT_TYPE.replace(/_/g, " ")}</div>
+                    {a.EVENT_DETAIL && <div className={styles.activityDetail}>{a.EVENT_DETAIL}</div>}
+                    <div className={styles.activityTime}>{a.CREATED_AT ? new Date(a.CREATED_AT).toLocaleString("en-IN") : ""}</div>
                   </div>
-                  <button onClick={removeActivity} style={{ border: "1px solid #e2e8f0", background: "white", color: "#94a3b8", width: 24, height: 24, borderRadius: "50%", cursor: "pointer", fontSize: 12, padding: 0 }}>×</button>
+                  <button onClick={removeActivity} className={styles.btnRemoveActivity}>×</button>
                 </div>
               );
             })}
@@ -1119,65 +1044,48 @@ function GRNForm({ po, onCancel, onSaved }) {
     <ModalShell title={`📥 Record Goods Receipt — ${po.PO_NUMBER}`} onClose={onCancel} wide>
 
       {/* Context banner: supplier + PO summary */}
-      <div style={{
-        background: "linear-gradient(135deg,#dbeafe,#eef2ff)",
-        border: "1px solid #c7d2fe",
-        borderRadius: 10,
-        padding: "10px 14px",
-        marginBottom: 16,
-        fontSize: 12,
-        color: "#4338ca"
-      }}>
+      <div className={styles.grnContextBanner}>
         <b>Supplier:</b> {po.SUPPLIER_NAME || `#${po.SUPPLIER_ID}`}{" "}
         ({po.SUPPLIER_CODE || "—"}) ·
         <b> PO:</b> {po.PO_NUMBER} ·
         <b> Expected:</b> {po.EXPECTED_DELIVERY_DATE || "—"}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 16 }}>
+      <div className={styles.formGrid3}>
         <Field label="Received Date *">
-          <input type="date" value={data.RECEIVED_DATE} onChange={(e) => setData({ ...data, RECEIVED_DATE: e.target.value })} style={inputStyle()} />
+          <input type="date" value={data.RECEIVED_DATE} onChange={(e) => setData({ ...data, RECEIVED_DATE: e.target.value })} className={styles.input} />
         </Field>
         <Field label="Received By (Warehouse Person)">
-          <select value={data.RECEIVED_BY} onChange={(e) => setData({ ...data, RECEIVED_BY: e.target.value })} style={inputStyle()}>
+          <select value={data.RECEIVED_BY} onChange={(e) => setData({ ...data, RECEIVED_BY: e.target.value })} className={styles.input}>
             <option value="">— pick employee —</option>
             {employees.map((e) => <option key={e.ID} value={e.ID}>{e.NAME}</option>)}
           </select>
         </Field>
         <Field label="Supplier Invoice / Challan #">
-          <input type="text" value={data.INVOICE_NUMBER} onChange={(e) => setData({ ...data, INVOICE_NUMBER: e.target.value })} style={inputStyle()} placeholder="INV-12345" />
+          <input type="text" value={data.INVOICE_NUMBER} onChange={(e) => setData({ ...data, INVOICE_NUMBER: e.target.value })} className={styles.input} placeholder="INV-12345" />
         </Field>
       </div>
 
       {data.LINES.length === 0 && (
-        <div style={{
-          padding: 20,
-          textAlign: "center",
-          background: "#f0fdf4",
-          border: "1px dashed #86efac",
-          borderRadius: 10,
-          color: "#166534",
-          fontSize: 13,
-          marginBottom: 14
-        }}>
+        <div className={styles.grnAllReceived}>
           ✅ All PO lines already fully received. Nothing pending.
         </div>
       )}
 
       {data.LINES.length > 0 && (
-        <div style={{ marginBottom: 14, overflow: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-            <thead>
-              <tr style={{ background: "#f8fafc", textAlign: "left", color: "#475569" }}>
-                <th style={{ padding: 8 }}>Material / Description</th>
-                <th style={{ padding: 8, width: 80, textAlign: "right" }}>Ordered</th>
-                <th style={{ padding: 8, width: 80, textAlign: "right" }}>Pending</th>
-                <th style={{ padding: 8, width: 110, color: "#047857" }}>✅ Accepted</th>
-                <th style={{ padding: 8, width: 110, color: "#b91c1c" }}>❌ Rejected</th>
-                <th style={{ padding: 8 }}>Reject Reason</th>
+        <div className={styles.tableWrapSm}>
+          <table className={styles.table}>
+            <thead className={styles.tableHead}>
+              <tr>
+                <th>Material / Description</th>
+                <th className={styles.thGrnOrdered}>Ordered</th>
+                <th className={styles.thGrnPending}>Pending</th>
+                <th className={styles.thGrnAccepted}>✅ Accepted</th>
+                <th className={styles.thGrnRejected}>❌ Rejected</th>
+                <th>Reject Reason</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className={styles.tableBody}>
               {data.LINES.map((l, idx) => {
 
                 const err = lineProblems[idx];
@@ -1186,28 +1094,27 @@ function GRNForm({ po, onCancel, onSaved }) {
                   <tr
                     key={l.PO_LINE_ID}
                     style={{
-                      borderTop: "1px solid #e2e8f0",
                       background: err ? "#fef2f2" : "white"
                     }}
                   >
-                    <td style={{ padding: 8 }}>
+                    <td className={styles.tdPad}>
                       <div>{l.DESCRIPTION}</div>
-                      <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>
+                      <div className={styles.grnLineUnit}>
                         Unit: {l.UNIT || "pcs"}
                       </div>
                       {err && (
-                        <div style={{ fontSize: 11, color: "#b91c1c", marginTop: 4, fontWeight: 700 }}>
+                        <div className={styles.grnLineError}>
                           ⚠ {err}
                         </div>
                       )}
                     </td>
-                    <td style={{ padding: 8, textAlign: "right", color: "#475569", fontWeight: 600 }}>
+                    <td className={`${styles.tdPad} ${styles.tdOrdered}`}>
                       {l.ORDERED}
                     </td>
-                    <td style={{ padding: 8, textAlign: "right", color: "#b91c1c", fontWeight: 700 }}>
+                    <td className={`${styles.tdPad} ${styles.tdPendingRed}`}>
                       {l.PENDING}
                     </td>
-                    <td style={{ padding: 6 }}>
+                    <td className={styles.tdPadSm}>
                       <input
                         type="number"
                         min="0"
@@ -1215,25 +1122,25 @@ function GRNForm({ po, onCancel, onSaved }) {
                         step="0.01"
                         value={l.ACCEPTED}
                         onChange={(e) => updateLine(idx, "ACCEPTED", e.target.value)}
-                        style={inputStyle()}
+                        className={styles.input}
                       />
                     </td>
-                    <td style={{ padding: 6 }}>
+                    <td className={styles.tdPadSm}>
                       <input
                         type="number"
                         min="0"
                         step="0.01"
                         value={l.REJECTED}
                         onChange={(e) => updateLine(idx, "REJECTED", e.target.value)}
-                        style={inputStyle()}
+                        className={styles.input}
                       />
                     </td>
-                    <td style={{ padding: 6 }}>
+                    <td className={styles.tdPadSm}>
                       <input
                         type="text"
                         value={l.REJECTION_REASON}
                         onChange={(e) => updateLine(idx, "REJECTION_REASON", e.target.value)}
-                        style={inputStyle()}
+                        className={styles.input}
                         placeholder={
                           Number(l.REJECTED) > 0
                             ? "Damaged / wrong spec / short qty..."
@@ -1251,12 +1158,7 @@ function GRNForm({ po, onCancel, onSaved }) {
 
       {/* Live totals summary */}
       {data.LINES.length > 0 && (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 10,
-          marginBottom: 14
-        }}>
+        <div className={styles.grnSummaryGrid}>
           <SummaryTile label="Total Ordered" value={totals.ordered} color="#475569" />
           <SummaryTile label="Total Arrived" value={totalArrived} color="#0ea5e9" sub="accepted + rejected" />
           <SummaryTile label="✅ Accepted" value={totals.accepted} color="#10b981" sub="→ goes to Inventory" />
@@ -1265,11 +1167,11 @@ function GRNForm({ po, onCancel, onSaved }) {
       )}
 
       <Field label="Notes (optional)">
-        <textarea rows={2} value={data.NOTES} onChange={(e) => setData({ ...data, NOTES: e.target.value })} style={{ ...inputStyle(), resize: "vertical" }} placeholder="Truck number, delivery time, anything worth noting..." />
+        <textarea rows={2} value={data.NOTES} onChange={(e) => setData({ ...data, NOTES: e.target.value })} className={`${styles.input} ${styles.inputResizable}`} placeholder="Truck number, delivery time, anything worth noting..." />
       </Field>
 
-      <label style={{ display: "flex", alignItems: "flex-start", gap: 10, marginTop: 12, padding: 12, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, fontSize: 13, cursor: "pointer" }}>
-        <input type="checkbox" checked={data.FINALIZE} onChange={(e) => setData({ ...data, FINALIZE: e.target.checked })} style={{ width: 18, height: 18, marginTop: 2 }} />
+      <label className={styles.grnFinalizeToggle}>
+        <input type="checkbox" checked={data.FINALIZE} onChange={(e) => setData({ ...data, FINALIZE: e.target.checked })} className={styles.grnFinalizeToggleCheckbox} />
         <span>
           <b>Finalize immediately</b> — Inventory will be updated with the
           accepted quantities ({totals.accepted} units). Uncheck to save as
@@ -1277,23 +1179,12 @@ function GRNForm({ po, onCancel, onSaved }) {
         </span>
       </label>
 
-      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
-        <button onClick={onCancel} disabled={saving} style={{ border: "1px solid #e2e8f0", background: "white", padding: "9px 18px", borderRadius: 8, cursor: saving ? "not-allowed" : "pointer", fontSize: 13 }}>Cancel</button>
+      <div className={styles.modalFooter}>
+        <button onClick={onCancel} disabled={saving} className={`${styles.btnCancel} ${saving ? styles.btnCancelDisabled : ""}`}>Cancel</button>
         <button
           onClick={save}
           disabled={saving || hasErrors || data.LINES.length === 0}
-          style={{
-            border: "none",
-            background: (saving || hasErrors || data.LINES.length === 0)
-              ? "#94a3b8"
-              : "linear-gradient(135deg,#C8102E,#8B0B1F)",
-            color: "white",
-            padding: "9px 22px",
-            borderRadius: 8,
-            fontWeight: 800,
-            fontSize: 13,
-            cursor: (saving || hasErrors || data.LINES.length === 0) ? "not-allowed" : "pointer"
-          }}
+          className={`${styles.btnGrnSave} ${(saving || hasErrors || data.LINES.length === 0) ? styles.btnGrnSaveDisabled : styles.btnGrnSaveActive}`}
         >
           {saving
             ? "Saving…"
@@ -1371,7 +1262,7 @@ function AutoFromProjectModal({ onClose, onCreated }) {
   return (
     <ModalShell title="🤖 Auto-create POs from Project BOM" onClose={onClose}>
 
-      <div style={{ background: "#f0f9ff", border: "1px solid #bae6fd", borderRadius: 10, padding: 12, fontSize: 12, color: "#0c4a6e", marginBottom: 16 }}>
+      <div className={styles.autoProjectInfo}>
         Reads the project's product BOM → groups items by their
         PREFERRED_SUPPLIER → creates one DRAFT PO per supplier with
         Inventory unit prices. Items without a preferred supplier are
@@ -1379,7 +1270,7 @@ function AutoFromProjectModal({ onClose, onCreated }) {
       </div>
 
       <Field label="Project *">
-        <select value={projectId} onChange={(e) => setProjectId(e.target.value)} style={inputStyle()}>
+        <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className={styles.input}>
           <option value="">— pick project —</option>
           {projects.map((p) => (
             <option key={p.ID} value={p.ID}>{p.PROJECT_NAME || `Project #${p.ID}`}</option>
@@ -1387,23 +1278,27 @@ function AutoFromProjectModal({ onClose, onCreated }) {
         </select>
       </Field>
 
-      <div style={{ height: 12 }} />
+      <div className={styles.fieldSpacer} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div className={styles.formGrid2}>
         <Field label="Expected Delivery">
-          <input type="date" value={eta} onChange={(e) => setEta(e.target.value)} style={inputStyle()} />
+          <input type="date" value={eta} onChange={(e) => setEta(e.target.value)} className={styles.input} />
         </Field>
         <Field label="Prepared By">
-          <select value={prepBy} onChange={(e) => setPrepBy(e.target.value)} style={inputStyle()}>
+          <select value={prepBy} onChange={(e) => setPrepBy(e.target.value)} className={styles.input}>
             <option value="">— none —</option>
             {employees.map((e) => <option key={e.ID} value={e.ID}>{e.NAME}</option>)}
           </select>
         </Field>
       </div>
 
-      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 18 }}>
-        <button onClick={onClose} style={{ border: "1px solid #e2e8f0", background: "white", padding: "9px 18px", borderRadius: 8, cursor: "pointer", fontSize: 13 }}>Cancel</button>
-        <button onClick={submit} disabled={creating} style={{ border: "none", background: creating ? "#94a3b8" : "linear-gradient(135deg,#C8102E,#8B0B1F)", color: "white", padding: "9px 22px", borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: creating ? "not-allowed" : "pointer" }}>
+      <div className={styles.modalFooterMt18}>
+        <button onClick={onClose} className={styles.btnCancel}>Cancel</button>
+        <button
+          onClick={submit}
+          disabled={creating}
+          className={`${styles.btnGeneratePOs} ${creating ? styles.btnGeneratePOsDisabled : styles.btnGeneratePOsActive}`}
+        >
           {creating ? "Creating…" : "🤖 Generate POs"}
         </button>
       </div>
@@ -1421,40 +1316,18 @@ function ModalShell({ title, onClose, children, wide }) {
 
   return (
     <div
-      style={{
-        position: "fixed", inset: 0,
-        background: "rgba(15,23,42,0.55)",
-        zIndex: 1000,
-        display: "flex", justifyContent: "center", alignItems: "center",
-        padding: 30
-      }}
+      className={styles.modalOverlay}
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: wide ? 1100 : 720,
-          maxWidth: "98%",
-          maxHeight: "92vh",
-          background: "white",
-          borderRadius: 12,
-          boxShadow: "0 24px 60px rgba(0,0,0,0.35)",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden"
-        }}
+        className={`${styles.modalBox} ${wide ? styles.modalBoxWide : styles.modalBoxNormal}`}
       >
-        <div style={{
-          display: "flex", justifyContent: "space-between", alignItems: "center",
-          padding: "18px 22px",
-          borderBottom: "1px solid #e2e8f0",
-          flexShrink: 0,
-          background: "white"
-        }}>
-          <div style={{ fontSize: 17, fontWeight: 800, color: "#0f172a" }}>{title}</div>
-          <button onClick={onClose} style={{ border: "none", background: "transparent", fontSize: 22, cursor: "pointer", color: "#64748b" }}>×</button>
+        <div className={styles.modalHeader}>
+          <div className={styles.modalTitle}>{title}</div>
+          <button onClick={onClose} className={styles.modalClose}>×</button>
         </div>
-        <div style={{ padding: 22, overflowY: "auto", flex: 1, minHeight: 0 }}>
+        <div className={styles.modalBody}>
           {children}
         </div>
       </div>
@@ -1467,7 +1340,7 @@ function Field({ label, children }) {
 
   return (
     <div>
-      <label style={{ fontSize: 11, color: "#64748b", fontWeight: 700, letterSpacing: 0.5, marginBottom: 4, display: "block" }}>{label}</label>
+      <label className={styles.fieldLabel}>{label}</label>
       {children}
     </div>
   );
@@ -1477,7 +1350,7 @@ function Field({ label, children }) {
 function TotalRow({ label, value, bold, large }) {
 
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: large ? 16 : 13, fontWeight: bold ? 800 : 500, color: bold ? "#b45309" : "#475569" }}>
+    <div className={`${styles.totalRow} ${bold ? styles.totalRowBold : styles.totalRowNormal} ${large ? styles.totalRowLarge : ""}`}>
       <span>{label}</span><span>{inr(value)}</span>
     </div>
   );
@@ -1487,21 +1360,21 @@ function TotalRow({ label, value, bold, large }) {
 function SummaryTile({ label, value, color, sub }) {
 
   return (
-    <div style={{
-      background: "white",
-      border: `1px solid ${color}33`,
-      borderLeft: `4px solid ${color}`,
-      borderRadius: 8,
-      padding: "10px 14px"
-    }}>
-      <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1, fontWeight: 700 }}>
+    <div
+      className={styles.summaryTile}
+      style={{
+        border: `1px solid ${color}33`,
+        borderLeft: `4px solid ${color}`
+      }}
+    >
+      <div className={styles.summaryTileLabel}>
         {label}
       </div>
-      <div style={{ fontSize: 22, fontWeight: 800, color, marginTop: 2 }}>
+      <div className={styles.summaryTileValue} style={{ color }}>
         {value}
       </div>
       {sub && (
-        <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>
+        <div className={styles.summaryTileSub}>
           {sub}
         </div>
       )}
@@ -1514,9 +1387,9 @@ function InfoBlock({ label, value, sub }) {
 
   return (
     <div>
-      <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: 1, marginBottom: 2 }}>{label}</div>
-      <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: "#64748b" }}>{sub}</div>}
+      <div className={styles.infoBlockLabel}>{label}</div>
+      <div className={styles.infoBlockValue}>{value}</div>
+      {sub && <div className={styles.infoBlockSub}>{sub}</div>}
     </div>
   );
 }
@@ -1525,7 +1398,11 @@ function InfoBlock({ label, value, sub }) {
 function ActionBtn({ color, onClick, children }) {
 
   return (
-    <button onClick={onClick} style={{ border: "none", background: color, color: "white", padding: "6px 14px", borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: "pointer", boxShadow: `0 4px 12px ${color}55` }}>
+    <button
+      onClick={onClick}
+      className={styles.actionBtn}
+      style={{ background: color, boxShadow: `0 4px 12px ${color}55` }}
+    >
       {children}
     </button>
   );
@@ -1600,35 +1477,35 @@ function PurchaseOrders() {
 
   return (
 
-    <div style={{ padding: 24 }}>
+    <div className={styles.page}>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+      <div className={styles.pageHeader}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 24, color: "#0f172a" }}>📋 Purchase Orders</h1>
-          <div style={{ color: "#64748b", fontSize: 13, marginTop: 4 }}>
+          <h1 className={styles.pageTitle}>📋 Purchase Orders</h1>
+          <div className={styles.pageSubtitle}>
             Procurement — issue POs to suppliers, track receipts, update inventory
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => setAutoOpen(true)} style={{ border: "1px solid #c7d2fe", background: "white", color: "#4338ca", padding: "11px 18px", borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: "pointer" }}>
+        <div className={styles.headerActions}>
+          <button onClick={() => setAutoOpen(true)} className={styles.btnAutoProject}>
             🤖 Auto-from-Project
           </button>
-          <button onClick={() => { setEditingId(null); setEditorOpen(true); }} style={{ border: "none", background: "linear-gradient(135deg,#F4B324,#E63946,#C8102E)", color: "white", padding: "11px 22px", borderRadius: 10, fontWeight: 800, fontSize: 13, cursor: "pointer", boxShadow: "0 6px 18px rgba(245,158,11,0.4)" }}>
+          <button onClick={() => { setEditingId(null); setEditorOpen(true); }} className={styles.btnNewPO}>
             ✨ New PO
           </button>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
+      <div className={styles.statsGrid}>
         <StatTile label="Total POs" value={stats.total} color="#6366f1" />
         <StatTile label="Draft" value={stats.draft} color="#94a3b8" />
         <StatTile label="Open (Sent + Confirmed)" value={stats.sent} color="#f59e0b" />
         <StatTile label="Total Value" value={inr(stats.value)} color="#10b981" isText />
       </div>
 
-      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
-        <input type="text" placeholder="🔍 Search by PO#, supplier..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ ...inputStyle(), maxWidth: 320 }} />
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ ...inputStyle(), maxWidth: 220 }}>
+      <div className={styles.toolbar}>
+        <input type="text" placeholder="🔍 Search by PO#, supplier..." value={search} onChange={(e) => setSearch(e.target.value)} className={`${styles.input} ${styles.toolbarSearch}`} />
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className={`${styles.input} ${styles.toolbarSelect}`}>
           <option value="">All statuses</option>
           <option value="DRAFT">Draft</option>
           <option value="SENT">Sent</option>
@@ -1639,35 +1516,35 @@ function PurchaseOrders() {
         </select>
       </div>
 
-      {loading && <div style={{ padding: 30, textAlign: "center", color: "#94a3b8" }}>Loading…</div>}
+      {loading && <div className={styles.loadingState}>Loading…</div>}
 
       {!loading && filtered.length === 0 && (
-        <div style={{ padding: 40, textAlign: "center", border: "1px dashed #cbd5e1", borderRadius: 12, color: "#64748b" }}>
+        <div className={styles.emptyState}>
           No purchase orders yet. Click <b>New PO</b> or <b>Auto-from-Project</b> to start.
         </div>
       )}
 
       {!loading && filtered.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div className={styles.poList}>
           {filtered.map((r) => (
-            <div key={r.ID} onClick={() => { setEditingId(r.ID); setEditorOpen(true); }} style={{ background: "white", border: "1px solid #e2e8f0", borderRadius: 12, padding: "14px 18px", display: "grid", gridTemplateColumns: "180px 1fr 180px 140px 160px", gap: 14, alignItems: "center", cursor: "pointer" }}>
+            <div key={r.ID} onClick={() => { setEditingId(r.ID); setEditorOpen(true); }} className={styles.poRow}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>{r.PO_NUMBER}</div>
-                <div style={{ fontSize: 11, color: "#64748b" }}>{r.PO_DATE}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>{r.SUPPLIER_NAME || `#${r.SUPPLIER_ID}`}</div>
-                <div style={{ fontSize: 11, color: "#64748b" }}>{r.SUPPLIER_CODE}{r.LINKED_PROJECT_NAME ? ` · 📁 ${r.LINKED_PROJECT_NAME}` : ""}</div>
+                <div className={styles.poRowNumber}>{r.PO_NUMBER}</div>
+                <div className={styles.poRowDate}>{r.PO_DATE}</div>
               </div>
               <div>
-                <div style={{ fontSize: 11, color: "#94a3b8" }}>Expected Delivery</div>
-                <div style={{ fontSize: 12, color: "#475569" }}>{r.EXPECTED_DELIVERY_DATE || "—"}</div>
+                <div className={styles.poRowSupplier}>{r.SUPPLIER_NAME || `#${r.SUPPLIER_ID}`}</div>
+                <div className={styles.poRowMeta}>{r.SUPPLIER_CODE}{r.LINKED_PROJECT_NAME ? ` · 📁 ${r.LINKED_PROJECT_NAME}` : ""}</div>
               </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 11, color: "#94a3b8" }}>Total</div>
-                <div style={{ fontSize: 15, fontWeight: 800, color: "#b45309" }}>{inr(r.GRAND_TOTAL)}</div>
+              <div>
+                <div className={styles.poRowDeliveryLabel}>Expected Delivery</div>
+                <div className={styles.poRowDeliveryValue}>{r.EXPECTED_DELIVERY_DATE || "—"}</div>
               </div>
-              <div style={{ textAlign: "right" }}>
+              <div className={styles.poRowRight}>
+                <div className={styles.poRowTotalLabel}>Total</div>
+                <div className={styles.poRowTotalValue}>{inr(r.GRAND_TOTAL)}</div>
+              </div>
+              <div className={styles.poRowRight}>
                 <StatusPill status={r.STATUS} />
               </div>
             </div>
@@ -1698,9 +1575,9 @@ function PurchaseOrders() {
 function StatTile({ label, value, color, isText }) {
 
   return (
-    <div style={{ background: "white", padding: "16px 20px", borderRadius: 14, boxShadow: "0 6px 20px rgba(15,23,42,0.07)", borderTop: `3px solid ${color}` }}>
-      <div style={{ fontSize: 11, color: "#64748b", textTransform: "uppercase", letterSpacing: 1 }}>{label}</div>
-      <div style={{ fontSize: isText ? 18 : 28, fontWeight: 800, color: "#0f172a", marginTop: 4 }}>{value}</div>
+    <div className={styles.statTile} style={{ borderTop: `3px solid ${color}` }}>
+      <div className={styles.statTileLabel}>{label}</div>
+      <div className={`${styles.statTileValue} ${isText ? styles.statTileValueText : styles.statTileValueNum}`}>{value}</div>
     </div>
   );
 }

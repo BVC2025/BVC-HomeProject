@@ -1,6 +1,7 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 
 import API from "../services/api";
+import styles from "./Reports.module.css";
 
 const MODULES = [
   {
@@ -187,44 +188,15 @@ function Reports() {
 
   return (
 
-    <div className="reports-page">
+    <div className={`reports-page ${styles.page}`}>
 
-      <div style={{
-        background: "linear-gradient(135deg, #C8102E 0%, #A60F26 50%, #8B0B1F 100%)",
-        color: "white",
-        padding: "20px 28px",
-        borderRadius: 14,
-        marginBottom: 22,
-        boxShadow: "0 6px 18px rgba(139,11,31,0.18)",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        flexWrap: "wrap",
-        gap: 16
-      }}>
-        <div>
-          <div style={{
-            fontSize: 10,
-            letterSpacing: 2,
-            color: "#fde047",
-            fontWeight: 700,
-            textTransform: "uppercase"
-          }}>
-            Analytics
-          </div>
-          <h1 style={{
-            fontSize: 22,
-            fontWeight: 700,
-            margin: "4px 0 0",
-            lineHeight: 1.2,
-            color: "white",
-            letterSpacing: -0.3
-          }}>
-            Reports
-          </h1>
+      <div className={styles.hero}>
+        <div className={styles.heroLeft}>
+          <div className={styles.eyebrow}>Analytics</div>
+          <h1 className={styles.heroTitle}>Reports</h1>
         </div>
 
-        <div style={{ display: "flex", gap: 22 }}>
+        <div className={styles.heroStats}>
           <HeroStat label="Modules"        value={MODULES.length} />
           <HeroStat label="Recent Exports" value={totalDownloads} />
           <HeroStat label="Formats"        value={2} />
@@ -318,27 +290,9 @@ function Reports() {
 function HeroStat({ label, value }) {
 
   return (
-    <div style={{ textAlign: "right", minWidth: 80 }}>
-      <div style={{
-        fontSize: 22,
-        fontWeight: 800,
-        color: "#ffffff",
-        letterSpacing: -0.3,
-        lineHeight: 1
-      }}>
-        {value}
-      </div>
-      <div style={{
-        fontSize: 9,
-        opacity: 0.8,
-        letterSpacing: 1.4,
-        textTransform: "uppercase",
-        fontWeight: 600,
-        color: "#fecdd3",
-        marginTop: 4
-      }}>
-        {label}
-      </div>
+    <div className={styles.stat}>
+      <div className={styles.statValue}>{value}</div>
+      <div className={styles.statLabel}>{label}</div>
     </div>
   );
 }

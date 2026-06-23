@@ -1,0 +1,534 @@
+/* RoleManagement page — scoped styles */
+
+@keyframes roleFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Page wrapper ──────────────────────────────────────────── */
+
+.page {
+  padding: var(--sp-6);
+  min-height: calc(100vh - 80px);
+  background: var(--layout-bg);
+}
+
+/* ─── Hero ──────────────────────────────────────────────────── */
+
+.hero {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--clr-primary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow);
+  padding: var(--sp-5) var(--sp-6);
+  margin-bottom: var(--sp-5);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+
+.heroEyebrow {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-black);
+  letter-spacing: 2px;
+  color: var(--clr-primary);
+  text-transform: uppercase;
+}
+
+.heroTitle {
+  font-size: var(--font-2xl);
+  font-weight: var(--fw-black);
+  color: var(--text-primary);
+  margin: var(--sp-1) 0 0;
+  line-height: 1.2;
+}
+
+.heroDesc {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: var(--sp-1);
+}
+
+.heroActions {
+  display: flex;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+
+/* ─── Inline create-role form ───────────────────────────────── */
+
+.createForm {
+  background: var(--card-bg);
+  padding: var(--sp-5);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--sp-4);
+  border: 1px dashed var(--danger-border);
+  display: grid;
+  grid-template-columns: 1fr 1fr auto auto;
+  gap: var(--sp-2);
+  align-items: end;
+  animation: roleFadeIn 0.25s ease-out;
+}
+
+.createLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  color: var(--clr-primary-dark);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/* ─── Error / toast ─────────────────────────────────────────── */
+
+.errorBanner {
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--danger-bg);
+  color: var(--danger-dark);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  margin-bottom: var(--sp-3);
+}
+
+.toast {
+  position: fixed;
+  right: var(--sp-6);
+  bottom: var(--sp-6);
+  background: var(--slate-900);
+  color: var(--text-inverse);
+  padding: var(--sp-3) var(--sp-5);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  box-shadow: var(--shadow-lg);
+  z-index: 9999;
+  animation: roleFadeIn 0.25s ease-out;
+}
+
+/* ─── Two-pane layout ───────────────────────────────────────── */
+
+.layout {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: var(--sp-5);
+}
+
+/* ─── Shared panel ──────────────────────────────────────────── */
+
+.panel {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-3);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+}
+
+.panelWide {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-5);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+  min-height: 400px;
+}
+
+/* ─── Role list ─────────────────────────────────────────────── */
+
+.roleListPanel {
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+}
+
+.roleListHeader {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-black);
+  letter-spacing: 1.5px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: var(--sp-2);
+  padding-left: var(--sp-1);
+}
+
+.loadingText {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.roleItem {
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  margin-bottom: 6px;
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  transition: all var(--ease);
+}
+
+.roleItem:hover {
+  background: var(--sidebar-hover-bg);
+  border-color: var(--border-strong);
+}
+
+.roleItemBvc24 {
+  background: var(--warning-bg);
+  border-color: var(--warning-border);
+}
+
+.roleItemActive {
+  background: var(--sidebar-active-bg);
+  color: var(--clr-primary);
+  border-left: 3px solid var(--clr-primary);
+  border-top-color: var(--clr-primary-border);
+  border-right-color: var(--clr-primary-border);
+  border-bottom-color: var(--clr-primary-border);
+}
+
+.roleItemRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.roleName {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-black);
+}
+
+.systemBadge {
+  font-size: var(--font-xs);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  background: #e0e7ff;
+  color: #3730a3;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.5px;
+}
+
+.systemBadgeActive {
+  background: var(--clr-primary-muted);
+  color: var(--clr-primary);
+}
+
+.roleDesc {
+  font-size: var(--font-xs);
+  margin-top: var(--sp-1);
+  color: var(--text-muted);
+}
+
+.roleDescActive {
+  color: var(--clr-primary-dark);
+  opacity: 0.85;
+}
+
+.roleMeta {
+  font-size: var(--font-xs);
+  margin-top: 6px;
+  display: flex;
+  gap: var(--sp-2);
+  color: var(--text-secondary);
+  font-weight: var(--fw-semi);
+}
+
+.roleMetaActive {
+  color: var(--clr-primary-dark);
+}
+
+/* ─── Permission panel header ───────────────────────────────── */
+
+.permHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--sp-3);
+}
+
+.permSectionLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-black);
+  letter-spacing: 1.5px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.permRoleName {
+  font-size: var(--font-2xl);
+  font-weight: var(--fw-black);
+  color: var(--clr-primary-dark);
+  margin-top: var(--sp-1);
+}
+
+.permRoleDesc {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.permSystemBadge {
+  margin-left: var(--sp-2);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--warning-bg);
+  color: #92400e;
+  font-weight: var(--fw-bold);
+  font-size: var(--font-xs);
+}
+
+.permActions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+/* ─── Category permission block ─────────────────────────────── */
+
+.catBlock {
+  margin-bottom: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.catHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.catTitle {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-black);
+  letter-spacing: 1.2px;
+  color: var(--clr-primary-dark);
+  text-transform: uppercase;
+}
+
+.catToggleOn {
+  font-size: var(--font-xs);
+  padding: 4px var(--sp-2);
+  background: var(--danger-bg);
+  color: var(--clr-primary-darker);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+}
+
+.catToggleOff {
+  font-size: var(--font-xs);
+  padding: 4px var(--sp-2);
+  background: var(--success-bg);
+  color: #047857;
+  border: 1px solid var(--success-border);
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+}
+
+.catGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  padding: var(--sp-2);
+}
+
+.permItem {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  border-radius: var(--radius);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all 0.15s;
+}
+
+.permItemOn {
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+}
+
+.permName {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.permNameOn {
+  color: var(--clr-primary-dark);
+}
+
+.permCode {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  margin-top: 2px;
+}
+
+.permMeta {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ─── Empty state ───────────────────────────────────────────── */
+
+.emptyState {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: var(--font-sm);
+}
+
+/* ─── Employees section ─────────────────────────────────────── */
+
+.empSection {
+  margin-top: var(--sp-5);
+}
+
+.empSectionTitle {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-black);
+  letter-spacing: 1.2px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: var(--sp-2);
+}
+
+.empEmpty {
+  padding: var(--sp-3);
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: center;
+}
+
+.empTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.empTag {
+  padding: 5px var(--sp-2);
+  background: #eef2ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+}
+
+.empTagSub {
+  opacity: 0.6;
+}
+
+/* ─── Shared button styles ──────────────────────────────────── */
+
+.input {
+  display: block;
+  width: 100%;
+  margin-top: var(--sp-1);
+  padding: var(--sp-2) var(--sp-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  color: var(--text-primary);
+  background: var(--card-bg);
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--clr-primary);
+  box-shadow: 0 0 0 3px var(--clr-primary-muted);
+}
+
+.primaryBtn {
+  padding: 9px var(--sp-4);
+  background: var(--clr-primary);
+  color: var(--text-inverse);
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: var(--fw-black);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background var(--ease), box-shadow var(--ease);
+}
+
+.primaryBtn:hover:not(:disabled) {
+  background: var(--clr-primary-dark);
+  box-shadow: var(--shadow-md);
+}
+
+.primaryBtn:disabled {
+  background: var(--slate-400);
+  cursor: not-allowed;
+}
+
+.seedBtn {
+  padding: 9px var(--sp-4);
+  background: var(--warning);
+  color: var(--danger-dark);
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: var(--fw-black);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background var(--ease);
+}
+
+.seedBtn:disabled {
+  background: var(--slate-400);
+  color: var(--text-inverse);
+  cursor: wait;
+}
+
+.ghostBtn {
+  padding: 9px var(--sp-4);
+  background: var(--card-bg);
+  color: var(--slate-600);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background var(--ease);
+}
+
+.ghostBtn:hover {
+  background: var(--surface);
+}
+
+.dangerBtn {
+  padding: 9px var(--sp-3);
+  background: var(--card-bg);
+  color: var(--clr-primary-darker);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-md);
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background var(--ease);
+}
+
+.dangerBtn:hover {
+  background: var(--danger-bg);
+}
+
+.permCheckbox { margin-top: 2px; }

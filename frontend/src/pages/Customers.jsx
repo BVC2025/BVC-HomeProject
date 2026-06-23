@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 
 import { useNavigate } from "react-router-dom";
 
 import API from "../services/api";
 
 import EntityDrawer from "../components/EntityDrawer";
+
+import styles from "./Customers.module.css";
 
 
 // ===================================================================
@@ -43,10 +45,10 @@ const SOURCES = [
 
 
 const STATUS_THEMES = {
-  ACTIVE:   { bg: "#dcfce7", fg: "#166534", grad: "linear-gradient(135deg,#059669,#047857)" },
-  PROSPECT: { bg: "#dbeafe", fg: "#1e40af", grad: "linear-gradient(135deg,#1d4ed8,#1e40af)" },
-  LEAD:     { bg: "#fef3c7", fg: "#854d0e", grad: "linear-gradient(135deg,#F4B324,#B47900)" },
-  INACTIVE: { bg: "#f1f5f9", fg: "#475569", grad: "linear-gradient(135deg,#94a3b8,#64748b)" }
+  ACTIVE: { bg: "#dcfce7", fg: "#166534", color: "#059669" },
+  PROSPECT: { bg: "#dbeafe", fg: "#1e40af", color: "#1d4ed8" },
+  LEAD: { bg: "#fef3c7", fg: "#854d0e", color: "#f59e0b" },
+  INACTIVE: { bg: "#f1f5f9", fg: "#475569", color: "#94a3b8" }
 };
 
 
@@ -54,91 +56,91 @@ const STATUS_THEMES = {
 const Icon = {
   search: (p) => (
     <svg width={p?.size || 16} height={p?.size || 16} viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
-      <circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
     </svg>
   ),
   users: (p) => (
     <svg width={p?.size || 18} height={p?.size || 18} viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-      <circle cx="9" cy="7" r="4"/>
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
   ),
   check: (p) => (
     <svg width={p?.size || 18} height={p?.size || 18} viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...p}>
-      <polyline points="20 6 9 17 4 12"/>
+      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <polyline points="20 6 9 17 4 12" />
     </svg>
   ),
   trending: (p) => (
     <svg width={p?.size || 18} height={p?.size || 18} viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
-      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" />
     </svg>
   ),
   receipt: (p) => (
     <svg width={p?.size || 18} height={p?.size || 18} viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-      <polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/>
-      <line x1="8" y1="17" x2="16" y2="17"/>
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" /><line x1="8" y1="13" x2="16" y2="13" />
+      <line x1="8" y1="17" x2="16" y2="17" />
     </svg>
   ),
   pencil: (p) => (
     <svg width={p?.size || 14} height={p?.size || 14} viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
-      <path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4z"/>
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4z" />
     </svg>
   ),
   doc: (p) => (
     <svg width={p?.size || 14} height={p?.size || 14} viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-      <polyline points="14 2 14 8 20 8"/>
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
     </svg>
   ),
   trash: (p) => (
     <svg width={p?.size || 14} height={p?.size || 14} viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
-      <polyline points="3 6 5 6 21 6"/>
-      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-      <line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" />
     </svg>
   ),
   phone: (p) => (
     <svg width={p?.size || 12} height={p?.size || 12} viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
-      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92z"/>
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92z" />
     </svg>
   ),
   mail: (p) => (
     <svg width={p?.size || 12} height={p?.size || 12} viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
-      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-      <polyline points="22,6 12,13 2,6"/>
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+      <polyline points="22,6 12,13 2,6" />
     </svg>
   ),
   pin: (p) => (
     <svg width={p?.size || 12} height={p?.size || 12} viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
-      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-      <circle cx="12" cy="10" r="3"/>
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+      <circle cx="12" cy="10" r="3" />
     </svg>
   ),
   user: (p) => (
     <svg width={p?.size || 12} height={p?.size || 12} viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-      <circle cx="12" cy="7" r="4"/>
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
     </svg>
   ),
   plus: (p) => (
     <svg width={p?.size || 14} height={p?.size || 14} viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...p}>
-      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
     </svg>
   ),
 };
@@ -153,57 +155,25 @@ function StatTile({ label, value, sub, color, icon }) {
   return (
 
     <div
-      style={{
-        background: "white",
-        padding: "18px 20px",
-        borderRadius: 14,
-        boxShadow: "0 6px 20px rgba(15,23,42,0.07)",
-        borderTop: `3px solid ${color}`,
-        position: "relative",
-        overflow: "hidden"
-      }}
+      className={styles.statTile}
+      style={{ borderTop: `3px solid ${color}` }}
     >
       {icon && (
-        <div
-          style={{
-            position: "absolute",
-            top: 14,
-            right: 14,
-            color,
-            opacity: 0.6,
-            display: "flex"
-          }}
-        >
+        <div className={styles.statTileIcon} style={{ color }}>
           {icon}
         </div>
       )}
 
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: 1,
-          color: "#64748b",
-          textTransform: "uppercase"
-        }}
-      >
+      <div className={styles.statTileLabel}>
         {label}
       </div>
 
-      <div
-        style={{
-          fontSize: 28,
-          fontWeight: 800,
-          color: "#0f172a",
-          marginTop: 4,
-          letterSpacing: -0.5
-        }}
-      >
+      <div className={styles.statTileValue}>
         {value}
       </div>
 
       {sub && (
-        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
+        <div className={styles.statTileSub}>
           {sub}
         </div>
       )}
@@ -219,17 +189,8 @@ function StatusPill({ status }) {
   return (
 
     <span
-      style={{
-        display: "inline-block",
-        padding: "3px 10px",
-        borderRadius: 999,
-        fontSize: 10,
-        fontWeight: 700,
-        background: t.bg,
-        color: t.fg,
-        letterSpacing: 0.5,
-        textTransform: "uppercase"
-      }}
+      className={styles.statusPill}
+      style={{ background: t.bg, color: t.fg }}
     >
       {status || "ACTIVE"}
     </span>
@@ -240,13 +201,13 @@ function StatusPill({ status }) {
 // Lead pipeline status pill — distinct palette from overall customer
 // status so the two are visually separable.
 const LEAD_STATUS_THEMES = {
-  NEW:         { bg: "#e0e7ff", fg: "#3730a3" },
-  CONTACTED:   { bg: "#dbeafe", fg: "#1e40af" },
-  QUALIFIED:   { bg: "#cffafe", fg: "#0e7490" },
-  QUOTED:      { bg: "#fef3c7", fg: "#92400e" },
+  NEW: { bg: "#e0e7ff", fg: "#3730a3" },
+  CONTACTED: { bg: "#dbeafe", fg: "#1e40af" },
+  QUALIFIED: { bg: "#cffafe", fg: "#0e7490" },
+  QUOTED: { bg: "#fef3c7", fg: "#92400e" },
   NEGOTIATING: { bg: "#fce7f3", fg: "#9d174d" },
-  WON:         { bg: "#dcfce7", fg: "#166534" },
-  LOST:        { bg: "#fee2e2", fg: "#991b1b" }
+  WON: { bg: "#dcfce7", fg: "#166534" },
+  LOST: { bg: "#fee2e2", fg: "#991b1b" }
 };
 
 
@@ -257,18 +218,8 @@ function LeadStatusPill({ status }) {
   return (
 
     <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        padding: "3px 10px",
-        borderRadius: 999,
-        fontSize: 10,
-        fontWeight: 700,
-        background: t.bg,
-        color: t.fg,
-        letterSpacing: 0.5,
-        textTransform: "uppercase"
-      }}
+      className={styles.leadStatusPill}
+      style={{ background: t.bg, color: t.fg }}
     >
       {status}
     </span>
@@ -331,28 +282,12 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
 
     <div
       onClick={() => onOpen(customer)}
-      className="bvc-cust-card"
-      style={{
-        background: "white",
-        borderRadius: 16,
-        padding: 18,
-        boxShadow: "0 10px 30px rgba(15,23,42,0.07)",
-        cursor: "pointer",
-        position: "relative",
-        overflow: "hidden",
-        animation: "bvcCustFadeIn 0.4s ease-out both"
-      }}
+      className={styles.card}
     >
 
       <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 4,
-          background: theme.grad
-        }}
+        className={styles.cardAccentBar}
+        style={{ background: theme.color }}
       />
 
       <button
@@ -361,23 +296,7 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
           onGenerateQuote?.(customer);
         }}
         title="Auto-generate quotation from this customer's requirements"
-        style={{
-          position: "absolute",
-          top: 10,
-          right: 78,
-          width: 28,
-          height: 28,
-          borderRadius: 8,
-          border: "1px solid #fecaca",
-          background: "#fef2f2",
-          color: "#8B0B1F",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 0,
-          zIndex: 5
-        }}
+        className={styles.cardBtnQuote}
       >
         <Icon.doc size={14} />
       </button>
@@ -388,23 +307,7 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
           onEdit?.(customer);
         }}
         title="Edit customer"
-        style={{
-          position: "absolute",
-          top: 10,
-          right: 44,
-          width: 28,
-          height: 28,
-          borderRadius: 8,
-          border: "1px solid #cbd5e1",
-          background: "#f8fafc",
-          color: "#475569",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 0,
-          zIndex: 5
-        }}
+        className={styles.cardBtnEdit}
       >
         <Icon.pencil size={14} />
       </button>
@@ -413,97 +316,40 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
         onClick={handleDelete}
         disabled={deleting}
         title="Delete customer"
-        style={{
-          position: "absolute",
-          top: 10,
-          right: 10,
-          width: 28,
-          height: 28,
-          borderRadius: 8,
-          border: "1px solid #fecaca",
-          background: deleting ? "#f1f5f9" : "#fef2f2",
-          color: deleting ? "#94a3b8" : "#b91c1c",
-          cursor: deleting ? "default" : "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 0,
-          zIndex: 5
-        }}
+        className={styles.cardBtnDelete}
       >
         <Icon.trash size={14} />
       </button>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          gap: 12,
-          marginBottom: 12
-        }}
-      >
+      <div className={styles.cardHeader}>
 
         <div
+          className={styles.cardAvatar}
           style={{
-            width: 50,
-            height: 50,
-            borderRadius: 12,
-            background: theme.grad,
-            color: "white",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 22,
-            fontWeight: 800,
-            flexShrink: 0,
+            background: theme.color,
             boxShadow: `0 6px 16px ${theme.fg}33`
           }}
         >
           {(customer.CUSTOMER_NAME || "?").charAt(0).toUpperCase()}
         </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className={styles.cardMeta}>
 
-          <div
-            style={{
-              fontSize: 10,
-              fontFamily: "ui-monospace, monospace",
-              color: "#94a3b8",
-              letterSpacing: 1
-            }}
-          >
+          <div className={styles.cardCode}>
             {customer.CUSTOMER_CODE || "—"}
           </div>
 
-          <div
-            style={{
-              fontSize: 15,
-              fontWeight: 800,
-              color: "#0f172a",
-              marginTop: 1,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis"
-            }}
-          >
+          <div className={styles.cardName}>
             {customer.CUSTOMER_NAME}
           </div>
 
-          <div style={{ marginTop: 4, display: "flex", flexWrap: "wrap", gap: 4 }}>
+          <div className={styles.cardBadgeRow}>
             <StatusPill status={status} />
             {customer.LEAD_STATUS && customer.LEAD_STATUS !== "NEW" && (
               <LeadStatusPill status={customer.LEAD_STATUS} />
             )}
             {customer.LEAD_PRIORITY === "HIGH" && (
-              <span style={{
-                fontSize: 9,
-                fontWeight: 800,
-                padding: "2px 7px",
-                borderRadius: 999,
-                background: "#fee2e2",
-                color: "#991b1b",
-                letterSpacing: 0.4
-              }}>
+              <span className={styles.highPriorityBadge}>
                 HIGH PRIORITY
               </span>
             )}
@@ -512,146 +358,66 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
       </div>
 
       {customer.ASSIGNED_SALES_NAME && (
-        <div style={{
-          fontSize: 11,
-          color: "#475569",
-          marginBottom: 10,
-          background: "#f8fafc",
-          padding: "5px 10px",
-          borderRadius: 6,
-          border: "1px solid #e2e8f0"
-        }}>
-          Sales owner: <strong style={{ color: "#0f172a" }}>
-            {customer.ASSIGNED_SALES_NAME}
-          </strong>
+        <div className={styles.salesOwnerBanner}>
+          Sales owner: <strong>{customer.ASSIGNED_SALES_NAME}</strong>
         </div>
       )}
 
       {customer.FOLLOW_UP_DATE && customer.LEAD_STATUS !== "WON" && customer.LEAD_STATUS !== "LOST" && (
-        <div style={{
-          fontSize: 11,
-          color: "#92400e",
-          marginBottom: 10,
-          background: "#fef3c7",
-          padding: "5px 10px",
-          borderRadius: 6,
-          border: "1px solid #fde68a"
-        }}>
+        <div className={styles.followUpBanner}>
           Follow-up: <strong>{customer.FOLLOW_UP_DATE}</strong>
         </div>
       )}
 
-      <div
-        style={{
-          background: "#f8fafc",
-          borderRadius: 10,
-          padding: "10px 12px",
-          marginBottom: 10,
-          fontSize: 12,
-          color: "#475569",
-          lineHeight: 1.6
-        }}
-      >
+      <div className={styles.contactBlock}>
         {customer.CONTACT_PERSON && (
-          <div style={{ color: "#0f172a", fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+          <div className={styles.contactName}>
             <Icon.user />
             <span>
               {customer.CONTACT_PERSON}
               {customer.DESIGNATION && (
-                <span style={{ color: "#64748b", fontWeight: 400 }}>
+                <span className={styles.contactDesignation}>
                   {" · "}{customer.DESIGNATION}
                 </span>
               )}
             </span>
           </div>
         )}
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div className={styles.contactRow}>
           <Icon.phone />
           <span>{customer.PHONE || "—"}</span>
         </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis"
-          }}
-        >
+        <div className={styles.contactRowTruncate}>
           <Icon.mail />
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-            {customer.EMAIL || "—"}
-          </span>
+          <span>{customer.EMAIL || "—"}</span>
         </div>
         {(customer.CITY || customer.STATE) && (
-          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2, display: "flex", alignItems: "center", gap: 6 }}>
+          <div className={styles.contactLocation}>
             <Icon.pin />
             <span>{[customer.CITY, customer.STATE].filter(Boolean).join(", ")}</span>
           </div>
         )}
       </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 10 }}>
+      <div className={styles.tagRow}>
         {customer.INDUSTRY && (
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              padding: "2px 8px",
-              borderRadius: 999,
-              background: "#e0f2fe",
-              color: "#0369a1"
-            }}
-          >
+          <span className={styles.tagIndustry}>
             {customer.INDUSTRY}
           </span>
         )}
         {customer.SOURCE && (
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              padding: "2px 8px",
-              borderRadius: 999,
-              background: "#ede9fe",
-              color: "#6d28d9"
-            }}
-          >
+          <span className={styles.tagSource}>
             via {customer.SOURCE}
           </span>
         )}
         {customer.GST_NUMBER && (
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              padding: "2px 8px",
-              borderRadius: 999,
-              background: "#f1f5f9",
-              color: "#475569",
-              fontFamily: "ui-monospace, monospace"
-            }}
-            title="GST registered"
-          >
+          <span className={styles.tagGst} title="GST registered">
             GST
           </span>
         )}
       </div>
 
-      <div
-        style={{
-          padding: "8px 12px",
-          background: "#f8fafc",
-          borderRadius: 8,
-          fontSize: 11,
-          color: "#475569",
-          fontWeight: 700,
-          textAlign: "center",
-          letterSpacing: 0.4,
-          border: "1px solid #e2e8f0"
-        }}
-      >
+      <div className={styles.cardFooter}>
         View profile &rarr;
       </div>
     </div>
@@ -669,37 +435,13 @@ function FormField({ label, children, span = 1 }) {
 
     <div style={{ gridColumn: `span ${span}` }}>
 
-      <label
-        style={{
-          fontSize: 11,
-          color: "#64748b",
-          fontWeight: 700,
-          letterSpacing: 0.5,
-          display: "block",
-          marginBottom: 4,
-          textTransform: "uppercase"
-        }}
-      >
+      <label className={styles.fieldLabel}>
         {label}
       </label>
 
       {children}
     </div>
   );
-}
-
-
-function inputStyle() {
-
-  return {
-    width: "100%",
-    padding: "9px 11px",
-    border: "1px solid #cbd5e1",
-    borderRadius: 8,
-    fontSize: 13,
-    fontFamily: "inherit",
-    background: "white"
-  };
 }
 
 
@@ -801,34 +543,15 @@ function RequirementsManager({ customerId }) {
 
     <div>
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 12
-        }}
-      >
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.4, color: "#0f172a", textTransform: "uppercase" }}>
+      <div className={styles.reqHeader}>
+        <div className={styles.reqTitle}>
           Requirements ({rows.length})
         </div>
 
         <button
           type="button"
           onClick={() => setEditing("new")}
-          style={{
-            border: "none",
-            background: "#0f172a",
-            color: "white",
-            padding: "7px 14px",
-            borderRadius: 8,
-            fontWeight: 700,
-            fontSize: 12,
-            cursor: "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6
-          }}
+          className={styles.reqAddBtn}
         >
           <Icon.plus size={12} />
           Add requirement
@@ -836,30 +559,20 @@ function RequirementsManager({ customerId }) {
       </div>
 
       {loading && (
-        <div style={{ fontSize: 12, color: "#94a3b8", padding: 12 }}>
+        <div className={styles.reqLoading}>
           Loading…
         </div>
       )}
 
       {!loading && rows.length === 0 && (
-        <div
-          style={{
-            border: "1px dashed #cbd5e1",
-            borderRadius: 10,
-            padding: 18,
-            textAlign: "center",
-            color: "#64748b",
-            fontSize: 13,
-            marginBottom: 18
-          }}
-        >
+        <div className={styles.reqEmpty}>
           No requirements yet. Click <b>Add Requirement</b> to capture
           what machines this customer wants.
         </div>
       )}
 
       {!loading && rows.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 18 }}>
+        <div className={styles.reqList}>
 
           {rows.map((r) => {
 
@@ -869,58 +582,29 @@ function RequirementsManager({ customerId }) {
 
             return (
 
-              <div
-                key={r.ID}
-                style={{
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 10,
-                  padding: "12px 14px",
-                  background: "#fafafa"
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    gap: 12
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
+              <div key={r.ID} className={styles.reqItem}>
+                <div className={styles.reqItemRow}>
+                  <div className={styles.reqItemBody}>
 
-                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
-                      <span style={{ fontWeight: 700, fontSize: 14, color: "#0f172a" }}>
+                    <div className={styles.reqItemHeader}>
+                      <span className={styles.reqItemName}>
                         {r.MACHINE_NAME || r.MACHINE_CATEGORY || "Unnamed requirement"}
                       </span>
                       <span
-                        style={{
-                          background: statusTheme.bg,
-                          color: statusTheme.fg,
-                          padding: "2px 8px",
-                          borderRadius: 6,
-                          fontSize: 10,
-                          fontWeight: 700,
-                          letterSpacing: 0.6
-                        }}
+                        className={styles.reqStatusBadge}
+                        style={{ background: statusTheme.bg, color: statusTheme.fg }}
                       >
                         {r.STATUS}
                       </span>
                       <span
-                        style={{
-                          background: prioTheme.bg,
-                          color: prioTheme.fg,
-                          padding: "2px 8px",
-                          borderRadius: 6,
-                          fontSize: 10,
-                          fontWeight: 700,
-                          letterSpacing: 0.6
-                        }}
+                        className={styles.reqPrioBadge}
+                        style={{ background: prioTheme.bg, color: prioTheme.fg }}
                       >
                         {r.PRIORITY}
                       </span>
                     </div>
 
-                    <div style={{ fontSize: 12, color: "#475569", display: "flex", gap: 14, flexWrap: "wrap" }}>
+                    <div className={styles.reqItemMeta}>
                       {r.MACHINE_CATEGORY && (
                         <span>Category: <b>{r.MACHINE_CATEGORY}</b></span>
                       )}
@@ -937,19 +621,19 @@ function RequirementsManager({ customerId }) {
                     </div>
 
                     {r.INSTALLATION_SITE && (
-                      <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
+                      <div className={styles.reqItemSite}>
                         Site: {r.INSTALLATION_SITE}
                       </div>
                     )}
 
                     {r.SPECIAL_NOTES && (
-                      <div style={{ fontSize: 12, color: "#64748b", marginTop: 6, fontStyle: "italic" }}>
+                      <div className={styles.reqItemNotes}>
                         &ldquo;{r.SPECIAL_NOTES}&rdquo;
                       </div>
                     )}
                   </div>
 
-                  <div style={{ display: "flex", gap: 6 }}>
+                  <div className={styles.reqItemActions}>
                     {r.STATUS !== "ORDERED" && r.PRODUCT_MODEL_ID && (
                       <button
                         type="button"
@@ -978,16 +662,7 @@ function RequirementsManager({ customerId }) {
                           }
                         }}
                         title="Convert to Project"
-                        style={{
-                          border: "1px solid #cbd5e1",
-                          background: "#0f172a",
-                          color: "white",
-                          padding: "5px 10px",
-                          borderRadius: 6,
-                          cursor: "pointer",
-                          fontSize: 11,
-                          fontWeight: 700
-                        }}
+                        className={styles.reqBtnConvert}
                       >
                         Convert to project
                       </button>
@@ -997,16 +672,7 @@ function RequirementsManager({ customerId }) {
                       type="button"
                       onClick={() => setEditing(r)}
                       title="Edit"
-                      style={{
-                        border: "1px solid #cbd5e1",
-                        background: "white",
-                        padding: "5px 8px",
-                        borderRadius: 6,
-                        cursor: "pointer",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        color: "#475569"
-                      }}
+                      className={styles.reqBtnEdit}
                     >
                       <Icon.pencil size={13} />
                     </button>
@@ -1014,16 +680,7 @@ function RequirementsManager({ customerId }) {
                       type="button"
                       onClick={() => remove(r.ID)}
                       title="Delete"
-                      style={{
-                        border: "1px solid #fecaca",
-                        background: "#fef2f2",
-                        color: "#b91c1c",
-                        padding: "5px 8px",
-                        borderRadius: 6,
-                        cursor: "pointer",
-                        display: "inline-flex",
-                        alignItems: "center"
-                      }}
+                      className={styles.reqBtnDelete}
                     >
                       <Icon.trash size={13} />
                     </button>
@@ -1115,31 +772,17 @@ function RequirementForm({ customerId, initial, products, onCancel, onSaved }) {
 
   return (
 
-    <div
-      style={{
-        border: "1px solid #e2e8f0",
-        borderRadius: 12,
-        background: "#f8fafc",
-        padding: 16,
-        marginBottom: 18
-      }}
-    >
-      <div style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", marginBottom: 12, letterSpacing: 0.8 }}>
+    <div className={styles.reqForm}>
+      <div className={styles.reqFormTitle}>
         {isEdit ? "EDIT REQUIREMENT" : "NEW REQUIREMENT"}
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(2, 1fr)",
-          gap: 12
-        }}
-      >
+      <div className={styles.reqFormGrid}>
         <FormField label="Machine Category">
           <select
             value={data.MACHINE_CATEGORY}
             onChange={set("MACHINE_CATEGORY")}
-            style={inputStyle()}
+            className={styles.input}
           >
             <option value="">— pick category —</option>
             {MACHINE_CATEGORIES.map((c) => (
@@ -1153,7 +796,7 @@ function RequirementForm({ customerId, initial, products, onCancel, onSaved }) {
             type="text"
             value={data.MACHINE_NAME}
             onChange={set("MACHINE_NAME")}
-            style={inputStyle()}
+            className={styles.input}
             placeholder="e.g. C 608 R1 Coffee Pro"
           />
         </FormField>
@@ -1162,7 +805,7 @@ function RequirementForm({ customerId, initial, products, onCancel, onSaved }) {
           <select
             value={data.PRODUCT_MODEL_ID}
             onChange={set("PRODUCT_MODEL_ID")}
-            style={inputStyle()}
+            className={styles.input}
           >
             <option value="">— none —</option>
             {products.map((p) => (
@@ -1179,7 +822,7 @@ function RequirementForm({ customerId, initial, products, onCancel, onSaved }) {
             min="1"
             value={data.QUANTITY}
             onChange={set("QUANTITY")}
-            style={inputStyle()}
+            className={styles.input}
           />
         </FormField>
 
@@ -1188,7 +831,7 @@ function RequirementForm({ customerId, initial, products, onCancel, onSaved }) {
             type="text"
             value={data.CAPACITY}
             onChange={set("CAPACITY")}
-            style={inputStyle()}
+            className={styles.input}
             placeholder="10 selections / 200 cups / ..."
           />
         </FormField>
@@ -1200,7 +843,7 @@ function RequirementForm({ customerId, initial, products, onCancel, onSaved }) {
             step="0.01"
             value={data.TARGET_UNIT_PRICE}
             onChange={set("TARGET_UNIT_PRICE")}
-            style={inputStyle()}
+            className={styles.input}
             placeholder="e.g. 85000"
           />
         </FormField>
@@ -1210,7 +853,7 @@ function RequirementForm({ customerId, initial, products, onCancel, onSaved }) {
             type="date"
             value={data.TARGET_DELIVERY_DATE}
             onChange={set("TARGET_DELIVERY_DATE")}
-            style={inputStyle()}
+            className={styles.input}
           />
         </FormField>
 
@@ -1219,13 +862,13 @@ function RequirementForm({ customerId, initial, products, onCancel, onSaved }) {
             type="text"
             value={data.INSTALLATION_SITE}
             onChange={set("INSTALLATION_SITE")}
-            style={inputStyle()}
+            className={styles.input}
             placeholder="Branch name + address (where it ships)"
           />
         </FormField>
 
         <FormField label="Priority">
-          <select value={data.PRIORITY} onChange={set("PRIORITY")} style={inputStyle()}>
+          <select value={data.PRIORITY} onChange={set("PRIORITY")} className={styles.input}>
             <option value="HIGH">High</option>
             <option value="MEDIUM">Medium</option>
             <option value="LOW">Low</option>
@@ -1233,7 +876,7 @@ function RequirementForm({ customerId, initial, products, onCancel, onSaved }) {
         </FormField>
 
         <FormField label="Status">
-          <select value={data.STATUS} onChange={set("STATUS")} style={inputStyle()}>
+          <select value={data.STATUS} onChange={set("STATUS")} className={styles.input}>
             <option value="DRAFT">Draft</option>
             <option value="CONFIRMED">Confirmed</option>
             <option value="QUOTED">Quoted</option>
@@ -1247,24 +890,18 @@ function RequirementForm({ customerId, initial, products, onCancel, onSaved }) {
             value={data.SPECIAL_NOTES}
             onChange={set("SPECIAL_NOTES")}
             rows={2}
-            style={{ ...inputStyle(), resize: "vertical" }}
+            className={styles.input}
+            style={{ resize: "vertical" }}
             placeholder="Touchscreen, cashless, IoT, custom branding, refrigeration..."
           />
         </FormField>
       </div>
 
-      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>
+      <div className={styles.reqFormActions}>
         <button
           type="button"
           onClick={onCancel}
-          style={{
-            border: "1px solid #e2e8f0",
-            background: "white",
-            padding: "8px 16px",
-            borderRadius: 8,
-            cursor: "pointer",
-            fontSize: 12
-          }}
+          className={styles.reqFormCancelBtn}
         >
           Cancel
         </button>
@@ -1273,16 +910,7 @@ function RequirementForm({ customerId, initial, products, onCancel, onSaved }) {
           type="button"
           onClick={save}
           disabled={saving}
-          style={{
-            border: "none",
-            background: saving ? "#94a3b8" : "#0f172a",
-            color: "white",
-            padding: "8px 20px",
-            borderRadius: 8,
-            fontWeight: 700,
-            fontSize: 12,
-            cursor: saving ? "not-allowed" : "pointer"
-          }}
+          className={styles.reqFormSaveBtn}
         >
           {saving ? "Saving…" : isEdit ? "Update" : "Save"}
         </button>
@@ -1420,32 +1048,16 @@ function CustomerQuotationsSection({ customerId, onJumpToQuotations }) {
 
     <div>
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 12
-        }}
-      >
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.4, color: "#0f172a", textTransform: "uppercase" }}>
+      <div className={styles.quotHeader}>
+        <div className={styles.quotTitle}>
           Quotations ({quotations.length})
         </div>
 
-        <div style={{ display: "flex", gap: 6 }}>
+        <div className={styles.quotActions}>
           <button
             type="button"
             onClick={openPicker}
-            style={{
-              border: "none",
-              background: "linear-gradient(135deg,#C8102E,#8B0B1F)",
-              color: "white",
-              padding: "7px 14px",
-              borderRadius: 8,
-              fontWeight: 700,
-              fontSize: 12,
-              cursor: "pointer"
-            }}
+            className={styles.quotBtnCreate}
           >
             Create from requirements
           </button>
@@ -1454,14 +1066,7 @@ function CustomerQuotationsSection({ customerId, onJumpToQuotations }) {
             type="button"
             onClick={onJumpToQuotations}
             title="Go to Quotations page"
-            style={{
-              border: "1px solid #cbd5e1",
-              background: "white",
-              padding: "7px 12px",
-              borderRadius: 8,
-              cursor: "pointer",
-              fontSize: 12
-            }}
+            className={styles.quotBtnOpen}
           >
             Open quotations &rarr;
           </button>
@@ -1469,93 +1074,57 @@ function CustomerQuotationsSection({ customerId, onJumpToQuotations }) {
       </div>
 
       {loading && (
-        <div style={{ fontSize: 12, color: "#94a3b8", padding: 12 }}>
+        <div className={styles.reqLoading}>
           Loading…
         </div>
       )}
 
       {!loading && quotations.length === 0 && (
-        <div
-          style={{
-            border: "1px dashed #cbd5e1",
-            borderRadius: 10,
-            padding: 16,
-            textAlign: "center",
-            color: "#64748b",
-            fontSize: 13
-          }}
-        >
+        <div className={styles.quotEmpty}>
           No quotations yet for this customer. Pick from confirmed
           requirements or use the Quotations page to create one manually.
         </div>
       )}
 
       {!loading && quotations.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className={styles.quotList}>
 
           {quotations.map((q) => {
 
             const theme = QUOT_STATUS_THEME[q.STATUS] || QUOT_STATUS_THEME.DRAFT;
 
             return (
-              <div
-                key={q.ID}
-                style={{
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 10,
-                  padding: "10px 14px",
-                  background: "white",
-                  display: "grid",
-                  gridTemplateColumns: "150px 1fr 110px 100px 130px",
-                  gap: 12,
-                  alignItems: "center"
-                }}
-              >
+              <div key={q.ID} className={styles.quotRow}>
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: "#0f172a" }}>
+                  <div className={styles.quotNumber}>
                     {q.QUOTATION_NUMBER}
                   </div>
-                  <div style={{ fontSize: 11, color: "#64748b" }}>
+                  <div className={styles.quotDate}>
                     {q.QUOTATION_DATE}
                   </div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: "#94a3b8" }}>Expires</div>
-                  <div style={{ fontSize: 12, color: "#475569" }}>{q.EXPIRY_DATE || "—"}</div>
+                  <div className={styles.quotExpLabel}>Expires</div>
+                  <div className={styles.quotExpDate}>{q.EXPIRY_DATE || "—"}</div>
                 </div>
                 <div>
                   <span
-                    style={{
-                      background: theme.bg,
-                      color: theme.fg,
-                      padding: "3px 10px",
-                      borderRadius: 999,
-                      fontSize: 10,
-                      fontWeight: 800,
-                      letterSpacing: 0.6
-                    }}
+                    className={styles.statusPill}
+                    style={{ background: theme.bg, color: theme.fg }}
                   >
                     {q.STATUS}
                   </span>
                 </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 11, color: "#94a3b8" }}>Total</div>
-                  <div style={{ fontSize: 13, fontWeight: 800, color: "#047857" }}>{inr(q.GRAND_TOTAL)}</div>
+                <div className={styles.quotTotalCol}>
+                  <div className={styles.quotTotalLabel}>Total</div>
+                  <div className={styles.quotTotal}>{inr(q.GRAND_TOTAL)}</div>
                 </div>
-                <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                <div className={styles.quotBtnViewWrap}>
                   <button
                     type="button"
                     onClick={() => window.open(`/quotation-print/${q.ID}`, "_blank")}
                     title="View / Print"
-                    style={{
-                      border: "1px solid #cbd5e1",
-                      background: "white",
-                      padding: "5px 10px",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      fontSize: 11,
-                      color: "#475569"
-                    }}
+                    className={styles.quotBtnView}
                   >
                     View
                   </button>
@@ -1590,35 +1159,17 @@ function RequirementPickerModal({
 }) {
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,0.6)",
-        zIndex: 1100,
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center"
-      }}
-      onClick={onCancel}
-    >
+    <div className={styles.modalOverlay} onClick={onCancel}>
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 640,
-          maxWidth: "94%",
-          background: "white",
-          borderRadius: 12,
-          padding: 22,
-          boxShadow: "0 24px 60px rgba(0,0,0,0.4)"
-        }}
+        className={styles.pickerModal}
       >
-        <div style={{ fontSize: 17, fontWeight: 800, color: "#0f172a", marginBottom: 12 }}>
+        <div className={styles.pickerTitle}>
           Create quotation from requirements
         </div>
 
         {requirements.length === 0 && (
-          <div style={{ padding: 16, background: "#fef3c7", borderRadius: 8, color: "#854d0e", fontSize: 13, marginBottom: 12 }}>
+          <div className={styles.pickerNoReqs}>
             No quotable requirements found. Only DRAFT or CONFIRMED
             requirements can be used. Already-QUOTED requirements
             won&apos;t appear here.
@@ -1627,28 +1178,15 @@ function RequirementPickerModal({
 
         {requirements.length > 0 && (
           <>
-            <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10 }}>
+            <div className={styles.pickerHint}>
               Pick which requirements to include as line items:
             </div>
 
-            <div style={{
-              border: "1px solid #e2e8f0",
-              borderRadius: 10,
-              maxHeight: 280,
-              overflow: "auto",
-              marginBottom: 14
-            }}>
+            <div className={styles.pickerList}>
               {requirements.map((r) => (
                 <label
                   key={r.ID}
-                  style={{
-                    display: "flex",
-                    gap: 10,
-                    padding: "10px 14px",
-                    borderBottom: "1px solid #f1f5f9",
-                    cursor: "pointer",
-                    background: picked.has(r.ID) ? "#f0fdf4" : "white"
-                  }}
+                  className={`${styles.pickerRow} ${picked.has(r.ID) ? styles.pickerRowSelected : styles.pickerRowDefault}`}
                 >
                   <input
                     type="checkbox"
@@ -1656,33 +1194,25 @@ function RequirementPickerModal({
                     onChange={() => togglePick(r.ID)}
                     style={{ width: 18, height: 18, marginTop: 2 }}
                   />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>
+                  <div className={styles.reqItemBody}>
+                    <div className={styles.pickerRowName}>
                       {r.MACHINE_NAME || r.MACHINE_CATEGORY || `Requirement #${r.ID}`}
                     </div>
-                    <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+                    <div className={styles.pickerRowMeta}>
                       Qty: {r.QUANTITY || 1}
                       {r.TARGET_UNIT_PRICE ? ` · Target ₹${r.TARGET_UNIT_PRICE}/unit` : " · BOM-priced"}
                       {r.CAPACITY ? ` · ${r.CAPACITY}` : ""}
                     </div>
                   </div>
-                  <span style={{
-                    fontSize: 9,
-                    fontWeight: 700,
-                    color: "#64748b",
-                    background: "#f1f5f9",
-                    padding: "2px 8px",
-                    borderRadius: 999,
-                    height: "fit-content"
-                  }}>
+                  <span className={styles.pickerStatusBadge}>
                     {r.STATUS}
                   </span>
                 </label>
               ))}
             </div>
 
-            <div style={{ marginBottom: 14, display: "flex", gap: 10, alignItems: "center" }}>
-              <label style={{ fontSize: 12, color: "#475569", fontWeight: 700 }}>
+            <div className={styles.pickerMarginRow}>
+              <label className={styles.pickerMarginLabel}>
                 Margin % (used when no target price set):
               </label>
               <input
@@ -1691,30 +1221,17 @@ function RequirementPickerModal({
                 step="1"
                 value={margin}
                 onChange={(e) => setMargin(e.target.value)}
-                style={{
-                  width: 100,
-                  padding: "7px 10px",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: 8,
-                  fontSize: 13
-                }}
+                className={styles.pickerMarginInput}
               />
             </div>
           </>
         )}
 
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <div className={styles.pickerActions}>
           <button
             type="button"
             onClick={onCancel}
-            style={{
-              border: "1px solid #e2e8f0",
-              background: "white",
-              padding: "9px 18px",
-              borderRadius: 8,
-              cursor: "pointer",
-              fontSize: 13
-            }}
+            className={styles.pickerCancelBtn}
           >
             Cancel
           </button>
@@ -1724,19 +1241,7 @@ function RequirementPickerModal({
               type="button"
               onClick={onSubmit}
               disabled={creating || picked.size === 0}
-              style={{
-                border: "none",
-                background: creating || picked.size === 0
-                  ? "#94a3b8"
-                  : "linear-gradient(135deg,#C8102E,#8B0B1F)",
-                color: "white",
-                padding: "9px 22px",
-                borderRadius: 8,
-                fontWeight: 800,
-                fontSize: 13,
-                cursor: (creating || picked.size === 0) ? "not-allowed" : "pointer",
-                boxShadow: "0 6px 18px rgba(200,16,46,0.35)"
-              }}
+              className={styles.pickerConfirmBtn}
             >
               {creating ? "Creating…" : `Create from ${picked.size} requirement(s)`}
             </button>
@@ -1928,77 +1433,29 @@ function CustomerEditor({ initial, onClose, onSaved }) {
 
   return (
 
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,0.55)",
-        zIndex: 1000,
-        display: "flex",
-        justifyContent: "flex-end"
-      }}
-      onClick={onClose}
-    >
+    <div className={styles.editorOverlay} onClick={onClose}>
 
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 720,
-          maxWidth: "94%",
-          background: "white",
-          overflow: "auto",
-          padding: 26,
-          boxShadow: "-24px 0 60px rgba(0,0,0,0.35)"
-        }}
+        className={styles.editorPanel}
       >
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            marginBottom: 18,
-            paddingBottom: 14,
-            borderBottom: "1px solid #e2e8f0"
-          }}
-        >
+        <div className={styles.editorHeader}>
           <div>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: 1.4,
-                color: "#06b6d4",
-                textTransform: "uppercase"
-              }}
-            >
+            <div className={styles.editorHeaderLabel}>
               {isEdit ? "Edit Customer" : "New Customer"}
             </div>
-            <div
-              style={{
-                fontSize: 22,
-                fontWeight: 800,
-                color: "#0f172a",
-                marginTop: 2
-              }}
-            >
+            <div className={styles.editorHeaderTitle}>
               {form.CUSTOMER_NAME || "Add a customer who wants a vending machine"}
             </div>
-            <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
+            <div className={styles.editorHeaderSub}>
               All details land in their 360° view and connect to Production & BOM.
             </div>
           </div>
 
           <button
             onClick={onClose}
-            style={{
-              border: "none",
-              background: "#f1f5f9",
-              padding: "4px 12px",
-              borderRadius: 8,
-              cursor: "pointer",
-              fontSize: 20
-            }}
+            className={styles.editorCloseBtn}
           >
             ×
           </button>
@@ -2006,25 +1463,18 @@ function CustomerEditor({ initial, onClose, onSaved }) {
 
         <form onSubmit={submit}>
 
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.4, color: "#06b6d4", textTransform: "uppercase", marginBottom: 10 }}>
+          <div className={`${styles.formSectionHeading} ${styles.formSectionHeadingCyan}`}>
             Identity
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(2, 1fr)",
-              gap: 12,
-              marginBottom: 18
-            }}
-          >
+          <div className={styles.grid2}>
 
             <FormField label="Company / Customer Name *">
               <input
                 type="text"
                 value={form.CUSTOMER_NAME}
                 onChange={set("CUSTOMER_NAME")}
-                style={inputStyle()}
+                className={styles.input}
                 placeholder="Chennai Metro Rail Ltd"
               />
             </FormField>
@@ -2033,7 +1483,7 @@ function CustomerEditor({ initial, onClose, onSaved }) {
               <select
                 value={form.CUSTOMER_TYPE}
                 onChange={set("CUSTOMER_TYPE")}
-                style={inputStyle()}
+                className={styles.input}
               >
                 <optgroup label="Personal & Distribution">
                   <option value="INDIVIDUAL">Individual</option>
@@ -2057,7 +1507,7 @@ function CustomerEditor({ initial, onClose, onSaved }) {
               <select
                 value={form.INDUSTRY}
                 onChange={set("INDUSTRY")}
-                style={inputStyle()}
+                className={styles.input}
               >
                 <option value="">— pick industry —</option>
                 {INDUSTRIES.map((i) => (
@@ -2071,7 +1521,7 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                 type="text"
                 value={form.CONTACT_PERSON}
                 onChange={set("CONTACT_PERSON")}
-                style={inputStyle()}
+                className={styles.input}
                 placeholder="Suresh Iyer"
               />
             </FormField>
@@ -2081,53 +1531,27 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                 type="text"
                 value={form.DESIGNATION}
                 onChange={set("DESIGNATION")}
-                style={inputStyle()}
+                className={styles.input}
                 placeholder="Purchase Manager"
               />
             </FormField>
           </div>
 
           {/* Lead pipeline */}
-          <div style={{
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: 1.4,
-            color: "#0f172a",
-            textTransform: "uppercase",
-            marginBottom: 10,
-            display: "flex",
-            alignItems: "center",
-            gap: 8
-          }}>
+          <div className={`${styles.formSectionHeading} ${styles.formSectionHeadingGray}`} style={{ display: "flex", alignItems: "center", gap: 8 }}>
             Lead pipeline
-            <span style={{
-              background: "#f1f5f9",
-              color: "#475569",
-              padding: "2px 8px",
-              borderRadius: 999,
-              fontSize: 9,
-              letterSpacing: 0.5
-            }}>
+            <span className={styles.formSectionBadge}>
               SALES OWNERSHIP
             </span>
           </div>
 
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 12,
-            marginBottom: 14,
-            padding: 14,
-            background: "#f8fafc",
-            border: "1px solid #e2e8f0",
-            borderRadius: 10
-          }}>
+          <div className={`${styles.grid3} ${styles.subPanel}`}>
 
             <FormField label="Lead Source">
               <select
                 value={form.LEAD_SOURCE}
                 onChange={set("LEAD_SOURCE")}
-                style={inputStyle()}
+                className={styles.input}
               >
                 <option value="WEBSITE">Website</option>
                 <option value="COLD_CALL">Cold Call</option>
@@ -2144,7 +1568,7 @@ function CustomerEditor({ initial, onClose, onSaved }) {
               <select
                 value={form.LEAD_STATUS}
                 onChange={set("LEAD_STATUS")}
-                style={inputStyle()}
+                className={styles.input}
               >
                 <option value="NEW">New</option>
                 <option value="CONTACTED">Contacted</option>
@@ -2160,7 +1584,7 @@ function CustomerEditor({ initial, onClose, onSaved }) {
               <select
                 value={form.LEAD_PRIORITY}
                 onChange={set("LEAD_PRIORITY")}
-                style={inputStyle()}
+                className={styles.input}
               >
                 <option value="HIGH">High</option>
                 <option value="MEDIUM">Medium</option>
@@ -2172,7 +1596,7 @@ function CustomerEditor({ initial, onClose, onSaved }) {
               <select
                 value={form.ASSIGNED_SALES_ID}
                 onChange={set("ASSIGNED_SALES_ID")}
-                style={inputStyle()}
+                className={styles.input}
               >
                 <option value="">— pick salesperson —</option>
                 {salesPeople.map((e) => (
@@ -2188,7 +1612,7 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                 type="date"
                 value={form.FOLLOW_UP_DATE}
                 onChange={set("FOLLOW_UP_DATE")}
-                style={inputStyle()}
+                className={styles.input}
               />
             </FormField>
 
@@ -2198,7 +1622,7 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                 value={form.REQUIREMENT_NOTES}
                 onChange={set("REQUIREMENT_NOTES")}
                 placeholder={"What the customer asked for during enquiry —\nspecs, qty, delivery timeline, special features..."}
-                style={inputStyle()}
+                className={styles.input}
               />
             </FormField>
           </div>
@@ -2207,42 +1631,14 @@ function CustomerEditor({ initial, onClose, onSaved }) {
 
             <>
 
-              <div style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: 1.4,
-                color: "#0f172a",
-                textTransform: "uppercase",
-                marginBottom: 10,
-                display: "flex",
-                alignItems: "center",
-                gap: 8
-              }}>
+              <div className={`${styles.formSectionHeading} ${styles.formSectionHeadingGray}`} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 Machine requested
-                <span style={{
-                  background: "#f1f5f9",
-                  color: "#475569",
-                  padding: "2px 8px",
-                  borderRadius: 999,
-                  fontSize: 9,
-                  letterSpacing: 0.5
-                }}>
+                <span className={styles.formSectionBadge}>
                   AUTO-CREATES IN PRODUCTS &amp; BOM
                 </span>
               </div>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "2fr 1fr 1fr",
-                  gap: 12,
-                  marginBottom: 18,
-                  padding: 14,
-                  background: "#f8fafc",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 10
-                }}
-              >
+              <div className={`${styles.subPanel} ${styles.machineGrid}`}>
 
                 <FormField label="Which vending machine they want?">
                   <input
@@ -2250,7 +1646,7 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                     list="existing-products-dl"
                     value={form.REQUESTED_MACHINE_NAME}
                     onChange={set("REQUESTED_MACHINE_NAME")}
-                    style={inputStyle()}
+                    className={styles.input}
                     placeholder="e.g. Snack & Beverage Combo Machine"
                   />
                   <datalist id="existing-products-dl">
@@ -2266,7 +1662,7 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                   <select
                     value={form.REQUESTED_MACHINE_CATEGORY}
                     onChange={set("REQUESTED_MACHINE_CATEGORY")}
-                    style={inputStyle()}
+                    className={styles.input}
                   >
                     <option value="vending">vending</option>
                     <option value="snack-beverage">snack-beverage</option>
@@ -2290,16 +1686,11 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                         )
                       }))
                     }
-                    style={inputStyle()}
+                    className={styles.input}
                   />
                 </FormField>
 
-                <div style={{
-                  gridColumn: "1 / -1",
-                  fontSize: 11,
-                  color: "#475569",
-                  marginTop: -4
-                }}>
+                <div className={styles.machineHint}>
                   If the machine doesn&apos;t exist in Products &amp; BOM,
                   it&apos;ll be auto-created with the default 10-stage
                   manufacturing flow + 62-line BOM template. Already
@@ -2311,18 +1702,11 @@ function CustomerEditor({ initial, onClose, onSaved }) {
             </>
           )}
 
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.4, color: "#3b82f6", textTransform: "uppercase", marginBottom: 10 }}>
+          <div className={`${styles.formSectionHeading} ${styles.formSectionHeadingBlue}`}>
             Reach
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: 12,
-              marginBottom: 18
-            }}
-          >
+          <div className={styles.grid3}>
             <FormField label="Phone *">
               <input
                 type="text"
@@ -2335,11 +1719,11 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                     PHONE: digits.length > 0 && digits.length < 10 ? "Mobile number must be 10 digits" : ""
                   }));
                 }}
-                style={{ ...inputStyle(), ...(errors.PHONE && { border: "1px solid #dc2626" }) }}
+                className={`${styles.input}${errors.PHONE ? ` ${styles.inputError}` : ""}`}
                 placeholder="9876543210"
                 inputMode="numeric"
               />
-              {errors.PHONE && <div style={{ color: "#dc2626", fontSize: 11, marginTop: 3 }}>{errors.PHONE}</div>}
+              {errors.PHONE && <div className={styles.errorMsg}>{errors.PHONE}</div>}
             </FormField>
             <FormField label="Alternate Phone">
               <input
@@ -2353,14 +1737,14 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                     ALTERNATE_PHONE: digits.length > 0 && digits.length < 10 ? "Mobile number must be 10 digits" : ""
                   }));
                 }}
-                style={{ ...inputStyle(), ...(errors.ALTERNATE_PHONE && { border: "1px solid #dc2626" }) }}
+                className={`${styles.input}${errors.ALTERNATE_PHONE ? ` ${styles.inputError}` : ""}`}
                 placeholder="9876543210"
                 inputMode="numeric"
               />
-              {errors.ALTERNATE_PHONE && <div style={{ color: "#dc2626", fontSize: 11, marginTop: 3 }}>{errors.ALTERNATE_PHONE}</div>}
+              {errors.ALTERNATE_PHONE && <div className={styles.errorMsg}>{errors.ALTERNATE_PHONE}</div>}
             </FormField>
             <FormField label="Email *">
-              <input type="email" value={form.EMAIL} onChange={set("EMAIL")} style={inputStyle()} placeholder="contact@example.com" />
+              <input type="email" value={form.EMAIL} onChange={set("EMAIL")} className={styles.input} placeholder="contact@example.com" />
             </FormField>
             <FormField label="WhatsApp Number">
               <input
@@ -2374,50 +1758,43 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                     WHATSAPP_NUMBER: digits.length > 0 && digits.length < 10 ? "Mobile number must be 10 digits" : ""
                   }));
                 }}
-                style={{ ...inputStyle(), ...(errors.WHATSAPP_NUMBER && { border: "1px solid #dc2626" }) }}
+                className={`${styles.input}${errors.WHATSAPP_NUMBER ? ` ${styles.inputError}` : ""}`}
                 placeholder="9876543210"
                 inputMode="numeric"
               />
-              {errors.WHATSAPP_NUMBER && <div style={{ color: "#dc2626", fontSize: 11, marginTop: 3 }}>{errors.WHATSAPP_NUMBER}</div>}
+              {errors.WHATSAPP_NUMBER && <div className={styles.errorMsg}>{errors.WHATSAPP_NUMBER}</div>}
             </FormField>
             <FormField label="Website" span={2}>
-              <input type="text" value={form.WEBSITE} onChange={set("WEBSITE")} style={inputStyle()} placeholder="https://www.example.com" />
+              <input type="text" value={form.WEBSITE} onChange={set("WEBSITE")} className={styles.input} placeholder="https://www.example.com" />
             </FormField>
           </div>
 
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.4, color: "#10b981", textTransform: "uppercase", marginBottom: 10 }}>
+          <div className={`${styles.formSectionHeading} ${styles.formSectionHeadingGreen}`}>
             Address
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: 12,
-              marginBottom: 18
-            }}
-          >
+          <div className={styles.grid4}>
             <FormField label="Address (Street)" span={4}>
-              <input type="text" value={form.ADDRESS} onChange={set("ADDRESS")} style={inputStyle()} placeholder="Plot 12, Industrial Estate" />
+              <input type="text" value={form.ADDRESS} onChange={set("ADDRESS")} className={styles.input} placeholder="Plot 12, Industrial Estate" />
             </FormField>
             <FormField label="City">
-              <input type="text" value={form.CITY} onChange={set("CITY")} style={inputStyle()} placeholder="Chennai" />
+              <input type="text" value={form.CITY} onChange={set("CITY")} className={styles.input} placeholder="Chennai" />
             </FormField>
             <FormField label="State">
-              <input type="text" value={form.STATE} onChange={set("STATE")} style={inputStyle()} />
+              <input type="text" value={form.STATE} onChange={set("STATE")} className={styles.input} />
             </FormField>
             <FormField label="Pincode">
-              <input type="text" value={form.PINCODE} onChange={set("PINCODE")} style={inputStyle()} placeholder="600001" />
+              <input type="text" value={form.PINCODE} onChange={set("PINCODE")} className={styles.input} placeholder="600001" />
             </FormField>
             <FormField label="Country">
-              <input type="text" value={form.COUNTRY} onChange={set("COUNTRY")} style={inputStyle()} />
+              <input type="text" value={form.COUNTRY} onChange={set("COUNTRY")} className={styles.input} />
             </FormField>
             <FormField label="Billing Address (if different)" span={4}>
               <textarea
                 rows={2}
                 value={form.BILLING_ADDRESS}
                 onChange={set("BILLING_ADDRESS")}
-                style={inputStyle()}
+                className={styles.input}
                 placeholder="Leave blank if same as the street address above"
               />
             </FormField>
@@ -2426,7 +1803,7 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                 rows={2}
                 value={form.SHIPPING_ADDRESS}
                 onChange={set("SHIPPING_ADDRESS")}
-                style={inputStyle()}
+                className={styles.input}
                 placeholder="Where the machine actually gets installed"
               />
             </FormField>
@@ -2435,31 +1812,24 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                 type="text"
                 value={form.GOOGLE_MAP_LOCATION}
                 onChange={set("GOOGLE_MAP_LOCATION")}
-                style={inputStyle()}
+                className={styles.input}
                 placeholder="https://maps.app.goo.gl/..."
               />
             </FormField>
           </div>
 
           {/* Business profile */}
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.4, color: "#0f172a", textTransform: "uppercase", marginBottom: 10 }}>
+          <div className={`${styles.formSectionHeading} ${styles.formSectionHeadingGray}`}>
             Business profile
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(2, 1fr)",
-              gap: 12,
-              marginBottom: 18
-            }}
-          >
+          <div className={styles.grid2}>
             <FormField label="Business Type">
               <input
                 type="text"
                 value={form.BUSINESS_TYPE}
                 onChange={set("BUSINESS_TYPE")}
-                style={inputStyle()}
+                className={styles.input}
                 placeholder="B2B Retail Chain / Hospital Network / ..."
               />
             </FormField>
@@ -2468,7 +1838,7 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                 type="text"
                 value={form.CURRENT_VENDOR_NAME}
                 onChange={set("CURRENT_VENDOR_NAME")}
-                style={inputStyle()}
+                className={styles.input}
                 placeholder="Their existing supplier name"
               />
             </FormField>
@@ -2478,7 +1848,7 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                 min="0"
                 value={form.NUMBER_OF_BRANCHES}
                 onChange={set("NUMBER_OF_BRANCHES")}
-                style={inputStyle()}
+                className={styles.input}
                 placeholder="e.g. 12"
               />
             </FormField>
@@ -2488,12 +1858,12 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                 min="0"
                 value={form.EXPECTED_MONTHLY_ORDERS}
                 onChange={set("EXPECTED_MONTHLY_ORDERS")}
-                style={inputStyle()}
+                className={styles.input}
                 placeholder="e.g. 3 units/month"
               />
             </FormField>
             <FormField label="Already using vending machines?" span={2}>
-              <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: "#475569", padding: "8px 0" }}>
+              <label className={styles.checkboxRow}>
                 <input
                   type="checkbox"
                   checked={!!form.EXISTING_MACHINE_USAGE}
@@ -2508,18 +1878,11 @@ function CustomerEditor({ initial, onClose, onSaved }) {
             </FormField>
           </div>
 
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.4, color: "#8b5cf6", textTransform: "uppercase", marginBottom: 10 }}>
+          <div className={`${styles.formSectionHeading} ${styles.formSectionHeadingPurple}`}>
             Tax / KYC
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(2, 1fr)",
-              gap: 12,
-              marginBottom: 18
-            }}
-          >
+          <div className={styles.grid2}>
             <FormField label="GST Number">
               <input
                 type="text"
@@ -2533,10 +1896,10 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                   setForm((f) => ({ ...f, GST_NUMBER: val }));
                   setErrors((errs) => ({ ...errs, GST_NUMBER: msg }));
                 }}
-                style={{ ...inputStyle(), ...(errors.GST_NUMBER && { border: "1px solid #dc2626" }) }}
+                className={`${styles.input}${errors.GST_NUMBER ? ` ${styles.inputError}` : ""}`}
                 placeholder="33ABCDE1234F1Z5"
               />
-              {errors.GST_NUMBER && <div style={{ color: "#dc2626", fontSize: 11, marginTop: 3 }}>{errors.GST_NUMBER}</div>}
+              {errors.GST_NUMBER && <div className={styles.errorMsg}>{errors.GST_NUMBER}</div>}
             </FormField>
             <FormField label="PAN Number">
               <input
@@ -2551,39 +1914,23 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                   setForm((f) => ({ ...f, PAN_NUMBER: val }));
                   setErrors((errs) => ({ ...errs, PAN_NUMBER: msg }));
                 }}
-                style={{ ...inputStyle(), ...(errors.PAN_NUMBER && { border: "1px solid #dc2626" }) }}
+                className={`${styles.input}${errors.PAN_NUMBER ? ` ${styles.inputError}` : ""}`}
                 placeholder="ABCDE1234F"
               />
-              {errors.PAN_NUMBER && <div style={{ color: "#dc2626", fontSize: 11, marginTop: 3 }}>{errors.PAN_NUMBER}</div>}
+              {errors.PAN_NUMBER && <div className={styles.errorMsg}>{errors.PAN_NUMBER}</div>}
             </FormField>
           </div>
 
           {/* Requirements (edit mode only) */}
           {isEdit && (
-            <div
-              style={{
-                background: "white",
-                border: "1px solid #e2e8f0",
-                borderRadius: 12,
-                padding: 16,
-                marginBottom: 18
-              }}
-            >
+            <div className={styles.subSection}>
               <RequirementsManager customerId={initial.ID} />
             </div>
           )}
 
           {/* Quotations for this customer */}
           {isEdit && (
-            <div
-              style={{
-                background: "white",
-                border: "1px solid #e2e8f0",
-                borderRadius: 12,
-                padding: 16,
-                marginBottom: 18
-              }}
-            >
+            <div className={styles.subSection}>
               <CustomerQuotationsSection
                 customerId={initial.ID}
                 onJumpToQuotations={() => {
@@ -2595,37 +1942,20 @@ function CustomerEditor({ initial, onClose, onSaved }) {
           )}
 
           {!isEdit && (
-            <div
-              style={{
-                background: "#f8fafc",
-                border: "1px dashed #cbd5e1",
-                borderRadius: 10,
-                padding: 12,
-                marginBottom: 18,
-                fontSize: 12,
-                color: "#64748b"
-              }}
-            >
+            <div className={styles.saveHintBox}>
               Save this customer first &mdash; once created, you can add a
               full list of vending-machine requirements with quantities,
               specs and target dates.
             </div>
           )}
 
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.4, color: "#f59e0b", textTransform: "uppercase", marginBottom: 10 }}>
+          <div className={`${styles.formSectionHeading} ${styles.formSectionHeadingAmber}`}>
             Lifecycle
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(2, 1fr)",
-              gap: 12,
-              marginBottom: 18
-            }}
-          >
+          <div className={styles.grid2}>
             <FormField label="Status">
-              <select value={form.STATUS} onChange={set("STATUS")} style={inputStyle()}>
+              <select value={form.STATUS} onChange={set("STATUS")} className={styles.input}>
                 <option value="ACTIVE">Active</option>
                 <option value="PROSPECT">Prospect</option>
                 <option value="LEAD">Lead</option>
@@ -2634,7 +1964,7 @@ function CustomerEditor({ initial, onClose, onSaved }) {
             </FormField>
 
             <FormField label="Source">
-              <select value={form.SOURCE} onChange={set("SOURCE")} style={inputStyle()}>
+              <select value={form.SOURCE} onChange={set("SOURCE")} className={styles.input}>
                 <option value="">— pick source —</option>
                 {SOURCES.map((s) => (
                   <option key={s}>{s}</option>
@@ -2647,25 +1977,19 @@ function CustomerEditor({ initial, onClose, onSaved }) {
                 value={form.NOTES}
                 onChange={set("NOTES")}
                 rows={3}
-                style={{ ...inputStyle(), resize: "vertical" }}
+                className={styles.input}
+                style={{ resize: "vertical" }}
                 placeholder="Anything we should remember about this customer..."
               />
             </FormField>
           </div>
 
-          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <div className={styles.formActions}>
 
             <button
               type="button"
               onClick={onClose}
-              style={{
-                border: "1px solid #e2e8f0",
-                background: "white",
-                padding: "10px 22px",
-                borderRadius: 8,
-                cursor: "pointer",
-                fontSize: 13
-              }}
+              className={styles.btnCancel}
             >
               Cancel
             </button>
@@ -2673,19 +1997,7 @@ function CustomerEditor({ initial, onClose, onSaved }) {
             <button
               type="submit"
               disabled={saving}
-              style={{
-                border: "none",
-                background: saving
-                  ? "#94a3b8"
-                  : "linear-gradient(135deg, #C8102E, #8B0B1F)",
-                color: "white",
-                padding: "10px 26px",
-                borderRadius: 8,
-                fontWeight: 800,
-                fontSize: 13,
-                cursor: saving ? "not-allowed" : "pointer",
-                boxShadow: "0 6px 18px rgba(200,16,46,0.35)"
-              }}
+              className={styles.btnSubmit}
             >
               {saving
                 ? "Saving…"
@@ -2793,105 +2105,31 @@ function Customers() {
 
   return (
 
-    <div
-      style={{
-        padding: 26,
-        background: "#f1f5f9",
-        minHeight: "100%"
-      }}
-    >
-
-      <style>{`
-        @keyframes bvcCustFadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes bvcCustHeroShift {
-          0%, 100% { background-position: 0% 50%; }
-          50%      { background-position: 100% 50%; }
-        }
-        .bvc-cust-card:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 18px 42px rgba(15,23,42,0.14);
-        }
-        .bvc-cust-card {
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-      `}</style>
+    <div className={styles.pageWrapper}>
 
       {/* HERO */}
-      <div
-        style={{
-          background: "linear-gradient(135deg, #C8102E 0%, #A60F26 50%, #8B0B1F 100%)",
-          color: "white",
-          padding: "20px 28px",
-          borderRadius: 14,
-          marginBottom: 22,
-          boxShadow: "0 6px 18px rgba(139,11,31,0.18)",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 16
-        }}
-      >
+      <div className={styles.hero}>
         <div>
-          <div style={{
-            fontSize: 10,
-            letterSpacing: 2,
-            color: "#fde047",
-            fontWeight: 700,
-            textTransform: "uppercase"
-          }}>
+          <div className={styles.heroLabel}>
             CRM
           </div>
-          <h1 style={{
-            fontSize: 22,
-            fontWeight: 700,
-            margin: "4px 0 0",
-            lineHeight: 1.2,
-            color: "white",
-            letterSpacing: -0.3
-          }}>
+          <h1 className={styles.heroTitle}>
             Customers
           </h1>
         </div>
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <div className={styles.heroActions}>
           <button
             onClick={() => setInviteOpen(true)}
             title="Generate a self-onboarding link for a new customer"
-            style={{
-              background: "transparent",
-              color: "white",
-              border: "1px solid rgba(255,255,255,0.45)",
-              padding: "10px 18px",
-              borderRadius: 8,
-              fontWeight: 700,
-              fontSize: 12,
-              cursor: "pointer",
-              letterSpacing: 0.6,
-              textTransform: "uppercase"
-            }}
+            className={styles.heroBtnOutline}
           >
             Invite via Self-Onboarding
           </button>
 
           <button
             onClick={() => setEditing({})}
-            style={{
-              background: "white",
-              color: "#8B0B1F",
-              border: "none",
-              padding: "10px 20px",
-              borderRadius: 8,
-              fontWeight: 800,
-              fontSize: 12,
-              cursor: "pointer",
-              letterSpacing: 0.6,
-              textTransform: "uppercase",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
-            }}
+            className={styles.heroBtnSolid}
           >
             + Add Customer
           </button>
@@ -2903,14 +2141,7 @@ function Customers() {
       )}
 
       {/* Summary tiles */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 14,
-          marginBottom: 20
-        }}
-      >
+      <div className={styles.statsGrid}>
         <StatTile
           label="Total customers"
           value={stats.total}
@@ -2941,30 +2172,10 @@ function Customers() {
       </div>
 
       {/* Search + filters */}
-      <div
-        style={{
-          background: "white",
-          padding: 14,
-          borderRadius: 12,
-          boxShadow: "0 4px 14px rgba(15,23,42,0.06)",
-          display: "flex",
-          gap: 10,
-          flexWrap: "wrap",
-          alignItems: "center",
-          marginBottom: 18
-        }}
-      >
+      <div className={styles.filterBar}>
 
-        <div style={{ position: "relative", flex: 1, minWidth: 260 }}>
-          <span style={{
-            position: "absolute",
-            left: 12,
-            top: "50%",
-            transform: "translateY(-50%)",
-            color: "#94a3b8",
-            display: "flex",
-            pointerEvents: "none"
-          }}>
+        <div className={styles.searchWrap}>
+          <span className={styles.searchIcon}>
             <Icon.search size={16} />
           </span>
           <input
@@ -2972,26 +2183,14 @@ function Customers() {
             placeholder="Search by name, code, contact, phone, GST, city..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "10px 14px 10px 36px",
-              border: "1px solid #e2e8f0",
-              borderRadius: 8,
-              fontSize: 13,
-              boxSizing: "border-box"
-            }}
+            className={styles.searchInput}
           />
         </div>
 
         <select
           value={industryFilter}
           onChange={(e) => setIndustryFilter(e.target.value)}
-          style={{
-            padding: "10px 12px",
-            border: "1px solid #e2e8f0",
-            borderRadius: 8,
-            fontSize: 13
-          }}
+          className={styles.filterSelect}
         >
           <option value="">All industries</option>
           {INDUSTRIES.map((i) => (
@@ -3002,12 +2201,7 @@ function Customers() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          style={{
-            padding: "10px 12px",
-            border: "1px solid #e2e8f0",
-            borderRadius: 8,
-            fontSize: 13
-          }}
+          className={styles.filterSelect}
         >
           <option value="">All statuses</option>
           <option value="ACTIVE">Active</option>
@@ -3016,48 +2210,27 @@ function Customers() {
           <option value="INACTIVE">Inactive</option>
         </select>
 
-        <div
-          style={{
-            fontSize: 12,
-            color: "#94a3b8",
-            marginLeft: 6
-          }}
-        >
+        <div className={styles.filterCount}>
           {filtered.length} of {customers.length}
         </div>
       </div>
 
       {/* Cards */}
       {loading && (
-        <div style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>
+        <div className={styles.loadingMsg}>
           Loading customers…
         </div>
       )}
 
       {!loading && filtered.length === 0 && (
-        <div
-          style={{
-            padding: 50,
-            textAlign: "center",
-            color: "#94a3b8",
-            background: "white",
-            borderRadius: 14,
-            border: "1px dashed #cbd5e1"
-          }}
-        >
+        <div className={styles.emptyState}>
           {customers.length === 0
             ? "No customers yet. Click + Add Customer to create the first one."
             : "No customers match these filters."}
         </div>
       )}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-          gap: 18
-        }}
-      >
+      <div className={styles.cardsGrid}>
         {filtered.map((c) => (
           <CustomerCard
             key={c.ID}
@@ -3176,8 +2349,8 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
 
       setError(
         err?.response?.data?.detail ||
-          err?.message ||
-          "Failed to generate quotation."
+        err?.message ||
+        "Failed to generate quotation."
       );
 
     } finally {
@@ -3203,108 +2376,43 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
     /no\s+(active\s+)?requirement|requirements\s+to\s+quote/i.test(error);
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0,
-        background: "rgba(15,23,42,0.55)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        zIndex: 1100, padding: 20
-      }}
-    >
+    <div onClick={onClose} className={styles.fullModalOverlay}>
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "min(680px, 100%)",
-          maxHeight: "92vh",
-          background: "white",
-          borderRadius: 16,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          boxShadow: "0 24px 60px rgba(0,0,0,0.4)"
-        }}
+        className={styles.fullModal}
       >
 
         {/* Sticky header */}
-        <div style={{
-          background: "linear-gradient(135deg, #C8102E, #8B0B1F)",
-          color: "white",
-          padding: "20px 24px",
-          flexShrink: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between"
-        }}>
+        <div className={styles.modalHeader}>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2, opacity: 0.85 }}>
+            <div className={styles.modalHeaderLabel}>
               AUTO QUOTATION
             </div>
-            <h2 style={{ margin: "4px 0 0", fontSize: 18 }}>
+            <h2 className={styles.modalHeaderTitle}>
               Generate Quotation — auto from requirements
             </h2>
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: "rgba(255,255,255,0.15)",
-              color: "white", border: "none",
-              width: 30, height: 30, borderRadius: 8,
-              cursor: "pointer", fontSize: 16
-            }}
-          >
+          <button onClick={onClose} className={styles.modalCloseBtn}>
             ×
           </button>
         </div>
 
         {/* Body */}
-        <div style={{
-          flex: 1, minHeight: 0,
-          overflowY: "auto",
-          padding: 22
-        }}>
+        <div className={styles.modalBody}>
 
           {/* Customer header card */}
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            padding: "12px 14px",
-            border: "1px solid #e2e8f0",
-            background: "#f8fafc",
-            borderRadius: 12,
-            marginBottom: 18
-          }}>
-            <div style={{
-              width: 38, height: 38, borderRadius: 10,
-              background: "#0f172a",
-              color: "white",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontWeight: 800, fontSize: 16
-            }}>
+          <div className={styles.quotModalCustCard}>
+            <div className={styles.quotModalAvatar}>
               {(customer?.CUSTOMER_NAME || "?").charAt(0).toUpperCase()}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{
-                fontSize: 10, fontWeight: 800,
-                letterSpacing: 1.2, color: "#475569"
-              }}>
+            <div className={styles.reqItemBody}>
+              <div className={styles.quotModalCustLabel}>
                 CUSTOMER
               </div>
-              <div style={{
-                fontSize: 15, fontWeight: 800,
-                color: "#0f172a",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis"
-              }}>
+              <div className={styles.quotModalCustName}>
                 {customer?.CUSTOMER_NAME || "—"}
               </div>
-              <div style={{
-                fontSize: 11, color: "#475569",
-                fontFamily: "ui-monospace, monospace",
-                marginTop: 1
-              }}>
+              <div className={styles.quotModalCustCode}>
                 {customer?.CUSTOMER_CODE || "—"}
                 {customer?.EMAIL ? ` · ${customer.EMAIL}` : ""}
               </div>
@@ -3314,25 +2422,14 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
           {!result && (
             <>
               {error && !noRequirements && (
-                <div style={{
-                  padding: "10px 12px", background: "#fef2f2",
-                  color: "#991b1b", border: "1px solid #fecaca",
-                  borderRadius: 8, fontSize: 13, marginBottom: 14
-                }}>
+                <div className={styles.errBannerRed}>
                   {error}
                 </div>
               )}
 
               {error && noRequirements && (
-                <div style={{
-                  padding: 14,
-                  background: "#fff7ed",
-                  color: "#7c2d12",
-                  border: "1px solid #fed7aa",
-                  borderRadius: 10, fontSize: 13, marginBottom: 14,
-                  lineHeight: 1.5
-                }}>
-                  <div style={{ fontWeight: 800, marginBottom: 4 }}>
+                <div className={styles.errBannerOrange}>
+                  <div className={styles.errBannerOrangeTitle}>
                     This customer has no active requirements yet
                   </div>
                   <div style={{ marginBottom: 10 }}>
@@ -3353,14 +2450,7 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                         onClose?.();
                       }
                     }}
-                    style={{
-                      padding: "10px 16px",
-                      background: "linear-gradient(135deg,#C8102E,#8B0B1F)",
-                      color: "white", border: "none",
-                      borderRadius: 8, fontWeight: 800, fontSize: 13,
-                      cursor: "pointer",
-                      boxShadow: "0 6px 18px rgba(200,16,46,0.35)"
-                    }}
+                    className={styles.errOpenCustBtn}
                   >
                     Open customer &rarr; Add a requirement
                   </button>
@@ -3369,18 +2459,13 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
 
               <form onSubmit={submit}>
 
-                <div style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 12,
-                  marginBottom: 12
-                }}>
+                <div className={styles.quotFormGrid}>
                   <Field label="Quotation date">
                     <input
                       type="date"
                       value={form.quotation_date}
                       onChange={setField("quotation_date")}
-                      style={inviteInputStyle()}
+                      className={styles.inviteInput}
                     />
                   </Field>
 
@@ -3390,7 +2475,7 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                       min="1"
                       value={form.validity_days}
                       onChange={setField("validity_days")}
-                      style={inviteInputStyle()}
+                      className={styles.inviteInput}
                     />
                   </Field>
 
@@ -3401,7 +2486,7 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                       step="0.1"
                       value={form.margin_percent}
                       onChange={setField("margin_percent")}
-                      style={inviteInputStyle()}
+                      className={styles.inviteInput}
                     />
                   </Field>
 
@@ -3412,18 +2497,13 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                       step="0.1"
                       value={form.discount_percent}
                       onChange={setField("discount_percent")}
-                      style={inviteInputStyle()}
+                      className={styles.inviteInput}
                     />
                   </Field>
                 </div>
 
                 <div style={{ marginBottom: 12 }}>
-                  <label style={{
-                    display: "block",
-                    fontSize: 11, fontWeight: 700,
-                    color: "#475569", marginBottom: 4,
-                    letterSpacing: 0.5
-                  }}>
+                  <label className={styles.fieldAtomLabel}>
                     Notes (optional)
                   </label>
                   <textarea
@@ -3431,24 +2511,12 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                     onChange={setField("notes")}
                     rows={2}
                     placeholder="Anything special the customer should know…"
-                    style={{
-                      ...inviteInputStyle(),
-                      resize: "vertical"
-                    }}
+                    className={styles.inviteInput}
+                    style={{ resize: "vertical" }}
                   />
                 </div>
 
-                <label style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "10px 12px",
-                  background: "#f8fafc",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 10,
-                  cursor: "pointer",
-                  marginBottom: 16
-                }}>
+                <label className={styles.autoSendRow}>
                   <input
                     type="checkbox"
                     checked={form.auto_send}
@@ -3456,10 +2524,10 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                     style={{ width: 18, height: 18 }}
                   />
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+                    <div className={styles.autoSendTitle}>
                       Auto-send email to customer
                     </div>
-                    <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+                    <div className={styles.autoSendSub}>
                       Quotation goes out the moment it&apos;s generated. Uncheck
                       to keep it as a DRAFT for review.
                     </div>
@@ -3467,27 +2535,11 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                 </label>
 
                 {/* What will be auto-filled callout */}
-                <div style={{
-                  background: "#fffbeb",
-                  border: "1px solid #F4B324",
-                  borderRadius: 12,
-                  padding: "12px 14px",
-                  marginBottom: 16
-                }}>
-                  <div style={{
-                    fontSize: 11, fontWeight: 800,
-                    letterSpacing: 1.2, color: "#8B4500",
-                    marginBottom: 6
-                  }}>
+                <div className={styles.autoFillCallout}>
+                  <div className={styles.autoFillCalloutLabel}>
                     WHAT WILL BE AUTO-FILLED
                   </div>
-                  <ul style={{
-                    margin: 0,
-                    paddingLeft: 18,
-                    fontSize: 12,
-                    color: "#7c2d12",
-                    lineHeight: 1.7
-                  }}>
+                  <ul className={styles.autoFillCalloutList}>
                     <li>Company details, contact, GST &amp; address</li>
                     <li>All active requirements as line items</li>
                     <li>BOM-based pricing with {form.margin_percent || 25}% margin</li>
@@ -3496,19 +2548,11 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                   </ul>
                 </div>
 
-                <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                <div className={styles.modalFormActions}>
                   <button
                     type="button"
                     onClick={onClose}
-                    style={{
-                      padding: "11px 18px",
-                      background: "white",
-                      color: "#475569",
-                      border: "1px solid #cbd5e1",
-                      borderRadius: 10,
-                      fontWeight: 700, fontSize: 13,
-                      cursor: "pointer"
-                    }}
+                    className={styles.modalCancelBtn}
                   >
                     Cancel
                   </button>
@@ -3516,16 +2560,7 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                   <button
                     type="submit"
                     disabled={submitting}
-                    style={{
-                      padding: "11px 22px",
-                      background: submitting
-                        ? "#94a3b8"
-                        : "linear-gradient(135deg, #C8102E, #8B0B1F)",
-                      color: "white", border: "none",
-                      borderRadius: 10, fontWeight: 800, fontSize: 13,
-                      cursor: submitting ? "wait" : "pointer",
-                      boxShadow: "0 6px 18px rgba(200,16,46,0.35)"
-                    }}
+                    className={styles.modalSubmitBtn}
                   >
                     {submitting ? "Generating…" : "Generate quotation"}
                   </button>
@@ -3535,32 +2570,16 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
           )}
 
           {result && (
-            <div style={{
-              background: "#f0fdf4",
-              border: "1px solid #16a34a",
-              borderRadius: 14,
-              padding: 18,
-              marginBottom: 8
-            }}>
-              <div style={{
-                fontSize: 11, fontWeight: 800,
-                letterSpacing: 1.5, color: "#14532d",
-                marginBottom: 8
-              }}>
+            <div className={styles.quotSuccessPanel}>
+              <div className={styles.quotSuccessLabel}>
                 QUOTATION GENERATED
               </div>
 
-              <div style={{
-                fontSize: 20, fontWeight: 800,
-                color: "#0f172a", letterSpacing: -0.3
-              }}>
+              <div className={styles.quotSuccessNumber}>
                 {result.quotation_number || "—"} generated
               </div>
 
-              <div style={{
-                fontSize: 13, color: "#166534",
-                marginTop: 6, lineHeight: 1.5
-              }}>
+              <div className={styles.quotSuccessMeta}>
                 {(() => {
                   const lines = result?.quotation?.LINES?.length
                     ?? result?.requirements_used?.length
@@ -3568,38 +2587,22 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                   const total = result?.quotation?.GRAND_TOTAL;
                   const totalStr = (total !== null && total !== undefined && !isNaN(total))
                     ? "₹" + Number(total).toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                      })
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    })
                     : "—";
                   return `${lines} line(s), grand total ${totalStr}`;
                 })()}
               </div>
 
               {result.email_sent && (
-                <div style={{
-                  marginTop: 12,
-                  display: "inline-block",
-                  padding: "6px 12px",
-                  background: "#16a34a",
-                  color: "white",
-                  borderRadius: 999,
-                  fontSize: 11, fontWeight: 800, letterSpacing: 0.5
-                }}>
+                <div className={styles.quotEmailedBadge}>
                   Emailed to {customer?.EMAIL || "customer"}
                 </div>
               )}
 
               {!result.email_sent && form.auto_send && (
-                <div style={{
-                  marginTop: 12,
-                  padding: "8px 12px",
-                  background: "#fff7ed",
-                  color: "#7c2d12",
-                  border: "1px solid #fed7aa",
-                  borderRadius: 8,
-                  fontSize: 12
-                }}>
+                <div className={styles.quotEmailFailBanner}>
                   Email could not be sent
                   {result.email_status ? `: ${result.email_status}` : ""}.
                   Quotation kept as DRAFT &mdash; you can retry from the
@@ -3608,25 +2611,11 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
               )}
 
               {result.warnings && result.warnings.length > 0 && (
-                <div style={{
-                  marginTop: 12,
-                  padding: "10px 12px",
-                  background: "#fef3c7",
-                  border: "1px solid #fde68a",
-                  borderRadius: 8
-                }}>
-                  <div style={{
-                    fontSize: 10, fontWeight: 800,
-                    letterSpacing: 1, color: "#92400e",
-                    marginBottom: 4
-                  }}>
+                <div className={styles.quotWarnPanel}>
+                  <div className={styles.quotWarnLabel}>
                     WARNINGS
                   </div>
-                  <ul style={{
-                    margin: 0, paddingLeft: 18,
-                    fontSize: 11, color: "#78350f",
-                    lineHeight: 1.5
-                  }}>
+                  <ul className={styles.quotWarnList}>
                     {result.warnings.map((w, i) => (
                       <li key={i}>{w}</li>
                     ))}
@@ -3634,22 +2623,13 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                 </div>
               )}
 
-              <div style={{
-                display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap"
-              }}>
+              <div className={styles.quotSuccessActions}>
                 <button
                   onClick={() => {
                     navigate("/quotations");
                     onCreated?.(result.quotation_id);
                   }}
-                  style={{
-                    padding: "10px 18px",
-                    background: "linear-gradient(135deg, #C8102E, #8B0B1F)",
-                    color: "white", border: "none",
-                    borderRadius: 10, fontWeight: 800, fontSize: 13,
-                    cursor: "pointer",
-                    boxShadow: "0 6px 18px rgba(200,16,46,0.35)"
-                  }}
+                  className={styles.quotOpenBtn}
                 >
                   Open Quotation →
                 </button>
@@ -3657,16 +2637,7 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
                 {result.public_url && (
                   <button
                     onClick={copyPublicLink}
-                    style={{
-                      padding: "10px 14px",
-                      background: linkCopied ? "#16a34a" : "white",
-                      color: linkCopied ? "white" : "#475569",
-                      border: linkCopied
-                        ? "1px solid #16a34a"
-                        : "1px solid #cbd5e1",
-                      borderRadius: 10, fontWeight: 700, fontSize: 12,
-                      cursor: "pointer"
-                    }}
+                    className={linkCopied ? styles.quotCopyBtnCopied : styles.quotCopyBtn}
                   >
                     {linkCopied ? "Copied" : "Copy public link"}
                   </button>
@@ -3674,14 +2645,7 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
 
                 <button
                   onClick={onClose}
-                  style={{
-                    padding: "10px 14px",
-                    background: "white",
-                    color: "#475569",
-                    border: "1px solid #cbd5e1",
-                    borderRadius: 10, fontWeight: 700, fontSize: 12,
-                    cursor: "pointer"
-                  }}
+                  className={styles.quotCloseBtn}
                 >
                   Close
                 </button>
@@ -3753,8 +2717,8 @@ function InviteCustomerModal({ onClose }) {
 
       setError(
         err?.response?.data?.detail ||
-          err?.message ||
-          "Could not generate invitation."
+        err?.message ||
+        "Could not generate invitation."
       );
 
     } finally {
@@ -3775,68 +2739,31 @@ function InviteCustomerModal({ onClose }) {
   };
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0,
-        background: "rgba(15,23,42,0.55)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        zIndex: 1100, padding: 20
-      }}
-    >
+    <div onClick={onClose} className={styles.fullModalOverlay}>
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "min(720px, 100%)",
-          maxHeight: "92vh",
-          background: "white",
-          borderRadius: 16,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          boxShadow: "0 24px 60px rgba(0,0,0,0.4)"
-        }}
+        className={styles.fullModalWide}
       >
 
         {/* Sticky header */}
-        <div style={{
-          background: "linear-gradient(135deg, #C8102E, #8B0B1F)",
-          color: "white",
-          padding: "20px 24px",
-          flexShrink: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between"
-        }}>
+        <div className={styles.modalHeader}>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2, opacity: 0.85 }}>
+            <div className={styles.modalHeaderLabel}>
               CUSTOMER SELF-ONBOARDING
             </div>
-            <h2 style={{ margin: "4px 0 0", fontSize: 18 }}>
+            <h2 className={styles.modalHeaderTitle}>
               Invite customer to fill their own profile
             </h2>
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: "rgba(255,255,255,0.15)",
-              color: "white", border: "none",
-              width: 30, height: 30, borderRadius: 8,
-              cursor: "pointer", fontSize: 16
-            }}
-          >
+          <button onClick={onClose} className={styles.modalCloseBtn}>
             ×
           </button>
         </div>
 
         {/* Body */}
-        <div style={{
-          flex: 1, minHeight: 0,
-          overflowY: "auto",
-          padding: 22
-        }}>
+        <div className={styles.modalBody}>
 
-          <p style={{ margin: "0 0 16px", color: "#475569", fontSize: 13, lineHeight: 1.5 }}>
+          <p className={styles.inviteBody}>
             Generate a unique link the customer opens in their browser.
             Our AI chatbot walks them through every field — when they
             click <b>Submit</b>, the customer card appears here automatically.
@@ -3885,7 +2812,7 @@ function InviteCustomerModal({ onClose }) {
                 disabled={loading}
                 style={{
                   padding: "11px 22px",
-                  background: "linear-gradient(135deg, #C8102E, #8B0B1F)",
+                  background: "#ef4444",
                   color: "white", border: "none",
                   borderRadius: 10, fontWeight: 800, fontSize: 13,
                   cursor: loading ? "wait" : "pointer",
@@ -3900,7 +2827,7 @@ function InviteCustomerModal({ onClose }) {
           {result && (
             <div style={{
               background: "#fffbeb",
-              border: "1px solid #F4B324",
+              border: "1px solid #f59e0b",
               borderRadius: 12,
               padding: "16px 18px",
               marginBottom: 16
@@ -3935,7 +2862,7 @@ function InviteCustomerModal({ onClose }) {
                   rel="noreferrer"
                   style={{
                     padding: "8px 14px",
-                    background: "#C8102E",
+                    background: "#ef4444",
                     color: "white", border: "none",
                     borderRadius: 8, fontWeight: 700, fontSize: 12,
                     textDecoration: "none",
@@ -4119,7 +3046,7 @@ function InviteCustomerModal({ onClose }) {
 
                           alert(
                             err?.response?.data?.detail ||
-                              "Could not delete invitation."
+                            "Could not delete invitation."
                           );
                         }
                       }}
@@ -4157,10 +3084,10 @@ function InviteCustomerModal({ onClose }) {
 function StatusChip({ status }) {
 
   const themes = {
-    INVITED:    { bg: "#f1f5f9", fg: "#475569" },
+    INVITED: { bg: "#f1f5f9", fg: "#475569" },
     REGISTERED: { bg: "#dbeafe", fg: "#1d4ed8" },
-    IN_PROGRESS:{ bg: "#fef3c7", fg: "#854d0e" },
-    SUBMITTED:  { bg: "#dcfce7", fg: "#166534" }
+    IN_PROGRESS: { bg: "#fef3c7", fg: "#854d0e" },
+    SUBMITTED: { bg: "#dcfce7", fg: "#166534" }
   };
 
   const t = themes[status] || themes.INVITED;

@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 
 import API, { API_BASE_URL } from "../services/api";
 
 import EntityDrawer from "../components/EntityDrawer";
 
 import { bomIconTileStyle } from "../utils/bomIcons";
+
+import styles from "./Production.module.css";
 
 
 const STATUS_COLORS = {
@@ -25,47 +27,20 @@ function Tile({ label, value, sub, color }) {
   return (
 
     <div
-      style={{
-        background: "white",
-        padding: 18,
-        borderRadius: 12,
-        boxShadow: "0 4px 14px rgba(15,23,42,0.06)",
-        borderTop: `3px solid ${color}`
-      }}
+      className={styles.tile}
+      style={{ borderTop: `3px solid ${color}` }}
     >
 
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: 1,
-          color: "#64748b",
-          textTransform: "uppercase"
-        }}
-      >
+      <div className={styles.tileLabel}>
         {label}
       </div>
 
-      <div
-        style={{
-          fontSize: 28,
-          fontWeight: 700,
-          color: "#0f172a",
-          marginTop: 6
-        }}
-      >
+      <div className={styles.tileValue}>
         {value}
       </div>
 
       {sub && (
-
-        <div
-          style={{
-            fontSize: 12,
-            color: "#94a3b8",
-            marginTop: 2
-          }}
-        >
+        <div className={styles.tileSub}>
           {sub}
         </div>
       )}
@@ -81,15 +56,8 @@ function StatusBadge({ status }) {
   return (
 
     <span
-      style={{
-        display: "inline-block",
-        padding: "3px 10px",
-        borderRadius: 999,
-        fontSize: 11,
-        fontWeight: 700,
-        background: t.bg,
-        color: t.fg
-      }}
+      className={styles.statusBadge}
+      style={{ background: t.bg, color: t.fg }}
     >
       {status?.replaceAll("_", " ")}
     </span>
@@ -135,22 +103,15 @@ function DashboardTab() {
 
   }, []);
 
-  if (loading) return <div style={{ color: "#94a3b8" }}>Loading…</div>;
+  if (loading) return <div className={styles.loadingText}>Loading…</div>;
 
-  if (!data) return <div style={{ color: "#b91c1c" }}>Could not load dashboard.</div>;
+  if (!data) return <div className={styles.errorText}>Could not load dashboard.</div>;
 
   return (
 
     <div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 14,
-          marginBottom: 24
-        }}
-      >
+      <div className={styles.dashTileGrid}>
 
         <Tile
           label="Total Work Orders"
@@ -178,31 +139,15 @@ function DashboardTab() {
         />
       </div>
 
-      <div
-        style={{
-          background: "white",
-          borderRadius: 12,
-          padding: 20,
-          boxShadow: "0 4px 14px rgba(15,23,42,0.06)"
-        }}
-      >
+      <div className={styles.card}>
 
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: 1,
-            color: "#475569",
-            textTransform: "uppercase",
-            marginBottom: 12
-          }}
-        >
+        <div className={styles.sectionLabel}>
           Top Active Models (units in pipeline)
         </div>
 
         {(!data.top_active_models || data.top_active_models.length === 0) && (
 
-          <div style={{ color: "#94a3b8", fontSize: 13 }}>
+          <div className={styles.emptyText}>
             No active work orders. Create one in the Work Orders tab.
           </div>
         )}
@@ -211,42 +156,25 @@ function DashboardTab() {
 
           <div
             key={m.MODEL_ID}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              padding: "10px 0",
-              borderBottom: "1px solid #f1f5f9"
-            }}
+            className={styles.modelRow}
           >
 
-            <div style={{ flex: 1 }}>
+            <div className={styles.flex1}>
 
-              <div style={{ fontWeight: 600, color: "#0f172a" }}>
+              <div className={styles.modelRowName}>
                 {m.MODEL_NAME}
               </div>
 
-              <div style={{ fontSize: 11, color: "#94a3b8" }}>
+              <div className={styles.modelRowCode}>
                 {m.MODEL_CODE}
               </div>
             </div>
 
-            <div
-              style={{
-                fontSize: 20,
-                fontWeight: 700,
-                color: "#1e40af"
-              }}
-            >
+            <div className={styles.modelRowUnits}>
               {m.units}
             </div>
 
-            <div
-              style={{
-                fontSize: 11,
-                color: "#94a3b8",
-                marginLeft: 6
-              }}
-            >
+            <div className={styles.modelRowUnitsLabel}>
               units
             </div>
           </div>
@@ -316,26 +244,15 @@ function BomEditableRow({ item, onUploaded }) {
 
   return (
 
-    <tr style={{ borderBottom: "1px solid #f1f5f9", verticalAlign: "middle" }}>
+    <tr className={styles.bomRow}>
 
       {/* Preview cell */}
-      <td style={{
-        padding: 6,
-        borderRight: "1px solid #f1f5f9",
-        textAlign: "center"
-      }}>
+      <td className={styles.bomCellPreview}>
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={item.MATERIAL_NAME}
-            style={{
-              width: 76,
-              height: 76,
-              objectFit: "contain",
-              background: "white",
-              border: "1px solid #e2e8f0",
-              borderRadius: 10
-            }}
+            className={styles.bomPreviewImg}
           />
         ) : (() => {
 
@@ -354,55 +271,31 @@ function BomEditableRow({ item, onUploaded }) {
       </td>
 
       {/* Item No */}
-      <td style={{
-        padding: 6,
-        borderRight: "1px solid #f1f5f9",
-        textAlign: "center",
-        fontFamily: "ui-monospace, monospace",
-        fontWeight: 700,
-        fontSize: 14,
-        color: "#475569"
-      }}>
+      <td className={styles.bomCellItemNo}>
         {item.ITEM_NO ?? "—"}
       </td>
 
       {/* Part Number + meta */}
-      <td style={{
-        padding: 8,
-        borderRight: "1px solid #f1f5f9"
-      }}>
-        <div style={{ fontWeight: 600, color: "#0f172a", fontSize: 13 }}>
+      <td className={styles.bomCellPart}>
+        <div className={styles.bomPartName}>
           {item.MATERIAL_NAME}
         </div>
-        <div style={{
-          display: "flex",
-          gap: 6,
-          marginTop: 4,
-          flexWrap: "wrap",
-          alignItems: "center"
-        }}>
-          <span style={{
-            fontSize: 10,
-            padding: "1px 8px",
-            borderRadius: 999,
-            fontWeight: 700,
-            background: isPurchase ? "#dbeafe" : "#ede9fe",
-            color: isPurchase ? "#1e40af" : "#6d28d9"
-          }}>
+        <div className={styles.bomPartMeta}>
+          <span className={isPurchase ? styles.bomBadgePurchase : styles.bomBadgeProcess}>
             {isPurchase ? "PURCHASE" : "PROCESS"}
           </span>
           {isPurchase && item.PREFERRED_SUPPLIER_NAME && (
-            <span style={{ fontSize: 10, color: "#64748b" }}>
+            <span className={styles.bomMetaText}>
               🏢 {item.PREFERRED_SUPPLIER_NAME}
             </span>
           )}
           {isPurchase && !item.PREFERRED_SUPPLIER_NAME && (
-            <span style={{ fontSize: 10, color: "#b91c1c" }}>
+            <span className={styles.bomMetaNoSupplier}>
               No supplier set
             </span>
           )}
           {!isPurchase && (
-            <span style={{ fontSize: 10, color: "#64748b" }}>
+            <span className={styles.bomMetaText}>
               Stage: {item.PROCESS_STAGE_NAME || "—"}
             </span>
           )}
@@ -410,40 +303,28 @@ function BomEditableRow({ item, onUploaded }) {
       </td>
 
       {/* Qty */}
-      <td style={{
-        padding: 6,
-        textAlign: "center",
-        borderRight: "1px solid #f1f5f9",
-        fontWeight: 800,
-        fontSize: 14,
-        color: "#0f172a"
-      }}>
+      <td className={styles.bomCellQty}>
         {item.QUANTITY}
-        <div style={{ fontSize: 9, color: "#94a3b8", fontWeight: 500 }}>
+        <div className={styles.bomQtyUnit}>
           {item.UNIT}
         </div>
       </td>
 
       {/* Upload control */}
-      <td style={{ padding: 6, textAlign: "center" }}>
+      <td className={styles.bomCellUpload}>
         <input
           id={fileInputId}
           type="file"
           accept="image/*"
           onChange={handleFile}
-          style={{ display: "none" }}
+          className={styles.hiddenInput}
         />
         <label
           htmlFor={fileInputId}
+          className={styles.bomUploadLabel}
           style={{
-            display: "inline-block",
-            padding: "6px 10px",
-            border: "1px solid #c7d2fe",
             background: uploading ? "#cbd5e1" : "#eef2ff",
             color: uploading ? "#94a3b8" : "#4338ca",
-            borderRadius: 6,
-            fontSize: 11,
-            fontWeight: 700,
             cursor: uploading ? "default" : "pointer",
             pointerEvents: uploading ? "none" : "auto"
           }}
@@ -451,7 +332,7 @@ function BomEditableRow({ item, onUploaded }) {
           {uploading ? "Uploading…" : imageUrl ? "🔄 Replace" : "📷 Upload"}
         </label>
         {error && (
-          <div style={{ fontSize: 10, color: "#b91c1c", marginTop: 4 }}>
+          <div className={styles.bomUploadError}>
             {error}
           </div>
         )}
@@ -495,61 +376,27 @@ function ModelDetailDrawer({ modelId, onClose, refetchSignal = 0 }) {
   return (
 
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,0.5)",
-        display: "flex",
-        justifyContent: "flex-end",
-        zIndex: 900
-      }}
+      className={styles.drawerOverlay}
       onClick={onClose}
     >
 
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 560,
-          maxWidth: "100%",
-          background: "white",
-          padding: 24,
-          overflow: "auto",
-          boxShadow: "-20px 0 60px rgba(0,0,0,0.3)"
-        }}
+        className={styles.drawerPanel}
       >
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            marginBottom: 18
-          }}
-        >
+        <div className={styles.drawerHeader}>
 
           <div>
 
-            <div
-              style={{
-                fontSize: 20,
-                fontWeight: 700,
-                color: "#0f172a"
-              }}
-            >
+            <div className={styles.drawerTitle}>
               {m?.MODEL_NAME || "Loading…"}
             </div>
 
-            <div
-              style={{
-                fontSize: 12,
-                color: "#64748b",
-                marginTop: 2,
-                fontFamily: "ui-monospace, monospace"
-              }}
-            >
+            <div className={styles.drawerMeta}>
               {m?.MODEL_CODE}
               {m?.CATEGORY && (
-                <span style={{ marginLeft: 8 }}>
+                <span className={styles.drawerMetaCategory}>
                   · {m.CATEGORY}
                 </span>
               )}
@@ -558,14 +405,7 @@ function ModelDetailDrawer({ modelId, onClose, refetchSignal = 0 }) {
 
           <button
             onClick={onClose}
-            style={{
-              border: "none",
-              background: "#f1f5f9",
-              padding: "4px 12px",
-              borderRadius: 8,
-              cursor: "pointer",
-              fontSize: 18
-            }}
+            className={styles.drawerCloseBtn}
           >
             ×
           </button>
@@ -573,30 +413,14 @@ function ModelDetailDrawer({ modelId, onClose, refetchSignal = 0 }) {
 
         {m?.DESCRIPTION && (
 
-          <div
-            style={{
-              fontSize: 13,
-              color: "#475569",
-              marginBottom: 14,
-              padding: 10,
-              background: "#f8fafc",
-              borderRadius: 8
-            }}
-          >
+          <div className={styles.drawerDesc}>
             {m.DESCRIPTION}
           </div>
         )}
 
         {m && (
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 12,
-              marginBottom: 20
-            }}
-          >
+          <div className={styles.drawerTileGrid}>
             <Tile
               label="Est. Build Days"
               value={m.ESTIMATED_BUILD_DAYS}
@@ -610,61 +434,37 @@ function ModelDetailDrawer({ modelId, onClose, refetchSignal = 0 }) {
           </div>
         )}
 
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: 1,
-            color: "#475569",
-            textTransform: "uppercase",
-            marginBottom: 8
-          }}
-        >
+        <div className={styles.sectionLabel}>
           Bill of Materials
         </div>
 
-        {loading && <div style={{ color: "#94a3b8" }}>Loading BOM…</div>}
+        {loading && <div className={styles.loadingText}>Loading BOM…</div>}
 
         {!loading && bom.length === 0 && (
 
-          <div style={{ color: "#94a3b8", fontSize: 13 }}>
+          <div className={styles.emptyText}>
             No BOM items yet.
           </div>
         )}
 
         {bom.length > 0 && (
 
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: 13,
-              border: "1px solid #cbd5e1"
-            }}
-          >
-            <thead>
-              <tr
-                style={{
-                  background: "#f1f5f9",
-                  color: "#475569",
-                  fontSize: 11,
-                  textTransform: "uppercase",
-                  letterSpacing: 0.5
-                }}
-              >
-                <th style={{ padding: 8, borderBottom: "1px solid #cbd5e1", width: 90, textAlign: "center" }}>
+          <table className={styles.bomTable}>
+            <thead className={styles.bomThead}>
+              <tr>
+                <th className={styles.bomTh} style={{ width: 90 }}>
                   Document Preview
                 </th>
-                <th style={{ padding: 8, borderBottom: "1px solid #cbd5e1", width: 70, textAlign: "center" }}>
+                <th className={styles.bomTh} style={{ width: 70 }}>
                   Item No.
                 </th>
-                <th style={{ padding: 8, borderBottom: "1px solid #cbd5e1", textAlign: "left" }}>
+                <th className={styles.bomThLeft}>
                   Part Number
                 </th>
-                <th style={{ padding: 8, borderBottom: "1px solid #cbd5e1", width: 70, textAlign: "center" }}>
+                <th className={styles.bomTh} style={{ width: 70 }}>
                   Qty.
                 </th>
-                <th style={{ padding: 8, borderBottom: "1px solid #cbd5e1", width: 130, textAlign: "center" }}>
+                <th className={styles.bomTh} style={{ width: 130 }}>
                   Image
                 </th>
               </tr>
@@ -683,18 +483,9 @@ function ModelDetailDrawer({ modelId, onClose, refetchSignal = 0 }) {
 
         {data?.stages?.length > 0 && (
 
-          <div style={{ marginTop: 28 }}>
+          <div className={styles.stageListWrapper}>
 
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                letterSpacing: 1,
-                color: "#475569",
-                textTransform: "uppercase",
-                marginBottom: 8
-              }}
-            >
+            <div className={styles.sectionLabel}>
               Process Stages ({data.stages.length})
             </div>
 
@@ -702,52 +493,20 @@ function ModelDetailDrawer({ modelId, onClose, refetchSignal = 0 }) {
 
               <div
                 key={s.ID}
-                style={{
-                  padding: "10px 12px",
-                  borderBottom: "1px solid #f1f5f9",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12
-                }}
+                className={styles.stageRow}
               >
 
-                <div
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: "50%",
-                    background: "#eff6ff",
-                    color: "#1e40af",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontWeight: 700,
-                    fontSize: 12,
-                    fontFamily: "ui-monospace, monospace"
-                  }}
-                >
+                <div className={styles.stageSeqBubble}>
                   {s.SEQUENCE}
                 </div>
 
-                <div style={{ flex: 1 }}>
+                <div className={styles.flex1}>
 
-                  <div
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "#0f172a"
-                    }}
-                  >
+                  <div className={styles.stageName}>
                     {s.STAGE_NAME}
                   </div>
 
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: "#64748b",
-                      marginTop: 2
-                    }}
-                  >
+                  <div className={styles.stageMeta}>
                     {s.STAGE_TYPE} · {s.ESTIMATED_HOURS}h
                   </div>
                 </div>
@@ -903,81 +662,29 @@ function BomResetModal({ models, vendorId = 1, onClose, onSuccess }) {
   return (
 
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,0.55)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 980,
-        padding: 20
-      }}
+      className={styles.modalOverlay}
       onClick={onClose}
     >
 
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 720,
-          maxWidth: "100%",
-          maxHeight: "92vh",
-          background: "white",
-          borderRadius: 16,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          boxShadow: "0 30px 80px rgba(15,23,42,0.4)"
-        }}
+        className={styles.modalShell}
       >
 
-        {/* Sticky header — BVC red gradient (destructive style) */}
-        <div
-          style={{
-            flexShrink: 0,
-            background:
-              "linear-gradient(120deg, #1A0508 0%, #4A0E18 30%, #8B0B1F 70%, #C8102E 100%)",
-            color: "white",
-            padding: "20px 24px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start"
-          }}
-        >
+        {/* Sticky header — flat BVC red (gradient removed per spec) */}
+        <div className={styles.bomModalHeader}>
 
           <div>
 
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: 2,
-                textTransform: "uppercase",
-                opacity: 0.85
-              }}
-            >
+            <div className={styles.modalHeaderLabel}>
               Destructive Admin Action
             </div>
 
-            <div
-              style={{
-                fontSize: 22,
-                fontWeight: 800,
-                marginTop: 4,
-                letterSpacing: -0.3
-              }}
-            >
+            <div className={styles.modalHeaderTitle}>
               ♻ Reset & Reseed All BOMs
             </div>
 
-            <div
-              style={{
-                fontSize: 12,
-                opacity: 0.9,
-                marginTop: 4,
-                maxWidth: 560
-              }}
-            >
+            <div className={styles.modalHeaderDesc}>
               Wipes every BOM row for vendor #{vendorId} and reseeds
               category-aware components per machine type. Existing PO
               lines stay intact — their BOM link is just nulled out.
@@ -987,16 +694,8 @@ function BomResetModal({ models, vendorId = 1, onClose, onSuccess }) {
           <button
             onClick={onClose}
             disabled={phase === "running"}
-            style={{
-              border: "none",
-              background: "rgba(255,255,255,0.18)",
-              color: "white",
-              padding: "4px 12px",
-              borderRadius: 8,
-              cursor: phase === "running" ? "not-allowed" : "pointer",
-              fontSize: 20,
-              fontWeight: 700
-            }}
+            className={styles.modalCloseBtn}
+            style={{ cursor: phase === "running" ? "not-allowed" : "pointer" }}
             title="Close"
           >
             ×
@@ -1004,27 +703,11 @@ function BomResetModal({ models, vendorId = 1, onClose, onSuccess }) {
         </div>
 
         {/* Scrollable body */}
-        <div
-          style={{
-            flex: 1,
-            minHeight: 0,
-            overflowY: "auto",
-            padding: 24,
-            background: "#f8fafc"
-          }}
-        >
+        <div className={styles.modalBody}>
 
           {/* ---- LOADING (dry-run in flight) ---- */}
           {phase === "loading" && (
-
-            <div
-              style={{
-                padding: 40,
-                textAlign: "center",
-                color: "#64748b",
-                fontSize: 14
-              }}
-            >
+            <div className={styles.modalLoading}>
               🔎 Loading dry-run preview…
             </div>
           )}
@@ -1032,22 +715,10 @@ function BomResetModal({ models, vendorId = 1, onClose, onSuccess }) {
           {/* ---- ERROR ---- */}
           {phase === "error" && (
 
-            <div
-              style={{
-                padding: 18,
-                background: "#fef2f2",
-                border: "1px solid #fecaca",
-                borderRadius: 12,
-                color: "#991b1b",
-                fontSize: 13,
-                lineHeight: 1.6
-              }}
-            >
-
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>
+            <div className={styles.modalErrorBox}>
+              <div className={styles.modalErrorTitle}>
                 Something went wrong
               </div>
-
               <div>{error}</div>
             </div>
           )}
@@ -1057,153 +728,44 @@ function BomResetModal({ models, vendorId = 1, onClose, onSuccess }) {
 
             <>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 12,
-                  marginBottom: 18
-                }}
-              >
+              <div className={styles.previewGrid}>
 
-                <div
-                  style={{
-                    background: "#fef2f2",
-                    border: "1px solid #fecaca",
-                    borderRadius: 12,
-                    padding: 14
-                  }}
-                >
-
-                  <div
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: 0.8,
-                      color: "#991b1b",
-                      textTransform: "uppercase"
-                    }}
-                  >
-                    Will Wipe
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize: 26,
-                      fontWeight: 800,
-                      color: "#7f1d1d",
-                      marginTop: 4
-                    }}
-                  >
-                    {wipeWouldDelete}
-                  </div>
-
-                  <div
-                    style={{ fontSize: 11, color: "#991b1b" }}
-                  >
+                <div className={styles.previewCardWipe}>
+                  <div className={styles.previewWipeLabel}>Will Wipe</div>
+                  <div className={styles.previewWipeValue}>{wipeWouldDelete}</div>
+                  <div className={styles.previewWipeSub}>
                     BOM rows across {models.length} model(s)
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    background: "#ecfdf5",
-                    border: "1px solid #a7f3d0",
-                    borderRadius: 12,
-                    padding: 14
-                  }}
-                >
-
-                  <div
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      letterSpacing: 0.8,
-                      color: "#065f46",
-                      textTransform: "uppercase"
-                    }}
-                  >
-                    Will Seed
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize: 26,
-                      fontWeight: 800,
-                      color: "#064e3b",
-                      marginTop: 4
-                    }}
-                  >
-                    {totalSeedLines}
-                  </div>
-
-                  <div
-                    style={{ fontSize: 11, color: "#065f46" }}
-                  >
+                <div className={styles.previewCardSeed}>
+                  <div className={styles.previewSeedLabel}>Will Seed</div>
+                  <div className={styles.previewSeedValue}>{totalSeedLines}</div>
+                  <div className={styles.previewSeedSub}>
                     new BOM rows across {previewSeedEntries.length}{" "}
                     model(s)
                   </div>
                 </div>
               </div>
 
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: 1,
-                  textTransform: "uppercase",
-                  color: "#475569",
-                  marginBottom: 8
-                }}
-              >
+              <div className={styles.sectionLabel}>
                 Per-product breakdown
               </div>
 
-              <div
-                style={{
-                  background: "white",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 12,
-                  overflow: "hidden"
-                }}
-              >
+              <div className={styles.breakdownWrapper}>
 
-                <table
-                  style={{
-                    width: "100%",
-                    borderCollapse: "collapse",
-                    fontSize: 13
-                  }}
-                >
+                <table className={styles.breakdownTable}>
 
-                  <thead>
+                  <thead className={styles.breakdownThead}>
 
-                    <tr
-                      style={{
-                        background: "#f1f5f9",
-                        color: "#475569",
-                        fontSize: 10,
-                        textTransform: "uppercase",
-                        letterSpacing: 0.8
-                      }}
-                    >
-                      <th
-                        style={{ padding: 10, textAlign: "left" }}
-                      >
+                    <tr>
+                      <th className={styles.breakdownTh}>
                         Product
                       </th>
-                      <th
-                        style={{ padding: 10, textAlign: "left" }}
-                      >
+                      <th className={styles.breakdownTh}>
                         Machine Type
                       </th>
-                      <th
-                        style={{
-                          padding: 10,
-                          textAlign: "right",
-                          width: 110
-                        }}
-                      >
+                      <th className={styles.breakdownThRight}>
                         BOM Lines
                       </th>
                     </tr>
@@ -1216,11 +778,7 @@ function BomResetModal({ models, vendorId = 1, onClose, onSuccess }) {
                       <tr>
                         <td
                           colSpan="3"
-                          style={{
-                            padding: 24,
-                            textAlign: "center",
-                            color: "#94a3b8"
-                          }}
+                          className={styles.tableEmptyCellCenter}
                         >
                           No products to reseed.
                         </td>
@@ -1231,48 +789,20 @@ function BomResetModal({ models, vendorId = 1, onClose, onSuccess }) {
 
                       <tr
                         key={pid}
-                        style={{
-                          borderTop: "1px solid #f1f5f9"
-                        }}
+                        className={styles.breakdownTr}
                       >
 
-                        <td
-                          style={{
-                            padding: 10,
-                            fontWeight: 600,
-                            color: "#0f172a"
-                          }}
-                        >
+                        <td className={styles.breakdownTdProduct}>
                           {info.product_name || `Model #${pid}`}
                         </td>
 
-                        <td style={{ padding: 10 }}>
-
-                          <span
-                            style={{
-                              display: "inline-block",
-                              padding: "2px 10px",
-                              borderRadius: 999,
-                              fontSize: 10,
-                              fontWeight: 700,
-                              background: "#eef2ff",
-                              color: "#4338ca",
-                              textTransform: "uppercase",
-                              letterSpacing: 0.6
-                            }}
-                          >
+                        <td className={styles.breakdownTdMachine}>
+                          <span className={styles.machineTypeBadge}>
                             {info.machine_type || "generic"}
                           </span>
                         </td>
 
-                        <td
-                          style={{
-                            padding: 10,
-                            textAlign: "right",
-                            fontWeight: 700,
-                            color: "#0f172a"
-                          }}
-                        >
+                        <td className={styles.breakdownTdCount}>
                           {info.bom_lines_seeded ?? 0}
                         </td>
                       </tr>
@@ -1281,18 +811,7 @@ function BomResetModal({ models, vendorId = 1, onClose, onSuccess }) {
                 </table>
               </div>
 
-              <div
-                style={{
-                  marginTop: 16,
-                  padding: 12,
-                  background: "#fffbeb",
-                  border: "1px solid #fde68a",
-                  borderRadius: 10,
-                  fontSize: 12,
-                  color: "#92400e",
-                  lineHeight: 1.6
-                }}
-              >
+              <div className={styles.warningNotice}>
                 ⚠ This action is irreversible. Existing BOM rows for
                 this vendor will be deleted and replaced with fresh
                 category-aware components. Past PO/GRN data survives —
@@ -1304,199 +823,63 @@ function BomResetModal({ models, vendorId = 1, onClose, onSuccess }) {
           {/* ---- STEP 3: SUCCESS ---- */}
           {phase === "success" && result && (
 
-            <div
-              style={{
-                padding: 22,
-                background: "#ecfdf5",
-                border: "1px solid #a7f3d0",
-                borderRadius: 14,
-                color: "#064e3b"
-              }}
-            >
+            <div className={styles.successCard}>
 
-              <div
-                style={{
-                  fontSize: 18,
-                  fontWeight: 800,
-                  marginBottom: 6
-                }}
-              >
+              <div className={styles.successCardTitle}>
                 ✅ BOM reset &amp; reseed complete
               </div>
 
-              <div style={{ fontSize: 13, marginBottom: 14 }}>
+              <div className={styles.successCardMsg}>
                 {result.message ||
                   "Wiped and reseeded successfully."}
                 {" "}This window closes automatically in 5 seconds.
               </div>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr 1fr",
-                  gap: 10,
-                  marginBottom: 16
-                }}
-              >
+              <div className={styles.successStatGrid}>
 
-                <div
-                  style={{
-                    background: "white",
-                    padding: 12,
-                    borderRadius: 10,
-                    border: "1px solid #d1fae5"
-                  }}
-                >
-
-                  <div
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      color: "#065f46",
-                      letterSpacing: 0.8,
-                      textTransform: "uppercase"
-                    }}
-                  >
-                    BOM rows deleted
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize: 22,
-                      fontWeight: 800,
-                      color: "#0f172a",
-                      marginTop: 2
-                    }}
-                  >
+                <div className={styles.successStatCard}>
+                  <div className={styles.successStatLabel}>BOM rows deleted</div>
+                  <div className={styles.successStatValue}>
                     {result.wipe_summary?.bom_items_deleted ?? 0}
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    background: "white",
-                    padding: 12,
-                    borderRadius: 10,
-                    border: "1px solid #d1fae5"
-                  }}
-                >
-
-                  <div
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      color: "#065f46",
-                      letterSpacing: 0.8,
-                      textTransform: "uppercase"
-                    }}
-                  >
-                    PO lines nulled
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize: 22,
-                      fontWeight: 800,
-                      color: "#0f172a",
-                      marginTop: 2
-                    }}
-                  >
+                <div className={styles.successStatCard}>
+                  <div className={styles.successStatLabel}>PO lines nulled</div>
+                  <div className={styles.successStatValue}>
                     {result.wipe_summary?.po_lines_nulled ?? 0}
                   </div>
                 </div>
 
-                <div
-                  style={{
-                    background: "white",
-                    padding: 12,
-                    borderRadius: 10,
-                    border: "1px solid #d1fae5"
-                  }}
-                >
-
-                  <div
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      color: "#065f46",
-                      letterSpacing: 0.8,
-                      textTransform: "uppercase"
-                    }}
-                  >
-                    Rows seeded
-                  </div>
-
-                  <div
-                    style={{
-                      fontSize: 22,
-                      fontWeight: 800,
-                      color: "#0f172a",
-                      marginTop: 2
-                    }}
-                  >
+                <div className={styles.successStatCard}>
+                  <div className={styles.successStatLabel}>Rows seeded</div>
+                  <div className={styles.successStatValue}>
                     {resultSeededTotal}
                   </div>
                 </div>
               </div>
 
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: 1,
-                  textTransform: "uppercase",
-                  color: "#065f46",
-                  marginBottom: 6
-                }}
-              >
+              <div className={`${styles.successStatLabel} ${styles.successStatLabelSpaced}`}>
                 Per-product result
               </div>
 
-              <div
-                style={{
-                  background: "white",
-                  border: "1px solid #d1fae5",
-                  borderRadius: 10,
-                  maxHeight: 220,
-                  overflowY: "auto"
-                }}
-              >
+              <div className={styles.successResultScroll}>
 
                 {resultSeedEntries.map(([pid, info]) => (
 
                   <div
                     key={pid}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      padding: "8px 12px",
-                      borderBottom: "1px solid #ecfdf5",
-                      fontSize: 12
-                    }}
+                    className={styles.successResultRow}
                   >
 
-                    <div style={{ color: "#0f172a", fontWeight: 600 }}>
+                    <div className={styles.successResultName}>
                       {info.product_name || `Model #${pid}`}{" "}
-
-                      <span
-                        style={{
-                          marginLeft: 6,
-                          fontSize: 10,
-                          color: "#4338ca",
-                          textTransform: "uppercase",
-                          fontWeight: 700,
-                          letterSpacing: 0.5
-                        }}
-                      >
+                      <span className={styles.successResultMachineType}>
                         [{info.machine_type || "generic"}]
                       </span>
                     </div>
 
-                    <div
-                      style={{
-                        fontWeight: 700,
-                        color: "#065f46"
-                      }}
+                    <div className={styles.successResultCount}
                     >
                       {info.bom_lines_seeded ?? 0} rows
                     </div>
@@ -1510,31 +893,13 @@ function BomResetModal({ models, vendorId = 1, onClose, onSuccess }) {
         {/* Sticky footer — action buttons */}
         {(phase === "preview" || phase === "running" || phase === "error") && (
 
-          <div
-            style={{
-              flexShrink: 0,
-              padding: "14px 24px",
-              background: "white",
-              borderTop: "1px solid #e2e8f0",
-              display: "flex",
-              gap: 10,
-              justifyContent: "flex-end"
-            }}
-          >
+          <div className={styles.modalFooter}>
 
             <button
               onClick={onClose}
               disabled={phase === "running"}
-              style={{
-                border: "1px solid #e2e8f0",
-                background: "white",
-                color: "#475569",
-                padding: "10px 18px",
-                borderRadius: 10,
-                fontWeight: 700,
-                fontSize: 13,
-                cursor: phase === "running" ? "not-allowed" : "pointer"
-              }}
+              className={styles.btnCancel}
+              style={{ cursor: phase === "running" ? "not-allowed" : "pointer" }}
             >
               Cancel
             </button>
@@ -1544,24 +909,11 @@ function BomResetModal({ models, vendorId = 1, onClose, onSuccess }) {
               <button
                 onClick={confirmReset}
                 disabled={previewSeedEntries.length === 0}
-                style={{
-                  border: "none",
-                  background:
-                    previewSeedEntries.length === 0
-                      ? "#94a3b8"
-                      : "linear-gradient(120deg, #f59e0b 0%, #C8102E 100%)",
-                  color: "white",
-                  padding: "10px 22px",
-                  borderRadius: 10,
-                  fontWeight: 800,
-                  fontSize: 13,
-                  cursor:
-                    previewSeedEntries.length === 0
-                      ? "not-allowed"
-                      : "pointer",
-                  boxShadow: "0 8px 20px rgba(200,16,46,0.25)",
-                  letterSpacing: 0.4
-                }}
+                className={
+                  previewSeedEntries.length === 0
+                    ? styles.btnDisabled
+                    : styles.btnConfirmBom
+                }
               >
                 ♻ Confirm reset &amp; reseed
               </button>
@@ -1571,16 +923,7 @@ function BomResetModal({ models, vendorId = 1, onClose, onSuccess }) {
 
               <button
                 disabled
-                style={{
-                  border: "none",
-                  background: "#94a3b8",
-                  color: "white",
-                  padding: "10px 22px",
-                  borderRadius: 10,
-                  fontWeight: 800,
-                  fontSize: 13,
-                  cursor: "not-allowed"
-                }}
+                className={styles.btnDisabled}
               >
                 Running…
               </button>
@@ -1704,56 +1047,24 @@ function StageResetModal({ models, vendorId = 1, onClose, onSuccess }) {
   return (
 
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,0.55)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 980,
-        padding: 20
-      }}
+      className={styles.modalOverlay}
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 720,
-          maxWidth: "100%",
-          maxHeight: "92vh",
-          background: "white",
-          borderRadius: 16,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          boxShadow: "0 30px 80px rgba(15,23,42,0.4)"
-        }}
+        className={styles.modalShell}
       >
 
-        {/* Sticky header */}
-        <div style={{
-          flexShrink: 0,
-          background: "linear-gradient(120deg, #1e1b4b 0%, #312e81 35%, #6366f1 75%, #8B0B1F 100%)",
-          color: "white",
-          padding: "20px 24px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start"
-        }}>
+        {/* Sticky header — flat indigo (gradient removed per spec) */}
+        <div className={styles.stageModalHeader}>
           <div>
-            <div style={{
-              fontSize: 10, fontWeight: 700, letterSpacing: 2,
-              textTransform: "uppercase", opacity: 0.85
-            }}>
+            <div className={styles.modalHeaderLabel}>
               Destructive Admin Action
             </div>
-            <div style={{
-              fontSize: 22, fontWeight: 800, marginTop: 4, letterSpacing: -0.3
-            }}>
+            <div className={styles.modalHeaderTitle}>
               🏭 Reset Manufacturing Stages (40)
             </div>
-            <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>
+            <div className={styles.modalHeaderDesc}>
               Replaces every product's stages with the canonical
               40-step flow: Design → BOM → Procurement → Fabrication
               → Wiring → Software → Testing → Dispatch → Installation
@@ -1762,46 +1073,30 @@ function StageResetModal({ models, vendorId = 1, onClose, onSuccess }) {
           </div>
           <button
             onClick={onClose}
-            style={{
-              background: "rgba(255,255,255,0.15)",
-              border: "none", color: "white",
-              width: 32, height: 32, borderRadius: 8,
-              cursor: "pointer", fontSize: 18, fontWeight: 700
-            }}
+            className={styles.modalCloseBtnSquare}
           >
             ×
           </button>
         </div>
 
         {/* Body */}
-        <div style={{
-          flex: 1, minHeight: 0, overflowY: "auto", padding: 22
-        }}>
+        <div className={styles.modalBodyPlain}>
 
           {phase === "loading" && (
-            <div style={{ color: "#94a3b8", textAlign: "center", padding: 30 }}>
+            <div className={styles.modalLoading}>
               🔎 Loading dry-run preview…
             </div>
           )}
 
           {phase === "error" && (
-            <div style={{
-              padding: 16, background: "#fef2f2",
-              border: "1px solid #fecaca", borderRadius: 10,
-              color: "#991b1b", fontSize: 13
-            }}>
+            <div className={styles.modalErrorBox}>
               ⚠ {error}
             </div>
           )}
 
           {phase === "preview" && preview && (
             <>
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr",
-                gap: 10,
-                marginBottom: 16
-              }}>
+              <div className={`${styles.successStatGrid} ${styles.successStatGridSpaced}`}>
                 <SummaryTile
                   label="Existing stages"
                   value={preview.existing_stages || 0}
@@ -1819,30 +1114,14 @@ function StageResetModal({ models, vendorId = 1, onClose, onSuccess }) {
                 />
               </div>
 
-              <div style={{
-                background: "#eef2ff",
-                border: "1px solid #c7d2fe",
-                borderRadius: 8,
-                padding: "10px 14px",
-                fontSize: 12,
-                color: "#3730a3",
-                marginBottom: 14
-              }}>
+              <div className={styles.infoBarIndigo}>
                 ⏱️ Estimated duration per build:
                 <b> {preview.estimated_days_per_build || "—"} working days</b>
                 {" "}(roughly {Math.ceil((preview.estimated_days_per_build || 0) / 5)} weeks
                 at 5-day weeks).
               </div>
 
-              <div style={{
-                background: "#fefce8",
-                border: "1px solid #fde68a",
-                borderRadius: 8,
-                padding: "10px 14px",
-                fontSize: 12,
-                color: "#854d0e",
-                marginBottom: 14
-              }}>
+              <div className={styles.infoBarAmber}>
                 <b>FK-safe wipe</b>: stages currently in use by Work
                 Order progress rows get soft-disabled (IS_ACTIVE=0),
                 NOT deleted — your existing in-progress Gantt charts
@@ -1851,44 +1130,30 @@ function StageResetModal({ models, vendorId = 1, onClose, onSuccess }) {
               </div>
 
               {(preview.per_product || []).length > 0 && (
-                <div style={{
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 10,
-                  overflow: "hidden"
-                }}>
-                  <table style={{
-                    width: "100%",
-                    borderCollapse: "collapse",
-                    fontSize: 12
-                  }}>
-                    <thead>
-                      <tr style={{ background: "#f1f5f9" }}>
-                        <th style={th()}>Product</th>
-                        <th style={th()}>Category</th>
-                        <th style={{ ...th(), textAlign: "right" }}>Stages to seed</th>
+                <div className={styles.breakdownWrapper}>
+                  <table className={styles.breakdownTable}>
+                    <thead className={styles.breakdownThead}>
+                      <tr>
+                        <th className={styles.breakdownTh}>Product</th>
+                        <th className={styles.breakdownTh}>Category</th>
+                        <th className={styles.breakdownThRight}>Stages to seed</th>
                       </tr>
                     </thead>
                     <tbody>
                       {preview.per_product.map((p) => (
-                        <tr key={p.product_model_id} style={{
-                          borderTop: "1px solid #f1f5f9"
-                        }}>
-                          <td style={td()}>
-                            <div style={{ fontWeight: 700 }}>{p.model_name}</div>
-                            <div style={{ fontSize: 10, color: "#94a3b8" }}>
+                        <tr key={p.product_model_id} className={styles.breakdownTr}>
+                          <td className={styles.breakdownTdProduct}>
+                            <div className={styles.breakdownProductName}>{p.model_name}</div>
+                            <div className={styles.woProductCode}>
                               {p.model_code}
                             </div>
                           </td>
-                          <td style={td()}>
-                            <span style={{
-                              fontSize: 10, fontWeight: 700,
-                              padding: "2px 8px", borderRadius: 999,
-                              background: "#eef2ff", color: "#3730a3"
-                            }}>
+                          <td className={styles.breakdownTdMachine}>
+                            <span className={styles.machineTypeBadge}>
                               {p.category || "generic"}
                             </span>
                           </td>
-                          <td style={{ ...td(), textAlign: "right", fontWeight: 800, color: "#0f172a" }}>
+                          <td className={`${styles.breakdownTdCount} ${styles.breakdownTdCountRight}`}>
                             {p.stages_to_seed}
                           </td>
                         </tr>
@@ -1901,43 +1166,30 @@ function StageResetModal({ models, vendorId = 1, onClose, onSuccess }) {
           )}
 
           {phase === "running" && (
-            <div style={{ textAlign: "center", padding: 40, color: "#475569" }}>
-              <div style={{ fontSize: 14, fontWeight: 700 }}>
+            <div className={styles.runningBox}>
+              <div className={styles.runningTitle}>
                 ⚙ Reseeding stages…
               </div>
-              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8 }}>
+              <div className={styles.runningSub}>
                 Hold tight, this usually takes a couple of seconds.
               </div>
             </div>
           )}
 
           {phase === "success" && result && (
-            <div style={{
-              background: "linear-gradient(135deg, #f0fdf4, #dcfce7)",
-              border: "2px solid #16a34a",
-              borderRadius: 14,
-              padding: 18
-            }}>
-              <div style={{
-                fontSize: 11, fontWeight: 800,
-                letterSpacing: 1.4, color: "#14532d",
-                marginBottom: 8
-              }}>
+            <div className={styles.stageSuccessCard}>
+              <div className={styles.stageSuccessLabel}>
                 ✅ STAGES RESET COMPLETE
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 14 }}>
+              <div className={`${styles.successStatGrid} ${styles.successStatGridSpacedSm}`}>
                 <SummaryTile label="Wiped" value={result.wiped_count || 0} color="#ef4444" />
                 <SummaryTile label="Soft-disabled" value={result.soft_disabled_count || 0} color="#f59e0b" />
                 <SummaryTile label="Seeded" value={result.seeded_count || 0} color="#16a34a" />
               </div>
-              <div style={{ fontSize: 12, color: "#166534" }}>
+              <div className={styles.stageSuccessMsg}>
                 {result.message}
               </div>
-              <div style={{
-                marginTop: 10,
-                fontSize: 11,
-                color: "#475569"
-              }}>
+              <div className={styles.stageSuccessAutoClose}>
                 Auto-closing in 5 seconds…
               </div>
             </div>
@@ -1947,44 +1199,17 @@ function StageResetModal({ models, vendorId = 1, onClose, onSuccess }) {
 
         {/* Sticky footer */}
         {(phase === "preview" || phase === "error") && (
-          <div style={{
-            flexShrink: 0,
-            padding: "14px 22px",
-            borderTop: "1px solid #e2e8f0",
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: 10,
-            background: "#f8fafc"
-          }}>
+          <div className={styles.modalFooterAlt}>
             <button
               onClick={onClose}
-              style={{
-                padding: "10px 18px",
-                background: "white",
-                color: "#475569",
-                border: "1px solid #cbd5e1",
-                borderRadius: 8,
-                fontWeight: 700,
-                fontSize: 13,
-                cursor: "pointer"
-              }}
+              className={styles.btnCancelAlt}
             >
               Cancel
             </button>
             {phase === "preview" && (
               <button
                 onClick={confirmReset}
-                style={{
-                  padding: "10px 22px",
-                  background: "linear-gradient(120deg, #6366f1 0%, #8B0B1F 100%)",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 8,
-                  fontWeight: 800,
-                  fontSize: 13,
-                  cursor: "pointer",
-                  boxShadow: "0 6px 18px rgba(99,102,241,0.35)"
-                }}
+                className={styles.btnConfirmStage}
               >
                 🏭 Confirm reset &amp; reseed
               </button>
@@ -2002,53 +1227,24 @@ function StageResetModal({ models, vendorId = 1, onClose, onSuccess }) {
 function SummaryTile({ label, value, color }) {
 
   return (
-    <div style={{
-      background: "white",
-      border: `1px solid ${color}33`,
-      borderRadius: 10,
-      padding: "10px 12px",
-      borderTop: `3px solid ${color}`
-    }}>
-      <div style={{
-        fontSize: 10,
-        fontWeight: 700,
-        letterSpacing: 0.8,
-        color: "#64748b",
-        textTransform: "uppercase"
-      }}>
+    <div
+      className={styles.summaryTile}
+      style={{
+        border: `1px solid ${color}33`,
+        borderTop: `3px solid ${color}`
+      }}
+    >
+      <div className={styles.summaryTileLabel}>
         {label}
       </div>
-      <div style={{
-        fontSize: 22,
-        fontWeight: 900,
-        color,
-        marginTop: 4
-      }}>
+      <div
+        className={styles.summaryTileValue}
+        style={{ color }}
+      >
         {value}
       </div>
     </div>
   );
-}
-
-
-function th() {
-  return {
-    padding: "8px 10px",
-    textAlign: "left",
-    fontSize: 10,
-    fontWeight: 800,
-    letterSpacing: 0.8,
-    color: "#475569",
-    textTransform: "uppercase"
-  };
-}
-
-
-function td() {
-  return {
-    padding: "8px 10px",
-    color: "#0f172a"
-  };
 }
 
 
@@ -2110,54 +1306,19 @@ function ModelsTab() {
       {/* ---- Admin actions bar (admin-only) ---- */}
       {isAdmin && (
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            alignItems: "center",
-            gap: 10,
-            marginBottom: 16,
-            flexWrap: "wrap"
-          }}
-        >
+        <div className={styles.adminBar}>
 
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: 1,
-              textTransform: "uppercase",
-              color: "#94a3b8"
-            }}
-          >
-            Admin
-          </div>
+          <div className={styles.adminLabel}>Admin</div>
 
           <button
             onClick={() => setShowResetModal(true)}
             disabled={loading || models.length === 0}
             title="Wipe every BOM row for this vendor and reseed category-aware components per machine type"
-            style={{
-              border: "none",
-              background:
-                loading || models.length === 0
-                  ? "#cbd5e1"
-                  : "linear-gradient(120deg, #f59e0b 0%, #C8102E 100%)",
-              color: "white",
-              padding: "10px 18px",
-              borderRadius: 10,
-              fontWeight: 800,
-              fontSize: 12,
-              letterSpacing: 0.5,
-              cursor:
-                loading || models.length === 0
-                  ? "not-allowed"
-                  : "pointer",
-              boxShadow:
-                loading || models.length === 0
-                  ? "none"
-                  : "0 8px 20px rgba(200,16,46,0.25)"
-            }}
+            className={
+              loading || models.length === 0
+                ? styles.btnAdminBomDisabled
+                : styles.btnAdminBom
+            }
           >
             ♻ Reset &amp; Reseed All BOMs
           </button>
@@ -2166,57 +1327,25 @@ function ModelsTab() {
             onClick={() => setShowStageResetModal(true)}
             disabled={loading || models.length === 0}
             title="Replace the manufacturing-stages flow for every product with the canonical 40-stage catalogue (Design → Procurement → Fabrication → Wiring → Software → Testing → Dispatch → Installation → Handover)"
-            style={{
-              border: "none",
-              background:
-                loading || models.length === 0
-                  ? "#cbd5e1"
-                  : "linear-gradient(120deg, #6366f1 0%, #8B0B1F 100%)",
-              color: "white",
-              padding: "10px 18px",
-              borderRadius: 10,
-              fontWeight: 800,
-              fontSize: 12,
-              letterSpacing: 0.5,
-              cursor:
-                loading || models.length === 0
-                  ? "not-allowed"
-                  : "pointer",
-              boxShadow:
-                loading || models.length === 0
-                  ? "none"
-                  : "0 8px 20px rgba(99,102,241,0.25)"
-            }}
+            className={
+              loading || models.length === 0
+                ? styles.btnAdminStageDisabled
+                : styles.btnAdminStage
+            }
           >
             🏭 Reset &amp; Reseed Stages (40)
           </button>
         </div>
       )}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-          gap: 16
-        }}
-      >
+      <div className={styles.modelsGrid}>
 
         {loading && (
-          <div style={{ color: "#94a3b8" }}>Loading models…</div>
+          <div className={styles.loadingText}>Loading models…</div>
         )}
 
         {!loading && models.length === 0 && (
-
-          <div
-            style={{
-              gridColumn: "1 / -1",
-              padding: 40,
-              textAlign: "center",
-              color: "#94a3b8",
-              background: "white",
-              borderRadius: 12
-            }}
-          >
+          <div className={styles.modelsEmpty}>
             No product models yet. Run <code>/demo/seed-bvc24</code>
             {" "}to seed BVC24's catalog.
           </div>
@@ -2227,69 +1356,31 @@ function ModelsTab() {
           <div
             key={m.ID}
             onClick={() => setSelectedId(m.ID)}
+            className={styles.modelCard}
             style={{
-              background: "white",
-              padding: 18,
-              borderRadius: 12,
-              boxShadow: "0 4px 14px rgba(15,23,42,0.06)",
-              cursor: "pointer",
-              transition: "transform 0.15s",
               borderLeft:
                 m.STATUS === "ACTIVE"
                   ? "4px solid #22c55e"
                   : "4px solid #94a3b8"
             }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.transform = "translateY(-2px)")
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.transform = "translateY(0)")
-            }
           >
 
-            <div
-              style={{
-                fontSize: 11,
-                fontFamily: "ui-monospace, monospace",
-                color: "#64748b",
-                marginBottom: 4
-              }}
-            >
+            <div className={styles.modelCardCode}>
               {m.MODEL_CODE}
             </div>
 
-            <div
-              style={{
-                fontSize: 16,
-                fontWeight: 700,
-                color: "#0f172a"
-              }}
-            >
+            <div className={styles.modelCardName}>
               {m.MODEL_NAME}
             </div>
 
-            <div
-              style={{
-                fontSize: 12,
-                color: "#475569",
-                marginTop: 4
-              }}
-            >
+            <div className={styles.modelCardCategory}>
               {m.CATEGORY || "uncategorized"}
               {" · "}
               {m.ESTIMATED_BUILD_DAYS}d build
             </div>
 
             {m.DESCRIPTION && (
-
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "#64748b",
-                  marginTop: 8,
-                  lineHeight: 1.5
-                }}
-              >
+              <div className={styles.modelCardDesc}>
                 {m.DESCRIPTION.length > 80
                   ? m.DESCRIPTION.slice(0, 80) + "…"
                   : m.DESCRIPTION}
@@ -2456,124 +1547,59 @@ function GanttRow({
 
   return (
 
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "240px 1fr 180px",
-        gap: 10,
-        padding: "10px 0",
-        borderBottom: "1px solid #f1f5f9",
-        alignItems: "center"
-      }}
-    >
+    <div className={styles.ganttRow}>
 
       {/* Stage label column */}
       <div>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8
-          }}
-        >
+        <div className={styles.ganttRowLabel}>
 
           <div
+            className={styles.ganttSeqBubble}
             style={{
-              width: 24,
-              height: 24,
-              borderRadius: "50%",
               background: `${typeColor}22`,
-              color: typeColor,
-              fontSize: 11,
-              fontWeight: 700,
-              fontFamily: "ui-monospace, monospace",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center"
+              color: typeColor
             }}
           >
             {bar.sequence}
           </div>
 
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className={styles.ganttStageInfo}>
 
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: "#0f172a"
-              }}
-            >
+            <div className={styles.ganttStageName}>
               {bar.stage_name}
             </div>
 
             <div
-              style={{
-                fontSize: 10,
-                color: typeColor,
-                fontWeight: 600,
-                marginTop: 2
-              }}
+              className={styles.ganttStageMeta}
+              style={{ color: typeColor }}
             >
               {bar.stage_type} · {bar.estimated_hours}h
               {" · "}
-              <span style={{ color: "#0f172a" }}>
+              <span className={styles.ganttStageMetaPrimary}>
                 ⏱ {bar.days_allocated ?? "—"} day
                 {Number(bar.days_allocated) === 1 ? "" : "s"}
               </span>
               {bar.actual_hours != null && (
-                <span style={{ color: "#475569" }}>
+                <span className={styles.ganttStageMetaSecondary}>
                   {" "}/ actual {bar.actual_hours}h
                 </span>
               )}
             </div>
 
             {/* Assignee chip — visible for every stage */}
-            <div
-              style={{
-                marginTop: 4,
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: 11
-              }}
-            >
+            <div className={styles.ganttAssigneeRow}>
               {bar.assignee_name ? (
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 4,
-                    background: "#eff6ff",
-                    color: "#1d4ed8",
-                    padding: "2px 8px",
-                    borderRadius: 999,
-                    fontWeight: 700,
-                    fontSize: 10,
-                    border: "1px solid #bfdbfe"
-                  }}
-                >
+                <span className={styles.ganttAssigneeChip}>
                   👤 {bar.assignee_name}
                   {bar.assignee_code && (
-                    <span
-                      style={{
-                        opacity: 0.7,
-                        fontWeight: 500
-                      }}
-                    >
+                    <span className={styles.ganttAssigneeCode}>
                       ({bar.assignee_code})
                     </span>
                   )}
                 </span>
               ) : (
-                <span
-                  style={{
-                    color: "#94a3b8",
-                    fontSize: 10,
-                    fontStyle: "italic"
-                  }}
-                >
+                <span className={styles.ganttUnassigned}>
                   unassigned
                 </span>
               )}
@@ -2583,15 +1609,7 @@ function GanttRow({
       </div>
 
       {/* Gantt bar column — aligned to the Day-1→Day-30 header */}
-      <div
-        style={{
-          position: "relative",
-          height: 42,
-          background: "#f8fafc",
-          borderRadius: 6,
-          overflow: "hidden"
-        }}
-      >
+      <div className={styles.ganttTrack}>
 
         {/* Sunday-leave shading + day grid lines */}
         {timeline.map((d, idx) => (
@@ -2607,7 +1625,7 @@ function GanttRow({
               background: d.is_sunday ? "#fee2e220" : "transparent",
               borderRight:
                 idx < timeline.length - 1
-                  ? "1px solid #f1f5f9"
+                  ? "1px solid var(--border-light)"
                   : "none"
             }}
           />
@@ -2656,7 +1674,7 @@ function GanttRow({
           <div
             style={{
               fontSize: 9,
-              color: "#475569",
+              color: "var(--text-secondary)",
               fontWeight: 700,
               marginTop: 3,
               whiteSpace: "nowrap",
@@ -2691,35 +1709,16 @@ function GanttRow({
       </div>
 
       {/* Action column */}
-      <div
-        style={{
-          display: "flex",
-          gap: 4,
-          justifyContent: "flex-end"
-        }}
-      >
+      <div className={styles.ganttActions}>
 
         <span
-          style={{
-            display: "inline-block",
-            padding: "3px 8px",
-            borderRadius: 999,
-            fontSize: 10,
-            fontWeight: 700,
-            background: theme.bg,
-            color: theme.fg
-          }}
+          className={styles.ganttStatusBadge}
+          style={{ background: theme.bg, color: theme.fg }}
         >
           {bar.status?.replaceAll("_", " ")}
         </span>
 
-        <div
-          style={{
-            display: "flex",
-            gap: 2,
-            marginLeft: 6
-          }}
-        >
+        <div className={styles.ganttActionBtns}>
 
           {bar.status === "PENDING" && (
 
@@ -2729,17 +1728,8 @@ function GanttRow({
                 onUpdate(bar.stage_id, "IN_PROGRESS")
               }
               title="Start"
-              style={{
-                border: "none",
-                background: "#f59e0b",
-                color: "white",
-                width: 26,
-                height: 26,
-                borderRadius: 5,
-                cursor: updating ? "not-allowed" : "pointer",
-                fontWeight: 700,
-                fontSize: 12
-              }}
+              className={styles.ganttBtnStart}
+              style={{ cursor: updating ? "not-allowed" : "pointer" }}
             >
               ▶
             </button>
@@ -2751,17 +1741,8 @@ function GanttRow({
               disabled={updating}
               onClick={() => onUpdate(bar.stage_id, "DONE")}
               title="Mark done"
-              style={{
-                border: "none",
-                background: "#22c55e",
-                color: "white",
-                width: 26,
-                height: 26,
-                borderRadius: 5,
-                cursor: updating ? "not-allowed" : "pointer",
-                fontWeight: 700,
-                fontSize: 14
-              }}
+              className={styles.ganttBtnDone}
+              style={{ cursor: updating ? "not-allowed" : "pointer" }}
             >
               ✓
             </button>
@@ -2783,17 +1764,8 @@ function GanttRow({
                 onUpdate(bar.stage_id, "FAILED", note);
               }}
               title="Mark failed"
-              style={{
-                border: "none",
-                background: "#ef4444",
-                color: "white",
-                width: 26,
-                height: 26,
-                borderRadius: 5,
-                cursor: updating ? "not-allowed" : "pointer",
-                fontWeight: 700,
-                fontSize: 14
-              }}
+              className={styles.ganttBtnFail}
+              style={{ cursor: updating ? "not-allowed" : "pointer" }}
             >
               ✗
             </button>
@@ -2848,14 +1820,8 @@ function TimelineHeader({ timeline }) {
   return (
 
     <div
-      style={{
-        position: "relative",
-        height: headerHeight,
-        background: "#f8fafc",
-        borderRadius: 6,
-        overflow: "hidden",
-        border: "1px solid #e2e8f0"
-      }}
+      className={styles.timelineHeader}
+      style={{ height: headerHeight }}
     >
       {timeline.map((d, idx) => {
 
@@ -2888,7 +1854,7 @@ function TimelineHeader({ timeline }) {
               bottom: 0,
               borderRight:
                 idx < timeline.length - 1
-                  ? "1px solid #e2e8f0"
+                  ? "1px solid var(--border)"
                   : "none",
               borderLeft: isMonthStart && idx > 0
                 ? "2px solid #6366f1"
@@ -2908,7 +1874,7 @@ function TimelineHeader({ timeline }) {
               style={{
                 fontSize: mode === "compact" ? 10 : 12,
                 fontWeight: 800,
-                color: d.is_sunday ? "#991b1b" : "#0f172a",
+                color: d.is_sunday ? "#991b1b" : "var(--text-primary)",
                 lineHeight: 1
               }}
             >
@@ -2920,12 +1886,10 @@ function TimelineHeader({ timeline }) {
               <div
                 style={{
                   fontSize: mode === "compact" ? 8 : 9,
-                  color: d.is_sunday ? "#991b1b" : "#475569",
+                  color: d.is_sunday ? "#991b1b" : "var(--text-secondary)",
                   fontWeight: 700,
                   marginTop: 3,
                   whiteSpace: "nowrap",
-                  // In compact mode allow the label to spill into the
-                  // adjacent (blank) cells — common Gantt-chart pattern.
                   overflow: mode === "compact" ? "visible" : "hidden",
                   pointerEvents: "none"
                 }}
@@ -2939,7 +1903,7 @@ function TimelineHeader({ timeline }) {
             <div
               style={{
                 fontSize: mode === "full" ? 8 : 9,
-                color: d.is_sunday ? "#991b1b" : "#94a3b8",
+                color: d.is_sunday ? "#991b1b" : "var(--text-muted)",
                 fontWeight: 700,
                 marginTop: 2,
                 textTransform: "uppercase",
@@ -3165,101 +2129,42 @@ function WOGanttDrawer({ wo, onClose }) {
   return (
 
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,0.55)",
-        display: "flex",
-        justifyContent: "flex-end",
-        zIndex: 950
-      }}
+      className={styles.ganttOverlay}
       onClick={onClose}
     >
 
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "98vw",
-          maxWidth: "100%",
-          height: "100vh",
-          background: "white",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          boxShadow: "-20px 0 60px rgba(0,0,0,0.3)"
-        }}
+        className={styles.ganttPanel}
       >
 
         {/* ---- Sticky header (always visible while body scrolls) ---- */}
-        <div
-          style={{
-            flexShrink: 0,
-            padding: "20px 24px",
-            borderBottom: "1px solid #e2e8f0",
-            background: "white",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start"
-          }}
-        >
+        <div className={styles.ganttPanelHeader}>
 
           <div>
 
-            <div
-              style={{
-                fontSize: 11,
-                fontFamily: "ui-monospace, monospace",
-                color: "#64748b",
-                letterSpacing: 1
-              }}
-            >
+            <div className={styles.ganttWoNumber}>
               {wo.WO_NUMBER}
             </div>
 
-            <div
-              style={{
-                fontSize: 22,
-                fontWeight: 700,
-                color: "#0f172a",
-                marginTop: 2
-              }}
-            >
+            <div className={styles.ganttWoTitle}>
               {wo.PRODUCT_MODEL_NAME}
             </div>
 
-            <div
-              style={{
-                fontSize: 13,
-                color: "#64748b",
-                marginTop: 2
-              }}
-            >
+            <div className={styles.ganttWoMeta}>
               {wo.QUANTITY} units · {wo.PRODUCT_MODEL_CODE}
               {wo.NOTES && ` · ${wo.NOTES}`}
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div className={styles.ganttHeaderActions}>
 
             {data && (
               <button
                 onClick={resyncStages}
                 disabled={resyncing || loading}
                 title="Wipe this WO's stage rows and re-spawn against the current active stage template (40 stages). Refuses if any stage is started."
-                style={{
-                  border: "none",
-                  background: resyncing
-                    ? "#94a3b8"
-                    : "linear-gradient(135deg,#4f46e5,#C8102E)",
-                  color: "white",
-                  padding: "10px 16px",
-                  borderRadius: 8,
-                  cursor: resyncing ? "wait" : "pointer",
-                  fontSize: 13,
-                  fontWeight: 800,
-                  letterSpacing: 0.3,
-                  boxShadow: "0 4px 14px rgba(200,16,46,0.30)"
-                }}
+                className={resyncing ? styles.btnResyncBusy : styles.btnResync}
               >
                 {resyncing
                   ? "Resyncing…"
@@ -3269,14 +2174,7 @@ function WOGanttDrawer({ wo, onClose }) {
 
             <button
               onClick={onClose}
-              style={{
-                border: "none",
-                background: "#f1f5f9",
-                padding: "4px 12px",
-                borderRadius: 8,
-                cursor: "pointer",
-                fontSize: 18
-              }}
+              className={styles.ganttCloseBtn}
             >
               ×
             </button>
@@ -3284,17 +2182,10 @@ function WOGanttDrawer({ wo, onClose }) {
         </div>
 
         {/* ---- Scrollable body ---- */}
-        <div
-          style={{
-            flex: 1,
-            minHeight: 0,
-            overflowY: "auto",
-            padding: 24
-          }}
-        >
+        <div className={styles.ganttBody}>
 
         {loading && (
-          <div style={{ color: "#94a3b8" }}>Loading timeline…</div>
+          <div className={styles.loadingText}>Loading timeline…</div>
         )}
 
         {data && (
@@ -3302,321 +2193,121 @@ function WOGanttDrawer({ wo, onClose }) {
           <>
 
             {/* Summary tiles */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(4, 1fr)",
-                gap: 12,
-                marginBottom: 20
-              }}
-            >
+            <div className={styles.ganttSummaryGrid}>
 
-              <div
-                style={{
-                  padding: 12,
-                  background: "#eff6ff",
-                  borderRadius: 8
-                }}
-              >
-
-                <div
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: "#1e40af",
-                    textTransform: "uppercase",
-                    letterSpacing: 0.8
-                  }}
-                >
+              <div className={`${styles.ganttStatTile} ${styles.ganttStatTileBlue}`}>
+                <div className={`${styles.ganttStatLabel} ${styles.ganttStatLabelBlue}`}>
                   Progress
                 </div>
-
-                <div
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 700,
-                    color: "#0f172a",
-                    marginTop: 2
-                  }}
-                >
+                <div className={styles.ganttStatValue}>
                   {progressPct}%
                 </div>
-
-                <div style={{ fontSize: 11, color: "#64748b" }}>
+                <div className={styles.ganttStatSub}>
                   {data.completed_count} / {data.total_stages} done
                 </div>
               </div>
 
-              <div
-                style={{
-                  padding: 12,
-                  background: "#f0fdf4",
-                  borderRadius: 8
-                }}
-              >
-
-                <div
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: "#166534",
-                    textTransform: "uppercase",
-                    letterSpacing: 0.8
-                  }}
-                >
+              <div className={`${styles.ganttStatTile} ${styles.ganttStatTileGreen}`}>
+                <div className={`${styles.ganttStatLabel} ${styles.ganttStatLabelGreen}`}>
                   Planned
                 </div>
-
-                <div
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 700,
-                    color: "#0f172a",
-                    marginTop: 2
-                  }}
-                >
-                  {Math.round(
-                    (data.total_planned_hours || 0) / 8
-                  )} days
+                <div className={styles.ganttStatValue}>
+                  {Math.round((data.total_planned_hours || 0) / 8)} days
                 </div>
-
-                <div style={{ fontSize: 11, color: "#64748b" }}>
+                <div className={styles.ganttStatSub}>
                   {data.total_stages || 0} stages ·{" "}
                   {data.total_planned_hours || 0}h total · Sundays off
                 </div>
               </div>
 
-              <div
-                style={{
-                  padding: 12,
-                  background: "#fefce8",
-                  borderRadius: 8
-                }}
-              >
-
-                <div
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: "#854d0e",
-                    textTransform: "uppercase",
-                    letterSpacing: 0.8
-                  }}
-                >
+              <div className={`${styles.ganttStatTile} ${styles.ganttStatTileAmber}`}>
+                <div className={`${styles.ganttStatLabel} ${styles.ganttStatLabelAmber}`}>
                   Actual So Far
                 </div>
-
-                <div
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 700,
-                    color: "#0f172a",
-                    marginTop: 2
-                  }}
-                >
+                <div className={styles.ganttStatValue}>
                   {data.total_actual_hours}h
                 </div>
-
-                <div style={{ fontSize: 11, color: "#64748b" }}>
+                <div className={styles.ganttStatSub}>
                   measured from completed stages
                 </div>
               </div>
 
               <div
-                style={{
-                  padding: 12,
-                  background: data.failed_count > 0 ? "#fef2f2" : "#f1f5f9",
-                  borderRadius: 8
-                }}
+                className={`${styles.ganttStatTile} ${data.failed_count > 0 ? styles.ganttStatTileRed : styles.ganttStatTileNeutral}`}
               >
-
                 <div
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color:
-                      data.failed_count > 0 ? "#b91c1c" : "#475569",
-                    textTransform: "uppercase",
-                    letterSpacing: 0.8
-                  }}
+                  className={`${styles.ganttStatLabel} ${data.failed_count > 0 ? styles.ganttStatLabelRed : ""}`}
                 >
                   Failed Stages (✗)
                 </div>
-
                 <div
-                  style={{
-                    fontSize: 22,
-                    fontWeight: 700,
-                    color:
-                      data.failed_count > 0 ? "#b91c1c" : "#0f172a",
-                    marginTop: 2
-                  }}
+                  className={`${styles.ganttStatValue} ${data.failed_count > 0 ? styles.ganttStatValueRed : ""}`}
                 >
                   {data.failed_count}
                 </div>
-
-                <div style={{ fontSize: 11, color: "#64748b" }}>
+                <div className={styles.ganttStatSub}>
                   need rework
                 </div>
               </div>
             </div>
 
             {/* Legend */}
-            <div
-              style={{
-                display: "flex",
-                gap: 16,
-                fontSize: 11,
-                color: "#64748b",
-                marginBottom: 10,
-                alignItems: "center",
-                flexWrap: "wrap"
-              }}
-            >
+            <div className={styles.ganttLegend}>
 
               <span>
-                <span
-                  style={{
-                    display: "inline-block",
-                    width: 18,
-                    height: 8,
-                    background: "#cbd5e133",
-                    border: "1px dashed #94a3b8",
-                    borderRadius: 3,
-                    marginRight: 4,
-                    verticalAlign: "middle"
-                  }}
-                />
+                <span className={`${styles.ganttLegendSwatch} ${styles.ganttLegendSwatchPlanned}`} />
                 Planned
               </span>
 
               <span>
-                <span
-                  style={{
-                    display: "inline-block",
-                    width: 18,
-                    height: 10,
-                    background: "#22c55e",
-                    borderRadius: 3,
-                    marginRight: 4,
-                    verticalAlign: "middle"
-                  }}
-                />
+                <span className={`${styles.ganttLegendSwatchActual} ${styles.ganttLegendSwatchDone}`} />
                 Done
               </span>
 
               <span>
-                <span
-                  style={{
-                    display: "inline-block",
-                    width: 18,
-                    height: 10,
-                    background: "#f59e0b",
-                    borderRadius: 3,
-                    marginRight: 4,
-                    verticalAlign: "middle"
-                  }}
-                />
+                <span className={`${styles.ganttLegendSwatchActual} ${styles.ganttLegendSwatchInProgress}`} />
                 In Progress
               </span>
 
               <span>
-                <span
-                  style={{
-                    display: "inline-block",
-                    width: 18,
-                    height: 10,
-                    background: "#ef4444",
-                    borderRadius: 3,
-                    marginRight: 4,
-                    verticalAlign: "middle"
-                  }}
-                />
+                <span className={`${styles.ganttLegendSwatchActual} ${styles.ganttLegendSwatchFailed}`} />
                 Failed (✗)
               </span>
             </div>
 
-            {/* Gantt rows — sized to fit all 30 day cells on screen
-                without horizontal scroll. Stage label + action
-                columns are tightened to leave maximum room for the
-                timeline. */}
-            <div
-              style={{
-                background: "white",
-                border: "1px solid #e2e8f0",
-                borderRadius: 10,
-                padding: "8px 12px"
-              }}
-            >
+            {/* Gantt rows */}
+            <div className={styles.ganttBox}>
 
               {/* ---- Month pagination toolbar ---- */}
               {monthBuckets.length > 0 && (
 
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    marginBottom: 10,
-                    padding: "8px 12px",
-                    background: "#f8fafc",
-                    borderRadius: 8,
-                    border: "1px solid #e2e8f0"
-                  }}
-                >
+                <div className={styles.monthPaginator}>
 
                   <button
                     onClick={() => setMonthIdx((i) => Math.max(0, i - 1))}
                     disabled={safeMonthIdx === 0}
-                    style={{
-                      padding: "6px 14px",
-                      borderRadius: 6,
-                      border: "1px solid #cbd5e1",
-                      background: safeMonthIdx === 0 ? "#f1f5f9" : "white",
-                      cursor: safeMonthIdx === 0 ? "not-allowed" : "pointer",
-                      fontWeight: 700,
-                      fontSize: 13,
-                      color: safeMonthIdx === 0 ? "#94a3b8" : "#0f172a"
-                    }}
+                    className={
+                      safeMonthIdx === 0
+                        ? `${styles.monthNavPrevBtn} ${styles.monthNavPrevBtnDisabled}`
+                        : styles.monthNavPrevBtn
+                    }
                   >
                     ‹ Prev
                   </button>
 
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      flex: 1,
-                      justifyContent: "center"
-                    }}
-                  >
+                  <div className={styles.monthPaginatorCenter}>
 
-                    <div style={{
-                      fontSize: 15,
-                      fontWeight: 800,
-                      color: "#0f172a",
-                      letterSpacing: 0.3
-                    }}>
+                    <div className={styles.monthLabel}>
                       {activeMonth?.label}
                     </div>
 
-                    <div style={{
-                      fontSize: 11,
-                      color: "#64748b",
-                      padding: "3px 10px",
-                      background: "white",
-                      border: "1px solid #e2e8f0",
-                      borderRadius: 99,
-                      fontWeight: 700
-                    }}>
+                    <div className={styles.monthRangePill}>
                       {visibleTimeline.length} days · day {windowStart}–{windowEnd}
                       &nbsp;·&nbsp; {windowedBars.length} stage(s)
                     </div>
 
                     {/* Pill nav — quick jump to any month */}
-                    <div style={{ display: "flex", gap: 4, marginLeft: 8 }}>
+                    <div className={styles.monthNavPills}>
 
                       {monthBuckets.map((m, i) => (
 
@@ -3624,18 +2315,11 @@ function WOGanttDrawer({ wo, onClose }) {
                           key={m.key}
                           onClick={() => setMonthIdx(i)}
                           title={m.label}
-                          style={{
-                            width: 26,
-                            height: 26,
-                            border: "1px solid",
-                            borderColor: i === safeMonthIdx ? "#6366f1" : "#e2e8f0",
-                            background: i === safeMonthIdx ? "#6366f1" : "white",
-                            color: i === safeMonthIdx ? "white" : "#475569",
-                            borderRadius: 6,
-                            cursor: "pointer",
-                            fontWeight: 700,
-                            fontSize: 11
-                          }}
+                          className={
+                            i === safeMonthIdx
+                              ? `${styles.monthNavPillBtn} ${styles.monthNavPillBtnActive}`
+                              : styles.monthNavPillBtn
+                          }
                         >
                           {i + 1}
                         </button>
@@ -3650,59 +2334,26 @@ function WOGanttDrawer({ wo, onClose }) {
                       )
                     }
                     disabled={safeMonthIdx >= monthBuckets.length - 1}
-                    style={{
-                      padding: "6px 14px",
-                      borderRadius: 6,
-                      border: "1px solid #cbd5e1",
-                      background:
-                        safeMonthIdx >= monthBuckets.length - 1
-                          ? "#f1f5f9"
-                          : "white",
-                      cursor:
-                        safeMonthIdx >= monthBuckets.length - 1
-                          ? "not-allowed"
-                          : "pointer",
-                      fontWeight: 700,
-                      fontSize: 13,
-                      color:
-                        safeMonthIdx >= monthBuckets.length - 1
-                          ? "#94a3b8"
-                          : "#0f172a"
-                    }}
+                    className={
+                      safeMonthIdx >= monthBuckets.length - 1
+                        ? `${styles.monthNavPrevBtn} ${styles.monthNavPrevBtnDisabled}`
+                        : styles.monthNavPrevBtn
+                    }
                   >
                     Next ›
                   </button>
                 </div>
               )}
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "240px 1fr 180px",
-                  gap: 10,
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: 0.8,
-                  textTransform: "uppercase",
-                  color: "#94a3b8",
-                  paddingBottom: 6,
-                  borderBottom: "1px solid #f1f5f9",
-                  alignItems: "end"
-                }}
-              >
+              <div className={styles.ganttColHeader}>
                 <div>Stage</div>
                 <TimelineHeader timeline={visibleTimeline} />
-                <div style={{ textAlign: "right" }}>Status / Action</div>
+                <div className={styles.ganttColHeaderRight}>Status / Action</div>
               </div>
 
               {windowedBars.length === 0 && (
 
-                <div style={{
-                  padding: "30px 12px",
-                  textAlign: "center",
-                  color: "#94a3b8",
-                  fontSize: 13
-                }}>
+                <div className={styles.ganttEmptyMonth}>
                   No stages scheduled for {activeMonth?.label}.
                   Use the Prev / Next buttons to find this month's stages.
                 </div>
@@ -3775,24 +2426,15 @@ function StatusButtons({ wo, onUpdated }) {
     }
   };
 
-  if (!next) return <span style={{ color: "#94a3b8" }}>—</span>;
+  if (!next) return <span className={styles.loadingText}>—</span>;
 
   return (
 
-    <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+    <div className={styles.flexEnd}>
 
       <button
         onClick={advance}
-        style={{
-          border: "none",
-          background: "#1e40af",
-          color: "white",
-          padding: "5px 10px",
-          borderRadius: 6,
-          cursor: "pointer",
-          fontSize: 11,
-          fontWeight: 600
-        }}
+        className={styles.btnAdvance}
       >
         → {next.replaceAll("_", " ")}
       </button>
@@ -3801,15 +2443,7 @@ function StatusButtons({ wo, onUpdated }) {
 
         <button
           onClick={hold}
-          style={{
-            border: "1px solid #e2e8f0",
-            background: "white",
-            padding: "5px 10px",
-            borderRadius: 6,
-            cursor: "pointer",
-            fontSize: 11,
-            color: "#475569"
-          }}
+          className={styles.btnHold}
         >
           Hold
         </button>
@@ -3857,16 +2491,7 @@ function DeleteWOButton({ wo, onDeleted }) {
       onClick={handleDelete}
       disabled={busy}
       title="Delete this work order"
-      style={{
-        border: "1px solid #fecaca",
-        background: busy ? "#f1f5f9" : "#fef2f2",
-        color: busy ? "#94a3b8" : "#b91c1c",
-        padding: "5px 10px",
-        borderRadius: 6,
-        cursor: busy ? "default" : "pointer",
-        fontSize: 11,
-        fontWeight: 600
-      }}
+      className={busy ? styles.btnDeleteWoBusy : styles.btnDeleteWo}
     >
       {busy ? "…" : "🗑 Delete"}
     </button>
@@ -3928,42 +2553,19 @@ function NewWorkOrderForm({ models, onCreated }) {
 
     <form
       onSubmit={submit}
-      style={{
-        background: "white",
-        padding: 14,
-        borderRadius: 10,
-        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-        display: "flex",
-        gap: 10,
-        flexWrap: "wrap",
-        alignItems: "flex-end",
-        marginBottom: 16
-      }}
+      className={styles.newWoForm}
     >
 
-      <div style={{ flex: 2, minWidth: 200 }}>
+      <div className={styles.newWoFieldModel}>
 
-        <label
-          style={{
-            fontSize: 11,
-            color: "#64748b",
-            display: "block",
-            marginBottom: 4
-          }}
-        >
+        <label className={styles.formFieldLabel}>
           Model
         </label>
 
         <select
           value={modelId}
           onChange={(e) => setModelId(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "8px 10px",
-            border: "1px solid #e2e8f0",
-            borderRadius: 6,
-            fontSize: 13
-          }}
+          className={styles.formInput}
         >
           <option value="">Pick a model…</option>
           {models.map((m) => (
@@ -3974,16 +2576,9 @@ function NewWorkOrderForm({ models, onCreated }) {
         </select>
       </div>
 
-      <div style={{ width: 90 }}>
+      <div className={styles.newWoFieldQty}>
 
-        <label
-          style={{
-            fontSize: 11,
-            color: "#64748b",
-            display: "block",
-            marginBottom: 4
-          }}
-        >
+        <label className={styles.formFieldLabel}>
           Quantity
         </label>
 
@@ -3992,26 +2587,13 @@ function NewWorkOrderForm({ models, onCreated }) {
           min="1"
           value={quantity}
           onChange={(e) => setQuantity(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "8px 10px",
-            border: "1px solid #e2e8f0",
-            borderRadius: 6,
-            fontSize: 13
-          }}
+          className={styles.formInput}
         />
       </div>
 
-      <div style={{ flex: 2, minWidth: 180 }}>
+      <div className={styles.newWoFieldNotes}>
 
-        <label
-          style={{
-            fontSize: 11,
-            color: "#64748b",
-            display: "block",
-            marginBottom: 4
-          }}
-        >
+        <label className={styles.formFieldLabel}>
           Notes
         </label>
 
@@ -4020,29 +2602,14 @@ function NewWorkOrderForm({ models, onCreated }) {
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="e.g. Chennai metro batch"
-          style={{
-            width: "100%",
-            padding: "8px 10px",
-            border: "1px solid #e2e8f0",
-            borderRadius: 6,
-            fontSize: 13
-          }}
+          className={styles.formInput}
         />
       </div>
 
       <button
         type="submit"
         disabled={submitting}
-        style={{
-          border: "none",
-          background: submitting ? "#94a3b8" : "#1e40af",
-          color: "white",
-          padding: "9px 18px",
-          borderRadius: 6,
-          fontWeight: 600,
-          cursor: submitting ? "not-allowed" : "pointer",
-          fontSize: 13
-        }}
+        className={submitting ? styles.btnCreateWoDisabled : styles.btnCreateWo}
       >
         {submitting ? "Creating…" : "+ Create WO"}
       </button>
@@ -4106,14 +2673,7 @@ function WorkOrdersTab() {
         onCreated={fetchAll}
       />
 
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          marginBottom: 14,
-          flexWrap: "wrap"
-        }}
-      >
+      <div className={styles.filterBar}>
 
         {["", "PLANNED", "IN_PROGRESS", "ON_HOLD", "DONE", "CANCELLED"].map(
           (s) => (
@@ -4121,17 +2681,11 @@ function WorkOrdersTab() {
             <button
               key={s || "all"}
               onClick={() => setStatusFilter(s)}
-              style={{
-                border: "1px solid #e2e8f0",
-                background:
-                  statusFilter === s ? "#1e40af" : "white",
-                color: statusFilter === s ? "white" : "#475569",
-                padding: "6px 12px",
-                borderRadius: 6,
-                cursor: "pointer",
-                fontSize: 12,
-                fontWeight: 600
-              }}
+              className={
+                statusFilter === s
+                  ? `${styles.filterBtn} ${styles.filterBtnActive}`
+                  : styles.filterBtn
+              }
             >
               {s ? s.replaceAll("_", " ") : "All"}
             </button>
@@ -4139,43 +2693,22 @@ function WorkOrdersTab() {
         )}
       </div>
 
-      <div
-        style={{
-          background: "white",
-          borderRadius: 12,
-          overflow: "hidden",
-          boxShadow: "0 4px 14px rgba(15,23,42,0.06)"
-        }}
-      >
+      <div className={styles.woTableCard}>
 
-        <div style={{ overflow: "auto" }}>
+        <div className={styles.tableScrollWrap}>
 
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: 13
-            }}
-          >
+          <table className={styles.woTable}>
 
-            <thead>
+            <thead className={styles.woTableHead}>
 
-              <tr
-                style={{
-                  background: "#f8fafc",
-                  color: "#475569",
-                  fontSize: 11,
-                  letterSpacing: 0.8,
-                  textTransform: "uppercase"
-                }}
-              >
-                <th style={{ textAlign: "left", padding: 12 }}>WO #</th>
-                <th style={{ textAlign: "left", padding: 12 }}>Model</th>
-                <th style={{ textAlign: "right", padding: 12 }}>Qty</th>
-                <th style={{ textAlign: "left", padding: 12 }}>Status</th>
-                <th style={{ textAlign: "left", padding: 12 }}>Notes</th>
-                <th style={{ textAlign: "left", padding: 12 }}>Created</th>
-                <th style={{ textAlign: "right", padding: 12 }}>Action</th>
+              <tr>
+                <th className={styles.woTh}>WO #</th>
+                <th className={styles.woTh}>Model</th>
+                <th className={styles.woThRight}>Qty</th>
+                <th className={styles.woTh}>Status</th>
+                <th className={styles.woTh}>Notes</th>
+                <th className={styles.woTh}>Created</th>
+                <th className={styles.woThRight}>Action</th>
               </tr>
             </thead>
 
@@ -4184,14 +2717,7 @@ function WorkOrdersTab() {
               {loading && (
 
                 <tr>
-                  <td
-                    colSpan="7"
-                    style={{
-                      padding: 30,
-                      textAlign: "center",
-                      color: "#94a3b8"
-                    }}
-                  >
+                  <td colSpan="7" className={styles.tableEmptyCellCenter}>
                     Loading…
                   </td>
                 </tr>
@@ -4200,14 +2726,7 @@ function WorkOrdersTab() {
               {!loading && wos.length === 0 && (
 
                 <tr>
-                  <td
-                    colSpan="7"
-                    style={{
-                      padding: 30,
-                      textAlign: "center",
-                      color: "#94a3b8"
-                    }}
-                  >
+                  <td colSpan="7" className={styles.tableEmptyCellCenter}>
                     No work orders. Create one above.
                   </td>
                 </tr>
@@ -4217,113 +2736,54 @@ function WorkOrdersTab() {
 
                 <tr
                   key={wo.ID}
-                  style={{ borderBottom: "1px solid #f1f5f9" }}
+                  className={styles.woTr}
                 >
 
-                  <td
-                    style={{
-                      padding: 12,
-                      fontFamily: "ui-monospace, monospace",
-                      fontSize: 12
-                    }}
-                  >
+                  <td className={styles.woTdMono}>
                     <button
                       onClick={() => setDrawerWO(wo.ID)}
                       title="Open 360° view"
-                      style={{
-                        border: "none",
-                        background: "none",
-                        color: "#1e40af",
-                        cursor: "pointer",
-                        padding: 0,
-                        textDecoration: "underline",
-                        fontFamily: "inherit",
-                        fontSize: "inherit",
-                        fontWeight: 600
-                      }}
+                      className={styles.woLinkBtn}
                     >
                       {wo.WO_NUMBER}
                     </button>
                   </td>
 
-                  <td style={{ padding: 12 }}>
+                  <td className={styles.woTd}>
 
-                    <div
-                      style={{ fontWeight: 600, color: "#0f172a" }}
-                    >
+                    <div className={styles.woProductName}>
                       {wo.PRODUCT_MODEL_NAME || "—"}
                     </div>
 
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: "#94a3b8",
-                        fontFamily: "ui-monospace, monospace"
-                      }}
-                    >
+                    <div className={styles.woProductCode}>
                       {wo.PRODUCT_MODEL_CODE}
                     </div>
                   </td>
 
-                  <td
-                    style={{
-                      padding: 12,
-                      textAlign: "right",
-                      fontWeight: 700,
-                      fontSize: 15
-                    }}
-                  >
+                  <td className={styles.woTdRight}>
                     {wo.QUANTITY}
                   </td>
 
-                  <td style={{ padding: 12 }}>
+                  <td className={styles.woTd}>
                     <StatusBadge status={wo.STATUS} />
                   </td>
 
-                  <td
-                    style={{
-                      padding: 12,
-                      color: "#475569",
-                      maxWidth: 280
-                    }}
-                  >
+                  <td className={styles.woTdMuted}>
                     {wo.NOTES || "—"}
                   </td>
 
-                  <td
-                    style={{
-                      padding: 12,
-                      color: "#94a3b8",
-                      fontSize: 12
-                    }}
-                  >
+                  <td className={styles.woTdDate}>
                     {wo.CREATED_AT?.slice(0, 10)}
                   </td>
 
-                  <td style={{ padding: 12, textAlign: "right" }}>
+                  <td className={styles.woTdActions}>
 
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 6,
-                        justifyContent: "flex-end",
-                        alignItems: "center"
-                      }}
-                    >
+                    <div className={styles.woActionsRow}>
 
                       <button
                         onClick={() => setGanttWO(wo)}
                         title="View Gantt timeline"
-                        style={{
-                          border: "1px solid #c7d2fe",
-                          background: "#eef2ff",
-                          color: "#4338ca",
-                          padding: "5px 10px",
-                          borderRadius: 6,
-                          cursor: "pointer",
-                          fontSize: 11,
-                          fontWeight: 600
-                        }}
+                        className={styles.btnTimeline}
                       >
                         📊 Timeline
                       </button>
@@ -4374,48 +2834,22 @@ function Production() {
 
   return (
 
-    <div
-      style={{
-        padding: 24,
-        background: "#f1f5f9",
-        minHeight: "100%"
-      }}
-    >
+    <div className={styles.page}>
 
-      <div style={{ marginBottom: 20 }}>
+      <div className={styles.pageHeaderBlock}>
 
-        <h1
-          style={{
-            fontSize: 26,
-            fontWeight: 700,
-            color: "#0f172a",
-            margin: 0
-          }}
-        >
+        <h1 className={styles.pageTitle}>
           Production & BOM
         </h1>
 
-        <div
-          style={{
-            fontSize: 13,
-            color: "#64748b",
-            marginTop: 4
-          }}
-        >
+        <div className={styles.pageSubtitle}>
           Vending machine catalog · Bill of materials · Work order
           tracking
         </div>
       </div>
 
       {/* Tabs */}
-      <div
-        style={{
-          display: "flex",
-          gap: 4,
-          marginBottom: 20,
-          borderBottom: "1px solid #e2e8f0"
-        }}
-      >
+      <div className={styles.tabBar}>
 
         {[
           { key: "dashboard", label: "Dashboard" },
@@ -4426,20 +2860,11 @@ function Production() {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            style={{
-              border: "none",
-              background: "transparent",
-              padding: "10px 18px",
-              fontSize: 14,
-              fontWeight: 600,
-              color: tab === t.key ? "#1e40af" : "#64748b",
-              cursor: "pointer",
-              borderBottom:
-                tab === t.key
-                  ? "3px solid #1e40af"
-                  : "3px solid transparent",
-              marginBottom: -1
-            }}
+            className={
+              tab === t.key
+                ? `${styles.tabBtn} ${styles.tabBtnActive}`
+                : styles.tabBtn
+            }
           >
             {t.label}
           </button>

@@ -1,0 +1,1248 @@
+/* EntityDrawer.module.css
+   All colours use CSS custom-properties defined in the global theme.
+   Badge / status chip accent colours are intentionally hardcoded inline
+   in the JSX because they are runtime-dynamic.
+   No linear-gradient() used anywhere in this file.
+*/
+
+/* ── Overlay & panel ─────────────────────────────────────────── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.panel {
+  width: 640px;
+  max-width: 92%;
+  background: var(--card-bg, #ffffff);
+  overflow: auto;
+  box-shadow: -20px 0 60px rgba(0, 0, 0, 0.35);
+  padding: 24px;
+}
+
+/* ── Top bar ─────────────────────────────────────────────────── */
+.topBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.topBarLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.backBtn {
+  border: none;
+  background: var(--surface, #f1f5f9);
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: var(--font-xs, 12px);
+  color: var(--text-secondary, #475569);
+  transition: background 0.15s;
+}
+
+.backBtn:hover {
+  background: var(--border, #e2e8f0);
+}
+
+/* accent background is set inline (runtime) */
+.typeLabel {
+  font-size: var(--font-xs, 10px);
+  font-weight: var(--fw-bold, 700);
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: var(--radius-full, 999px);
+  color: #ffffff;
+}
+
+.closeBtn {
+  border: none;
+  background: var(--surface, #f1f5f9);
+  padding: 4px 12px;
+  border-radius: var(--radius, 8px);
+  cursor: pointer;
+  font-size: 18px;
+  transition: background 0.15s;
+}
+
+.closeBtn:hover {
+  background: var(--border, #e2e8f0);
+}
+
+/* ── State messages ──────────────────────────────────────────── */
+.loadingMsg {
+  color: var(--text-muted, #94a3b8);
+  padding: 20px;
+}
+
+.errorMsg {
+  color: #b91c1c;
+  padding: 20px;
+}
+
+/* ── Pill / badge atom ───────────────────────────────────────── */
+/* Background and color are set inline (runtime-dynamic) */
+.pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: var(--radius-full, 999px);
+  font-size: var(--font-xs, 10px);
+  font-weight: var(--fw-bold, 700);
+}
+
+/* ── StatTile atom ───────────────────────────────────────────── */
+/* border-top accent is set inline (runtime-dynamic) */
+.statTile {
+  background: var(--card-bg, #ffffff);
+  padding: 14px;
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm, 0 2px 8px rgba(15, 23, 42, 0.06));
+}
+
+.statTileLabel {
+  font-size: var(--font-xs, 10px);
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-secondary, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.statTileValue {
+  font-size: 22px;
+  font-weight: var(--fw-extrabold, 800);
+  color: var(--text-primary, #0f172a);
+  margin-top: 4px;
+}
+
+.statTileSub {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-muted, #94a3b8);
+  margin-top: 2px;
+}
+
+/* ── Section atom ────────────────────────────────────────────── */
+.section {
+  margin-top: 18px;
+}
+
+.sectionTitle {
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+  letter-spacing: 1px;
+  color: var(--text-secondary, #475569);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+/* ── Employee view ───────────────────────────────────────────── */
+.empHero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+/* background set inline (accent) */
+.empAvatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: var(--clr-primary, #6366f1);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: var(--fw-extrabold, 800);
+  box-shadow: var(--shadow-md, 0 6px 18px rgba(139, 92, 246, 0.4));
+  flex-shrink: 0;
+}
+
+.empName {
+  font-size: 20px;
+  font-weight: var(--fw-extrabold, 800);
+  color: var(--text-primary, #0f172a);
+}
+
+.empMeta {
+  font-size: var(--font-sm, 12px);
+  color: var(--text-secondary, #64748b);
+  font-family: ui-monospace, monospace;
+}
+
+.empContact {
+  font-size: var(--font-sm, 12px);
+  color: var(--text-secondary, #475569);
+  margin-top: 2px;
+}
+
+.statsGrid4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.statsGrid3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+.skillsWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ── Task / stage card ───────────────────────────────────────── */
+.taskCard {
+  padding: 10px 12px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius, 8px);
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.taskCard:hover {
+  background: var(--surface, #f8fafc);
+}
+
+.taskCardStatic {
+  padding: 10px 12px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius, 8px);
+  margin-bottom: 8px;
+}
+
+.taskCardTitle {
+  font-size: var(--font-sm, 13px);
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-primary, #0f172a);
+}
+
+.taskCardSub {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-secondary, #64748b);
+  margin-top: 2px;
+}
+
+.emptyMsg {
+  color: var(--text-muted, #94a3b8);
+  font-size: var(--font-sm, 13px);
+}
+
+/* ── Manufacturing stage row ─────────────────────────────────── */
+.stageCard {
+  padding: 10px 12px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius, 8px);
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.stageCard:hover {
+  background: #dbeafe;
+}
+
+.stageCardTitle {
+  font-size: var(--font-sm, 13px);
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-primary, #0f172a);
+}
+
+.stageCardMeta {
+  font-size: var(--font-xs, 11px);
+  color: #1e40af;
+  font-family: ui-monospace, monospace;
+  margin-top: 2px;
+}
+
+/* ── Leave request row ───────────────────────────────────────── */
+.leaveRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--surface, #f1f5f9);
+  font-size: var(--font-sm, 12px);
+}
+
+/* ── Scan row ────────────────────────────────────────────────── */
+.scanRow {
+  font-size: var(--font-sm, 12px);
+  color: var(--text-secondary, #475569);
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--surface, #f1f5f9);
+  display: flex;
+  justify-content: space-between;
+}
+
+.scanRowCode {
+  font-family: ui-monospace, monospace;
+}
+
+/* ── Nav button row ──────────────────────────────────────────── */
+.navRow {
+  margin-top: 22px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* background, box-shadow set inline (runtime accent colour) */
+.navBtn {
+  border: none;
+  color: #ffffff;
+  padding: 8px 14px;
+  border-radius: var(--radius, 8px);
+  font-weight: var(--fw-bold, 700);
+  font-size: var(--font-xs, 12px);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.navBtn:hover {
+  opacity: 0.88;
+}
+
+/* ── Project view ────────────────────────────────────────────── */
+.projHero {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.projHeroLabel {
+  font-size: var(--font-xs, 12px);
+  color: var(--text-secondary, #64748b);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: var(--fw-bold, 700);
+}
+
+.projHeroName {
+  font-size: 22px;
+  font-weight: var(--fw-extrabold, 800);
+  color: var(--text-primary, #0f172a);
+  margin-top: 2px;
+}
+
+.projHeroPills {
+  margin-top: 6px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.projDesc {
+  font-size: var(--font-sm, 13px);
+  color: var(--text-secondary, #475569);
+  margin-top: 8px;
+}
+
+/* Backfill promo banner — accent yellow, no gradient */
+.backfillBanner {
+  margin-top: 14px;
+  padding: 14px;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 10px;
+}
+
+.backfillTitle {
+  font-size: var(--font-sm, 13px);
+  font-weight: var(--fw-bold, 700);
+  color: #92400e;
+}
+
+.backfillBody {
+  font-size: var(--font-sm, 12px);
+  color: #78350f;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+/* background is set inline (disabled vs accent) */
+.backfillBtn {
+  margin-top: 10px;
+  color: #ffffff;
+  border: none;
+  padding: 8px 18px;
+  border-radius: var(--radius, 8px);
+  font-weight: var(--fw-bold, 700);
+  font-size: var(--font-sm, 13px);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.backfillBtn:not(:disabled):hover {
+  opacity: 0.88;
+}
+
+.backfillFeedback {
+  margin-top: 10px;
+  font-size: var(--font-sm, 12px);
+  font-weight: 600;
+}
+
+/* ── Customer card ───────────────────────────────────────────── */
+.customerCard {
+  padding: 12px;
+  background: var(--surface, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius, 8px);
+}
+
+.customerCardName {
+  font-size: 14px;
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-primary, #0f172a);
+}
+
+.customerCardSub {
+  font-size: var(--font-sm, 12px);
+  color: var(--text-secondary, #64748b);
+  margin-top: 2px;
+}
+
+.customerCardAddr {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-muted, #94a3b8);
+  margin-top: 4px;
+}
+
+/* ── Work order view ─────────────────────────────────────────── */
+.woHero {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.woHeroCode {
+  font-family: ui-monospace, monospace;
+  font-size: var(--font-sm, 12px);
+  color: var(--text-secondary, #64748b);
+}
+
+.woHeroName {
+  font-size: 22px;
+  font-weight: var(--fw-extrabold, 800);
+  color: var(--text-primary, #0f172a);
+  margin-top: 2px;
+}
+
+.woHeroPills {
+  margin-top: 6px;
+  display: flex;
+  gap: 6px;
+}
+
+/* Project link button inside WO view */
+.projLinkBtn {
+  width: 100%;
+  text-align: left;
+  padding: 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: var(--radius, 8px);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.projLinkBtn:hover {
+  background: #dcfce7;
+}
+
+.projLinkBtnName {
+  font-size: var(--font-sm, 13px);
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-primary, #0f172a);
+}
+
+.projLinkBtnSub {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-secondary, #64748b);
+  margin-top: 2px;
+}
+
+/* Stage sequence row */
+.stageSeqRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--surface, #f1f5f9);
+}
+
+/* background & color set inline (runtime STATUS) */
+.stageSeqBadge {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--fw-bold, 700);
+  font-size: var(--font-xs, 11px);
+  font-family: ui-monospace, monospace;
+  flex-shrink: 0;
+}
+
+.stageSeqName {
+  font-size: var(--font-sm, 13px);
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+}
+
+.stageSeqType {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-secondary, #64748b);
+}
+
+.stageAssignBtn {
+  border: none;
+  background: none;
+  color: #1e40af;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 6px;
+  font-size: var(--font-xs, 11px);
+  text-decoration: underline;
+}
+
+/* BOM row */
+.bomRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--surface, #f1f5f9);
+  font-size: var(--font-sm, 12px);
+}
+
+.bomRowName {
+  flex: 1;
+}
+
+.bomSupplierBtn {
+  border: none;
+  background: none;
+  color: #1e40af;
+  cursor: pointer;
+  font-size: var(--font-xs, 11px);
+  margin-left: 6px;
+  text-decoration: underline;
+}
+
+.bomRowQty {
+  font-weight: var(--fw-bold, 700);
+}
+
+/* NCR card */
+.ncrCard {
+  padding: 8px 10px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius, 8px);
+  margin-bottom: 6px;
+  font-size: var(--font-sm, 12px);
+}
+
+.ncrCardHead {
+  display: flex;
+  justify-content: space-between;
+}
+
+.ncrCode {
+  font-family: ui-monospace, monospace;
+}
+
+.ncrCheckpoint {
+  margin-top: 2px;
+  color: var(--text-secondary, #475569);
+}
+
+/* ── Supplier view ───────────────────────────────────────────── */
+.supHero {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.supHeroCode {
+  font-family: ui-monospace, monospace;
+  font-size: var(--font-sm, 12px);
+  color: var(--text-secondary, #64748b);
+}
+
+.supHeroName {
+  font-size: 22px;
+  font-weight: var(--fw-extrabold, 800);
+  color: var(--text-primary, #0f172a);
+  margin-top: 2px;
+}
+
+.supHeroPills {
+  margin-top: 6px;
+  display: flex;
+  gap: 6px;
+}
+
+.supContactGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-size: var(--font-sm, 12px);
+  color: var(--text-secondary, #475569);
+}
+
+.supContactMono {
+  font-family: ui-monospace, monospace;
+}
+
+.supModelCard {
+  padding: 10px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius, 8px);
+  margin-bottom: 8px;
+}
+
+.supModelName {
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-primary, #0f172a);
+}
+
+.supModelCode {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-secondary, #64748b);
+  font-family: ui-monospace, monospace;
+  margin-bottom: 6px;
+}
+
+.supModelPart {
+  font-size: var(--font-sm, 12px);
+  color: var(--text-secondary, #475569);
+}
+
+/* Active WO warning chip — amber, no gradient */
+.activeWoChip {
+  cursor: pointer;
+  padding: 8px 12px;
+  background: #fef9c3;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius, 8px);
+  margin-bottom: 6px;
+  font-size: var(--font-sm, 12px);
+  transition: background 0.15s;
+}
+
+.activeWoChip:hover {
+  background: #fef08a;
+}
+
+.activeWoCode {
+  font-family: ui-monospace, monospace;
+}
+
+/* ── Customer 360 view ───────────────────────────────────────── */
+.custHero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+/* background set inline (accent) */
+.custAvatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  background: var(--clr-primary, #06b6d4);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: var(--fw-extrabold, 800);
+  box-shadow: var(--shadow-md, 0 8px 22px rgba(14, 165, 233, 0.45));
+  flex-shrink: 0;
+}
+
+.custCode {
+  font-size: var(--font-xs, 11px);
+  font-family: ui-monospace, monospace;
+  color: var(--text-secondary, #64748b);
+  letter-spacing: 1px;
+}
+
+.custName {
+  font-size: 22px;
+  font-weight: var(--fw-extrabold, 800);
+  color: var(--text-primary, #0f172a);
+  margin-top: 2px;
+  line-height: 1.15;
+}
+
+.custPills {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.custStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+/* Contact / address card */
+.contactCard {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  font-size: var(--font-sm, 13px);
+  color: var(--text-secondary, #475569);
+  background: var(--surface, #f8fafc);
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border, #e2e8f0);
+}
+
+.contactCardColLabel {
+  font-size: var(--font-xs, 10px);
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-secondary, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.contactCardColName {
+  margin-top: 4px;
+  color: var(--text-primary, #0f172a);
+  font-weight: 600;
+}
+
+.contactCardDesig {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-secondary, #64748b);
+  font-weight: 400;
+}
+
+.taxRow {
+  grid-column: 1 / -1;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border, #cbd5e1);
+}
+
+.taxRowLabel {
+  font-size: var(--font-xs, 10px);
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-secondary, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.taxRowValues {
+  margin-top: 4px;
+  display: flex;
+  gap: 18px;
+  font-family: ui-monospace, monospace;
+  font-size: var(--font-sm, 12px);
+}
+
+/* Enquiry info card */
+.enquiryGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  padding: 14px;
+  background: var(--surface, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+}
+
+/* ReadField sub-component */
+.readFieldLabel {
+  font-size: var(--font-xs, 10px);
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-secondary, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 3px;
+}
+
+/* value colour/weight is set inline (runtime null-check) */
+.readFieldValue {
+  font-size: var(--font-sm, 13px);
+  word-break: break-word;
+}
+
+/* Notes panels */
+.notesPanelBlue {
+  padding: 14px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+.notesPanelBlueLabel {
+  font-size: var(--font-xs, 10px);
+  font-weight: var(--fw-bold, 700);
+  color: #1e40af;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 6px;
+}
+
+.notesPanelBlueBody {
+  font-size: var(--font-sm, 13px);
+  color: var(--text-primary, #0f172a);
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+.notesPanelAmber {
+  padding: 12px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius, 8px);
+  font-size: var(--font-sm, 13px);
+  color: #78350f;
+  white-space: pre-wrap;
+}
+
+.notesPanelAmberLabel {
+  font-size: var(--font-xs, 10px);
+  font-weight: var(--fw-bold, 700);
+  color: #854d0e;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 4px;
+}
+
+/* Requirement card */
+.reqCard {
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm, 0 2px 8px rgba(15, 23, 42, 0.04));
+}
+
+/* background is set inline (accent red) */
+.reqCardHeader {
+  padding: 10px 14px;
+  color: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.reqCardHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.reqCardBadge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-extrabold, 800);
+  flex-shrink: 0;
+}
+
+.reqCardMachineName {
+  font-size: 14px;
+  font-weight: var(--fw-extrabold, 800);
+  line-height: 1.1;
+}
+
+.reqCardDate {
+  font-size: var(--font-xs, 11px);
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+.reqCardPills {
+  display: flex;
+  gap: 6px;
+}
+
+.reqCardBody {
+  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  background: var(--card-bg, #ffffff);
+}
+
+.reqCardBodyFull {
+  grid-column: 1 / -1;
+}
+
+.reqSpecialNotes {
+  grid-column: 1 / -1;
+  padding: 12px;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius, 8px);
+}
+
+.reqSpecialNotesLabel {
+  font-size: var(--font-xs, 10px);
+  font-weight: var(--fw-bold, 700);
+  color: #854d0e;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 4px;
+}
+
+.reqSpecialNotesBody {
+  font-size: var(--font-sm, 13px);
+  color: #78350f;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+/* No-requirements placeholder */
+.noReqPlaceholder {
+  color: var(--text-muted, #94a3b8);
+  font-size: var(--font-sm, 13px);
+  padding: 18px;
+  background: var(--surface, #f8fafc);
+  border: 1px dashed var(--border, #cbd5e1);
+  border-radius: 10px;
+  text-align: center;
+}
+
+.noReqPlaceholderSub {
+  font-size: var(--font-xs, 11px);
+}
+
+/* ── BOM section (ProjectBomSection) ─────────────────────────── */
+.bomEmptyBox {
+  padding: 14px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius, 8px);
+  font-size: var(--font-sm, 12px);
+  color: #92400e;
+}
+
+.bomErrorBox {
+  padding: 6px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  color: #b91c1c;
+  margin-top: 8px;
+}
+
+.bomErrorBoxInline {
+  padding: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  color: #b91c1c;
+  font-size: var(--font-sm, 12px);
+  margin-bottom: 8px;
+}
+
+.bomSeedActions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+/* background set inline (seeding vs accent) */
+.bomSeedBtn {
+  color: #ffffff;
+  border: none;
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-weight: var(--fw-bold, 700);
+  font-size: var(--font-sm, 12px);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.bomSeedBtn:not(:disabled):hover {
+  opacity: 0.88;
+}
+
+.bomManualBtn {
+  background: var(--card-bg, #ffffff);
+  color: #92400e;
+  border: 1px solid #fde68a;
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-weight: var(--fw-bold, 700);
+  font-size: var(--font-sm, 12px);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.bomManualBtn:hover {
+  background: #fffbeb;
+}
+
+.bomHint {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-secondary, #64748b);
+  margin-bottom: 8px;
+}
+
+.bomNote {
+  font-size: var(--font-xs, 10px);
+  color: var(--text-muted, #94a3b8);
+  margin-top: 8px;
+  font-style: italic;
+}
+
+.bomTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-sm, 12px);
+  border: 1px solid var(--border, #cbd5e1);
+}
+
+.bomTableHead {
+  background: var(--surface, #f1f5f9);
+  color: var(--text-secondary, #475569);
+  font-size: var(--font-xs, 10px);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.bomThPreview {
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border, #cbd5e1);
+  width: 70px;
+  text-align: center;
+}
+
+.bomThItemNo {
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border, #cbd5e1);
+  width: 50px;
+  text-align: center;
+}
+
+.bomThPart {
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border, #cbd5e1);
+  text-align: left;
+}
+
+.bomThQty {
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border, #cbd5e1);
+  width: 60px;
+  text-align: center;
+}
+
+/* BomRow cells */
+/* background set inline (expanded state) */
+.bomTr {
+  border-bottom: 1px solid var(--surface, #f1f5f9);
+  cursor: pointer;
+}
+
+.bomTdPreview {
+  padding: 6px;
+  border-right: 1px solid var(--surface, #f1f5f9);
+  text-align: center;
+  vertical-align: middle;
+}
+
+.bomImg {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius, 8px);
+}
+
+.bomTdItemNo {
+  padding: 6px;
+  border-right: 1px solid var(--surface, #f1f5f9);
+  text-align: center;
+  vertical-align: middle;
+  font-family: ui-monospace, monospace;
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-secondary, #475569);
+}
+
+.bomTdPart {
+  padding: 6px;
+  border-right: 1px solid var(--surface, #f1f5f9);
+  vertical-align: middle;
+}
+
+.bomPartName {
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+  font-size: var(--font-sm, 12px);
+}
+
+.bomPartMeta {
+  font-size: var(--font-xs, 10px);
+  color: var(--text-muted, #94a3b8);
+  margin-top: 2px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* Badge chips inside BOM meta — status accent colours intentionally hardcoded */
+.bomTagProcess {
+  background: #ede9fe;
+  color: #6d28d9;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: var(--fw-bold, 700);
+}
+
+.bomTagSupplier {
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: var(--fw-bold, 700);
+}
+
+.bomExpandHint {
+  color: var(--border, #cbd5e1);
+}
+
+.bomTdQty {
+  padding: 6px;
+  text-align: center;
+  vertical-align: middle;
+  font-family: ui-monospace, monospace;
+  font-weight: var(--fw-extrabold, 800);
+  font-size: 14px;
+  color: var(--text-primary, #0f172a);
+}
+
+/* Expanded BOM row */
+.bomExpandRow {
+  background: var(--surface, #f8fafc);
+}
+
+.bomExpandCell {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.bomProcessText {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-secondary, #64748b);
+}
+
+.bomSupplierRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--font-xs, 11px);
+}
+
+.bomSupplierLabel {
+  color: var(--text-secondary, #64748b);
+  font-weight: var(--fw-bold, 700);
+}
+
+/* background set inline (saving state) */
+.bomSupplierSelect {
+  flex: 1;
+  padding: 5px 8px;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 5px;
+  font-size: var(--font-sm, 12px);
+}
+
+.bomSavingText {
+  color: var(--text-muted, #94a3b8);
+  font-size: var(--font-xs, 10px);
+}
+
+/* ── Employee button chips ───────────────────────────────────── */
+.empChipBtn {
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  color: #4338ca;
+  padding: 6px 12px;
+  border-radius: var(--radius-full, 999px);
+  font-size: var(--font-sm, 12px);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.empChipBtn:hover {
+  background: #e0e7ff;
+}
+
+.empChipWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ── Layout utility helpers ──────────────────────────────────── */
+/* flex:1 spacer used inside hero rows and BOM cells */
+.flex1 {
+  flex: 1;
+}
+
+/* flex:1 + overflow guard for the customer hero name column */
+.flex1MinW0 {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Notes spacer — margin-top between requirement-notes and remarks */
+.notesSpacer {
+  margin-top: 12px;
+}
+
+/* Inline flex row used inside WO stage sequence and BOM expanded rows */
+.flexRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Generic stat-tile grid with 4 columns — duplicate of .custStatsGrid
+   kept separate so it can carry a different margin per context */
+.statsGrid4mb {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
