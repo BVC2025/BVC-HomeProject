@@ -1,0 +1,173 @@
+/* MyAttendancePanel.module.css */
+
+/* ---- Card shell ---- */
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 22px;
+  margin-bottom: 16px;
+}
+
+/* ---- Card header ---- */
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.sectionLabel {
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  font-weight: var(--fw-bold);
+  color: var(--clr-primary);
+  margin: 0;
+}
+
+/* ---- Badge ---- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+  white-space: nowrap;
+}
+
+.badgeDot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  display: inline-block;
+}
+
+/* ---- Stat grid ---- */
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.statGrid2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+/* ---- Stat tile ---- */
+.statTile {
+  background: var(--surface, #fafbfc);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.statTileLabel {
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  margin-bottom: 4px;
+}
+
+.statTileValue {
+  font-size: 16px;
+  font-weight: var(--fw-extrabold);
+  line-height: 1.25;
+  word-break: break-word;
+}
+
+.statTileValueMono {
+  font-size: 14px;
+  font-weight: var(--fw-extrabold);
+  line-height: 1.25;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ---- Action buttons row ---- */
+.actionRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.actionBtn {
+  flex: 1 1 180px;
+  min-height: 48px;
+  padding: 12px 18px;
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.actionBtn:disabled {
+  background: var(--border, #cbd5e1) !important;
+  box-shadow: none !important;
+  cursor: not-allowed;
+}
+
+/* ---- Notice banner ---- */
+.noticeOk {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  /* success — status chip exception */
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.noticeErr {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  /* error — status chip exception */
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ---- Blocked reason / detail boxes ---- */
+.reasonBox {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: var(--surface, #fef2f2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.detailBox {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: var(--surface, #fef2f2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+/* ---- Empty state text ---- */
+.emptyText {
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 12px 0;
+}

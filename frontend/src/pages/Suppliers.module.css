@@ -1,0 +1,422 @@
+/* =====================================================================
+   Suppliers.module.css
+   ===================================================================== */
+
+/* ── Page wrapper ─────────────────────────────────────────────── */
+.page {
+  padding: 24px;
+  background: var(--layout-bg);
+  min-height: 100%;
+}
+
+/* ── Page header ─────────────────────────────────────────────── */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.title {
+  font-size: 26px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.subtitle {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.headerActions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────── */
+.btnPrimary {
+  border: none;
+  background: var(--clr-primary);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+  font-size: var(--font-sm);
+}
+
+.btnPrimary:hover {
+  opacity: 0.9;
+}
+
+.btnWarning {
+  border: 1px solid #fcd34d;
+  background: #fef3c7;
+  color: #92400e;
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+  font-size: var(--font-xs);
+}
+
+.btnWarning:hover {
+  background: #fde68a;
+}
+
+/* ── Filter bar ──────────────────────────────────────────────── */
+.filterBar {
+  background: var(--card-bg);
+  padding: 14px;
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.searchForm {
+  flex: 1;
+  min-width: 240px;
+  display: flex;
+  gap: 8px;
+}
+
+.searchInput {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  outline: none;
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+.searchInput:focus {
+  border-color: var(--clr-primary);
+}
+
+.searchBtn {
+  border: none;
+  background: var(--clr-primary);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+}
+
+.searchBtn:hover {
+  opacity: 0.9;
+}
+
+.filterSelect {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+/* ── Table card ──────────────────────────────────────────────── */
+.tableCard {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.tableScroll {
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-sm);
+}
+
+.thead tr {
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.thead th {
+  text-align: left;
+  padding: 12px;
+}
+
+.thead th:last-child {
+  text-align: right;
+}
+
+.emptyCell {
+  padding: 30px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.tbody tr {
+  border-bottom: 1px solid var(--border);
+}
+
+.tbody tr:last-child {
+  border-bottom: none;
+}
+
+/* ── Table cells ─────────────────────────────────────────────── */
+.tdCode {
+  padding: 12px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+.tdCompany {
+  padding: 12px;
+}
+
+.tdCompanyName {
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.tdCompanySub {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.tdMuted {
+  padding: 12px;
+  color: var(--text-secondary);
+}
+
+.tdStateSub {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.tdMono {
+  padding: 12px;
+  font-family: ui-monospace, monospace;
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+.tdStatus {
+  padding: 12px;
+}
+
+.tdActions {
+  padding: 12px;
+  text-align: right;
+}
+
+/* ── Supplier code link button ───────────────────────────────── */
+.codeBtn {
+  border: none;
+  background: none;
+  color: var(--clr-primary);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: var(--fw-bold);
+}
+
+.codeBtn:hover {
+  opacity: 0.75;
+}
+
+/* ── Action buttons in table ─────────────────────────────────── */
+.btnEdit {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  padding: 5px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--clr-primary);
+  font-weight: var(--fw-bold);
+  margin-right: 6px;
+}
+
+.btnEdit:hover {
+  background: var(--surface);
+}
+
+.btnDeactivate {
+  border: 1px solid #fecaca;
+  background: var(--card-bg);
+  padding: 5px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 12px;
+  color: #b91c1c;
+  font-weight: var(--fw-bold);
+}
+
+.btnDeactivate:hover {
+  background: #fff5f5;
+}
+
+/* ── Drawer / Editor overlay ─────────────────────────────────── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  justify-content: flex-end;
+  z-index: 900;
+}
+
+.drawer {
+  width: 720px;
+  max-width: 100%;
+  background: var(--card-bg);
+  padding: 24px;
+  overflow: auto;
+  box-shadow: -20px 0 60px rgba(0, 0, 0, 0.3);
+}
+
+.drawerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.drawerTitle {
+  font-size: 20px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.drawerClose {
+  border: none;
+  background: var(--surface);
+  padding: 4px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 18px;
+  color: var(--text-secondary);
+}
+
+.drawerClose:hover {
+  background: var(--border);
+}
+
+/* ── Form grid ───────────────────────────────────────────────── */
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.sectionLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1px;
+  color: #7c3aed;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+/* ── Form field ──────────────────────────────────────────────── */
+.fieldLabel {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 4px;
+  font-weight: var(--fw-bold);
+}
+
+.fieldInput {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  outline: none;
+  background: var(--surface);
+  color: var(--text-primary);
+  box-sizing: border-box;
+}
+
+.fieldInput:focus {
+  border-color: var(--clr-primary);
+}
+
+.fieldSelect {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+/* ── Footer actions ──────────────────────────────────────────── */
+.formActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.btnSubmit {
+  border: none;
+  background: var(--clr-primary);
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+  font-size: var(--font-sm);
+}
+
+.btnSubmit:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btnSubmit:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+.btnCancel {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  padding: 10px 24px;
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+  font-size: var(--font-sm);
+}
+
+.btnCancel:hover {
+  background: var(--surface);
+}
+
+/* ── Status badge (inline style overrides bg/color from JS data) */
+.statusBadge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-black);
+}

@@ -52,7 +52,7 @@ LOGO_PATH = os.path.join(
     os.path.dirname(__file__),
     "..",
     "assets",
-    "bharath-logo.png"
+    "logo.webp"
 )
 
 HEADER_COLOR = colors.HexColor("#0f172a")

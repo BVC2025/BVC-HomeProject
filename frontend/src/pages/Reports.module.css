@@ -1,0 +1,74 @@
+/* Reports page — scoped styles */
+
+.page {
+  padding: var(--sp-6);
+}
+
+/* ─── Hero banner ──────────────────────────────────────────── */
+
+.hero {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--clr-primary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow);
+  padding: var(--sp-5) var(--sp-6);
+  margin-bottom: var(--sp-5);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+
+.heroLeft {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.eyebrow {
+  font-size: var(--font-xs);
+  letter-spacing: 2px;
+  color: var(--clr-primary);
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+}
+
+.heroTitle {
+  font-size: var(--font-2xl);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.3px;
+}
+
+/* ─── Hero stats row ────────────────────────────────────────── */
+
+.heroStats {
+  display: flex;
+  gap: var(--sp-5);
+}
+
+.stat {
+  text-align: right;
+  min-width: 70px;
+}
+
+.statValue {
+  font-size: var(--font-2xl);
+  font-weight: var(--fw-black);
+  color: var(--clr-primary);
+  letter-spacing: -0.3px;
+  line-height: 1;
+}
+
+.statLabel {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  font-weight: var(--fw-semi);
+  margin-top: var(--sp-1);
+}

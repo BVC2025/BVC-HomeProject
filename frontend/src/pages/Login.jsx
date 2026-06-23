@@ -260,9 +260,8 @@ function Login() {
 
         {/* Left — welcome panel */}
         <div className={styles.left}>
-
           <img
-            src="/bharath-logo.png"
+            src="/logo.webp"
             alt="Bharath Vending Corporation"
             className={styles.brandLogo}
           />
@@ -343,8 +342,8 @@ function Login() {
 
             <span className={styles.icon}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" strokeWidth="1.8"
-                   strokeLinecap="round" strokeLinejoin="round">
+                stroke="currentColor" strokeWidth="1.8"
+                strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="8" r="4" />
                 <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
               </svg>
@@ -370,8 +369,8 @@ function Login() {
             <span className={styles.icon}>
               {/* Padlock icon */}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                   stroke="currentColor" strokeWidth="1.8"
-                   strokeLinecap="round" strokeLinejoin="round">
+                stroke="currentColor" strokeWidth="1.8"
+                strokeLinecap="round" strokeLinejoin="round">
                 <rect x="4" y="10" width="16" height="11" rx="2" />
                 <path d="M8 10V7a4 4 0 0 1 8 0v3" />
               </svg>
@@ -400,8 +399,8 @@ function Login() {
               {showPassword ? (
                 /* eye-off — currently visible, click to hide */
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" strokeWidth="1.8"
-                     strokeLinecap="round" strokeLinejoin="round">
+                  stroke="currentColor" strokeWidth="1.8"
+                  strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 3l18 18" />
                   <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
                   <path d="M9.9 4.2A9.5 9.5 0 0 1 12 4c5 0 9.3 3 11 8a14 14 0 0 1-3.4 4.8" />
@@ -410,8 +409,8 @@ function Login() {
               ) : (
                 /* eye — currently hidden, click to show */
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                     stroke="currentColor" strokeWidth="1.8"
-                     strokeLinecap="round" strokeLinejoin="round">
+                  stroke="currentColor" strokeWidth="1.8"
+                  strokeLinecap="round" strokeLinejoin="round">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" />
                   <circle cx="12" cy="12" r="3" />
                 </svg>

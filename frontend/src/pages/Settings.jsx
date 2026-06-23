@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import API from "../services/api";
+import styles from "./Settings.module.css";
 
 import {
   isVoiceSupported,
@@ -283,25 +284,20 @@ function Settings() {
   if (loading) {
 
     return (
-      <div>
+      <div className={styles.page}>
         <h1>Settings</h1>
-        <p style={{ color: "#94a3b8" }}>Loading…</p>
+        <p className={styles.loadingText}>Loading…</p>
       </div>
     );
   }
 
   return (
 
-    <div>
+    <div className={styles.page}>
 
       <h1>Settings</h1>
 
-      <p
-        style={{
-          color: "#64748b",
-          marginBottom: "20px"
-        }}
-      >
+      <p className={styles.pageDesc}>
         Configure how Bharath ERP delivers critical
         alerts via email.
       </p>
@@ -577,14 +573,7 @@ function Settings() {
 
         </div>
 
-        <p
-          className="settings-desc"
-          style={{
-            marginTop: "12px",
-            marginBottom: 0,
-            fontStyle: "italic"
-          }}
-        >
+        <p className={`settings-desc ${styles.noteText}`}>
           Note: Most browsers block voice playback
           until you interact with the page once
           (click anywhere). Voice runs locally — no
@@ -651,14 +640,7 @@ function Settings() {
           number. Drag the slider or pick a day below.
         </p>
 
-        <div
-          style={{
-            display: "flex",
-            gap: "16px",
-            alignItems: "center",
-            marginBottom: "10px"
-          }}
-        >
+        <div className={styles.dayRow}>
 
           <input
             type="range"
@@ -669,7 +651,7 @@ function Settings() {
               updateDay(parseInt(e.target.value, 10))
             }
             disabled={savingDay}
-            style={{ flex: 1 }}
+            className={styles.rangeInput}
           />
 
           <input
@@ -689,22 +671,10 @@ function Settings() {
               )
             }
             disabled={savingDay}
-            style={{
-              width: "70px",
-              padding: "8px",
-              borderRadius: "8px",
-              border: "1px solid #ccc"
-            }}
+            className={styles.dayInput}
           />
 
-          <span
-            style={{
-              color: "#64748b",
-              fontSize: "13px"
-            }}
-          >
-            of 30
-          </span>
+          <span className={styles.dayLabel}>of 30</span>
 
         </div>
 

@@ -1,0 +1,387 @@
+/* ApprovalCenter page — scoped styles */
+
+@keyframes acFade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes acPulse {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(0.9);
+  }
+}
+
+/* ─── Page wrapper ──────────────────────────────────────────── */
+
+.page {
+  padding: var(--sp-5);
+  min-height: calc(100vh - 80px);
+}
+
+/* ─── Hero ──────────────────────────────────────────────────── */
+
+.hero {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--clr-primary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow);
+  padding: var(--sp-5) var(--sp-6);
+  margin-bottom: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.heroLeft {
+  /* left side */
+}
+
+.heroEyebrow {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-black);
+  letter-spacing: 2px;
+  color: var(--clr-primary);
+  text-transform: uppercase;
+}
+
+.heroTitle {
+  font-size: var(--font-2xl);
+  font-weight: var(--fw-black);
+  margin-top: 4px;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.heroSub {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.heroPendingBlock {
+  text-align: right;
+}
+
+.heroPendingLabel {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-weight: var(--fw-bold);
+}
+
+.heroPendingCount {
+  font-size: 56px;
+  font-weight: var(--fw-black);
+  line-height: 1;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.heroPendingTime {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-top: 4px;
+  font-family: var(--font-mono);
+}
+
+/* ─── Filter chips row ──────────────────────────────────────── */
+
+.filterRow {
+  display: flex;
+  gap: var(--sp-2);
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+/* ─── Error banner ──────────────────────────────────────────── */
+
+.errorBanner {
+  padding: var(--sp-2) 14px;
+  background: var(--danger-bg);
+  color: var(--danger-dark);
+  border: 1px solid var(--danger-light);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  margin-bottom: 12px;
+}
+
+/* ─── Toast ─────────────────────────────────────────────────── */
+
+.toast {
+  position: fixed;
+  right: var(--sp-5);
+  bottom: var(--sp-5);
+  background: var(--text-primary);
+  color: var(--text-inverse);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  box-shadow: var(--shadow-lg);
+  z-index: 9999;
+  animation: acFade 0.25s ease-out;
+}
+
+/* ─── Loading / empty states ────────────────────────────────── */
+
+.loadingText {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.allClear {
+  padding: 48px;
+  text-align: center;
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.allClearIcon {
+  font-size: 56px;
+}
+
+.allClearTitle {
+  font-size: var(--font-xl);
+  font-weight: var(--fw-black);
+  color: var(--success);
+  margin-top: var(--sp-3);
+}
+
+.allClearSub {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* ─── Bucket list grid ──────────────────────────────────────── */
+
+.bucketList {
+  display: grid;
+  gap: 18px;
+}
+
+/* ─── Bucket section ────────────────────────────────────────── */
+
+.bucketCard {
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  animation: acFade 0.35s ease-out;
+}
+
+.bucketHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  /* background comes from inline style (meta.color — runtime value) */
+  color: var(--text-inverse);
+}
+
+.bucketHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.bucketIcon {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  flex-shrink: 0;
+}
+
+.bucketName {
+  font-size: var(--font-base);
+  font-weight: var(--fw-black);
+}
+
+.bucketPendingLabel {
+  font-size: var(--font-xs);
+  opacity: 0.85;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* ─── Approval row ──────────────────────────────────────────── */
+
+.approvalRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-light);
+  align-items: center;
+  background: var(--card-bg);
+  transition: background var(--ease);
+}
+
+.approvalRow:hover {
+  background: var(--surface);
+}
+
+.rowTitle {
+  font-size: var(--font-base);
+  font-weight: var(--fw-black);
+  color: var(--text-primary);
+}
+
+.rowAmount {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-black);
+  font-family: var(--font-mono);
+  /* color: meta.color — kept inline since it's runtime */
+}
+
+.rowSubtitle {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: 3px;
+}
+
+.rowTitleLine {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.rowReason {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  margin-top: 6px;
+  padding: 6px var(--sp-2);
+  background: var(--surface);
+  border-radius: var(--radius);
+  font-style: italic;
+  max-width: 720px;
+  /* border color kept inline since it's meta.accent — runtime value */
+}
+
+.rowMeta {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-top: 6px;
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.rowActions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.rejectBtn {
+  padding: var(--sp-2) 14px;
+  background: var(--card-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger-light);
+  border-radius: var(--radius-md);
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background var(--ease);
+}
+
+.rejectBtn:hover:not(:disabled) {
+  background: var(--danger-bg);
+}
+
+.rejectBtn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.approveBtn {
+  padding: var(--sp-2) 16px;
+  background: var(--success);
+  color: var(--text-inverse);
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: var(--fw-black);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background var(--ease);
+}
+
+.approveBtn:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.approveBtn:disabled {
+  background: var(--slate-400);
+  cursor: wait;
+}
+
+/* ─── Filter chip ───────────────────────────────────────────── */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--sp-2) 14px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--ease);
+}
+
+.chipActive {
+  background: var(--clr-primary);
+  color: var(--text-inverse);
+  border-color: var(--clr-primary);
+  box-shadow: 0 6px 18px rgba(239, 68, 68, 0.3);
+}
+
+.chipBadge {
+  margin-left: 4px;
+  padding: 1px var(--sp-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-black);
+  min-width: 22px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.08);
+  color: inherit;
+}
+
+.chipBadgeActive {
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--text-inverse);
+}

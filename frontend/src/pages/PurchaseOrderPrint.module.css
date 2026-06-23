@@ -1,0 +1,277 @@
+/* ===================================================================
+   PurchaseOrderPrint.module.css
+   A4-styled printable Purchase Order view.
+   Global print/page rules stay in the JSX <style> tag.
+=================================================================== */
+
+/* Error / loading states */
+.stateError {
+  padding: 40px;
+  color: #b91c1c;
+  font-family: Arial, sans-serif;
+}
+
+.stateLoading {
+  padding: 40px;
+  color: #94a3b8;
+  font-family: Arial, sans-serif;
+}
+
+/* ── Page shell ── */
+.poPage {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  background: white;
+  padding: 18mm;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+  font-family: Arial, sans-serif;
+  color: #1f2937;
+  font-size: 11.5pt;
+}
+
+/* ── Header ── */
+.poHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 3px solid #f59e0b;
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+}
+
+.vendorBlock h1 {
+  margin: 0;
+  font-size: 22pt;
+  color: #0f172a;
+}
+
+.vendorBlock .tag {
+  color: #f59e0b;
+  font-weight: 800;
+  font-size: 9pt;
+  letter-spacing: 1.5px;
+  margin-top: 2px;
+}
+
+.vendorBlock .info {
+  font-size: 9pt;
+  color: #475569;
+  line-height: 1.4;
+  margin-top: 8px;
+}
+
+.poTitle {
+  text-align: right;
+}
+
+.poTitle h2 {
+  margin: 0;
+  font-size: 18pt;
+  letter-spacing: 4px;
+  color: #475569;
+}
+
+.poTitle .num {
+  font-size: 13pt;
+  font-weight: 800;
+  color: #0f172a;
+  margin-top: 4px;
+}
+
+.poTitle .meta {
+  font-size: 9pt;
+  color: #64748b;
+  margin-top: 8px;
+}
+
+/* ── Meta grid ── */
+.metaGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.metaCard {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: #fffbeb;
+}
+
+.metaCard .label {
+  font-size: 8pt;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+}
+
+.metaCard .value {
+  font-size: 11pt;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 2px;
+}
+
+.metaCard .sub {
+  font-size: 9pt;
+  color: #475569;
+}
+
+/* Ship-to / delivery address: pre-line wrapping, slightly smaller */
+.shipToValue {
+  white-space: pre-line;
+  font-size: 10pt;
+  font-weight: 600;
+  color: #0f172a;
+  margin-top: 2px;
+}
+
+.metaCardSubSpaced {
+  margin-top: 8px;
+  font-size: 9pt;
+  color: #475569;
+}
+
+.metaCardSubProject {
+  margin-top: 6px;
+  font-size: 9pt;
+  color: #475569;
+}
+
+/* ── Lines table ── */
+.linesTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 14px;
+  font-size: 10.5pt;
+}
+
+.linesTable thead {
+  background: #f59e0b;
+  color: white;
+}
+
+.linesTable th {
+  padding: 8px;
+  text-align: left;
+  font-size: 9.5pt;
+}
+
+.linesTable td {
+  padding: 8px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: top;
+}
+
+.linesTable tbody tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+/* Column widths */
+.colNum  { width: 5%; }
+.colHsn  { width: 10%; }
+.colQty  { width: 8%; text-align: right; }
+.colUnit { width: 8%; }
+.colRate { width: 13%; text-align: right; }
+.colDisc { width: 8%; text-align: right; }
+.colAmt  { width: 16%; text-align: right; }
+
+/* Cell alignment helpers */
+.textRight     { text-align: right; }
+.textRightBold { text-align: right; font-weight: 700; }
+
+/* ── Totals ── */
+.totalGrid {
+  width: 280px;
+  margin-left: auto;
+  font-size: 10.5pt;
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.grandRow {
+  font-size: 13pt;
+  font-weight: 800;
+  color: #b45309;
+  border-top: 2px solid #0f172a;
+  margin-top: 6px;
+  padding-top: 8px;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ── Notes / Terms ── */
+.sectionTitle {
+  font-size: 9pt;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #d97706;
+  text-transform: uppercase;
+  margin: 18px 0 6px;
+}
+
+.terms {
+  font-size: 9.5pt;
+  color: #475569;
+  white-space: pre-line;
+  line-height: 1.5;
+  background: #fafafa;
+  padding: 10px 14px;
+  border-left: 3px solid #f59e0b;
+  border-radius: 4px;
+}
+
+/* ── Signature ── */
+.sigBlock {
+  margin-top: 30px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 10pt;
+}
+
+.sig {
+  width: 200px;
+  text-align: center;
+  border-top: 1px solid #94a3b8;
+  padding-top: 6px;
+  color: #475569;
+}
+
+/* ── Footer ── */
+.footer {
+  margin-top: 28px;
+  padding-top: 14px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  font-size: 9pt;
+  color: #64748b;
+}
+
+/* ── Floating print button ── */
+.printButtonWrap {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.printButton {
+  border: none;
+  background: #f59e0b;
+  color: white;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+}

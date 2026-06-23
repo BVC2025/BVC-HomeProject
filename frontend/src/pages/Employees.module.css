@@ -1,0 +1,1381 @@
+/* ============================================================
+   Employees.module.css
+   CSS vars reference: --clr-primary, --card-bg, --layout-bg,
+   --surface, --text-primary, --text-secondary, --text-muted,
+   --border, --shadow-sm, --shadow, --shadow-md, --radius,
+   --radius-lg, --radius-xl, --radius-full, --font-xs, --font-sm,
+   --fw-bold, --fw-extrabold, --fw-black, --sp-*
+   ============================================================ */
+
+/* ---- @keyframes ---- */
+@keyframes empFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ================================================================
+   PAGE WRAPPER
+   ================================================================ */
+.pageWrapper {
+  padding: 26px;
+  min-height: 100%;
+  background: var(--layout-bg, #f1f5f9);
+}
+
+/* ================================================================
+   PAGE HEADER BANNER  (red gradient replaced with solid primary)
+   ================================================================ */
+.pageBanner {
+  background: var(--clr-primary, #ef4444);
+  color: white;
+  padding: 20px 28px;
+  border-radius: var(--radius-lg, 14px);
+  margin-bottom: 22px;
+  box-shadow: var(--shadow, 0 6px 18px rgba(139, 11, 31, 0.18));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.pageBannerEyebrow {
+  font-size: var(--font-xs, 11px);
+  letter-spacing: 2px;
+  color: #f59e0b;
+  font-weight: var(--fw-extrabold, 800);
+  text-transform: uppercase;
+}
+
+.pageBannerTitle {
+  font-size: 22px;
+  font-weight: var(--fw-bold, 700);
+  margin: 4px 0 0;
+  line-height: 1.2;
+  color: white;
+  letter-spacing: -0.3px;
+}
+
+.pageBannerActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ================================================================
+   STAT TILES GRID
+   ================================================================ */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.statTile {
+  background: var(--card-bg, white);
+  padding: 16px 20px;
+  border-radius: var(--radius-lg, 14px);
+  box-shadow: var(--shadow-sm, 0 6px 18px rgba(15, 23, 42, 0.06));
+  /* border-top color is injected via inline style (dynamic runtime) */
+}
+
+.statTileLabel {
+  font-size: var(--font-xs, 10px);
+  font-weight: var(--fw-extrabold, 800);
+  letter-spacing: 1.5px;
+  color: var(--text-secondary, #64748b);
+  text-transform: uppercase;
+}
+
+.statTileValue {
+  font-size: 26px;
+  font-weight: var(--fw-black, 900);
+  color: var(--text-primary, #0f172a);
+  margin-top: 4px;
+}
+
+.statTileSub {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-muted, #94a3b8);
+  margin-top: 2px;
+}
+
+/* ================================================================
+   FILTER BAR
+   ================================================================ */
+.filterBar {
+  background: var(--card-bg, white);
+  padding: 14px;
+  border-radius: var(--radius, 12px);
+  box-shadow: var(--shadow-sm, 0 4px 14px rgba(15, 23, 42, 0.06));
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.filterInput {
+  flex: 1;
+  min-width: 280px;
+  padding: 10px 14px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius, 8px);
+  font-size: var(--font-sm, 13px);
+}
+
+.filterSelect {
+  padding: 10px 14px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius, 8px);
+  font-size: var(--font-sm, 13px);
+  background: var(--card-bg, white);
+}
+
+.filterCount {
+  font-size: 12px;
+  color: var(--text-muted, #94a3b8);
+}
+
+/* ================================================================
+   EMPTY / LOADING STATES
+   ================================================================ */
+.loadingState {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted, #94a3b8);
+}
+
+.emptyState {
+  padding: 50px;
+  text-align: center;
+  color: var(--text-muted, #94a3b8);
+  background: var(--card-bg, white);
+  border-radius: var(--radius-lg, 14px);
+  border: 1px dashed var(--border, #cbd5e1);
+}
+
+/* ================================================================
+   EMPLOYEE CARD GRID
+   ================================================================ */
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 18px;
+}
+
+/* ================================================================
+   EMPLOYEE CARD
+   ================================================================ */
+.employeeCard {
+  background: var(--card-bg, white);
+  border-radius: var(--radius-xl, 16px);
+  padding: 18px;
+  box-shadow: var(--shadow-sm, 0 6px 18px rgba(15, 23, 42, 0.06));
+  transition: transform 0.18s, box-shadow 0.18s;
+  position: relative;
+  overflow: hidden;
+  animation: empFadeIn 0.4s ease-out both;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.employeeCard:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md, 0 14px 32px rgba(15, 23, 42, 0.12));
+}
+
+/* -- top row: code tag + status badge -- */
+.cardTopRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+/* EMP code tag — bg/color injected inline (per-card theme palette) */
+.cardEmpCode {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-extrabold, 800);
+  letter-spacing: 0.4px;
+  padding: 4px 10px;
+  border-radius: var(--radius, 6px);
+}
+
+.cardStatusBadge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full, 50%);
+  display: inline-block;
+}
+
+/* -- name + photo row -- */
+.cardAvatarRow {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.cardNameBlock {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardName {
+  font-size: 17px;
+  font-weight: var(--fw-extrabold, 800);
+  color: var(--text-primary, #0f172a);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* designation title — color injected inline (per-card theme) */
+.cardDesignation {
+  font-size: var(--font-sm, 13px);
+  font-weight: var(--fw-bold, 700);
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* -- department chip -- */
+.cardDeptWrap {
+  margin-bottom: 12px;
+}
+
+/* deptChip bg/color/border injected inline (per-card theme) */
+.cardDeptChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+  padding: 4px 10px;
+  border-radius: var(--radius-full, 999px);
+}
+
+/* -- contact info rows -- */
+.cardContactList {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 12px;
+}
+
+.cardContactRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* icon box bg injected inline (per-card theme) */
+.cardIconBox {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius, 6px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-xs, 11px);
+  flex-shrink: 0;
+}
+
+.cardContactText {
+  font-size: 12px;
+  color: var(--text-secondary, #475569);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+/* -- skills -- */
+.cardSkillsLabel {
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-secondary, #475569);
+  margin-bottom: 6px;
+}
+
+.cardSkillsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+/* skillChip bg/color injected inline (per-card theme) */
+.skillChip {
+  font-size: var(--font-xs, 11px);
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius, 6px);
+}
+
+.skillMore {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-muted, #94a3b8);
+  padding: 4px 8px;
+}
+
+/* -- bottom action row -- */
+.cardActions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  align-items: stretch;
+}
+
+/* view-profile button — bg injected inline (per-card theme) */
+.cardViewBtn {
+  flex: 1;
+  color: white;
+  border: none;
+  padding: 11px 12px;
+  border-radius: var(--radius, 10px);
+  font-weight: var(--fw-bold, 700);
+  font-size: var(--font-sm, 13px);
+  cursor: pointer;
+  letter-spacing: 0.2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.10);
+}
+
+.cardViewBtn:hover {
+  filter: brightness(1.08);
+}
+
+.cardIconBtn {
+  border: none;
+  padding: 9px 11px;
+  border-radius: var(--radius, 10px);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cardEditBtn {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.cardDeleteBtn {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.cardEditBtn:hover {
+  background: #dbeafe;
+}
+
+.cardDeleteBtn:hover {
+  background: #fee2e2;
+}
+
+/* ================================================================
+   AVATAR
+   ================================================================ */
+.avatarImg {
+  border-radius: var(--radius-full, 50%);
+  object-fit: cover;
+  border: 2px solid white;
+  box-shadow: var(--shadow-sm, 0 4px 12px rgba(15, 23, 42, 0.18));
+}
+
+/* flat-color avatar (no gradient) — bg injected inline */
+.avatarInitials {
+  border-radius: var(--radius-full, 50%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--fw-extrabold, 800);
+  letter-spacing: 0.5px;
+  border: 2px solid white;
+  box-shadow: var(--shadow-sm, 0 4px 12px rgba(15, 23, 42, 0.18));
+  flex-shrink: 0;
+}
+
+/* ================================================================
+   PILL  (generic badge)
+   ================================================================ */
+.pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-full, 999px);
+  font-size: 10px;
+  font-weight: var(--fw-extrabold, 800);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+/* ================================================================
+   RESUME MODAL  (view-profile overlay)
+   ================================================================ */
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  z-index: 1100;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+}
+
+.resumeModalPanel {
+  width: min(900px, 100%);
+  max-height: 92vh;
+  background: var(--card-bg, white);
+  border-radius: var(--radius-xl, 18px);
+  overflow: hidden;
+  box-shadow: var(--shadow-md, 0 30px 80px rgba(0, 0, 0, 0.4));
+  animation: empFadeIn 0.25s ease-out both;
+  display: flex;
+  flex-direction: column;
+}
+
+/* solid primary header instead of multi-stop gradient */
+.resumeModalHeader {
+  background: var(--clr-primary, #ef4444);
+  padding: 36px 40px;
+  color: white;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.resumeCloseBtn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  border-radius: var(--radius, 8px);
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.resumeCloseBtn:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.resumeHeaderRow {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+}
+
+.resumeEyebrow {
+  font-size: var(--font-xs, 11px);
+  letter-spacing: 2px;
+  opacity: 0.85;
+  font-weight: var(--fw-bold, 700);
+  text-transform: uppercase;
+}
+
+.resumeName {
+  font-size: 32px;
+  font-weight: var(--fw-black, 900);
+  margin: 4px 0 6px;
+  letter-spacing: -0.5px;
+  line-height: 1.15;
+  color: white;
+}
+
+.resumeSubTitle {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.resumeCodeBadge {
+  margin-top: 8px;
+  font-size: var(--font-xs, 11px);
+  font-family: ui-monospace, monospace;
+  background: rgba(255, 255, 255, 0.18);
+  padding: 4px 12px;
+  border-radius: var(--radius, 6px);
+  display: inline-block;
+  font-weight: var(--fw-bold, 700);
+  letter-spacing: 1px;
+}
+
+.resumeBody {
+  padding: 32px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.resumeGrid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  margin-bottom: 8px;
+}
+
+/* ================================================================
+   RESUME BLOCK + ROW
+   ================================================================ */
+.resumeBlock {
+  margin-bottom: 22px;
+}
+
+.resumeBlockTitle {
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-extrabold, 800);
+  letter-spacing: 1.4px;
+  color: var(--text-primary, #1e293b);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--border, #e2e8f0);
+}
+
+.resumeRow {
+  display: flex;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 12px;
+  color: var(--text-secondary, #475569);
+}
+
+.resumeRowLabel {
+  font-size: 10px;
+  color: var(--text-muted, #94a3b8);
+  font-weight: var(--fw-bold, 700);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.resumeRowValue {
+  color: var(--text-primary, #0f172a);
+  font-weight: 600;
+  word-break: break-word;
+}
+
+/* ================================================================
+   SKILLS CHIPS  (in resume modal body)
+   ================================================================ */
+.skillsPillWrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.skillsPill {
+  font-size: 12px;
+  padding: 5px 12px;
+  background: var(--surface, #eef2ff);
+  color: #4338ca;
+  border: 1px solid #c7d2fe;
+  border-radius: var(--radius-full, 999px);
+  font-weight: var(--fw-bold, 700);
+}
+
+/* ================================================================
+   PRE-FORMATTED TEXT BLOCKS  (experience / projects / notes)
+   ================================================================ */
+.preBlock {
+  font-size: var(--font-sm, 13px);
+  color: #334155;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  background: var(--surface, #f8fafc);
+  padding: 14px;
+  border-radius: var(--radius, 10px);
+}
+
+.preBlockExperience {
+  border-left: 3px solid #6366f1;
+}
+
+.preBlockProjects {
+  border-left: 3px solid #ec4899;
+}
+
+.preBlockNotes {
+  border-left: 3px solid #f59e0b;
+  background: #fffbeb;
+  font-style: italic;
+}
+
+/* ================================================================
+   DOCUMENTS SECTION  (inside resume modal)
+   ================================================================ */
+.docUploadForm {
+  display: grid;
+  grid-template-columns: 180px 1fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+  padding: 14px;
+  background: var(--surface, #fef2f2);
+  border: 1px dashed #fecaca;
+  border-radius: var(--radius, 10px);
+  margin-bottom: 14px;
+}
+
+.docUploadLabel {
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+  color: #7f1d1d;
+}
+
+.docUploadSelect,
+.docUploadInput {
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius, 6px);
+  font-size: var(--font-sm, 13px);
+  background: var(--card-bg, white);
+}
+
+.docUploadFileInput {
+  width: 100%;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+/* upload button: solid primary when enabled, muted when disabled */
+.docUploadBtn {
+  padding: 10px 18px;
+  color: white;
+  border: none;
+  border-radius: var(--radius, 8px);
+  font-weight: var(--fw-extrabold, 800);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.docUploadBtn:not(:disabled) {
+  background: var(--clr-primary, #ef4444);
+  cursor: pointer;
+}
+
+.docUploadBtn:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.docErrorBanner {
+  padding: 8px 12px;
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius, 6px);
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+
+.docLoadingText {
+  font-size: 12px;
+  color: var(--text-muted, #94a3b8);
+  font-style: italic;
+}
+
+.docEmpty {
+  padding: 16px 12px;
+  background: var(--surface, #f8fafc);
+  border: 1px dashed var(--border, #cbd5e1);
+  border-radius: var(--radius, 8px);
+  font-size: 12px;
+  color: var(--text-secondary, #64748b);
+  text-align: center;
+  font-style: italic;
+}
+
+.docGroupLabel {
+  font-size: 10px;
+  font-weight: var(--fw-extrabold, 800);
+  letter-spacing: 1px;
+  color: #7f1d1d;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.docItem {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--card-bg, white);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius, 8px);
+}
+
+.docItemName {
+  font-size: var(--font-sm, 13px);
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-primary, #0f172a);
+}
+
+.docItemMeta {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-secondary, #64748b);
+}
+
+.docViewLink {
+  padding: 6px 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius, 6px);
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+  text-decoration: none;
+}
+
+.docDownloadLink {
+  padding: 6px 10px;
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  border-radius: var(--radius, 6px);
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+  text-decoration: none;
+}
+
+.docDeleteBtn {
+  padding: 6px 10px;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius, 6px);
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+  cursor: pointer;
+}
+
+/* ================================================================
+   COMPENSATION BLOCK
+   ================================================================ */
+.compensationAmount {
+  font-size: 22px;
+  font-weight: var(--fw-black, 900);
+  color: #065f46;
+  font-family: ui-monospace, monospace;
+}
+
+.compensationUnit {
+  font-size: var(--font-sm, 13px);
+  color: var(--text-secondary, #64748b);
+  margin-left: 8px;
+}
+
+/* ================================================================
+   ADD / EDIT EMPLOYEE MODAL  (right-side drawer)
+   ================================================================ */
+.drawerBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.drawerPanel {
+  width: 800px;
+  max-width: 94%;
+  background: var(--card-bg, white);
+  overflow-y: auto;
+  padding: 0;
+  box-shadow: -30px 0 80px rgba(0, 0, 0, 0.4);
+}
+
+/* solid primary header instead of multi-stop gradient */
+.drawerHeader {
+  background: var(--clr-primary, #ef4444);
+  color: white;
+  padding: 26px 32px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.drawerHeaderEyebrow {
+  font-size: var(--font-xs, 11px);
+  letter-spacing: 2px;
+  opacity: 0.85;
+  font-weight: var(--fw-bold, 700);
+}
+
+.drawerHeaderTitle {
+  font-size: 22px;
+  font-weight: var(--fw-black, 900);
+  margin-top: 4px;
+}
+
+.drawerHeaderButtons {
+  display: flex;
+  gap: 8px;
+}
+
+.drawerGhostBtn {
+  background: rgba(255, 255, 255, 0.18);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 8px 16px;
+  border-radius: var(--radius, 8px);
+  font-weight: var(--fw-bold, 700);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.drawerGhostBtn:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.drawerCloseBtn {
+  background: rgba(255, 255, 255, 0.18);
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: var(--radius, 8px);
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.drawerCloseBtn:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.drawerBody {
+  padding: 28px;
+}
+
+/* ---- form error banner ---- */
+.formErrorBanner {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  padding: 12px;
+  border-radius: var(--radius, 8px);
+  margin-bottom: 18px;
+  font-size: var(--font-sm, 13px);
+  font-weight: 600;
+}
+
+/* ---- photo upload strip ---- */
+.photoStrip {
+  background: var(--surface, #f5f3ff);
+  border: 1px dashed #c4b5fd;
+  border-radius: var(--radius-lg, 14px);
+  padding: 18px;
+  margin-bottom: 22px;
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+
+/* avatar inside photo strip — bg injected inline (avatarGradient flat color) */
+.photoStripAvatar {
+  border-radius: var(--radius-full, 50%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--fw-extrabold, 800);
+  border: 3px solid white;
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.3);
+  flex-shrink: 0;
+}
+
+.photoStripTitle {
+  font-weight: var(--fw-extrabold, 800);
+  color: var(--text-primary, #0f172a);
+  font-size: 14px;
+}
+
+.photoStripHint {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-secondary, #64748b);
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+/* solid primary upload label instead of gradient */
+.photoUploadLabel {
+  display: inline-block;
+  margin-top: 10px;
+  background: var(--clr-primary, #ef4444);
+  color: white;
+  padding: 7px 16px;
+  border-radius: var(--radius, 8px);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: var(--fw-bold, 700);
+}
+
+.photoUploadLabel:hover {
+  filter: brightness(1.08);
+}
+
+/* ---- form section ---- */
+.formSection {
+  margin-bottom: 22px;
+}
+
+/* section title — color injected inline */
+.formSectionTitle {
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-extrabold, 800);
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  /* border-bottom color injected inline (uses color + 33 alpha) */
+}
+
+/* ---- salary info note ---- */
+.salaryNote {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: var(--radius, 8px);
+  padding: 10px 14px;
+  font-size: 12px;
+  color: #065f46;
+  margin-bottom: 14px;
+}
+
+/* ---- gross display (solid green instead of gradient) ---- */
+.grossBar {
+  margin-top: 14px;
+  padding: 12px 16px;
+  background: #10b981;
+  border-radius: var(--radius, 10px);
+  color: white;
+  font-size: 14px;
+  font-weight: var(--fw-bold, 700);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.grossAmount {
+  font-size: 18px;
+  font-weight: var(--fw-extrabold, 800);
+}
+
+/* ---- form footer buttons ---- */
+.formFooter {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+
+.formPreviewBtn {
+  background: var(--card-bg, white);
+  color: #4338ca;
+  border: 2px solid #6366f1;
+  padding: 10px 22px;
+  border-radius: var(--radius, 10px);
+  font-weight: var(--fw-extrabold, 800);
+  font-size: var(--font-sm, 13px);
+  cursor: pointer;
+}
+
+.formPreviewBtn:hover {
+  background: #eef2ff;
+}
+
+/* solid green save button instead of gradient */
+.formSaveBtn {
+  color: white;
+  border: none;
+  padding: 10px 28px;
+  border-radius: var(--radius, 10px);
+  font-weight: var(--fw-extrabold, 800);
+  font-size: var(--font-sm, 13px);
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+}
+
+.formSaveBtn:not(:disabled) {
+  background: #10b981;
+  cursor: pointer;
+}
+
+.formSaveBtn:disabled {
+  background: #cbd5e1;
+  cursor: default;
+}
+
+.formSaveBtn:not(:disabled):hover {
+  filter: brightness(1.07);
+}
+
+/* ---- form helpers ---- */
+.formGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.formField {
+  /* gridColumn injected inline for span cases */
+}
+
+.formFieldLabel {
+  display: block;
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-secondary, #475569);
+  margin-bottom: 4px;
+  letter-spacing: 0.3px;
+}
+
+.formInput {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: var(--radius, 8px);
+  font-size: var(--font-sm, 13px);
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.formInputError {
+  border: 1px solid #dc2626;
+}
+
+.fieldHint {
+  font-size: 10px;
+  color: var(--text-secondary, #64748b);
+  margin-top: 4px;
+}
+
+.fieldValidationMsg {
+  color: #dc2626;
+  font-size: var(--font-xs, 11px);
+  margin-top: 3px;
+}
+
+/* ================================================================
+   INVITE EMPLOYEE MODAL
+   ================================================================ */
+.inviteBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+  padding: 20px;
+}
+
+.invitePanel {
+  width: min(640px, 100%);
+  max-height: 92vh;
+  background: var(--card-bg, white);
+  border-radius: var(--radius-xl, 16px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--shadow-md, 0 24px 60px rgba(0, 0, 0, 0.4));
+}
+
+/* solid primary header instead of two-stop gradient */
+.inviteHeader {
+  background: var(--clr-primary, #ef4444);
+  color: white;
+  padding: 20px 24px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.inviteHeaderEyebrow {
+  font-size: 10px;
+  font-weight: var(--fw-extrabold, 800);
+  letter-spacing: 2px;
+  opacity: 0.85;
+}
+
+.inviteHeaderTitle {
+  margin: 4px 0 0;
+  font-size: 18px;
+}
+
+.inviteCloseBtn {
+  background: rgba(255, 255, 255, 0.18);
+  color: white;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius, 8px);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.inviteCloseBtn:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.inviteBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 22px;
+}
+
+.inviteIntro {
+  margin: 0 0 16px;
+  color: var(--text-secondary, #475569);
+  font-size: var(--font-sm, 13px);
+  line-height: 1.5;
+}
+
+.inviteFormGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.inviteInfoBox {
+  padding: 8px 12px;
+  background: #f0f9ff;
+  color: #075985;
+  border: 1px solid #bae6fd;
+  border-radius: var(--radius, 8px);
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.inviteErrorBox {
+  padding: 8px 12px;
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius, 8px);
+  font-size: var(--font-sm, 13px);
+  margin-bottom: 12px;
+}
+
+.inviteFormActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.inviteCancelBtn {
+  padding: 11px 18px;
+  background: var(--card-bg, white);
+  color: var(--text-secondary, #475569);
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: var(--radius, 10px);
+  font-weight: var(--fw-bold, 700);
+  font-size: var(--font-sm, 13px);
+  cursor: pointer;
+}
+
+/* solid primary submit instead of gradient */
+.inviteSubmitBtn {
+  padding: 11px 22px;
+  color: white;
+  border: none;
+  border-radius: var(--radius, 10px);
+  font-weight: var(--fw-extrabold, 800);
+  font-size: var(--font-sm, 13px);
+  box-shadow: 0 6px 18px rgba(200, 16, 46, 0.35);
+}
+
+.inviteSubmitBtn:not(:disabled) {
+  background: var(--clr-primary, #ef4444);
+  cursor: pointer;
+}
+
+.inviteSubmitBtn:disabled {
+  background: #cbd5e1;
+  cursor: wait;
+}
+
+.inviteSubmitBtn:not(:disabled):hover {
+  filter: brightness(1.08);
+}
+
+/* ---- invite result box ---- */
+.inviteResultBox {
+  background: #fff7ed;
+  border: 2px solid #f59e0b;
+  border-radius: var(--radius, 12px);
+  padding: 16px 18px;
+}
+
+.inviteResultHeader {
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-extrabold, 800);
+  letter-spacing: 1.5px;
+  color: #8B4500;
+  margin-bottom: 8px;
+}
+
+.inviteResultExpiry {
+  margin-left: 10px;
+  font-weight: 600;
+  color: #92400e;
+}
+
+.inviteLinkBox {
+  background: var(--card-bg, white);
+  padding: 10px;
+  border-radius: var(--radius, 8px);
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  word-break: break-all;
+  color: var(--text-primary, #0f172a);
+  border: 1px solid #fcd34d;
+}
+
+.inviteResultActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.inviteCopyBtn {
+  padding: 9px 16px;
+  color: white;
+  border: none;
+  border-radius: var(--radius, 8px);
+  font-weight: var(--fw-bold, 700);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.inviteCopyBtn.copied {
+  background: #16a34a;
+}
+
+.inviteCopyBtn:not(.copied) {
+  background: #0f172a;
+}
+
+.inviteOpenLink {
+  padding: 9px 16px;
+  background: var(--card-bg, white);
+  color: var(--clr-primary);
+  border: 1px solid #fecaca;
+  border-radius: var(--radius, 8px);
+  font-weight: var(--fw-bold, 700);
+  font-size: 12px;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.inviteNewBtn {
+  padding: 9px 16px;
+  background: var(--card-bg, white);
+  color: var(--text-secondary, #475569);
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: var(--radius, 8px);
+  font-weight: var(--fw-bold, 700);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.inviteEmailMsg {
+  margin-top: 10px;
+  font-size: var(--font-xs, 11px);
+  color: #854d0e;
+  font-weight: 600;
+}
+
+/* ---- invite field label ---- */
+.inviteField {
+  /* gridColumn injected inline for span cases */
+}
+
+.inviteFieldLabel {
+  display: block;
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-secondary, #475569);
+  margin-bottom: 4px;
+  letter-spacing: 0.3px;
+}
+
+.inviteInput {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: var(--radius, 8px);
+  font-size: var(--font-sm, 13px);
+  font-family: inherit;
+  background: var(--card-bg, white);
+  box-sizing: border-box;
+  outline: none;
+}
+
+/* ---- password eye toggle ---- */
+.pwdWrapper {
+  position: relative;
+}
+
+.pwdToggleBtn {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pwdToggleBtn.visible {
+  color: var(--clr-primary);
+}
+
+.pwdToggleBtn:not(.visible) {
+  color: var(--text-secondary, #64748b);
+}

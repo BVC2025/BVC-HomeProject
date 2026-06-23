@@ -1,0 +1,190 @@
+/* OnboardingPortal — scoped styles (public-facing, no admin layout) */
+
+/* ─── Full-page shell ────────────────────────────────────────── */
+
+.shell {
+  min-height: 100vh;
+  background: var(--clr-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-5);
+  font-family: var(--font);
+}
+
+/* ─── White card ─────────────────────────────────────────────── */
+
+.card {
+  width: min(480px, 100%);
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  padding: var(--sp-8);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+}
+
+.brandBlock {
+  text-align: center;
+  margin-bottom: var(--sp-6);
+  padding-bottom: var(--sp-5);
+  border-bottom: 2px solid var(--surface);
+}
+
+.logo {
+  display: inline-block;
+  width: 64px;
+  height: 64px;
+  background: var(--clr-primary);
+  border-radius: var(--radius-lg);
+  color: var(--text-inverse);
+  font-size: 28px;
+  font-weight: var(--fw-black);
+  line-height: 64px;
+  letter-spacing: 1px;
+  text-align: center;
+  box-shadow: var(--shadow-md);
+}
+
+.logoSubtext {
+  margin-top: var(--sp-2);
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  font-weight: var(--fw-semibold);
+}
+
+.brandFooter {
+  text-align: center;
+  margin-top: var(--sp-6);
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  letter-spacing: 0.6px;
+}
+
+/* ─── Heading area ───────────────────────────────────────────── */
+
+.headingArea {
+  text-align: center;
+  margin-bottom: var(--sp-5);
+}
+
+.eyebrow {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-black);
+  letter-spacing: 2px;
+  color: var(--clr-primary);
+  margin-bottom: var(--sp-1);
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--font-2xl);
+  color: var(--text-primary);
+}
+
+.subtext {
+  margin: var(--sp-2) 0 0;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+}
+
+.nameHint {
+  color: var(--text-primary);
+}
+
+/* ─── Error banner ───────────────────────────────────────────── */
+
+.errorBanner {
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-light);
+  color: var(--danger-dark);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--sp-3);
+  font-size: var(--font-sm);
+}
+
+/* ─── Loading / not-found ────────────────────────────────────── */
+
+.loadingText {
+  text-align: center;
+  color: var(--text-muted);
+  padding: var(--sp-10);
+}
+
+.notFoundBanner {
+  padding: var(--sp-7);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-light);
+  border-radius: var(--radius-lg);
+  color: var(--danger-dark);
+  text-align: center;
+}
+
+/* ─── Field ──────────────────────────────────────────────────── */
+
+.fieldWrap {
+  margin-bottom: var(--sp-3);
+}
+
+.fieldLabel {
+  display: block;
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+  margin-bottom: var(--sp-1);
+}
+
+.input {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  box-sizing: border-box;
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--clr-primary);
+}
+
+/* ─── Submit button ──────────────────────────────────────────── */
+
+.submitBtn {
+  width: 100%;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--clr-primary);
+  color: var(--text-inverse);
+  border: none;
+  border-radius: var(--radius-lg);
+  font-weight: var(--fw-black);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  cursor: pointer;
+  margin-top: var(--sp-3);
+  box-shadow: var(--shadow-md);
+  transition: background 0.15s;
+}
+
+.submitBtn:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+/* ─── Mode toggle ────────────────────────────────────────────── */
+
+.modeToggle {
+  text-align: center;
+  margin-top: var(--sp-4);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.modeLink {
+  color: var(--clr-primary);
+  cursor: pointer;
+  font-weight: var(--fw-bold);
+}

@@ -1,0 +1,399 @@
+/* HolidayCalendar page — scoped styles */
+
+/* ─── Hero ──────────────────────────────────────────────────── */
+
+.hero {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--clr-primary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow);
+  padding: var(--sp-5) var(--sp-6);
+  margin-bottom: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+
+.heroEyebrow {
+  font-size: var(--font-xs);
+  letter-spacing: 2px;
+  color: var(--clr-primary);
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+}
+
+.heroTitle {
+  font-size: var(--font-2xl);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin: var(--sp-1) 0 0;
+  line-height: 1.2;
+  letter-spacing: -0.3px;
+}
+
+.heroActions {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.yearSelect {
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  font-family: var(--font);
+  letter-spacing: 0.6px;
+  cursor: pointer;
+  outline: none;
+}
+
+.yearSelect:focus {
+  border-color: var(--clr-primary);
+}
+
+.ghostBtn {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-md);
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--ease);
+}
+
+.ghostBtn:hover {
+  background: var(--surface);
+  border-color: var(--clr-primary);
+  color: var(--clr-primary);
+}
+
+.addBtn {
+  background: var(--clr-primary);
+  color: var(--text-inverse);
+  border: none;
+  padding: var(--sp-2) var(--sp-5);
+  border-radius: var(--radius-md);
+  font-weight: var(--fw-black);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--ease);
+}
+
+.addBtn:hover {
+  background: var(--clr-primary-dark);
+}
+
+/* ─── Tiles grid ────────────────────────────────────────────── */
+
+.tilesGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.tile {
+  background: var(--card-bg);
+  padding: 14px 18px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--tile-accent, var(--border));
+  position: relative;
+  overflow: hidden;
+}
+
+.tileLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  color: var(--text-secondary);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.tileValue {
+  font-size: 24px;
+  font-weight: var(--fw-black);
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+/* ─── Table panel ───────────────────────────────────────────── */
+
+.tablePanel {
+  background: var(--card-bg);
+  padding: var(--sp-4);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+}
+
+.loadingText {
+  color: var(--text-muted);
+  padding: 20px;
+}
+
+.emptyText {
+  padding: 36px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+/* ─── Table ─────────────────────────────────────────────────── */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-sm);
+}
+
+.thead {
+  background: var(--surface);
+  color: var(--slate-600);
+  font-size: var(--font-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.th      { padding: var(--sp-2) var(--sp-2); text-align: left;   font-weight: var(--fw-bold); border-bottom: 1px solid var(--border); }
+.thRight { padding: var(--sp-2) var(--sp-2); text-align: right;  font-weight: var(--fw-bold); border-bottom: 1px solid var(--border); }
+.thCenter{ padding: var(--sp-2) var(--sp-2); text-align: center; font-weight: var(--fw-bold); border-bottom: 1px solid var(--border); }
+
+.tr { border-bottom: 1px solid var(--border-light); }
+
+.td        { padding: var(--sp-3) var(--sp-2); text-align: left;   vertical-align: top; color: var(--text-secondary); }
+.tdDate    { padding: var(--sp-3) var(--sp-2); text-align: left;   vertical-align: top; font-weight: var(--fw-bold); color: var(--text-primary); }
+.tdCenter  { padding: var(--sp-3) var(--sp-2); text-align: center; vertical-align: top; }
+.tdRight   { padding: var(--sp-3) var(--sp-2); text-align: right;  vertical-align: top; }
+.tdNotes   { padding: var(--sp-3) var(--sp-2); color: var(--text-secondary); font-size: var(--font-xs); }
+.tdOptional{ padding: var(--sp-3) var(--sp-2); text-align: center; color: var(--text-muted); }
+.tdOptionalYes { padding: var(--sp-3) var(--sp-2); text-align: center; color: #92400e; }
+
+/* ─── Row action buttons ────────────────────────────────────── */
+
+.rowBtnWrap {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.rowBtn {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  font-family: var(--font);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--ease);
+}
+
+.rowBtn:hover {
+  border-color: var(--info);
+  color: var(--info);
+}
+
+.rowBtnDanger {
+  background: transparent;
+  border: 1px solid #fecaca;
+  color: var(--danger);
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  font-family: var(--font);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--ease);
+}
+
+.rowBtnDanger:hover {
+  background: var(--danger-bg);
+}
+
+/* ─── Modal overlay ─────────────────────────────────────────── */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-5);
+}
+
+.modal {
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  width: 100%;
+  max-width: 520px;
+  box-shadow: var(--shadow-lg);
+}
+
+.modalHeader {
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--font-base);
+  font-weight: var(--fw-black);
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+}
+
+.modalBody {
+  padding: var(--sp-5);
+  display: grid;
+  gap: 14px;
+}
+
+.modalFooter {
+  padding: var(--sp-3) var(--sp-5) var(--sp-4);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}
+
+/* ─── Field ─────────────────────────────────────────────────── */
+
+.fieldLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  color: var(--text-secondary);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.fieldRequired {
+  color: var(--clr-primary);
+  margin-left: 4px;
+}
+
+.input {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  box-sizing: border-box;
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--clr-primary);
+}
+
+.textareaInput {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  box-sizing: border-box;
+  outline: none;
+  resize: vertical;
+}
+
+.textareaInput:focus {
+  border-color: var(--clr-primary);
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+/* ─── Error banner in modal ─────────────────────────────────── */
+
+.errorBanner {
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--danger-bg);
+  color: var(--danger-dark);
+  border-radius: var(--radius-md);
+  font-size: var(--font-xs);
+}
+
+/* ─── Modal buttons ─────────────────────────────────────────── */
+
+.btnSecondary {
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-md);
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--ease);
+}
+
+.btnSecondary:hover {
+  background: var(--surface);
+}
+
+.btnPrimary {
+  background: var(--clr-primary);
+  color: var(--text-inverse);
+  border: none;
+  padding: var(--sp-2) var(--sp-5);
+  border-radius: var(--radius-md);
+  font-weight: var(--fw-black);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--ease);
+}
+
+.btnPrimary:disabled {
+  background: var(--slate-400);
+  cursor: default;
+}
+
+/* ─── Pill badge ─────────────────────────────────────────────── */
+
+.pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-black);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}

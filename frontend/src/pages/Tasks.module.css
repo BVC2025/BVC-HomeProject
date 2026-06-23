@@ -1,0 +1,12 @@
+/* Tasks page — scoped styles */
+
+.page {
+  padding: var(--sp-6);
+}
+
+.page h1 {
+  font-size: var(--font-xl);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin-bottom: var(--sp-5);
+}

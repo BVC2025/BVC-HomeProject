@@ -1,0 +1,249 @@
+/* Payroll page — scoped styles */
+
+.page {
+  padding: var(--sp-6);
+}
+
+/* ─── Hero ──────────────────────────────────────────────────── */
+
+.hero {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--clr-primary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow);
+  padding: var(--sp-5) var(--sp-6);
+  margin-bottom: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+
+.heroEyebrow {
+  font-size: var(--font-xs);
+  letter-spacing: 2px;
+  color: var(--clr-primary);
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+}
+
+.heroTitle {
+  font-size: var(--font-2xl);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin: var(--sp-1) 0 0;
+  line-height: 1.2;
+  letter-spacing: -0.3px;
+}
+
+/* ─── Controls bar ──────────────────────────────────────────── */
+
+.controls {
+  background: var(--card-bg);
+  padding: var(--sp-4);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+  margin-bottom: 18px;
+  display: flex;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.pickerLabel {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  margin-bottom: var(--sp-1);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.picker {
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  min-width: 130px;
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.picker:focus {
+  border-color: var(--clr-primary);
+}
+
+.generateBtn {
+  background: var(--clr-primary);
+  color: var(--text-inverse);
+  border: none;
+  padding: var(--sp-2) 22px;
+  border-radius: var(--radius-md);
+  font-weight: var(--fw-black);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--ease);
+}
+
+.generateBtn:disabled {
+  background: var(--slate-400);
+  cursor: default;
+}
+
+.controlsHint {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  flex: 1;
+  min-width: 200px;
+  line-height: var(--lh);
+}
+
+/* ─── Body panel ────────────────────────────────────────────── */
+
+.body {
+  background: var(--card-bg);
+  padding: var(--sp-5);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+}
+
+.loadingText {
+  color: var(--text-muted);
+  padding: 20px;
+}
+
+.errorText {
+  color: var(--danger-dark);
+  background: var(--danger-bg);
+  padding: var(--sp-3);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+}
+
+.emptyText {
+  padding: 36px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+/* ─── Table meta row ────────────────────────────────────────── */
+
+.tableMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--sp-2);
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.tableMetaTitle {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-black);
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+}
+
+.tableMetaSub {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+/* ─── Payroll table ─────────────────────────────────────────── */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-sm);
+}
+
+.thead {
+  background: var(--surface);
+  color: var(--slate-600);
+  font-size: var(--font-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.th {
+  padding: var(--sp-2) var(--sp-2);
+  text-align: left;
+  font-weight: var(--fw-bold);
+  border-bottom: 1px solid var(--border);
+}
+
+.thRight  { text-align: right;  padding: var(--sp-2) var(--sp-2); font-weight: var(--fw-bold); border-bottom: 1px solid var(--border); }
+.thCenter { text-align: center; padding: var(--sp-2) var(--sp-2); font-weight: var(--fw-bold); border-bottom: 1px solid var(--border); }
+
+.tr {
+  border-bottom: 1px solid var(--border-light);
+}
+
+.trPaid {
+  background: var(--success-bg);
+}
+
+.td     { padding: var(--sp-3) var(--sp-2); text-align: left; }
+.tdRight  { padding: var(--sp-3) var(--sp-2); text-align: right; font-weight: var(--fw-bold); color: var(--text-primary); }
+.tdCenter { padding: var(--sp-3) var(--sp-2); text-align: center; }
+
+.empName { font-weight: var(--fw-bold); color: var(--text-primary); }
+.empCode { font-size: var(--font-xs); color: var(--text-muted); }
+
+.starRating {
+  color: #D4A017;
+  font-weight: var(--fw-black);
+}
+
+.bonusCell {
+  padding: var(--sp-3) var(--sp-2);
+  text-align: right;
+  color: #92400e;
+}
+
+.netPay {
+  padding: var(--sp-3) var(--sp-2);
+  text-align: right;
+  font-weight: var(--fw-black);
+  color: #065f46;
+}
+
+.paidBadge {
+  display: inline-block;
+  padding: 5px var(--sp-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-black);
+  color: #065f46;
+  background: #d1fae5;
+  letter-spacing: 0.4px;
+}
+
+.markPaidBtn {
+  background: var(--clr-primary);
+  color: var(--text-inverse);
+  border: none;
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  font-family: var(--font);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--ease);
+}
+
+.markPaidBtn:hover {
+  background: var(--clr-primary-dark);
+}

@@ -1,0 +1,268 @@
+/* AdminDashboard — scoped styles */
+
+@keyframes adTileIn {
+  0%   { opacity: 0; transform: translateY(28px) scale(0.96); filter: blur(8px); }
+  60%  { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes adPulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.85); }
+}
+
+/* ─── Page ──────────────────────────────────────────────────── */
+
+.page {
+  padding: 28px;
+  background: var(--layout-bg);
+  min-height: calc(100vh - 80px);
+}
+
+/* ─── Hero ──────────────────────────────────────────────────── */
+
+.hero {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--clr-primary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow);
+  padding: 22px 28px;
+  margin-bottom: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+}
+
+.heroEyebrow {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 2px;
+  color: var(--clr-primary);
+  text-transform: uppercase;
+}
+
+.heroTitle {
+  font-size: var(--font-2xl);
+  font-weight: var(--fw-black);
+  color: var(--text-primary);
+  margin-top: 4px;
+  letter-spacing: 0.2px;
+}
+
+.heroSub {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.heroBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: var(--radius-full);
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #16a34a;
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1px;
+}
+
+.heroBadgeDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: adPulseDot 1.5s ease-in-out infinite;
+  box-shadow: 0 0 8px #22c55e;
+}
+
+.heroBadgeTime {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-top: 8px;
+  font-family: var(--font-mono);
+}
+
+/* ─── Error banner ───────────────────────────────────────────── */
+
+.errorBanner {
+  padding: 10px 14px;
+  background: var(--danger-bg);
+  color: var(--danger-dark);
+  border: 1px solid var(--danger-light);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  margin-bottom: 16px;
+}
+
+/* ─── Tiles grid ─────────────────────────────────────────────── */
+
+.tilesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+/* ─── Individual tile ────────────────────────────────────────── */
+
+.tile {
+  position: relative;
+  overflow: hidden;
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+  animation: adTileIn 0.7s cubic-bezier(.22,.61,.36,1) var(--tile-delay, 0s) both;
+  /* borderTop and cursor kept inline (dynamic per-tile) */
+}
+
+.tile:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--tile-glow, var(--shadow-md));
+}
+
+.tile:hover .tileProgressBar {
+  width: 100%;
+}
+
+.tile:hover .tileIcon {
+  transform: scale(1.08);
+}
+
+.tileLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1.4px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.tileValueRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.tileValue {
+  font-size: 30px;
+  font-weight: var(--fw-black);
+  line-height: 1;
+  font-family: var(--font-mono);
+  /* color set inline via var(--tile-color) on parent or direct inline */
+}
+
+.tileValueProd {
+  font-size: 28px;
+  font-weight: var(--fw-black);
+  line-height: 1;
+  font-family: var(--font-mono);
+}
+
+.tileProdSub {
+  margin-top: 6px;
+  display: flex;
+  gap: 8px;
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  color: var(--text-secondary);
+}
+
+.tileIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+  transition: transform 0.22s;
+  /* background and border set inline (dynamic tile.accent / tile.gradient) */
+}
+
+.tileProgressTrack {
+  margin-top: 12px;
+  height: 3px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.tileProgressBar {
+  height: 100%;
+  width: 35%;
+  border-radius: var(--radius-full);
+  transition: width 0.55s cubic-bezier(.22,.61,.36,1);
+  /* background set inline (dynamic tile.gradient) */
+}
+
+/* ─── Footer ─────────────────────────────────────────────────── */
+
+.footerHint {
+  margin-top: 24px;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ─── Hero right panel ───────────────────────────────────────── */
+
+.heroRight {
+  text-align: right;
+}
+
+/* ─── Tile — active / done labels ───────────────────────────── */
+
+.tileActiveLabel {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semibold);
+  margin-left: 6px;
+  color: var(--text-muted);
+}
+
+.tileDoneLabel {
+  color: var(--warning);
+}
+
+/* ─── Production donut ───────────────────────────────────────── */
+
+.donutWrap {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+
+.donutSegment {
+  transition: stroke-dasharray 0.8s ease, stroke-dashoffset 0.8s ease;
+}
+
+.donutCenter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+}
+
+.donutTotal {
+  font-size: 16px;
+  font-weight: var(--fw-black);
+  line-height: 1;
+}
+
+.donutLabel {
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}

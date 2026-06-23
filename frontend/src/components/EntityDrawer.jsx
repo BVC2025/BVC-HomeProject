@@ -7,6 +7,7 @@ import API, { API_BASE_URL } from "../services/api";
 import { formatISTTime } from "../utils/time";
 
 import { bomIconTileStyle } from "../utils/bomIcons";
+import styles from "./EntityDrawer.module.css";
 
 
 // ===================================================================
@@ -61,12 +62,8 @@ function Pill({ children, color }) {
   return (
 
     <span
+      className={styles.pill}
       style={{
-        display: "inline-block",
-        padding: "2px 10px",
-        borderRadius: 999,
-        fontSize: 10,
-        fontWeight: 700,
         background: `${color}22`,
         color
       }}
@@ -82,22 +79,17 @@ function StatTile({ label, value, sub, accent }) {
   return (
 
     <div
-      style={{
-        background: "white",
-        padding: 14,
-        borderRadius: 10,
-        boxShadow: "0 2px 8px rgba(15,23,42,0.06)",
-        borderTop: `3px solid ${accent}`
-      }}
+      className={styles.statTile}
+      style={{ borderTop: `3px solid ${accent}` }}
     >
-      <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.8 }}>
+      <div className={styles.statTileLabel}>
         {label}
       </div>
-      <div style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", marginTop: 4 }}>
+      <div className={styles.statTileValue}>
         {value}
       </div>
       {sub && (
-        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
+        <div className={styles.statTileSub}>
           {sub}
         </div>
       )}
@@ -110,17 +102,8 @@ function Section({ title, children }) {
 
   return (
 
-    <div style={{ marginTop: 18 }}>
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: 1,
-          color: "#475569",
-          textTransform: "uppercase",
-          marginBottom: 8
-        }}
-      >
+    <div className={styles.section}>
+      <div className={styles.sectionTitle}>
         {title}
       </div>
       {children}
@@ -153,56 +136,26 @@ function EmployeeView({ data, openEntity, navigate, onClose }) {
 
     <>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 14,
-          marginBottom: 18,
-          paddingBottom: 16,
-          borderBottom: "1px solid #e2e8f0"
-        }}
-      >
-        <div
-          style={{
-            width: 60,
-            height: 60,
-            borderRadius: "50%",
-            background: "linear-gradient(135deg,#6366f1,#8b5cf6,#ec4899)",
-            color: "white",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 26,
-            fontWeight: 800,
-            boxShadow: "0 6px 18px rgba(139,92,246,0.4)"
-          }}
-        >
+      <div className={styles.empHero}>
+        <div className={styles.empAvatar}>
           {(emp.NAME || "?").charAt(0).toUpperCase()}
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 20, fontWeight: 800, color: "#0f172a" }}>
+        <div className={styles.flex1}>
+          <div className={styles.empName}>
             {emp.NAME}
           </div>
-          <div style={{ fontSize: 12, color: "#64748b", fontFamily: "ui-monospace, monospace" }}>
+          <div className={styles.empMeta}>
             {emp.EMPLOYEE_CODE} · {emp.DEPARTMENT || "—"}
           </div>
           {emp.EMAIL && (
-            <div style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>
+            <div className={styles.empContact}>
               {emp.EMAIL}{emp.PHONE && ` · ${emp.PHONE}`}
             </div>
           )}
         </div>
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 10,
-          marginBottom: 6
-        }}
-      >
+      <div className={styles.statsGrid4}>
         <StatTile
           label="Tasks Open"
           value={tasks.length}
@@ -229,13 +182,7 @@ function EmployeeView({ data, openEntity, navigate, onClose }) {
 
       {att && (
         <Section title="Today's Attendance">
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr",
-              gap: 10
-            }}
-          >
+          <div className={styles.statsGrid3}>
             <StatTile label="Check-In" value={formatISTTime(att.CHECK_IN)} accent="#10b981" />
             <StatTile label="Check-Out" value={att.CHECK_OUT ? formatISTTime(att.CHECK_OUT) : "—"} accent="#ef4444" />
             <StatTile label="Status" value={att.STATUS} accent="#3b82f6" />
@@ -245,7 +192,7 @@ function EmployeeView({ data, openEntity, navigate, onClose }) {
 
       {emp.SKILLS && (
         <Section title="Skills">
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          <div className={styles.skillsWrap}>
             {emp.SKILLS.split(",").map((s, i) => (
               <Pill key={i} color="#6366f1">{s.trim()}</Pill>
             ))}
@@ -255,24 +202,19 @@ function EmployeeView({ data, openEntity, navigate, onClose }) {
 
       <Section title="Active Tasks">
         {tasks.length === 0 && (
-          <div style={{ color: "#94a3b8", fontSize: 13 }}>No active tasks.</div>
+          <div className={styles.emptyMsg}>No active tasks.</div>
         )}
         {tasks.map((t) => (
           <div
             key={t.TASK_ID}
-            style={{
-              padding: "10px 12px",
-              border: "1px solid #e2e8f0",
-              borderRadius: 8,
-              marginBottom: 8,
-              cursor: t.PROJECT_ID ? "pointer" : "default"
-            }}
+            className={styles.taskCard}
+            style={{ cursor: t.PROJECT_ID ? "pointer" : "default" }}
             onClick={() => t.PROJECT_ID && openEntity("project", t.PROJECT_ID)}
           >
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+            <div className={styles.taskCardTitle}>
               {t.TASK_NAME}
             </div>
-            <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+            <div className={styles.taskCardSub}>
               {t.PROJECT_NAME && (
                 <span>📁 {t.PROJECT_NAME} · </span>
               )}
@@ -290,20 +232,13 @@ function EmployeeView({ data, openEntity, navigate, onClose }) {
           {stages.map((s, i) => (
             <div
               key={i}
-              style={{
-                padding: "10px 12px",
-                background: "#eff6ff",
-                border: "1px solid #bfdbfe",
-                borderRadius: 8,
-                marginBottom: 8,
-                cursor: "pointer"
-              }}
+              className={styles.stageCard}
               onClick={() => openEntity("work-order", s.WO_ID)}
             >
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+              <div className={styles.stageCardTitle}>
                 {s.STAGE_NAME}
               </div>
-              <div style={{ fontSize: 11, color: "#1e40af", fontFamily: "ui-monospace, monospace", marginTop: 2 }}>
+              <div className={styles.stageCardMeta}>
                 {s.WO_NUMBER} · {s.MODEL_NAME}
                 {" · "}
                 <Pill color={s.PROGRESS_STATUS === "DONE" ? "#10b981" : "#f59e0b"}>
@@ -317,7 +252,7 @@ function EmployeeView({ data, openEntity, navigate, onClose }) {
 
       {balance && (
         <Section title="Leave Balance">
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          <div className={styles.statsGrid3}>
             <StatTile label="Casual" value={balance.CASUAL.remaining} sub={`of ${balance.CASUAL.total}`} accent="#3b82f6" />
             <StatTile label="Sick" value={balance.SICK.remaining} sub={`of ${balance.SICK.total}`} accent="#ef4444" />
             <StatTile label="Earned" value={balance.EARNED.remaining} sub={`of ${balance.EARNED.total}`} accent="#10b981" />
@@ -328,13 +263,7 @@ function EmployeeView({ data, openEntity, navigate, onClose }) {
       {leaveRequests.length > 0 && (
         <Section title="Recent Leave Requests">
           {leaveRequests.slice(0, 5).map((l) => (
-            <div key={l.ID} style={{
-              display: "flex",
-              justifyContent: "space-between",
-              padding: "8px 12px",
-              borderBottom: "1px solid #f1f5f9",
-              fontSize: 12
-            }}>
+            <div key={l.ID} className={styles.leaveRow}>
               <span>
                 <Pill color="#3b82f6">{l.LEAVE_TYPE}</Pill>{" "}
                 {l.START_DATE} → {l.END_DATE} ({l.DAYS}d)
@@ -351,16 +280,9 @@ function EmployeeView({ data, openEntity, navigate, onClose }) {
       {scans.length > 0 && (
         <Section title="Recent Biometric Scans">
           {scans.slice(0, 5).map((s) => (
-            <div key={s.ID} style={{
-              fontSize: 12,
-              color: "#475569",
-              padding: "6px 12px",
-              borderBottom: "1px solid #f1f5f9",
-              display: "flex",
-              justifyContent: "space-between"
-            }}>
+            <div key={s.ID} className={styles.scanRow}>
               <span>{s.DEVICE_ID} · {s.VERIFY_MODE}</span>
-              <span style={{ fontFamily: "ui-monospace, monospace" }}>
+              <span className={styles.scanRowCode}>
                 {formatISTTime(s.EVENT_TIME)} · <Pill color={
                   s.RESULT === "SUCCESS" ? "#10b981" : "#ef4444"
                 }>{s.RESULT}</Pill>
@@ -370,22 +292,25 @@ function EmployeeView({ data, openEntity, navigate, onClose }) {
         </Section>
       )}
 
-      <div style={{ marginTop: 22, display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div className={styles.navRow}>
         <button
           onClick={() => { onClose(); navigate("/md-review"); }}
-          style={navBtn("#6366f1")}
+          className={styles.navBtn}
+          style={{ background: "#6366f1", boxShadow: "0 4px 12px #6366f166" }}
         >
           MD Performance Review →
         </button>
         <button
           onClick={() => { onClose(); navigate("/attendance"); }}
-          style={navBtn("#10b981")}
+          className={styles.navBtn}
+          style={{ background: "#10b981", boxShadow: "0 4px 12px #10b98166" }}
         >
           Attendance →
         </button>
         <button
           onClick={() => { onClose(); navigate("/leave-management"); }}
-          style={navBtn("#ec4899")}
+          className={styles.navBtn}
+          style={{ background: "#ec4899", boxShadow: "0 4px 12px #ec489966" }}
         >
           Leave Management →
         </button>
@@ -415,32 +340,17 @@ function BomRow({ item, suppliers, savingId, updateSupplier }) {
 
       <tr
         onClick={() => setExpanded((v) => !v)}
-        style={{
-          borderBottom: "1px solid #f1f5f9",
-          cursor: "pointer",
-          background: expanded ? "#f8fafc" : "white"
-        }}
+        className={styles.bomTr}
+        style={{ background: expanded ? "#f8fafc" : "white" }}
       >
 
         {/* Preview cell */}
-        <td style={{
-          padding: 6,
-          borderRight: "1px solid #f1f5f9",
-          textAlign: "center",
-          verticalAlign: "middle"
-        }}>
+        <td className={styles.bomTdPreview}>
           {imageUrl ? (
             <img
               src={imageUrl}
               alt={item.MATERIAL_NAME}
-              style={{
-                width: 56,
-                height: 56,
-                objectFit: "contain",
-                background: "white",
-                border: "1px solid #e2e8f0",
-                borderRadius: 8
-              }}
+              className={styles.bomImg}
             />
           ) : (() => {
 
@@ -459,115 +369,64 @@ function BomRow({ item, suppliers, savingId, updateSupplier }) {
         </td>
 
         {/* Item no */}
-        <td style={{
-          padding: 6,
-          borderRight: "1px solid #f1f5f9",
-          textAlign: "center",
-          verticalAlign: "middle",
-          fontFamily: "ui-monospace, monospace",
-          fontWeight: 700,
-          color: "#475569"
-        }}>
+        <td className={styles.bomTdItemNo}>
           {item.ITEM_NO ?? "—"}
         </td>
 
         {/* Part number */}
-        <td style={{
-          padding: 6,
-          borderRight: "1px solid #f1f5f9",
-          verticalAlign: "middle"
-        }}>
-          <div style={{ fontWeight: 600, color: "#0f172a", fontSize: 12 }}>
+        <td className={styles.bomTdPart}>
+          <div className={styles.bomPartName}>
             {item.MATERIAL_NAME}
           </div>
-          <div style={{
-            fontSize: 10,
-            color: "#94a3b8",
-            marginTop: 2,
-            display: "flex",
-            gap: 6,
-            alignItems: "center",
-            flexWrap: "wrap"
-          }}>
+          <div className={styles.bomPartMeta}>
             <span>{item.PER_UNIT_QUANTITY} {item.UNIT} per unit</span>
             {isProcess && (
-              <span style={{
-                background: "#ede9fe",
-                color: "#6d28d9",
-                padding: "1px 6px",
-                borderRadius: 4,
-                fontWeight: 700
-              }}>
+              <span className={styles.bomTagProcess}>
                 IN-HOUSE
               </span>
             )}
             {item.PREFERRED_SUPPLIER_NAME && (
-              <span style={{
-                background: "#dbeafe",
-                color: "#1e40af",
-                padding: "1px 6px",
-                borderRadius: 4,
-                fontWeight: 700
-              }}>
+              <span className={styles.bomTagSupplier}>
                 🏢 {item.PREFERRED_SUPPLIER_NAME}
               </span>
             )}
-            <span style={{ color: "#cbd5e1" }}>
+            <span className={styles.bomExpandHint}>
               {expanded ? "▴ hide" : "▾ supplier"}
             </span>
           </div>
         </td>
 
         {/* Qty */}
-        <td style={{
-          padding: 6,
-          textAlign: "center",
-          verticalAlign: "middle",
-          fontFamily: "ui-monospace, monospace",
-          fontWeight: 800,
-          fontSize: 14,
-          color: "#0f172a"
-        }}>
+        <td className={styles.bomTdQty}>
           {item.TOTAL_QUANTITY}
         </td>
 
       </tr>
 
       {expanded && (
-        <tr style={{ background: "#f8fafc" }}>
-          <td colSpan={4} style={{ padding: "10px 12px", borderBottom: "1px solid #e2e8f0" }}>
+        <tr className={styles.bomExpandRow}>
+          <td colSpan={4} className={styles.bomExpandCell}>
             {isProcess ? (
-              <div style={{ fontSize: 11, color: "#64748b" }}>
+              <div className={styles.bomProcessText}>
                 <strong>Made in-house</strong> · Stage:{" "}
-                <span style={{ color: "#0f172a" }}>
+                <span style={{ color: "var(--text-primary, #0f172a)" }}>
                   {item.PROCESS_STAGE_NAME || "—"}
                 </span>
               </div>
             ) : (
               <div
                 onClick={(e) => e.stopPropagation()}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  fontSize: 11
-                }}
+                className={styles.bomSupplierRow}
               >
-                <label style={{ color: "#64748b", fontWeight: 700 }}>
+                <label className={styles.bomSupplierLabel}>
                   Supplier:
                 </label>
                 <select
                   value={item.PREFERRED_SUPPLIER_ID || ""}
                   onChange={(e) => updateSupplier(item.ID, e.target.value)}
                   disabled={savingId === item.ID}
-                  style={{
-                    flex: 1,
-                    padding: "5px 8px",
-                    border: "1px solid #cbd5e1",
-                    borderRadius: 5,
-                    fontSize: 12,
-                    background: savingId === item.ID ? "#f1f5f9" : "white"
-                  }}
+                  className={styles.bomSupplierSelect}
+                  style={{ background: savingId === item.ID ? "#f1f5f9" : "white" }}
                 >
                   <option value="">— Pick supplier —</option>
                   {suppliers.map((s) => (
@@ -578,7 +437,7 @@ function BomRow({ item, suppliers, savingId, updateSupplier }) {
                   ))}
                 </select>
                 {savingId === item.ID && (
-                  <span style={{ color: "#94a3b8", fontSize: 10 }}>
+                  <span className={styles.bomSavingText}>
                     Saving…
                   </span>
                 )}
@@ -668,50 +527,25 @@ function ProjectBomSection({
     <Section title={`Required BOM (rolled up × ${projectQuantity})`}>
 
       {bom.length === 0 && (
-        <div
-          style={{
-            padding: 14,
-            background: "#fffbeb",
-            border: "1px solid #fde68a",
-            borderRadius: 8,
-            fontSize: 12,
-            color: "#92400e"
-          }}
-        >
+        <div className={styles.bomEmptyBox}>
           This product has no BOM lines yet. You can auto-seed the
           common vending-machine BOM (cabinet, motor, control board,
           touchscreen, payment terminal, glass, etc.) — suppliers are
           pre-linked where they match your supplier directory.
 
           {errorMsg && (
-            <div
-              style={{
-                marginTop: 8,
-                padding: 6,
-                background: "#fef2f2",
-                border: "1px solid #fecaca",
-                borderRadius: 6,
-                color: "#b91c1c"
-              }}
-            >
+            <div className={styles.bomErrorBox}>
               {errorMsg}
             </div>
           )}
 
-          <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+          <div className={styles.bomSeedActions}>
             <button
               onClick={seedDefaultBom}
               disabled={seeding || !productModelId}
+              className={styles.bomSeedBtn}
               style={{
-                background: seeding
-                  ? "#cbd5e1"
-                  : "linear-gradient(135deg, #F4B324, #C8102E)",
-                color: "white",
-                border: "none",
-                padding: "7px 14px",
-                borderRadius: 6,
-                fontWeight: 700,
-                fontSize: 12,
+                background: seeding ? "#cbd5e1" : "#f59e0b",
                 cursor: seeding ? "default" : "pointer"
               }}
             >
@@ -719,16 +553,7 @@ function ProjectBomSection({
             </button>
             <button
               onClick={() => { onClose(); navigate("/production"); }}
-              style={{
-                background: "white",
-                color: "#92400e",
-                border: "1px solid #fde68a",
-                padding: "7px 14px",
-                borderRadius: 6,
-                fontWeight: 700,
-                fontSize: 12,
-                cursor: "pointer"
-              }}
+              className={styles.bomManualBtn}
             >
               Or add manually →
             </button>
@@ -740,77 +565,29 @@ function ProjectBomSection({
         <div>
 
           {errorMsg && (
-            <div
-              style={{
-                padding: 8,
-                background: "#fef2f2",
-                border: "1px solid #fecaca",
-                borderRadius: 6,
-                color: "#b91c1c",
-                fontSize: 12,
-                marginBottom: 8
-              }}
-            >
+            <div className={styles.bomErrorBoxInline}>
               {errorMsg}
             </div>
           )}
 
-          <div
-            style={{
-              fontSize: 11,
-              color: "#64748b",
-              marginBottom: 8
-            }}
-          >
+          <div className={styles.bomHint}>
             Excel-style BOM with image preview. Tap any row to expand
             the supplier picker.
           </div>
 
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: 12,
-              border: "1px solid #cbd5e1"
-            }}
-          >
+          <table className={styles.bomTable}>
             <thead>
-              <tr style={{
-                background: "#f1f5f9",
-                color: "#475569",
-                fontSize: 10,
-                letterSpacing: 0.5,
-                textTransform: "uppercase"
-              }}>
-                <th style={{
-                  padding: "8px 6px",
-                  borderBottom: "1px solid #cbd5e1",
-                  width: 70,
-                  textAlign: "center"
-                }}>
+              <tr className={styles.bomTableHead}>
+                <th className={styles.bomThPreview}>
                   Preview
                 </th>
-                <th style={{
-                  padding: "8px 6px",
-                  borderBottom: "1px solid #cbd5e1",
-                  width: 50,
-                  textAlign: "center"
-                }}>
+                <th className={styles.bomThItemNo}>
                   Item No.
                 </th>
-                <th style={{
-                  padding: "8px 6px",
-                  borderBottom: "1px solid #cbd5e1",
-                  textAlign: "left"
-                }}>
+                <th className={styles.bomThPart}>
                   Part Number
                 </th>
-                <th style={{
-                  padding: "8px 6px",
-                  borderBottom: "1px solid #cbd5e1",
-                  width: 60,
-                  textAlign: "center"
-                }}>
+                <th className={styles.bomThQty}>
                   Qty
                 </th>
               </tr>
@@ -828,14 +605,7 @@ function ProjectBomSection({
             </tbody>
           </table>
 
-          <div
-            style={{
-              fontSize: 10,
-              color: "#94a3b8",
-              marginTop: 8,
-              fontStyle: "italic"
-            }}
-          >
+          <div className={styles.bomNote}>
             Note: supplier choice is saved on the product's BOM and applies
             to every project using this product.
           </div>
@@ -855,8 +625,6 @@ function ProjectView({ data, openEntity, navigate, onClose, refresh }) {
   const customer = data?.customer;
 
   const wos = data?.work_orders || [];
-
-  const tasks = data?.tasks || [];
 
   const emps = data?.assigned_employees || [];
 
@@ -912,14 +680,14 @@ function ProjectView({ data, openEntity, navigate, onClose, refresh }) {
   return (
 
     <>
-      <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: "1px solid #e2e8f0" }}>
-        <div style={{ fontSize: 12, color: "#64748b", letterSpacing: 1, textTransform: "uppercase", fontWeight: 700 }}>
+      <div className={styles.projHero}>
+        <div className={styles.projHeroLabel}>
           Project
         </div>
-        <div style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", marginTop: 2 }}>
+        <div className={styles.projHeroName}>
           {proj.PROJECT_NAME}
         </div>
-        <div style={{ marginTop: 6, display: "flex", gap: 6, alignItems: "center" }}>
+        <div className={styles.projHeroPills}>
           <Pill color={proj.PRIORITY === "HIGH" ? "#ef4444" : proj.PRIORITY === "LOW" ? "#94a3b8" : "#f59e0b"}>
             {proj.PRIORITY || "MEDIUM"}
           </Pill>
@@ -927,13 +695,13 @@ function ProjectView({ data, openEntity, navigate, onClose, refresh }) {
           {proj.DEPARTMENT && <Pill color="#8b5cf6">{proj.DEPARTMENT}</Pill>}
         </div>
         {proj.DESCRIPTION && (
-          <div style={{ fontSize: 13, color: "#475569", marginTop: 8 }}>
+          <div className={styles.projDesc}>
             {proj.DESCRIPTION}
           </div>
         )}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+      <div className={styles.statsGrid4}>
         <StatTile label="Work Orders" value={wos.length} accent="#f59e0b" />
         <StatTile label="Tasks Total" value={stats.total ?? 0} accent="#3b82f6" />
         <StatTile label="Tasks Done" value={stats.completed ?? 0} accent="#10b981" />
@@ -941,19 +709,11 @@ function ProjectView({ data, openEntity, navigate, onClose, refresh }) {
       </div>
 
       {showBackfill && (
-        <div
-          style={{
-            marginTop: 14,
-            padding: 14,
-            background: "linear-gradient(135deg, #fef3c7, #fde68a)",
-            border: "1px solid #f59e0b",
-            borderRadius: 10
-          }}
-        >
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#92400e" }}>
+        <div className={styles.backfillBanner}>
+          <div className={styles.backfillTitle}>
             No tasks generated for this project yet
           </div>
-          <div style={{ fontSize: 12, color: "#78350f", marginTop: 4, lineHeight: 1.5 }}>
+          <div className={styles.backfillBody}>
             This product-driven project has no tasks. Click below to auto-generate
             tasks from the product's manufacturing stages and assign each one to
             the best-skill employee.
@@ -961,17 +721,9 @@ function ProjectView({ data, openEntity, navigate, onClose, refresh }) {
           <button
             onClick={runBackfill}
             disabled={backfilling}
+            className={styles.backfillBtn}
             style={{
-              marginTop: 10,
-              background: backfilling
-                ? "#cbd5e1"
-                : "linear-gradient(135deg, #F4B324, #C8102E)",
-              color: "white",
-              border: "none",
-              padding: "8px 18px",
-              borderRadius: 8,
-              fontWeight: 700,
-              fontSize: 13,
+              background: backfilling ? "#cbd5e1" : "#f59e0b",
               cursor: backfilling ? "default" : "pointer"
             }}
           >
@@ -979,12 +731,8 @@ function ProjectView({ data, openEntity, navigate, onClose, refresh }) {
           </button>
           {backfillMsg && (
             <div
-              style={{
-                marginTop: 10,
-                fontSize: 12,
-                color: backfillMsg.ok ? "#166534" : "#b91c1c",
-                fontWeight: 600
-              }}
+              className={styles.backfillFeedback}
+              style={{ color: backfillMsg.ok ? "#166534" : "#b91c1c" }}
             >
               {backfillMsg.text}
             </div>
@@ -994,15 +742,15 @@ function ProjectView({ data, openEntity, navigate, onClose, refresh }) {
 
       {customer && (
         <Section title="Customer">
-          <div style={{ padding: 12, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
+          <div className={styles.customerCard}>
+            <div className={styles.customerCardName}>
               {customer.NAME}
             </div>
-            <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+            <div className={styles.customerCardSub}>
               {customer.PHONE} · {customer.EMAIL}
             </div>
             {customer.ADDRESS && (
-              <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
+              <div className={styles.customerCardAddr}>
                 {customer.ADDRESS}
               </div>
             )}
@@ -1012,26 +760,20 @@ function ProjectView({ data, openEntity, navigate, onClose, refresh }) {
 
       <Section title={`Work Orders (${wos.length})`}>
         {wos.length === 0 && (
-          <div style={{ color: "#94a3b8", fontSize: 13 }}>No work orders yet.</div>
+          <div className={styles.emptyMsg}>No work orders yet.</div>
         )}
         {wos.map((wo) => (
           <div
             key={wo.ID}
             onClick={() => openEntity("work-order", wo.ID)}
-            style={{
-              padding: "10px 12px",
-              border: "1px solid #e2e8f0",
-              borderRadius: 8,
-              marginBottom: 8,
-              cursor: "pointer"
-            }}
+            className={styles.taskCard}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className={styles.flexRow}>
               <div>
-                <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 12, color: "#475569" }}>
+                <div className={styles.woHeroCode}>
                   {wo.WO_NUMBER}
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", marginTop: 2 }}>
+                <div className={styles.taskCardTitle} style={{ marginTop: 2 }}>
                   {wo.MODEL_NAME} × {wo.QUANTITY}
                 </div>
               </div>
@@ -1045,21 +787,12 @@ function ProjectView({ data, openEntity, navigate, onClose, refresh }) {
       </Section>
 
       <Section title={`Assigned Employees (${emps.length})`}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        <div className={styles.empChipWrap}>
           {emps.map((e) => (
             <button
               key={e.ID}
               onClick={() => openEntity("employee", e.ID)}
-              style={{
-                border: "1px solid #c7d2fe",
-                background: "#eef2ff",
-                color: "#4338ca",
-                padding: "6px 12px",
-                borderRadius: 999,
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: "pointer"
-              }}
+              className={styles.empChipBtn}
             >
               👤 {e.NAME} · {e.EMPLOYEE_CODE}
             </button>
@@ -1078,16 +811,18 @@ function ProjectView({ data, openEntity, navigate, onClose, refresh }) {
         refresh={refresh}
       />
 
-      <div style={{ marginTop: 22, display: "flex", gap: 8 }}>
+      <div className={styles.navRow}>
         <button
           onClick={() => { onClose(); navigate("/production"); }}
-          style={navBtn("#f59e0b")}
+          className={styles.navBtn}
+          style={{ background: "#f59e0b", boxShadow: "0 4px 12px #f59e0b66" }}
         >
           Production & BOM →
         </button>
         <button
           onClick={() => { onClose(); navigate("/projects"); }}
-          style={navBtn("#3b82f6")}
+          className={styles.navBtn}
+          style={{ background: "#3b82f6", boxShadow: "0 4px 12px #3b82f666" }}
         >
           All Projects →
         </button>
@@ -1120,14 +855,14 @@ function WorkOrderView({ data, openEntity, navigate, onClose }) {
   return (
 
     <>
-      <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: "1px solid #e2e8f0" }}>
-        <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 12, color: "#64748b" }}>
+      <div className={styles.woHero}>
+        <div className={styles.woHeroCode}>
           {wo.WO_NUMBER}
         </div>
-        <div style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", marginTop: 2 }}>
+        <div className={styles.woHeroName}>
           {model?.MODEL_NAME || "—"} × {wo.QUANTITY}
         </div>
-        <div style={{ marginTop: 6, display: "flex", gap: 6 }}>
+        <div className={styles.woHeroPills}>
           <Pill color={
             wo.STATUS === "DONE" ? "#10b981" :
             wo.STATUS === "IN_PROGRESS" ? "#f59e0b" : "#64748b"
@@ -1136,7 +871,7 @@ function WorkOrderView({ data, openEntity, navigate, onClose }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+      <div className={styles.statsGrid4}>
         <StatTile label="Progress" value={`${progressPct}%`} sub={`${stagesDone}/${stages.length}`} accent="#10b981" />
         <StatTile label="BOM Lines" value={bom.length} accent="#6366f1" />
         <StatTile label="Inspections" value={inspections.length} accent="#3b82f6" />
@@ -1147,20 +882,12 @@ function WorkOrderView({ data, openEntity, navigate, onClose }) {
         <Section title="Project">
           <button
             onClick={() => openEntity("project", project.ID)}
-            style={{
-              width: "100%",
-              textAlign: "left",
-              padding: 12,
-              background: "#f0fdf4",
-              border: "1px solid #bbf7d0",
-              borderRadius: 8,
-              cursor: "pointer"
-            }}
+            className={styles.projLinkBtn}
           >
-            <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+            <div className={styles.projLinkBtnName}>
               📁 {project.PROJECT_NAME}
             </div>
-            <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+            <div className={styles.projLinkBtnSub}>
               Status: {project.STATUS}
             </div>
           </button>
@@ -1169,44 +896,26 @@ function WorkOrderView({ data, openEntity, navigate, onClose }) {
 
       <Section title={`Manufacturing Stages (${stages.length})`}>
         {stages.map((s) => (
-          <div
-            key={s.STAGE_ID}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "8px 10px",
-              borderBottom: "1px solid #f1f5f9"
-            }}
-          >
-            <div style={{
-              width: 26, height: 26, borderRadius: "50%",
-              background: s.STATUS === "DONE" ? "#dcfce7" : s.STATUS === "IN_PROGRESS" ? "#fef3c7" : "#f1f5f9",
-              color: s.STATUS === "DONE" ? "#166534" : s.STATUS === "IN_PROGRESS" ? "#854d0e" : "#475569",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontWeight: 700, fontSize: 11, fontFamily: "ui-monospace, monospace"
-            }}>
+          <div key={s.STAGE_ID} className={styles.stageSeqRow}>
+            <div
+              className={styles.stageSeqBadge}
+              style={{
+                background: s.STATUS === "DONE" ? "#dcfce7" : s.STATUS === "IN_PROGRESS" ? "#fef3c7" : "#f1f5f9",
+                color: s.STATUS === "DONE" ? "#166534" : s.STATUS === "IN_PROGRESS" ? "#854d0e" : "#475569"
+              }}
+            >
               {s.SEQUENCE}
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>
+            <div className={styles.flex1}>
+              <div className={styles.stageSeqName}>
                 {s.STAGE_NAME}
               </div>
-              <div style={{ fontSize: 11, color: "#64748b" }}>
+              <div className={styles.stageSeqType}>
                 {s.STAGE_TYPE}
                 {s.ASSIGNED_TO_NAME && (
                   <button
                     onClick={() => openEntity("employee", s.ASSIGNED_TO_ID)}
-                    style={{
-                      border: "none",
-                      background: "none",
-                      color: "#1e40af",
-                      cursor: "pointer",
-                      padding: 0,
-                      marginLeft: 6,
-                      fontSize: 11,
-                      textDecoration: "underline"
-                    }}
+                    className={styles.stageAssignBtn}
                   >
                     · 👤 {s.ASSIGNED_TO_NAME}
                   </button>
@@ -1223,35 +932,21 @@ function WorkOrderView({ data, openEntity, navigate, onClose }) {
       </Section>
 
       <Section title={`BOM Rolled-up (×${wo.QUANTITY})`}>
-        {bom.length === 0 && <div style={{ color: "#94a3b8", fontSize: 13 }}>No BOM lines.</div>}
+        {bom.length === 0 && <div className={styles.emptyMsg}>No BOM lines.</div>}
         {bom.slice(0, 10).map((b) => (
-          <div key={b.ID} style={{
-            display: "flex",
-            justifyContent: "space-between",
-            padding: "6px 10px",
-            borderBottom: "1px solid #f1f5f9",
-            fontSize: 12
-          }}>
-            <span style={{ flex: 1 }}>
+          <div key={b.ID} className={styles.bomRow}>
+            <span className={styles.bomRowName}>
               {b.MATERIAL_NAME}
               {b.SUPPLIER_NAME && (
                 <button
                   onClick={() => openEntity("supplier", b.SUPPLIER_ID)}
-                  style={{
-                    border: "none",
-                    background: "none",
-                    color: "#1e40af",
-                    cursor: "pointer",
-                    fontSize: 11,
-                    marginLeft: 6,
-                    textDecoration: "underline"
-                  }}
+                  className={styles.bomSupplierBtn}
                 >
                   · {b.SUPPLIER_NAME}
                 </button>
               )}
             </span>
-            <span style={{ fontWeight: 700 }}>{b.TOTAL_FOR_WO} {b.UNIT}</span>
+            <span className={styles.bomRowQty}>{b.TOTAL_FOR_WO} {b.UNIT}</span>
             <Pill color={b.TYPE === "PURCHASE" ? "#3b82f6" : "#8b5cf6"}>{b.TYPE}</Pill>
           </div>
         ))}
@@ -1260,30 +955,35 @@ function WorkOrderView({ data, openEntity, navigate, onClose }) {
       {ncrs.length > 0 && (
         <Section title={`NCRs (${ncrs.length})`}>
           {ncrs.map((n) => (
-            <div key={n.ID} style={{
-              padding: "8px 10px",
-              background: "#fef2f2",
-              border: "1px solid #fecaca",
-              borderRadius: 8,
-              marginBottom: 6,
-              fontSize: 12
-            }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <strong style={{ fontFamily: "ui-monospace, monospace" }}>{n.NCR_NUMBER}</strong>
+            <div key={n.ID} className={styles.ncrCard}>
+              <div className={styles.ncrCardHead}>
+                <strong className={styles.ncrCode}>{n.NCR_NUMBER}</strong>
                 <Pill color={
                   n.SEVERITY === "CRITICAL" ? "#991b1b" :
                   n.SEVERITY === "MAJOR" ? "#b91c1c" : "#64748b"
                 }>{n.SEVERITY}</Pill>
               </div>
-              <div style={{ marginTop: 2, color: "#475569" }}>{n.CHECK_POINT}</div>
+              <div className={styles.ncrCheckpoint}>{n.CHECK_POINT}</div>
             </div>
           ))}
         </Section>
       )}
 
-      <div style={{ marginTop: 22, display: "flex", gap: 8 }}>
-        <button onClick={() => { onClose(); navigate("/production"); }} style={navBtn("#f59e0b")}>Production →</button>
-        <button onClick={() => { onClose(); navigate("/quality"); }} style={navBtn("#10b981")}>Quality →</button>
+      <div className={styles.navRow}>
+        <button
+          onClick={() => { onClose(); navigate("/production"); }}
+          className={styles.navBtn}
+          style={{ background: "#f59e0b", boxShadow: "0 4px 12px #f59e0b66" }}
+        >
+          Production →
+        </button>
+        <button
+          onClick={() => { onClose(); navigate("/quality"); }}
+          className={styles.navBtn}
+          style={{ background: "#10b981", boxShadow: "0 4px 12px #10b98166" }}
+        >
+          Quality →
+        </button>
       </div>
     </>
   );
@@ -1303,33 +1003,33 @@ function SupplierView({ data, openEntity, navigate, onClose }) {
   return (
 
     <>
-      <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: "1px solid #e2e8f0" }}>
-        <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 12, color: "#64748b" }}>
+      <div className={styles.supHero}>
+        <div className={styles.supHeroCode}>
           {sup.SUPPLIER_CODE}
         </div>
-        <div style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", marginTop: 2 }}>
+        <div className={styles.supHeroName}>
           {sup.COMPANY_NAME}
         </div>
-        <div style={{ marginTop: 6, display: "flex", gap: 6 }}>
+        <div className={styles.supHeroPills}>
           {sup.CATEGORY && <Pill color="#ec4899">{sup.CATEGORY}</Pill>}
           <Pill color={sup.STATUS === "ACTIVE" ? "#10b981" : "#94a3b8"}>{sup.STATUS}</Pill>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
+      <div className={styles.statsGrid3}>
         <StatTile label="Models" value={sum.models_count ?? 0} sub="supplied" accent="#6366f1" />
         <StatTile label="BOM Lines" value={sum.total_bom_lines ?? 0} accent="#3b82f6" />
         <StatTile label="Active WOs" value={sum.active_wos_count ?? 0} sub="need parts" accent="#f59e0b" />
       </div>
 
       <Section title="Contact & KYC">
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12, color: "#475569" }}>
+        <div className={styles.supContactGrid}>
           <div>👤 {sup.CONTACT_PERSON || "—"}</div>
           <div>📞 {sup.PHONE || "—"}</div>
           <div>✉️ {sup.EMAIL || "—"}</div>
           <div>📍 {sup.CITY || "—"}, {sup.STATE || "—"} {sup.PINCODE || ""}</div>
-          <div style={{ fontFamily: "ui-monospace, monospace" }}>GST: {sup.GST_NUMBER || "—"}</div>
-          <div style={{ fontFamily: "ui-monospace, monospace" }}>PAN: {sup.PAN_NUMBER || "—"}</div>
+          <div className={styles.supContactMono}>GST: {sup.GST_NUMBER || "—"}</div>
+          <div className={styles.supContactMono}>PAN: {sup.PAN_NUMBER || "—"}</div>
           <div>🏦 {sup.BANK_NAME || "—"}</div>
           <div>💳 {sup.PAYMENT_TERMS || "—"}</div>
         </div>
@@ -1337,18 +1037,13 @@ function SupplierView({ data, openEntity, navigate, onClose }) {
 
       <Section title={`Models Using This Supplier (${models.length})`}>
         {models.map((m) => (
-          <div key={m.MODEL_ID} style={{
-            padding: 10,
-            border: "1px solid #e2e8f0",
-            borderRadius: 8,
-            marginBottom: 8
-          }}>
-            <div style={{ fontWeight: 700, color: "#0f172a" }}>{m.MODEL_NAME}</div>
-            <div style={{ fontSize: 11, color: "#64748b", fontFamily: "ui-monospace, monospace", marginBottom: 6 }}>
+          <div key={m.MODEL_ID} className={styles.supModelCard}>
+            <div className={styles.supModelName}>{m.MODEL_NAME}</div>
+            <div className={styles.supModelCode}>
               {m.MODEL_CODE}
             </div>
             {m.parts.map((p, i) => (
-              <div key={i} style={{ fontSize: 12, color: "#475569" }}>
+              <div key={i} className={styles.supModelPart}>
                 · {p.MATERIAL_NAME} ({p.QUANTITY} {p.UNIT})
               </div>
             ))}
@@ -1362,17 +1057,9 @@ function SupplierView({ data, openEntity, navigate, onClose }) {
             <div
               key={wo.WO_ID}
               onClick={() => openEntity("work-order", wo.WO_ID)}
-              style={{
-                cursor: "pointer",
-                padding: "8px 12px",
-                background: "#fef9c3",
-                border: "1px solid #fde68a",
-                borderRadius: 8,
-                marginBottom: 6,
-                fontSize: 12
-              }}
+              className={styles.activeWoChip}
             >
-              <strong style={{ fontFamily: "ui-monospace, monospace" }}>{wo.WO_NUMBER}</strong>
+              <strong className={styles.activeWoCode}>{wo.WO_NUMBER}</strong>
               {" · "}{wo.MODEL_NAME} × {wo.QUANTITY}{" · "}
               <Pill color="#f59e0b">{wo.STATUS}</Pill>
             </div>
@@ -1380,8 +1067,12 @@ function SupplierView({ data, openEntity, navigate, onClose }) {
         </Section>
       )}
 
-      <div style={{ marginTop: 22 }}>
-        <button onClick={() => { onClose(); navigate("/suppliers"); }} style={navBtn("#ec4899")}>
+      <div className={styles.navRow}>
+        <button
+          onClick={() => { onClose(); navigate("/suppliers"); }}
+          className={styles.navBtn}
+          style={{ background: "#ec4899", boxShadow: "0 4px 12px #ec489966" }}
+        >
           All Suppliers →
         </button>
       </div>
@@ -1390,7 +1081,7 @@ function SupplierView({ data, openEntity, navigate, onClose }) {
 }
 
 
-function CustomerView({ data, openEntity, navigate, onClose }) {
+function CustomerView({ data, navigate, onClose }) {
 
   const cust = data?.customer || {};
 
@@ -1430,23 +1121,17 @@ function CustomerView({ data, openEntity, navigate, onClose }) {
   const ReadField = ({ label, value, mono }) => (
 
     <div>
-      <div style={{
-        fontSize: 10,
-        fontWeight: 700,
-        color: "#64748b",
-        textTransform: "uppercase",
-        letterSpacing: 0.6,
-        marginBottom: 3
-      }}>
+      <div className={styles.readFieldLabel}>
         {label}
       </div>
-      <div style={{
-        fontSize: 13,
-        color: value == null || value === "" ? "#94a3b8" : "#0f172a",
-        fontWeight: value == null || value === "" ? 400 : 600,
-        fontFamily: mono ? "ui-monospace, monospace" : undefined,
-        wordBreak: "break-word"
-      }}>
+      <div
+        className={styles.readFieldValue}
+        style={{
+          color: value == null || value === "" ? "#94a3b8" : "#0f172a",
+          fontWeight: value == null || value === "" ? 400 : 600,
+          fontFamily: mono ? "ui-monospace, monospace" : undefined
+        }}
+      >
         {value == null || value === "" ? "—" : value}
       </div>
     </div>
@@ -1457,69 +1142,23 @@ function CustomerView({ data, openEntity, navigate, onClose }) {
     <>
 
       {/* Hero: avatar + name + status pill */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 16,
-          marginBottom: 20,
-          paddingBottom: 16,
-          borderBottom: "1px solid #e2e8f0"
-        }}
-      >
+      <div className={styles.custHero}>
 
-        <div
-          style={{
-            width: 72,
-            height: 72,
-            borderRadius: 16,
-            background: "linear-gradient(135deg,#06b6d4,#C8102E,#8B0B1F)",
-            color: "white",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 28,
-            fontWeight: 800,
-            boxShadow: "0 8px 22px rgba(14,165,233,0.45)",
-            flexShrink: 0
-          }}
-        >
+        <div className={styles.custAvatar}>
           {(cust.CUSTOMER_NAME || "?").charAt(0).toUpperCase()}
         </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className={styles.flex1MinW0}>
 
-          <div
-            style={{
-              fontSize: 11,
-              fontFamily: "ui-monospace, monospace",
-              color: "#64748b",
-              letterSpacing: 1
-            }}
-          >
+          <div className={styles.custCode}>
             {cust.CUSTOMER_CODE || "—"}
           </div>
 
-          <div
-            style={{
-              fontSize: 22,
-              fontWeight: 800,
-              color: "#0f172a",
-              marginTop: 2,
-              lineHeight: 1.15
-            }}
-          >
+          <div className={styles.custName}>
             {cust.CUSTOMER_NAME}
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              gap: 6,
-              marginTop: 8,
-              flexWrap: "wrap"
-            }}
-          >
+          <div className={styles.custPills}>
             {cust.INDUSTRY && <Pill color="#06b6d4">{cust.INDUSTRY}</Pill>}
             <Pill color={
               cust.STATUS === "ACTIVE" ? "#10b981" :
@@ -1532,14 +1171,7 @@ function CustomerView({ data, openEntity, navigate, onClose }) {
       </div>
 
       {/* Summary stat tiles */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 10,
-          marginBottom: 16
-        }}
-      >
+      <div className={styles.custStatsGrid}>
         <StatTile
           label="Projects"
           value={sum.projects_total ?? 0}
@@ -1568,27 +1200,15 @@ function CustomerView({ data, openEntity, navigate, onClose }) {
 
       {/* Contact + Address grid */}
       <Section title="Contact & Address">
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 10,
-            fontSize: 13,
-            color: "#475569",
-            background: "#f8fafc",
-            padding: 14,
-            borderRadius: 10,
-            border: "1px solid #e2e8f0"
-          }}
-        >
+        <div className={styles.contactCard}>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.8 }}>
+            <div className={styles.contactCardColLabel}>
               Contact
             </div>
-            <div style={{ marginTop: 4, color: "#0f172a", fontWeight: 600 }}>
+            <div className={styles.contactCardColName}>
               {cust.CONTACT_PERSON || "—"}
               {cust.DESIGNATION && (
-                <span style={{ fontSize: 11, color: "#64748b", fontWeight: 400 }}>
+                <span className={styles.contactCardDesig}>
                   {" · "}{cust.DESIGNATION}
                 </span>
               )}
@@ -1600,7 +1220,7 @@ function CustomerView({ data, openEntity, navigate, onClose }) {
           </div>
 
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.8 }}>
+            <div className={styles.contactCardColLabel}>
               Address
             </div>
             <div style={{ marginTop: 4 }}>
@@ -1613,11 +1233,11 @@ function CustomerView({ data, openEntity, navigate, onClose }) {
           </div>
 
           {(cust.GST_NUMBER || cust.PAN_NUMBER) && (
-            <div style={{ gridColumn: "1 / -1", paddingTop: 8, borderTop: "1px dashed #cbd5e1" }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.8 }}>
+            <div className={styles.taxRow}>
+              <div className={styles.taxRowLabel}>
                 Tax / KYC
               </div>
-              <div style={{ marginTop: 4, display: "flex", gap: 18, fontFamily: "ui-monospace, monospace", fontSize: 12 }}>
+              <div className={styles.taxRowValues}>
                 <span>GST: <strong>{cust.GST_NUMBER || "—"}</strong></span>
                 <span>PAN: <strong>{cust.PAN_NUMBER || "—"}</strong></span>
               </div>
@@ -1628,17 +1248,7 @@ function CustomerView({ data, openEntity, navigate, onClose }) {
 
       {/* ============== Enquiry / Lead Information ============== */}
       <Section title="Enquiry Information">
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 14,
-            padding: 14,
-            background: "#f8fafc",
-            border: "1px solid #e2e8f0",
-            borderRadius: 10
-          }}
-        >
+        <div className={styles.enquiryGrid}>
           <ReadField label="Enquiry Date" value={fmtDate(cust.LEAD_CREATED_DATE || cust.CREATED_AT)} />
           <ReadField label="Lead Source" value={cust.LEAD_SOURCE || cust.SOURCE} />
           <ReadField label="Lead Status" value={cust.LEAD_STATUS} />
@@ -1654,33 +1264,15 @@ function CustomerView({ data, openEntity, navigate, onClose }) {
 
         {(cust.REQUIREMENT_NOTES || cust.REMARKS) && (
 
-          <div style={{ marginTop: 12 }}>
+          <div className={styles.notesSpacer}>
 
             {cust.REQUIREMENT_NOTES && (
 
-              <div style={{
-                padding: 14,
-                background: "#eff6ff",
-                border: "1px solid #bfdbfe",
-                borderRadius: 10,
-                marginBottom: 8
-              }}>
-                <div style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: "#1e40af",
-                  textTransform: "uppercase",
-                  letterSpacing: 0.8,
-                  marginBottom: 6
-                }}>
+              <div className={styles.notesPanelBlue}>
+                <div className={styles.notesPanelBlueLabel}>
                   💬 Initial Enquiry Notes (from chatbot / intake form)
                 </div>
-                <div style={{
-                  fontSize: 13,
-                  color: "#0f172a",
-                  whiteSpace: "pre-wrap",
-                  lineHeight: 1.6
-                }}>
+                <div className={styles.notesPanelBlueBody}>
                   {cust.REQUIREMENT_NOTES}
                 </div>
               </div>
@@ -1688,23 +1280,8 @@ function CustomerView({ data, openEntity, navigate, onClose }) {
 
             {cust.REMARKS && (
 
-              <div style={{
-                padding: 12,
-                background: "#fffbeb",
-                border: "1px solid #fde68a",
-                borderRadius: 8,
-                fontSize: 13,
-                color: "#78350f",
-                whiteSpace: "pre-wrap"
-              }}>
-                <div style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: "#854d0e",
-                  textTransform: "uppercase",
-                  letterSpacing: 0.8,
-                  marginBottom: 4
-                }}>
+              <div className={styles.notesPanelAmber}>
+                <div className={styles.notesPanelAmberLabel}>
                   Internal Remarks
                 </div>
                 {cust.REMARKS}
@@ -1719,17 +1296,9 @@ function CustomerView({ data, openEntity, navigate, onClose }) {
 
         {requirements.length === 0 && (
 
-          <div style={{
-            color: "#94a3b8",
-            fontSize: 13,
-            padding: 18,
-            background: "#f8fafc",
-            border: "1px dashed #cbd5e1",
-            borderRadius: 10,
-            textAlign: "center"
-          }}>
+          <div className={styles.noReqPlaceholder}>
             No machine requirements submitted yet.<br />
-            <span style={{ fontSize: 11 }}>
+            <span className={styles.noReqPlaceholderSub}>
               When the customer fills the chatbot intake form, each request will appear here.
             </span>
           </div>
@@ -1737,50 +1306,27 @@ function CustomerView({ data, openEntity, navigate, onClose }) {
 
         {requirements.map((r, idx) => (
 
-          <div
-            key={r.ID}
-            style={{
-              border: "1px solid #e2e8f0",
-              borderRadius: 12,
-              marginBottom: 12,
-              overflow: "hidden",
-              boxShadow: "0 2px 8px rgba(15,23,42,0.04)"
-            }}
-          >
+          <div key={r.ID} className={styles.reqCard}>
 
             {/* Card header */}
-            <div style={{
-              padding: "10px 14px",
-              background: "linear-gradient(135deg, #C8102E, #8B0B1F)",
-              color: "white",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center"
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: "50%",
-                  background: "rgba(255,255,255,0.2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 11,
-                  fontWeight: 800
-                }}>
+            <div
+              className={styles.reqCardHeader}
+              style={{ background: "#ef4444" }}
+            >
+              <div className={styles.reqCardHeaderLeft}>
+                <div className={styles.reqCardBadge}>
                   {idx + 1}
                 </div>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.1 }}>
+                  <div className={styles.reqCardMachineName}>
                     {r.MACHINE_NAME || r.MACHINE_CATEGORY || "Machine Request"}
                   </div>
-                  <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>
+                  <div className={styles.reqCardDate}>
                     Submitted {fmtDate(r.CREATED_AT)}
                   </div>
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 6 }}>
+              <div className={styles.reqCardPills}>
                 <Pill color={
                   r.PRIORITY === "HIGH" ? "#fca5a5" :
                   r.PRIORITY === "LOW" ? "#94a3b8" : "#fcd34d"
@@ -1796,13 +1342,7 @@ function CustomerView({ data, openEntity, navigate, onClose }) {
             </div>
 
             {/* Card body — form-style read-only fields */}
-            <div style={{
-              padding: 16,
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: 14,
-              background: "white"
-            }}>
+            <div className={styles.reqCardBody}>
               <ReadField label="Machine Category" value={r.MACHINE_CATEGORY} />
               <ReadField label="Machine Name" value={r.MACHINE_NAME} />
               <ReadField label="Quantity" value={r.QUANTITY ? `${r.QUANTITY} unit(s)` : null} />
@@ -1811,35 +1351,17 @@ function CustomerView({ data, openEntity, navigate, onClose }) {
               <ReadField label="Target Unit Price" value={r.TARGET_UNIT_PRICE != null ? fmtMoney(r.TARGET_UNIT_PRICE) : null} />
               <ReadField label="Target Delivery Date" value={fmtDate(r.TARGET_DELIVERY_DATE)} />
 
-              <div style={{ gridColumn: "1 / -1" }}>
+              <div className={styles.reqCardBodyFull}>
                 <ReadField label="Installation Site" value={r.INSTALLATION_SITE} />
               </div>
 
               {r.SPECIAL_NOTES && (
 
-                <div style={{
-                  gridColumn: "1 / -1",
-                  padding: 12,
-                  background: "#fef3c7",
-                  border: "1px solid #fde68a",
-                  borderRadius: 8
-                }}>
-                  <div style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: "#854d0e",
-                    textTransform: "uppercase",
-                    letterSpacing: 0.8,
-                    marginBottom: 4
-                  }}>
+                <div className={styles.reqSpecialNotes}>
+                  <div className={styles.reqSpecialNotesLabel}>
                     💡 Special Notes / Customization
                   </div>
-                  <div style={{
-                    fontSize: 13,
-                    color: "#78350f",
-                    whiteSpace: "pre-wrap",
-                    lineHeight: 1.5
-                  }}>
+                  <div className={styles.reqSpecialNotesBody}>
                     {r.SPECIAL_NOTES}
                   </div>
                 </div>
@@ -1853,27 +1375,20 @@ function CustomerView({ data, openEntity, navigate, onClose }) {
       {cust.NOTES && (
 
         <Section title="General Notes">
-          <div style={{
-            padding: 12,
-            background: "#fffbeb",
-            border: "1px solid #fde68a",
-            borderRadius: 8,
-            fontSize: 13,
-            color: "#78350f",
-            whiteSpace: "pre-wrap"
-          }}>
+          <div className={styles.notesPanelAmber}>
             {cust.NOTES}
           </div>
         </Section>
       )}
 
       {/* ============== Footer actions ============== */}
-      <div style={{ marginTop: 22, display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div className={styles.navRow}>
 
         {sum.projects_total > 0 && (
           <button
             onClick={() => { onClose(); navigate("/production"); }}
-            style={navBtn("#f59e0b")}
+            className={styles.navBtn}
+            style={{ background: "#f59e0b", boxShadow: "0 4px 12px #f59e0b66" }}
             title={`View ${sum.projects_total} project(s) and ${sum.work_orders_total || 0} work order(s) tied to this customer`}
           >
             🏭 View Production Status →
@@ -1882,29 +1397,14 @@ function CustomerView({ data, openEntity, navigate, onClose }) {
 
         <button
           onClick={() => { onClose(); navigate("/customers"); }}
-          style={navBtn("#06b6d4")}
+          className={styles.navBtn}
+          style={{ background: "#06b6d4", boxShadow: "0 4px 12px #06b6d466" }}
         >
           All Customers →
         </button>
       </div>
     </>
   );
-}
-
-
-function navBtn(color) {
-
-  return {
-    border: "none",
-    background: color,
-    color: "white",
-    padding: "8px 14px",
-    borderRadius: 8,
-    fontWeight: 700,
-    fontSize: 12,
-    cursor: "pointer",
-    boxShadow: `0 4px 12px ${color}66`
-  };
 }
 
 
@@ -2003,86 +1503,46 @@ export default function EntityDrawer({ open, type, id, onClose }) {
   return (
 
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,0.55)",
-        zIndex: 1000,
-        display: "flex",
-        justifyContent: "flex-end"
-      }}
+      className={styles.overlay}
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 640,
-          maxWidth: "92%",
-          background: "white",
-          overflow: "auto",
-          boxShadow: "-20px 0 60px rgba(0,0,0,0.35)",
-          padding: 24
-        }}
+        className={styles.panel}
       >
 
         {/* Top bar */}
-        <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 18
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div className={styles.topBar}>
+          <div className={styles.topBarLeft}>
             {stack.length > 0 && (
               <button
                 onClick={goBack}
-                style={{
-                  border: "none",
-                  background: "#f1f5f9",
-                  padding: "5px 10px",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  fontSize: 12,
-                  color: "#475569"
-                }}
+                className={styles.backBtn}
               >
                 ← back
               </button>
             )}
-            <span style={{
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: 1.4,
-              textTransform: "uppercase",
-              padding: "3px 10px",
-              borderRadius: 999,
-              background: currentCfg.accent,
-              color: "white"
-            }}>
+            <span
+              className={styles.typeLabel}
+              style={{ background: currentCfg.accent }}
+            >
               {currentCfg.label}
             </span>
           </div>
           <button
             onClick={onClose}
-            style={{
-              border: "none",
-              background: "#f1f5f9",
-              padding: "4px 12px",
-              borderRadius: 8,
-              cursor: "pointer",
-              fontSize: 18
-            }}
+            className={styles.closeBtn}
           >
             ×
           </button>
         </div>
 
         {loading && (
-          <div style={{ color: "#94a3b8", padding: 20 }}>Loading 360° view…</div>
+          <div className={styles.loadingMsg}>Loading 360° view…</div>
         )}
 
         {!loading && data?.error && (
-          <div style={{ color: "#b91c1c", padding: 20 }}>
+          <div className={styles.errorMsg}>
             {data.error}
           </div>
         )}

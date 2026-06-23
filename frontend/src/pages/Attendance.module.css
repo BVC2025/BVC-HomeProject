@@ -1,0 +1,542 @@
+/* Attendance page — scoped styles */
+
+/* ─── Page wrapper ──────────────────────────────────────────── */
+
+.page {
+  padding: var(--sp-5);
+}
+
+.pageTitle {
+  font-size: var(--font-2xl);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin: 0 0 var(--sp-4);
+}
+
+/* ─── Summary stat cards ────────────────────────────────────── */
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: var(--sp-4);
+}
+
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-5);
+  box-shadow: var(--shadow-sm);
+  border-top: 3px solid var(--border);
+}
+
+.card h3 {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin: 0 0 var(--sp-2);
+}
+
+.card p {
+  font-size: 28px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* Badge accent colors — intentional hardcoded exceptions */
+.cardGreen  { border-top-color: #10b981; }
+.cardAmber  { border-top-color: #f59e0b; }
+.cardBlue   { border-top-color: #3b82f6; }
+.cardViolet { border-top-color: #7c3aed; }
+
+/* ─── Geofence widget strip ─────────────────────────────────── */
+
+.geoStrip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 14px;
+  margin-bottom: var(--sp-4);
+}
+
+.geoWidget {
+  padding: 12px 16px;
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+  border-top-width: 3px;
+  background: var(--surface);
+}
+
+/* accent colors for each geofence tile — badge exceptions */
+.geoWidgetGreen  { border-color: #10b981; background: #ecfdf5; }
+.geoWidgetRed    { border-color: #ef4444; background: #fef2f2; }
+.geoWidgetAmber  { border-color: #f59e0b; background: #fffbeb; }
+
+.geoLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.geoValue {
+  font-size: 28px;
+  font-weight: var(--fw-extrabold);
+  margin-top: 4px;
+  line-height: 1;
+}
+
+/* Value accent colors — badge exceptions */
+.geoValueGreen  { color: #065f46; }
+.geoValueRed    { color: #991b1b; }
+.geoValueAmber  { color: #854d0e; }
+
+.geoSub {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  margin-top: 6px;
+}
+
+.geoSubLink {
+  color: #854d0e;
+  text-decoration: underline;
+}
+
+/* ─── Section title ─────────────────────────────────────────── */
+
+.sectionTitle {
+  font-size: var(--font-lg);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin: var(--sp-5) 0 var(--sp-3);
+}
+
+/* ─── Employee select + action buttons ──────────────────────── */
+
+.employeeForm {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-4);
+}
+
+.employeeForm select {
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  min-width: 260px;
+  outline: none;
+}
+
+.startBtn {
+  background: #10b981;
+  color: #fff;
+  border: none;
+  padding: var(--sp-2) var(--sp-5);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background var(--ease);
+}
+
+.startBtn:hover:not(:disabled) { background: #059669; }
+
+.completeBtn {
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  padding: var(--sp-2) var(--sp-5);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background var(--ease);
+}
+
+.completeBtn:hover:not(:disabled) { background: #dc2626; }
+
+.holdBtn {
+  background: var(--text-secondary);
+  color: #fff;
+  border: none;
+  padding: var(--sp-2) var(--sp-5);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background var(--ease);
+}
+
+.holdBtn:hover { background: var(--text-primary); }
+
+/* ─── Tab bar ───────────────────────────────────────────────── */
+
+.tabs {
+  display: flex;
+  gap: var(--sp-1);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--sp-4);
+}
+
+.tabBtn {
+  border: none;
+  background: transparent;
+  padding: var(--sp-2) var(--sp-5);
+  font-size: var(--font-base);
+  font-weight: var(--fw-semi);
+  font-family: var(--font);
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  transition: color var(--ease), border-color var(--ease);
+}
+
+.tabActive {
+  color: var(--clr-primary);
+  border-bottom-color: var(--clr-primary);
+}
+
+/* ─── Attendance table ──────────────────────────────────────── */
+
+.tableWrapper {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  overflow: auto;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+  margin-bottom: var(--sp-4);
+}
+
+.employeeTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-sm);
+}
+
+.employeeTable th {
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  padding: var(--sp-3);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.employeeTable td {
+  padding: var(--sp-3);
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.emptyCell {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 30px;
+}
+
+/* ─── Status badges ─────────────────────────────────────────── */
+/* Accent colors intentional — semantic status signals */
+
+.statusBadge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 0.5px;
+  cursor: default;
+}
+
+.badgePresent { background: #dcfce7; color: #166534; }
+.badgeLate    { background: #fef3c7; color: #854d0e; }
+.badgeAbsent  { background: #fee2e2; color: #991b1b; }
+.badgeOther   { background: var(--surface); color: var(--text-muted); }
+
+/* GPS-skip note in table */
+.gpsSkip {
+  color: #92400e;
+  font-size: var(--font-xs);
+  font-style: italic;
+}
+
+/* Coord link */
+.coordLink {
+  font-family: var(--font-mono);
+  font-size: var(--font-xs);
+  color: #6366f1;
+  text-decoration: none;
+}
+
+/* ─── Live Floor Board ──────────────────────────────────────── */
+
+.boardPad {
+  padding: 8px;
+}
+
+.boardLoading {
+  padding: 40px;
+  color: var(--text-muted);
+}
+
+.boardError {
+  padding: 40px;
+  color: #b91c1c;
+}
+
+.boardSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.boardRefreshNote {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  text-align: right;
+}
+
+.boardTileGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.boardEmpty {
+  grid-column: 1 / -1;
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+  background: var(--card-bg);
+  border-radius: 10px;
+}
+
+/* ─── Summary tile (floor board) ────────────────────────────── */
+
+.summaryTile {
+  background: var(--card-bg);
+  padding: 18px;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  border-top: 3px solid var(--border);
+}
+
+.summaryTileLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.summaryTileValue {
+  font-size: 28px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin-top: 6px;
+}
+
+.summaryTileSub {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ─── Employee tile (floor board) ───────────────────────────── */
+
+.empTile {
+  background: var(--card-bg);
+  border-radius: 14px;
+  padding: 18px;
+  box-shadow: var(--shadow);
+  border-left: 5px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+.empTileHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.empAvatar {
+  width: 50px;
+  height: 50px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: var(--fw-bold);
+  flex-shrink: 0;
+}
+
+.empMeta {
+  flex: 1;
+  min-width: 0;
+}
+
+.empTileName {
+  font-size: 15px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.empTileCode {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.statePill {
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.clockRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.clockCell {
+  padding: 8px 12px;
+  background: var(--surface);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.clockCellLabel {
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: var(--fw-semi);
+}
+
+.clockCellTime {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: var(--fw-bold);
+  margin-top: 2px;
+}
+
+.liveCounter {
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid var(--border);
+}
+
+.liveCounterLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-semi);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.liveCounterValue {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: var(--fw-bold);
+}
+
+.taskCard {
+  border-radius: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.taskCardActive {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.taskCardEmpty {
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  text-align: center;
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+}
+
+.taskLabel {
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  color: #1e40af;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.taskName {
+  font-size: 13px;
+  font-weight: var(--fw-semi);
+  color: var(--text-primary);
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+.taskProject {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.taskStatus {
+  font-size: 10px;
+  color: #1e40af;
+  margin-top: 4px;
+  font-weight: var(--fw-semi);
+}
+
+.tasksDoneRow {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.tasksDoneBadge {
+  background: #dcfce7;
+  color: #166534;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  font-weight: var(--fw-bold);
+  font-size: 13px;
+}

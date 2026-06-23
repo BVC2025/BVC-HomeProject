@@ -1,0 +1,905 @@
+/* ================================================================
+   BiometricCheckIn.module.css
+   ================================================================ */
+
+/* ---- Clock wrapper ---- */
+.clockWrap {
+  text-align: center;
+}
+
+/* ---- Result card header name column ---- */
+.resultHeaderInfo {
+  flex: 1;
+}
+
+/* ---- Page shell ---- */
+.page {
+  min-height: 100vh;
+  background: #1e1b4b;   /* flat dark-indigo fallback; no gradient */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 32px 32px 48px;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+/* ---- Keyframe animations ---- */
+@keyframes bvcGateGradient {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes bvcGateFadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes bvcGatePulse {
+  0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55); }
+  70%  { box-shadow: 0 0 0 12px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ---- Scan column (centered top section) ---- */
+.scanColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 700px;
+  margin: 0 auto;
+  width: 100%;
+  padding-bottom: 24px;
+}
+
+/* ---- Clock box ---- */
+.clockBox {
+  background: white;
+  padding: 10px 20px;
+  border-radius: var(--radius, 12px);
+  margin-bottom: 24px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+}
+
+/* ---- Clock text ---- */
+.clockTime {
+  font-size: 36px;
+  font-weight: var(--fw-bold, 700);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-align: center;
+  color: var(--text-primary, #0f172a);
+}
+
+.clockDate {
+  font-size: 14px;
+  margin-top: 4px;
+  color: var(--text-secondary, #475569);
+  text-align: center;
+}
+
+/* ---- Brand tagline ---- */
+.brandTagline {
+  color: white;
+  font-size: 13px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.scanHeading {
+  color: white;
+  font-size: 28px;
+  font-weight: var(--fw-bold, 700);
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.scanSubtitle {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  margin-bottom: 28px;
+  text-align: center;
+  max-width: 460px;
+}
+
+/* ---- Fingerprint icon circle ---- */
+.fpCircle {
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+/* ---- Scan form ---- */
+.scanForm {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  gap: 10px;
+}
+
+.fpInput {
+  flex: 1;
+  padding: 14px 18px;
+  border-radius: var(--radius, 10px);
+  border: none;
+  font-size: 15px;
+  outline: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btnScan {
+  padding: 14px 26px;
+  border-radius: var(--radius, 10px);
+  border: none;
+  color: white;
+  font-weight: var(--fw-bold, 700);
+  font-size: 15px;
+  transition: background 0.2s, cursor 0.1s;
+}
+
+.btnScanReady {
+  background: #10b981;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4);
+}
+
+.btnScanReady:hover {
+  background: #059669;
+}
+
+.btnScanScanning {
+  background: var(--text-muted, #94a3b8);
+  cursor: not-allowed;
+}
+
+/* ---- Device ID line ---- */
+.deviceLabel {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  margin-top: 14px;
+  text-align: center;
+}
+
+/* ---- Auto-print / auto-voice toggles ---- */
+.toggleRow {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+}
+
+.toggleLabel {
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggleCheckbox {
+  margin-right: 6px;
+}
+
+.btnTestAlert {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  padding: 2px 10px;
+  border-radius: var(--radius, 4px);
+  cursor: pointer;
+  font-size: 11px;
+  transition: background 0.15s;
+}
+
+.btnTestAlert:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ---- Error banner ---- */
+.errorBanner {
+  margin-top: 20px;
+  background: rgba(220, 38, 38, 0.15);
+  color: #fecaca;
+  padding: 10px 18px;
+  border-radius: var(--radius, 10px);
+  font-size: 14px;
+  border: 1px solid rgba(220, 38, 38, 0.4);
+}
+
+/* ---- Result card ---- */
+.resultCard {
+  background: white;
+  border-radius: var(--radius-lg, 16px);
+  padding: 28px;
+  margin-top: 24px;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.18);
+  max-width: 520px;
+  width: 100%;
+  animation: fadeIn 0.4s ease;
+}
+
+.resultCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.resultAvatar {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: var(--fw-bold, 700);
+  flex-shrink: 0;
+}
+
+.resultName {
+  font-size: 20px;
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-primary, #0f172a);
+}
+
+.resultMeta {
+  font-size: 13px;
+  color: var(--text-secondary, #64748b);
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.resultStatusLate {
+  color: #b45309;
+  font-weight: 600;
+}
+
+.resultStatusOnTime {
+  color: #047857;
+  font-weight: 600;
+}
+
+/* ---- Already-out notice ---- */
+.alreadyOutNotice {
+  padding-top: 18px;
+  font-size: 14px;
+  color: var(--text-secondary, #475569);
+}
+
+/* ---- Task-ready-to-leave info box ---- */
+.readyToLeaveBox {
+  margin-top: 14px;
+  font-size: 13px;
+  color: #0369a1;
+  background: #e0f2fe;
+  padding: 12px;
+  border-radius: var(--radius, 8px);
+  border: 1px solid #bae6fd;
+}
+
+/* ---- Print + voice action row ---- */
+.actionRow {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border, #e2e8f0);
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btnPrint {
+  flex: 1;
+  min-width: 160px;
+  border: none;
+  background: var(--clr-primary, #1e40af);
+  color: white;
+  padding: 12px 18px;
+  border-radius: var(--radius, 10px);
+  font-weight: var(--fw-bold, 700);
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(30, 64, 175, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: opacity 0.15s;
+}
+
+.btnPrint:hover {
+  opacity: 0.88;
+}
+
+.btnVoice {
+  border: 1px solid #c7d2fe;
+  background: #eef2ff;
+  color: #4338ca;
+  padding: 12px 18px;
+  border-radius: var(--radius, 10px);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btnVoice:hover {
+  background: #e0e7ff;
+}
+
+/* ---- Action badge ---- */
+.actionBadge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: var(--radius-full, 999px);
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+/* ---- Completion summary ---- */
+.completionBox {
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: var(--radius, 10px);
+}
+
+.completionTitle {
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+.completionTaskName {
+  font-size: 14px;
+  margin-top: 6px;
+  color: var(--text-primary, #0f172a);
+}
+
+.completionDetail {
+  font-size: 13px;
+  margin-top: 4px;
+  color: var(--text-secondary, #475569);
+  line-height: 1.6;
+}
+
+.completionOnTime {
+  color: #047857;
+  font-weight: 600;
+}
+
+.completionLate {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+/* ---- Project block ---- */
+.projectBlock {
+  padding-top: 18px;
+}
+
+.projectBlockLabel {
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+  letter-spacing: 1.2px;
+  color: var(--clr-primary, #1e40af);
+  text-transform: uppercase;
+}
+
+.projectName {
+  font-size: 18px;
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-primary, #0f172a);
+  margin-top: 6px;
+}
+
+.projectDesc {
+  font-size: 13px;
+  color: var(--text-secondary, #475569);
+  margin-top: 4px;
+}
+
+.priorityBadge {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full, 999px);
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+}
+
+.taskBox {
+  margin-top: 18px;
+  padding: 14px;
+  border-radius: var(--radius, 10px);
+  background: var(--surface, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+}
+
+.taskBoxLabel {
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+  letter-spacing: 1.2px;
+  color: #7c3aed;
+  text-transform: uppercase;
+}
+
+.taskName {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary, #0f172a);
+  margin-top: 4px;
+}
+
+.taskDetails {
+  font-size: 12px;
+  color: var(--text-secondary, #64748b);
+  margin-top: 4px;
+}
+
+.aiReason {
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--text-secondary, #64748b);
+  font-style: italic;
+}
+
+.scoreBreakdown {
+  margin-top: 6px;
+  font-size: var(--font-xs, 11px);
+  color: var(--text-muted, #94a3b8);
+  font-family: ui-monospace, monospace;
+}
+
+.scoreSeq {
+  margin-left: 8px;
+  color: #8b5cf6;
+}
+
+/* ---- Checkout summary ---- */
+.checkoutBox {
+  padding-top: 18px;
+}
+
+.checkoutInner {
+  padding: 16px;
+  border-radius: var(--radius, 12px);
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+}
+
+.checkoutBoxTitle {
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+  letter-spacing: 1.2px;
+  color: #b45309;
+  text-transform: uppercase;
+}
+
+.checkoutGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.checkoutStatLabel {
+  font-size: var(--font-xs, 11px);
+  color: #92400e;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.checkoutStatValue {
+  font-size: 22px;
+  font-weight: var(--fw-bold, 700);
+  color: #7c2d12;
+  margin-top: 2px;
+}
+
+.checkoutTimeValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: #7c2d12;
+  margin-top: 2px;
+}
+
+.overtimeNote {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #7c2d12;
+  font-style: italic;
+}
+
+/* ================================================================
+   Attendance Board Section
+   ================================================================ */
+
+.boardSection {
+  margin-top: 20px;
+  padding: 24px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  border-radius: var(--radius-xl, 18px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.boardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.boardHeadingLabel {
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.boardHeading {
+  font-size: 22px;
+  font-weight: 800;
+  color: white;
+  margin-top: 2px;
+  letter-spacing: -0.3px;
+}
+
+.liveIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.18);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  padding: 5px 12px;
+  border-radius: var(--radius-full, 999px);
+  font-size: var(--font-xs, 11px);
+  font-weight: var(--fw-bold, 700);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #a7f3d0;
+}
+
+.liveDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  display: inline-block;
+  box-shadow: 0 0 8px #10b981;
+  animation: bvcGatePulse 1.6s ease-out infinite;
+}
+
+/* ---- Summary tiles grid ---- */
+.boardTilesGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.boardSummaryTile {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 16px 20px;
+  border-radius: var(--radius, 14px);
+  color: white;
+  animation: bvcGateFadeUp 0.5s ease-out both;
+}
+
+.boardTileLabel {
+  font-size: 10px;
+  font-weight: var(--fw-bold, 700);
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.boardTileValue {
+  font-size: 28px;
+  font-weight: 800;
+  margin-top: 4px;
+}
+
+.boardTileSub {
+  font-size: var(--font-xs, 11px);
+  opacity: 0.6;
+  margin-top: 2px;
+}
+
+/* ---- Employee cards grid ---- */
+.empCardsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 16px;
+}
+
+.emptyBoard {
+  grid-column: 1 / -1;
+  padding: 40px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius, 12px);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
+/* ---- Employee attendance card ---- */
+.empCard {
+  background: white;
+  border-radius: var(--radius-lg, 16px);
+  padding: 18px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+  animation: bvcGateFadeUp 0.5s ease-out both;
+  position: relative;
+}
+
+.empCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.empAvatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 800;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.empAvatarActive {
+  background: #6366f1;
+  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.5);
+}
+
+.empAvatarOut {
+  background: #94a3b8;
+  box-shadow: 0 4px 12px rgba(100, 116, 139, 0.4);
+}
+
+.empActiveDot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #10b981;
+  border: 2px solid white;
+  animation: bvcGatePulse 2s ease-out infinite;
+}
+
+.empInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.empName {
+  font-size: 14px;
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-primary, #0f172a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.empCode {
+  font-size: var(--font-xs, 11px);
+  color: var(--text-muted, #94a3b8);
+  font-family: ui-monospace, monospace;
+}
+
+.empStateBadge {
+  padding: 3px 10px;
+  border-radius: var(--radius-full, 999px);
+  font-size: 10px;
+  font-weight: var(--fw-bold, 700);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* ---- Check-in / Check-out pair ---- */
+.timePair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.timeCell {
+  border-radius: var(--radius, 10px);
+  padding: 10px 12px;
+  text-align: center;
+}
+
+.timeCellIn {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+}
+
+.timeCellInEmpty {
+  background: var(--surface, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+}
+
+.timeCellOut {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+.timeCellOutEmpty {
+  background: var(--surface, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+}
+
+.timeCellLabel {
+  font-size: 9px;
+  font-weight: var(--fw-bold, 700);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.timeCellLabelIn {
+  color: #047857;
+}
+
+.timeCellLabelOut {
+  color: #b91c1c;
+}
+
+.timeCellValue {
+  font-size: 20px;
+  font-weight: 800;
+  font-family: ui-monospace, monospace;
+  margin-top: 2px;
+  letter-spacing: -0.5px;
+}
+
+.timeCellValuePresent {
+  color: #047857;
+}
+
+.timeCellValueOut {
+  color: #b91c1c;
+}
+
+.timeCellValueEmpty {
+  color: var(--border, #cbd5e1);
+}
+
+/* ---- Live worked-hours counter ---- */
+.liveCounter {
+  border-radius: var(--radius, 10px);
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.liveCounterActive {
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+}
+
+.liveCounterDone {
+  background: var(--surface, #f1f5f9);
+  border: 1px solid var(--border, #cbd5e1);
+}
+
+.liveCounterLabel {
+  font-size: 10px;
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-secondary, #475569);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.liveCounterValue {
+  font-family: ui-monospace, monospace;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.liveCounterValueActive {
+  color: #4338ca;
+}
+
+.liveCounterValueDone {
+  color: var(--text-secondary, #475569);
+}
+
+/* ---- Current task box ---- */
+.currentTaskBox {
+  background: #f8fafc;
+  border: 1px solid #c7d2fe;
+  border-radius: var(--radius, 10px);
+  padding: 10px;
+}
+
+.currentTaskLabel {
+  font-size: 9px;
+  font-weight: var(--fw-bold, 700);
+  color: #4338ca;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.currentTaskName {
+  font-size: 12px;
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-primary, #0f172a);
+  margin-top: 2px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.currentTaskProject {
+  font-size: 10px;
+  color: var(--text-secondary, #64748b);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.noTaskBox {
+  background: var(--surface, #f8fafc);
+  border: 1px dashed var(--border, #cbd5e1);
+  border-radius: var(--radius, 10px);
+  padding: 10px;
+  text-align: center;
+  font-size: var(--font-xs, 11px);
+  color: var(--text-muted, #94a3b8);
+}
+
+/* ---- Tasks done count ---- */
+.tasksDoneRow {
+  margin-top: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: var(--font-xs, 11px);
+  color: var(--text-secondary, #475569);
+}
+
+.tasksDoneBadge {
+  background: #dcfce7;
+  color: #166534;
+  padding: 2px 10px;
+  border-radius: var(--radius-full, 999px);
+  font-weight: 800;
+  font-size: 12px;
+}
