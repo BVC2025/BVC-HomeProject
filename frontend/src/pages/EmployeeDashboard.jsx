@@ -637,27 +637,32 @@ function EmployeeDashboardBody() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          flexWrap: "wrap",
+          rowGap: 10,
           boxShadow: "0 4px 14px rgba(0,0,0,0.18)"
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0, flex: "1 1 220px" }}>
           <img
             src="/bharath-logo.png"
             alt="logo"
-            style={{ height: 38, width: "auto" }}
+            style={{ height: 38, width: "auto", flexShrink: 0 }}
           />
-          <div>
+          <div style={{ minWidth: 0 }}>
             <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: 0.4 }}>
               BVC24 · Employee Portal
             </div>
-            <div style={{ fontSize: 12, opacity: 0.85 }}>
+            <div style={{
+              fontSize: 12, opacity: 0.85,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+            }}>
               {employeeName || profile.name} · {profile.employee_code}{" "}
               {profile.department ? `· ${profile.department}` : ""}
             </div>
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
           <span
             style={{
               fontSize: 11,

@@ -232,3 +232,168 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* =====================================================================
+   MOBILE RESPONSIVE HARDENING  —  applies across all pages
+   ---------------------------------------------------------------------
+   The pages set grids via inline `style={{ gridTemplateColumns: ... }}`
+   instead of CSS classes, so this layer catches every grid via
+   attribute selectors and re-flows them on narrow screens. Same for
+   fixed-width modals, drawers, hero panels and oversized padding.
+
+   Breakpoints
+     - 1024px  : laptop  → fluid root, no rigid 1126px
+     - 900px   : tablet  → 3/4/5/6-col grids collapse to 2 cols
+     - 560px   : phone   → all multi-col grids collapse to 1 col,
+                           fixed-width modals go full-screen,
+                           tables become horizontally scrollable
+   ===================================================================== */
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+img, svg, video, canvas { max-width: 100%; height: auto; }
+svg { height: auto; }   /* recharts/lucide etc. set explicit h+w */
+svg[width][height] { height: revert; }   /* keep icon sizes */
+
+/* Make the app root truly fluid below 1024px */
+@media (max-width: 1024px) {
+  #root {
+    width: 100%;
+    border-inline: 0;
+  }
+}
+
+/* Tablet — collapse 3/4/5/6-column grids to 2 columns.
+   Selectors use "repeat(N," (no-space-tolerant) so both
+   `repeat(3, 1fr)` and `repeat(3,1fr)` match. */
+@media (max-width: 900px) {
+  [style*="repeat(3,"],
+  [style*="repeat(4,"],
+  [style*="repeat(5,"],
+  [style*="repeat(6,"],
+  [style*="1fr 1fr 1fr 1fr 1fr"],
+  [style*="1fr 1fr 1fr 1fr"],
+  [style*="1fr 1fr 1fr"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* Phone — collapse every multi-column grid to a single column */
+@media (max-width: 560px) {
+  [style*="repeat(2,"],
+  [style*="repeat(3,"],
+  [style*="repeat(4,"],
+  [style*="repeat(5,"],
+  [style*="repeat(6,"],
+  [style*="1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Sidebar-style 2- and 3-column layouts —
+       forward:  XXXpx 1fr (...)   — catches every fixed-leading-column row,
+                                     incl. multi-col table-like rows
+                                     ("180px 1fr 200px 140px 140px 60px").
+       reverse:  1fr XXXpx          — explicit list, since the substring
+                                     "1fr 3" etc. is too broad to safely
+                                     attribute-match. */
+  [style*="px 1fr"],
+  [style*="1fr 200px"],
+  [style*="1fr 220px"],
+  [style*="1fr 240px"],
+  [style*="1fr 260px"],
+  [style*="1fr 280px"],
+  [style*="1fr 300px"],
+  [style*="1fr 320px"],
+  [style*="1fr 340px"],
+  [style*="1fr 360px"],
+  [style*="1fr 380px"],
+  [style*="2fr 1fr"],
+  [style*="1fr 2fr"],
+  [style*="1.2fr 1fr"],
+  [style*="1.4fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Tables — horizontal scroll on small screens (cells still wrap first) */
+@media (max-width: 768px) {
+  table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Modals / drawers with hard-coded widths → full screen on phones */
+@media (max-width: 560px) {
+  [style*="width: 600px"],
+  [style*="width: 640px"],
+  [style*="width: 680px"],
+  [style*="width: 700px"],
+  [style*="width: 720px"],
+  [style*="width: 800px"],
+  [style*="maxWidth: 600px"],
+  [style*="maxWidth: 700px"],
+  [style*="maxWidth: 800px"],
+  [style*="max-width: 600px"],
+  [style*="max-width: 700px"],
+  [style*="max-width: 800px"] {
+    width: 100% !important;
+    max-width: 100vw !important;
+  }
+
+  /* Trim oversized page padding on phones */
+  [style*="padding: 32px"],
+  [style*="padding: 40px"],
+  [style*="padding: 48px"] {
+    padding: 16px !important;
+  }
+
+  [style*="padding: 24px 32px"],
+  [style*="padding: 26px 32px"] {
+    padding: 16px !important;
+  }
+
+  /* Hero strips: reduce inner spacing so the headline doesn't push
+     the stat pills off-screen */
+  [style*="padding: \"26px 32px\""],
+  [style*="padding:26px 32px"] {
+    padding: 18px 16px !important;
+  }
+}
+
+/* Charts shouldn't push the page wider than the viewport */
+.recharts-responsive-container,
+.recharts-wrapper { min-width: 0 !important; max-width: 100% !important; }
+
+/* Force minimum 16px font on form controls below the iOS-zoom threshold —
+   stops Safari from zooming in on focus. Doesn't affect placeholder text
+   visually since most inputs use 13–14px which read as "slightly larger"
+   only on phones. */
+@media (max-width: 560px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="search"],
+  input[type="date"],
+  input[type="time"],
+  input[type="url"],
+  input:not([type]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Buttons + tappable rows: meet the 44px minimum touch target on phones */
+@media (max-width: 560px) {
+  button {
+    min-height: 38px;
+  }
+}
+

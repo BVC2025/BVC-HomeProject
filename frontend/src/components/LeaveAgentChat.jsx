@@ -153,7 +153,7 @@ export default function LeaveAgentChat({ employeeId, onLeaveSubmitted }) {
       borderRadius: 16,
       display: "flex",
       flexDirection: "column",
-      maxHeight: "calc(100vh - 220px)",
+      maxHeight: "min(calc(100dvh - 180px), calc(100vh - 180px))",
       overflow: "hidden",
       boxShadow: "0 4px 14px rgba(15,23,42,0.05)",
     }}>
@@ -341,10 +341,11 @@ export default function LeaveAgentChat({ employeeId, onLeaveSubmitted }) {
           disabled={sending}
           style={{
             flex: 1,
-            padding: "9px 12px",
+            minWidth: 0,
+            padding: "10px 12px",
             border: "1px solid #cbd5e1",
             borderRadius: 8,
-            fontSize: 13,
+            fontSize: 16,
             fontFamily: "inherit",
           }}
         />

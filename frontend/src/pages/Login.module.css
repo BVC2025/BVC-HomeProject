@@ -258,3 +258,18 @@
     padding: 30px 26px;
   }
 }
+
+/* Very narrow phones — drop padding further, shrink hero so the form
+   stays above the keyboard on small Android devices. */
+@media (max-width: 420px) {
+  .page          { padding: 12px; }
+  .card          { border-radius: 16px; }
+  .left          { padding: 22px 18px; }
+  .brandLogo     { width: 64px; height: 64px; margin-bottom: 14px; }
+  .welcomeTitle  { font-size: 24px; }
+  .welcomeSub    { font-size: 12px; }
+  .right         { padding: 22px 18px; }
+  .formHeading   { font-size: 19px; }
+  .input         { font-size: 16px; /* keep ≥16px so iOS Safari doesn't zoom on focus */ }
+  .submit        { padding: 13px; font-size: 14px; }
+}

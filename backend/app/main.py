@@ -77,6 +77,11 @@ from app.routes.leave_agent import router as leave_agent_router  # AI Leave Agen
 from app.routes.hr_chat import router as hr_chat_router          # Unified HR Assistant
 from app.routes.recruitment import router as recruitment_router  # Phase 2 — AI Recruitment Assistant
 from app.routes.employee_payslips import router as my_payslips_router  # Employee self-service payslips
+from app.routes.onboarding_checklist import router as onboarding_checklist_router  # Post-joining onboarding
+from app.routes.attendance_ai import router as attendance_ai_router  # Attendance Automation (Phase 1)
+from app.routes.leave_decisions import router as leave_decisions_router  # Leave Automation (Phase 1)
+from app.routes.monthly_reports import router as monthly_reports_router  # Auto monthly attendance + payroll reports
+from app.routes.employee_insights import router as employee_insights_router  # AI workforce analytics
 from fastapi.middleware.cors import CORSMiddleware
 
 # Phase 3 — Audit log
@@ -1322,6 +1327,11 @@ app.include_router(leave_agent_router)
 app.include_router(hr_chat_router)
 app.include_router(recruitment_router)
 app.include_router(my_payslips_router)
+app.include_router(onboarding_checklist_router)
+app.include_router(attendance_ai_router)
+app.include_router(leave_decisions_router)
+app.include_router(monthly_reports_router)
+app.include_router(employee_insights_router)
 
 
 @app.get("/", tags=["Health"])

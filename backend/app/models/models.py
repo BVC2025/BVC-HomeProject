@@ -4588,3 +4588,262 @@ class OfferLetter(Base):
     UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+# =====================================================================
+# POST-JOINING ONBOARDING — checklist, assets, training, welcome kit
+# =====================================================================
+
+
+class AssetMaster(Base):
+    """Catalogue of allocatable assets — Laptop, Phone, ID Card, Locker, etc.
+    Per-vendor list managed by HR. Instances are tracked in AssetAllocation."""
+
+    __tablename__ = "asset_master"
+
+    ID          = Column(Integer, primary_key=True, autoincrement=True)
+    NAME        = Column(String(80), nullable=False)
+    CATEGORY    = Column(String(40), nullable=False)
+    # LAPTOP / PHONE / ID_CARD / LOCKER / TOOL / VEHICLE / OTHER
+    DESCRIPTION = Column(String(255), nullable=True)
+    IS_ACTIVE   = Column(Integer, default=1)
+    VENDOR_ID   = Column(Integer, ForeignKey("vendor.ID"), nullable=False, index=True)
+    CREATED_AT  = Column(DateTime, default=datetime.utcnow)
+
+
+class AssetAllocation(Base):
+    """One row per asset issuance to an employee."""
+
+    __tablename__ = "asset_allocation"
+
+    ID              = Column(Integer, primary_key=True, autoincrement=True)
+    EMPLOYEE_ID     = Column(String(36), ForeignKey("employee.ID"),
+                             nullable=False, index=True)
+    ASSET_MASTER_ID = Column(Integer, ForeignKey("asset_master.ID"),
+                             nullable=False)
+    SERIAL_NUMBER   = Column(String(80), nullable=True)
+    ISSUED_DATE     = Column(Date, nullable=True)
+    RETURNED_DATE   = Column(Date, nullable=True)
+    STATUS          = Column(String(20), default="ISSUED")
+    # ISSUED / RETURNED / LOST / DAMAGED
+    NOTES           = Column(String(255), nullable=True)
+    ISSUED_BY_ID    = Column(String(36), ForeignKey("employee.ID"), nullable=True)
+    VENDOR_ID       = Column(Integer, ForeignKey("vendor.ID"),
+                             nullable=False, index=True)
+    CREATED_AT      = Column(DateTime, default=datetime.utcnow)
+
+
+class TrainingProgram(Base):
+    """Catalogue of trainings — Induction, Safety, ISO 9001, etc."""
+
+    __tablename__ = "training_program"
+
+    ID            = Column(Integer, primary_key=True, autoincrement=True)
+    NAME          = Column(String(120), nullable=False)
+    DESCRIPTION   = Column(Text, nullable=True)
+    DURATION_DAYS = Column(Integer, default=1)
+    IS_MANDATORY  = Column(Integer, default=0)
+    # If 1, every new joiner gets it auto-assigned via the checklist seeder.
+    IS_ACTIVE     = Column(Integer, default=1)
+    VENDOR_ID     = Column(Integer, ForeignKey("vendor.ID"),
+                           nullable=False, index=True)
+    CREATED_AT    = Column(DateTime, default=datetime.utcnow)
+
+
+class TrainingAssignment(Base):
+    """Per-employee training tracking."""
+
+    __tablename__ = "training_assignment"
+
+    ID                  = Column(Integer, primary_key=True, autoincrement=True)
+    EMPLOYEE_ID         = Column(String(36), ForeignKey("employee.ID"),
+                                 nullable=False, index=True)
+    TRAINING_PROGRAM_ID = Column(Integer, ForeignKey("training_program.ID"),
+                                 nullable=False)
+    ASSIGNED_DATE       = Column(Date, default=lambda: datetime.utcnow().date())
+    DUE_DATE            = Column(Date, nullable=True)
+    COMPLETED_DATE      = Column(Date, nullable=True)
+    STATUS              = Column(String(20), default="ASSIGNED")
+    # ASSIGNED / IN_PROGRESS / COMPLETED / SKIPPED
+    SCORE               = Column(Float, nullable=True)
+    NOTES               = Column(String(255), nullable=True)
+    ASSIGNED_BY_ID      = Column(String(36), ForeignKey("employee.ID"),
+                                 nullable=True)
+    VENDOR_ID           = Column(Integer, ForeignKey("vendor.ID"),
+                                 nullable=False, index=True)
+    CREATED_AT          = Column(DateTime, default=datetime.utcnow)
+
+
+class WelcomeKitItem(Base):
+    """Catalogue of welcome-kit items — T-shirt, Mug, Notebook, Backpack, etc."""
+
+    __tablename__ = "welcome_kit_item"
+
+    ID          = Column(Integer, primary_key=True, autoincrement=True)
+    NAME        = Column(String(80), nullable=False)
+    DESCRIPTION = Column(String(255), nullable=True)
+    IS_DEFAULT  = Column(Integer, default=1)
+    # If 1, auto-added to every new joiner's welcome kit by the seeder.
+    IS_ACTIVE   = Column(Integer, default=1)
+    VENDOR_ID   = Column(Integer, ForeignKey("vendor.ID"),
+                         nullable=False, index=True)
+    CREATED_AT  = Column(DateTime, default=datetime.utcnow)
+
+
+class WelcomeKitIssuance(Base):
+    """Per-employee record of which kit items have been handed over."""
+
+    __tablename__ = "welcome_kit_issuance"
+
+    ID                  = Column(Integer, primary_key=True, autoincrement=True)
+    EMPLOYEE_ID         = Column(String(36), ForeignKey("employee.ID"),
+                                 nullable=False, index=True)
+    WELCOME_KIT_ITEM_ID = Column(Integer, ForeignKey("welcome_kit_item.ID"),
+                                 nullable=False)
+    ISSUED_DATE         = Column(Date, nullable=True)
+    STATUS              = Column(String(20), default="PENDING")
+    # PENDING / ISSUED / DECLINED
+    NOTES               = Column(String(255), nullable=True)
+    ISSUED_BY_ID        = Column(String(36), ForeignKey("employee.ID"),
+                                 nullable=True)
+    VENDOR_ID           = Column(Integer, ForeignKey("vendor.ID"),
+                                 nullable=False, index=True)
+    CREATED_AT          = Column(DateTime, default=datetime.utcnow)
+
+
+class MonthlyAttendanceReport(Base):
+    """One row per (employee, year, month). Auto-generated by the
+    MonthlyReportService — aggregates attendance + leave + overtime +
+    salary deduction signals so HR has a one-row summary to act on at
+    payroll time."""
+
+    __tablename__ = "monthly_attendance_report"
+    __table_args__ = (
+        UniqueConstraint("EMPLOYEE_ID", "YEAR", "MONTH",
+                         name="uq_mar_emp_year_month"),
+    )
+
+    ID            = Column(Integer, primary_key=True, autoincrement=True)
+    EMPLOYEE_ID   = Column(String(36), ForeignKey("employee.ID"),
+                           nullable=False, index=True)
+    YEAR          = Column(Integer, nullable=False, index=True)
+    MONTH         = Column(Integer, nullable=False, index=True)
+    # 1-12
+
+    # --- Day counts ---
+    TOTAL_DAYS         = Column(Integer, default=0)
+    WORKING_DAYS       = Column(Integer, default=0)
+    HOLIDAYS           = Column(Integer, default=0)
+    SUNDAYS            = Column(Integer, default=0)
+    PRESENT_DAYS       = Column(Float,   default=0.0)
+    ABSENT_DAYS        = Column(Float,   default=0.0)
+    HALF_DAYS          = Column(Float,   default=0.0)
+    LATE_COUNT         = Column(Integer, default=0)
+    EARLY_EXIT_COUNT   = Column(Integer, default=0)
+
+    # --- Leave breakdown ---
+    PAID_LEAVES        = Column(Float, default=0.0)
+    UNPAID_LEAVES      = Column(Float, default=0.0)
+    CL_USED            = Column(Float, default=0.0)
+    SICK_USED          = Column(Float, default=0.0)
+    EARNED_USED        = Column(Float, default=0.0)
+    EXCESS_LEAVES      = Column(Float, default=0.0)
+    # Sum of leave days that exceed the employee's available balance for
+    # the calendar year (treated as unpaid).
+
+    # --- Hours ---
+    WORKED_HOURS       = Column(Float, default=0.0)
+    OVERTIME_HOURS     = Column(Float, default=0.0)
+    EXPECTED_HOURS     = Column(Float, default=0.0)
+
+    # --- Compliance / KPIs ---
+    ATTENDANCE_PCT     = Column(Float, default=0.0)
+    HOUR_COMPLIANCE_PCT= Column(Float, default=0.0)
+
+    # --- Salary impact ---
+    MONTHLY_SALARY     = Column(Float, default=0.0)
+    DAILY_WAGE         = Column(Float, default=0.0)
+    ABSENCE_DEDUCTION  = Column(Float, default=0.0)
+    LATE_DEDUCTION     = Column(Float, default=0.0)
+    OT_PAYABLE         = Column(Float, default=0.0)
+    NET_PAYABLE        = Column(Float, default=0.0)
+
+    # --- AI insights — free-form narrative HR can paste into the payslip ---
+    INSIGHTS_JSON      = Column(Text, nullable=True)
+    PDF_PATH           = Column(String(500), nullable=True)
+
+    STATUS             = Column(String(20), default="GENERATED", index=True)
+    # GENERATED / SHARED / LOCKED
+
+    GENERATED_BY_ID    = Column(String(36), ForeignKey("employee.ID"),
+                                nullable=True)
+    VENDOR_ID          = Column(Integer, ForeignKey("vendor.ID"),
+                                nullable=False, index=True)
+    CREATED_AT         = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT         = Column(DateTime, default=datetime.utcnow,
+                                onupdate=datetime.utcnow)
+
+
+class AttendanceAlert(Base):
+    """An automated alert raised by the AttendanceMonitor when an employee's
+    attendance pattern breaches a configured threshold.
+
+    Severity is computed on creation (INFO / WARNING / CRITICAL). The same
+    alert key is deduplicated per (employee, day) so re-running the monitor
+    multiple times in a day doesn't spam notifications."""
+
+    __tablename__ = "attendance_alert"
+    __table_args__ = (
+        UniqueConstraint("EMPLOYEE_ID", "ALERT_KEY", "ALERT_DATE",
+                         name="uq_alert_emp_key_date"),
+    )
+
+    ID            = Column(Integer, primary_key=True, autoincrement=True)
+    EMPLOYEE_ID   = Column(String(36), ForeignKey("employee.ID"),
+                           nullable=False, index=True)
+    ALERT_KEY     = Column(String(40), nullable=False, index=True)
+    # LATE_PATTERN / ABSENT_PATTERN / OT_ABUSE / EARLY_EXIT_PATTERN
+    SEVERITY      = Column(String(20), nullable=False, default="WARNING")
+    # INFO / WARNING / CRITICAL
+    ALERT_DATE    = Column(Date, nullable=False, default=lambda: datetime.utcnow().date())
+    WINDOW_DAYS   = Column(Integer, default=30)
+    METRIC_VALUE  = Column(Float, nullable=True)
+    THRESHOLD     = Column(Float, nullable=True)
+    TITLE         = Column(String(180), nullable=False)
+    DETAIL        = Column(Text, nullable=True)
+    STATUS        = Column(String(20), default="OPEN", index=True)
+    # OPEN / ACKNOWLEDGED / DISMISSED
+    ACKNOWLEDGED_BY_ID = Column(String(36), ForeignKey("employee.ID"), nullable=True)
+    ACKNOWLEDGED_AT    = Column(DateTime, nullable=True)
+    VENDOR_ID     = Column(Integer, ForeignKey("vendor.ID"), nullable=False, index=True)
+    CREATED_AT    = Column(DateTime, default=datetime.utcnow)
+
+
+class OnboardingChecklistItem(Base):
+    """Single row per (employee, checklist key). Auto-seeded on hire by
+    OnboardingService. Keys are stable strings so the UI renders a
+    fixed-order checklist without joining seven tables per request."""
+
+    __tablename__ = "onboarding_checklist_item"
+    __table_args__ = (
+        UniqueConstraint("EMPLOYEE_ID", "ITEM_KEY", name="uq_chk_emp_key"),
+    )
+
+    ID              = Column(Integer, primary_key=True, autoincrement=True)
+    EMPLOYEE_ID     = Column(String(36), ForeignKey("employee.ID"),
+                             nullable=False, index=True)
+    ITEM_KEY        = Column(String(60), nullable=False)
+    LABEL           = Column(String(120), nullable=False)
+    CATEGORY        = Column(String(30), nullable=False)
+    # DOC / DEPT / ROLE / ASSET / TRAINING / KIT / OTHER
+    STATUS          = Column(String(20), default="PENDING")
+    # PENDING / DONE / SKIPPED
+    COMPLETED_DATE  = Column(Date, nullable=True)
+    COMPLETED_BY_ID = Column(String(36), ForeignKey("employee.ID"), nullable=True)
+    NOTES           = Column(String(255), nullable=True)
+    SORT_ORDER      = Column(Integer, default=100)
+    VENDOR_ID       = Column(Integer, ForeignKey("vendor.ID"),
+                             nullable=False, index=True)
+    CREATED_AT      = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT      = Column(DateTime, default=datetime.utcnow,
+                             onupdate=datetime.utcnow)
+
+

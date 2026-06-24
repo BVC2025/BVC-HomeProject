@@ -12,7 +12,7 @@
 // incrementally.
 // =====================================================================
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import API from "../services/api";
 
@@ -255,12 +255,19 @@ export default function EmployeeProfile() {
 
   const departmentName = useMemo(() => {
     if (!emp) return "";
+    // Backend already inlines DEPARTMENT = {ID, NAME, CODE} on the
+    // employee payload. Prefer it; fall back to the lookup table.
+    if (emp.DEPARTMENT && emp.DEPARTMENT.NAME) return emp.DEPARTMENT.NAME;
     return departments.find((d) => d.ID === emp.DEPARTMENT_ID)?.NAME || "-";
   }, [emp, departments]);
 
   const designationName = useMemo(() => {
     if (!emp) return "";
-    return designations.find((d) => d.ID === emp.DESIGNATION_ID)?.NAME || "-";
+    // Backend inlines DESIGNATION = {ID, TITLE}. The Designation model
+    // column is TITLE (not NAME) — that mismatch is why this row was
+    // blank before.
+    if (emp.DESIGNATION && emp.DESIGNATION.TITLE) return emp.DESIGNATION.TITLE;
+    return designations.find((d) => d.ID === emp.DESIGNATION_ID)?.TITLE || "-";
   }, [emp, designations]);
 
   if (loading) {
@@ -313,10 +320,13 @@ export default function EmployeeProfile() {
         <span style={{ color: "#0f172a", fontWeight: 700 }}>{emp.NAME}</span>
       </div>
 
-      {/* 3-column layout */}
+      {/* 2-column layout (left sidebar + center content).
+          The right-side AI Agent panel was removed per design — keeping
+          the AIAgentPanel component definition further down so it can
+          be re-added with a single line if needed. */}
       <div style={{
         display: "grid",
-        gridTemplateColumns: "280px 1fr 360px",
+        gridTemplateColumns: "280px 1fr",
         gap: 16,
         alignItems: "flex-start",
       }}>
@@ -439,8 +449,10 @@ export default function EmployeeProfile() {
           </div>
         </div>
 
-        {/* ================ RIGHT AI AGENT PANEL ================ */}
-        <AIAgentPanel emp={emp} />
+        {/* AI Agent panel removed from this page.
+            To bring it back, paste this inside the grid:
+              <AIAgentPanel emp={emp} />
+            and switch the grid back to "280px 1fr 360px". */}
       </div>
     </div>
   );
@@ -1321,281 +1333,6 @@ function ActivityRow({ log }) {
         <span>{when}</span>
         {log.TARGET_TYPE && <span>target: <b>{log.TARGET_TYPE}</b>{log.TARGET_ID ? ` #${log.TARGET_ID}` : ""}</span>}
         {log.IP_ADDRESS && <span style={{ fontFamily: "ui-monospace, monospace" }}>{log.IP_ADDRESS}</span>}
-      </div>
-    </div>
-  );
-}
-
-
-// =====================================================================
-// RIGHT — AI Employee Agent panel
-// =====================================================================
-
-function AIAgentPanel({ emp }) {
-
-  const [messages, setMessages] = useState([
-    {
-      role: "ai",
-      text: `Hi! I'm the AI employee agent for ${emp.NAME}. I can help with onboarding, document verification, leave, payroll, asset requests, and quick Q&A. What would you like to do?`,
-    },
-  ]);
-  const [input, setInput] = useState("");
-  const [sending, setSending] = useState(false);
-  const [listening, setListening] = useState(false);
-  const recRef = useRef(null);
-  const scrollerRef = useRef(null);
-
-  useEffect(() => {
-    if (scrollerRef.current) {
-      scrollerRef.current.scrollTop = scrollerRef.current.scrollHeight;
-    }
-  }, [messages]);
-
-  const send = async (preset) => {
-    const text = (preset || input).trim();
-    if (!text) return;
-    setMessages((m) => [...m, { role: "user", text }]);
-    setInput("");
-    setSending(true);
-    try {
-      const res = await API.post("/chatbot/ask", {
-        question: text,
-        context: {
-          employee_id: emp.ID,
-          employee_code: emp.EMPLOYEE_CODE,
-          employee_name: emp.NAME,
-        },
-      });
-      const answer = res?.data?.answer
-        || res?.data?.reply
-        || res?.data?.text
-        || "I couldn't fetch an answer just now.";
-      setMessages((m) => [...m, { role: "ai", text: answer }]);
-    } catch (err) {
-      setMessages((m) => [...m, {
-        role: "ai",
-        text: err?.response?.data?.detail || "The AI service is unavailable right now.",
-      }]);
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const toggleVoice = () => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) {
-      alert("Voice input isn't supported in this browser. Use Chrome or Edge.");
-      return;
-    }
-    if (listening) {
-      recRef.current?.stop();
-      setListening(false);
-      return;
-    }
-    const rec = new SR();
-    rec.lang = "en-IN";
-    rec.interimResults = false;
-    rec.maxAlternatives = 1;
-    rec.onresult = (e) => {
-      const transcript = e.results[0][0].transcript.trim();
-      if (!transcript) return;
-      // Show the spoken text in the input box momentarily so the user
-      // sees what was heard, then fire it off immediately. No extra
-      // Send click needed.
-      setInput(transcript);
-      send(transcript);
-    };
-    rec.onend = () => setListening(false);
-    rec.onerror = () => setListening(false);
-    rec.start();
-    recRef.current = rec;
-    setListening(true);
-  };
-
-  const QUICK = [
-    { label: "Onboarding status", prompt: `Where are we in ${emp.NAME}'s onboarding?` },
-    { label: "Verify documents", prompt: `Which documents are missing for ${emp.NAME}?` },
-    { label: "Leave balance", prompt: `What is ${emp.NAME}'s remaining leave this year?` },
-    { label: "Pending payroll", prompt: `Is ${emp.NAME}'s payroll fully configured?` },
-    { label: "Asset allocation", prompt: `What assets has ${emp.NAME} been issued?` },
-    { label: "Activity summary", prompt: `Summarise ${emp.NAME}'s recent activity.` },
-  ];
-
-  return (
-    <div style={{
-      background: "white",
-      borderRadius: 14,
-      boxShadow: "0 4px 14px rgba(15,23,42,0.05)",
-      position: "sticky",
-      top: 80,
-      display: "flex",
-      flexDirection: "column",
-      maxHeight: "calc(100vh - 120px)",
-      overflow: "hidden",
-    }}>
-      {/* Header */}
-      <div style={{
-        background: `linear-gradient(135deg, ${BVC_DARK}, ${BVC_RED})`,
-        color: "white",
-        padding: "14px 18px",
-      }}>
-        <div style={{
-          fontSize: 10,
-          fontWeight: 800,
-          letterSpacing: 2,
-          color: BVC_GOLD,
-          textTransform: "uppercase",
-        }}>
-          AI agent
-        </div>
-        <div style={{ fontSize: 16, fontWeight: 800, marginTop: 2 }}>
-          Employee assistant
-        </div>
-        <div style={{ fontSize: 11, opacity: 0.85, marginTop: 2 }}>
-          Voice + chat &middot; powered by Gemini
-        </div>
-      </div>
-
-      {/* Quick action chips */}
-      <div style={{
-        padding: "10px 12px",
-        borderBottom: "1px solid #f1f5f9",
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 6,
-      }}>
-        {QUICK.map((q) => (
-          <button
-            key={q.label}
-            onClick={() => send(q.prompt)}
-            disabled={sending}
-            style={{
-              padding: "5px 10px",
-              background: "#f8fafc",
-              color: "#475569",
-              border: "1px solid #e2e8f0",
-              borderRadius: 999,
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: sending ? "default" : "pointer",
-            }}
-          >
-            {q.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Messages */}
-      <div
-        ref={scrollerRef}
-        style={{
-          flex: 1,
-          padding: 14,
-          overflowY: "auto",
-          minHeight: 240,
-          background: "#fafbfc",
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-        }}
-      >
-        {messages.map((m, i) => (
-          <div key={i} style={{
-            alignSelf: m.role === "user" ? "flex-end" : "flex-start",
-            maxWidth: "90%",
-            padding: "8px 12px",
-            borderRadius: 12,
-            background: m.role === "user" ? BVC_DARK : "white",
-            color: m.role === "user" ? "white" : "#0f172a",
-            border: m.role === "ai" ? "1px solid #e2e8f0" : "none",
-            fontSize: 13,
-            lineHeight: 1.45,
-            whiteSpace: "pre-wrap",
-          }}>
-            {m.text}
-          </div>
-        ))}
-        {sending && (
-          <div style={{
-            alignSelf: "flex-start",
-            fontSize: 12,
-            color: "#94a3b8",
-            fontStyle: "italic",
-          }}>
-            Thinking...
-          </div>
-        )}
-      </div>
-
-      {/* Composer */}
-      <div style={{
-        padding: 10,
-        borderTop: "1px solid #f1f5f9",
-        display: "flex",
-        gap: 6,
-      }}>
-        <button
-          type="button"
-          onClick={toggleVoice}
-          title={listening ? "Stop recording" : "Start voice input"}
-          style={{
-            width: 38,
-            height: 38,
-            border: "1px solid " + (listening ? BVC_RED : "#cbd5e1"),
-            background: listening ? BVC_RED : "white",
-            color: listening ? "white" : "#475569",
-            borderRadius: 8,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            flexShrink: 0,
-          }}
-        >
-          {/* mic */}
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="2.2"
-            strokeLinecap="round" strokeLinejoin="round">
-            <rect x="9" y="3" width="6" height="12" rx="3" />
-            <path d="M5 11a7 7 0 0 0 14 0" />
-            <line x1="12" y1="19" x2="12" y2="22" />
-          </svg>
-        </button>
-
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-          placeholder="Ask about onboarding, leave, payroll..."
-          style={{
-            flex: 1,
-            padding: "8px 12px",
-            border: "1px solid #cbd5e1",
-            borderRadius: 8,
-            fontSize: 13,
-            fontFamily: "inherit",
-          }}
-        />
-
-        <button
-          type="button"
-          onClick={() => send()}
-          disabled={sending || !input.trim()}
-          style={{
-            padding: "8px 14px",
-            background: sending || !input.trim() ? "#cbd5e1" : BVC_DARK,
-            color: "white",
-            border: "none",
-            borderRadius: 8,
-            fontSize: 12,
-            fontWeight: 800,
-            cursor: sending || !input.trim() ? "default" : "pointer",
-            flexShrink: 0,
-          }}
-        >
-          Send
-        </button>
       </div>
     </div>
   );

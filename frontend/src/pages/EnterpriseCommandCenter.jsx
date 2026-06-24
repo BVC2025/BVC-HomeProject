@@ -344,12 +344,119 @@ function HeroBar({ stats }) {
 
 
 // =====================================================================
-// EXECUTIVE KPI ROW — 6 large tiles
+// EXECUTIVE KPI ROW — 4 large tiles (icon + value + sparkline)
 // =====================================================================
 
-function ExecKPI({ label, value, delta, deltaLabel = "vs last month", accent, onClick }) {
+// Mini area sparkline drawn as inline SVG (no extra deps).
+function Sparkline({ color, data }) {
 
-  const positive = (delta || 0) >= 0;
+  const series = data && data.length ? data : [4, 6, 5, 8, 7, 9, 6, 10, 8, 11];
+
+  const w  = 90;
+
+  const h  = 36;
+
+  const max = Math.max(...series, 1);
+
+  const min = Math.min(...series, 0);
+
+  const range = (max - min) || 1;
+
+  const step = w / (series.length - 1);
+
+  const pts = series.map((v, i) => {
+
+    const x = i * step;
+
+    const y = h - ((v - min) / range) * (h - 4) - 2;
+
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+
+  const gradId = `spark-${color.replace(/[^a-z0-9]/gi, "")}`;
+
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ flexShrink: 0 }}>
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor={color} stopOpacity="0.30" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon
+        points={`0,${h} ${pts} ${w},${h}`}
+        fill={`url(#${gradId})`}
+      />
+      <polyline
+        points={pts}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+
+// Inline SVG icon set — kept tiny and emoji-free per brand guideline.
+function KpiIcon({ name, color }) {
+
+  const common = {
+    width: 22, height: 22,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: color,
+    strokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  };
+
+  if (name === "rupee") {
+    return (
+      <svg {...common}>
+        <path d="M6 4h12M6 8h12M9 4c4 0 5 2.5 5 5s-1 4.5-5 4.5H6l8 7" />
+      </svg>
+    );
+  }
+
+  if (name === "users") {
+    return (
+      <svg {...common}>
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    );
+  }
+
+  if (name === "bag") {
+    return (
+      <svg {...common}>
+        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
+        <path d="M3 6h18" />
+        <path d="M16 10a4 4 0 0 1-8 0" />
+      </svg>
+    );
+  }
+
+  if (name === "factory") {
+    return (
+      <svg {...common}>
+        <path d="M2 20h20" />
+        <path d="M4 20V8l5 4V8l5 4V8l5 4v8" />
+        <path d="M9 20v-4M14 20v-4" />
+      </svg>
+    );
+  }
+
+  return null;
+}
+
+
+function ExecKPI({ label, value, accent, iconName, trend, onClick }) {
 
   return (
     <div
@@ -358,11 +465,12 @@ function ExecKPI({ label, value, delta, deltaLabel = "vs last month", accent, on
         background: T.card,
         border: `1px solid ${T.border}`,
         borderRadius: 14,
-        padding: "22px 22px 20px",
+        padding: "18px 20px",
         cursor: onClick ? "pointer" : "default",
         transition: "transform 0.15s, box-shadow 0.15s",
-        position: "relative",
-        overflow: "hidden"
+        display: "flex",
+        alignItems: "center",
+        gap: 14
       }}
       onMouseEnter={(e) => {
         if (!onClick) return;
@@ -375,57 +483,43 @@ function ExecKPI({ label, value, delta, deltaLabel = "vs last month", accent, on
         e.currentTarget.style.transform = "translateY(0)";
       }}
     >
-      {/* Side accent bar — vertical, BVC24-style */}
+      {/* Left — circular tinted icon */}
       <div style={{
-        position: "absolute",
-        top: 14, bottom: 14, left: 0, width: 3,
-        background: accent,
-        borderRadius: "0 3px 3px 0"
-      }} />
-
-      <div style={{
-        fontSize: 11,
-        fontWeight: 600,
-        letterSpacing: 0.6,
-        color: T.muted,
-        textTransform: "uppercase",
-        fontFamily: FONT_BODY,
-        marginBottom: 12
+        width: 44, height: 44, borderRadius: 22,
+        background: accent + "1a",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        flexShrink: 0
       }}>
-        {label}
+        <KpiIcon name={iconName} color={accent} />
       </div>
 
-      <div style={{
-        fontSize: 32,
-        fontWeight: 700,
-        color: T.text,
-        letterSpacing: -0.6,
-        fontFamily: FONT_HEAD,
-        lineHeight: 1
-      }}>
-        {value}
-      </div>
-
-      {delta !== undefined && delta !== null && delta !== 0 && (
-        <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{
-            display: "inline-flex",
-            alignItems: "center",
-            padding: "2px 8px",
-            borderRadius: 4,
-            background: positive ? T.greenSoft : T.orangeSoft,
-            color: positive ? "#047857" : T.orangeDeep,
-            fontWeight: 700,
-            fontSize: 11,
-            fontFamily: FONT_BODY
-          }}>
-            {positive ? "↑" : "↓"} {Math.abs(delta)}%
-          </span>
-          <span style={{ fontSize: 11, color: T.muted, fontFamily: FONT_BODY }}>
-            {deltaLabel}
-          </span>
+      {/* Middle — label + big value */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: 1.2,
+          color: T.muted,
+          textTransform: "uppercase",
+          fontFamily: FONT_BODY,
+          marginBottom: 4
+        }}>
+          {label}
         </div>
-      )}
+        <div style={{
+          fontSize: 26,
+          fontWeight: 800,
+          color: T.text,
+          letterSpacing: -0.5,
+          fontFamily: FONT_HEAD,
+          lineHeight: 1
+        }}>
+          {value}
+        </div>
+      </div>
+
+      {/* Right — mini sparkline */}
+      <Sparkline color={accent} data={trend} />
     </div>
   );
 }
@@ -438,10 +532,10 @@ function ExecKPIRow({ stats }) {
   // Four headline metrics only — the ones a CEO opens the app to see.
   // Inventory + Employees moved to their dedicated sections below.
   const items = [
-    { label: "Revenue · MTD",   value: inrShort(stats.monthly_revenue || 0), delta: stats.revenue_delta   || 0, accent: T.red,     to: "/sales-orders" },
-    { label: "Customers",       value: stats.total_customers ?? 0,           delta: stats.customers_delta || 0, accent: T.gold,    to: "/customers" },
-    { label: "Active Orders",   value: stats.total_sales_orders ?? 0,        delta: stats.orders_delta    || 0, accent: T.slate,   to: "/sales-orders" },
-    { label: "Production WOs",  value: stats.active_wos ?? 0,                delta: stats.production_delta|| 0, accent: T.redDeep, to: "/production" }
+    { label: "Revenue · MTD",   value: inrShort(stats.monthly_revenue || 0), accent: T.red,    iconName: "rupee",   trend: stats.revenue_trend,    to: "/sales-orders" },
+    { label: "Customers",       value: stats.total_customers ?? 0,           accent: T.amber,  iconName: "users",   trend: stats.customers_trend,  to: "/customers" },
+    { label: "Active Orders",   value: stats.total_sales_orders ?? 0,        accent: T.blue,   iconName: "bag",     trend: stats.orders_trend,     to: "/sales-orders" },
+    { label: "Production WOs",  value: stats.active_wos ?? 0,                accent: T.purple, iconName: "factory", trend: stats.production_trend, to: "/production" }
   ];
 
   return (
@@ -621,6 +715,71 @@ function AIPriorityCenter({ insights }) {
 // BUSINESS HEALTH — 4 quadrant cards (Sales / Production / Procurement / HR)
 // =====================================================================
 
+// Tiny chart-bar SVG used as the stat marker icon inside Business Health.
+function StatBars({ color }) {
+
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24"
+         fill="none" stroke={color} strokeWidth="2.4"
+         strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+    </svg>
+  );
+}
+
+
+// Machine-state badge icons — play / pause / gear / warning.
+function MachineIcon({ name, color }) {
+
+  const common = {
+    width: 14, height: 14,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: color,
+    strokeWidth: 2.2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  };
+
+  if (name === "play") {
+    return (
+      <svg {...common}>
+        <polygon points="6 4 20 12 6 20 6 4" fill={color} />
+      </svg>
+    );
+  }
+
+  if (name === "pause") {
+    return (
+      <svg {...common}>
+        <rect x="6"  y="4" width="4" height="16" fill={color} />
+        <rect x="14" y="4" width="4" height="16" fill={color} />
+      </svg>
+    );
+  }
+
+  if (name === "gear") {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.36.6.59 1.29.6 2v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z" />
+      </svg>
+    );
+  }
+
+  if (name === "warning") {
+    return (
+      <svg {...common}>
+        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+        <path d="M12 9v4M12 17h.01" />
+      </svg>
+    );
+  }
+
+  return null;
+}
+
+
 function HealthQuad({ title, marker, accent, items }) {
 
   return (
@@ -671,13 +830,26 @@ function HealthQuad({ title, marker, accent, items }) {
               {it.label}
             </div>
             <div style={{
-              fontSize: 22, fontWeight: 800, color: T.text, marginTop: 2,
-              letterSpacing: -0.3, fontFamily: FONT_HEAD
+              display: "flex", alignItems: "center", gap: 8,
+              marginTop: 4
             }}>
-              {it.value ?? "—"}
+              <span style={{
+                width: 26, height: 26, borderRadius: 7,
+                background: accent + "1a",
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0
+              }}>
+                <StatBars color={accent} />
+              </span>
+              <span style={{
+                fontSize: 22, fontWeight: 800, color: T.text,
+                letterSpacing: -0.3, fontFamily: FONT_HEAD, lineHeight: 1
+              }}>
+                {it.value ?? "—"}
+              </span>
             </div>
             {it.sub && (
-              <div style={{ fontSize: 11, color: T.muted, marginTop: 1 }}>
+              <div style={{ fontSize: 11, color: T.muted, marginTop: 4, marginLeft: 34 }}>
                 {it.sub}
               </div>
             )}
@@ -727,7 +899,7 @@ function BusinessHealthGrid({ stats, factory }) {
         />
 
         <HealthQuad
-          title="Production" marker="02" accent={T.redDeep}
+          title="Production" marker="02" accent={T.amber}
           items={[
             { label: "In Production", value: machines.in_production ?? (stats.active_wos || 0) },
             { label: "Completed",     value: machines.completed ?? 0 },
@@ -737,7 +909,7 @@ function BusinessHealthGrid({ stats, factory }) {
         />
 
         <HealthQuad
-          title="Procurement" marker="03" accent={T.gold}
+          title="Procurement" marker="03" accent={T.green}
           items={[
             { label: "Open POs",        value: procurement.open_pos },
             { label: "Received",        value: procurement.received },
@@ -747,7 +919,7 @@ function BusinessHealthGrid({ stats, factory }) {
         />
 
         <HealthQuad
-          title="HR" marker="04" accent={T.slate}
+          title="HR" marker="04" accent={T.blue}
           items={[
             { label: "Employees", value: stats.total_employees || 0 },
             { label: "Present",   value: stats.employees_present_today || 0 },
@@ -1006,10 +1178,10 @@ function FactoryFloor({ factory }) {
   const utilization = total ? Math.round((running / total) * 100) : 0;
 
   const segs = [
-    { label: "Running",     value: running,     color: T.green },
-    { label: "Idle",        value: idle,        color: T.amber },
-    { label: "Maintenance", value: maintenance, color: T.blue },
-    { label: "Breakdown",   value: breakdown,   color: T.red }
+    { label: "Running",     value: running,     color: T.green, iconName: "play"    },
+    { label: "Idle",        value: idle,        color: T.amber, iconName: "pause"   },
+    { label: "Maintenance", value: maintenance, color: T.blue,  iconName: "gear"    },
+    { label: "Breakdown",   value: breakdown,   color: T.red,   iconName: "warning" }
   ];
 
   return (
@@ -1053,17 +1225,27 @@ function FactoryFloor({ factory }) {
         {segs.map((s) => (
 
           <div key={s.label} style={{
-            border: `1px solid ${T.border}`, borderRadius: 10, padding: "10px 12px"
+            border: `1px solid ${T.border}`, borderRadius: 10, padding: "10px 12px",
+            display: "flex", alignItems: "center", gap: 10
           }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: s.color, display: "inline-block" }} />
-              <span style={{ fontSize: 10, fontWeight: 700, color: T.muted, letterSpacing: 0.8,
-                textTransform: "uppercase", fontFamily: FONT_BODY }}>
+            <span style={{
+              width: 30, height: 30, borderRadius: 15,
+              background: s.color + "1a",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0
+            }}>
+              <MachineIcon name={s.iconName} color={s.color} />
+            </span>
+            <div>
+              <div style={{
+                fontSize: 10, fontWeight: 700, color: T.muted, letterSpacing: 0.8,
+                textTransform: "uppercase", fontFamily: FONT_BODY
+              }}>
                 {s.label}
-              </span>
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: T.text, fontFamily: FONT_HEAD }}>
-              {s.value}
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: T.text, fontFamily: FONT_HEAD, lineHeight: 1.1 }}>
+                {s.value}
+              </div>
             </div>
           </div>
         ))}
