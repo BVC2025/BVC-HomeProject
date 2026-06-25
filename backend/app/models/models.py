@@ -11,23 +11,6 @@ class Vendor(Base):
     ID = Column(Integer, primary_key=True)
     VENDOR_NAME = Column(String(100))
 
-    root_users = relationship("RootUser", back_populates="vendor")
-class RootUser(Base):
-    __tablename__ = "root_user"
-
-    ID = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-
-    EMAIL = Column(String(100), unique=True)
-
-    PASSWORD = Column(String(255))
-
-    STATUS = Column(String(20), default="ACTIVE")
-    
-
-    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID"))
-
-    vendor = relationship("Vendor", back_populates="root_users")
-
 
 class Employee(Base):
     """
@@ -1254,6 +1237,13 @@ class Attendance(Base):
     WORKED_HOURS = Column(Float, nullable=True)
 
     OVERTIME_HOURS = Column(Float, default=0.0)
+
+    # ---- Explicit OT session (separate from regular CHECK_IN/CHECK_OUT) ----
+    # An employee logs OT only AFTER their regular check-out. OVERTIME_HOURS
+    # above is computed from (OT_CHECK_OUT - OT_CHECK_IN) — regular hours over
+    # 8 are NOT auto-credited as OT anymore.
+    OT_CHECK_IN  = Column(DateTime, nullable=True)
+    OT_CHECK_OUT = Column(DateTime, nullable=True)
 
     REMARKS = Column(String(255), nullable=True)
 
@@ -4707,6 +4697,57 @@ class WelcomeKitIssuance(Base):
     VENDOR_ID           = Column(Integer, ForeignKey("vendor.ID"),
                                  nullable=False, index=True)
     CREATED_AT          = Column(DateTime, default=datetime.utcnow)
+
+
+class LeaveBalanceAdjustment(Base):
+    """Audit trail of every manual leave-balance adjustment by HR.
+
+    Inserted by PATCH /leave/balance/{employee_id}/adjust — write-only.
+    Each row records what HR credited/debited, which leave type, when,
+    and the mandatory reason. Lets HR replay any balance change."""
+
+    __tablename__ = "leave_balance_adjustment"
+
+    ID            = Column(Integer, primary_key=True, autoincrement=True)
+    EMPLOYEE_ID   = Column(String(36), ForeignKey("employee.ID"),
+                           nullable=False, index=True)
+    YEAR          = Column(Integer, nullable=False)
+    LEAVE_TYPE    = Column(String(20), nullable=False)
+    # CASUAL / SICK / EARNED / MATERNITY
+    DELTA_DAYS    = Column(Float, nullable=False)
+    # +ve = credit (e.g. comp-off earned), -ve = debit (manual deduction)
+    OLD_TOTAL     = Column(Float, nullable=True)
+    NEW_TOTAL     = Column(Float, nullable=True)
+    REASON        = Column(String(255), nullable=False)
+    NOTES         = Column(Text, nullable=True)
+    ADJUSTED_BY_ID = Column(String(36), ForeignKey("employee.ID"), nullable=True)
+    ADJUSTED_AT   = Column(DateTime, default=datetime.utcnow)
+    VENDOR_ID     = Column(Integer, ForeignKey("vendor.ID"),
+                           nullable=False, index=True)
+
+
+class EmployeeStatusHistory(Base):
+    """Audit trail of every employee status change.
+    Inserted by PATCH /employees/{id}/status — never updated, never
+    deleted. HR can replay an employee's whole lifecycle from this table:
+      ACTIVE → ON_NOTICE → RESIGNED / TERMINATED / RETIRED / ON_LEAVE_LONG
+    """
+
+    __tablename__ = "employee_status_history"
+
+    ID              = Column(Integer, primary_key=True, autoincrement=True)
+    EMPLOYEE_ID     = Column(String(36), ForeignKey("employee.ID"),
+                             nullable=False, index=True)
+    OLD_STATUS      = Column(String(30), nullable=True)
+    NEW_STATUS      = Column(String(30), nullable=False)
+    REASON          = Column(String(255), nullable=False)
+    EFFECTIVE_DATE  = Column(Date, nullable=False,
+                             default=lambda: datetime.utcnow().date())
+    NOTES           = Column(Text, nullable=True)
+    CHANGED_BY_ID   = Column(String(36), ForeignKey("employee.ID"), nullable=True)
+    CHANGED_AT      = Column(DateTime, default=datetime.utcnow)
+    VENDOR_ID       = Column(Integer, ForeignKey("vendor.ID"),
+                             nullable=False, index=True)
 
 
 class MonthlyAttendanceReport(Base):

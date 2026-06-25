@@ -28,7 +28,8 @@ export default function GeofenceGate({
   employeeId = null,
   onAllowed = () => {},
   onBlocked = () => {},
-  autoRefreshMs = 0
+  autoRefreshMs = 0,
+  compact = false,    // Render a single-line status pill instead of the big card
 }) {
 
   const [phase, setPhase] = useState("loading");
@@ -287,7 +288,36 @@ export default function GeofenceGate({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ---- Admin / dev escape hatch (moved up so compact-mode render can
+  //      reference it before any phase-based return) ----
+  function skipGps() {
+    setPhase("skipped");
+    onAllowed({
+      lat: Number.isFinite(coords?.lat) ? coords.lat : null,
+      lng: Number.isFinite(coords?.lng) ? coords.lng : null,
+      accuracy: coords?.accuracy ?? null,
+      distance: null,
+      deviceInfo,
+      gpsSkipped: true,
+    });
+  }
+
   // ---- Render -----------------------------------------------------
+
+  // Compact mode: render a single-line status pill regardless of phase.
+  // Same callbacks still fire — only the visual is condensed.
+  if (compact) {
+    return (
+      <CompactBar
+        phase={phase}
+        coords={coords}
+        serverInfo={serverInfo}
+        errorMsg={errorMsg}
+        onSkip={skipGps}
+        onRetry={requestLocation}
+      />
+    );
+  }
 
   if (phase === "loading") {
 
@@ -352,22 +382,7 @@ export default function GeofenceGate({
     );
   }
 
-  // ---- Admin / dev escape hatch ----
-  // When GPS is denied / unavailable / times out, render a "Mark
-  // attendance anyway" button. Clicking it calls onAllowed() with
-  // null coords. The backend already accepts null lat/lng (we kept
-  // it back-compat) so the check-in succeeds with GEOFENCE_STATUS =
-  // UNKNOWN. This unblocks anyone on a locked Windows machine while
-  // still letting the audit trail see that GPS couldn't be read.
-  const skipGps = () => {
-
-    setPhase("skipped");
-
-    onAllowed({
-      lat: null, lng: null, accuracy: null,
-      distance: null, deviceInfo
-    });
-  };
+  // (skipGps was moved up before the render block — see above.)
 
   if (phase === "skipped") {
 
@@ -546,5 +561,94 @@ function Retry({ onClick, label, inline = false }) {
   );
   if (inline) return btn;
   return <div className={styles.retryWrap}>{btn}</div>;
+}
+
+
+// =====================================================================
+// CompactBar — one-line status pill used when GeofenceGate is mounted
+// with compact={true}. Same callbacks fire; only the UI is condensed
+// so it doesn't dominate the page like the full-card variant.
+// =====================================================================
+function CompactBar({ phase, coords, serverInfo, errorMsg, onSkip, onRetry }) {
+
+  // Map each phase to a single-line meta object: dot colour + label + sub
+  const meta = (() => {
+    const acc = coords?.accuracy ? Math.round(coords.accuracy) : null;
+    switch (phase) {
+      case "loading":
+        return { color: "#94a3b8", label: "Checking location…", sub: "Please allow GPS access if prompted." };
+      case "inside":
+        return { color: "#16a34a", label: "Verified — inside office",
+                 sub: serverInfo?.distance_meters != null
+                   ? `${Math.round(serverInfo.distance_meters)}m from centre` : null };
+      case "outside":
+        return { color: "#dc2626", label: "Outside office boundary",
+                 sub: serverInfo?.distance_meters != null
+                   ? `${Math.round(serverInfo.distance_meters)}m away` : null };
+      case "bypassed":
+      case "skipped":
+        return { color: "#7c3aed", label: "GPS skipped — manual override active", sub: null };
+      case "denied":
+        return { color: "#dc2626", label: "Location permission denied",
+                 sub: "Enable it in browser settings to verify presence." };
+      case "unavailable":
+        return { color: "#dc2626", label: "GPS unavailable",
+                 sub: "Windows Location may be turned off." };
+      case "low_accuracy":
+        return { color: "#d97706", label: `GPS imprecise${acc ? ` (±${acc.toLocaleString()}m)` : ""}`,
+                 sub: "Use phone, or click Skip to mark anyway." };
+      case "timeout":
+        return { color: "#d97706", label: "GPS timed out",
+                 sub: "Try Retry, or click Skip to mark anyway." };
+      case "error":
+        return { color: "#dc2626", label: "GPS error",
+                 sub: errorMsg || "Couldn't read location." };
+      default:
+        return { color: "#94a3b8", label: phase || "Pending", sub: null };
+    }
+  })();
+
+  const passed = phase === "inside" || phase === "bypassed" || phase === "skipped";
+  const canSkip = !passed;
+  const canRetry = phase !== "loading" && phase !== "inside";
+
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 10,
+      background: "white", border: "1px solid #e2e8f0",
+      borderRadius: 10, padding: "10px 14px", margin: "10px 0 12px 0",
+      flexWrap: "wrap",
+    }}>
+      <span style={{
+        width: 10, height: 10, borderRadius: "50%",
+        background: meta.color, flexShrink: 0,
+        boxShadow: `0 0 0 3px ${meta.color}33`,
+      }} />
+      <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+        {meta.label}
+      </span>
+      {meta.sub && (
+        <span style={{ fontSize: 12, color: "#64748b" }}>
+          {meta.sub}
+        </span>
+      )}
+      <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+        {canRetry && (
+          <button onClick={onRetry} style={{
+            padding: "5px 10px", background: "white", color: "#475569",
+            border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 11,
+            fontWeight: 700, cursor: "pointer",
+          }}>↻ Retry</button>
+        )}
+        {canSkip && (
+          <button onClick={onSkip} style={{
+            padding: "5px 10px", background: "#fef3c7", color: "#92400e",
+            border: "1px solid #fde68a", borderRadius: 6, fontSize: 11,
+            fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
+          }}>Skip GPS</button>
+        )}
+      </div>
+    </div>
+  );
 }
 

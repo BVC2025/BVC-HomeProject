@@ -498,6 +498,201 @@ def get_slip(
     }
 
 
+# =========================
+# REPORTS — summary + CSV export
+# =========================
+
+@router.get("/runs/{run_id}/summary")
+def run_summary(run_id: int, db: Session = Depends(get_db)):
+    """Aggregated summary for a payroll run — used by the Reports tab.
+
+    Returns:
+      - run header
+      - by_department: [{department, employee_count, total_gross, total_deductions, total_net}]
+      - by_designation: [{designation, employee_count, total_net}]
+      - by_status: [{status, count, total_net}]
+      - totals: {employee_count, total_gross, total_deductions, total_net}
+    """
+    from app.models.models import Department, Designation
+
+    run = db.query(PayrollRun).filter(PayrollRun.ID == run_id).first()
+    if not run:
+        raise HTTPException(404, "Payroll run not found")
+
+    rows = (
+        db.query(PayrollSlip, Employee, Department, Designation)
+        .outerjoin(Employee,    PayrollSlip.EMPLOYEE_ID == Employee.ID)
+        .outerjoin(Department,  Employee.DEPARTMENT_ID  == Department.ID)
+        .outerjoin(Designation, Employee.DESIGNATION_ID == Designation.ID)
+        .filter(PayrollSlip.PAYROLL_RUN_ID == run_id)
+        .all()
+    )
+
+    by_dept = {}
+    by_desig = {}
+    by_status = {}
+    tot_gross = tot_ded = tot_net = 0.0
+
+    for slip, emp, dept, desig in rows:
+        gross = float(slip.GROSS_PAY or 0)
+        ded   = float(slip.TOTAL_DEDUCTIONS or 0)
+        net   = float(slip.NET_PAY or 0)
+
+        tot_gross += gross
+        tot_ded   += ded
+        tot_net   += net
+
+        dept_name = (dept.NAME if dept else "—")
+        d = by_dept.setdefault(dept_name, {
+            "department": dept_name,
+            "employee_count": 0,
+            "total_gross": 0.0,
+            "total_deductions": 0.0,
+            "total_net": 0.0,
+        })
+        d["employee_count"] += 1
+        d["total_gross"]    += gross
+        d["total_deductions"] += ded
+        d["total_net"]      += net
+
+        desig_name = (desig.TITLE if desig else "—")
+        x = by_desig.setdefault(desig_name, {
+            "designation": desig_name,
+            "employee_count": 0,
+            "total_net": 0.0,
+        })
+        x["employee_count"] += 1
+        x["total_net"]      += net
+
+        st = (slip.STATUS or "PENDING").upper()
+        s = by_status.setdefault(st, {
+            "status": st,
+            "count": 0,
+            "total_net": 0.0,
+        })
+        s["count"]     += 1
+        s["total_net"] += net
+
+    def _round_block(d, keys):
+        for k in keys:
+            if k in d:
+                d[k] = round(d[k], 2)
+        return d
+
+    by_dept_list = [
+        _round_block(d, ["total_gross", "total_deductions", "total_net"])
+        for d in sorted(by_dept.values(), key=lambda x: -x["total_net"])
+    ]
+    by_desig_list = [
+        _round_block(d, ["total_net"])
+        for d in sorted(by_desig.values(), key=lambda x: -x["total_net"])
+    ]
+    by_status_list = [
+        _round_block(d, ["total_net"])
+        for d in sorted(by_status.values(), key=lambda x: x["status"])
+    ]
+
+    return {
+        "run":           _serialize_run(run),
+        "by_department": by_dept_list,
+        "by_designation": by_desig_list,
+        "by_status":     by_status_list,
+        "totals": {
+            "employee_count":   len(rows),
+            "total_gross":      round(tot_gross, 2),
+            "total_deductions": round(tot_ded, 2),
+            "total_net":        round(tot_net, 2),
+        }
+    }
+
+
+@router.get("/runs/{run_id}/export.csv")
+def run_export_csv(run_id: int, db: Session = Depends(get_db)):
+    """CSV export of every slip in a run. Used by HR + accounting."""
+    from fastapi.responses import StreamingResponse
+    import csv
+    import io
+    from app.models.models import Department, Designation
+
+    run = db.query(PayrollRun).filter(PayrollRun.ID == run_id).first()
+    if not run:
+        raise HTTPException(404, "Payroll run not found")
+
+    rows = (
+        db.query(PayrollSlip, Employee, Department, Designation)
+        .outerjoin(Employee,    PayrollSlip.EMPLOYEE_ID == Employee.ID)
+        .outerjoin(Department,  Employee.DEPARTMENT_ID  == Department.ID)
+        .outerjoin(Designation, Employee.DESIGNATION_ID == Designation.ID)
+        .filter(PayrollSlip.PAYROLL_RUN_ID == run_id)
+        .all()
+    )
+    rows.sort(key=lambda r: (r[1].NAME if r[1] else ""))
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+
+    writer.writerow([
+        "Employee Code", "Employee Name", "Department", "Designation",
+        "Base Salary", "Working Days", "Days Present",
+        "Paid Leave", "Unpaid Leave", "Absent Days", "Permission Hours",
+        "Earned Basic", "HRA", "DA", "Conveyance", "Medical", "Special",
+        "Other Allowances", "Annual Bonus", "Incentives",
+        "Task Bonus", "Star Bonus", "OT Hours", "OT Pay",
+        "PF (Employee)", "ESI (Employee)", "Prof Tax",
+        "Other Deductions", "Late Penalty",
+        "Gross Pay", "Total Deductions", "Net Pay",
+        "Status", "Paid At",
+    ])
+
+    for slip, emp, dept, desig in rows:
+        writer.writerow([
+            (emp.EMPLOYEE_CODE if emp else ""),
+            (emp.NAME          if emp else ""),
+            (dept.NAME         if dept else ""),
+            (desig.TITLE       if desig else ""),
+            slip.BASE_SALARY or 0,
+            slip.WORKING_DAYS or 0,
+            slip.DAYS_PRESENT or 0,
+            slip.PAID_LEAVE_DAYS or 0,
+            slip.UNPAID_LEAVE_DAYS or 0,
+            slip.ABSENT_DAYS or 0,
+            slip.PERMISSION_HOURS or 0,
+            slip.EARNED_BASIC or 0,
+            slip.HRA or 0,
+            slip.DA or 0,
+            slip.CONVEYANCE_ALLOWANCE or 0,
+            slip.MEDICAL_ALLOWANCE or 0,
+            slip.SPECIAL_ALLOWANCE or 0,
+            slip.OTHER_ALLOWANCES or 0,
+            slip.ANNUAL_BONUS or 0,
+            slip.INCENTIVES or 0,
+            slip.TASK_BONUS or 0,
+            slip.STAR_BONUS or 0,
+            slip.OT_HOURS or 0,
+            slip.OT_PAY or 0,
+            slip.PF_EMPLOYEE or 0,
+            slip.ESI_EMPLOYEE or 0,
+            slip.PROFESSIONAL_TAX or 0,
+            slip.OTHER_DEDUCTIONS or 0,
+            slip.LATE_PENALTY or 0,
+            slip.GROSS_PAY or 0,
+            slip.TOTAL_DEDUCTIONS or 0,
+            slip.NET_PAY or 0,
+            slip.STATUS or "PENDING",
+            slip.PAID_AT.isoformat() if slip.PAID_AT else "",
+        ])
+
+    buf.seek(0)
+    period = f"{run.PAY_YEAR}-{run.PAY_MONTH:02d}"
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="payroll-{period}.csv"'
+        }
+    )
+
+
 @router.patch("/runs/{run_id}/finalize")
 def finalize_run(run_id: int, db: Session = Depends(get_db)):
     """Lock a DRAFT run — slips can no longer be edited and the run

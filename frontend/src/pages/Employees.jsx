@@ -143,167 +143,210 @@ function fmtJoinDate(iso) {
   } catch { return null; }
 }
 
+// Lifecycle status → display label + dot colour + text colour + pill bg.
+// Aligned with backend ALLOWED_STATUSES (see employee_status.py).
+const STATUS_THEMES = {
+  ACTIVE:        { label: "Active",        dot: "#10b981", fg: "#166534", bg: "#dcfce7" },
+  ON_NOTICE:     { label: "On Notice",     dot: "#f59e0b", fg: "#92400e", bg: "#fef3c7" },
+  RESIGNED:      { label: "Resigned",      dot: "#94a3b8", fg: "#475569", bg: "#e2e8f0" },
+  TERMINATED:    { label: "Terminated",    dot: "#dc2626", fg: "#991b1b", bg: "#fee2e2" },
+  RETIRED:       { label: "Retired",       dot: "#3b82f6", fg: "#1e40af", bg: "#dbeafe" },
+  ON_LEAVE_LONG: { label: "On Long Leave", dot: "#8b5cf6", fg: "#6b21a8", bg: "#f3e8ff" },
+  INACTIVE:      { label: "Inactive",      dot: "#94a3b8", fg: "#64748b", bg: "#f1f5f9" },
+  ON_LEAVE:      { label: "On Leave",      dot: "#f59e0b", fg: "#92400e", bg: "#fef3c7" },
+};
+
 function statusBadge(emp) {
-  // Heuristic — most employee profiles only have STATUS = ACTIVE.
-  // Show "On Leave" if a dashboard column hints at it.
+  // Transient "on leave today" hint takes precedence — it's what HR
+  // wants to see at a glance, even if the underlying STATUS is ACTIVE.
   const onLeave = (emp.LEAVE_STATUS || "").toUpperCase() === "ON_LEAVE"
     || (emp.TODAY_STATUS || "").toUpperCase() === "ON_LEAVE";
-  if (onLeave) return { label: "On Leave", dot: "var(--text-secondary)", fg: "#92400e" };
-  if (emp.STATUS && emp.STATUS.toUpperCase() !== "ACTIVE") {
-    return { label: emp.STATUS, dot: "#94a3b8", fg: "#475569" };
-  }
-  return { label: "Active", dot: "#10b981", fg: "#166534" };
+  if (onLeave) return STATUS_THEMES.ON_LEAVE;
+
+  const code = (emp.STATUS || "ACTIVE").toUpperCase();
+  return STATUS_THEMES[code] || {
+    label: code.replace(/_/g, " "),
+    dot: "#94a3b8", fg: "#475569", bg: "#f1f5f9",
+  };
 }
 
 
 function EmployeeCard({ employee, onView, onEdit, onDelete }) {
 
-  const skills = (employee.SKILLS || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  const theme = pickTheme(employee.EMPLOYEE_CODE);
+  // Clean horizontal Odoo-style card.
+  // Shows ONLY: name, designation, department, phone.
+  // Everything else lives behind "View Details" → 360° profile page.
   const status = statusBadge(employee);
-  const joined = fmtJoinDate(employee.JOINING_DATE);
-  const city = [employee.CITY, employee.STATE].filter(Boolean).join(", ");
 
   return (
     <div className={styles.employeeCard}>
 
-      {/* ===== TOP ROW: EMP code tag + Status pill ===== */}
-      <div className={styles.cardTopRow}>
-        <span
-          className={styles.cardEmpCode}
-          style={{ background: theme.tag, color: theme.tagFg }}
-        >
-          {employee.EMPLOYEE_CODE || "—"}
-        </span>
+      {/* ====== TOP: photo (left) + minimal info (right) ====== */}
+      <div className={styles.cardBody}>
 
-        <div className={styles.cardStatusBadge} style={{ color: status.fg }}>
-          <span className={styles.statusDot} style={{ background: status.dot }} />
-          {status.label}
+        {/* Photo column */}
+        <div className={styles.cardPhotoCol}>
+          <Avatar employee={employee} size={96} />
         </div>
-      </div>
 
-      {/* ===== PHOTO + NAME + TITLE ===== */}
-      <div className={styles.cardAvatarRow}>
-        <Avatar employee={employee} size={64} />
+        {/* Info column */}
+        <div className={styles.cardInfoCol}>
 
-        <div className={styles.cardNameBlock}>
+          {/* Status pill in the top-right corner — visible label so HR
+              can scan the whole list and spot On Notice / Resigned /
+              Terminated rows at a glance. */}
+          <span
+            className={styles.cardStatusPill}
+            style={{ background: status.bg, color: status.fg }}
+            title={status.label}
+          >
+            <span
+              className={styles.cardStatusDot}
+              style={{ background: status.dot }}
+            />
+            {status.label}
+          </span>
+
           <div className={styles.cardName}>
             {employee.NAME || "—"}
           </div>
+
           {employee.DESIGNATION?.TITLE && (
-            <div className={styles.cardDesignation} style={{ color: theme.title }}>
-              {employee.DESIGNATION.TITLE}
+            <div className={styles.cardLine}>
+              <BriefcaseIcon />
+              <span>{employee.DESIGNATION.TITLE}</span>
+            </div>
+          )}
+
+          {employee.DEPARTMENT?.NAME && (
+            <div className={styles.cardLine}>
+              <BuildingIcon />
+              <span>{employee.DEPARTMENT.NAME}</span>
+            </div>
+          )}
+
+          {employee.PHONE && (
+            <div className={styles.cardLine}>
+              <PhoneIcon />
+              <span>{employee.PHONE}</span>
             </div>
           )}
         </div>
       </div>
 
-      {/* ===== Department chip ===== */}
-      {employee.DEPARTMENT?.NAME && (
-        <div className={styles.cardDeptWrap}>
-          <span
-            className={styles.cardDeptChip}
-            style={{
-              background: theme.deptBg,
-              color: theme.deptFg,
-              border: `1px solid ${theme.deptBg}`,
-            }}
-          >
-            <span className={styles.deptIcon}>🏢</span>
-            {employee.DEPARTMENT.NAME}
-          </span>
-        </div>
-      )}
-
-      {/* ===== Contact info rows ===== */}
-      <div className={styles.cardContactList}>
-        {employee.EMAIL && (
-          <div className={styles.cardContactRow}>
-            <span className={styles.cardIconBox} style={{ background: theme.deptBg }}>✉</span>
-            <span className={styles.cardContactText}>{employee.EMAIL}</span>
-          </div>
-        )}
-        {employee.PHONE && (
-          <div className={styles.cardContactRow}>
-            <span className={styles.cardIconBox} style={{ background: theme.deptBg }}>📞</span>
-            <span className={styles.cardContactText}>{employee.PHONE}</span>
-          </div>
-        )}
-        {city && (
-          <div className={styles.cardContactRow}>
-            <span className={styles.cardIconBox} style={{ background: theme.deptBg }}>📍</span>
-            <span className={styles.cardContactText}>{city}</span>
-          </div>
-        )}
-        {joined && (
-          <div className={styles.cardContactRow}>
-            <span className={styles.cardIconBox} style={{ background: theme.deptBg }}>📅</span>
-            <span className={styles.cardContactText}>Joined on {joined}</span>
-          </div>
-        )}
-      </div>
-
-      {/* ===== Skills chips ===== */}
-      {skills.length > 0 && (
-        <div>
-          <div className={styles.cardSkillsLabel}>Skills</div>
-          <div className={styles.cardSkillsList}>
-            {skills.slice(0, 6).map((s, i) => (
-              <span
-                key={i}
-                className={styles.skillChip}
-                style={{ background: theme.chip, color: theme.chipFg }}
-              >
-                {s}
-              </span>
-            ))}
-            {skills.length > 6 && (
-              <span className={styles.skillMore}>+{skills.length - 6}</span>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ===== Bottom action row ===== */}
-      <div className={styles.cardActions}>
+      {/* ====== BOTTOM: single primary action + secondary controls ====== */}
+      <div className={styles.cardFooter}>
         <Link
           to={`/employees/${employee.ID}/profile`}
-          title="Open full 360° profile page"
-          className={styles.cardViewBtn}
-          style={{ background: theme.btn, textDecoration: "none" }}
+          className={styles.cardViewDetailsBtn}
         >
-          <span>👤</span> Open Profile
+          View Details
+          <ArrowRightIcon />
         </Link>
 
-        <button
-          onClick={() => onView(employee)}
-          title="Quick preview (modal)"
-          style={iconBtn("#f1f5f9", "#475569")}
-        >
-          👁
-        </button>
-
-        <button
-          onClick={() => onEdit?.(employee)}
-          title="Edit"
-          className={`${styles.cardIconBtn} ${styles.cardEditBtn}`}
-        >
-          ✏️
-        </button>
-
-        <button
-          onClick={() => onDelete(employee)}
-          title="Delete"
-          className={`${styles.cardIconBtn} ${styles.cardDeleteBtn}`}
-        >
-          🗑
-        </button>
+        <div className={styles.cardSecondaryActions}>
+          <button
+            type="button"
+            onClick={() => onView(employee)}
+            className={styles.cardIconBtn}
+            title="Quick preview"
+            aria-label="Quick preview"
+          >
+            <EyeIcon />
+          </button>
+          <button
+            type="button"
+            onClick={() => onEdit?.(employee)}
+            className={styles.cardIconBtn}
+            title="Edit"
+            aria-label="Edit"
+          >
+            <EditIcon />
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(employee)}
+            className={`${styles.cardIconBtn} ${styles.cardIconBtnDanger}`}
+            title="Delete"
+            aria-label="Delete"
+          >
+            <TrashIcon />
+          </button>
+        </div>
       </div>
     </div>
+  );
+}
+
+
+// ===== Inline SVG icons (replaces emoji + per-card colours) =====
+const ICON_PROPS = {
+  width: 14, height: 14, viewBox: "0 0 24 24", fill: "none",
+  stroke: "currentColor", strokeWidth: 1.8,
+  strokeLinecap: "round", strokeLinejoin: "round",
+};
+
+function BriefcaseIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <rect x="2" y="7" width="20" height="14" rx="2" />
+      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+    </svg>
+  );
+}
+
+function BuildingIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M3 21h18" />
+      <path d="M5 21V7l8-4v18" />
+      <path d="M19 21V11l-6-4" />
+      <path d="M9 9v.01M9 12v.01M9 15v.01M9 18v.01" />
+    </svg>
+  );
+}
+
+function PhoneIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />
+    </svg>
+  );
+}
+
+function ArrowRightIcon() {
+  return (
+    <svg {...ICON_PROPS} width="16" height="16">
+      <path d="M5 12h14M13 5l7 7-7 7" />
+    </svg>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg {...ICON_PROPS} width="16" height="16">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function EditIcon() {
+  return (
+    <svg {...ICON_PROPS} width="16" height="16">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg {...ICON_PROPS} width="16" height="16">
+      <path d="M3 6h18" />
+      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    </svg>
   );
 }
 
@@ -2262,20 +2305,37 @@ function Employees() {
         <div>
           <div className={styles.pageBannerEyebrow}>Workforce</div>
           <h1 className={styles.pageBannerTitle}>Employees</h1>
+          <div className={styles.pageBannerSub}>
+            Manage your team, onboarding invites and roles.
+          </div>
         </div>
 
         <div className={styles.pageBannerActions}>
           <button
+            type="button"
             onClick={() => setShowInvite(true)}
             className={styles.bannerInviteBtn}
           >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" strokeWidth="2"
+                 strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+              <polyline points="22,6 12,13 2,6" />
+            </svg>
             Invite via Onboarding
           </button>
           <button
+            type="button"
             onClick={() => setShowAdd(true)}
             className={styles.bannerAddBtn}
           >
-            + Add Employee
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" strokeWidth="2.4"
+                 strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Add Employee
           </button>
         </div>
       </div>

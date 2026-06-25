@@ -106,6 +106,91 @@
   line-height: var(--lh);
 }
 
+/* ─── Tab bar — pill style ──────────────────────────────────── */
+
+.tabBar {
+  display: inline-flex;
+  gap: 2px;
+  margin-bottom: 14px;
+  background: white;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.tab {
+  border: none;
+  background: transparent;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: var(--fw-bold, 700);
+  font-family: var(--font);
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+  border-radius: 7px;
+  transition: color 0.15s, background 0.15s;
+  letter-spacing: 0.1px;
+}
+
+.tab:hover {
+  color: var(--text-primary, #0f172a);
+  background: #f8fafc;
+}
+
+.tabActive,
+.tabActive:hover {
+  color: white;
+  background: var(--clr-primary, #C8102E);
+  box-shadow: 0 1px 2px rgba(200, 16, 46, 0.25);
+}
+
+/* ─── Action buttons (Finalize / Mark All Paid) ─────────────── */
+
+.finalizeBtn {
+  background: #1d4ed8;
+  color: white;
+  border: none;
+  padding: var(--sp-2) 18px;
+  border-radius: var(--radius-md);
+  font-weight: var(--fw-black);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.finalizeBtn:hover {
+  background: #1e40af;
+  transform: translateY(-1px);
+}
+
+.markAllPaidBtn {
+  background: #059669;
+  color: white;
+  border: none;
+  padding: var(--sp-2) 18px;
+  border-radius: var(--radius-md);
+  font-weight: var(--fw-black);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.markAllPaidBtn:hover {
+  background: #047857;
+  transform: translateY(-1px);
+}
+
 /* ─── Body panel ────────────────────────────────────────────── */
 
 .body {

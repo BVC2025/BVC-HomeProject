@@ -94,6 +94,12 @@ const T = {
   navySoft: "#e5e7eb"
 };
 
+// Font tokens (referenced by inline-styled cells that haven't been
+// migrated to CSS modules yet). Kept after the colour palette so they're
+// available to every component below.
+const FONT_BODY = "var(--font, 'Segoe UI', system-ui, -apple-system, sans-serif)";
+const FONT_HEAD = "var(--font, 'Segoe UI', system-ui, -apple-system, sans-serif)";
+
 
 // =====================================================================
 // Reusable atoms

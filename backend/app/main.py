@@ -81,6 +81,7 @@ from app.routes.onboarding_checklist import router as onboarding_checklist_route
 from app.routes.attendance_ai import router as attendance_ai_router  # Attendance Automation (Phase 1)
 from app.routes.leave_decisions import router as leave_decisions_router  # Leave Automation (Phase 1)
 from app.routes.monthly_reports import router as monthly_reports_router  # Auto monthly attendance + payroll reports
+from app.routes.employee_status import router as employee_status_router  # Employee lifecycle status tracking
 from app.routes.employee_insights import router as employee_insights_router  # AI workforce analytics
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -383,6 +384,10 @@ def _auto_migrate():
         ("attendance", "DEVICE_INFO",        "VARCHAR(255) NULL"),
         ("attendance", "BROWSER_INFO",       "VARCHAR(255) NULL"),
         ("attendance", "IP_ADDRESS",         "VARCHAR(60) NULL"),
+        # Explicit OT session timestamps (overtime is now tracked as a
+        # separate check-in/check-out, never auto-derived from regular hours)
+        ("attendance", "OT_CHECK_IN",        "DATETIME NULL"),
+        ("attendance", "OT_CHECK_OUT",       "DATETIME NULL"),
     ]
 
     # Indexes / unique constraints that earlier model versions
@@ -1331,6 +1336,7 @@ app.include_router(onboarding_checklist_router)
 app.include_router(attendance_ai_router)
 app.include_router(leave_decisions_router)
 app.include_router(monthly_reports_router)
+app.include_router(employee_status_router)
 app.include_router(employee_insights_router)
 
 

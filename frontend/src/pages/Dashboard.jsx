@@ -72,7 +72,6 @@ import Payroll from "./Payroll";
 import StarPerformance from "./StarPerformance";
 import Allowances from "./Allowances";
 import EmployeeProfile from "./EmployeeProfile";
-import AppLauncher from "./AppLauncher";
 import Recruitment from "./Recruitment";
 import PayslipGenerator from "./PayslipGenerator";
 import OnboardingChecklist from "./OnboardingChecklist";
@@ -80,15 +79,8 @@ import HrAutomation from "./HrAutomation";
 import MonthlyReports from "./MonthlyReports";
 import WorkforceAnalytics from "./WorkforceAnalytics";
 import ChatBot from "../components/ChatBot";
-import HrTopNav from "../components/HrTopNav";
-
 function HrLayout() {
-  return (
-    <>
-      <HrTopNav />
-      <Outlet />
-    </>
-  );
+  return <Outlet />;
 }
 
 import styles from "./Dashboard.module.css";
@@ -1479,14 +1471,13 @@ function SidebarIcon({ name }) {
 
 
 const NAV_TOP = [
-  { to: "/apps", icon: <SidebarIcon name="apps"      />, label: "Apps" },
-  { to: "/",     icon: <SidebarIcon name="dashboard" />, label: "Dashboard" }
+  { to: "/", icon: <SidebarIcon name="dashboard" />, label: "Dashboard" }
 ];
 
 const NAV_GROUPS = [
   {
     key: "org",
-    label: "Organization",
+    label: "HRMS",
     items: [
       { to: "/approvals", icon: <SidebarIcon name="approvals" />, label: "Approval Center" },
       // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
@@ -1918,11 +1909,6 @@ function Dashboard() {
           <Route
             path="/employees/:id/profile"
             element={<EmployeeProfile />}
-          />
-
-          <Route
-            path="/apps"
-            element={<AppLauncher />}
           />
 
           <Route
