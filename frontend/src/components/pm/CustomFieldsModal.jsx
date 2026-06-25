@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import PMModal from "./PMModal";
 import PMButton from "./PMButton";
 import PMSelect from "./PMSelect";
+import WarningIcon from "../../assets/Icons/warningIcon.webp";
 import styles from "./CustomFieldsModal.module.css";
 import { customFieldService } from "../../services/customFieldService";
 import { useToast } from "../../hooks/useToast";
@@ -17,6 +18,7 @@ const FIELD_TYPES = [
   { value: "SELECT", label: "Dropdown" },
   { value: "TEXTAREA", label: "Text Area" },
   { value: "EMAIL", label: "Email" },
+  { value: "PHONE", label: "Phone Number" },
 ];
 
 const HAS_OPTIONS = ["CHECKBOX", "RADIO", "SELECT"];
@@ -29,17 +31,36 @@ const EMPTY_FORM = {
   SORT_ORDER: 0,
 };
 
+function DeleteConfirmPortal({ open, onClose, onConfirm, fieldName }) {
+  if (!open) return null;
+  return createPortal(
+    <div className={styles.swapOverlay} onClick={onClose}>
+      <div className={styles.swapModal} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.swapIcon} style={{ color: "var(--danger)" }}>
+          <img src={WarningIcon} alt="Warning" />
+        </div>
+        <div className={styles.swapTitle}>Delete Custom Field</div>
+        <div className={styles.swapDesc}>
+          Are you sure you want to delete <strong>"{fieldName}"</strong>?
+          This action cannot be undone.
+        </div>
+        <div className={styles.swapFooter}>
+          <PMButton variant="outline" onClick={onClose}>Cancel</PMButton>
+          <PMButton variant="danger" onClick={() => { onConfirm(); onClose(); }}>Delete</PMButton>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function SwapConfirmPortal({ open, onClose, onConfirm, existingFieldName, sortOrder }) {
   if (!open) return null;
   return createPortal(
     <div className={styles.swapOverlay} onClick={onClose}>
       <div className={styles.swapModal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.swapIcon}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-            <line x1="12" y1="9" x2="12" y2="13" />
-            <line x1="12" y1="17" x2="12.01" y2="17" />
-          </svg>
+          <img src={WarningIcon} alt="Warning" />
         </div>
         <div className={styles.swapTitle}>Sort Order Conflict</div>
         <div className={styles.swapDesc}>
@@ -65,6 +86,7 @@ function CustomFieldsModal({ open, onClose, tableName }) {
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [swapTarget, setSwapTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const toast = useToast();
   const didFetch = useRef(false);
   const pendingSaveRef = useRef(null);
@@ -189,15 +211,18 @@ function CustomFieldsModal({ open, onClose, tableName }) {
     }
   }, [editId, fetchFields, resetForm, toast]);
 
-  const handleDelete = useCallback(async (id) => {
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTarget) return;
     try {
-      await customFieldService.deleteField(id);
+      await customFieldService.deleteField(deleteTarget.id);
       toast.showSuccess("Field deleted");
-      setFields((prev) => prev.filter((f) => f.ID !== id));
+      setFields((prev) => prev.filter((f) => f.ID !== deleteTarget.id));
     } catch (err) {
       toast.showError(err?.response?.data?.detail || "Delete failed");
+    } finally {
+      setDeleteTarget(null);
     }
-  }, [toast]);
+  }, [deleteTarget, toast]);
 
   const filtered = fields.filter((f) =>
     f.FIELD_NAME?.toLowerCase().includes(search.toLowerCase())
@@ -324,7 +349,7 @@ function CustomFieldsModal({ open, onClose, tableName }) {
                           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                         </svg>
                       </button>
-                      <button className={styles.deleteBtn} onClick={() => handleDelete(f.ID)} title="Delete">
+                      <button className={styles.deleteBtn} onClick={() => setDeleteTarget({ id: f.ID, name: f.FIELD_NAME })} title="Delete">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <polyline points="3 6 5 6 21 6" />
                           <path d="M19 6l-1 14H6L5 6" />
@@ -347,6 +372,13 @@ function CustomFieldsModal({ open, onClose, tableName }) {
         onConfirm={handleSwapConfirm}
         existingFieldName={swapTarget?.name}
         sortOrder={swapTarget?.sortOrder}
+      />
+
+      <DeleteConfirmPortal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteConfirm}
+        fieldName={deleteTarget?.name}
       />
     </>
   );

@@ -448,7 +448,11 @@ def _auto_migrate():
     # Each entry: (table, column, new_ddl). The DDL is whatever you'd
     # put in `ADD COLUMN`, e.g. "VARCHAR(2000) NULL".
     widened_columns = [
-        # ("project", "DESCRIPTION", ...) — removed; old customer-project table renamed to project_legacy
+        # Extend FIELD_TYPE enum to include PHONE (idempotent MODIFY)
+        (
+            "custom_fields", "FIELD_TYPE",
+            "ENUM('TEXT','NUMBER','DATE','DATETIME','CHECKBOX','RADIO','SELECT','TEXTAREA','EMAIL','PHONE') NOT NULL",
+        ),
     ]
 
     # New tables that older deployments may not have yet. create_all()
@@ -1231,7 +1235,7 @@ def _auto_seed_defaults():
             db.query(Role)
               .filter(
                   Role.VENDOR_ID == vendor.ID,
-                  Role.NAME == "SuperAdmin",
+                  Role.NAME == "SUPER_ADMIN",
               )
               .first()
         )
@@ -1239,7 +1243,7 @@ def _auto_seed_defaults():
             role = Role(
                 VENDOR_ID=vendor.ID,
                 DEPARTMENT_ID=dept.ID,
-                NAME="SuperAdmin",
+                NAME="SUPER_ADMIN",
                 DESCRIPTION=(
                     "Super Administrator role with full access to all modules, "
                     "settings, and system configuration."

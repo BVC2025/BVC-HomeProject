@@ -3,7 +3,7 @@ import TablePagination from "../components/TablePagination";
 import {
   PageHeader, StatsRow, PMModal, CustomFieldsModal, CustomFieldsSection,
   SearchBar, EmptyState, ExportButton, Loader,
-  PMButton, PMSelect, PMConfirmModal,
+  PMButton, PMConfirmModal,
 } from "../components/pm";
 import { departmentService } from "../services/departmentService";
 import { useToast } from "../hooks/useToast";
@@ -12,6 +12,7 @@ import { exportToExcel, downloadTemplate as dlTemplate } from "../utils/exportEx
 import DepartmentIcon from "../assets/Icons/departmentIcon.webp";
 import EditIcon from "../assets/Icons/editIcon.webp";
 import DeleteIcon from "../assets/Icons/deleteIcon.webp";
+import UploadIcon from "../assets/Icons/uploadIcon.webp";
 import styles from "./DepartmentManagement.module.css";
 
 const EMPTY_FORM = { NAME: "", DEPARTMENT_CODE: "", DESCRIPTION: "" };
@@ -33,9 +34,8 @@ export default function DepartmentManagement() {
   // Bulk upload
   const [bulkModal, setBulkModal] = useState(false);
   const [bulkFile, setBulkFile] = useState(null);
-  const [bulkSheets, setBulkSheets] = useState([]);
-  const [bulkSheet, setBulkSheet] = useState("");
   const [bulkUploading, setBulkUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState(null);
   const fileRef = useRef();
 
   const toast = useToast();
@@ -115,8 +115,8 @@ export default function DepartmentManagement() {
       toast.showWarning("Name and Department Code are required");
       return;
     }
-    const missingCf = validateCf();
-    if (missingCf) { toast.showWarning(`"${missingCf}" is required`); return; }
+    const cfError = validateCf();
+    if (cfError) { toast.showWarning(cfError); return; }
     setSaving(true);
     try {
       if (modal === "add") {
@@ -156,57 +156,38 @@ export default function DepartmentManagement() {
 
   const downloadTemplate = useCallback(async () => {
     try {
-      await dlTemplate("Departments", ["Name", "Code", "Description"], "departments");
+      const headers = ["Name", "Code", "Description", ...cfFields.map((f) => f.FIELD_NAME)];
+      await dlTemplate("Departments", headers, "departments_template");
     } catch {
       toast.showError("Failed to download template");
     }
-  }, []);
+  }, [cfFields, toast]);
 
   const openBulk = useCallback(() => {
     setBulkFile(null);
-    setBulkSheets([]);
-    setBulkSheet("");
+    setUploadResult(null);
     setBulkModal(true);
   }, []);
 
   const handleFileChange = useCallback(async (e) => {
     const f = e.target.files[0];
     if (!f) return;
+    e.target.value = "";
     setBulkFile(f);
-    setBulkSheets([]);
-    setBulkSheet("");
+    setUploadResult(null);
     const fd = new FormData();
     fd.append("file", f);
+    setBulkUploading(true);
     try {
       const res = await departmentService.bulkUpload(fd);
-      if (res.data.requires_sheet_selection) {
-        setBulkSheets(res.data.sheets);
-      } else {
-        toast.showSuccess(`${res.data.created} created, ${res.data.skipped} skipped`);
-        setBulkModal(false);
-        load();
-      }
-    } catch (e) {
-      toast.showError(e?.response?.data?.detail || "Parse failed");
-    }
-  }, [load, toast]);
-
-  const handleSheetSelect = useCallback(async () => {
-    if (!bulkFile || !bulkSheet) return;
-    setBulkUploading(true);
-    const fd = new FormData();
-    fd.append("file", bulkFile);
-    try {
-      const res = await departmentService.bulkUpload(fd, bulkSheet);
-      toast.showSuccess(`${res.data.created} created, ${res.data.skipped} skipped`);
-      setBulkModal(false);
-      load();
-    } catch (e) {
-      toast.showError(e?.response?.data?.detail || "Upload failed");
+      setUploadResult(res.data);
+      load(true);
+    } catch (err) {
+      toast.showError(err?.response?.data?.detail || "Upload failed");
     } finally {
       setBulkUploading(false);
     }
-  }, [bulkFile, bulkSheet, load, toast]);
+  }, [load, toast]);
 
   const handleExport = useCallback(() => {
     const data = filtered.map((r, i) => {
@@ -395,12 +376,15 @@ export default function DepartmentManagement() {
         size="sm"
       >
         <p className={styles.bulkHint}>
-          Upload an Excel file with columns: <strong>NAME</strong>, <strong>CODE</strong>, <strong>DESCRIPTION</strong>.
-          Duplicates (same code) are skipped automatically.
+          Upload an Excel file with sheet name <strong>"Departments"</strong> and columns:{" "}
+          <strong>Name</strong>, <strong>Code</strong>, <strong>Description</strong>
+          {cfFields.length > 0 && <>, plus any custom fields</>}.
+          Existing records (matched by code) are updated; new ones are inserted.
         </p>
-        <div className={styles.dropzone} onClick={() => fileRef.current.click()}>
-          <span className={styles.dropIcon}>📂</span>
+        <div className={styles.dropzone} onClick={() => fileRef.current?.click()}>
+          <span className={styles.dropIconWrap}><img src={UploadIcon} alt="Upload" /></span>
           <span>{bulkFile ? bulkFile.name : "Click to browse or drop Excel (.xlsx)"}</span>
+          {bulkUploading && <span>Uploading…</span>}
         </div>
         <input
           ref={fileRef}
@@ -409,24 +393,36 @@ export default function DepartmentManagement() {
           style={{ display: "none" }}
           onChange={handleFileChange}
         />
-        {bulkSheets.length > 0 && (
-          <div className={styles.sheetPicker}>
-            <label className={styles.formLabel}>Select Sheet</label>
-            <PMSelect
-              options={bulkSheets}
-              value={bulkSheet}
-              onChange={setBulkSheet}
-              allowClear
-              clearLabel="— choose sheet —"
-            />
-            <PMButton
-              variant="primary"
-              onClick={handleSheetSelect}
-              disabled={!bulkSheet || bulkUploading}
-              style={{ marginTop: 10 }}
-            >
-              {bulkUploading ? "Uploading…" : "Import Sheet"}
-            </PMButton>
+        {uploadResult && (
+          <div className={styles.uploadResult}>
+            <div className={styles.resultStats}>
+              <div className={styles.resultStat}>
+                <span className={styles.statValue}>{uploadResult.inserted ?? 0}</span>
+                <span className={styles.statLabel}>Inserted</span>
+              </div>
+              <div className={styles.resultStat}>
+                <span className={styles.statValue}>{uploadResult.updated ?? 0}</span>
+                <span className={styles.statLabel}>Updated</span>
+              </div>
+              <div className={styles.resultStat}>
+                <span className={styles.statValue}>{uploadResult.skipped ?? 0}</span>
+                <span className={styles.statLabel}>Skipped</span>
+              </div>
+            </div>
+            {uploadResult.errors?.length > 0 && (
+              <div className={styles.errorSection}>
+                <p className={styles.errorSectionTitle}>Errors ({uploadResult.errors.length})</p>
+                <ul className={styles.errorList}>
+                  {uploadResult.errors.map((e, i) => (
+                    <li key={i} className={styles.errorItem}>
+                      <span className={styles.errorRowNum}>Row {e.row}</span>
+                      {e.field && <span className={styles.errorField}>{e.field}</span>}
+                      <span className={styles.errorMsg}>{e.message}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
       </PMModal>
@@ -442,7 +438,7 @@ export default function DepartmentManagement() {
       <PMConfirmModal
         open={!!confirmModal}
         onClose={() => setConfirmModal(null)}
-        onConfirm={confirmModal?.onConfirm ?? (() => {})}
+        onConfirm={confirmModal?.onConfirm ?? (() => { })}
         title={confirmModal?.title}
         description={confirmModal?.description}
         confirmLabel="Delete"

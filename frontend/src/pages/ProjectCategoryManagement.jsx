@@ -8,10 +8,11 @@ import {
 import { categoryService } from "../services/categoryService";
 import { useToast } from "../hooks/useToast";
 import { useCustomFields, useTableCfValues } from "../hooks/useCustomFields";
-import { exportToExcel } from "../utils/exportExcel";
+import { exportToExcel, downloadTemplate as dlTemplate } from "../utils/exportExcel";
 import CategoryIcon from "../assets/Icons/categoriesIcon.webp";
 import EditIcon from "../assets/Icons/editIcon.webp";
 import DeleteIcon from "../assets/Icons/deleteIcon.webp";
+import UploadIcon from "../assets/Icons/uploadIcon.webp";
 import styles from "./ProjectCategoryManagement.module.css";
 
 const EMPTY_FORM = { NAME: "", DESCRIPTION: "" };
@@ -29,6 +30,13 @@ export default function ProjectCategoryManagement() {
   const [pageSize, setPageSize] = useState(25);
   const [cfOpen, setCfOpen] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null);
+
+  // Bulk upload
+  const [bulkModal, setBulkModal] = useState(false);
+  const [bulkFile, setBulkFile] = useState(null);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState(null);
+  const fileRef = useRef();
 
   const toast = useToast();
   const fetchedRef = useRef(false);
@@ -107,8 +115,8 @@ export default function ProjectCategoryManagement() {
       toast.showWarning("Category name is required");
       return;
     }
-    const missingCf = validateCf();
-    if (missingCf) { toast.showWarning(`"${missingCf}" is required`); return; }
+    const cfError = validateCf();
+    if (cfError) { toast.showWarning(cfError); return; }
     setSaving(true);
     try {
       if (modal === "add") {
@@ -167,6 +175,41 @@ export default function ProjectCategoryManagement() {
     setPage(1);
   }, []);
 
+  const handleDownloadTemplate = useCallback(async () => {
+    try {
+      const headers = ["Category Name", "Description", ...cfFields.map((f) => f.FIELD_NAME)];
+      await dlTemplate("Categories", headers, "project_categories_template");
+    } catch {
+      toast.showError("Failed to download template");
+    }
+  }, [cfFields, toast]);
+
+  const openBulk = useCallback(() => {
+    setBulkFile(null);
+    setUploadResult(null);
+    setBulkModal(true);
+  }, []);
+
+  const handleFileChange = useCallback(async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    e.target.value = "";
+    setBulkFile(f);
+    setUploadResult(null);
+    const fd = new FormData();
+    fd.append("file", f);
+    setBulkUploading(true);
+    try {
+      const res = await categoryService.bulkUpload(fd);
+      setUploadResult(res.data);
+      load(true);
+    } catch (err) {
+      toast.showError(err?.response?.data?.detail || "Upload failed");
+    } finally {
+      setBulkUploading(false);
+    }
+  }, [load, toast]);
+
   return (
     <div className={styles.page}>
       <PageHeader
@@ -178,6 +221,8 @@ export default function ProjectCategoryManagement() {
         refreshing={refreshing}
         actions={
           <>
+            <PMButton variant="ghost" onClick={handleDownloadTemplate}>Template</PMButton>
+            <PMButton variant="outline" onClick={openBulk}>Bulk Upload</PMButton>
             <PMButton variant="ghost" onClick={() => setCfOpen(true)}>Custom Fields</PMButton>
             <ExportButton onClick={handleExport} disabled={filtered.length === 0} />
             <PMButton variant="primary" onClick={openAdd}>Add Category</PMButton>
@@ -299,6 +344,66 @@ export default function ProjectCategoryManagement() {
           values={cfValues}
           onChange={handleCfChange}
         />
+      </PMModal>
+
+      {/* Bulk Upload Modal */}
+      <PMModal
+        open={bulkModal}
+        onClose={() => setBulkModal(false)}
+        title="Bulk Upload Categories"
+        size="sm"
+      >
+        <p className={styles.bulkHint}>
+          Upload an Excel file with sheet name <strong>"Categories"</strong> and columns:{" "}
+          <strong>Category Name</strong>, <strong>Description</strong>
+          {cfFields.length > 0 && <>, plus any custom fields</>}.
+          Existing records (matched by name) are updated; new ones are inserted.
+        </p>
+        <div className={styles.dropzone} onClick={() => fileRef.current?.click()}>
+          <span className={styles.dropIconWrap}><img src={UploadIcon} alt="Upload" /></span>
+          <span>{bulkFile ? bulkFile.name : "Click to browse or drop Excel (.xlsx)"}</span>
+          {bulkUploading && <span>Uploading…</span>}
+        </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".xlsx,.xls"
+          style={{ display: "none" }}
+          onChange={handleFileChange}
+        />
+
+        {uploadResult && (
+          <div className={styles.uploadResult}>
+            <div className={styles.resultStats}>
+              <div className={styles.resultStat}>
+                <span className={styles.statValue}>{uploadResult.inserted ?? 0}</span>
+                <span className={styles.statLabel}>Inserted</span>
+              </div>
+              <div className={styles.resultStat}>
+                <span className={styles.statValue}>{uploadResult.updated ?? 0}</span>
+                <span className={styles.statLabel}>Updated</span>
+              </div>
+              <div className={styles.resultStat}>
+                <span className={styles.statValue}>{uploadResult.skipped ?? 0}</span>
+                <span className={styles.statLabel}>Skipped</span>
+              </div>
+            </div>
+            {uploadResult.errors?.length > 0 && (
+              <div className={styles.errorSection}>
+                <p className={styles.errorSectionTitle}>Errors ({uploadResult.errors.length})</p>
+                <ul className={styles.errorList}>
+                  {uploadResult.errors.map((e, i) => (
+                    <li key={i} className={styles.errorItem}>
+                      <span className={styles.errorRowNum}>Row {e.row}</span>
+                      {e.field && <span className={styles.errorField}>{e.field}</span>}
+                      <span className={styles.errorMsg}>{e.message}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </PMModal>
 
       {/* Custom Fields Modal */}

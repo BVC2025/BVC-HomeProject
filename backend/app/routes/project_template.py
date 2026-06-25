@@ -14,6 +14,8 @@ from app.models.models import (
     TaskTemplate,
     Department,
     Role,
+    CustomField,
+    CustomFieldTableValue,
 )
 
 
@@ -244,6 +246,10 @@ def delete_category(category_id: str, db: Session = Depends(get_db)):
             status_code=400,
             detail="Category has projects. Delete them first."
         )
+    db.query(CustomFieldTableValue).filter(
+        CustomFieldTableValue.TABLE_NAME == "project_category",
+        CustomFieldTableValue.TABLE_ROW_ID == str(category_id),
+    ).delete(synchronize_session=False)
     db.delete(cat)
     db.commit()
     return {"message": "Category deleted"}
@@ -406,6 +412,17 @@ def delete_project(project_id: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.ID == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+    # Clean up task template CF values before cascade deletes the tasks
+    task_ids = [str(row[0]) for row in db.query(TaskTemplate.ID).filter(TaskTemplate.PROJECT_ID == project_id).all()]
+    if task_ids:
+        db.query(CustomFieldTableValue).filter(
+            CustomFieldTableValue.TABLE_NAME == "task_template",
+            CustomFieldTableValue.TABLE_ROW_ID.in_(task_ids),
+        ).delete(synchronize_session=False)
+    db.query(CustomFieldTableValue).filter(
+        CustomFieldTableValue.TABLE_NAME == "project",
+        CustomFieldTableValue.TABLE_ROW_ID == str(project_id),
+    ).delete(synchronize_session=False)
     db.delete(project)
     db.commit()
     return {"message": "Project deleted"}
@@ -549,6 +566,10 @@ def delete_task_template(task_id: str, db: Session = Depends(get_db)):
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     project_id = task.PROJECT_ID
+    db.query(CustomFieldTableValue).filter(
+        CustomFieldTableValue.TABLE_NAME == "task_template",
+        CustomFieldTableValue.TABLE_ROW_ID == str(task_id),
+    ).delete(synchronize_session=False)
     db.delete(task)
     db.flush()
     project = db.query(Project).filter(Project.ID == project_id).first()
@@ -566,6 +587,583 @@ def reorder_tasks(items: List[ReorderItem], db: Session = Depends(get_db)):
             task.SEQUENCE_NUMBER = item.sequence_number
     db.commit()
     return {"message": "Tasks reordered"}
+
+
+# =========================
+# BULK UPLOAD — SHARED HELPERS
+# =========================
+
+def _cf_fields_for_table(table_name: str, vendor_id: int, db: Session):
+    """Return CustomField rows for a table, sorted by SORT_ORDER."""
+    return (
+        db.query(CustomField)
+          .filter(CustomField.TABLE_NAME == table_name, CustomField.VENDOR_ID == vendor_id)
+          .order_by(CustomField.SORT_ORDER, CustomField.FIELD_NAME)
+          .all()
+    )
+
+
+def _upsert_cf_bulk(row_id: str, table_name: str, cf_field_id: str, value, db: Session):
+    """Insert or update a single custom-field value row."""
+    stored = value if value else None
+    existing = (
+        db.query(CustomFieldTableValue)
+          .filter(
+              CustomFieldTableValue.TABLE_NAME == table_name,
+              CustomFieldTableValue.TABLE_ROW_ID == str(row_id),
+              CustomFieldTableValue.CUSTOM_FIELD_ID == cf_field_id,
+          )
+          .first()
+    )
+    if existing:
+        existing.CUSTOM_FIELD_VALUE = stored
+    elif stored is not None:
+        db.add(CustomFieldTableValue(
+            TABLE_NAME=table_name,
+            TABLE_ROW_ID=str(row_id),
+            CUSTOM_FIELD_ID=cf_field_id,
+            CUSTOM_FIELD_VALUE=stored,
+        ))
+
+
+def _validate_cf_value(field, raw_val) -> Optional[str]:
+    """Validate a raw bulk-upload value against the field's type and options.
+    Returns an error message string if invalid, or None if valid/empty."""
+    import re as _re
+    from datetime import date as _d, datetime as _dt
+
+    if raw_val is None or str(raw_val).strip() == "":
+        return None  # emptiness is handled by the required check
+
+    val = str(raw_val).strip()
+    ft  = field.FIELD_TYPE
+
+    if ft == "NUMBER":
+        try:
+            float(val)
+        except ValueError:
+            return "Must be a number"
+
+    elif ft == "EMAIL":
+        if not _re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", val):
+            return "Must be a valid email address (e.g. user@example.com)"
+
+    elif ft == "PHONE":
+        if not _re.fullmatch(r"\+?[\d\s\-().]{7,20}", val):
+            return "Must be a valid phone number"
+
+    elif ft == "DATE":
+        try:
+            _d.fromisoformat(val)
+        except ValueError:
+            return "Must be a valid date (YYYY-MM-DD)"
+
+    elif ft == "DATETIME":
+        try:
+            _dt.fromisoformat(val)
+        except ValueError:
+            return "Must be a valid date/time (YYYY-MM-DDTHH:MM)"
+
+    elif ft in ("SELECT", "RADIO"):
+        allowed = field.OPTIONS or []
+        if allowed and val not in allowed:
+            return f'Invalid option "{val}". Allowed values: {", ".join(allowed)}'
+
+    elif ft == "CHECKBOX":
+        allowed = set(field.OPTIONS or [])
+        if allowed:
+            items = [v.strip() for v in val.split(",") if v.strip()] if isinstance(raw_val, str) else [val]
+            bad = [v for v in items if v not in allowed]
+            if bad:
+                return f'Invalid option(s): {", ".join(bad)}. Allowed: {", ".join(field.OPTIONS or [])}'
+
+    return None
+
+
+def _cf_row_changed(row_id: str, table_name: str, cf_vals_by_id: dict, db: Session) -> bool:
+    """Return True if any value in cf_vals_by_id {cf_id: new_val} differs from the stored value."""
+    for cf_id, new_val in cf_vals_by_id.items():
+        row = (
+            db.query(CustomFieldTableValue)
+              .filter(
+                  CustomFieldTableValue.TABLE_NAME == table_name,
+                  CustomFieldTableValue.TABLE_ROW_ID == str(row_id),
+                  CustomFieldTableValue.CUSTOM_FIELD_ID == cf_id,
+              )
+              .first()
+        )
+        old_s = str(row.CUSTOM_FIELD_VALUE) if (row and row.CUSTOM_FIELD_VALUE is not None) else ""
+        new_s = str(new_val) if new_val else ""
+        if old_s != new_s:
+            return True
+    return False
+
+
+def _parse_bulk_xl(content: bytes, required_sheet: str):
+    """Parse an Excel workbook for bulk upload.
+
+    Requires the workbook to contain a sheet named exactly `required_sheet`
+    (case-sensitive). Raises HTTPException 400 if the sheet is absent.
+    Returns (headers_upper, data_rows).
+    """
+    wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+    if required_sheet not in wb.sheetnames:
+        available = ", ".join(f'"{s}"' for s in wb.sheetnames)
+        raise HTTPException(
+            status_code=400,
+            detail=f'Sheet "{required_sheet}" not found in the uploaded file. '
+                   f'Available sheets: {available}. '
+                   f'Please use the Template download to get a correctly named workbook.',
+        )
+    ws = wb[required_sheet]
+    headers: Optional[List[str]] = None
+    rows = []
+    for i, row in enumerate(ws.iter_rows(values_only=True)):
+        if i == 0:
+            headers = [str(c).strip().upper() if c is not None else "" for c in row]
+            continue
+        if all(c is None for c in row):
+            continue
+        rows.append(row)
+    return headers, rows
+
+
+def _cell(record: dict, *keys) -> str:
+    """Extract and strip a value from an upper-cased record dict."""
+    for k in keys:
+        v = record.get(k.upper())
+        if v is not None:
+            s = str(v).strip()
+            if s:
+                return s
+    return ""
+
+
+# =========================
+# PROJECT CATEGORIES BULK UPLOAD
+# =========================
+
+_CAT_STD_COLS = {"CATEGORY NAME", "DESCRIPTION", "S.NO", "S.N", "SN", ""}
+
+
+@router.post("/project-categories/bulk-upload")
+async def bulk_upload_categories(
+    vendor_id: int = Query(1),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    content = await file.read()
+    headers, data_rows = _parse_bulk_xl(content, "Categories")
+
+    cf_fields = _cf_fields_for_table("project_category", vendor_id, db)
+    cf_by_upper = {f.FIELD_NAME.upper(): f for f in cf_fields}
+    cf_cols = [h for h in headers if h not in _CAT_STD_COLS and h in cf_by_upper]
+
+    inserted = updated = skipped = 0
+    errors: List[dict] = []
+
+    for row_num, raw in enumerate(data_rows, start=2):
+        record = {headers[i].upper(): raw[i] for i in range(len(headers))}
+
+        cat_name = _cell(record, "CATEGORY NAME")
+        desc     = _cell(record, "DESCRIPTION") or None
+
+        if not cat_name:
+            errors.append({"row": row_num, "field": "Category Name", "message": "Category Name is required"})
+            continue
+
+        # Validate CFs (required + type)
+        cf_vals: dict = {}
+        cf_error = False
+        for col in cf_cols:
+            cf_f = cf_by_upper[col]
+            val  = _cell(record, col) or None
+            if cf_f.IS_REQUIRED and not val:
+                errors.append({
+                    "row": row_num, "field": cf_f.FIELD_NAME,
+                    "message": f'Required custom field "{cf_f.FIELD_NAME}" is missing',
+                })
+                cf_error = True
+            elif val:
+                type_err = _validate_cf_value(cf_f, val)
+                if type_err:
+                    errors.append({"row": row_num, "field": cf_f.FIELD_NAME, "message": type_err})
+                    cf_error = True
+            cf_vals[cf_f.ID] = val
+        if cf_error:
+            continue
+
+        existing = (
+            db.query(ProjectCategory)
+              .filter(ProjectCategory.VENDOR_ID == vendor_id, ProjectCategory.NAME == cat_name)
+              .first()
+        )
+
+        if existing:
+            row_changed = (desc or "") != (existing.DESCRIPTION or "")
+            if row_changed or _cf_row_changed(existing.ID, "project_category", cf_vals, db):
+                if row_changed:
+                    existing.DESCRIPTION = desc
+                for cf_id, val in cf_vals.items():
+                    _upsert_cf_bulk(existing.ID, "project_category", cf_id, val, db)
+                updated += 1
+            else:
+                skipped += 1
+        else:
+            new_cat = ProjectCategory(NAME=cat_name, DESCRIPTION=desc, VENDOR_ID=vendor_id)
+            db.add(new_cat)
+            db.flush()
+            for cf_id, val in cf_vals.items():
+                _upsert_cf_bulk(new_cat.ID, "project_category", cf_id, val, db)
+            inserted += 1
+
+    db.commit()
+    total = inserted + updated + skipped + len(errors)
+    msg   = f"Upload complete: {inserted} inserted, {updated} updated, {skipped} skipped"
+    if errors:
+        msg += f", {len(errors)} error(s)"
+    return {
+        "message": msg,
+        "inserted": inserted, "updated": updated, "skipped": skipped,
+        "total_rows": total, "errors": errors,
+    }
+
+
+# =========================
+# PROJECTS BULK UPLOAD
+# =========================
+
+_PROJ_STD_COLS = {"CATEGORY NAME", "PROJECT NAME", "DESCRIPTION", "S.NO", "S.N", "SN", ""}
+
+
+@router.post("/projects/bulk-upload")
+async def bulk_upload_projects(
+    vendor_id: int = Query(1),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    content = await file.read()
+    headers, data_rows = _parse_bulk_xl(content, "Projects")
+
+    cf_fields  = _cf_fields_for_table("project", vendor_id, db)
+    cf_by_upper = {f.FIELD_NAME.upper(): f for f in cf_fields}
+    cf_cols    = [h for h in headers if h not in _PROJ_STD_COLS and h in cf_by_upper]
+
+    # Pre-build category lookup map (case-insensitive)
+    cat_name_map = {
+        c.NAME.strip().lower(): c
+        for c in db.query(ProjectCategory).filter(ProjectCategory.VENDOR_ID == vendor_id).all()
+    }
+
+    inserted = updated = skipped = 0
+    errors: List[dict] = []
+
+    for row_num, raw in enumerate(data_rows, start=2):
+        record = {headers[i].upper(): raw[i] for i in range(len(headers))}
+
+        cat_name  = _cell(record, "CATEGORY NAME")
+        proj_name = _cell(record, "PROJECT NAME")
+        desc      = _cell(record, "DESCRIPTION") or None
+
+        if not proj_name:
+            errors.append({"row": row_num, "field": "Project Name", "message": "Project Name is required"})
+            continue
+        if not cat_name:
+            errors.append({"row": row_num, "field": "Category Name", "message": "Category Name is required"})
+            continue
+
+        cat = cat_name_map.get(cat_name.lower())
+        if not cat:
+            errors.append({
+                "row": row_num, "field": "Category Name",
+                "message": f'Category "{cat_name}" not found',
+            })
+            continue
+
+        cf_vals: dict = {}
+        cf_error = False
+        for col in cf_cols:
+            cf_f = cf_by_upper[col]
+            val  = _cell(record, col) or None
+            if cf_f.IS_REQUIRED and not val:
+                errors.append({
+                    "row": row_num, "field": cf_f.FIELD_NAME,
+                    "message": f'Required custom field "{cf_f.FIELD_NAME}" is missing',
+                })
+                cf_error = True
+            elif val:
+                type_err = _validate_cf_value(cf_f, val)
+                if type_err:
+                    errors.append({"row": row_num, "field": cf_f.FIELD_NAME, "message": type_err})
+                    cf_error = True
+            cf_vals[cf_f.ID] = val
+        if cf_error:
+            continue
+
+        existing = (
+            db.query(Project)
+              .filter(
+                  Project.VENDOR_ID == vendor_id,
+                  Project.CATEGORY_ID == cat.ID,
+                  Project.NAME == proj_name,
+              )
+              .first()
+        )
+
+        if existing:
+            row_changed = (
+                (desc or "") != (existing.DESCRIPTION or "") or
+                cat.ID != existing.CATEGORY_ID
+            )
+            if row_changed or _cf_row_changed(existing.ID, "project", cf_vals, db):
+                if row_changed:
+                    existing.DESCRIPTION = desc
+                    existing.CATEGORY_ID = cat.ID
+                for cf_id, val in cf_vals.items():
+                    _upsert_cf_bulk(existing.ID, "project", cf_id, val, db)
+                updated += 1
+            else:
+                skipped += 1
+        else:
+            new_proj = Project(
+                CATEGORY_ID=cat.ID,
+                NAME=proj_name,
+                DESCRIPTION=desc,
+                BOM_MODE="MANUAL",
+                ESTIMATED_TOTAL_DAYS=0.0,
+                VENDOR_ID=vendor_id,
+            )
+            db.add(new_proj)
+            db.flush()
+            for cf_id, val in cf_vals.items():
+                _upsert_cf_bulk(new_proj.ID, "project", cf_id, val, db)
+            inserted += 1
+
+    db.commit()
+    total = inserted + updated + skipped + len(errors)
+    msg   = f"Upload complete: {inserted} inserted, {updated} updated, {skipped} skipped"
+    if errors:
+        msg += f", {len(errors)} error(s)"
+    return {
+        "message": msg,
+        "inserted": inserted, "updated": updated, "skipped": skipped,
+        "total_rows": total, "errors": errors,
+    }
+
+
+# =========================
+# TASK TEMPLATES BULK UPLOAD
+# =========================
+
+_TASK_STD_COLS = {
+    "PROJECT NAME", "TASK NAME", "DESCRIPTION",
+    "DURATION VALUE", "DURATION UNIT", "DEPARTMENT", "ROLE", "SEQUENCE",
+    "S.NO", "S.N", "SN", "",
+}
+_VALID_DUR_UNITS = {"HOURS", "DAYS", "WEEKS", "MONTHS", "YEARS"}
+
+
+@router.post("/task-templates/bulk-upload")
+async def bulk_upload_task_templates(
+    vendor_id: int = Query(1),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    content = await file.read()
+    headers, data_rows = _parse_bulk_xl(content, "Tasks")
+
+    cf_fields   = _cf_fields_for_table("task_template", vendor_id, db)
+    cf_by_upper = {f.FIELD_NAME.upper(): f for f in cf_fields}
+    cf_cols     = [h for h in headers if h not in _TASK_STD_COLS and h in cf_by_upper]
+
+    # Pre-build lookup maps
+    proj_name_map = {
+        p.NAME.strip().lower(): p
+        for p in db.query(Project).filter(Project.VENDOR_ID == vendor_id).all()
+    }
+    dept_name_map = {
+        d.NAME.strip().lower(): d
+        for d in db.query(Department).filter(Department.VENDOR_ID == vendor_id).all()
+    }
+    role_name_map = {
+        r.NAME.strip().lower(): r
+        for r in db.query(Role).filter(Role.VENDOR_ID == vendor_id).all()
+    }
+
+    inserted = updated = skipped = 0
+    errors: List[dict] = []
+    modified_proj_ids: set = set()
+    # Lazy sequence counter per project for auto-assigned sequences
+    proj_next_seq: dict = {}
+
+    for row_num, raw in enumerate(data_rows, start=2):
+        record = {headers[i].upper(): raw[i] for i in range(len(headers))}
+
+        proj_name = _cell(record, "PROJECT NAME")
+        task_name = _cell(record, "TASK NAME")
+        desc      = _cell(record, "DESCRIPTION") or None
+        dur_val_s = _cell(record, "DURATION VALUE")
+        dur_unit  = _cell(record, "DURATION UNIT").upper() or "DAYS"
+        dept_name = _cell(record, "DEPARTMENT")
+        role_name = _cell(record, "ROLE")
+        seq_s     = _cell(record, "SEQUENCE")
+
+        # Required field checks
+        if not proj_name:
+            errors.append({"row": row_num, "field": "Project Name", "message": "Project Name is required"})
+            continue
+        if not task_name:
+            errors.append({"row": row_num, "field": "Task Name", "message": "Task Name is required"})
+            continue
+
+        proj = proj_name_map.get(proj_name.lower())
+        if not proj:
+            errors.append({
+                "row": row_num, "field": "Project Name",
+                "message": f'Project "{proj_name}" not found',
+            })
+            continue
+
+        # Duration value
+        try:
+            dur_val = float(dur_val_s) if dur_val_s else 1.0
+            if dur_val <= 0:
+                raise ValueError
+        except ValueError:
+            errors.append({
+                "row": row_num, "field": "Duration Value",
+                "message": f'Invalid duration value "{dur_val_s}" — must be a positive number',
+            })
+            continue
+
+        if dur_unit not in _VALID_DUR_UNITS:
+            dur_unit = "DAYS"
+
+        # Department (optional; error if provided but not found)
+        dept_id = None
+        if dept_name:
+            d = dept_name_map.get(dept_name.lower())
+            if not d:
+                errors.append({
+                    "row": row_num, "field": "Department",
+                    "message": f'Department "{dept_name}" does not exist',
+                })
+                continue
+            dept_id = d.ID
+
+        # Role (optional; error if provided but not found)
+        role_id = None
+        if role_name:
+            r = role_name_map.get(role_name.lower())
+            if not r:
+                errors.append({
+                    "row": row_num, "field": "Role",
+                    "message": f'Role "{role_name}" does not exist',
+                })
+                continue
+            role_id = r.ID
+
+        # Sequence
+        seq: Optional[int] = None
+        if seq_s:
+            try:
+                seq = int(float(seq_s))
+            except ValueError:
+                pass
+        if seq is None:
+            # Auto-assign: start from current task count for this project
+            if proj.ID not in proj_next_seq:
+                count = db.query(TaskTemplate).filter(TaskTemplate.PROJECT_ID == proj.ID).count()
+                proj_next_seq[proj.ID] = count
+            seq = proj_next_seq[proj.ID]
+            proj_next_seq[proj.ID] += 1
+
+        # Custom fields (required + type validation)
+        cf_vals: dict = {}
+        cf_error = False
+        for col in cf_cols:
+            cf_f = cf_by_upper[col]
+            val  = _cell(record, col) or None
+            if cf_f.IS_REQUIRED and not val:
+                errors.append({
+                    "row": row_num, "field": cf_f.FIELD_NAME,
+                    "message": f'Required custom field "{cf_f.FIELD_NAME}" is missing',
+                })
+                cf_error = True
+            elif val:
+                type_err = _validate_cf_value(cf_f, val)
+                if type_err:
+                    errors.append({"row": row_num, "field": cf_f.FIELD_NAME, "message": type_err})
+                    cf_error = True
+            cf_vals[cf_f.ID] = val
+        if cf_error:
+            continue
+
+        existing = (
+            db.query(TaskTemplate)
+              .filter(
+                  TaskTemplate.PROJECT_ID == proj.ID,
+                  TaskTemplate.NAME == task_name,
+              )
+              .first()
+        )
+
+        if existing:
+            row_changed = (
+                (desc or "") != (existing.DESCRIPTION or "")
+                or abs(float(dur_val) - float(existing.DURATION_VALUE or 1.0)) > 0.001
+                or dur_unit != existing.DURATION_UNIT
+                or dept_id != existing.DEPARTMENT_ID
+                or role_id != existing.ROLE_ID
+            )
+            if row_changed or _cf_row_changed(existing.ID, "task_template", cf_vals, db):
+                if row_changed:
+                    existing.DESCRIPTION = desc
+                    existing.DURATION_VALUE = dur_val
+                    existing.DURATION_UNIT  = dur_unit
+                    existing.DEPARTMENT_ID  = dept_id
+                    existing.ROLE_ID        = role_id
+                for cf_id, val in cf_vals.items():
+                    _upsert_cf_bulk(existing.ID, "task_template", cf_id, val, db)
+                modified_proj_ids.add(proj.ID)
+                updated += 1
+            else:
+                skipped += 1
+        else:
+            new_task = TaskTemplate(
+                PROJECT_ID      = proj.ID,
+                NAME            = task_name,
+                DESCRIPTION     = desc,
+                DURATION_VALUE  = dur_val,
+                DURATION_UNIT   = dur_unit,
+                SEQUENCE_NUMBER = seq,
+                DEPARTMENT_ID   = dept_id,
+                ROLE_ID         = role_id,
+                VENDOR_ID       = vendor_id,
+            )
+            db.add(new_task)
+            db.flush()
+            for cf_id, val in cf_vals.items():
+                _upsert_cf_bulk(new_task.ID, "task_template", cf_id, val, db)
+            modified_proj_ids.add(proj.ID)
+            inserted += 1
+
+    # Recalculate estimated duration for every touched project
+    for pid in modified_proj_ids:
+        proj_obj = db.query(Project).filter(Project.ID == pid).first()
+        if proj_obj:
+            _recalc_project_duration(proj_obj, db)
+
+    db.commit()
+    total = inserted + updated + skipped + len(errors)
+    msg   = f"Upload complete: {inserted} inserted, {updated} updated, {skipped} skipped"
+    if errors:
+        msg += f", {len(errors)} error(s)"
+    return {
+        "message": msg,
+        "inserted": inserted, "updated": updated, "skipped": skipped,
+        "total_rows": total, "errors": errors,
+    }
 
 
 # =========================

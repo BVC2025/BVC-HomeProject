@@ -20,4 +20,9 @@ export const taskService = {
 
   bulkCreate: (tasks) =>
     API.post("/task-templates/bulk-create", tasks),
+
+  bulkUpload: (formData, sheetName = null) => {
+    const qs = sheetName ? `?vendor_id=${VENDOR_ID}&sheet_name=${encodeURIComponent(sheetName)}` : `?vendor_id=${VENDOR_ID}`;
+    return API.post(`/task-templates/bulk-upload${qs}`, formData);
+  },
 };

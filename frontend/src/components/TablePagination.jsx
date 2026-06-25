@@ -1,6 +1,6 @@
 import styles from "./TablePagination.module.css";
 
-const DEFAULT_PAGE_SIZES = [10, 25, 50, 100, 0]; // 0 = All
+const DEFAULT_PAGE_SIZES = [5, 10, 25, 50, 100, 0]; // 0 = All
 
 function TablePagination({
   total,
@@ -66,7 +66,7 @@ function TablePagination({
             type="button"
             onClick={prev}
             disabled={safePage <= 1}
-            className={styles.navBtn}
+            className={`${styles.navBtn} ${styles.navBtnArrow}`}
             aria-label="Previous page"
           >
             ‹
@@ -92,7 +92,7 @@ function TablePagination({
             type="button"
             onClick={next}
             disabled={safePage >= totalPages}
-            className={styles.navBtn}
+            className={`${styles.navBtn} ${styles.navBtnArrow}`}
             aria-label="Next page"
           >
             ›

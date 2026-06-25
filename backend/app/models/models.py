@@ -13,7 +13,7 @@ import uuid
 # ──────────────────────────────────────────────
 FIELD_TYPE_ENUM = SAEnum(
     "TEXT", "NUMBER", "DATE", "DATETIME", "CHECKBOX",
-    "RADIO", "SELECT", "TEXTAREA", "EMAIL",
+    "RADIO", "SELECT", "TEXTAREA", "EMAIL", "PHONE",
     name="field_type_enum", create_constraint=True
 )
 UNIT_ENUM = SAEnum(

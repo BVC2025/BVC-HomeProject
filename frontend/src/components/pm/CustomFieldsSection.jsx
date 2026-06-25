@@ -16,6 +16,8 @@ function renderInput(field, value, onChange) {
       return <input type="datetime-local" className={styles.input} value={v} onChange={onChg} />;
     case "EMAIL":
       return <input type="email" className={styles.input} value={v} onChange={onChg} placeholder="email@example.com" />;
+    case "PHONE":
+      return <input type="tel" className={styles.input} value={v} onChange={onChg} placeholder="+91 98765 43210" />;
     case "TEXTAREA":
       return (
         <textarea

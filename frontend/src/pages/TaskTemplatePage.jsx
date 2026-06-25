@@ -12,10 +12,11 @@ import { departmentService } from "../services/departmentService";
 import { roleService } from "../services/roleService";
 import { useToast } from "../hooks/useToast";
 import { useCustomFields, useTableCfValues } from "../hooks/useCustomFields";
-import { exportToExcel } from "../utils/exportExcel";
+import { exportToExcel, downloadTemplate as dlTemplate } from "../utils/exportExcel";
 import TaskIcon from "../assets/Icons/taskIcon.webp";
 import EditIcon from "../assets/Icons/editIcon.webp";
 import DeleteIcon from "../assets/Icons/deleteIcon.webp";
+import UploadIcon from "../assets/Icons/uploadIcon.webp";
 import styles from "./TaskTemplatePage.module.css";
 
 const DURATION_UNITS = ["HOURS", "DAYS", "WEEKS", "MONTHS", "YEARS"];
@@ -47,6 +48,13 @@ export default function TaskTemplatePage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [cfOpen, setCfOpen] = useState(false);
+
+  // Bulk upload
+  const [bulkModal, setBulkModal] = useState(false);
+  const [bulkFile, setBulkFile] = useState(null);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState(null);
+  const bulkFileRef = useRef();
 
   const toast = useToast();
   const metaFetched = useRef(false);
@@ -148,8 +156,8 @@ export default function TaskTemplatePage() {
   const handleSave = useCallback(async () => {
     if (!form.NAME.trim()) { toast.showWarning("Task name is required"); return; }
     if (!selectedProject) { toast.showWarning("Select a project first"); return; }
-    const missingCf = validateCf();
-    if (missingCf) { toast.showWarning(`"${missingCf}" is required`); return; }
+    const cfError = validateCf();
+    if (cfError) { toast.showWarning(cfError); return; }
     setSaving(true);
     try {
       const payload = {
@@ -259,6 +267,45 @@ export default function TaskTemplatePage() {
     exportToExcel(data, `tasks_${currentProject?.NAME || "export"}`);
   }, [filtered, currentProject, deptMap, roleMap, cfFields, cfValuesMap]);
 
+  const handleDownloadTaskTemplate = useCallback(async () => {
+    try {
+      const headers = [
+        "Project Name", "Task Name", "Description",
+        "Duration Value", "Duration Unit", "Department", "Role", "Sequence",
+        ...cfFields.map((f) => f.FIELD_NAME),
+      ];
+      await dlTemplate("Tasks", headers, "task_templates_template");
+    } catch {
+      toast.showError("Failed to download template");
+    }
+  }, [cfFields, toast]);
+
+  const openBulk = useCallback(() => {
+    setBulkFile(null);
+    setUploadResult(null);
+    setBulkModal(true);
+  }, []);
+
+  const handleBulkFileChange = useCallback(async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    e.target.value = "";
+    setBulkFile(f);
+    setUploadResult(null);
+    const fd = new FormData();
+    fd.append("file", f);
+    setBulkUploading(true);
+    try {
+      const res = await taskService.bulkUpload(fd);
+      setUploadResult(res.data);
+      if (selectedProject) loadTasks(selectedProject, true);
+    } catch (err) {
+      toast.showError(err?.response?.data?.detail || "Upload failed");
+    } finally {
+      setBulkUploading(false);
+    }
+  }, [selectedProject, loadTasks, toast]);
+
   return (
     <div className={styles.page}>
       <PageHeader
@@ -270,6 +317,8 @@ export default function TaskTemplatePage() {
         refreshing={refreshing}
         actions={
           <>
+            <PMButton variant="ghost" onClick={handleDownloadTaskTemplate}>Template</PMButton>
+            <PMButton variant="outline" onClick={openBulk}>Bulk Upload</PMButton>
             <PMButton variant="ghost" onClick={() => setCfOpen(true)}>Custom Fields</PMButton>
             <ExportButton onClick={handleExport} disabled={filtered.length === 0} />
             {selectedProject && (
@@ -493,6 +542,68 @@ export default function TaskTemplatePage() {
           values={cfValues}
           onChange={handleCfChange}
         />
+      </PMModal>
+
+      {/* Bulk Upload Modal */}
+      <PMModal
+        open={bulkModal}
+        onClose={() => setBulkModal(false)}
+        title="Bulk Upload Task Templates"
+        size="sm"
+      >
+        <p className={styles.bulkHint}>
+          Upload an Excel file with sheet name <strong>"Tasks"</strong> and columns:{" "}
+          <strong>Project Name</strong>, <strong>Task Name</strong>,{" "}
+          <strong>Description</strong>, <strong>Duration Value</strong>, <strong>Duration Unit</strong>,{" "}
+          <strong>Department</strong>, <strong>Role</strong>, <strong>Sequence</strong>
+          {cfFields.length > 0 && <>, plus any custom fields</>}.
+          Existing tasks (matched by project + name) are updated; new ones are inserted.
+        </p>
+        <div className={styles.dropzone} onClick={() => bulkFileRef.current?.click()}>
+          <span className={styles.dropIconWrap}><img src={UploadIcon} alt="Upload" /></span>
+          <span>{bulkFile ? bulkFile.name : "Click to browse or drop Excel (.xlsx)"}</span>
+          {bulkUploading && <span>Uploading…</span>}
+        </div>
+        <input
+          ref={bulkFileRef}
+          type="file"
+          accept=".xlsx,.xls"
+          style={{ display: "none" }}
+          onChange={handleBulkFileChange}
+        />
+
+        {uploadResult && (
+          <div className={styles.uploadResult}>
+            <div className={styles.resultStats}>
+              <div className={styles.resultStat}>
+                <span className={styles.statValue}>{uploadResult.inserted ?? 0}</span>
+                <span className={styles.statLabel}>Inserted</span>
+              </div>
+              <div className={styles.resultStat}>
+                <span className={styles.statValue}>{uploadResult.updated ?? 0}</span>
+                <span className={styles.statLabel}>Updated</span>
+              </div>
+              <div className={styles.resultStat}>
+                <span className={styles.statValue}>{uploadResult.skipped ?? 0}</span>
+                <span className={styles.statLabel}>Skipped</span>
+              </div>
+            </div>
+            {uploadResult.errors?.length > 0 && (
+              <div className={styles.errorSection}>
+                <p className={styles.errorSectionTitle}>Errors ({uploadResult.errors.length})</p>
+                <ul className={styles.errorList}>
+                  {uploadResult.errors.map((e, i) => (
+                    <li key={i} className={styles.errorItem}>
+                      <span className={styles.errorRowNum}>Row {e.row}</span>
+                      {e.field && <span className={styles.errorField}>{e.field}</span>}
+                      <span className={styles.errorMsg}>{e.message}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </PMModal>
 
       {/* Custom Fields Modal */}
