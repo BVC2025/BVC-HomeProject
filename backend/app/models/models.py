@@ -4160,6 +4160,48 @@ class CustomField(Base):
 class CustomFieldTableValue(Base):
     __tablename__ = "custom_fields_table_values"
 
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    EMPLOYEE_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=False,
+        index=True
+    )
+
+    CATEGORY = Column(String(40), nullable=False, index=True)
+    # TRAVEL / FOOD / ACCOMMODATION / OFFICE_SUPPLIES / FUEL /
+    # COMMUNICATION / CLIENT_MEETING / TRAINING / OTHER
+
+    AMOUNT = Column(Float, nullable=False, default=0.0)
+
+    EXPENSE_DATE = Column(Date, nullable=False, index=True)
+
+    DESCRIPTION = Column(String(1000), nullable=True)
+
+    RECEIPT_URL = Column(String(500), nullable=True)
+
+    STATUS = Column(String(20), default="PENDING", index=True)
+    # PENDING / APPROVED / REJECTED
+
+    SUBMITTED_AT = Column(DateTime, default=datetime.utcnow, index=True)
+
+    REVIEWED_BY_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=True
+    )
+
+    REVIEWED_AT = Column(DateTime, nullable=True)
+
+    REVIEW_NOTES = Column(String(1000), nullable=True)
+
+    VENDOR_ID = Column(
+        Integer,
+        ForeignKey("vendor.ID"),
+        nullable=True,
+        index=True
+    )
     ID                 = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     TABLE_NAME         = Column(String(100), nullable=False, index=True)
     TABLE_ROW_ID       = Column(String(36),  nullable=False, index=True)
