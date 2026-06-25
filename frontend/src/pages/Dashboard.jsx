@@ -40,6 +40,7 @@ import EmployeeOnboardingReview from "./EmployeeOnboardingReview";
 import Customers from "./Customers";
 import Quotations from "./Quotations";
 import SalesOrders from "./SalesOrders";
+import InvoiceOrder from "./InvoiceOrder";
 import PurchaseOrders from "./PurchaseOrders";
 import Projects from "./Projects";
 import Inventory from "./Inventory";
@@ -1316,6 +1317,16 @@ function SidebarIcon({ name }) {
           <path d="M9 11h6M9 15h6" />
         </svg>
       );
+
+    case "invoiceorders":
+      return (
+        <svg {...props}>
+          <rect x="5" y="3" width="14" height="18" rx="2" />
+          <path d="M9 7h6" />
+          <path d="M12 9v10" />
+          <path d="M14.2 11.4c0-1-1-1.6-2.2-1.6s-2.2.6-2.2 1.6.9 1.5 2.2 1.6c1.3.1 2.2.7 2.2 1.7s-1 1.6-2.2 1.6-2.2-.6-2.2-1.6" />
+        </svg>
+      );
     case "projects":
       return (
         <svg {...props}>
@@ -1460,7 +1471,8 @@ const NAV_GROUPS = [
     items: [
       { to: "/customers", icon: <SidebarIcon name="customers" />, label: "Customers" },
       { to: "/quotations", icon: <SidebarIcon name="quotations" />, label: "Quotations" },
-      { to: "/sales-orders", icon: <SidebarIcon name="salesorders" />, label: "Sales Orders" }
+      { to: "/sales-orders", icon: <SidebarIcon name="salesorders" />, label: "Sales Orders" },
+      { to: "/invoice-orders", icon: <SidebarIcon name="invoiceorders" />, label: "Invoice" }
     ]
   },
   {
@@ -1781,6 +1793,14 @@ function Dashboard() {
             path="/sales-orders"
             element={<SalesOrders />}
           />
+
+          <Route
+            path="/invoice-orders"
+            element={<InvoiceOrder />}
+          />
+          {/* new */}
+
+
 
           <Route
             path="/projects"
