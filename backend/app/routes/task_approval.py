@@ -17,7 +17,7 @@ from app.database.database import get_db
 from app.models.models import (
     TaskAssignment,
     Employee,
-    Project,
+    CustomerProject,
     Notification
 )
 
@@ -191,8 +191,8 @@ def _gather_details(db: Session, task: TaskAssignment):
 
     if task.PROJECT_ID:
 
-        proj = db.query(Project).filter(
-            Project.ID == task.PROJECT_ID
+        proj = db.query(CustomerProject).filter(
+            CustomerProject.ID == task.PROJECT_ID
         ).first()
 
     return emp, proj
@@ -436,13 +436,13 @@ def list_pending(
         TaskAssignment,
         Employee.NAME,
         Employee.EMPLOYEE_CODE,
-        Project.PROJECT_NAME
+        CustomerProject.PROJECT_NAME
     ).outerjoin(
         Employee,
         TaskAssignment.EMPLOYEE_ID == Employee.ID
     ).outerjoin(
-        Project,
-        TaskAssignment.PROJECT_ID == Project.ID
+        CustomerProject,
+        TaskAssignment.PROJECT_ID == CustomerProject.ID
     ).filter(
         TaskAssignment.APPROVAL_STATUS == "PENDING_APPROVAL"
     ).order_by(

@@ -475,7 +475,7 @@ def generate_payroll_run(
 
     # Build a role-id → role-name cache so we know who's admin
     role_cache = {
-        r.ID: (r.ROLE_NAME or "")
+        r.ID: (r.NAME or "")
         for r in db.query(Role).all()
     }
 

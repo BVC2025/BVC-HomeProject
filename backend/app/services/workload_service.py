@@ -49,7 +49,7 @@ def candidate_pool(
         Employee.ROLE_ID == Role.ID
     ).filter(
         Employee.STATUS == "ACTIVE",
-        Role.ROLE_NAME.notin_(EXCLUDED_ROLES)
+        Role.NAME.notin_(EXCLUDED_ROLES)
     )
 
     chosen_dept = department_id

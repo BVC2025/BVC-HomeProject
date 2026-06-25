@@ -1,0 +1,39 @@
+.loaderWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  width: 100%;
+}
+
+.blob {
+  width: 90px;
+  height: 90px;
+  display: grid;
+  background: #fff;
+  filter: blur(4.5px) contrast(10);
+  padding: 11.2px;
+  mix-blend-mode: darken;
+  opacity: 0.5;
+}
+
+.blob:before {
+  content: "";
+  margin: auto;
+  width: 23.6px;
+  height: 23.6px;
+  border-radius: 50%;
+  color: var(--clr-primary);
+  background: currentColor;
+  box-shadow: -33.6px 0, 33.6px 0, 0 33.6px, 0 -33.6px;
+  animation: blob-031hhgmd 1s infinite alternate;
+}
+
+@keyframes blob-031hhgmd {
+
+  90%,
+  100% {
+    box-shadow: -11.2px 0, 11.2px 0, 0 11.2px, 0 -11.2px;
+    transform: rotate(180deg);
+  }
+}

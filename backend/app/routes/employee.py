@@ -57,7 +57,7 @@ def serialize_employee(emp: Employee, db: Session):
             Department.ID == emp.DEPARTMENT_ID
         ).first()
 
-        dept = {"ID": d.ID, "NAME": d.NAME, "CODE": d.CODE} if d else None
+        dept = {"ID": d.ID, "NAME": d.NAME, "CODE": d.DEPARTMENT_CODE} if d else None
 
     des = None
 
@@ -75,7 +75,7 @@ def serialize_employee(emp: Employee, db: Session):
 
         r = db.query(Role).filter(Role.ID == emp.ROLE_ID).first()
 
-        role = {"ID": r.ID, "NAME": r.ROLE_NAME} if r else None
+        role = {"ID": r.ID, "NAME": r.NAME} if r else None
 
     return {
         "ID": emp.ID,
