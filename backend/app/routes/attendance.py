@@ -618,7 +618,7 @@ def live_floor_board(
             "EMPLOYEE_CODE": emp.EMPLOYEE_CODE,
             "NAME": emp.NAME,
             "DEPARTMENT": dept.NAME if dept else None,
-            "DEPARTMENT_CODE": dept.DEPARTMENT_CODE if dept else None,
+            "DEPARTMENT_CODE": dept.CODE if dept else None,
             "SKILLS": emp.SKILLS,
             "CHECK_IN": (
                 att.CHECK_IN.isoformat()

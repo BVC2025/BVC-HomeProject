@@ -54,11 +54,11 @@ def _is_admin_employee(db: Session, employee: Employee) -> bool:
 
     role = db.query(Role).filter(Role.ID == employee.ROLE_ID).first()
 
-    if not role or not role.NAME:
+    if not role or not role.ROLE_NAME:
 
         return False
 
-    return role.NAME.strip().lower() in _ADMIN_ROLE_NAMES
+    return role.ROLE_NAME.strip().lower() in _ADMIN_ROLE_NAMES
 
 
 # ---- Scoring weights -------------------------------------------------

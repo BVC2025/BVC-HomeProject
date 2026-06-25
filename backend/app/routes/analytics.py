@@ -9,7 +9,7 @@ from datetime import date
 
 from app.models.models import (
     Employee,
-    CustomerProject,
+    Project,
     Task,
     Inventory,
     Customer,
@@ -30,7 +30,7 @@ def dashboard_stats(
     ).scalar() or 0
 
     total_projects = db.query(
-        func.count(CustomerProject.ID)
+        func.count(Project.ID)
     ).scalar() or 0
 
     pending_tasks = db.query(
@@ -143,9 +143,9 @@ def chart_data(
 
     # Projects by status (bar chart)
     project_rows = db.query(
-        CustomerProject.STATUS,
-        func.count(CustomerProject.ID)
-    ).group_by(CustomerProject.STATUS).all()
+        Project.STATUS,
+        func.count(Project.ID)
+    ).group_by(Project.STATUS).all()
 
     projects_by_status = [
         {
@@ -158,10 +158,10 @@ def chart_data(
     # Projects per customer (bar chart)
     customer_rows = db.query(
         Customer.CUSTOMER_NAME,
-        func.count(CustomerProject.ID)
+        func.count(Project.ID)
     ).outerjoin(
-        CustomerProject,
-        CustomerProject.CUSTOMER_ID == Customer.ID
+        Project,
+        Project.CUSTOMER_ID == Customer.ID
     ).group_by(
         Customer.ID,
         Customer.CUSTOMER_NAME
@@ -213,14 +213,14 @@ def chart_data(
 
     # Employees per role (pie chart)
     role_rows = db.query(
-        Role.NAME,
+        Role.ROLE_NAME,
         func.count(Employee.ID)
     ).outerjoin(
         Employee,
         Employee.ROLE_ID == Role.ID
     ).group_by(
         Role.ID,
-        Role.NAME
+        Role.ROLE_NAME
     ).all()
 
     employees_per_role = [

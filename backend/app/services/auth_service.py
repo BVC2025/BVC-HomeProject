@@ -105,7 +105,7 @@ def get_role_and_permissions(db: Session, role_id):
         ).all()
     ]
 
-    return (role.NAME, perm_codes)
+    return (role.ROLE_NAME, perm_codes)
 
 
 def build_login_response(db: Session, emp: Employee) -> dict:

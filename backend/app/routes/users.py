@@ -32,8 +32,9 @@ def create_role(
     try:
 
         role = Role(
-            NAME=data.ROLE_NAME,
-            VENDOR_ID=data.VENDOR_ID
+            ROLE_NAME=data.ROLE_NAME,
+            VENDOR_ID=data.VENDOR_ID,
+            IS_SYSTEM=0
         )
 
         db.add(role)

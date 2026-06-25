@@ -734,7 +734,7 @@ def tool_list_employees(
         q = q.filter(
             or_(
                 Department.NAME.ilike(f"%{department}%"),
-                Department.DEPARTMENT_CODE.ilike(f"%{department}%")
+                Department.CODE.ilike(f"%{department}%")
             )
         )
 

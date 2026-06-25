@@ -9,9 +9,9 @@ from datetime import datetime, date, timedelta
 
 from app.models.models import (
     Customer,
-    CustomerProject,
     Employee,
     Project,
+    SubProjectTemplate,
     Task,
     TaskAssignment,
     Notification,
@@ -644,8 +644,8 @@ def create_project(
 
     if data.SUB_PROJECT_TEMPLATE_ID is not None:
 
-        template = db.query(Project).filter(
-            Project.ID == data.SUB_PROJECT_TEMPLATE_ID
+        template = db.query(SubProjectTemplate).filter(
+            SubProjectTemplate.ID == data.SUB_PROJECT_TEMPLATE_ID
         ).first()
 
         if not template:
@@ -1583,10 +1583,10 @@ def delete_customer(
         ).delete(synchronize_session=False)
 
         # ---- UNLINK reference rows (preserve their audit value) ----
-        projects_unlinked = db.query(CustomerProject).filter(
-            CustomerProject.CUSTOMER_ID == customer_id
+        projects_unlinked = db.query(Project).filter(
+            Project.CUSTOMER_ID == customer_id
         ).update(
-            {CustomerProject.CUSTOMER_ID: None},
+            {Project.CUSTOMER_ID: None},
             synchronize_session=False
         )
 

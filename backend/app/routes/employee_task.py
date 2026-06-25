@@ -9,7 +9,7 @@ from app.models.models import (
     Employee,
     Department,
     Role,
-    CustomerProject,
+    Project,
     TaskAssignment,
     Attendance,
     Notification,
@@ -307,7 +307,7 @@ def seed_employees(
     """
 
     employee_role = db.query(Role).filter(
-        Role.NAME == "EMPLOYEE"
+        Role.ROLE_NAME == "EMPLOYEE"
     ).first()
 
     if not employee_role:
@@ -531,7 +531,7 @@ def seed_admin(
     """
 
     super_role = db.query(Role).filter(
-        Role.NAME == "SUPER_ADMIN"
+        Role.ROLE_NAME == "SUPER_ADMIN"
     ).first()
 
     if not super_role:
@@ -956,13 +956,13 @@ def today_task(
     row = (
         db.query(
             TaskAssignment,
-            CustomerProject.PROJECT_NAME,
-            CustomerProject.PRIORITY,
+            Project.PROJECT_NAME,
+            Project.PRIORITY,
             Employee.NAME
         )
         .outerjoin(
-            CustomerProject,
-            TaskAssignment.PROJECT_ID == CustomerProject.ID
+            Project,
+            TaskAssignment.PROJECT_ID == Project.ID
         )
         .outerjoin(
             Employee,
@@ -1074,13 +1074,13 @@ def all_tasks(
     rows = (
         db.query(
             TaskAssignment,
-            CustomerProject.PROJECT_NAME,
-            CustomerProject.PRIORITY,
+            Project.PROJECT_NAME,
+            Project.PRIORITY,
             AssignedBy.NAME
         )
         .outerjoin(
-            CustomerProject,
-            TaskAssignment.PROJECT_ID == CustomerProject.ID
+            Project,
+            TaskAssignment.PROJECT_ID == Project.ID
         )
         .outerjoin(
             AssignedBy,
@@ -1318,8 +1318,8 @@ def update_task_status(
 
     if task.PROJECT_ID:
 
-        proj = db.query(CustomerProject).filter(
-            CustomerProject.ID == task.PROJECT_ID
+        proj = db.query(Project).filter(
+            Project.ID == task.PROJECT_ID
         ).first()
 
         project_name = proj.PROJECT_NAME if proj else None
@@ -1459,8 +1459,8 @@ def reject_task(
 
         # Try to infer the stage type from the task name; fall
         # back to using the project's SKILLS_REQUIRED.
-        project = db.query(CustomerProject).filter(
-            CustomerProject.ID == task.PROJECT_ID
+        project = db.query(Project).filter(
+            Project.ID == task.PROJECT_ID
         ).first() if task.PROJECT_ID else None
 
         required = (
@@ -1555,8 +1555,8 @@ def list_pending_acceptance(
         raise HTTPException(status_code=404, detail="Employee not found")
 
     rows = (
-        db.query(TaskAssignment, CustomerProject)
-        .outerjoin(CustomerProject, TaskAssignment.PROJECT_ID == CustomerProject.ID)
+        db.query(TaskAssignment, Project)
+        .outerjoin(Project, TaskAssignment.PROJECT_ID == Project.ID)
         .filter(
             TaskAssignment.EMPLOYEE_ID == emp.ID,
             TaskAssignment.APPROVAL_STATUS == "PENDING"
@@ -1602,8 +1602,8 @@ def assign_task(
 
     if data.PROJECT_ID is not None:
 
-        proj = db.query(CustomerProject).filter(
-            CustomerProject.ID == data.PROJECT_ID
+        proj = db.query(Project).filter(
+            Project.ID == data.PROJECT_ID
         ).first()
 
         if not proj:
@@ -1738,8 +1738,8 @@ def workload_preview(
 
     if project_id is not None:
 
-        proj = db.query(CustomerProject).filter(
-            CustomerProject.ID == project_id
+        proj = db.query(Project).filter(
+            Project.ID == project_id
         ).first()
 
         if not proj:
@@ -1780,8 +1780,8 @@ def list_project_tasks(
     'Assign Tasks' panel on the Projects page.
     """
 
-    proj = db.query(CustomerProject).filter(
-        CustomerProject.ID == project_id
+    proj = db.query(Project).filter(
+        Project.ID == project_id
     ).first()
 
     if not proj:

@@ -145,7 +145,7 @@ def materials_for_me(
       - Admins / managers see everything regardless.
     """
 
-    from app.models.models import CustomerProject as Project
+    from app.models.models import Project
 
     role = user.get("role")
 
