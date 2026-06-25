@@ -1,6 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Optional, List
+import io
+import openpyxl
 
 from app.database.database import get_db
 
@@ -10,6 +13,7 @@ from app.models.models import (
     Role,
     Permission,
     RolePermission,
+    TaskTemplate,
     Vendor
 )
 
@@ -28,6 +32,19 @@ from app.services.seed_data import (
     STANDARD_ROLES
 )
 
+from pydantic import BaseModel
+
+class OrgRoleCreate(BaseModel):
+    NAME: str
+    DEPARTMENT_ID: Optional[int] = None
+    DESCRIPTION: Optional[str] = None
+    VENDOR_ID: int = 1
+
+class OrgRoleUpdate(BaseModel):
+    NAME: Optional[str] = None
+    DEPARTMENT_ID: Optional[int] = None
+    DESCRIPTION: Optional[str] = None
+
 
 router = APIRouter()
 
@@ -39,14 +56,20 @@ router = APIRouter()
 @router.get("/departments")
 def list_departments(
     vendor_id: Optional[int] = Query(None),
+    search: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
 
     q = db.query(Department)
 
     if vendor_id is not None:
-
         q = q.filter(Department.VENDOR_ID == vendor_id)
+
+    if search:
+        term = f"%{search}%"
+        q = q.filter(
+            Department.NAME.ilike(term) | Department.DEPARTMENT_CODE.ilike(term)
+        )
 
     rows = q.order_by(Department.NAME).all()
 
@@ -54,10 +77,11 @@ def list_departments(
         {
             "ID": d.ID,
             "NAME": d.NAME,
-            "CODE": d.CODE,
+            "DEPARTMENT_CODE": d.DEPARTMENT_CODE,
             "DESCRIPTION": d.DESCRIPTION,
-            "HEAD_EMPLOYEE_ID": d.HEAD_EMPLOYEE_ID,
-            "VENDOR_ID": d.VENDOR_ID
+            "VENDOR_ID": d.VENDOR_ID,
+            "CREATED_AT": d.CREATED_AT.isoformat() if d.CREATED_AT else None,
+            "UPDATED_AT": d.UPDATED_AT.isoformat() if d.UPDATED_AT else None
         }
         for d in rows
     ]
@@ -71,21 +95,20 @@ def create_department(
 
     existing = db.query(Department).filter(
         Department.VENDOR_ID == data.VENDOR_ID,
-        Department.CODE == data.CODE.upper()
+        Department.DEPARTMENT_CODE == data.DEPARTMENT_CODE.upper()
     ).first()
 
     if existing:
 
         raise HTTPException(
             status_code=400,
-            detail=f"Department code '{data.CODE}' already exists for this vendor"
+            detail=f"Department code '{data.DEPARTMENT_CODE}' already exists for this vendor"
         )
 
     dept = Department(
         NAME=data.NAME,
-        CODE=data.CODE.upper(),
+        DEPARTMENT_CODE=data.DEPARTMENT_CODE.upper(),
         DESCRIPTION=data.DESCRIPTION,
-        HEAD_EMPLOYEE_ID=data.HEAD_EMPLOYEE_ID,
         VENDOR_ID=data.VENDOR_ID
     )
 
@@ -116,14 +139,11 @@ def update_department(
     if data.NAME is not None:
         dept.NAME = data.NAME
 
-    if data.CODE is not None:
-        dept.CODE = data.CODE.upper()
+    if data.DEPARTMENT_CODE is not None:
+        dept.DEPARTMENT_CODE = data.DEPARTMENT_CODE.upper()
 
     if data.DESCRIPTION is not None:
         dept.DESCRIPTION = data.DESCRIPTION
-
-    if data.HEAD_EMPLOYEE_ID is not None:
-        dept.HEAD_EMPLOYEE_ID = data.HEAD_EMPLOYEE_ID
 
     db.commit()
 
@@ -331,7 +351,7 @@ def list_roles(
 
         q = q.filter(Role.VENDOR_ID == vendor_id)
 
-    rows = q.order_by(Role.ROLE_NAME).all()
+    rows = q.order_by(Role.NAME).all()
 
     out = []
 
@@ -346,10 +366,10 @@ def list_roles(
 
         out.append({
             "ID": r.ID,
-            "ROLE_NAME": r.ROLE_NAME,
+            "NAME": r.NAME,
             "DESCRIPTION": r.DESCRIPTION,
-            "IS_SYSTEM": bool(r.IS_SYSTEM),
             "VENDOR_ID": r.VENDOR_ID,
+            "DEPARTMENT_ID": r.DEPARTMENT_ID,
             "PERMISSION_IDS": perm_ids
         })
 
@@ -363,9 +383,8 @@ def create_role(
 ):
 
     role = Role(
-        ROLE_NAME=data.ROLE_NAME,
+        NAME=data.NAME,
         DESCRIPTION=data.DESCRIPTION,
-        IS_SYSTEM=0,
         VENDOR_ID=data.VENDOR_ID
     )
 
@@ -389,13 +408,6 @@ def delete_role(
     if not role:
 
         raise HTTPException(status_code=404, detail="Role not found")
-
-    if role.IS_SYSTEM:
-
-        raise HTTPException(
-            status_code=400,
-            detail="System roles cannot be deleted"
-        )
 
     db.query(RolePermission).filter(
         RolePermission.ROLE_ID == role_id
@@ -513,14 +525,14 @@ def do_seed_org(db: Session, preset_key: str, vendor_id: int) -> dict:
 
         dept = db.query(Department).filter(
             Department.VENDOR_ID == vendor_id,
-            Department.CODE == dept_code
+            Department.DEPARTMENT_CODE == dept_code
         ).first()
 
         if not dept:
 
             dept = Department(
                 NAME=dept_name,
-                CODE=dept_code,
+                DEPARTMENT_CODE=dept_code,
                 VENDOR_ID=vendor_id
             )
 
@@ -560,15 +572,14 @@ def do_seed_org(db: Session, preset_key: str, vendor_id: int) -> dict:
 
         role = db.query(Role).filter(
             Role.VENDOR_ID == vendor_id,
-            Role.ROLE_NAME == role_name
+            Role.NAME == role_name
         ).first()
 
         if not role:
 
             role = Role(
-                ROLE_NAME=role_name,
+                NAME=role_name,
                 DESCRIPTION=role_desc,
-                IS_SYSTEM=1,
                 VENDOR_ID=vendor_id
             )
 
@@ -713,15 +724,14 @@ def seed_bvc24_role_catalogue(
 
         role = db.query(Role).filter(
             Role.VENDOR_ID == vendor_id,
-            Role.ROLE_NAME == role_name
+            Role.NAME == role_name
         ).first()
 
         if not role:
 
             role = Role(
-                ROLE_NAME=role_name,
+                NAME=role_name,
                 DESCRIPTION=role_desc,
-                IS_SYSTEM=1,
                 VENDOR_ID=vendor_id
             )
 
@@ -731,7 +741,7 @@ def seed_bvc24_role_catalogue(
 
             roles_added += 1
 
-        roles_touched.append(role.ROLE_NAME)
+        roles_touched.append(role.NAME)
 
         if perm_codes == "*":
 
@@ -776,4 +786,265 @@ def seed_bvc24_role_catalogue(
             "SALES_MANAGER", "PURCHASE_MANAGER", "PRODUCTION_MANAGER",
             "INVENTORY_MANAGER", "ACCOUNTS_MANAGER", "EMPLOYEE",
         ]
+    }
+
+
+# =========================
+# DEPARTMENT BULK UPLOAD
+# =========================
+
+def _parse_excel_departments(file_bytes: bytes, sheet_name: Optional[str] = None):
+    wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+    sheets = wb.sheetnames
+    if sheet_name and sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+    else:
+        ws = wb.active
+    rows = []
+    headers = []
+    for i, row in enumerate(ws.iter_rows(values_only=True)):
+        if i == 0:
+            headers = [str(c).strip().upper() if c else "" for c in row]
+            continue
+        if all(c is None for c in row):
+            continue
+        record = dict(zip(headers, row))
+        name = str(record.get("NAME") or "").strip()
+        code = str(record.get("CODE") or "").strip()
+        desc = str(record.get("DESCRIPTION") or "").strip()
+        if name and code:
+            rows.append({"NAME": name, "CODE": code, "DESCRIPTION": desc or None})
+    return sheets, rows
+
+
+@router.get("/departments/bulk-upload/template")
+def department_upload_template():
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Departments"
+    ws.append(["NAME", "CODE", "DESCRIPTION"])
+    ws.append(["Software Development", "SW", "Software team"])
+    ws.append(["Electrical", "ELEC", "Electrical department"])
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=departments_template.xlsx"}
+    )
+
+
+@router.post("/departments/bulk-upload")
+async def bulk_upload_departments(
+    vendor_id: int = Query(1),
+    sheet_name: Optional[str] = Query(None),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    content = await file.read()
+    sheets, rows = _parse_excel_departments(content, sheet_name)
+
+    if not sheet_name and len(sheets) > 1:
+        return {"sheets": sheets, "requires_sheet_selection": True}
+
+    created = skipped = 0
+    for r in rows:
+        exists = db.query(Department).filter(
+            Department.VENDOR_ID == vendor_id,
+            Department.DEPARTMENT_CODE == r["CODE"].upper()
+        ).first()
+        if exists:
+            skipped += 1
+            continue
+        db.add(Department(
+            NAME=r["NAME"],
+            DEPARTMENT_CODE=r["CODE"].upper(),
+            DESCRIPTION=r["DESCRIPTION"],
+            VENDOR_ID=vendor_id
+        ))
+        created += 1
+    db.commit()
+    return {
+        "message": f"Upload complete: {created} created, {skipped} skipped",
+        "created": created,
+        "skipped": skipped,
+        "total_rows": len(rows)
+    }
+
+
+# =========================
+# ORG ROLES (job-function roles, separate from RBAC)
+# =========================
+
+@router.get("/org-roles")
+def list_org_roles(
+    vendor_id: Optional[int] = Query(None),
+    dept_id: Optional[int] = Query(None),
+    search: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    q = db.query(Role, Department).outerjoin(
+        Department, Role.DEPARTMENT_ID == Department.ID
+    )
+    if vendor_id is not None:
+        q = q.filter(Role.VENDOR_ID == vendor_id)
+    if dept_id is not None:
+        q = q.filter(Role.DEPARTMENT_ID == dept_id)
+    if search:
+        term = f"%{search}%"
+        q = q.filter(Role.NAME.ilike(term))
+    rows = q.order_by(Role.NAME).all()
+    return [
+        {
+            "ID": r.ID,
+            "NAME": r.NAME,
+            "DESCRIPTION": r.DESCRIPTION,
+            "DEPARTMENT_ID": r.DEPARTMENT_ID,
+            "DEPARTMENT_NAME": d.NAME if d else None,
+            "VENDOR_ID": r.VENDOR_ID
+        }
+        for r, d in rows
+    ]
+
+
+@router.post("/org-roles")
+def create_org_role(
+    data: OrgRoleCreate,
+    db: Session = Depends(get_db)
+):
+    existing = db.query(Role).filter(
+        Role.VENDOR_ID == data.VENDOR_ID,
+        Role.NAME == data.NAME
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Role '{data.NAME}' already exists")
+    role = Role(
+        NAME=data.NAME,
+        DESCRIPTION=data.DESCRIPTION,
+        DEPARTMENT_ID=data.DEPARTMENT_ID,
+        VENDOR_ID=data.VENDOR_ID
+    )
+    db.add(role)
+    db.commit()
+    db.refresh(role)
+    return {"message": "Role created", "ID": role.ID}
+
+
+@router.put("/org-roles/{role_id}")
+def update_org_role(
+    role_id: int,
+    data: OrgRoleUpdate,
+    db: Session = Depends(get_db)
+):
+    role = db.query(Role).filter(Role.ID == role_id).first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+    if data.NAME is not None:
+        role.NAME = data.NAME
+    if data.DEPARTMENT_ID is not None:
+        role.DEPARTMENT_ID = data.DEPARTMENT_ID
+    if data.DESCRIPTION is not None:
+        role.DESCRIPTION = data.DESCRIPTION
+    db.commit()
+    return {"message": "Role updated"}
+
+
+@router.delete("/org-roles/{role_id}")
+def delete_org_role(
+    role_id: int,
+    db: Session = Depends(get_db)
+):
+    role = db.query(Role).filter(Role.ID == role_id).first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found")
+    in_use = db.query(TaskTemplate).filter(TaskTemplate.ROLE_ID == role_id).first()
+    if in_use:
+        raise HTTPException(
+            status_code=400,
+            detail="Role is referenced by task templates. Remove those references first."
+        )
+    db.delete(role)
+    db.commit()
+    return {"message": "Role deleted"}
+
+
+@router.get("/org-roles/bulk-upload/template")
+def org_role_upload_template():
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Roles"
+    ws.append(["ROLE_NAME", "DEPARTMENT_NAME", "DESCRIPTION"])
+    ws.append(["PLC Engineer", "Electrical", "PLC programming specialist"])
+    ws.append(["Fitter", "Assembly", "Mechanical assembly fitter"])
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=roles_template.xlsx"}
+    )
+
+
+@router.post("/org-roles/bulk-upload")
+async def bulk_upload_org_roles(
+    vendor_id: int = Query(1),
+    sheet_name: Optional[str] = Query(None),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    content = await file.read()
+    wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+    sheets = wb.sheetnames
+
+    if not sheet_name and len(sheets) > 1:
+        return {"sheets": sheets, "requires_sheet_selection": True}
+
+    ws = wb[sheet_name] if sheet_name and sheet_name in wb.sheetnames else wb.active
+    headers = []
+    parsed = []
+    for i, row in enumerate(ws.iter_rows(values_only=True)):
+        if i == 0:
+            headers = [str(c).strip().upper() if c else "" for c in row]
+            continue
+        if all(c is None for c in row):
+            continue
+        record = dict(zip(headers, row))
+        role_name = str(record.get("ROLE_NAME") or "").strip()
+        dept_name = str(record.get("DEPARTMENT_NAME") or "").strip()
+        desc = str(record.get("DESCRIPTION") or "").strip()
+        if role_name:
+            parsed.append({"ROLE_NAME": role_name, "DEPT_NAME": dept_name, "DESCRIPTION": desc or None})
+
+    created = skipped = 0
+    for r in parsed:
+        dept_id = None
+        if r["DEPT_NAME"]:
+            dept = db.query(Department).filter(
+                Department.VENDOR_ID == vendor_id,
+                Department.NAME.ilike(r["DEPT_NAME"])
+            ).first()
+            if dept:
+                dept_id = dept.ID
+        exists = db.query(Role).filter(
+            Role.VENDOR_ID == vendor_id,
+            Role.NAME == r["ROLE_NAME"]
+        ).first()
+        if exists:
+            skipped += 1
+            continue
+        db.add(Role(
+            NAME=r["ROLE_NAME"],
+            DESCRIPTION=r["DESCRIPTION"],
+            DEPARTMENT_ID=dept_id,
+            VENDOR_ID=vendor_id
+        ))
+        created += 1
+    db.commit()
+    return {
+        "message": f"Upload complete: {created} created, {skipped} skipped",
+        "created": created,
+        "skipped": skipped,
+        "total_rows": len(parsed)
     }

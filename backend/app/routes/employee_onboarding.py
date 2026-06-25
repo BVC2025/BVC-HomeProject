@@ -1456,14 +1456,14 @@ def _pick_default_role(db: Session):
 
     for name in ("EMPLOYEE", "Employee", "WORKER", "Worker"):
 
-        r = db.query(Role).filter(Role.ROLE_NAME == name).first()
+        r = db.query(Role).filter(Role.NAME == name).first()
 
         if r:
 
             return r
 
     r = db.query(Role).filter(
-        ~Role.ROLE_NAME.in_(["SUPER_ADMIN", "ADMIN"])
+        ~Role.NAME.in_(["SUPER_ADMIN", "ADMIN"])
     ).order_by(Role.ID).first()
 
     if r:

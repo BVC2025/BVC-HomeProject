@@ -39,7 +39,7 @@ from app.models.models import (
     Role,
     Department,
     Designation,
-    Project,
+    CustomerProject,
     TaskAssignment,
     Inventory,
     MaterialCatalog,
@@ -49,7 +49,6 @@ from app.models.models import (
     Notification,
     Customer,
     Vendor,
-    SubProjectTemplate,
     ProjectCategory,
     # BVC24 extensions — Production, Quality, Suppliers, Leave,
     # Biometric, Process Stages
@@ -383,7 +382,7 @@ def find_employee_in_text(db, text):
 
 def find_project_in_text(db, text):
 
-    rows = db.query(Project).all()
+    rows = db.query(CustomerProject).all()
 
     text_l = text.lower()
 
@@ -511,7 +510,7 @@ def find_department_in_text(db, text):
 
         name = (d.NAME or "").strip().lower()
 
-        code = (d.CODE or "").strip().lower()
+        code = (d.DEPARTMENT_CODE or "").strip().lower()
 
         if name and len(name) >= 3 and re.search(rf"\b{re.escape(name)}\b", text_l):
 
@@ -558,7 +557,7 @@ def profile_employee(db, emp, tok_set):
 
         if r:
 
-            role_name = r.ROLE_NAME
+            role_name = r.NAME
 
     workload = active_task_count(db, emp.ID)
 
@@ -716,8 +715,8 @@ def profile_machine(db, mc, tok_set):
 
 def profile_customer(db, c, tok_set):
 
-    projects = db.query(Project).filter(
-        Project.CUSTOMER_ID == c.ID
+    projects = db.query(CustomerProject).filter(
+        CustomerProject.CUSTOMER_ID == c.ID
     ).all()
 
     items = [
@@ -748,8 +747,8 @@ def profile_department(db, d, tok_set):
         Employee.STATUS == "ACTIVE"
     ).count()
 
-    proj_count = db.query(Project).filter(
-        Project.DEPARTMENT_ID == d.ID
+    proj_count = db.query(CustomerProject).filter(
+        CustomerProject.DEPARTMENT_ID == d.ID
     ).count()
 
     head_name = "-"
@@ -765,7 +764,7 @@ def profile_department(db, d, tok_set):
             head_name = head.NAME
 
     items = [
-        {"label": "Code", "meta": d.CODE or "-"},
+        {"label": "Code", "meta": d.DEPARTMENT_CODE or "-"},
         {"label": "Head", "meta": head_name},
         {"label": "Active employees", "meta": str(emp_count)},
         {"label": "Projects", "meta": str(proj_count)},
@@ -957,7 +956,7 @@ def handle_workload_summary(tok_set, raw, db):
         Role, Employee.ROLE_ID == Role.ID
     ).filter(
         Employee.STATUS == "ACTIVE",
-        Role.ROLE_NAME.notin_(EXCLUDED_ROLES)
+        Role.NAME.notin_(EXCLUDED_ROLES)
     ).all()
 
     rows = [
@@ -1049,12 +1048,12 @@ def handle_why_assigned(tok_set, raw, db):
 
 def handle_project_total(tok_set, raw, db):
 
-    total = db.query(Project).count()
+    total = db.query(CustomerProject).count()
 
     by_status = db.query(
-        Project.STATUS,
-        func.count(Project.ID)
-    ).group_by(Project.STATUS).all()
+        CustomerProject.STATUS,
+        func.count(CustomerProject.ID)
+    ).group_by(CustomerProject.STATUS).all()
 
     items = [
         {"label": s or "UNKNOWN", "meta": f"{c} project(s)"}
@@ -1066,7 +1065,7 @@ def handle_project_total(tok_set, raw, db):
 
 def handle_list_projects(tok_set, raw, db):
 
-    rows = db.query(Project).all()
+    rows = db.query(CustomerProject).all()
 
     items = [
         {
@@ -1081,8 +1080,8 @@ def handle_list_projects(tok_set, raw, db):
 
 def handle_active_projects(tok_set, raw, db):
 
-    rows = db.query(Project).filter(
-        Project.STATUS != "COMPLETED"
+    rows = db.query(CustomerProject).filter(
+        CustomerProject.STATUS != "COMPLETED"
     ).all()
 
     items = [
@@ -1105,13 +1104,13 @@ def handle_employee_total(tok_set, raw, db):
     ).count()
 
     by_role = db.query(
-        Role.ROLE_NAME,
+        Role.NAME,
         func.count(Employee.ID)
     ).join(
         Employee, Employee.ROLE_ID == Role.ID
     ).filter(
         Employee.STATUS == "ACTIVE"
-    ).group_by(Role.ROLE_NAME).all()
+    ).group_by(Role.NAME).all()
 
     items = [
         {"label": r or "UNKNOWN", "meta": f"{c} person(s)"}
@@ -1201,7 +1200,7 @@ def handle_list_departments(tok_set, raw, db):
                 head_name = f"head: {head.NAME}"
 
         items.append({
-            "label": f"{d.NAME} ({d.CODE})",
+            "label": f"{d.NAME} ({d.DEPARTMENT_CODE})",
             "meta": head_name
         })
 
@@ -1228,8 +1227,8 @@ def handle_list_customers(tok_set, raw, db):
 
     for c in rows[:30]:
 
-        proj_count = db.query(Project).filter(
-            Project.CUSTOMER_ID == c.ID
+        proj_count = db.query(CustomerProject).filter(
+            CustomerProject.CUSTOMER_ID == c.ID
         ).count()
 
         items.append({
@@ -1519,7 +1518,7 @@ def handle_system_status(tok_set, raw, db):
         Employee.STATUS == "ACTIVE"
     ).count()
 
-    projs = db.query(Project).count()
+    projs = db.query(CustomerProject).count()
 
     tasks = db.query(TaskAssignment).count()
 

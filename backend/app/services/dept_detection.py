@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.models.models import (
     Department,
     ProjectCategory,
-    SubProjectTemplate
+    Project,
 )
 
 
@@ -121,8 +121,8 @@ def _detect_from_template(db: Session, sub_template_id):
 
         return None
 
-    template = db.query(SubProjectTemplate).filter(
-        SubProjectTemplate.ID == sub_template_id
+    template = db.query(Project).filter(
+        Project.ID == sub_template_id
     ).first()
 
     if not template:

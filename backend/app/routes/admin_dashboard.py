@@ -25,7 +25,7 @@ from app.models.models import (
     Customer,
     Quotation,
     SalesOrder,
-    Project,
+    CustomerProject,
     PurchaseOrder,
     Inventory,
     Attendance,
@@ -78,8 +78,8 @@ def admin_dashboard_stats(
 
     # 4. Active Projects
     active_projects = _scope(
-        db.query(func.count(Project.ID)).filter(
-            ~Project.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"])
+        db.query(func.count(CustomerProject.ID)).filter(
+            ~CustomerProject.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"])
         ),
         Project
     ).scalar() or 0
