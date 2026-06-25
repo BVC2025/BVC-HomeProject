@@ -48,3 +48,7 @@ WARNING:  auto-seed-org-catalog skipped: (pymysql.err.IntegrityError) (1062, "Du
 INFO:     Started server process [10140]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
+D:\PUVI-DOC\Vendor-based Manufacturing ERP\backend\venv\Lib\site-packages\fastapi\openapi\utils.py:252: UserWarning: Duplicate Operation ID quotation_dashboard_stats_quotations_dashboard_stats_get for function quotation_dashboard_stats at D:\PUVI-DOC\Vendor-based Manufacturing ERP\backend\app\routes\quotation.py
+  warnings.warn(message, stacklevel=1)
+D:\PUVI-DOC\Vendor-based Manufacturing ERP\backend\venv\Lib\site-packages\fastapi\openapi\utils.py:252: UserWarning: Duplicate Operation ID quotation_pricing_breakdown_quotations_pricing_breakdown_get for function quotation_pricing_breakdown at D:\PUVI-DOC\Vendor-based Manufacturing ERP\backend\app\routes\quotation.py
+  warnings.warn(message, stacklevel=1)
