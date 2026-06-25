@@ -1,0 +1,246 @@
+/* EmployeeProfileForm — scoped styles */
+
+/* ─── Page wrapper ───────────────────────────────────────────── */
+
+.page {
+  min-height: 100vh;
+  background: var(--layout-bg);
+  padding: 30px 24px;
+}
+
+.formWrapper {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+/* ─── Welcome hero ───────────────────────────────────────────── */
+
+.hero {
+  background: var(--clr-primary);
+  color: var(--text-inverse);
+  border-radius: var(--radius-xl);
+  padding: 30px 32px;
+  margin-bottom: 22px;
+  box-shadow: 0 14px 40px rgba(239, 68, 68, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.heroRing {
+  position: absolute;
+  right: -60px;
+  top: -60px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+}
+
+.heroEyebrow {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-black);
+  letter-spacing: 2.5px;
+  opacity: 0.9;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.heroTitle {
+  font-size: var(--font-3xl);
+  font-weight: var(--fw-black);
+  margin: 0;
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+}
+
+.heroDesc {
+  font-size: var(--font-sm);
+  opacity: 0.9;
+  margin-top: 10px;
+  max-width: 700px;
+}
+
+.logoutBtn {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: var(--text-inverse);
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  font-family: var(--font);
+  cursor: pointer;
+}
+
+/* ─── Error banner ───────────────────────────────────────────── */
+
+.errorBanner {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-light);
+  color: var(--danger-dark);
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  margin-bottom: 16px;
+  font-weight: var(--fw-bold);
+}
+
+/* ─── Section card ───────────────────────────────────────────── */
+
+.section {
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  padding: 22px;
+  margin-bottom: 18px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+}
+
+.sectionHeader {
+  font-size: 12px;
+  font-weight: var(--fw-black);
+  color: #4338ca;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--border);
+}
+
+/* ─── Grid layouts ───────────────────────────────────────────── */
+
+.grid3  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.grid2  { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.gridEdu { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
+.grid21 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+
+.spacer { height: 14px; }
+
+/* ─── Field ──────────────────────────────────────────────────── */
+
+.fieldLabel {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  display: block;
+  text-transform: uppercase;
+}
+
+.fieldHint {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ─── Inputs ─────────────────────────────────────────────────── */
+
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  box-sizing: border-box;
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--clr-primary);
+}
+
+.textarea {
+  resize: vertical;
+}
+
+.inputReadonly {
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+/* ─── Photo section ──────────────────────────────────────────── */
+
+.photoRow {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.photoInputWrapper {
+  flex: 1;
+}
+
+.fileInput {
+  font-size: var(--font-xs);
+}
+
+.avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: #818cf8;
+  color: var(--text-inverse);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: var(--fw-black);
+  flex-shrink: 0;
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+  overflow: hidden;
+}
+
+.photoHint {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  margin-top: 6px;
+}
+
+/* ─── Submit bar ─────────────────────────────────────────────── */
+
+.submitBar {
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  padding: 22px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.submitWarning {
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex: 1;
+  min-width: 220px;
+}
+
+.submitBtn {
+  border: none;
+  background: var(--clr-primary);
+  color: var(--text-inverse);
+  padding: 12px 32px;
+  border-radius: var(--radius-lg);
+  font-weight: var(--fw-black);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  box-shadow: 0 8px 22px rgba(239, 68, 68, 0.35);
+  transition: background var(--ease);
+}
+
+.submitBtn:disabled {
+  background: var(--slate-400);
+  cursor: not-allowed;
+  box-shadow: none;
+}

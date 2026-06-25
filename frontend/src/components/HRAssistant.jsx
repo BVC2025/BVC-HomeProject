@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import API from "../services/api";
+import styles from "./HRAssistant.module.css";
 
 
 // ===================================================================
@@ -218,6 +219,13 @@ function HRAssistant({ employeeId, employeeName }) {
     ]);
   };
 
+  // Resolve bubble class for a message
+  const bubbleClass = (m) => {
+    if (m.from === "user") return `${styles.msgBubble} ${styles.msgBubbleUser}`;
+    if (m.isError)         return `${styles.msgBubble} ${styles.msgBubbleError}`;
+    return `${styles.msgBubble} ${styles.msgBubbleBot}`;
+  };
+
   return (
 
     <>
@@ -227,113 +235,39 @@ function HRAssistant({ employeeId, employeeName }) {
         <button
           onClick={() => setOpen(true)}
           aria-label="Open HR Assistant"
-          style={{
-            position: "fixed",
-            bottom: 24,
-            right: 24,
-            zIndex: 1200,
-            width: 64,
-            height: 64,
-            borderRadius: "50%",
-            border: "none",
-            background: "linear-gradient(135deg, #C8102E, #8B0B1F)",
-            color: "white",
-            cursor: "pointer",
-            boxShadow: "0 12px 30px rgba(200,16,46,0.5)",
-            fontSize: 28,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            animation: "hrBotPulse 2.4s ease-in-out infinite"
-          }}
+          className={styles.fab}
           title="HR Assistant — apply leave, check balance, ask questions"
         >
           💬
         </button>
       )}
 
-      <style>{`
-        @keyframes hrBotPulse {
-          0%, 100% { box-shadow: 0 12px 30px rgba(200,16,46,0.5); }
-          50%      { box-shadow: 0 12px 30px rgba(200,16,46,0.85),
-                                  0 0 0 8px rgba(200,16,46,0.18); }
-        }
-        @keyframes hrBotSlide {
-          from { transform: translateY(20px); opacity: 0; }
-          to   { transform: translateY(0);    opacity: 1; }
-        }
-      `}</style>
-
       {/* Chat panel */}
       {open && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 24,
-            right: 24,
-            zIndex: 1200,
-            width: 380,
-            maxWidth: "94vw",
-            height: 560,
-            maxHeight: "85vh",
-            background: "white",
-            borderRadius: 18,
-            boxShadow: "0 24px 60px rgba(0,0,0,0.3)",
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-            animation: "hrBotSlide 0.25s ease-out"
-          }}
-        >
+        <div className={styles.panel}>
 
           {/* Header */}
-          <div style={{
-            background: "linear-gradient(135deg, #C8102E, #8B0B1F)",
-            color: "white",
-            padding: "14px 18px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center"
-          }}>
+          <div className={styles.header}>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 800, opacity: 0.85, letterSpacing: 1.5 }}>
+              <div className={styles.headerMeta}>
                 BVC24 · HR ASSISTANT
               </div>
-              <div style={{ fontSize: 15, fontWeight: 800, marginTop: 2 }}>
+              <div className={styles.headerTitle}>
                 Leave & Permissions
               </div>
             </div>
-            <div style={{ display: "flex", gap: 6 }}>
+            <div className={styles.headerActions}>
               <button
                 onClick={resetThread}
                 title="New conversation"
-                style={{
-                  background: "rgba(255,255,255,0.15)",
-                  border: "1px solid rgba(255,255,255,0.3)",
-                  color: "white",
-                  borderRadius: 6,
-                  padding: "4px 10px",
-                  cursor: "pointer",
-                  fontSize: 11,
-                  fontWeight: 700
-                }}
+                className={styles.headerBtn}
               >
                 ↻
               </button>
               <button
                 onClick={() => setOpen(false)}
                 title="Close"
-                style={{
-                  background: "rgba(255,255,255,0.15)",
-                  border: "1px solid rgba(255,255,255,0.3)",
-                  color: "white",
-                  borderRadius: 6,
-                  padding: "4px 10px",
-                  cursor: "pointer",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  lineHeight: 1
-                }}
+                className={styles.headerCloseBtn}
               >
                 ×
               </button>
@@ -343,57 +277,22 @@ function HRAssistant({ employeeId, employeeName }) {
           {/* Messages */}
           <div
             ref={scrollRef}
-            style={{
-              flex: 1,
-              padding: "16px 14px",
-              overflowY: "auto",
-              background: "#fafafa",
-              display: "flex",
-              flexDirection: "column",
-              gap: 10
-            }}
+            className={styles.messages}
           >
             {messages.map((m, i) => (
               <div
                 key={i}
-                style={{
-                  alignSelf: m.from === "user" ? "flex-end" : "flex-start",
-                  maxWidth: "85%"
-                }}
+                className={`${styles.msgWrapper} ${m.from === "user" ? styles.user : styles.bot}`}
               >
-                <div style={{
-                  background: m.from === "user"
-                    ? "linear-gradient(135deg, #C8102E, #8B0B1F)"
-                    : (m.isError ? "#fef2f2" : "white"),
-                  color: m.from === "user"
-                    ? "white"
-                    : (m.isError ? "#b91c1c" : "#0f172a"),
-                  padding: "9px 13px",
-                  borderRadius: m.from === "user"
-                    ? "14px 14px 4px 14px"
-                    : "14px 14px 14px 4px",
-                  fontSize: 13,
-                  lineHeight: 1.45,
-                  border: m.from === "bot" ? "1px solid #e2e8f0" : "none",
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word"
-                }}>
+                <div className={bubbleClass(m)}>
                   {renderMarkdown(m.text)}
                 </div>
               </div>
             ))}
 
             {busy && (
-              <div style={{ alignSelf: "flex-start" }}>
-                <div style={{
-                  background: "white",
-                  padding: "9px 13px",
-                  borderRadius: "14px 14px 14px 4px",
-                  fontSize: 13,
-                  border: "1px solid #e2e8f0",
-                  color: "#64748b",
-                  fontStyle: "italic"
-                }}>
+              <div className={styles.thinking}>
+                <div className={styles.thinkingBubble}>
                   thinking…
                 </div>
               </div>
@@ -402,28 +301,12 @@ function HRAssistant({ employeeId, employeeName }) {
 
           {/* Suggestion chips */}
           {suggestions.length > 0 && !busy && (
-            <div style={{
-              padding: "8px 14px",
-              borderTop: "1px solid #e2e8f0",
-              background: "white",
-              display: "flex",
-              gap: 6,
-              flexWrap: "wrap"
-            }}>
+            <div className={styles.suggestions}>
               {suggestions.map((s, i) => (
                 <button
                   key={i}
                   onClick={() => send(s)}
-                  style={{
-                    background: "#fef2f2",
-                    color: "#8B0B1F",
-                    border: "1px solid #fecaca",
-                    borderRadius: 999,
-                    padding: "5px 12px",
-                    fontSize: 11,
-                    fontWeight: 700,
-                    cursor: "pointer"
-                  }}
+                  className={styles.chip}
                 >
                   {s}
                 </button>
@@ -432,13 +315,7 @@ function HRAssistant({ employeeId, employeeName }) {
           )}
 
           {/* Input */}
-          <div style={{
-            padding: 12,
-            borderTop: "1px solid #e2e8f0",
-            background: "white",
-            display: "flex",
-            gap: 8
-          }}>
+          <div className={styles.inputRow}>
             <input
               type="text"
               value={input}
@@ -451,31 +328,12 @@ function HRAssistant({ employeeId, employeeName }) {
               }}
               placeholder='Try "I need leave tomorrow"…'
               disabled={busy}
-              style={{
-                flex: 1,
-                padding: "9px 12px",
-                border: "1px solid #cbd5e1",
-                borderRadius: 8,
-                fontSize: 13,
-                outline: "none",
-                fontFamily: "inherit"
-              }}
+              className={styles.input}
             />
             <button
               onClick={() => send(input)}
               disabled={busy || !input.trim()}
-              style={{
-                background: busy || !input.trim()
-                  ? "#94a3b8"
-                  : "linear-gradient(135deg, #C8102E, #8B0B1F)",
-                color: "white",
-                border: "none",
-                borderRadius: 8,
-                padding: "9px 18px",
-                cursor: busy || !input.trim() ? "not-allowed" : "pointer",
-                fontWeight: 700,
-                fontSize: 13
-              }}
+              className={styles.sendBtn}
             >
               ➤
             </button>

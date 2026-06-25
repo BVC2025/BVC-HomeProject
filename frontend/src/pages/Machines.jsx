@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 
 import API from "../services/api";
+import styles from "./Machines.module.css";
 
 const STATUS_OPTIONS = ["RUNNING", "IDLE", "DOWN", "MAINTENANCE"];
 
 const STATUS_THEMES = {
   RUNNING: {
-    grad: "linear-gradient(135deg, #10b981, #047857)",
     bg: "#d1fae5",
     fg: "#065f46",
     border: "#10b981",
@@ -15,7 +15,6 @@ const STATUS_THEMES = {
     label: "Running"
   },
   IDLE: {
-    grad: "linear-gradient(135deg, #C8102E, #8B0B1F)",
     bg: "#e0e7ff",
     fg: "#3730a3",
     border: "#6366f1",
@@ -24,7 +23,6 @@ const STATUS_THEMES = {
     label: "Idle"
   },
   DOWN: {
-    grad: "linear-gradient(135deg, #ef4444, #b91c1c)",
     bg: "#fee2e2",
     fg: "#991b1b",
     border: "#ef4444",
@@ -33,7 +31,6 @@ const STATUS_THEMES = {
     label: "Down"
   },
   MAINTENANCE: {
-    grad: "linear-gradient(135deg, #F4B324, #8B0B1F)",
     bg: "#fef3c7",
     fg: "#92400e",
     border: "#f59e0b",
@@ -42,7 +39,6 @@ const STATUS_THEMES = {
     label: "Maintenance"
   },
   MIXED: {
-    grad: "linear-gradient(135deg, #8b5cf6, #6366f1)",
     bg: "#ede9fe",
     fg: "#5b21b6",
     border: "#8b5cf6",
@@ -60,19 +56,8 @@ function StatusPill({ status }) {
   return (
 
     <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "4px 12px",
-        borderRadius: 999,
-        fontSize: 11,
-        fontWeight: 800,
-        letterSpacing: 0.4,
-        background: theme.bg,
-        color: theme.fg,
-        textTransform: "uppercase"
-      }}
+      className={styles.statusPill}
+      style={{ background: theme.bg, color: theme.fg }}
     >
       <span aria-hidden="true">{theme.icon}</span>
       {theme.label}
@@ -98,9 +83,6 @@ function fmtTime(iso) {
 // WO-grouped card — one per Work Order, with N units inside
 // =================================================================
 
-// Status precedence — most concerning first. If any unit is DOWN
-// the card surfaces DOWN; if any is MAINTENANCE it surfaces that;
-// only when every unit matches do we get a "clean" status.
 const STATUS_PRECEDENCE = ["DOWN", "MAINTENANCE", "IDLE", "RUNNING"];
 
 function aggregateStatus(units) {
@@ -111,7 +93,6 @@ function aggregateStatus(units) {
 
   if (set.size === 1) return units[0].STATUS;
 
-  // Mixed — return the most concerning one present
   for (const s of STATUS_PRECEDENCE) {
 
     if (set.has(s)) return s;
@@ -133,14 +114,7 @@ function StatusBreakdown({ units }) {
 
   return (
 
-    <div
-      style={{
-        display: "flex",
-        gap: 8,
-        marginBottom: 10,
-        flexWrap: "wrap"
-      }}
-    >
+    <div className={styles.statusBreakdownRow}>
       {STATUS_OPTIONS.filter((s) => counts[s] > 0).map((s) => {
 
         const t = STATUS_THEMES[s];
@@ -149,14 +123,8 @@ function StatusBreakdown({ units }) {
 
           <span
             key={s}
-            style={{
-              fontSize: 10,
-              padding: "2px 8px",
-              borderRadius: 999,
-              fontWeight: 800,
-              background: t.bg,
-              color: t.fg
-            }}
+            className={styles.statusBreakdownChip}
+            style={{ background: t.bg, color: t.fg }}
           >
             {t.icon} {counts[s]} {t.label}
           </span>
@@ -191,7 +159,6 @@ function WOGroupCard({ group, onBatchStatus, onOpenLogs }) {
     }
   };
 
-  // Last updated = newest timestamp across units
   const lastUpdated = group.units.reduce((max, u) => {
 
     if (!u.LAST_UPDATED) return max;
@@ -200,162 +167,55 @@ function WOGroupCard({ group, onBatchStatus, onOpenLogs }) {
 
   }, null);
 
-  // Use the first unit as the "representative" for model info
   const head = group.units[0];
 
   return (
 
     <div
-      style={{
-        background: "white",
-        borderRadius: 16,
-        padding: 18,
-        boxShadow: `0 12px 30px ${theme.glow}`,
-        position: "relative",
-        overflow: "hidden",
-        border: "1px solid #e2e8f0",
-        animation: "machFadeIn 0.4s ease-out both"
-      }}
+      className={styles.groupCard}
+      style={{ boxShadow: `0 12px 30px ${theme.glow}` }}
     >
       <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 5,
-          background: theme.grad
-        }}
+        className={styles.cardStrip}
+        style={{ background: theme.border }}
       />
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          marginBottom: 10
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div
-            style={{
-              fontSize: 10,
-              fontWeight: 800,
-              color: "#64748b",
-              letterSpacing: 1.5,
-              fontFamily: "ui-monospace, monospace"
-            }}
-          >
+      <div className={styles.cardHead}>
+        <div className={styles.cardHeadLeft}>
+          <div className={styles.woNumber}>
             {head.WO_NUMBER || head.SERIAL_NO || `MACHINE-${head.ID}`}
           </div>
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 800,
-              color: "#0f172a",
-              marginTop: 4,
-              lineHeight: 1.3,
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden"
-            }}
-          >
+          <div className={styles.modelName}>
             {head.MODEL_NAME || head.MACHINE_NAME}
           </div>
         </div>
         <StatusPill status={isMixed ? "MIXED" : aggregate} />
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 6,
-          marginBottom: 10
-        }}
-      >
-        <span
-          style={{
-            fontSize: 11,
-            padding: "3px 12px",
-            background: "linear-gradient(135deg, #f3e8ff, #fae8ff)",
-            color: "#6d28d9",
-            borderRadius: 999,
-            fontWeight: 800,
-            border: "1px solid #ddd6fe"
-          }}
-        >
+      <div className={styles.badgeRow}>
+        <span className={styles.badgeUnits}>
           × {group.units.length} unit{group.units.length > 1 ? "s" : ""}
         </span>
         {head.MODEL_CATEGORY && (
-          <span
-            style={{
-              fontSize: 10,
-              padding: "3px 10px",
-              background: "#eff6ff",
-              color: "#1e40af",
-              borderRadius: 999,
-              fontWeight: 700,
-              textTransform: "capitalize"
-            }}
-          >
-            {head.MODEL_CATEGORY}
-          </span>
+          <span className={styles.badgeCategory}>{head.MODEL_CATEGORY}</span>
         )}
         {head.MODEL_CODE && (
-          <span
-            style={{
-              fontSize: 10,
-              padding: "3px 10px",
-              background: "#ecfdf5",
-              color: "#065f46",
-              borderRadius: 999,
-              fontWeight: 700,
-              fontFamily: "ui-monospace, monospace"
-            }}
-          >
-            {head.MODEL_CODE}
-          </span>
+          <span className={styles.badgeCode}>{head.MODEL_CODE}</span>
         )}
       </div>
 
       {isMixed && <StatusBreakdown units={group.units} />}
 
       {head.CUSTOMER_NAME && (
-        <div
-          style={{
-            fontSize: 11,
-            color: "#64748b",
-            background: "#f8fafc",
-            padding: "7px 10px",
-            borderRadius: 8,
-            marginBottom: 10
-          }}
-        >
-          🤝 {head.CUSTOMER_NAME}
-        </div>
+        <div className={styles.customerRow}>🤝 {head.CUSTOMER_NAME}</div>
       )}
 
-      <div
-        style={{
-          fontSize: 10,
-          color: "#94a3b8",
-          marginBottom: 10
-        }}
-      >
+      <div className={styles.lastUpdated}>
         Last updated: {fmtTime(lastUpdated)}
       </div>
 
-      {/* Batch status buttons — flips every unit in this WO */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 6,
-          marginBottom: 10
-        }}
-      >
+      {/* Batch status buttons */}
+      <div className={styles.statusBtnGrid}>
         {STATUS_OPTIONS.map((s) => {
 
           const t = STATUS_THEMES[s];
@@ -371,24 +231,12 @@ function WOGroupCard({ group, onBatchStatus, onOpenLogs }) {
               onClick={() => handleClick(s)}
               disabled={allMatch || isPending}
               title={`Set all ${group.units.length} units to ${t.label}`}
+              className={styles.cardStatusBtn}
               style={{
-                padding: "7px 0",
-                border: allMatch
-                  ? "none"
-                  : `1px solid ${t.border}33`,
-                background: allMatch
-                  ? t.grad
-                  : isPending
-                    ? "#cbd5e1"
-                    : "white",
+                border: allMatch ? "none" : `1px solid ${t.border}33`,
+                background: allMatch ? t.border : isPending ? "var(--slate-400)" : "var(--card-bg)",
                 color: allMatch ? "white" : t.fg,
-                borderRadius: 7,
-                fontSize: 10,
-                fontWeight: 800,
-                cursor: allMatch ? "default" : "pointer",
-                letterSpacing: 0.5,
-                textTransform: "uppercase",
-                transition: "all 0.15s"
+                cursor: allMatch ? "default" : "pointer"
               }}
             >
               {isPending
@@ -401,17 +249,7 @@ function WOGroupCard({ group, onBatchStatus, onOpenLogs }) {
 
       <button
         onClick={() => onOpenLogs(group)}
-        style={{
-          width: "100%",
-          background: "white",
-          border: "1px solid #e2e8f0",
-          color: "#475569",
-          padding: "7px 0",
-          borderRadius: 7,
-          fontSize: 11,
-          fontWeight: 700,
-          cursor: "pointer"
-        }}
+        className={styles.historyBtn}
       >
         📜 View status history & units
       </button>
@@ -455,7 +293,6 @@ function LogsDrawer({ group, onClose }) {
 
         const all = perUnit.flat();
 
-        // Newest first across all units
         all.sort(
           (a, b) =>
             new Date(b.TIMESTAMP) - new Date(a.TIMESTAMP)
@@ -471,117 +308,28 @@ function LogsDrawer({ group, onClose }) {
 
   return (
 
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,0.55)",
-        zIndex: 950,
-        display: "flex",
-        justifyContent: "flex-end"
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 520,
-          maxWidth: "92%",
-          background: "white",
-          padding: 24,
-          overflow: "auto",
-          boxShadow: "-20px 0 60px rgba(0,0,0,0.3)"
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            marginBottom: 14
-          }}
-        >
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 800,
-                color: "#64748b",
-                letterSpacing: 1.5,
-                fontFamily: "ui-monospace, monospace"
-              }}
-            >
+    <div className={styles.drawerOverlay} onClick={onClose}>
+      <div className={styles.drawer} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.drawerHeader}>
+          <div className={styles.drawerInfo}>
+            <div className={styles.drawerWONum}>
               {head?.WO_NUMBER || head?.SERIAL_NO || "—"}
             </div>
-            <div
-              style={{
-                fontSize: 18,
-                fontWeight: 800,
-                color: "#0f172a",
-                marginTop: 4
-              }}
-            >
+            <div className={styles.drawerModelName}>
               {head?.MODEL_NAME || head?.MACHINE_NAME}
             </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "#64748b",
-                marginTop: 4
-              }}
-            >
+            <div className={styles.drawerUnitCount}>
               {units.length} unit{units.length > 1 ? "s" : ""} in this batch
             </div>
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              border: "none",
-              background: "#f1f5f9",
-              padding: "4px 12px",
-              borderRadius: 8,
-              cursor: "pointer",
-              fontSize: 18
-            }}
-          >
-            ×
-          </button>
+          <button onClick={onClose} className={styles.closeBtn}>×</button>
         </div>
 
         {units.length > 1 && (
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 6,
-              marginBottom: 16,
-              padding: 10,
-              background: "#f8fafc",
-              borderRadius: 8
-            }}
-          >
+          <div className={styles.unitChipList}>
             {units.map((u) => (
-              <div
-                key={u.ID}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  padding: "4px 10px",
-                  background: "white",
-                  borderRadius: 6,
-                  fontSize: 11,
-                  border: "1px solid #e2e8f0"
-                }}
-              >
-                <span
-                  style={{
-                    fontWeight: 700,
-                    color: "#475569"
-                  }}
-                >
-                  #{u.UNIT_NUMBER}
-                </span>
+              <div key={u.ID} className={styles.unitChip}>
+                <span className={styles.unitChipNum}>#{u.UNIT_NUMBER}</span>
                 <StatusPill status={u.STATUS} />
               </div>
             ))}
@@ -589,13 +337,11 @@ function LogsDrawer({ group, onClose }) {
         )}
 
         {loading && (
-          <div style={{ color: "#94a3b8" }}>Loading…</div>
+          <div className={styles.drawerLoadingText}>Loading…</div>
         )}
 
         {!loading && logs.length === 0 && (
-          <div style={{ color: "#94a3b8", padding: 20 }}>
-            No history yet.
-          </div>
+          <div className={styles.drawerEmptyText}>No history yet.</div>
         )}
 
         {!loading && logs.map((log) => {
@@ -605,78 +351,27 @@ function LogsDrawer({ group, onClose }) {
 
           return (
 
-            <div
-              key={log.ID}
-              style={{
-                display: "flex",
-                gap: 10,
-                marginBottom: 14,
-                paddingBottom: 14,
-                borderBottom: "1px solid #f1f5f9"
-              }}
-            >
+            <div key={log.ID} className={styles.logEntry}>
               <div
-                style={{
-                  width: 4,
-                  background: theme.grad,
-                  borderRadius: 2,
-                  flexShrink: 0
-                }}
+                className={styles.logBar}
+                style={{ background: theme.border }}
               />
-              <div style={{ flex: 1 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 8,
-                    flexWrap: "wrap"
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8
-                    }}
-                  >
+              <div className={styles.logBody}>
+                <div className={styles.logMeta}>
+                  <div className={styles.logLeft}>
                     <StatusPill status={log.STATUS} />
                     {log.UNIT_NUMBER && (
-                      <span
-                        style={{
-                          fontSize: 10,
-                          fontWeight: 800,
-                          color: "#6d28d9",
-                          background: "#f3e8ff",
-                          padding: "2px 8px",
-                          borderRadius: 999
-                        }}
-                      >
+                      <span className={styles.logUnitBadge}>
                         Unit #{log.UNIT_NUMBER}
                       </span>
                     )}
                   </div>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      color: "#94a3b8",
-                      fontFamily: "ui-monospace, monospace"
-                    }}
-                  >
+                  <span className={styles.logTimestamp}>
                     {fmtTime(log.TIMESTAMP)}
                   </span>
                 </div>
                 {log.NOTE && (
-                  <div
-                    style={{
-                      fontSize: 12,
-                      color: "#475569",
-                      marginTop: 6,
-                      lineHeight: 1.5
-                    }}
-                  >
-                    {log.NOTE}
-                  </div>
+                  <div className={styles.logNote}>{log.NOTE}</div>
                 )}
               </div>
             </div>
@@ -778,9 +473,8 @@ function Machines() {
     }
   };
 
-  // Flip every unit in a WO group to the same status with parallel PUTs.
-  // Units already at the target status are skipped to keep the log
-  // clean (no spurious "changed to X" rows for things already at X).
+  void updateStatus;
+
   const batchUpdateStatus = async (units, newStatus) => {
 
     const targets = units.filter((u) => u.STATUS !== newStatus);
@@ -819,8 +513,6 @@ function Machines() {
 
   }, [machines]);
 
-  // Group machines by WO. Manually-created machines (no WO) become
-  // their own single-unit "group" so they still show as cards.
   const groups = useMemo(() => {
 
     const byKey = new Map();
@@ -839,7 +531,6 @@ function Machines() {
       byKey.get(key).units.push(m);
     });
 
-    // Sort units inside each group by UNIT_NUMBER ascending
     const out = [...byKey.values()];
 
     out.forEach((g) => {
@@ -849,7 +540,6 @@ function Machines() {
       );
     });
 
-    // Sort groups by newest machine first
     out.sort((a, b) => {
 
       const ai = Math.max(...a.units.map((u) => u.ID));
@@ -878,7 +568,6 @@ function Machines() {
 
       if (!q) return true;
 
-      // Search across any unit's fields in the group
       return g.units.some((m) => {
 
         const hay = [
@@ -902,137 +591,46 @@ function Machines() {
 
   return (
 
-    <div style={{ padding: 0 }}>
-
-      <style>{`
-        @keyframes machFadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes machHeroShift {
-          0%   { background-position: 0% 50%; }
-          50%  { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-      `}</style>
+    <div className={styles.page}>
 
       {/* Hero header */}
-      <div
-        style={{
-          background: "linear-gradient(135deg, #C8102E 0%, #A60F26 50%, #8B0B1F 100%)",
-          color: "white",
-          borderRadius: 14,
-          padding: "20px 28px",
-          marginBottom: 22,
-          boxShadow: "0 6px 18px rgba(139,11,31,0.18)",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 16
-        }}
-      >
+      <div className={styles.hero}>
         <div>
-          <div style={{
-            fontSize: 10,
-            letterSpacing: 2,
-            color: "#fde047",
-            fontWeight: 700,
-            textTransform: "uppercase"
-          }}>
-            Operations
-          </div>
-          <h1 style={{
-            fontSize: 22,
-            fontWeight: 700,
-            margin: "4px 0 0",
-            lineHeight: 1.2,
-            color: "white",
-            letterSpacing: -0.3
-          }}>
-            Machines
-          </h1>
+          <div className={styles.heroEyebrow}>Operations</div>
+          <h1 className={styles.heroTitle}>Machines</h1>
         </div>
 
         <button
           onClick={runSync}
           disabled={syncing}
-          style={{
-            background: "white",
-            color: "#8B0B1F",
-            border: "none",
-            padding: "10px 20px",
-            borderRadius: 8,
-            fontWeight: 800,
-            fontSize: 12,
-            cursor: syncing ? "default" : "pointer",
-            letterSpacing: 0.6,
-            textTransform: "uppercase",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            whiteSpace: "nowrap"
-          }}
+          className={styles.syncBtn}
         >
           {syncing ? "Syncing…" : "Sync from Work Orders"}
         </button>
       </div>
 
       {/* Stat tiles */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
-          gap: 14,
-          marginBottom: 20
-        }}
-      >
+      <div className={styles.tilesGrid}>
         {[
-          { label: "Total", value: machines.length, theme: { grad: "linear-gradient(135deg, #64748b, #334155)", glow: "rgba(100,116,139,0.25)", fg: "#0f172a" } },
-          { label: "Running", value: counts.RUNNING, theme: STATUS_THEMES.RUNNING },
-          { label: "Idle", value: counts.IDLE, theme: STATUS_THEMES.IDLE },
-          { label: "Down", value: counts.DOWN, theme: STATUS_THEMES.DOWN },
-          { label: "Maintenance", value: counts.MAINTENANCE, theme: STATUS_THEMES.MAINTENANCE }
+          { label: "Total",       value: machines.length,    border: "#475569", glow: "rgba(100,116,139,0.25)", fg: "var(--text-primary)" },
+          { label: "Running",     value: counts.RUNNING,     ...STATUS_THEMES.RUNNING },
+          { label: "Idle",        value: counts.IDLE,        ...STATUS_THEMES.IDLE },
+          { label: "Down",        value: counts.DOWN,        ...STATUS_THEMES.DOWN },
+          { label: "Maintenance", value: counts.MAINTENANCE, ...STATUS_THEMES.MAINTENANCE }
         ].map((tile) => (
           <div
             key={tile.label}
-            style={{
-              background: "white",
-              borderRadius: 14,
-              padding: 18,
-              boxShadow: `0 6px 20px ${tile.theme.glow}`,
-              position: "relative",
-              overflow: "hidden",
-              border: "1px solid #e2e8f0"
-            }}
+            className={styles.tile}
+            style={{ boxShadow: `0 6px 20px ${tile.glow}` }}
           >
             <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 4,
-                background: tile.theme.grad
-              }}
+              className={styles.tileStrip}
+              style={{ background: tile.border }}
             />
+            <div className={styles.tileLabel}>{tile.label}</div>
             <div
-              style={{
-                fontSize: 10,
-                fontWeight: 800,
-                letterSpacing: 1.5,
-                color: "#64748b",
-                textTransform: "uppercase"
-              }}
-            >
-              {tile.label}
-            </div>
-            <div
-              style={{
-                fontSize: 32,
-                fontWeight: 900,
-                color: tile.theme.fg || "#0f172a",
-                marginTop: 4,
-                fontFamily: "ui-monospace, monospace"
-              }}
+              className={styles.tileValue}
+              style={{ color: tile.fg }}
             >
               {tile.value}
             </div>
@@ -1041,36 +639,16 @@ function Machines() {
       </div>
 
       {/* Filters */}
-      <div
-        style={{
-          background: "white",
-          padding: 16,
-          borderRadius: 14,
-          boxShadow: "0 4px 14px rgba(15,23,42,0.06)",
-          marginBottom: 16,
-          display: "flex",
-          gap: 12,
-          flexWrap: "wrap",
-          alignItems: "center"
-        }}
-      >
+      <div className={styles.filtersBar}>
         <input
           type="text"
           placeholder="🔍 Search by serial, model, WO, customer…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{
-            flex: 1,
-            minWidth: 240,
-            padding: "9px 14px",
-            border: "1px solid #cbd5e1",
-            borderRadius: 8,
-            fontSize: 13,
-            outline: "none"
-          }}
+          className={styles.searchInput}
         />
 
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <div className={styles.statusFilters}>
           {["ALL", ...STATUS_OPTIONS].map((s) => {
 
             const active = statusFilter === s;
@@ -1082,22 +660,8 @@ function Machines() {
               <button
                 key={s}
                 onClick={() => setStatusFilter(s)}
-                style={{
-                  padding: "7px 14px",
-                  border: active
-                    ? "none"
-                    : "1px solid #cbd5e1",
-                  background: active
-                    ? (theme?.grad || "linear-gradient(135deg, #475569, #334155)")
-                    : "white",
-                  color: active ? "white" : "#475569",
-                  borderRadius: 999,
-                  fontSize: 11,
-                  fontWeight: 800,
-                  cursor: "pointer",
-                  letterSpacing: 0.5,
-                  textTransform: "uppercase"
-                }}
+                className={`${styles.statusBtn}${active ? ` ${styles.statusBtnActive}` : ""}`}
+                style={active && theme ? { background: theme.border, borderColor: theme.border } : undefined}
               >
                 {s === "ALL" ? "All" : theme?.label || s}
               </button>
@@ -1108,42 +672,19 @@ function Machines() {
 
       {/* Cards grid */}
       {loading && (
-        <div
-          style={{
-            padding: 40,
-            textAlign: "center",
-            color: "#94a3b8"
-          }}
-        >
-          Loading machines…
-        </div>
+        <div className={styles.loadingText}>Loading machines…</div>
       )}
 
       {!loading && filteredGroups.length === 0 && (
-        <div
-          style={{
-            padding: 40,
-            textAlign: "center",
-            color: "#475569",
-            background: "white",
-            borderRadius: 14,
-            border: "1px dashed #cbd5e1"
-          }}
-        >
-          <div style={{ fontSize: 30, marginBottom: 8 }}>🏭</div>
-          <div style={{ fontSize: 14, fontWeight: 700 }}>
+        <div className={styles.emptyBox}>
+          <div className={styles.emptyIcon}>🏭</div>
+          <div className={styles.emptyTitle}>
             {groups.length === 0
               ? "No machines registered yet."
               : "No machines match the current filter."}
           </div>
           {groups.length === 0 && (
-            <div
-              style={{
-                fontSize: 12,
-                color: "#94a3b8",
-                marginTop: 6
-              }}
-            >
+            <div className={styles.emptySubtext}>
               Create a Work Order in Production & BOM — each unit
               auto-appears here after sync.
             </div>
@@ -1152,14 +693,7 @@ function Machines() {
       )}
 
       {!loading && filteredGroups.length > 0 && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fill, minmax(310px, 1fr))",
-            gap: 16
-          }}
-        >
+        <div className={styles.cardsGrid}>
           {filteredGroups.map((g) => (
             <WOGroupCard
               key={g.key}

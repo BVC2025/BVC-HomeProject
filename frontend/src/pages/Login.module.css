@@ -1,48 +1,43 @@
 /* ============================================================
-   Login — split card (Welcome panel + form) on SVG background
-   UI only. No functional/state changes in Login.jsx.
+   Login — split-card layout (welcome panel + form)
+   All values sourced from index.css :root variables.
    ============================================================ */
 
 .page {
-  position: relative;
   min-height: 100vh;
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: var(--sp-6);
   box-sizing: border-box;
-  font-family: "Segoe UI", "Segoe UI Bold Italic", system-ui, -apple-system, Roboto, sans-serif;
-  font-weight: 700;
-  font-style:  italic;
-  letter-spacing: 0;
-  /* Clean professional gradient — light, airy, faint brand tint */
-  background: linear-gradient(135deg, #f4f7fb 0%, #e7ecf5 100%);
+  font-family: var(--font);
+  background: var(--login-bg);
 }
 
-/* ---------------------------------------------------------- Card */
+/* ─── Card shell ─────────────────────────────────────────────── */
+
 .card {
-  position: relative;
-  z-index: 1;
   display: flex;
   width: min(900px, 100%);
   min-height: 540px;
-  background: #ffffff;
-  border-radius: 20px;
+  background: var(--card-bg);
+  border-radius: var(--radius-2xl);
   overflow: hidden;
-  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.18);
+  box-shadow: var(--shadow-lg);
 }
 
-/* ------------------------------------------------ Left welcome */
+/* ─── Left welcome panel ────────────────────────────────────── */
+
 .left {
   flex: 0 0 42%;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 40px 32px;
-  color: #fff;
-  background: linear-gradient(160deg, #ff6b6b 0%, #e63946 48%, #c8102e 100%);
+  padding: var(--sp-10) var(--sp-8);
+  color: var(--text-inverse);
+  background: var(--clr-primary-darker) !important;
 }
 
 .brandLogo {
@@ -50,23 +45,24 @@
   height: 84px;
   object-fit: contain;
   padding: 10px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.14);
-  margin-bottom: 22px;
+  border-radius: var(--radius-xl);
+  background: var(--clr-primary-muted);
+  margin-bottom: var(--sp-5);
 }
 
 .welcomeTitle {
   margin: 0;
-  font-size: 30px;
-  font-weight: 800;
-  letter-spacing: 0.3px;
+  font-size: var(--font-3xl);
+  font-weight: var(--fw-black);
+  letter-spacing: -0.3px;
+  font-family: var(--font);
 }
 
 .welcomeSub {
-  margin: 10px 0 0;
-  font-size: 13px;
-  line-height: 1.6;
-  color: rgba(255, 255, 255, 0.85);
+  margin: var(--sp-2) 0 0;
+  font-size: var(--font-sm);
+  line-height: var(--lh);
+  opacity: 0.88;
 }
 
 .brandSpacer {
@@ -75,99 +71,124 @@
 
 .brandName {
   margin: 0;
-  font-size: 16px;
-  font-weight: 700;
+  font-size: var(--font-md);
+  font-weight: var(--fw-bold);
   letter-spacing: 0.4px;
+  opacity: 0.90;
 }
 
-/* ------------------------------------------------- Right form */
+/* ─── Right form panel ──────────────────────────────────────── */
+
 .right {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center; /* balance the vertical space instead of pooling it at the bottom */
-  padding: 48px 48px;
+  justify-content: center;
+  padding: var(--sp-10) var(--sp-8);
 }
 
 .formHeading {
-  margin: 0 0 4px;
-  font-size: 21px;
-  font-weight: 700;
-  color: #1f2933;
+  margin: 0 0 var(--sp-1);
+  font-size: var(--font-xl);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  font-family: var(--font);
 }
 
 .formSubheading {
-  margin: 0 0 26px;
-  font-size: 13px;
-  color: #8a93a2;
+  margin: 0 0 var(--sp-6);
+  font-size: var(--font-sm);
+  color: var(--text-muted);
 }
 
-/* Tabs */
+/* ─── Tabs ──────────────────────────────────────────────────── */
+
 .tabs {
   display: flex;
   padding: 5px;
-  margin-bottom: 26px;
-  background: #f1f1f4;
-  border-radius: 10px;
+  margin-bottom: var(--sp-6);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
 }
+
 .tab {
   flex: 1;
   padding: 10px 0;
   border: none;
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: transparent;
-  font-size: 14px;
-  font-weight: 600;
-  color: #6b7280;
+  font-size: var(--font-base);
+  font-weight: var(--fw-semi);
+  font-family: var(--font);
+  color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.18s ease;
-}
-.tabActive {
-  background: #c8102e;
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(200, 16, 46, 0.35);
+  transition: all var(--ease);
 }
 
-/* Labels + inputs */
+.tab:hover {
+  color: var(--text-primary);
+}
+
+.tabActive {
+  background: var(--clr-primary-darker);
+  color: var(--text-inverse);
+  box-shadow: 0 4px 12px var(--clr-primary-border);
+}
+
+.tabActive:hover {
+  color: var(--sidebar-bg-deep);
+}
+
+/* ─── Labels + inputs ───────────────────────────────────────── */
+
 .label {
   display: block;
-  margin-bottom: 7px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #374151;
+  margin-bottom: var(--sp-2);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semi);
+  color: var(--text-secondary);
+  font-family: var(--font);
 }
+
 .inputWrap {
   position: relative;
-  margin-bottom: 20px;
+  margin-bottom: var(--sp-5);
 }
+
 .icon {
   position: absolute;
   left: 14px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 15px;
-  opacity: 0.7;
+  font-size: var(--font-md);
+  opacity: 0.6;
   pointer-events: none;
 }
+
 .input {
   width: 100%;
   box-sizing: border-box;
   padding: 13px 44px 13px 40px;
-  font-size: 14px;
-  color: #1f2933;
-  background: #f7f7f9;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 10px;
+  font-size: var(--font-base);
+  font-family: var(--font);
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
   outline: none;
-  transition: border-color 0.18s ease, background 0.18s ease;
+  transition: border-color var(--ease), background var(--ease);
 }
+
 .input:focus {
-  border-color: #c8102e;
-  background: #fff;
+  border-color: var(--clr-primary-darker);
+  background: var(--card-bg);
+  box-shadow: 0 0 0 3px var(--clr-primary-muted);
 }
+
 .input::placeholder {
-  color: #9ca3af;
+  color: var(--text-muted);
 }
+
 .eye {
   position: absolute;
   right: 8px;
@@ -179,83 +200,100 @@
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
+  color: var(--text-muted);
+  transition: color var(--ease);
 }
 
-/* Error */
+.eye:hover {
+  color: var(--text-secondary);
+}
+
+/* ─── Error / banner ────────────────────────────────────────── */
+
 .error {
-  margin-bottom: 16px;
-  padding: 9px 12px;
-  background: rgba(200, 16, 46, 0.08);
-  border: 1px solid rgba(200, 16, 46, 0.3);
-  border-radius: 8px;
-  color: #b3122b;
-  font-size: 13px;
+  margin-bottom: var(--sp-4);
+  padding: 9px var(--sp-3);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-md);
+  color: var(--danger);
+  font-size: var(--font-sm);
 }
 
-/* Onboarding banner */
 .onboardingBanner {
-  margin-bottom: 16px;
-  padding: 8px 12px;
-  background: rgba(200, 16, 46, 0.1);
-  border: 1px solid rgba(200, 16, 46, 0.4);
-  border-radius: 8px;
-  color: #b3122b;
-  font-size: 13px;
+  margin-bottom: var(--sp-4);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--clr-primary-muted);
+  border: 1px solid var(--clr-primary-border);
+  border-radius: var(--radius-md);
+  color: var(--clr-primary-dark);
+  font-size: var(--font-sm);
   text-align: center;
 }
 
-/* Submit */
+/* ─── Submit button ─────────────────────────────────────────── */
+
 .submit {
   width: 100%;
-  margin-top: 8px;
+  margin-top: var(--sp-2);
   padding: 14px;
   border: none;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #e63946 0%, #c8102e 100%);
-  color: #fff;
-  font-size: 15px;
-  font-weight: 700;
+  border-radius: var(--radius-lg);
+  background: var(--clr-primary-darker);
+  color: var(--text-inverse);
+  font-size: var(--font-md);
+  font-weight: var(--fw-bold);
+  font-family: var(--font);
   letter-spacing: 0.3px;
   cursor: pointer;
-  box-shadow: 0 10px 24px rgba(200, 16, 46, 0.3);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  transition: background var(--ease), transform var(--ease), box-shadow var(--ease);
 }
+
 .submit:hover:not(:disabled) {
+  background: var(--clr-primary-dark);
   transform: translateY(-1px);
-  box-shadow: 0 14px 30px rgba(200, 16, 46, 0.38);
+  box-shadow: 0 8px 20px var(--clr-primary-border);
 }
-.submit:disabled {
+
+.submit .submit:disabled {
   opacity: 0.65;
   cursor: not-allowed;
 }
 
-/* Cancel onboarding */
+/* ─── Cancel link ───────────────────────────────────────────── */
+
 .cancelWrap {
-  margin-top: 10px;
+  margin-top: var(--sp-2);
   text-align: center;
 }
+
 .cancelLink {
-  font-size: 11px;
-  color: #9ca3af;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
   text-decoration: underline;
   cursor: pointer;
+  font-family: var(--font);
 }
 
-/* ---------------------------------------------------- Responsive */
+/* ─── Responsive ────────────────────────────────────────────── */
+
 @media (max-width: 720px) {
   .card {
     flex-direction: column;
     min-height: 0;
   }
+
   .left {
     flex: none;
-    padding: 30px 24px;
+    padding: var(--sp-8) var(--sp-6);
   }
+
   .brandSpacer {
     display: none;
   }
+
   .right {
-    padding: 30px 26px;
+    padding: var(--sp-8) var(--sp-6);
   }
 }
 

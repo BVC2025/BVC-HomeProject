@@ -1,0 +1,367 @@
+/* GeofenceSettings page — scoped styles */
+
+.page {
+  padding: var(--sp-6);
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+/* ─── Page header ───────────────────────────────────────────── */
+
+.pageHeader {
+  margin-bottom: var(--sp-5);
+}
+
+.pageEyebrow {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-black);
+  letter-spacing: 1.4px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.pageTitle {
+  font-size: var(--font-3xl);
+  font-weight: var(--fw-black);
+  color: var(--text-primary);
+  margin: 6px 0;
+}
+
+.pageDesc {
+  color: var(--text-secondary);
+  font-size: var(--font-base);
+}
+
+/* ─── Cards ─────────────────────────────────────────────────── */
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 22px;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow-sm);
+}
+
+.infoCard {
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
+  border-radius: var(--radius-xl);
+  padding: 22px;
+  margin-bottom: 18px;
+}
+
+.infoCardTitle {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-black);
+  color: var(--info);
+  margin-bottom: var(--sp-2);
+}
+
+.infoCardList {
+  margin: 0;
+  padding-left: 22px;
+  font-size: var(--font-sm);
+  color: #1e3a8a;
+  line-height: 1.7;
+}
+
+/* ─── Form row + field ──────────────────────────────────────── */
+
+.formRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.field {
+  /* default single-column span */
+}
+
+.fieldSpan2 {
+  grid-column: span 2;
+}
+
+.fieldLabel {
+  display: block;
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.input {
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--font-base);
+  font-family: var(--font);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.input:focus {
+  border-color: var(--clr-primary);
+}
+
+/* ─── Toggle row ────────────────────────────────────────────── */
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 0;
+  cursor: pointer;
+  font-size: var(--font-sm);
+}
+
+/* ─── Form actions ──────────────────────────────────────────── */
+
+.formActions {
+  margin-top: 16px;
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.gpsBtn {
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  padding: var(--sp-2) 14px;
+  border-radius: var(--radius-md);
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all var(--ease);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.gpsBtn:hover {
+  background: var(--surface);
+  border-color: var(--clr-primary);
+  color: var(--clr-primary);
+}
+
+.formSaveRow {
+  margin-top: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.savedConfirm {
+  font-size: var(--font-sm);
+  color: var(--success);
+  font-weight: var(--fw-bold);
+}
+
+.saveBtn {
+  background: var(--clr-primary);
+  color: var(--text-inverse);
+  border: none;
+  padding: var(--sp-2) 22px;
+  border-radius: var(--radius-md);
+  font-weight: var(--fw-black);
+  font-size: var(--font-base);
+  font-family: var(--font);
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: opacity var(--ease);
+}
+
+.saveBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ─── Error banner ──────────────────────────────────────────── */
+
+.errorBox {
+  margin-top: 14px;
+  padding: var(--sp-2) 14px;
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-light);
+  border-radius: var(--radius-md);
+  color: var(--danger-dark);
+  font-size: var(--font-sm);
+}
+
+/* ─── Security log ──────────────────────────────────────────── */
+
+.secLogHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--sp-3);
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.secLogTitle {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-black);
+  color: var(--text-primary);
+  letter-spacing: 0.4px;
+}
+
+.secLogHeaderRight {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.clearBtn {
+  background: var(--card-bg);
+  color: var(--clr-primary);
+  border: 1px solid var(--danger-light);
+  padding: 5px 12px;
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  font-size: var(--font-xs);
+  font-family: var(--font);
+  letter-spacing: 0.3px;
+  cursor: pointer;
+}
+
+.viewLink {
+  font-size: var(--font-sm);
+  color: var(--info);
+  text-decoration: none;
+}
+
+.viewLink:hover {
+  text-decoration: underline;
+}
+
+.logEmpty {
+  padding: var(--sp-5);
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+  text-align: center;
+}
+
+.logList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.logRow {
+  display: flex;
+  align-items: center;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  gap: var(--sp-3);
+  background: var(--card-bg);
+}
+
+.logLeft {
+  flex: 1;
+}
+
+.logName {
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  font-size: var(--font-sm);
+}
+
+.logCode {
+  color: var(--text-muted);
+  font-weight: var(--fw-normal);
+  margin-left: 6px;
+  font-size: var(--font-xs);
+}
+
+.logMeta {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.logRight {
+  text-align: right;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.logDistance {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.iconDangerBtn {
+  background: var(--card-bg);
+  color: var(--clr-primary);
+  border: 1px solid var(--danger-light);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  font-size: var(--font-base);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ─── Loading state ─────────────────────────────────────────── */
+
+.loadingText {
+  padding: 40px;
+  color: var(--text-secondary);
+}
+
+/* ─── Row / Field helpers ────────────────────────────────────── */
+
+.geofenceRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.fieldLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.enforcementStatus {
+  font-weight: var(--fw-bold);
+  color: var(--text-muted);
+}
+
+.enforcementStatusActive {
+  color: var(--success);
+}
+
+.saveRowRight {
+  margin-left: auto;
+}
+
+.reasonPill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: var(--fw-black);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}

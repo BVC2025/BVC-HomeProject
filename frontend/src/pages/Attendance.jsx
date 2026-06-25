@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 
 import API from "../services/api";
 
@@ -9,6 +9,7 @@ import IconButton from "../components/IconButton";
 import GeofenceGate from "../components/GeofenceGate";
 
 import { formatISTTime, istEpoch } from "../utils/time";
+import styles from "./Attendance.module.css";
 
 function Attendance() {
 
@@ -369,29 +370,22 @@ function Attendance() {
       </div>
 
       {/* ===== Geofence widgets — live counts from /geofence/dashboard ===== */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gap: 12,
-        marginTop: 14
-      }}>
-        <div style={geoWidget("#10b981", "#ecfdf5")}>
-          <div style={geoLabel}>📍 Inside Geofence</div>
-          <div style={geoValue("#065f46")}>{geoStats?.inside_geofence ?? "—"}</div>
-          <div style={geoSub}>employees inside office today</div>
+      <div className={styles.geoStrip}>
+        <div className={`${styles.geoWidget} ${styles.geoWidgetGreen}`}>
+          <div className={styles.geoLabel}>📍 Inside Geofence</div>
+          <div className={`${styles.geoValue} ${styles.geoValueGreen}`}>{geoStats?.inside_geofence ?? "—"}</div>
+          <div className={styles.geoSub}>employees inside office today</div>
         </div>
-        <div style={geoWidget("#ef4444", "#fef2f2")}>
-          <div style={geoLabel}>🚫 Outside Geofence</div>
-          <div style={geoValue("#991b1b")}>{geoStats?.outside_geofence ?? "—"}</div>
-          <div style={geoSub}>marked from outside the radius</div>
+        <div className={`${styles.geoWidget} ${styles.geoWidgetRed}`}>
+          <div className={styles.geoLabel}>🚫 Outside Geofence</div>
+          <div className={`${styles.geoValue} ${styles.geoValueRed}`}>{geoStats?.outside_geofence ?? "—"}</div>
+          <div className={styles.geoSub}>marked from outside the radius</div>
         </div>
-        <div style={geoWidget("#f59e0b", "#fffbeb")}>
-          <div style={geoLabel}>🚨 Security Failures (Today)</div>
-          <div style={geoValue("#854d0e")}>{geoStats?.security_failures_today ?? "—"}</div>
-          <div style={geoSub}>
-            <a href="/geofence" style={{ color: "#854d0e", textDecoration: "underline" }}>
-              review log →
-            </a>
+        <div className={`${styles.geoWidget} ${styles.geoWidgetAmber}`}>
+          <div className={styles.geoLabel}>🚨 Security Failures (Today)</div>
+          <div className={`${styles.geoValue} ${styles.geoValueAmber}`}>{geoStats?.security_failures_today ?? "—"}</div>
+          <div className={styles.geoSub}>
+            <a href="/geofence" className={styles.geoSubLink}>review log →</a>
           </div>
         </div>
       </div>
@@ -540,11 +534,7 @@ function Attendance() {
 
                 <td
                   colSpan="11"
-                  style={{
-                    textAlign: "center",
-                    color: "#94a3b8",
-                    padding: "30px"
-                  }}
+                  className={styles.emptyCell}
                 >
                   No attendance records
                 </td>
@@ -586,7 +576,7 @@ function Attendance() {
                     {row.CHECKIN_DISTANCE != null
                       ? `${Math.round(row.CHECKIN_DISTANCE)} m`
                       : (row.GEOFENCE_STATUS === "UNKNOWN"
-                          ? <span style={{ color: "#92400e", fontSize: 11 }}>GPS skipped</span>
+                          ? <span className={styles.gpsSkip}>GPS skipped</span>
                           : "—")}
                   </td>
 
@@ -691,7 +681,7 @@ function LiveFloorBoard() {
   if (loading) {
 
     return (
-      <div style={{ padding: 40, color: "#94a3b8" }}>
+      <div className={styles.boardLoading}>
         Loading floor board…
       </div>
     );
@@ -700,7 +690,7 @@ function LiveFloorBoard() {
   if (!data) {
 
     return (
-      <div style={{ padding: 40, color: "#b91c1c" }}>
+      <div className={styles.boardError}>
         Could not load board. Check backend.
       </div>
     );
@@ -710,17 +700,10 @@ function LiveFloorBoard() {
 
   return (
 
-    <div style={{ padding: 8 }}>
+    <div className={styles.boardPad}>
 
       {/* Summary tiles */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 14,
-          marginBottom: 18
-        }}
-      >
+      <div className={styles.boardSummaryGrid}>
 
         <SummaryTile
           label="Active Employees"
@@ -751,25 +734,12 @@ function LiveFloorBoard() {
       </div>
 
       {/* Auto-refresh note */}
-      <div
-        style={{
-          fontSize: 11,
-          color: "#94a3b8",
-          marginBottom: 12,
-          textAlign: "right"
-        }}
-      >
+      <div className={styles.boardRefreshNote}>
         Auto-refreshing every 10s · as of {data.as_of?.slice(11, 19)}
       </div>
 
       {/* Employee tile grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-          gap: 14
-        }}
-      >
+      <div className={styles.boardTileGrid}>
 
         {(data.employees || []).map((emp) => (
 
@@ -778,16 +748,7 @@ function LiveFloorBoard() {
 
         {(data.employees || []).length === 0 && (
 
-          <div
-            style={{
-              gridColumn: "1 / -1",
-              padding: 40,
-              textAlign: "center",
-              color: "#94a3b8",
-              background: "white",
-              borderRadius: 10
-            }}
-          >
+          <div className={styles.boardEmpty}>
             No active employees. Run /demo/seed-bvc24 to populate.
           </div>
         )}
@@ -801,51 +762,13 @@ function SummaryTile({ label, value, sub, color }) {
 
   return (
 
-    <div
-      style={{
-        background: "white",
-        padding: 18,
-        borderRadius: 12,
-        boxShadow: "0 4px 14px rgba(15,23,42,0.06)",
-        borderTop: `3px solid ${color}`
-      }}
-    >
+    <div className={styles.summaryTile} style={{ borderTopColor: color }}>
 
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: 1,
-          color: "#64748b",
-          textTransform: "uppercase"
-        }}
-      >
-        {label}
-      </div>
+      <div className={styles.summaryTileLabel}>{label}</div>
 
-      <div
-        style={{
-          fontSize: 28,
-          fontWeight: 700,
-          color: "#0f172a",
-          marginTop: 6
-        }}
-      >
-        {value}
-      </div>
+      <div className={styles.summaryTileValue}>{value}</div>
 
-      {sub && (
-
-        <div
-          style={{
-            fontSize: 11,
-            color: "#94a3b8",
-            marginTop: 2
-          }}
-        >
-          {sub}
-        </div>
-      )}
+      {sub && <div className={styles.summaryTileSub}>{sub}</div>}
     </div>
   );
 }
@@ -937,160 +860,52 @@ function EmployeeTile({ emp, tick }) {
 
   return (
 
-    <div
-      style={{
-        background: "white",
-        borderRadius: 14,
-        padding: 18,
-        boxShadow: "0 6px 20px rgba(15,23,42,0.08)",
-        borderLeft: `5px solid ${accent}`,
-        position: "relative",
-        overflow: "hidden"
-      }}
-    >
+    <div className={styles.empTile} style={{ borderLeftColor: accent }}>
 
       {/* Header: avatar + name */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 14
-        }}
-      >
+      <div className={styles.empTileHeader}>
 
         <div
-          style={{
-            width: 50,
-            height: 50,
-            borderRadius: "50%",
-            background: stateBg,
-            color: stateFg,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 22,
-            fontWeight: 700,
-            flexShrink: 0
-          }}
+          className={styles.empAvatar}
+          style={{ background: stateBg, color: stateFg }}
         >
           {(emp.NAME || "?").charAt(0).toUpperCase()}
         </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-
-          <div
-            style={{
-              fontSize: 15,
-              fontWeight: 700,
-              color: "#0f172a",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis"
-            }}
-          >
-            {emp.NAME}
-          </div>
-
-          <div
-            style={{
-              fontSize: 11,
-              color: "#94a3b8",
-              fontFamily: "ui-monospace, monospace"
-            }}
-          >
+        <div className={styles.empMeta}>
+          <div className={styles.empTileName}>{emp.NAME}</div>
+          <div className={styles.empTileCode}>
             {emp.EMPLOYEE_CODE}
-            {emp.DEPARTMENT_CODE && (
-              <span> · {emp.DEPARTMENT_CODE}</span>
-            )}
+            {emp.DEPARTMENT_CODE && <span> · {emp.DEPARTMENT_CODE}</span>}
           </div>
         </div>
 
         <span
-          style={{
-            background: stateBg,
-            color: stateFg,
-            padding: "3px 10px",
-            borderRadius: 999,
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: 0.5,
-            textTransform: "uppercase"
-          }}
+          className={styles.statePill}
+          style={{ background: stateBg, color: stateFg }}
         >
           {stateLabel}
         </span>
       </div>
 
       {/* Clock row: CHECK_IN | CHECK_OUT */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 10,
-          marginBottom: 12
-        }}
-      >
+      <div className={styles.clockRow}>
 
-        <div
-          style={{
-            padding: "8px 12px",
-            background: "#f8fafc",
-            borderRadius: 8,
-            textAlign: "center"
-          }}
-        >
+        <div className={styles.clockCell}>
+          <div className={styles.clockCellLabel}>Check-In</div>
           <div
-            style={{
-              fontSize: 10,
-              color: "#64748b",
-              textTransform: "uppercase",
-              letterSpacing: 0.8,
-              fontWeight: 600
-            }}
-          >
-            Check-In
-          </div>
-          <div
-            style={{
-              fontSize: 18,
-              fontWeight: 700,
-              color: emp.CHECK_IN ? "#10b981" : "#cbd5e1",
-              fontFamily: "ui-monospace, monospace",
-              marginTop: 2
-            }}
+            className={styles.clockCellTime}
+            style={{ color: emp.CHECK_IN ? "#10b981" : "#cbd5e1" }}
           >
             {emp.CHECK_IN ? formatISTTime(emp.CHECK_IN) : "—:—"}
           </div>
         </div>
 
-        <div
-          style={{
-            padding: "8px 12px",
-            background: "#f8fafc",
-            borderRadius: 8,
-            textAlign: "center"
-          }}
-        >
+        <div className={styles.clockCell}>
+          <div className={styles.clockCellLabel}>Check-Out</div>
           <div
-            style={{
-              fontSize: 10,
-              color: "#64748b",
-              textTransform: "uppercase",
-              letterSpacing: 0.8,
-              fontWeight: 600
-            }}
-          >
-            Check-Out
-          </div>
-          <div
-            style={{
-              fontSize: 18,
-              fontWeight: 700,
-              color: emp.CHECK_OUT ? "#ef4444" : "#cbd5e1",
-              fontFamily: "ui-monospace, monospace",
-              marginTop: 2
-            }}
+            className={styles.clockCellTime}
+            style={{ color: emp.CHECK_OUT ? "#ef4444" : "#cbd5e1" }}
           >
             {emp.CHECK_OUT ? formatISTTime(emp.CHECK_OUT) : "—:—"}
           </div>
@@ -1099,40 +914,19 @@ function EmployeeTile({ emp, tick }) {
 
       {/* Live worked-hours counter when checked in */}
       {isCheckedIn && (
-
         <div
+          className={styles.liveCounter}
           style={{
-            background:
-              isCheckedOut ? "#f1f5f9" : "#ecfdf5",
-            border: `1px solid ${isCheckedOut ? "#cbd5e1" : "#a7f3d0"}`,
-            borderRadius: 8,
-            padding: "8px 12px",
-            marginBottom: 12,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center"
+            background: isCheckedOut ? "#f1f5f9" : "#ecfdf5",
+            borderColor: isCheckedOut ? "#cbd5e1" : "#a7f3d0"
           }}
         >
-
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              color: "#475569",
-              textTransform: "uppercase",
-              letterSpacing: 0.8
-            }}
-          >
+          <div className={styles.liveCounterLabel}>
             {isCheckedOut ? "Worked" : "Live ⏱"}
           </div>
-
           <div
-            style={{
-              fontFamily: "ui-monospace, monospace",
-              fontSize: 16,
-              fontWeight: 700,
-              color: isCheckedOut ? "#475569" : "#047857"
-            }}
+            className={styles.liveCounterValue}
+            style={{ color: isCheckedOut ? "#475569" : "#047857" }}
           >
             {liveHours}
           </div>
@@ -1141,107 +935,25 @@ function EmployeeTile({ emp, tick }) {
 
       {/* Current task or completed-today summary */}
       {emp.CURRENT_TASK_NAME ? (
-
-        <div
-          style={{
-            background: "#eff6ff",
-            border: "1px solid #bfdbfe",
-            borderRadius: 8,
-            padding: 10
-          }}
-        >
-
-          <div
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              color: "#1e40af",
-              textTransform: "uppercase",
-              letterSpacing: 0.8
-            }}
-          >
-            Now Working On
-          </div>
-
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: "#0f172a",
-              marginTop: 2,
-              lineHeight: 1.3
-            }}
-          >
-            {emp.CURRENT_TASK_NAME}
-          </div>
-
+        <div className={`${styles.taskCard} ${styles.taskCardActive}`}>
+          <div className={styles.taskLabel}>Now Working On</div>
+          <div className={styles.taskName}>{emp.CURRENT_TASK_NAME}</div>
           {emp.CURRENT_PROJECT && (
-
-            <div
-              style={{
-                fontSize: 11,
-                color: "#64748b",
-                marginTop: 2
-              }}
-            >
-              {emp.CURRENT_PROJECT}
-            </div>
+            <div className={styles.taskProject}>{emp.CURRENT_PROJECT}</div>
           )}
-
-          <div
-            style={{
-              fontSize: 10,
-              color: "#1e40af",
-              marginTop: 4,
-              fontWeight: 600
-            }}
-          >
-            Status: {emp.CURRENT_TASK_STATUS}
-          </div>
+          <div className={styles.taskStatus}>Status: {emp.CURRENT_TASK_STATUS}</div>
         </div>
       ) : isCheckedIn ? (
-
-        <div
-          style={{
-            background: "#f8fafc",
-            border: "1px dashed #cbd5e1",
-            borderRadius: 8,
-            padding: 10,
-            textAlign: "center",
-            fontSize: 12,
-            color: "#94a3b8"
-          }}
-        >
+        <div className={`${styles.taskCard} ${styles.taskCardEmpty}`}>
           No active task
         </div>
       ) : null}
 
       {/* Tasks completed today badge */}
       {emp.TASKS_COMPLETED_TODAY > 0 && (
-
-        <div
-          style={{
-            marginTop: 10,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            fontSize: 12,
-            color: "#475569"
-          }}
-        >
-
+        <div className={styles.tasksDoneRow}>
           <span>Tasks done today</span>
-
-          <span
-            style={{
-              background: "#dcfce7",
-              color: "#166534",
-              padding: "2px 10px",
-              borderRadius: 999,
-              fontWeight: 700,
-              fontSize: 13
-            }}
-          >
+          <span className={styles.tasksDoneBadge}>
             ✓ {emp.TASKS_COMPLETED_TODAY}
           </span>
         </div>
@@ -1261,7 +973,7 @@ function coordCell(lat, lng, status) {
       return (
         <span
           title="Employee skipped the GPS check at check-in"
-          style={{ color: "#92400e", fontSize: 11, fontStyle: "italic" }}
+          className={styles.gpsSkip}
         >
           GPS skipped
         </span>
@@ -1277,12 +989,7 @@ function coordCell(lat, lng, status) {
       target="_blank"
       rel="noopener noreferrer"
       title="Open in Google Maps"
-      style={{
-        fontFamily: "ui-monospace, monospace",
-        fontSize: 11,
-        color: "#6366f1",
-        textDecoration: "none"
-      }}
+      className={styles.coordLink}
     >
       {short(lat)}, {short(lng)} 🗺
     </a>
@@ -1297,60 +1004,21 @@ function geofenceBadge(status) {
   if (!status) {
     return (
       <span title="No geofence data captured for this row"
-            style={badgeStyle("#f1f5f9", "#94a3b8")}>—</span>
+            className={`${styles.statusBadge} ${styles.badgeOther}`}>—</span>
     );
   }
   const theme = {
-    INSIDE:  { bg: "#dcfce7", fg: "#166534", label: "INSIDE",      title: "Checked in inside the office geofence" },
-    OUTSIDE: { bg: "#fee2e2", fg: "#991b1b", label: "OUTSIDE",     title: "Checked in outside the allowed radius" },
-    UNKNOWN: { bg: "#fef3c7", fg: "#92400e", label: "GPS SKIPPED", title: "Employee bypassed GPS — coordinates not captured" }
-  }[status] || { bg: "#f1f5f9", fg: "#94a3b8", label: status, title: status };
+    INSIDE:  { cls: styles.badgePresent, label: "INSIDE",      title: "Checked in inside the office geofence" },
+    OUTSIDE: { cls: styles.badgeAbsent,  label: "OUTSIDE",     title: "Checked in outside the allowed radius" },
+    UNKNOWN: { cls: styles.badgeLate,    label: "GPS SKIPPED", title: "Employee bypassed GPS — coordinates not captured" }
+  }[status] || { cls: styles.badgeOther, label: status, title: status };
   return (
-    <span title={theme.title} style={badgeStyle(theme.bg, theme.fg)}>
+    <span title={theme.title} className={`${styles.statusBadge} ${theme.cls}`}>
       {theme.label}
     </span>
   );
 }
 
-function badgeStyle(bg, fg) {
-  return {
-    display: "inline-block",
-    padding: "2px 10px",
-    borderRadius: 999,
-    fontSize: 10,
-    fontWeight: 800,
-    letterSpacing: 0.5,
-    background: bg,
-    color: fg,
-    cursor: "default"
-  };
-}
-
-
-// ---- Geofence-widget tiny style helpers ----
-function geoWidget(border, bg) {
-  return {
-    background: bg,
-    border: `1px solid ${border}33`,
-    borderTop: `3px solid ${border}`,
-    padding: "12px 16px",
-    borderRadius: 10,
-    boxShadow: "0 2px 8px rgba(15,23,42,0.04)"
-  };
-}
-const geoLabel = {
-  fontSize: 10,
-  fontWeight: 800,
-  letterSpacing: 1,
-  color: "#475569",
-  textTransform: "uppercase"
-};
-function geoValue(color) {
-  return {
-    fontSize: 28, fontWeight: 800, color, marginTop: 4, lineHeight: 1
-  };
-}
-const geoSub = { fontSize: 11, color: "#64748b", marginTop: 6 };
 
 
 export default Attendance;

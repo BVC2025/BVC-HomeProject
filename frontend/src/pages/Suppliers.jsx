@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import API from "../services/api";
 
 import EntityDrawer from "../components/EntityDrawer";
+import styles from "./Suppliers.module.css";
 
 
 const STATUS_THEMES = {
@@ -39,17 +40,10 @@ function Field({ label, value, onChange, placeholder, span = 1, type = "text" })
 
   return (
 
+    // gridColumn is dynamic (span varies per call-site) — keep inline
     <div style={{ gridColumn: `span ${span}` }}>
 
-      <label
-        style={{
-          fontSize: 11,
-          color: "#64748b",
-          display: "block",
-          marginBottom: 4,
-          fontWeight: 600
-        }}
-      >
+      <label className={styles.fieldLabel}>
         {label}
       </label>
 
@@ -58,14 +52,7 @@ function Field({ label, value, onChange, placeholder, span = 1, type = "text" })
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        style={{
-          width: "100%",
-          padding: "8px 10px",
-          border: "1px solid #e2e8f0",
-          borderRadius: 6,
-          fontSize: 13,
-          outline: "none"
-        }}
+        className={styles.fieldInput}
       />
     </div>
   );
@@ -118,74 +105,27 @@ function SupplierEditor({ initial, onSave, onCancel }) {
 
   return (
 
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,0.5)",
-        display: "flex",
-        justifyContent: "flex-end",
-        zIndex: 900
-      }}
-      onClick={onCancel}
-    >
+    <div className={styles.overlay} onClick={onCancel}>
 
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 720,
-          maxWidth: "100%",
-          background: "white",
-          padding: 24,
-          overflow: "auto",
-          boxShadow: "-20px 0 60px rgba(0,0,0,0.3)"
-        }}
+        className={styles.drawer}
       >
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 20
-          }}
-        >
+        <div className={styles.drawerHeader}>
 
-          <div
-            style={{
-              fontSize: 20,
-              fontWeight: 700,
-              color: "#0f172a"
-            }}
-          >
+          <div className={styles.drawerTitle}>
             {initial?.ID ? "Edit Supplier" : "New Supplier"}
           </div>
 
-          <button
-            onClick={onCancel}
-            style={{
-              border: "none",
-              background: "#f1f5f9",
-              padding: "4px 12px",
-              borderRadius: 8,
-              cursor: "pointer",
-              fontSize: 18
-            }}
-          >
+          <button onClick={onCancel} className={styles.drawerClose}>
             ×
           </button>
         </div>
 
         <form onSubmit={submit}>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: 12,
-              marginBottom: 16
-            }}
-          >
+          <div className={styles.formGrid}>
 
             <Field
               label="Supplier Code *"
@@ -254,27 +194,9 @@ function SupplierEditor({ initial, onSave, onCancel }) {
             />
           </div>
 
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: 1,
-              color: "#7c3aed",
-              textTransform: "uppercase",
-              marginBottom: 8
-            }}
-          >
-            KYC / Tax
-          </div>
+          <div className={styles.sectionLabel}>KYC / Tax</div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: 12,
-              marginBottom: 16
-            }}
-          >
+          <div className={styles.formGrid}>
 
             <Field
               label="GST Number"
@@ -297,27 +219,9 @@ function SupplierEditor({ initial, onSave, onCancel }) {
             />
           </div>
 
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: 1,
-              color: "#7c3aed",
-              textTransform: "uppercase",
-              marginBottom: 8
-            }}
-          >
-            Banking
-          </div>
+          <div className={styles.sectionLabel}>Banking</div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: 12,
-              marginBottom: 16
-            }}
-          >
+          <div className={styles.formGrid}>
 
             <Field
               label="Bank Name"
@@ -338,14 +242,7 @@ function SupplierEditor({ initial, onSave, onCancel }) {
             />
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr",
-              gap: 12,
-              marginBottom: 20
-            }}
-          >
+          <div className={styles.formGrid}>
 
             <Field
               label="Payment Terms"
@@ -356,28 +253,14 @@ function SupplierEditor({ initial, onSave, onCancel }) {
 
             <div>
 
-              <label
-                style={{
-                  fontSize: 11,
-                  color: "#64748b",
-                  display: "block",
-                  marginBottom: 4,
-                  fontWeight: 600
-                }}
-              >
+              <label className={styles.fieldLabel}>
                 Status
               </label>
 
               <select
                 value={form.STATUS}
                 onChange={(e) => set("STATUS")(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "8px 10px",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 6,
-                  fontSize: 13
-                }}
+                className={styles.fieldSelect}
               >
                 <option>ACTIVE</option>
                 <option>INACTIVE</option>
@@ -393,27 +276,12 @@ function SupplierEditor({ initial, onSave, onCancel }) {
             placeholder="Any internal notes about this supplier..."
           />
 
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              marginTop: 24
-            }}
-          >
+          <div className={styles.formActions}>
 
             <button
               type="submit"
               disabled={submitting}
-              style={{
-                border: "none",
-                background: submitting ? "#94a3b8" : "#1e40af",
-                color: "white",
-                padding: "10px 24px",
-                borderRadius: 8,
-                fontWeight: 700,
-                cursor: submitting ? "not-allowed" : "pointer",
-                fontSize: 13
-              }}
+              className={styles.btnSubmit}
             >
               {submitting ? "Saving…" : initial?.ID ? "Save changes" : "Create supplier"}
             </button>
@@ -421,16 +289,7 @@ function SupplierEditor({ initial, onSave, onCancel }) {
             <button
               type="button"
               onClick={onCancel}
-              style={{
-                border: "1px solid #e2e8f0",
-                background: "white",
-                color: "#475569",
-                padding: "10px 24px",
-                borderRadius: 8,
-                fontWeight: 600,
-                cursor: "pointer",
-                fontSize: 13
-              }}
+              className={styles.btnCancel}
             >
               Cancel
             </button>
@@ -541,52 +400,22 @@ function Suppliers() {
 
   return (
 
-    <div
-      style={{
-        padding: 24,
-        background: "#f1f5f9",
-        minHeight: "100%"
-      }}
-    >
+    <div className={styles.page}>
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 20,
-          flexWrap: "wrap",
-          gap: 12
-        }}
-      >
+      <div className={styles.header}>
 
         <div>
 
-          <h1
-            style={{
-              fontSize: 26,
-              fontWeight: 700,
-              color: "#0f172a",
-              margin: 0
-            }}
-          >
-            Suppliers
-          </h1>
+          <h1 className={styles.title}>Suppliers</h1>
 
-          <div
-            style={{
-              fontSize: 13,
-              color: "#64748b",
-              marginTop: 4
-            }}
-          >
+          <div className={styles.subtitle}>
             Supplier master — companies BVC24 procures raw materials
             and components from. GST · KYC · bank details · payment
             terms.
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className={styles.headerActions}>
 
           <button
             onClick={async () => {
@@ -631,33 +460,15 @@ function Suppliers() {
                 alert(err?.response?.data?.detail || "Reset failed");
               }
             }}
-            style={{
-              border: "1px solid #fcd34d",
-              background: "#fef3c7",
-              color: "#92400e",
-              padding: "10px 16px",
-              borderRadius: 8,
-              fontWeight: 700,
-              cursor: "pointer",
-              fontSize: 12
-            }}
+            className={styles.btnWarning}
             title="Wipe and reseed with realistic vending-machine demo data"
           >
-            🔄 Reset & Seed Demo Data
+            🔄 Reset &amp; Seed Demo Data
           </button>
 
           <button
             onClick={() => setEditing(EMPTY)}
-            style={{
-              border: "none",
-              background: "#1e40af",
-              color: "white",
-              padding: "10px 20px",
-              borderRadius: 8,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontSize: 13
-            }}
+            className={styles.btnPrimary}
           >
             + New Supplier
           </button>
@@ -665,52 +476,19 @@ function Suppliers() {
       </div>
 
       {/* Filters */}
-      <div
-        style={{
-          background: "white",
-          padding: 14,
-          borderRadius: 10,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-          display: "flex",
-          gap: 10,
-          alignItems: "center",
-          flexWrap: "wrap",
-          marginBottom: 16
-        }}
-      >
+      <div className={styles.filterBar}>
 
-        <form
-          onSubmit={handleSearch}
-          style={{ flex: 1, minWidth: 240, display: "flex", gap: 8 }}
-        >
+        <form onSubmit={handleSearch} className={styles.searchForm}>
 
           <input
             type="text"
             placeholder="Search by name / code / contact / GST..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{
-              flex: 1,
-              padding: "8px 12px",
-              border: "1px solid #e2e8f0",
-              borderRadius: 6,
-              fontSize: 13
-            }}
+            className={styles.searchInput}
           />
 
-          <button
-            type="submit"
-            style={{
-              border: "none",
-              background: "#1e40af",
-              color: "white",
-              padding: "8px 16px",
-              borderRadius: 6,
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: "pointer"
-            }}
-          >
+          <button type="submit" className={styles.searchBtn}>
             Search
           </button>
         </form>
@@ -718,12 +496,7 @@ function Suppliers() {
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          style={{
-            padding: "8px 10px",
-            border: "1px solid #e2e8f0",
-            borderRadius: 6,
-            fontSize: 13
-          }}
+          className={styles.filterSelect}
         >
           <option value="">All categories</option>
           {categories.map((c) => (
@@ -734,12 +507,7 @@ function Suppliers() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          style={{
-            padding: "8px 10px",
-            border: "1px solid #e2e8f0",
-            borderRadius: 6,
-            fontSize: 13
-          }}
+          className={styles.filterSelect}
         >
           <option value="">All statuses</option>
           <option>ACTIVE</option>
@@ -749,59 +517,31 @@ function Suppliers() {
       </div>
 
       {/* Table */}
-      <div
-        style={{
-          background: "white",
-          borderRadius: 12,
-          overflow: "hidden",
-          boxShadow: "0 4px 14px rgba(15,23,42,0.06)"
-        }}
-      >
+      <div className={styles.tableCard}>
 
-        <div style={{ overflow: "auto" }}>
+        <div className={styles.tableScroll}>
 
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: 13
-            }}
-          >
+          <table className={styles.table}>
 
-            <thead>
-              <tr
-                style={{
-                  background: "#f8fafc",
-                  color: "#475569",
-                  fontSize: 11,
-                  letterSpacing: 0.8,
-                  textTransform: "uppercase"
-                }}
-              >
-                <th style={{ textAlign: "left", padding: 12 }}>Code</th>
-                <th style={{ textAlign: "left", padding: 12 }}>Company</th>
-                <th style={{ textAlign: "left", padding: 12 }}>Category</th>
-                <th style={{ textAlign: "left", padding: 12 }}>City</th>
-                <th style={{ textAlign: "left", padding: 12 }}>GST</th>
-                <th style={{ textAlign: "left", padding: 12 }}>Terms</th>
-                <th style={{ textAlign: "left", padding: 12 }}>Status</th>
-                <th style={{ textAlign: "right", padding: 12 }}>Action</th>
+            <thead className={styles.thead}>
+              <tr>
+                <th>Code</th>
+                <th>Company</th>
+                <th>Category</th>
+                <th>City</th>
+                <th>GST</th>
+                <th>Terms</th>
+                <th>Status</th>
+                <th>Action</th>
               </tr>
             </thead>
 
-            <tbody>
+            <tbody className={styles.tbody}>
 
               {loading && (
 
                 <tr>
-                  <td
-                    colSpan="8"
-                    style={{
-                      padding: 30,
-                      textAlign: "center",
-                      color: "#94a3b8"
-                    }}
-                  >
+                  <td colSpan="8" className={styles.emptyCell}>
                     Loading…
                   </td>
                 </tr>
@@ -810,14 +550,7 @@ function Suppliers() {
               {!loading && suppliers.length === 0 && (
 
                 <tr>
-                  <td
-                    colSpan="8"
-                    style={{
-                      padding: 30,
-                      textAlign: "center",
-                      color: "#94a3b8"
-                    }}
-                  >
+                  <td colSpan="8" className={styles.emptyCell}>
                     No suppliers. Click + New Supplier or run
                     /demo/seed-bvc24 for samples.
                   </td>
@@ -830,136 +563,70 @@ function Suppliers() {
 
                 return (
 
-                  <tr
-                    key={s.ID}
-                    style={{ borderBottom: "1px solid #f1f5f9" }}
-                  >
+                  <tr key={s.ID}>
 
-                    <td
-                      style={{
-                        padding: 12,
-                        fontFamily: "ui-monospace, monospace",
-                        fontSize: 12
-                      }}
-                    >
+                    <td className={styles.tdCode}>
                       <button
                         onClick={() => setDrawerId(s.ID)}
                         title="Open 360° view"
-                        style={{
-                          border: "none",
-                          background: "none",
-                          color: "#1e40af",
-                          cursor: "pointer",
-                          padding: 0,
-                          textDecoration: "underline",
-                          fontFamily: "inherit",
-                          fontSize: "inherit",
-                          fontWeight: 600
-                        }}
+                        className={styles.codeBtn}
                       >
                         {s.SUPPLIER_CODE}
                       </button>
                     </td>
 
-                    <td style={{ padding: 12 }}>
+                    <td className={styles.tdCompany}>
 
-                      <div
-                        style={{ fontWeight: 600, color: "#0f172a" }}
-                      >
+                      <div className={styles.tdCompanyName}>
                         {s.COMPANY_NAME}
                       </div>
 
                       {s.CONTACT_PERSON && (
 
-                        <div
-                          style={{
-                            fontSize: 11,
-                            color: "#94a3b8"
-                          }}
-                        >
+                        <div className={styles.tdCompanySub}>
                           {s.CONTACT_PERSON}
                           {s.PHONE && ` · ${s.PHONE}`}
                         </div>
                       )}
                     </td>
 
-                    <td
-                      style={{
-                        padding: 12,
-                        color: "#475569"
-                      }}
-                    >
+                    <td className={styles.tdMuted}>
                       {s.CATEGORY || "—"}
                     </td>
 
-                    <td
-                      style={{
-                        padding: 12,
-                        color: "#475569"
-                      }}
-                    >
+                    <td className={styles.tdMuted}>
                       {s.CITY || "—"}
                       {s.STATE && (
-                        <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                        <div className={styles.tdStateSub}>
                           {s.STATE}
                         </div>
                       )}
                     </td>
 
-                    <td
-                      style={{
-                        padding: 12,
-                        fontFamily: "ui-monospace, monospace",
-                        fontSize: 11,
-                        color: "#475569"
-                      }}
-                    >
+                    <td className={styles.tdMono}>
                       {s.GST_NUMBER || "—"}
                     </td>
 
-                    <td
-                      style={{
-                        padding: 12,
-                        color: "#475569"
-                      }}
-                    >
+                    <td className={styles.tdMuted}>
                       {s.PAYMENT_TERMS || "—"}
                     </td>
 
-                    <td style={{ padding: 12 }}>
+                    <td className={styles.tdStatus}>
 
+                      {/* bg and color are runtime data from STATUS_THEMES */}
                       <span
-                        style={{
-                          display: "inline-block",
-                          padding: "3px 10px",
-                          borderRadius: 999,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          background: t.bg,
-                          color: t.fg
-                        }}
+                        className={styles.statusBadge}
+                        style={{ background: t.bg, color: t.fg }}
                       >
                         {s.STATUS}
                       </span>
                     </td>
 
-                    <td
-                      style={{ padding: 12, textAlign: "right" }}
-                    >
+                    <td className={styles.tdActions}>
 
                       <button
                         onClick={() => setEditing(s)}
-                        style={{
-                          border: "1px solid #e2e8f0",
-                          background: "white",
-                          padding: "5px 12px",
-                          borderRadius: 6,
-                          cursor: "pointer",
-                          fontSize: 12,
-                          color: "#1e40af",
-                          fontWeight: 600,
-                          marginRight: 6
-                        }}
+                        className={styles.btnEdit}
                       >
                         Edit
                       </button>
@@ -968,16 +635,7 @@ function Suppliers() {
 
                         <button
                           onClick={() => deactivate(s.ID)}
-                          style={{
-                            border: "1px solid #fecaca",
-                            background: "white",
-                            padding: "5px 12px",
-                            borderRadius: 6,
-                            cursor: "pointer",
-                            fontSize: 12,
-                            color: "#b91c1c",
-                            fontWeight: 600
-                          }}
+                          className={styles.btnDeactivate}
                         >
                           Deactivate
                         </button>

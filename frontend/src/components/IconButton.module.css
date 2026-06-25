@@ -1,0 +1,38 @@
+/* IconButton — scoped styles */
+
+.btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.05s;
+  flex-shrink: 0;
+}
+
+.btn:disabled {
+  background: var(--surface);
+  color: var(--border);
+  cursor: not-allowed;
+}
+
+.btnEdit {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.btnEdit:not(:disabled):hover {
+  background: #bfdbfe;
+}
+
+.btnDelete {
+  background: #fee2e2;
+  color: var(--clr-primary-dark);
+}
+
+.btnDelete:not(:disabled):hover {
+  background: #fecaca;
+}

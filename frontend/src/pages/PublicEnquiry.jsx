@@ -9,6 +9,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import API from "../services/api";
+import styles from "./PublicEnquiry.module.css";
 
 
 // Field order matches the Customer 360° view layout, so the admin
@@ -299,70 +300,29 @@ export default function PublicEnquiry() {
 
   return (
 
-    <div style={{
-      minHeight: "100vh",
-      background: "linear-gradient(135deg, #1a0307 0%, #4a0a14 50%, #8B0B1F 100%)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: 20,
-      fontFamily: "system-ui, -apple-system, sans-serif"
-    }}>
+    <div className={styles.shell}>
 
-      <div style={{
-        width: "100%",
-        maxWidth: 640,
-        background: "white",
-        borderRadius: 20,
-        boxShadow: "0 30px 80px rgba(0,0,0,0.35)",
-        overflow: "hidden"
-      }}>
+      <div className={styles.card}>
 
         {/* ---- Header ---- */}
-        <div style={{
-          padding: "22px 28px",
-          background: "linear-gradient(135deg, #C8102E 0%, #8B0B1F 100%)",
-          color: "white"
-        }}>
-          <div style={{
-            fontSize: 12,
-            letterSpacing: 2,
-            fontWeight: 700,
-            opacity: 0.85,
-            textTransform: "uppercase"
-          }}>
+        <div className={styles.header}>
+          <div className={styles.headerEyebrow}>
             BVC24 · AI Smart Manufacturing
           </div>
-          <div style={{
-            fontSize: 22,
-            fontWeight: 800,
-            marginTop: 2,
-            letterSpacing: -0.4
-          }}>
+          <div className={styles.headerTitle}>
             🤖 Tell us about your requirement
           </div>
           {!isDone && (
 
-            <div style={{ marginTop: 14 }}>
-              <div style={{
-                height: 6,
-                background: "rgba(255,255,255,0.18)",
-                borderRadius: 999,
-                overflow: "hidden"
-              }}>
-                <div style={{
-                  width: `${progressPct}%`,
-                  height: "100%",
-                  background: "white",
-                  transition: "width 0.4s ease"
-                }} />
+            <div className={styles.progressWrap}>
+              <div className={styles.progressTrack}>
+                {/* width is runtime-computed from step/total — must stay inline */}
+                <div
+                  className={styles.progressFill}
+                  style={{ width: `${progressPct}%` }}
+                />
               </div>
-              <div style={{
-                fontSize: 11,
-                marginTop: 6,
-                opacity: 0.9,
-                fontWeight: 600
-              }}>
+              <div className={styles.progressLabel}>
                 {isReview
                   ? "Review your answers"
                   : `Question ${step + 1} of ${total}  ·  ${q?.section}`}
@@ -372,23 +332,17 @@ export default function PublicEnquiry() {
         </div>
 
         {/* ---- Body ---- */}
-        <div style={{ padding: "28px 28px 22px" }}>
+        <div className={styles.body}>
 
           {/* QUESTION SCREEN */}
           {!isReview && !isDone && q && (
 
             <>
 
-              <div style={{
-                fontSize: 18,
-                fontWeight: 700,
-                color: "#0f172a",
-                marginBottom: 16,
-                lineHeight: 1.4
-              }}>
+              <div className={styles.questionLabel}>
                 {q.label}
                 {q.required && (
-                  <span style={{ color: "#C8102E", marginLeft: 4 }}>*</span>
+                  <span className={styles.required}>*</span>
                 )}
               </div>
 
@@ -401,7 +355,7 @@ export default function PublicEnquiry() {
                   onChange={(e) => setDraft(e.target.value)}
                   placeholder={q.placeholder}
                   rows={4}
-                  style={inputStyle()}
+                  className={styles.input}
                 />
               )}
 
@@ -411,7 +365,7 @@ export default function PublicEnquiry() {
                   ref={inputRef}
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
-                  style={inputStyle()}
+                  className={styles.input}
                 >
                   <option value="">— pick one —</option>
                   {(options[q.optionsKey] || []).map((o) => (
@@ -430,7 +384,7 @@ export default function PublicEnquiry() {
                   type="date"
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
-                  style={inputStyle()}
+                  className={styles.input}
                 />
               )}
 
@@ -444,7 +398,7 @@ export default function PublicEnquiry() {
                   onChange={(e) => setDraft(e.target.value)}
                   placeholder={q.placeholder}
                   min={q.min}
-                  style={inputStyle()}
+                  className={styles.input}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") submitCurrent();
                   }}
@@ -453,49 +407,32 @@ export default function PublicEnquiry() {
 
               {error && (
 
-                <div style={{
-                  marginTop: 10,
-                  padding: "8px 12px",
-                  background: "#fef2f2",
-                  border: "1px solid #fecaca",
-                  borderRadius: 8,
-                  color: "#991b1b",
-                  fontSize: 13
-                }}>
+                <div className={styles.errorMsg}>
                   {error}
                 </div>
               )}
 
               {/* Buttons */}
-              <div style={{
-                marginTop: 22,
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 10
-              }}>
+              <div className={styles.btnRow}>
 
                 <button
                   onClick={goBack}
                   disabled={step === 0}
-                  style={{
-                    ...btnGhost,
-                    opacity: step === 0 ? 0.4 : 1,
-                    cursor: step === 0 ? "not-allowed" : "pointer"
-                  }}
+                  className={styles.btnGhost}
                 >
                   ‹ Back
                 </button>
 
-                <div style={{ display: "flex", gap: 10 }}>
+                <div className={styles.btnRight}>
 
                   {!q.required && (
 
-                    <button onClick={skipCurrent} style={btnGhost}>
+                    <button onClick={skipCurrent} className={styles.btnGhost}>
                       Skip
                     </button>
                   )}
 
-                  <button onClick={submitCurrent} style={btnPrimary}>
+                  <button onClick={submitCurrent} className={styles.btnPrimary}>
                     {step === total - 1 ? "Review →" : "Next →"}
                   </button>
                 </div>
@@ -507,48 +444,28 @@ export default function PublicEnquiry() {
           {isReview && (
 
             <>
-              <div style={{
-                fontSize: 18,
-                fontWeight: 700,
-                color: "#0f172a",
-                marginBottom: 6
-              }}>
+              <div className={styles.reviewTitle}>
                 Almost done — review your answers
               </div>
 
-              <div style={{
-                fontSize: 13,
-                color: "#64748b",
-                marginBottom: 18
-              }}>
+              <div className={styles.reviewSub}>
                 Click any row to edit. Hit Submit when you're happy.
               </div>
 
               {["Company", "Machine"].map((sec) => (
 
-                <div key={sec} style={{ marginBottom: 18 }}>
+                <div key={sec} className={styles.reviewSection}>
 
-                  <div style={{
-                    fontSize: 10,
-                    fontWeight: 800,
-                    letterSpacing: 1,
-                    color: "#C8102E",
-                    textTransform: "uppercase",
-                    marginBottom: 8
-                  }}>
+                  <div className={styles.reviewSectionTitle}>
                     {sec === "Company" ? "Company Details" : "Machine Request"}
                   </div>
 
-                  <div style={{
-                    border: "1px solid #e2e8f0",
-                    borderRadius: 10,
-                    overflow: "hidden"
-                  }}>
+                  <div className={styles.reviewTable}>
                     {QUESTIONS.filter((qq) => qq.section === sec).map((qq, i, arr) => {
 
                       const v = answers[qq.key];
 
-                      const display = v || <span style={{ color: "#94a3b8" }}>—</span>;
+                      const display = v || <span className={styles.reviewRowEmpty}>—</span>;
 
                       const qIdx = QUESTIONS.findIndex((x) => x.key === qq.key);
 
@@ -557,31 +474,16 @@ export default function PublicEnquiry() {
                         <div
                           key={qq.key}
                           onClick={() => setStep(qIdx)}
-                          style={{
-                            padding: "10px 14px",
-                            borderBottom: i < arr.length - 1
-                              ? "1px solid #f1f5f9" : "none",
-                            cursor: "pointer",
-                            background: "white"
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.background = "#f8fafc"}
-                          onMouseLeave={(e) => e.currentTarget.style.background = "white"}
+                          className={
+                            i < arr.length - 1
+                              ? `${styles.reviewRow} ${styles.reviewRowBordered}`
+                              : styles.reviewRow
+                          }
                         >
-                          <div style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            color: "#64748b",
-                            textTransform: "uppercase",
-                            letterSpacing: 0.6
-                          }}>
+                          <div className={styles.reviewRowKey}>
                             {qq.label.replace(/\?$/, "")}
                           </div>
-                          <div style={{
-                            fontSize: 14,
-                            color: "#0f172a",
-                            fontWeight: 600,
-                            marginTop: 2
-                          }}>
+                          <div className={styles.reviewRowVal}>
                             {display}
                           </div>
                         </div>
@@ -593,35 +495,19 @@ export default function PublicEnquiry() {
 
               {error && (
 
-                <div style={{
-                  marginBottom: 14,
-                  padding: "8px 12px",
-                  background: "#fef2f2",
-                  border: "1px solid #fecaca",
-                  borderRadius: 8,
-                  color: "#991b1b",
-                  fontSize: 13
-                }}>
+                <div className={styles.errorMsg}>
                   {error}
                 </div>
               )}
 
-              <div style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 10
-              }}>
-                <button onClick={goBack} style={btnGhost}>
+              <div className={styles.reviewBtnRow}>
+                <button onClick={goBack} className={styles.btnGhost}>
                   ‹ Back
                 </button>
                 <button
                   onClick={submitAll}
                   disabled={submitting}
-                  style={{
-                    ...btnPrimary,
-                    opacity: submitting ? 0.6 : 1,
-                    cursor: submitting ? "wait" : "pointer"
-                  }}
+                  className={styles.btnPrimary}
                 >
                   {submitting ? "Submitting…" : "✓ Submit Enquiry"}
                 </button>
@@ -632,54 +518,32 @@ export default function PublicEnquiry() {
           {/* DONE SCREEN */}
           {isDone && result && (
 
-            <div style={{ textAlign: "center", padding: "22px 10px" }}>
+            <div className={styles.doneWrap}>
 
-              <div style={{
-                fontSize: 64,
-                lineHeight: 1,
-                marginBottom: 12
-              }}>
+              <div className={styles.doneEmoji}>
                 🎉
               </div>
 
-              <div style={{
-                fontSize: 22,
-                fontWeight: 800,
-                color: "#0f172a",
-                marginBottom: 8
-              }}>
+              <div className={styles.doneTitle}>
                 Thanks for reaching out!
               </div>
 
-              <div style={{
-                fontSize: 14,
-                color: "#475569",
-                lineHeight: 1.6,
-                marginBottom: 18
-              }}>
+              <div className={styles.doneMessage}>
                 {result.message}
               </div>
 
-              <div style={{
-                padding: "10px 16px",
-                background: "#f1f5f9",
-                borderRadius: 10,
-                display: "inline-block",
-                fontSize: 12,
-                fontFamily: "ui-monospace, monospace",
-                color: "#475569"
-              }}>
+              <div className={styles.doneRef}>
                 Reference: <strong>{result.customer_code}</strong>
               </div>
 
-              <div style={{ marginTop: 22 }}>
+              <div className={styles.doneActions}>
                 <button
                   onClick={() => {
                     setAnswers({});
                     setResult(null);
                     setStep(0);
                   }}
-                  style={btnGhost}
+                  className={styles.btnGhost}
                 >
                   Submit another enquiry
                 </button>
@@ -691,14 +555,7 @@ export default function PublicEnquiry() {
         {/* ---- Footer ---- */}
         {!isDone && (
 
-          <div style={{
-            padding: "12px 24px",
-            background: "#f8fafc",
-            borderTop: "1px solid #e2e8f0",
-            fontSize: 11,
-            color: "#94a3b8",
-            textAlign: "center"
-          }}>
+          <div className={styles.footer}>
             Powered by BVC24 · Your details stay private and are only used to prepare your quote.
           </div>
         )}
@@ -706,49 +563,3 @@ export default function PublicEnquiry() {
     </div>
   );
 }
-
-
-// =====================================================================
-// Helpers
-// =====================================================================
-
-function inputStyle() {
-
-  return {
-    width: "100%",
-    padding: "12px 14px",
-    border: "2px solid #e2e8f0",
-    borderRadius: 10,
-    fontSize: 15,
-    outline: "none",
-    fontFamily: "inherit",
-    transition: "border-color 0.15s",
-    boxSizing: "border-box"
-  };
-}
-
-
-const btnPrimary = {
-  background: "linear-gradient(135deg, #C8102E 0%, #8B0B1F 100%)",
-  color: "white",
-  border: "none",
-  padding: "12px 24px",
-  borderRadius: 10,
-  fontWeight: 800,
-  fontSize: 14,
-  cursor: "pointer",
-  letterSpacing: 0.3,
-  boxShadow: "0 6px 18px rgba(200,16,46,0.30)"
-};
-
-
-const btnGhost = {
-  background: "white",
-  color: "#475569",
-  border: "1px solid #e2e8f0",
-  padding: "10px 18px",
-  borderRadius: 10,
-  fontWeight: 700,
-  fontSize: 13,
-  cursor: "pointer"
-};

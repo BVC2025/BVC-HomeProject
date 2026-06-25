@@ -14,17 +14,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import API from "../services/api";
-
-
-const BVC = {
-  PRIMARY: "#C8102E",
-  DARK:    "#8B0B1F",
-  GOLD:    "#F4B324",
-  TINT:    "#fef2f2",
-  BG:      "#fff7ed",
-  TEXT:    "#0f172a",
-  MUTED:   "#64748b"
-};
+import styles from "./LeaveChatbot.module.css";
 
 
 export default function LeaveChatbot({ employeeId, onLeaveSubmitted }) {
@@ -264,54 +254,27 @@ export default function LeaveChatbot({ employeeId, onLeaveSubmitted }) {
 
   return (
 
-    <section style={{
-      background: "white",
-      border: `1px solid ${BVC.PRIMARY}33`,
-      borderRadius: 14,
-      marginBottom: 18,
-      boxShadow: "0 4px 12px rgba(200,16,46,0.08)",
-      overflow: "hidden"
-    }}>
+    <section className={styles.section}>
 
       {/* ============ Header ============ */}
       <div
         onClick={() => setCollapsed((c) => !c)}
-        style={{
-          padding: "14px 18px",
-          background: `linear-gradient(135deg, ${BVC.PRIMARY}, ${BVC.DARK})`,
-          color: "white",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          cursor: "pointer"
-        }}
+        className={styles.header}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{
-            width: 38, height: 38, borderRadius: 10,
-            background: "rgba(255,255,255,0.18)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 20
-          }}>
+        <div className={styles.headerLeft}>
+          <span className={styles.headerIcon}>
             🤖
           </span>
           <div>
-            <div style={{
-              fontSize: 11, letterSpacing: 1.4, fontWeight: 800,
-              opacity: 0.85, textTransform: "uppercase"
-            }}>
+            <div className={styles.headerMeta}>
               BVC24 · AI Leave Assistant
             </div>
-            <div style={{ fontSize: 15, fontWeight: 800, marginTop: 2, letterSpacing: -0.2 }}>
+            <div className={styles.headerTitle}>
               Apply for leave by chat — no forms
             </div>
           </div>
         </div>
-        <div style={{
-          background: "rgba(255,255,255,0.18)",
-          padding: "4px 12px", borderRadius: 999,
-          fontSize: 11, fontWeight: 800
-        }}>
+        <div className={styles.headerToggle}>
           {collapsed ? "▼ Open" : "▲ Hide"}
         </div>
       </div>
@@ -322,52 +285,30 @@ export default function LeaveChatbot({ employeeId, onLeaveSubmitted }) {
           {/* ============ Message stream ============ */}
           <div
             ref={scrollRef}
-            style={{
-              padding: 16,
-              maxHeight: 420,
-              minHeight: 220,
-              overflowY: "auto",
-              background: "#fafafa"
-            }}
+            className={styles.stream}
           >
             {messages.map((m, i) => (
               <Bubble key={i} msg={m} onChip={handleChip} />
             ))}
 
             {busy && (
-              <div style={{ color: BVC.MUTED, fontSize: 12, fontStyle: "italic", padding: 8 }}>
+              <div className={styles.thinking}>
                 Thinking…
               </div>
             )}
 
             {error && (
-              <div style={{
-                marginTop: 8,
-                padding: "8px 12px",
-                background: "#fef2f2",
-                border: "1px solid #fecaca",
-                borderRadius: 8,
-                color: "#991b1b",
-                fontSize: 12
-              }}>
+              <div className={styles.errorBox}>
                 {error}
               </div>
             )}
 
             {submitted && (
-              <div style={{
-                marginTop: 12,
-                padding: "12px 14px",
-                background: "#dcfce7",
-                border: "1px solid #86efac",
-                borderRadius: 10,
-                color: "#15803d",
-                fontSize: 13
-              }}>
-                <div style={{ fontWeight: 800, marginBottom: 4 }}>
+              <div className={styles.successBox}>
+                <div className={styles.successTitle}>
                   ✓ Leave #{submitted.request_id} submitted
                 </div>
-                <div style={{ fontSize: 12 }}>
+                <div className={styles.successDetail}>
                   {submitted.leave_type} · {submitted.start_date}
                   {submitted.end_date && submitted.end_date !== submitted.start_date && ` → ${submitted.end_date}`}
                   {" "}· status: <strong>{submitted.status}</strong>
@@ -377,13 +318,7 @@ export default function LeaveChatbot({ employeeId, onLeaveSubmitted }) {
           </div>
 
           {/* ============ Composer ============ */}
-          <div style={{
-            padding: "10px 12px",
-            borderTop: "1px solid #e2e8f0",
-            background: "white",
-            display: "flex",
-            gap: 8
-          }}>
+          <div className={styles.composer}>
             <input
               ref={inputRef}
               value={input}
@@ -391,31 +326,12 @@ export default function LeaveChatbot({ employeeId, onLeaveSubmitted }) {
               onKeyDown={onKeyDown}
               disabled={busy || submitting}
               placeholder='Try: "casual leave tomorrow for family function"'
-              style={{
-                flex: 1,
-                padding: "10px 12px",
-                border: "1px solid #cbd5e1",
-                borderRadius: 8,
-                fontSize: 13,
-                fontFamily: "inherit",
-                outline: "none"
-              }}
+              className={styles.composerInput}
             />
             <button
               onClick={() => send()}
               disabled={!input.trim() || busy || submitting}
-              style={{
-                background: !input.trim() ? "#e2e8f0"
-                  : `linear-gradient(135deg, ${BVC.PRIMARY}, ${BVC.DARK})`,
-                color: !input.trim() ? "#94a3b8" : "white",
-                border: "none",
-                padding: "10px 18px",
-                borderRadius: 8,
-                fontSize: 13,
-                fontWeight: 800,
-                cursor: !input.trim() ? "default" : "pointer",
-                letterSpacing: 0.3
-              }}
+              className={styles.composerSendBtn}
             >
               {submitting ? "Submitting…" : busy ? "…" : "Send"}
             </button>
@@ -436,32 +352,15 @@ function Bubble({ msg, onChip }) {
   const isBot = msg.role === "bot";
 
   return (
-    <div style={{
-      display: "flex",
-      justifyContent: isBot ? "flex-start" : "flex-end",
-      marginBottom: 10
-    }}>
-      <div style={{
-        maxWidth: "82%",
-        background: isBot ? "white" : `linear-gradient(135deg, ${BVC.PRIMARY}, ${BVC.DARK})`,
-        color:      isBot ? BVC.TEXT : "white",
-        border:     isBot ? "1px solid #e2e8f0" : "none",
-        borderRadius: isBot ? "10px 10px 10px 2px" : "10px 10px 2px 10px",
-        padding: "10px 14px",
-        fontSize: 13,
-        lineHeight: 1.5,
-        boxShadow: isBot ? "0 1px 2px rgba(0,0,0,0.04)" : "0 4px 12px rgba(200,16,46,0.20)"
-      }}>
-        <div style={{ whiteSpace: "pre-wrap" }}>
+    <div className={`${styles.bubbleRow} ${isBot ? styles.bot : styles.user}`}>
+      <div className={`${styles.bubble} ${isBot ? styles.bubbleBot : styles.bubbleUser}`}>
+        <div className={styles.bubbleText}>
           {renderInlineBold(msg.text)}
         </div>
 
         {/* Validation summary chip row (when ready_to_submit + balance shown) */}
         {isBot && msg.ready && msg.validation?.balance && (
-          <div style={{
-            marginTop: 8,
-            display: "flex", gap: 6, flexWrap: "wrap"
-          }}>
+          <div className={styles.validationRow}>
             <SummaryPill
               label="Balance after"
               value={`${msg.validation.balance.remaining_after} ${msg.validation.balance.type}`}
@@ -477,36 +376,24 @@ function Bubble({ msg, onChip }) {
 
         {/* Suggestion chips */}
         {isBot && msg.suggestions && msg.suggestions.length > 0 && (
-          <div style={{
-            marginTop: 10,
-            display: "flex",
-            gap: 6,
-            flexWrap: "wrap"
-          }}>
+          <div className={styles.chipRow}>
             {msg.suggestions.map((s) => {
 
               const isPrimary = s === "Confirm & Submit";
 
               const isDanger  = s === "Cancel";
 
+              const chipCls = isPrimary
+                ? styles.chipPrimary
+                : isDanger
+                  ? styles.chipDanger
+                  : styles.chipNeutral;
+
               return (
                 <button
                   key={s}
                   onClick={() => onChip(s)}
-                  style={{
-                    background: isPrimary
-                      ? `linear-gradient(135deg, ${BVC.PRIMARY}, ${BVC.DARK})`
-                      : isDanger ? "white" : "white",
-                    color: isPrimary ? "white" : isDanger ? "#991b1b" : "#475569",
-                    border: isPrimary ? "none" : `1px solid ${isDanger ? "#fecaca" : "#cbd5e1"}`,
-                    padding: "5px 12px",
-                    borderRadius: 999,
-                    fontSize: 11,
-                    fontWeight: 800,
-                    cursor: "pointer",
-                    letterSpacing: 0.3,
-                    boxShadow: isPrimary ? "0 4px 12px rgba(200,16,46,0.25)" : "none"
-                  }}
+                  className={chipCls}
                 >
                   {isPrimary ? "✓ " : ""}{s}
                 </button>
@@ -516,13 +403,7 @@ function Bubble({ msg, onChip }) {
         )}
 
         {/* Timestamp */}
-        <div style={{
-          fontSize: 9,
-          opacity: isBot ? 0.5 : 0.7,
-          marginTop: 6,
-          fontFamily: "ui-monospace, monospace",
-          letterSpacing: 0.4
-        }}>
+        <div className={`${styles.timestamp} ${isBot ? styles.timestampBot : styles.timestampUser}`}>
           {msg.ts?.toLocaleTimeString?.("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
         </div>
       </div>
@@ -534,19 +415,14 @@ function Bubble({ msg, onChip }) {
 function SummaryPill({ label, value, color }) {
 
   return (
-    <span style={{
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 4,
-      background: color + "15",
-      color,
-      padding: "3px 10px",
-      borderRadius: 999,
-      fontSize: 10,
-      fontWeight: 800,
-      letterSpacing: 0.4
-    }}>
-      <span style={{ opacity: 0.7 }}>{label}:</span>
+    <span
+      className={styles.summaryPill}
+      style={{
+        background: color + "15",
+        color
+      }}
+    >
+      <span className={styles.summaryPillLabel}>{label}:</span>
       <span>{value}</span>
     </span>
   );

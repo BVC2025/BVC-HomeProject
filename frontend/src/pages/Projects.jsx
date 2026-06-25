@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import API from "../services/api";
 
 import EntityDrawer from "../components/EntityDrawer";
+import styles from "./Projects.module.css";
 
 
 // ===================================================================
@@ -22,9 +23,9 @@ import EntityDrawer from "../components/EntityDrawer";
 
 
 const PRIORITY_THEMES = {
-  HIGH: { bg: "#fee2e2", fg: "#b91c1c", grad: "linear-gradient(135deg,#ef4444,#b91c1c)" },
-  MEDIUM: { bg: "#fef3c7", fg: "#854d0e", grad: "linear-gradient(135deg,#F4B324,#C8102E)" },
-  LOW: { bg: "#dbeafe", fg: "#1e40af", grad: "linear-gradient(135deg,#C8102E,#8B0B1F)" }
+  HIGH: { bg: "#fee2e2", fg: "#b91c1c", grad: "#ef4444" },
+  MEDIUM: { bg: "#fef3c7", fg: "#854d0e", grad: "#f59e0b" },
+  LOW: { bg: "#dbeafe", fg: "#1e40af", grad: "#ef4444" }
 };
 
 
@@ -43,29 +44,22 @@ function StatTile({ label, value, sub, color, icon }) {
   return (
 
     <div
-      style={{
-        background: "white",
-        padding: "18px 20px",
-        borderRadius: 14,
-        boxShadow: "0 6px 20px rgba(15,23,42,0.07)",
-        borderTop: `3px solid ${color}`,
-        position: "relative",
-        overflow: "hidden"
-      }}
+      className={styles.statTile}
+      style={{ borderTop: `3px solid ${color}` }}
     >
       {icon && (
-        <div style={{ position: "absolute", top: 14, right: 14, fontSize: 22, opacity: 0.85 }}>
+        <div className={styles.statTileIcon}>
           {icon}
         </div>
       )}
-      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: "#64748b", textTransform: "uppercase" }}>
+      <div className={styles.statTileLabel}>
         {label}
       </div>
-      <div style={{ fontSize: 28, fontWeight: 800, color: "#0f172a", marginTop: 4, letterSpacing: -0.5 }}>
+      <div className={styles.statTileValue}>
         {value}
       </div>
       {sub && (
-        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
+        <div className={styles.statTileSub}>
           {sub}
         </div>
       )}
@@ -76,17 +70,10 @@ function StatTile({ label, value, sub, color, icon }) {
 
 function Pill({ children, bg, fg }) {
   return (
-    <span style={{
-      display: "inline-block",
-      padding: "2px 10px",
-      borderRadius: 999,
-      fontSize: 10,
-      fontWeight: 700,
-      background: bg,
-      color: fg,
-      letterSpacing: 0.5,
-      textTransform: "uppercase"
-    }}>
+    <span
+      className={styles.pill}
+      style={{ background: bg, color: fg }}
+    >
       {children}
     </span>
   );
@@ -148,119 +135,70 @@ function ProjectCard({ project, onOpen, onDelete }) {
 
     <div
       onClick={() => onOpen(project)}
-      className="bvc-proj-card"
-      style={{
-        background: "white",
-        borderRadius: 16,
-        padding: 18,
-        boxShadow: "0 10px 30px rgba(15,23,42,0.07)",
-        cursor: "pointer",
-        position: "relative",
-        overflow: "hidden",
-        animation: "bvcProjFadeIn 0.4s ease-out both"
-      }}
+      className={styles.card}
     >
-      <div style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 4,
-        background: prioTheme.grad
-      }} />
+      {/* Priority accent bar — color from PRIORITY_THEMES runtime data */}
+      <div
+        className={styles.cardAccentBar}
+        style={{ background: prioTheme.grad }}
+      />
 
+      {/* Delete button — bg/color vary by deleting state */}
       <button
         onClick={handleDelete}
         disabled={deleting}
         title="Delete project"
+        className={styles.cardDeleteBtn}
         style={{
-          position: "absolute",
-          top: 10,
-          right: 10,
-          width: 26,
-          height: 26,
-          borderRadius: "50%",
-          border: "1px solid #fecaca",
           background: deleting ? "#f1f5f9" : "#fef2f2",
           color: deleting ? "#94a3b8" : "#b91c1c",
-          cursor: deleting ? "default" : "pointer",
-          fontSize: 14,
-          fontWeight: 700,
-          lineHeight: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 0,
-          zIndex: 5
+          cursor: deleting ? "default" : "pointer"
         }}
       >
         {deleting ? "…" : "×"}
       </button>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, marginBottom: 10, paddingRight: 32 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            fontSize: 15,
-            fontWeight: 800,
-            color: "#0f172a",
-            lineHeight: 1.25,
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden"
-          }}>
+      <div className={styles.cardHeader}>
+        <div className={styles.cardTitleWrap}>
+          <div className={styles.cardTitle}>
             {project.PROJECT_NAME}
           </div>
         </div>
+        {/* Pill bg/fg come from PRIORITY_THEMES — runtime data */}
         <Pill bg={prioTheme.bg} fg={prioTheme.fg}>{prio}</Pill>
       </div>
 
       {/* Customer + Product chips */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+      <div className={styles.chipRow}>
         {project.CUSTOMER_NAME && (
-          <span style={{ fontSize: 11, padding: "3px 10px", background: "#ecfeff", color: "#0e7490", borderRadius: 999, fontWeight: 600 }}>
+          <span className={styles.chipCustomer}>
             🤝 {project.CUSTOMER_NAME}
           </span>
         )}
         {project.PRODUCT_MODEL_NAME && (
-          <span style={{ fontSize: 11, padding: "3px 10px", background: "#eff6ff", color: "#1e40af", borderRadius: 999, fontWeight: 600 }}>
+          <span className={styles.chipProduct}>
             🏭 {project.PRODUCT_MODEL_NAME}
           </span>
         )}
         {project.QUANTITY > 0 && (
-          <span style={{ fontSize: 11, padding: "3px 10px", background: "#f3e8ff", color: "#6d28d9", borderRadius: 999, fontWeight: 600 }}>
+          <span className={styles.chipQty}>
             × {project.QUANTITY} unit{project.QUANTITY > 1 ? "s" : ""}
           </span>
         )}
       </div>
 
       {project.SKILLS_REQUIRED && (
-        <div style={{
-          fontSize: 11,
-          color: "#64748b",
-          background: "#f8fafc",
-          padding: "8px 10px",
-          borderRadius: 8,
-          marginBottom: 10,
-          lineHeight: 1.4,
-          display: "-webkit-box",
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: "vertical",
-          overflow: "hidden"
-        }}>
+        <div className={styles.skillsSnippet}>
           🧠 Skills: {project.SKILLS_REQUIRED}
         </div>
       )}
 
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center"
-      }}>
+      <div className={styles.cardFooter}>
+        {/* Pill bg/fg come from STATUS_THEMES — runtime data */}
         <Pill bg={statusTheme.bg} fg={statusTheme.fg}>
           {status.replaceAll("_", " ")}
         </Pill>
-        <div style={{ fontSize: 11, color: "#94a3b8" }}>
+        <div className={styles.cardHint}>
           Click for 360°
         </div>
       </div>
@@ -361,45 +299,24 @@ function CreateFromProductModal({ onClose, onCreated }) {
   return (
 
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,0.55)",
-        zIndex: 1000,
-        display: "flex",
-        justifyContent: "flex-end"
-      }}
+      className={styles.modalOverlay}
       onClick={onClose}
     >
 
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: 720,
-          maxWidth: "94%",
-          background: "white",
-          overflow: "auto",
-          padding: 26,
-          boxShadow: "-24px 0 60px rgba(0,0,0,0.35)"
-        }}
+        className={styles.modalPanel}
       >
 
-        <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-          marginBottom: 16,
-          paddingBottom: 14,
-          borderBottom: "1px solid #e2e8f0"
-        }}>
+        <div className={styles.modalHeader}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.4, color: "#6366f1", textTransform: "uppercase" }}>
+            <div className={styles.modalEyebrow}>
               New Project · Product → Project Workflow
             </div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", marginTop: 2 }}>
+            <div className={styles.modalTitle}>
               Create a project from an existing product
             </div>
-            <div style={{ fontSize: 12, color: "#64748b", marginTop: 4, lineHeight: 1.5 }}>
+            <div className={styles.modalSubtitle}>
               The product's BOM + manufacturing stages will auto-flow into the project.
               Each stage becomes a task, assigned to the best-skill employee, and they'll get an
               email asking them to accept it.
@@ -407,14 +324,7 @@ function CreateFromProductModal({ onClose, onCreated }) {
           </div>
           <button
             onClick={onClose}
-            style={{
-              border: "none",
-              background: "#f1f5f9",
-              padding: "4px 12px",
-              borderRadius: 8,
-              cursor: "pointer",
-              fontSize: 20
-            }}
+            className={styles.modalCloseBtn}
           >
             ×
           </button>
@@ -424,17 +334,17 @@ function CreateFromProductModal({ onClose, onCreated }) {
 
           <form onSubmit={submit}>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+            <div className={styles.formGrid}>
 
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#0e7490", letterSpacing: 0.5, display: "block", marginBottom: 4, textTransform: "uppercase" }}>
+              <div className={styles.formGroup}>
+                <label className={`${styles.formLabel} ${styles.formLabelCustomer}`}>
                   🤝 Customer *
                 </label>
                 <select
                   value={customerId}
                   onChange={(e) => setCustomerId(e.target.value)}
                   disabled={loading}
-                  style={inputStyle()}
+                  className={styles.formInput}
                 >
                   <option value="">— pick customer —</option>
                   {customers.map((c) => (
@@ -444,21 +354,21 @@ function CreateFromProductModal({ onClose, onCreated }) {
                   ))}
                 </select>
                 {selectedCustomer && (
-                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+                  <div className={styles.formFieldHint}>
                     📞 {selectedCustomer.PHONE || "—"} · {selectedCustomer.CITY || "—"}
                   </div>
                 )}
               </div>
 
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#1e40af", letterSpacing: 0.5, display: "block", marginBottom: 4, textTransform: "uppercase" }}>
+              <div className={styles.formGroup}>
+                <label className={`${styles.formLabel} ${styles.formLabelProduct}`}>
                   🏭 Product (Machine Model) *
                 </label>
                 <select
                   value={productId}
                   onChange={(e) => setProductId(e.target.value)}
                   disabled={loading}
-                  style={inputStyle()}
+                  className={styles.formInput}
                 >
                   <option value="">— pick product —</option>
                   {products.map((p) => (
@@ -468,14 +378,14 @@ function CreateFromProductModal({ onClose, onCreated }) {
                   ))}
                 </select>
                 {selectedProduct && (
-                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+                  <div className={styles.formFieldHint}>
                     {selectedProduct.CATEGORY} · {selectedProduct.ESTIMATED_BUILD_DAYS}d build
                   </div>
                 )}
               </div>
 
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#6d28d9", letterSpacing: 0.5, display: "block", marginBottom: 4, textTransform: "uppercase" }}>
+              <div className={styles.formGroup}>
+                <label className={`${styles.formLabel} ${styles.formLabelQty}`}>
                   Quantity *
                 </label>
                 <input
@@ -483,18 +393,18 @@ function CreateFromProductModal({ onClose, onCreated }) {
                   min="1"
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </div>
 
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#b91c1c", letterSpacing: 0.5, display: "block", marginBottom: 4, textTransform: "uppercase" }}>
+              <div className={styles.formGroup}>
+                <label className={`${styles.formLabel} ${styles.formLabelPriority}`}>
                   Priority
                 </label>
                 <select
                   value={priority}
                   onChange={(e) => setPriority(e.target.value)}
-                  style={inputStyle()}
+                  className={styles.formInput}
                 >
                   <option value="HIGH">High</option>
                   <option value="MEDIUM">Medium</option>
@@ -502,44 +412,35 @@ function CreateFromProductModal({ onClose, onCreated }) {
                 </select>
               </div>
 
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: 0.5, display: "block", marginBottom: 4, textTransform: "uppercase" }}>
+              <div className={styles.formGroup}>
+                <label className={`${styles.formLabel} ${styles.formLabelDate}`}>
                   Target Date
                 </label>
                 <input
                   type="date"
                   value={targetDate}
                   onChange={(e) => setTargetDate(e.target.value)}
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </div>
             </div>
 
-            <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: "#475569", letterSpacing: 0.5, display: "block", marginBottom: 4, textTransform: "uppercase" }}>
+            <div className={styles.formGroupFull}>
+              <label className={`${styles.formLabel} ${styles.formLabelNotes}`}>
                 Notes
               </label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={2}
-                style={{ ...inputStyle(), resize: "vertical" }}
+                className={styles.formTextarea}
                 placeholder="Any special instructions for this order..."
               />
             </div>
 
-            <div style={{
-              padding: 12,
-              background: "linear-gradient(135deg, #fef2f2 0%, #fff4e6 100%)",
-              border: "1px solid #c7d2fe",
-              borderRadius: 10,
-              marginBottom: 16,
-              fontSize: 12,
-              color: "#4338ca",
-              lineHeight: 1.6
-            }}>
+            <div className={styles.infoCallout}>
               <strong>✨ What happens when you click Create:</strong>
-              <ol style={{ margin: "6px 0 0 18px", padding: 0 }}>
+              <ol>
                 <li>Project is created, inheriting the product's category + skills</li>
                 <li>A Work Order spawns with all 10 manufacturing stages</li>
                 <li>Each stage becomes a task auto-assigned by skill match</li>
@@ -549,40 +450,23 @@ function CreateFromProductModal({ onClose, onCreated }) {
             </div>
 
             {error && (
-              <div style={{ padding: 10, background: "#fef2f2", border: "1px solid #fecaca", color: "#b91c1c", borderRadius: 8, marginBottom: 12, fontSize: 13 }}>
+              <div className={styles.errorBanner}>
                 {error}
               </div>
             )}
 
-            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+            <div className={styles.formActions}>
               <button
                 type="button"
                 onClick={onClose}
-                style={{
-                  border: "1px solid #e2e8f0",
-                  background: "white",
-                  padding: "10px 22px",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  cursor: "pointer"
-                }}
+                className={styles.btnCancel}
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={submitting}
-                style={{
-                  border: "none",
-                  background: submitting ? "#94a3b8" : "linear-gradient(135deg,#6366f1,#8b5cf6,#ec4899)",
-                  color: "white",
-                  padding: "10px 26px",
-                  borderRadius: 8,
-                  fontWeight: 800,
-                  fontSize: 13,
-                  cursor: submitting ? "not-allowed" : "pointer",
-                  boxShadow: "0 6px 18px rgba(139,92,246,0.45)"
-                }}
+                className={styles.btnSubmit}
               >
                 {submitting ? "Creating…" : "✨ Create Project + Assign Tasks"}
               </button>
@@ -603,61 +487,44 @@ function CreateResult({ result, onClose }) {
 
     <div>
 
-      <div style={{
-        background: "linear-gradient(135deg, #dcfce7, #d1fae5)",
-        border: "1px solid #a7f3d0",
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 16
-      }}>
-        <div style={{ fontSize: 22, fontWeight: 800, color: "#166534", marginBottom: 4 }}>
+      <div className={styles.resultSuccess}>
+        <div className={styles.resultSuccessTitle}>
           ✓ Project created!
         </div>
-        <div style={{ fontSize: 13, color: "#166534" }}>
+        <div className={styles.resultSuccessMsg}>
           {result.message}
         </div>
       </div>
 
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gap: 10,
-        marginBottom: 16
-      }}>
+      <div className={styles.resultStatsGrid}>
         <StatTile label="Tasks" value={result.tasks_generated} color="#6366f1" />
         <StatTile label="Employees" value={result.employees_assigned} color="#10b981" sub="auto-assigned" />
         <StatTile label="Emails Sent" value={result.emails_sent?.sent ?? 0} color="#f59e0b" sub={result.emails_sent?.failed ? `${result.emails_sent.failed} failed` : ""} />
       </div>
 
-      <div style={{ fontSize: 12, fontWeight: 700, color: "#475569", letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>
+      <div className={styles.resultSectionLabel}>
         Task assignments (PENDING acceptance)
       </div>
 
-      <div style={{ maxHeight: 320, overflow: "auto", border: "1px solid #e2e8f0", borderRadius: 10 }}>
+      <div className={styles.resultTaskList}>
         {result.tasks?.map((t) => (
-          <div key={t.task_id} style={{
-            padding: "10px 14px",
-            borderBottom: "1px solid #f1f5f9",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 10
-          }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>
+          <div key={t.task_id} className={styles.resultTaskRow}>
+            <div className={styles.resultTaskLeft}>
+              <div className={styles.resultTaskName}>
                 {t.stage_name}
               </div>
-              <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+              <div className={styles.resultTaskMeta}>
                 {t.stage_type} · → {t.assigned_employee_name || "Unassigned"}
                 {t.assigned_employee_code && (
-                  <span style={{ marginLeft: 4, fontFamily: "ui-monospace, monospace" }}>({t.assigned_employee_code})</span>
+                  <span className={styles.resultTaskCode}>({t.assigned_employee_code})</span>
                 )}
               </div>
             </div>
-            <div style={{ textAlign: "right" }}>
+            <div className={styles.resultTaskRight}>
+              {/* Pill bg/fg come from static values — acceptable status-badge exception */}
               <Pill bg="#fef3c7" fg="#854d0e">{t.approval_status}</Pill>
               {t.skill_match_score > 0 && (
-                <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>
+                <div className={styles.resultMatchScore}>
                   {Math.round(t.skill_match_score * 100)}% match
                 </div>
               )}
@@ -666,38 +533,16 @@ function CreateResult({ result, onClose }) {
         ))}
       </div>
 
-      <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 18 }}>
+      <div className={styles.resultActions}>
         <button
           onClick={onClose}
-          style={{
-            border: "none",
-            background: "#1e40af",
-            color: "white",
-            padding: "10px 24px",
-            borderRadius: 8,
-            fontWeight: 700,
-            fontSize: 13,
-            cursor: "pointer"
-          }}
+          className={styles.btnDone}
         >
           Done
         </button>
       </div>
     </div>
   );
-}
-
-
-function inputStyle() {
-  return {
-    width: "100%",
-    padding: "10px 12px",
-    border: "1px solid #cbd5e1",
-    borderRadius: 8,
-    fontSize: 13,
-    fontFamily: "inherit",
-    background: "white"
-  };
 }
 
 
@@ -846,151 +691,80 @@ function Projects() {
 
   return (
 
-    <div style={{ padding: 26, background: "#f1f5f9", minHeight: "100%" }}>
-
-      <style>{`
-        @keyframes bvcProjFadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes bvcProjHeroShift {
-          0%, 100% { background-position: 0% 50%; }
-          50%      { background-position: 100% 50%; }
-        }
-        .bvc-proj-card:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 18px 42px rgba(15,23,42,0.14);
-        }
-        .bvc-proj-card {
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
-        }
-      `}</style>
+    <div className={styles.page}>
 
       {/* HERO */}
-      <div style={{
-        background: "linear-gradient(135deg, #C8102E 0%, #A60F26 50%, #8B0B1F 100%)",
-        color: "white",
-        padding: "20px 28px",
-        borderRadius: 14,
-        marginBottom: 22,
-        boxShadow: "0 6px 18px rgba(139,11,31,0.18)",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        flexWrap: "wrap",
-        gap: 16
-      }}>
+      <div className={styles.heroAlt}>
         <div>
-          <div style={{
-            fontSize: 10,
-            letterSpacing: 2,
-            color: "#fde047",
-            fontWeight: 700,
-            textTransform: "uppercase"
-          }}>
+          <div className={styles.heroAltEyebrow}>
             Workflow
           </div>
-          <h1 style={{
-            fontSize: 22,
-            fontWeight: 700,
-            margin: "4px 0 0",
-            lineHeight: 1.2,
-            color: "white",
-            letterSpacing: -0.3
-          }}>
+          <h1 className={styles.heroAltTitle}>
             Projects
           </h1>
         </div>
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+        <div className={styles.heroActions}>
 
           <button
             onClick={() => setShowCreate(true)}
-            style={{
-              background: "white",
-              color: "#8B0B1F",
-              border: "none",
-              padding: "10px 20px",
-              borderRadius: 8,
-              fontWeight: 800,
-              fontSize: 12,
-              cursor: "pointer",
-              letterSpacing: 0.6,
-              textTransform: "uppercase",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
-            }}
+            className={styles.btnCreateProject}
           >
             + Create Project
           </button>
 
-            <button
-              onClick={async () => {
+          <button
+            onClick={async () => {
 
-                const msg =
-                  "🔄 WIPE ALL PROJECTS\n\n" +
-                  "This will DELETE every project + all tasks +\n" +
-                  "task assignments + work orders + daily allocations\n" +
-                  "+ notifications.\n\n" +
-                  "Purchase Orders keep their data (LINKED_PROJECT_ID\n" +
-                  "is just nulled out). Customers, Employees, Suppliers,\n" +
-                  "Quotations are untouched.\n\n" +
-                  "Use this to clear old test data before launching\n" +
-                  "the real customer-driven project workflow.\n\n" +
-                  "Continue?";
+              const msg =
+                "🔄 WIPE ALL PROJECTS\n\n" +
+                "This will DELETE every project + all tasks +\n" +
+                "task assignments + work orders + daily allocations\n" +
+                "+ notifications.\n\n" +
+                "Purchase Orders keep their data (LINKED_PROJECT_ID\n" +
+                "is just nulled out). Customers, Employees, Suppliers,\n" +
+                "Quotations are untouched.\n\n" +
+                "Use this to clear old test data before launching\n" +
+                "the real customer-driven project workflow.\n\n" +
+                "Continue?";
 
-                if (!window.confirm(msg)) return;
+              if (!window.confirm(msg)) return;
 
-                if (!window.confirm("Are you really sure? This cannot be undone.")) return;
+              if (!window.confirm("Are you really sure? This cannot be undone.")) return;
 
-                try {
+              try {
 
-                  const res = await API.post("/projects/wipe-all");
+                const res = await API.post("/projects/wipe-all");
 
-                  alert(
-                    "✅ " + (res.data?.message || "Done") +
-                    "\n\nDeleted:\n" +
-                    `  Projects: ${res.data?.project || 0}\n` +
-                    `  Tasks: ${res.data?.task || 0}\n` +
-                    `  Task Assignments: ${res.data?.task_assignment || 0}\n` +
-                    `  Work Orders: ${res.data?.work_order || 0}\n` +
-                    `  Notifications: ${res.data?.notification || 0}`
-                  );
+                alert(
+                  "✅ " + (res.data?.message || "Done") +
+                  "\n\nDeleted:\n" +
+                  `  Projects: ${res.data?.project || 0}\n` +
+                  `  Tasks: ${res.data?.task || 0}\n` +
+                  `  Task Assignments: ${res.data?.task_assignment || 0}\n` +
+                  `  Work Orders: ${res.data?.work_order || 0}\n` +
+                  `  Notifications: ${res.data?.notification || 0}`
+                );
 
-                  // Refresh whatever data is on screen
-                  window.location.reload();
+                // Refresh whatever data is on screen
+                window.location.reload();
 
-                } catch (err) {
+              } catch (err) {
 
-                  alert(err?.response?.data?.detail || "Wipe failed");
-                }
-              }}
-              style={{
-                background: "transparent",
-                color: "white",
-                border: "1px solid rgba(255,255,255,0.45)",
-                padding: "10px 18px",
-                borderRadius: 8,
-                fontWeight: 700,
-                fontSize: 12,
-                cursor: "pointer",
-                letterSpacing: 0.6,
-                textTransform: "uppercase"
-              }}
-              title="Delete all projects + child rows (irreversible)"
-            >
-              Reset All Projects
-            </button>
+                alert(err?.response?.data?.detail || "Wipe failed");
+              }
+            }}
+            className={styles.btnResetAll}
+            title="Delete all projects + child rows (irreversible)"
+          >
+            Reset All Projects
+          </button>
 
         </div>
       </div>
 
       {/* Stats */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
-        gap: 14,
-        marginBottom: 20
-      }}>
+      <div className={styles.statsGrid}>
         <StatTile label="Total Projects" value={stats.total} color="#6366f1" icon="📁" />
         <StatTile label="Active" value={stats.active} sub="in production" color="#10b981" icon="⚙️" />
         <StatTile label="Done" value={stats.completed} sub="completed" color="#1e40af" icon="✓" />
@@ -999,40 +773,31 @@ function Projects() {
       </div>
 
       {/* Search + filters */}
-      <div style={{
-        background: "white",
-        padding: 14,
-        borderRadius: 12,
-        boxShadow: "0 4px 14px rgba(15,23,42,0.06)",
-        display: "flex",
-        gap: 10,
-        flexWrap: "wrap",
-        alignItems: "center",
-        marginBottom: 18
-      }}>
+      <div className={styles.filterBar}>
         <input
           type="text"
           placeholder="🔍 Search by project name, customer, product, skills..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          style={{
-            flex: 1,
-            minWidth: 280,
-            padding: "10px 14px",
-            border: "1px solid #e2e8f0",
-            borderRadius: 8,
-            fontSize: 13
-          }}
+          className={styles.searchInput}
         />
 
-        <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} style={inputStyle()}>
+        <select
+          value={priorityFilter}
+          onChange={(e) => setPriorityFilter(e.target.value)}
+          className={styles.filterSelect}
+        >
           <option value="">All priorities</option>
           <option value="HIGH">High</option>
           <option value="MEDIUM">Medium</option>
           <option value="LOW">Low</option>
         </select>
 
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={inputStyle()}>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className={styles.filterSelect}
+        >
           <option value="">All statuses</option>
           <option value="ACTIVE">Active</option>
           <option value="IN_PROGRESS">In Progress</option>
@@ -1042,27 +807,20 @@ function Projects() {
           <option value="CANCELLED">Cancelled</option>
         </select>
 
-        <div style={{ fontSize: 12, color: "#94a3b8", marginLeft: 6 }}>
+        <div className={styles.filterCount}>
           {filtered.length} of {projects.length}
         </div>
       </div>
 
       {/* Cards */}
       {loading && (
-        <div style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>
+        <div className={styles.loadingState}>
           Loading projects…
         </div>
       )}
 
       {!loading && filtered.length === 0 && (
-        <div style={{
-          padding: 50,
-          textAlign: "center",
-          color: "#94a3b8",
-          background: "white",
-          borderRadius: 14,
-          border: "1px dashed #cbd5e1"
-        }}>
+        <div className={styles.emptyState}>
           {projects.length === 0
             ? "No projects yet. Click + Create Project to start the workflow."
             : "No projects match these filters."}
@@ -1072,41 +830,17 @@ function Projects() {
       {/* Active projects */}
       {activeProjects.length > 0 && (
         <>
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            marginBottom: 12,
-            marginTop: 4
-          }}>
-            <span style={{
-              fontSize: 11,
-              fontWeight: 800,
-              letterSpacing: 1.4,
-              color: "#10b981",
-              textTransform: "uppercase"
-            }}>
+          <div className={styles.sectionHeader}>
+            <span className={`${styles.sectionLabel} ${styles.sectionLabelActive}`}>
               ⚙️ Active Projects
             </span>
-            <span style={{
-              background: "#dcfce7",
-              color: "#166534",
-              fontSize: 11,
-              fontWeight: 800,
-              padding: "2px 10px",
-              borderRadius: 999
-            }}>
+            <span className={styles.sectionBadgeActive}>
               {activeProjects.length}
             </span>
-            <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
+            <div className={styles.sectionDivider} />
           </div>
 
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-            gap: 18,
-            marginBottom: 24
-          }}>
+          <div className={styles.cardsGrid}>
             {activeProjects.map((p) => (
               <ProjectCard
                 key={p.ID}
@@ -1124,52 +858,22 @@ function Projects() {
         <>
           <div
             onClick={() => setShowDone((v) => !v)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              marginBottom: 12,
-              marginTop: 8,
-              cursor: "pointer",
-              userSelect: "none"
-            }}
+            className={styles.sectionHeaderClickable}
           >
-            <span style={{
-              fontSize: 11,
-              fontWeight: 800,
-              letterSpacing: 1.4,
-              color: "#1e40af",
-              textTransform: "uppercase"
-            }}>
+            <span className={`${styles.sectionLabel} ${styles.sectionLabelDone}`}>
               ✓ Done
             </span>
-            <span style={{
-              background: "#dbeafe",
-              color: "#1e40af",
-              fontSize: 11,
-              fontWeight: 800,
-              padding: "2px 10px",
-              borderRadius: 999
-            }}>
+            <span className={styles.sectionBadgeDone}>
               {doneProjects.length}
             </span>
-            <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
-            <span style={{
-              fontSize: 11,
-              color: "#64748b",
-              fontWeight: 700
-            }}>
+            <div className={styles.sectionDivider} />
+            <span className={styles.sectionToggle}>
               {showDone ? "▾ hide" : "▸ show"}
             </span>
           </div>
 
           {showDone && (
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-              gap: 18,
-              opacity: 0.85
-            }}>
+            <div className={styles.cardsGridDone}>
               {doneProjects.map((p) => (
                 <ProjectCard
                   key={p.ID}

@@ -1,0 +1,340 @@
+/* Organization page — scoped styles */
+
+.page {
+  padding: var(--sp-6);
+}
+
+.pageDesc {
+  color: var(--text-secondary);
+  font-size: var(--font-base);
+  margin-bottom: 18px;
+}
+
+/* ─── Seed bar ──────────────────────────────────────────────── */
+
+.seedBar {
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.seedBarContent {
+  flex: 1;
+  min-width: 200px;
+}
+
+.seedBarTitle {
+  color: var(--info-dark, var(--text-primary));
+  font-weight: var(--fw-bold);
+}
+
+.seedBarDesc {
+  font-size: var(--font-sm);
+  color: var(--info, var(--text-secondary));
+  margin-top: 2px;
+}
+
+.seedMsg {
+  width: 100%;
+  padding: var(--sp-2);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+}
+
+.seedMsgOk {
+  color: var(--success);
+  background: var(--success-bg);
+}
+
+.seedMsgFail {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+/* ─── Tab bar ───────────────────────────────────────────────── */
+
+.tabBar {
+  display: flex;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  padding: var(--sp-2) var(--sp-5);
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--text-secondary);
+  font-weight: var(--fw-medium);
+  font-size: var(--font-base);
+  font-family: var(--font);
+  cursor: pointer;
+  margin-bottom: -1px;
+  transition: color var(--ease), border-color var(--ease);
+}
+
+.tabActive {
+  border-bottom-color: var(--info);
+  color: var(--info);
+  font-weight: var(--fw-bold);
+}
+
+/* ─── Shared select + button ────────────────────────────────── */
+
+.select {
+  padding: 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  background: var(--card-bg);
+  font-size: var(--font-base);
+  font-family: var(--font);
+  color: var(--text-primary);
+  min-width: 180px;
+  outline: none;
+}
+
+.select:focus {
+  border-color: var(--info);
+}
+
+.primaryBtn {
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--info);
+  color: var(--text-inverse);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semi);
+  font-family: var(--font);
+  cursor: pointer;
+  transition: background var(--ease);
+}
+
+.primaryBtn:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.primaryBtn:disabled {
+  background: var(--slate-400);
+  cursor: not-allowed;
+}
+
+/* ─── Departments head-select row ───────────────────────────── */
+
+.headRow {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.headSelect {
+  padding: 6px var(--sp-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  color: var(--text-primary);
+  min-width: 200px;
+  outline: none;
+}
+
+.saveBtn {
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  border: none;
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  cursor: pointer;
+  color: var(--text-inverse);
+  background: var(--info);
+  transition: background var(--ease);
+}
+
+.saveBtnDisabled {
+  background: var(--slate-400);
+  cursor: default;
+}
+
+.savedConfirm {
+  font-size: var(--font-xs);
+  color: var(--success);
+  font-weight: var(--fw-bold);
+}
+
+.headInfo {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  margin-top: var(--sp-1);
+}
+
+/* ─── Designations filter row ───────────────────────────────── */
+
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.filterLabel {
+  font-weight: var(--fw-semi);
+  color: var(--text-primary);
+  font-size: var(--font-base);
+}
+
+/* ─── RolesTab 2-column grid ────────────────────────────────── */
+
+.rolesLayout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: var(--sp-4);
+}
+
+.roleListPanel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-2);
+  background: var(--card-bg);
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.roleListTitle {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  padding: 6px var(--sp-2);
+  font-weight: var(--fw-bold);
+}
+
+.roleListEmpty {
+  padding: var(--sp-3);
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+}
+
+.roleBtn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--sp-2) var(--sp-3);
+  margin-bottom: var(--sp-1);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: var(--text-primary);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-medium);
+  font-family: var(--font);
+  transition: all var(--ease);
+}
+
+.roleBtnActive {
+  background: var(--info-bg);
+  border-color: var(--info);
+  font-weight: var(--fw-bold);
+}
+
+.roleBtnBadge {
+  font-size: var(--font-xs);
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #dbeafe;
+  color: #1e40af;
+  font-weight: var(--fw-semi);
+}
+
+.roleBtnCount {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  font-weight: var(--fw-normal);
+  margin-top: 2px;
+}
+
+.permPanel {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+  background: var(--card-bg);
+}
+
+.permPanelEmpty {
+  color: var(--text-secondary);
+  margin: 0;
+  font-size: var(--font-base);
+}
+
+.permPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.permPanelDesc {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.permCatTitle {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+  padding-bottom: var(--sp-1);
+  border-bottom: 1px solid var(--border);
+}
+
+.permItem {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  padding: 6px var(--sp-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: transparent;
+  transition: background var(--ease);
+}
+
+.permItemOn {
+  background: var(--success-bg);
+}
+
+.permName {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semi);
+  color: var(--text-primary);
+}
+
+.permMeta {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+/* ─── Quick utilities ────────────────────────────────────────── */
+
+.thHead { min-width: 260px; }
+
+.tdEmpty { color: var(--text-muted); }
+
+.roleHeading { margin: 0; }
+
+.permCategory { margin-bottom: 16px; }
+
+.permCheckbox { margin-top: 3px; }

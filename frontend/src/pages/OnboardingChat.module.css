@@ -1,0 +1,741 @@
+/* ================================================================
+   OnboardingChat.module.css
+   All colours via CSS custom properties — no raw hex/rgba/fonts.
+   Badge/chip accent hardcodes are the only accepted exceptions.
+================================================================ */
+
+/* ---------- Page shell ---------- */
+.page {
+  min-height: 100vh;
+  background: var(--clr-primary);
+  padding: 20px;
+  font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+}
+
+/* ---------- Main grid wrapper ---------- */
+.shell {
+  max-width: 1180px;
+  margin: 0 auto;
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  height: calc(100vh - 40px);
+  min-height: 600px;
+}
+
+/* ---------- Chat column ---------- */
+.chatCol {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Header */
+.chatHeader {
+  background: var(--clr-primary);
+  color: #fff;
+  padding: 16px 22px;
+  flex-shrink: 0;
+}
+
+.chatHeaderLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 2px;
+  opacity: 0.85;
+}
+
+.chatHeaderRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 2px;
+}
+
+.chatHeaderTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: var(--fw-bold);
+}
+
+.chatHeaderCount {
+  font-size: 12px;
+  opacity: 0.9;
+  font-weight: var(--fw-bold);
+}
+
+/* Scroll area */
+.chatScroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 22px;
+  background: var(--layout-bg);
+}
+
+.chatEmpty {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 40px;
+}
+
+/* Error banner */
+.errorBanner {
+  padding: 8px 22px;
+  background: #fef2f2;
+  border-top: 1px solid #fecaca;
+  color: #991b1b;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+/* Input area */
+.inputArea {
+  border-top: 1px solid var(--border);
+  background: var(--card-bg);
+  flex-shrink: 0;
+}
+
+.inputAreaText {
+  padding: 12px 14px;
+}
+
+.inputAreaWidget {
+  padding: 16px 22px;
+}
+
+/* ---------- Side panel ---------- */
+.sidePanel {
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.sidePanelNote {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: -6px;
+}
+
+/* ---------- Pending item row ---------- */
+.pendingItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 0;
+  font-size: 12px;
+  border-bottom: 1px dashed #fef3c7;
+}
+
+.pendingItemSkipped {
+  opacity: 0.65;
+}
+
+.pendingLabel {
+  color: var(--text-primary);
+}
+
+.pendingLabelStruck {
+  color: var(--text-primary);
+  text-decoration: line-through;
+}
+
+.badgeRow {
+  display: flex;
+  gap: 4px;
+}
+
+/* Status chips — accent hardcodes intentional */
+.chipSkipped {
+  font-size: 9px;
+  font-weight: var(--fw-extrabold);
+  padding: 1px 6px;
+  background: #e2e8f0;
+  color: #475569;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.5px;
+}
+
+.chipRequired {
+  font-size: 9px;
+  font-weight: var(--fw-extrabold);
+  padding: 1px 6px;
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.5px;
+}
+
+/* ---------- Action buttons ---------- */
+.actionButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.btnSubmit {
+  padding: 13px 18px;
+  background: var(--clr-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: var(--fw-extrabold);
+  font-size: 14px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btnSubmit:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.btnSubmitComplete {
+  padding: 13px 18px;
+  background: #16a34a;
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: var(--fw-extrabold);
+  font-size: 14px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btnSubmitComplete:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.btnSave {
+  padding: 10px 14px;
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btnSave:hover {
+  background: var(--layout-bg);
+}
+
+.autosaveNote {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text-primary);
+  color: #fff;
+  padding: 14px 22px;
+  border-radius: var(--radius-lg);
+  font-size: 14px;
+  font-weight: var(--fw-bold);
+  box-shadow: var(--shadow-md);
+  z-index: 1100;
+}
+
+/* ---------- Chat bubbles ---------- */
+.bubbleWrap {
+  display: flex;
+  margin-bottom: 10px;
+}
+
+.bubbleWrapUser {
+  justify-content: flex-end;
+}
+
+.bubbleWrapAssistant {
+  justify-content: flex-start;
+}
+
+.bubbleUser {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: var(--radius-lg);
+  background: var(--clr-primary);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.5;
+  box-shadow: var(--shadow-sm);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.bubbleAssistant {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: var(--radius-lg);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.bubbleMuted {
+  opacity: 0.6;
+  font-style: italic;
+}
+
+/* ---------- Progress circle ---------- */
+.progressCircle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.progressInner {
+  position: relative;
+}
+
+.progressCenter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.progressPct {
+  font-size: 28px;
+  font-weight: var(--fw-black);
+}
+
+.progressLabel {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.6px;
+}
+
+/* ---------- CollapsibleCard ---------- */
+.collapsibleCard {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.collapsibleToggle {
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 1.4px;
+  background: transparent;
+}
+
+.collapsibleToggle:hover {
+  filter: brightness(0.95);
+}
+
+.collapsibleCaret {
+  font-size: 12px;
+}
+
+.collapsibleBody {
+  padding: 10px 14px;
+}
+
+/* ---------- DataRow ---------- */
+.dataRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px dashed var(--border);
+  font-size: 11px;
+}
+
+.dataRowLabel {
+  color: var(--text-secondary);
+}
+
+.dataRowValue {
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  text-align: right;
+  word-break: break-word;
+  max-width: 60%;
+}
+
+/* ---------- SmartInput controls ---------- */
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.cardChipLabel {
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  color: var(--text-secondary);
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.cardChip {
+  padding: 14px 8px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card-bg);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.cardChip:hover:not(:disabled) {
+  background: var(--layout-bg);
+  border-color: var(--clr-primary);
+}
+
+.cardChip:disabled {
+  cursor: default;
+}
+
+.cardChipEmoji {
+  font-size: 24px;
+}
+
+.radioRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.radioBtn {
+  padding: 12px 24px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--card-bg);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.radioBtn:hover:not(:disabled) {
+  background: var(--clr-primary);
+  color: #fff;
+  border-color: var(--clr-primary);
+}
+
+.radioBtn:disabled {
+  cursor: default;
+}
+
+.inlineInputRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.textInput {
+  flex: 1;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--card-bg);
+}
+
+.selectInput {
+  flex: 1;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--card-bg);
+}
+
+.textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+  background: var(--card-bg);
+}
+
+.textareaFooter {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.sendBtn {
+  padding: 11px 22px;
+  background: var(--clr-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: var(--fw-extrabold);
+  font-size: 14px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.sendBtn:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.sendBtn:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+/* Skip row */
+.skipCenter {
+  text-align: center;
+  margin-top: 10px;
+}
+
+.skipBtn {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.skipBtn:disabled {
+  cursor: default;
+}
+
+.skipBtnCompact {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 11px 10px;
+}
+
+.skipBtnCompact:disabled {
+  cursor: default;
+}
+
+/* ---------- Confirm Partial Modal ---------- */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+  padding: 20px;
+}
+
+.modalBox {
+  width: min(460px, 100%);
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  padding: 28px;
+  box-shadow: var(--shadow-md);
+}
+
+.modalIcon {
+  font-size: 36px;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.modalTitle {
+  margin: 0 0 8px;
+  font-size: 20px;
+  text-align: center;
+  color: var(--text-primary);
+}
+
+.modalBody {
+  margin: 0 0 18px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.modalNote {
+  margin: 0 0 22px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.modalButtons {
+  display: flex;
+  gap: 10px;
+}
+
+.btnKeepGoing {
+  flex: 1;
+  padding: 12px 16px;
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btnKeepGoing:hover {
+  background: var(--layout-bg);
+}
+
+.btnSubmitAnyway {
+  flex: 1;
+  padding: 12px 16px;
+  background: var(--clr-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: var(--fw-extrabold);
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btnSubmitAnyway:hover {
+  opacity: 0.88;
+}
+
+/* ---------- Submitted screen ---------- */
+.submittedPage {
+  min-height: 100vh;
+  background: var(--clr-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.submittedCard {
+  width: min(540px, 100%);
+  background: var(--card-bg);
+  border-radius: 18px;
+  padding: 40px;
+  box-shadow: var(--shadow-md);
+  text-align: center;
+}
+
+.submittedIcon {
+  width: 90px;
+  height: 90px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44px;
+  color: #fff;
+}
+
+.submittedIconFull {
+  background: #16a34a;
+}
+
+.submittedIconPartial {
+  background: var(--clr-primary);
+}
+
+.submittedTitle {
+  margin: 0;
+  font-size: 24px;
+  color: var(--text-primary);
+}
+
+.submittedPct {
+  font-size: 48px;
+  font-weight: var(--fw-black);
+  margin-top: 18px;
+  letter-spacing: -1px;
+}
+
+.submittedPctFull {
+  color: #16a34a;
+}
+
+.submittedPctPartial {
+  color: var(--clr-primary);
+}
+
+.submittedVerifyLabel {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1px;
+}
+
+.submittedMessage {
+  margin: 22px 0 8px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* Reference chip — accent hardcode intentional */
+.refChip {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin-top: 22px;
+  display: inline-block;
+  font-size: 13px;
+  color: #dc2626;
+}
+
+.submittedPendingNote {
+  margin: 22px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}

@@ -1,98 +1,169 @@
+/* ================================================================
+   BVC ERP — Master Design Tokens
+   Primary: #ef4444  |  Style: Odoo-inspired Professional ERP
+
+   All theme changes live here. App.css consumes these via var().
+   To retheme the entire app: edit only this file.
+   ================================================================ */
+
 :root {
-  /* =========================================================
-     BVC24 Design System  —  White 80% / Red 15% / Grey 5%
-     ---------------------------------------------------------
-     Red is reserved for: primary buttons, active states,
-     destructive confirmations, and small accent strokes.
-     The dominant surface is white; grey carries hierarchy.
-     ========================================================= */
+  /* ── Brand / Primary ─────────────────────────────────────────── */
+  /* --clr-primary: #ef4444; */
+  --clr-primary: #dc2626;
+  --clr-primary-dark: #dc2626;
+  --clr-primary-darker: #b91c1c;
+  --clr-primary-light: #fef2f2;
+  --clr-primary-muted: rgba(239, 68, 68, 0.08);
+  --clr-primary-border: rgba(239, 68, 68, 0.22);
 
-  /* Brand */
-  --bvc-red:        #C8102E;   /* primary action */
-  --bvc-red-hover:  #7A1022;   /* button hover / pressed */
-  --bvc-red-soft:   #fef2f4;   /* tinted hover background */
-  --bvc-red-bar:    #fee2e6;   /* active-row tint */
-  --bvc-gold:       #F4B324;   /* sparingly — never as a fill */
+  /* ── Sidebar (light Odoo-style) ──────────────────────────────── */
+  --sidebar-bg: #ffffff;
+  --sidebar-bg-deep: #f8fafc;
+  --sidebar-border: #e5e7eb;
+  --sidebar-width: 260px;
+  --sidebar-shadow: 1px 0 0 #e5e7eb;
+  --sidebar-text: #374151;
+  --sidebar-text-dim: #9ca3af;
+  --sidebar-active-bg: #fef2f2;
+  --sidebar-active-text: #ef4444;
+  --sidebar-hover-bg: #f3f4f6;
+  --sidebar-hover-text: #111827;
+  --sidebar-icon-color: #6b7280;
+  --sidebar-icon-active: #ef4444;
+  --sidebar-accent-bar: #ef4444;
 
-  /* Surfaces */
-  --bvc-surface:    #ffffff;
-  --bvc-surface-2:  #fafbfc;
-  --bvc-surface-3:  #f1f5f9;
+  /* ── Layout ───────────────────────────────────────────────────── */
+  --layout-bg: #f8f9fa;
+  --surface: #f1f5f9;
+  --card-bg: #ffffff;
 
-  /* Text */
-  --bvc-text:       #0f172a;
-  --bvc-text-muted: #475569;
-  --bvc-text-soft:  #94a3b8;
+  /* ── Text ─────────────────────────────────────────────────────── */
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --text-inverse: #ffffff;
 
-  /* Borders */
-  --bvc-border:     #e2e8f0;
-  --bvc-border-2:   #f1f5f9;
+  /* ── Border ───────────────────────────────────────────────────── */
+  --border: #e2e8f0;
+  --border-light: #f1f5f9;
+  --border-strong: #cbd5e1;
 
-  /* Status */
-  --bvc-success:    #16a34a;
-  --bvc-warning:    #d97706;
-  --bvc-error:      #dc2626;
+  /* ── Shadow ───────────────────────────────────────────────────── */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow: 0 2px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.09), 0 2px 4px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 32px rgba(0, 0, 0, 0.10), 0 4px 10px rgba(0, 0, 0, 0.06);
 
-  /* Legacy aliases — keep so old references don't break */
-  --text: var(--bvc-text-muted);
-  --text-h: var(--bvc-text);
-  --bg: var(--bvc-surface);
-  --border: var(--bvc-border);
-  --code-bg: #f4f3ec;
-  --accent: var(--bvc-red);
-  --accent-bg: var(--bvc-red-soft);
-  --accent-border: rgba(200,16,46,0.35);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.06) 0 10px 15px -3px, rgba(0, 0, 0, 0.03) 0 4px 6px -2px;
+  /* ── Border Radius ────────────────────────────────────────────── */
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 18px;
+  --radius-full: 9999px;
 
-  /* Application-wide font: Segoe UI Bold Italic (per design decision).
-     Segoe UI is pre-installed on every Windows machine. Fallback chain
-     covers macOS / Linux users with the closest match. */
-  --sans:    "Segoe UI", "Segoe UI Bold Italic", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
-  --heading: "Segoe UI", "Segoe UI Bold Italic", system-ui, -apple-system, Roboto, sans-serif;
-  --mono:    ui-monospace, Consolas, "Liberation Mono", monospace;
+  /* ── Status ───────────────────────────────────────────────────── */
+  --success: #16a34a;
+  --success-dark: #15803d;
+  --success-bg: #f0fdf4;
+  --success-border: #bbf7d0;
+  --warning: #d97706;
+  --warning-dark: #b45309;
+  --warning-bg: #fffbeb;
+  --warning-border: #fde68a;
+  --danger: #dc2626;
+  --danger-dark: #991b1b;
+  --danger-light: #fca5a5;
+  --danger-bg: #fef2f2;
+  --danger-border: #fecaca;
+  --info: #2563eb;
+  --info-bg: #eff6ff;
+  --info-border: #bfdbfe;
+  --neutral: #64748b;
+  --neutral-bg: #f1f5f9;
+  --neutral-border: #e2e8f0;
 
-  font: 16px/1.55 var(--sans);
-  font-weight: 700;     /* Bold across the whole app  */
-  font-style: italic;   /* Italic across the whole app */
-  letter-spacing: 0;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* ── Slate scale ─────────────────────────────────────────────── */
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
 
-  @media (max-width: 1024px) {
-    font-size: 15px;
-  }
+  /* ── Typography ───────────────────────────────────────────────── */
+  --font: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  --font-xs: 11px;
+  --font-sm: 12px;
+  --font-base: 14px;
+  --font-md: 15px;
+  --font-lg: 17px;
+  --font-xl: 20px;
+  --font-2xl: 24px;
+  --font-3xl: 30px;
+  --fw-normal: 400;
+  --fw-medium: 500;
+  --fw-semi: 600;
+  --fw-bold: 700;
+  --fw-black: 800;
+  --lh: 1.5;
+
+  /* ── Spacing ──────────────────────────────────────────────────── */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+
+  /* ── Transition ───────────────────────────────────────────────── */
+  --ease: 0.18s ease;
+  --ease-slow: 0.30s ease;
+
+  /* ── Table ────────────────────────────────────────────────────── */
+  --table-th-bg: #f8fafc;
+  --table-th-color: #64748b;
+  --table-border: #e2e8f0;
+  --table-td-border: #f1f5f9;
+  --table-hover: #fafafa;
+
+  /* ── Login page ───────────────────────────────────────────────── */
+  --login-bg: #f1f5f9;
+
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+/* ─── Global reset & base ─────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
   margin: 0;
-  font-family: var(--sans);
+  font-family: var(--font);
+  font-size: var(--font-base);
+  color: var(--text-primary);
+  background: var(--layout-bg);
+  line-height: var(--lh);
+  width: 100%;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
 }
 
 /* Form controls inherit the page font by default in most browsers, but
@@ -396,4 +467,3 @@ svg[width][height] { height: revert; }   /* keep icon sizes */
     min-height: 38px;
   }
 }
-
