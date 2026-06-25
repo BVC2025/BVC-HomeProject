@@ -256,8 +256,7 @@ function CurrentRun() {
                 </span>
               </div>
               <div className={styles.tableMetaSub}>
-                {paidCount} paid · {slips.length - paidCount} pending ·
-                {" "}Net ₹{inr(run?.TOTAL_NET)}
+                {paidCount} paid · {slips.length - paidCount} pending
               </div>
             </div>
 
@@ -271,7 +270,6 @@ function CurrentRun() {
                   <th className={styles.thCenter}>Permission</th>
                   <th className={styles.thCenter}>Rating</th>
                   <th className={styles.thRight}>Bonus</th>
-                  <th className={styles.thRight}>Net Pay</th>
                   <th className={styles.thRight}>Action</th>
                 </tr>
               </thead>
@@ -298,7 +296,6 @@ function CurrentRun() {
                         </span>
                       </td>
                       <td className={styles.bonusCell}>₹ {inr(s.STAR_BONUS)}</td>
-                      <td className={styles.netPay}>₹ {inr(s.NET_PAY)}</td>
                       <td className={styles.tdRight}>
                         {isPaid ? (
                           <span className={styles.paidBadge}>✓ Paid</span>
