@@ -14,4 +14,9 @@ export const categoryService = {
 
   remove: (id) =>
     API.delete(`/project-categories/${id}`),
+
+  bulkUpload: (formData, sheetName = null) => {
+    const qs = sheetName ? `?vendor_id=${VENDOR_ID}&sheet_name=${encodeURIComponent(sheetName)}` : `?vendor_id=${VENDOR_ID}`;
+    return API.post(`/project-categories/bulk-upload${qs}`, formData);
+  },
 };

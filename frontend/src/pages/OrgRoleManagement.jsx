@@ -13,9 +13,10 @@ import { exportToExcel, downloadTemplate as dlTemplate } from "../utils/exportEx
 import RoleIcon from "../assets/Icons/roleIcon.webp";
 import EditIcon from "../assets/Icons/editIcon.webp";
 import DeleteIcon from "../assets/Icons/deleteIcon.webp";
+import UploadIcon from "../assets/Icons/uploadIcon.webp";
 import styles from "./OrgRoleManagement.module.css";
 
-const EMPTY_FORM = { ROLE_NAME: "", DEPARTMENT_ID: "", DESCRIPTION: "" };
+const EMPTY_FORM = { NAME: "", DEPARTMENT_ID: "", DESCRIPTION: "" };
 
 export default function OrgRoleManagement() {
   const [rows, setRows] = useState([]);
@@ -36,9 +37,8 @@ export default function OrgRoleManagement() {
   // Bulk upload
   const [bulkModal, setBulkModal] = useState(false);
   const [bulkFile, setBulkFile] = useState(null);
-  const [bulkSheets, setBulkSheets] = useState([]);
-  const [bulkSheet, setBulkSheet] = useState("");
   const [bulkUploading, setBulkUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState(null);
   const fileRef = useRef();
 
   const toast = useToast();
@@ -113,7 +113,7 @@ export default function OrgRoleManagement() {
 
   const openEdit = useCallback((row) => {
     setForm({
-      ROLE_NAME: row.NAME,
+      NAME: row.NAME,
       DEPARTMENT_ID: row.DEPARTMENT_ID || "",
       DESCRIPTION: row.DESCRIPTION || "",
     });
@@ -132,16 +132,16 @@ export default function OrgRoleManagement() {
   }, []);
 
   const handleSave = useCallback(async () => {
-    if (!form.ROLE_NAME.trim()) {
+    if (!form.NAME.trim()) {
       toast.showWarning("Role name is required");
       return;
     }
-    const missingCf = validateCf();
-    if (missingCf) { toast.showWarning(`"${missingCf}" is required`); return; }
+    const cfError = validateCf();
+    if (cfError) { toast.showWarning(cfError); return; }
     setSaving(true);
     try {
       const payload = {
-        ROLE_NAME: form.ROLE_NAME.trim(),
+        NAME: form.NAME.trim(),
         DEPARTMENT_ID: form.DEPARTMENT_ID || null,
         DESCRIPTION: form.DESCRIPTION,
       };
@@ -182,57 +182,38 @@ export default function OrgRoleManagement() {
 
   const downloadTemplate = useCallback(async () => {
     try {
-      await dlTemplate("Roles", ["Role Name", "Department Name", "Description"], "roles");
+      const headers = ["Role Name", "Department Name", "Description", ...cfFields.map((f) => f.FIELD_NAME)];
+      await dlTemplate("Roles", headers, "roles_template");
     } catch {
       toast.showError("Failed to download template");
     }
-  }, []);
+  }, [cfFields, toast]);
 
   const openBulk = useCallback(() => {
     setBulkFile(null);
-    setBulkSheets([]);
-    setBulkSheet("");
+    setUploadResult(null);
     setBulkModal(true);
   }, []);
 
   const handleFileChange = useCallback(async (e) => {
     const f = e.target.files[0];
     if (!f) return;
+    e.target.value = "";
     setBulkFile(f);
-    setBulkSheets([]);
-    setBulkSheet("");
+    setUploadResult(null);
     const fd = new FormData();
     fd.append("file", f);
+    setBulkUploading(true);
     try {
       const res = await roleService.bulkUpload(fd);
-      if (res.data.requires_sheet_selection) {
-        setBulkSheets(res.data.sheets);
-      } else {
-        toast.showSuccess(`${res.data.created} created, ${res.data.skipped} skipped`);
-        setBulkModal(false);
-        loadAll();
-      }
-    } catch (e) {
-      toast.showError(e?.response?.data?.detail || "Parse failed");
-    }
-  }, [loadAll, toast]);
-
-  const handleSheetSelect = useCallback(async () => {
-    if (!bulkFile || !bulkSheet) return;
-    setBulkUploading(true);
-    const fd = new FormData();
-    fd.append("file", bulkFile);
-    try {
-      const res = await roleService.bulkUpload(fd, bulkSheet);
-      toast.showSuccess(`${res.data.created} created, ${res.data.skipped} skipped`);
-      setBulkModal(false);
-      loadAll();
-    } catch (e) {
-      toast.showError(e?.response?.data?.detail || "Upload failed");
+      setUploadResult(res.data);
+      loadAll(true);
+    } catch (err) {
+      toast.showError(err?.response?.data?.detail || "Upload failed");
     } finally {
       setBulkUploading(false);
     }
-  }, [bulkFile, bulkSheet, loadAll, toast]);
+  }, [loadAll, toast]);
 
   const handleExport = useCallback(() => {
     const data = filtered.map((r, i) => {
@@ -391,8 +372,8 @@ export default function OrgRoleManagement() {
             <label>Role Name <span className={styles.req}>*</span></label>
             <input
               className={styles.input}
-              value={form.ROLE_NAME}
-              onChange={(e) => handleFormChange("ROLE_NAME", e.target.value)}
+              value={form.NAME}
+              onChange={(e) => handleFormChange("NAME", e.target.value)}
               placeholder="e.g. PLC Engineer"
             />
           </div>
@@ -434,11 +415,15 @@ export default function OrgRoleManagement() {
         size="sm"
       >
         <p className={styles.bulkHint}>
-          Upload an Excel file with columns: <strong>ROLE_NAME</strong>, <strong>DEPARTMENT_NAME</strong>, <strong>DESCRIPTION</strong>.
+          Upload an Excel file with sheet name <strong>"Roles"</strong> and columns:{" "}
+          <strong>Role Name</strong>, <strong>Department Name</strong>, <strong>Description</strong>
+          {cfFields.length > 0 && <>, plus any custom fields</>}.
+          Existing records (matched by name) are updated; new ones are inserted.
         </p>
-        <div className={styles.dropzone} onClick={() => fileRef.current.click()}>
-          <span className={styles.dropIcon}>📂</span>
+        <div className={styles.dropzone} onClick={() => fileRef.current?.click()}>
+          <span className={styles.dropIconWrap}><img src={UploadIcon} alt="Upload" /></span>
           <span>{bulkFile ? bulkFile.name : "Click to browse or drop Excel (.xlsx)"}</span>
+          {bulkUploading && <span>Uploading…</span>}
         </div>
         <input
           ref={fileRef}
@@ -447,24 +432,36 @@ export default function OrgRoleManagement() {
           style={{ display: "none" }}
           onChange={handleFileChange}
         />
-        {bulkSheets.length > 0 && (
-          <div className={styles.sheetPicker}>
-            <label className={styles.formLabel}>Select Sheet</label>
-            <PMSelect
-              options={bulkSheets}
-              value={bulkSheet}
-              onChange={setBulkSheet}
-              allowClear
-              clearLabel="— choose sheet —"
-            />
-            <PMButton
-              variant="primary"
-              onClick={handleSheetSelect}
-              disabled={!bulkSheet || bulkUploading}
-              style={{ marginTop: 10 }}
-            >
-              {bulkUploading ? "Uploading…" : "Import Sheet"}
-            </PMButton>
+        {uploadResult && (
+          <div className={styles.uploadResult}>
+            <div className={styles.resultStats}>
+              <div className={styles.resultStat}>
+                <span className={styles.statValue}>{uploadResult.inserted ?? 0}</span>
+                <span className={styles.statLabel}>Inserted</span>
+              </div>
+              <div className={styles.resultStat}>
+                <span className={styles.statValue}>{uploadResult.updated ?? 0}</span>
+                <span className={styles.statLabel}>Updated</span>
+              </div>
+              <div className={styles.resultStat}>
+                <span className={styles.statValue}>{uploadResult.skipped ?? 0}</span>
+                <span className={styles.statLabel}>Skipped</span>
+              </div>
+            </div>
+            {uploadResult.errors?.length > 0 && (
+              <div className={styles.errorSection}>
+                <p className={styles.errorSectionTitle}>Errors ({uploadResult.errors.length})</p>
+                <ul className={styles.errorList}>
+                  {uploadResult.errors.map((e, i) => (
+                    <li key={i} className={styles.errorItem}>
+                      <span className={styles.errorRowNum}>Row {e.row}</span>
+                      {e.field && <span className={styles.errorField}>{e.field}</span>}
+                      <span className={styles.errorMsg}>{e.message}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
       </PMModal>
@@ -480,7 +477,7 @@ export default function OrgRoleManagement() {
       <PMConfirmModal
         open={!!confirmModal}
         onClose={() => setConfirmModal(null)}
-        onConfirm={confirmModal?.onConfirm ?? (() => {})}
+        onConfirm={confirmModal?.onConfirm ?? (() => { })}
         title={confirmModal?.title}
         description={confirmModal?.description}
         confirmLabel="Delete"

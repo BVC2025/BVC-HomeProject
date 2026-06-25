@@ -119,6 +119,17 @@ def update_custom_field(
     return {"message": "Custom field updated"}
 
 
+def _cf_value_is_empty(val) -> bool:
+    """Return True if a stored CF value should be treated as empty."""
+    if val is None:
+        return True
+    if isinstance(val, str) and val.strip() == "":
+        return True
+    if isinstance(val, (list, dict)) and len(val) == 0:
+        return True
+    return False
+
+
 @router.delete("/custom-fields/{field_id}")
 def delete_custom_field(
     field_id: str,
@@ -127,14 +138,23 @@ def delete_custom_field(
     field = db.query(CustomField).filter(CustomField.ID == field_id).first()
     if not field:
         raise HTTPException(status_code=404, detail="Custom field not found")
-    value_count = db.query(CustomFieldTableValue).filter(
-        CustomFieldTableValue.CUSTOM_FIELD_ID == field_id
-    ).count()
-    if value_count > 0:
+
+    all_value_rows = db.query(CustomFieldTableValue).filter(
+        CustomFieldTableValue.CUSTOM_FIELD_ID == field_id,
+    ).all()
+
+    non_empty = [r for r in all_value_rows if not _cf_value_is_empty(r.CUSTOM_FIELD_VALUE)]
+
+    if non_empty:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot delete: {value_count} value(s) exist for this field. Clear values first."
+            detail=f"Cannot delete: {len(non_empty)} row(s) still have a value for this field. Clear them first."
         )
+
+    # Delete any lingering empty/null value rows before removing the field
+    for r in all_value_rows:
+        db.delete(r)
+
     db.delete(field)
     db.commit()
     return {"message": "Custom field deleted"}

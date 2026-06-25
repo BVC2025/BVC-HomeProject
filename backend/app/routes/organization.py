@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
-from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Optional, List
 import io
@@ -14,7 +13,9 @@ from app.models.models import (
     Permission,
     RolePermission,
     TaskTemplate,
-    Vendor
+    Vendor,
+    CustomField,
+    CustomFieldTableValue,
 )
 
 from app.schemas.org_schema import (
@@ -175,10 +176,13 @@ def delete_department(
             detail="Department has designations. Delete them first."
         )
 
+    db.query(CustomFieldTableValue).filter(
+        CustomFieldTableValue.TABLE_NAME == "department",
+        CustomFieldTableValue.TABLE_ROW_ID == str(dept_id),
+    ).delete(synchronize_session=False)
+
     db.delete(dept)
-
     db.commit()
-
     return {"message": "Department deleted"}
 
 
@@ -790,87 +794,239 @@ def seed_bvc24_role_catalogue(
 
 
 # =========================
-# DEPARTMENT BULK UPLOAD
+# BULK UPLOAD — SHARED HELPERS (org module)
 # =========================
 
-def _parse_excel_departments(file_bytes: bytes, sheet_name: Optional[str] = None):
-    wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
-    sheets = wb.sheetnames
-    if sheet_name and sheet_name in wb.sheetnames:
-        ws = wb[sheet_name]
-    else:
-        ws = wb.active
+def _org_cf_fields(table_name: str, vendor_id: int, db: Session):
+    return (
+        db.query(CustomField)
+          .filter(CustomField.TABLE_NAME == table_name, CustomField.VENDOR_ID == vendor_id)
+          .order_by(CustomField.SORT_ORDER, CustomField.FIELD_NAME)
+          .all()
+    )
+
+
+def _org_upsert_cf(row_id: str, table_name: str, cf_id: str, value, db: Session):
+    stored = value if value else None
+    ex = (
+        db.query(CustomFieldTableValue)
+          .filter(
+              CustomFieldTableValue.TABLE_NAME == table_name,
+              CustomFieldTableValue.TABLE_ROW_ID == str(row_id),
+              CustomFieldTableValue.CUSTOM_FIELD_ID == cf_id,
+          )
+          .first()
+    )
+    if ex:
+        ex.CUSTOM_FIELD_VALUE = stored
+    elif stored is not None:
+        db.add(CustomFieldTableValue(
+            TABLE_NAME=table_name, TABLE_ROW_ID=str(row_id),
+            CUSTOM_FIELD_ID=cf_id, CUSTOM_FIELD_VALUE=stored,
+        ))
+
+
+def _validate_cf_value(field, raw_val) -> Optional[str]:
+    """Validate a raw bulk-upload value against the field's type and options.
+    Returns an error message string if invalid, or None if valid/empty."""
+    import re as _re
+    from datetime import date as _d, datetime as _dt
+
+    if raw_val is None or str(raw_val).strip() == "":
+        return None
+
+    val = str(raw_val).strip()
+    ft  = field.FIELD_TYPE
+
+    if ft == "NUMBER":
+        try:
+            float(val)
+        except ValueError:
+            return "Must be a number"
+
+    elif ft == "EMAIL":
+        if not _re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", val):
+            return "Must be a valid email address (e.g. user@example.com)"
+
+    elif ft == "PHONE":
+        if not _re.fullmatch(r"\+?[\d\s\-().]{7,20}", val):
+            return "Must be a valid phone number"
+
+    elif ft == "DATE":
+        try:
+            _d.fromisoformat(val)
+        except ValueError:
+            return "Must be a valid date (YYYY-MM-DD)"
+
+    elif ft == "DATETIME":
+        try:
+            _dt.fromisoformat(val)
+        except ValueError:
+            return "Must be a valid date/time (YYYY-MM-DDTHH:MM)"
+
+    elif ft in ("SELECT", "RADIO"):
+        allowed = field.OPTIONS or []
+        if allowed and val not in allowed:
+            return f'Invalid option "{val}". Allowed values: {", ".join(allowed)}'
+
+    elif ft == "CHECKBOX":
+        allowed = set(field.OPTIONS or [])
+        if allowed:
+            items = [v.strip() for v in val.split(",") if v.strip()] if isinstance(raw_val, str) else [val]
+            bad = [v for v in items if v not in allowed]
+            if bad:
+                return f'Invalid option(s): {", ".join(bad)}. Allowed: {", ".join(field.OPTIONS or [])}'
+
+    return None
+
+
+def _org_cf_changed(row_id: str, table_name: str, cf_vals: dict, db: Session) -> bool:
+    for cf_id, new_val in cf_vals.items():
+        row = (
+            db.query(CustomFieldTableValue)
+              .filter(
+                  CustomFieldTableValue.TABLE_NAME == table_name,
+                  CustomFieldTableValue.TABLE_ROW_ID == str(row_id),
+                  CustomFieldTableValue.CUSTOM_FIELD_ID == cf_id,
+              )
+              .first()
+        )
+        old_s = str(row.CUSTOM_FIELD_VALUE) if (row and row.CUSTOM_FIELD_VALUE is not None) else ""
+        new_s = str(new_val) if new_val else ""
+        if old_s != new_s:
+            return True
+    return False
+
+
+def _org_parse_xl(content: bytes, required_sheet: str):
+    """Load workbook, validate sheet name (exact/case-sensitive), return (headers_upper, rows)."""
+    wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
+    if required_sheet not in wb.sheetnames:
+        available = ", ".join(f'"{s}"' for s in wb.sheetnames)
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f'Sheet "{required_sheet}" not found in the uploaded file. '
+                f'Available sheets: {available}. '
+                f'Please use the Template download to get a correctly named workbook.'
+            ),
+        )
+    ws = wb[required_sheet]
+    headers: Optional[List[str]] = None
     rows = []
-    headers = []
     for i, row in enumerate(ws.iter_rows(values_only=True)):
         if i == 0:
-            headers = [str(c).strip().upper() if c else "" for c in row]
+            headers = [str(c).strip().upper() if c is not None else "" for c in row]
             continue
         if all(c is None for c in row):
             continue
-        record = dict(zip(headers, row))
-        name = str(record.get("NAME") or "").strip()
-        code = str(record.get("CODE") or "").strip()
-        desc = str(record.get("DESCRIPTION") or "").strip()
-        if name and code:
-            rows.append({"NAME": name, "CODE": code, "DESCRIPTION": desc or None})
-    return sheets, rows
+        rows.append(row)
+    return headers, rows
 
 
-@router.get("/departments/bulk-upload/template")
-def department_upload_template():
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Departments"
-    ws.append(["NAME", "CODE", "DESCRIPTION"])
-    ws.append(["Software Development", "SW", "Software team"])
-    ws.append(["Electrical", "ELEC", "Electrical department"])
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-    return StreamingResponse(
-        buf,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=departments_template.xlsx"}
-    )
+def _org_cell(record: dict, *keys) -> str:
+    for k in keys:
+        v = record.get(k.upper())
+        if v is not None:
+            s = str(v).strip()
+            if s:
+                return s
+    return ""
 
+
+_DEPT_STD_COLS = {"NAME", "CODE", "DESCRIPTION", "S.NO", "S.N", "SN", ""}
+_ROLE_STD_COLS = {"ROLE NAME", "DEPARTMENT NAME", "DESCRIPTION", "S.NO", "S.N", "SN", ""}
+
+
+# =========================
+# DEPARTMENT BULK UPLOAD
+# =========================
 
 @router.post("/departments/bulk-upload")
 async def bulk_upload_departments(
     vendor_id: int = Query(1),
-    sheet_name: Optional[str] = Query(None),
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
     content = await file.read()
-    sheets, rows = _parse_excel_departments(content, sheet_name)
+    headers, data_rows = _org_parse_xl(content, "Departments")
 
-    if not sheet_name and len(sheets) > 1:
-        return {"sheets": sheets, "requires_sheet_selection": True}
+    cf_fields   = _org_cf_fields("department", vendor_id, db)
+    cf_by_upper = {f.FIELD_NAME.upper(): f for f in cf_fields}
+    cf_cols     = [h for h in headers if h not in _DEPT_STD_COLS and h in cf_by_upper]
 
-    created = skipped = 0
-    for r in rows:
-        exists = db.query(Department).filter(
-            Department.VENDOR_ID == vendor_id,
-            Department.DEPARTMENT_CODE == r["CODE"].upper()
-        ).first()
-        if exists:
-            skipped += 1
+    inserted = updated = skipped = 0
+    errors: List[dict] = []
+
+    for row_num, raw in enumerate(data_rows, start=2):
+        record = {headers[i].upper(): raw[i] for i in range(len(headers))}
+
+        name = _org_cell(record, "NAME")
+        code = _org_cell(record, "CODE")
+        desc = _org_cell(record, "DESCRIPTION") or None
+
+        if not name:
+            errors.append({"row": row_num, "field": "Name", "message": "Name is required"})
             continue
-        db.add(Department(
-            NAME=r["NAME"],
-            DEPARTMENT_CODE=r["CODE"].upper(),
-            DESCRIPTION=r["DESCRIPTION"],
-            VENDOR_ID=vendor_id
-        ))
-        created += 1
+        if not code:
+            errors.append({"row": row_num, "field": "Code", "message": "Code is required"})
+            continue
+
+        cf_vals: dict = {}
+        cf_error = False
+        for col in cf_cols:
+            cf_f = cf_by_upper[col]
+            val  = _org_cell(record, col) or None
+            if cf_f.IS_REQUIRED and not val:
+                errors.append({"row": row_num, "field": cf_f.FIELD_NAME,
+                                "message": f'Required custom field "{cf_f.FIELD_NAME}" is missing'})
+                cf_error = True
+            elif val:
+                type_err = _validate_cf_value(cf_f, val)
+                if type_err:
+                    errors.append({"row": row_num, "field": cf_f.FIELD_NAME, "message": type_err})
+                    cf_error = True
+            cf_vals[cf_f.ID] = val
+        if cf_error:
+            continue
+
+        existing = db.query(Department).filter(
+            Department.VENDOR_ID == vendor_id,
+            Department.DEPARTMENT_CODE == code.upper()
+        ).first()
+
+        if existing:
+            row_changed = (
+                (name or "") != (existing.NAME or "") or
+                (desc or "") != (existing.DESCRIPTION or "")
+            )
+            if row_changed or _org_cf_changed(existing.ID, "department", cf_vals, db):
+                if row_changed:
+                    existing.NAME        = name
+                    existing.DESCRIPTION = desc
+                for cf_id, val in cf_vals.items():
+                    _org_upsert_cf(existing.ID, "department", cf_id, val, db)
+                updated += 1
+            else:
+                skipped += 1
+        else:
+            new_dept = Department(
+                NAME=name, DEPARTMENT_CODE=code.upper(),
+                DESCRIPTION=desc, VENDOR_ID=vendor_id,
+            )
+            db.add(new_dept)
+            db.flush()
+            for cf_id, val in cf_vals.items():
+                _org_upsert_cf(new_dept.ID, "department", cf_id, val, db)
+            inserted += 1
+
     db.commit()
-    return {
-        "message": f"Upload complete: {created} created, {skipped} skipped",
-        "created": created,
-        "skipped": skipped,
-        "total_rows": len(rows)
-    }
+    total = inserted + updated + skipped + len(errors)
+    msg   = f"Upload complete: {inserted} inserted, {updated} updated, {skipped} skipped"
+    if errors:
+        msg += f", {len(errors)} error(s)"
+    return {"message": msg, "inserted": inserted, "updated": updated,
+            "skipped": skipped, "total_rows": total, "errors": errors}
 
 
 # =========================
@@ -964,87 +1120,109 @@ def delete_org_role(
             status_code=400,
             detail="Role is referenced by task templates. Remove those references first."
         )
+    db.query(CustomFieldTableValue).filter(
+        CustomFieldTableValue.TABLE_NAME == "role",
+        CustomFieldTableValue.TABLE_ROW_ID == str(role_id),
+    ).delete(synchronize_session=False)
     db.delete(role)
     db.commit()
     return {"message": "Role deleted"}
 
 
-@router.get("/org-roles/bulk-upload/template")
-def org_role_upload_template():
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Roles"
-    ws.append(["ROLE_NAME", "DEPARTMENT_NAME", "DESCRIPTION"])
-    ws.append(["PLC Engineer", "Electrical", "PLC programming specialist"])
-    ws.append(["Fitter", "Assembly", "Mechanical assembly fitter"])
-    buf = io.BytesIO()
-    wb.save(buf)
-    buf.seek(0)
-    return StreamingResponse(
-        buf,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=roles_template.xlsx"}
-    )
-
-
 @router.post("/org-roles/bulk-upload")
 async def bulk_upload_org_roles(
     vendor_id: int = Query(1),
-    sheet_name: Optional[str] = Query(None),
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
     content = await file.read()
-    wb = openpyxl.load_workbook(io.BytesIO(content), data_only=True)
-    sheets = wb.sheetnames
+    headers, data_rows = _org_parse_xl(content, "Roles")
 
-    if not sheet_name and len(sheets) > 1:
-        return {"sheets": sheets, "requires_sheet_selection": True}
+    cf_fields   = _org_cf_fields("role", vendor_id, db)
+    cf_by_upper = {f.FIELD_NAME.upper(): f for f in cf_fields}
+    cf_cols     = [h for h in headers if h not in _ROLE_STD_COLS and h in cf_by_upper]
 
-    ws = wb[sheet_name] if sheet_name and sheet_name in wb.sheetnames else wb.active
-    headers = []
-    parsed = []
-    for i, row in enumerate(ws.iter_rows(values_only=True)):
-        if i == 0:
-            headers = [str(c).strip().upper() if c else "" for c in row]
-            continue
-        if all(c is None for c in row):
-            continue
-        record = dict(zip(headers, row))
-        role_name = str(record.get("ROLE_NAME") or "").strip()
-        dept_name = str(record.get("DEPARTMENT_NAME") or "").strip()
-        desc = str(record.get("DESCRIPTION") or "").strip()
-        if role_name:
-            parsed.append({"ROLE_NAME": role_name, "DEPT_NAME": dept_name, "DESCRIPTION": desc or None})
-
-    created = skipped = 0
-    for r in parsed:
-        dept_id = None
-        if r["DEPT_NAME"]:
-            dept = db.query(Department).filter(
-                Department.VENDOR_ID == vendor_id,
-                Department.NAME.ilike(r["DEPT_NAME"])
-            ).first()
-            if dept:
-                dept_id = dept.ID
-        exists = db.query(Role).filter(
-            Role.VENDOR_ID == vendor_id,
-            Role.NAME == r["ROLE_NAME"]
-        ).first()
-        if exists:
-            skipped += 1
-            continue
-        db.add(Role(
-            NAME=r["ROLE_NAME"],
-            DESCRIPTION=r["DESCRIPTION"],
-            DEPARTMENT_ID=dept_id,
-            VENDOR_ID=vendor_id
-        ))
-        created += 1
-    db.commit()
-    return {
-        "message": f"Upload complete: {created} created, {skipped} skipped",
-        "created": created,
-        "skipped": skipped,
-        "total_rows": len(parsed)
+    # Pre-build department lookup (case-insensitive name)
+    dept_name_map = {
+        d.NAME.strip().lower(): d
+        for d in db.query(Department).filter(Department.VENDOR_ID == vendor_id).all()
     }
+
+    inserted = updated = skipped = 0
+    errors: List[dict] = []
+
+    for row_num, raw in enumerate(data_rows, start=2):
+        record = {headers[i].upper(): raw[i] for i in range(len(headers))}
+
+        role_name = _org_cell(record, "ROLE NAME")
+        dept_name = _org_cell(record, "DEPARTMENT NAME")
+        desc      = _org_cell(record, "DESCRIPTION") or None
+
+        if not role_name:
+            errors.append({"row": row_num, "field": "Role Name", "message": "Role Name is required"})
+            continue
+
+        dept_id = None
+        if dept_name:
+            d = dept_name_map.get(dept_name.lower())
+            if not d:
+                errors.append({"row": row_num, "field": "Department Name",
+                                "message": f'Department "{dept_name}" does not exist'})
+                continue
+            dept_id = d.ID
+
+        cf_vals: dict = {}
+        cf_error = False
+        for col in cf_cols:
+            cf_f = cf_by_upper[col]
+            val  = _org_cell(record, col) or None
+            if cf_f.IS_REQUIRED and not val:
+                errors.append({"row": row_num, "field": cf_f.FIELD_NAME,
+                                "message": f'Required custom field "{cf_f.FIELD_NAME}" is missing'})
+                cf_error = True
+            elif val:
+                type_err = _validate_cf_value(cf_f, val)
+                if type_err:
+                    errors.append({"row": row_num, "field": cf_f.FIELD_NAME, "message": type_err})
+                    cf_error = True
+            cf_vals[cf_f.ID] = val
+        if cf_error:
+            continue
+
+        existing = db.query(Role).filter(
+            Role.VENDOR_ID == vendor_id,
+            Role.NAME == role_name,
+        ).first()
+
+        if existing:
+            row_changed = (
+                (desc or "") != (existing.DESCRIPTION or "") or
+                dept_id != existing.DEPARTMENT_ID
+            )
+            if row_changed or _org_cf_changed(existing.ID, "role", cf_vals, db):
+                if row_changed:
+                    existing.DESCRIPTION = desc
+                    existing.DEPARTMENT_ID = dept_id
+                for cf_id, val in cf_vals.items():
+                    _org_upsert_cf(existing.ID, "role", cf_id, val, db)
+                updated += 1
+            else:
+                skipped += 1
+        else:
+            new_role = Role(
+                NAME=role_name, DESCRIPTION=desc,
+                DEPARTMENT_ID=dept_id, VENDOR_ID=vendor_id,
+            )
+            db.add(new_role)
+            db.flush()
+            for cf_id, val in cf_vals.items():
+                _org_upsert_cf(new_role.ID, "role", cf_id, val, db)
+            inserted += 1
+
+    db.commit()
+    total = inserted + updated + skipped + len(errors)
+    msg   = f"Upload complete: {inserted} inserted, {updated} updated, {skipped} skipped"
+    if errors:
+        msg += f", {len(errors)} error(s)"
+    return {"message": msg, "inserted": inserted, "updated": updated,
+            "skipped": skipped, "total_rows": total, "errors": errors}

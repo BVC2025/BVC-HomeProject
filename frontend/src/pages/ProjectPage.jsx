@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import TablePagination from "../components/TablePagination";
 import {
-  PageHeader, StatsRow, CustomFieldsModal, CustomFieldsSection,
+  PageHeader, StatsRow, PMModal, CustomFieldsModal, CustomFieldsSection,
   SearchBar, EmptyState, ExportButton, Loader,
   PMButton, PMSelect, PMConfirmModal,
 } from "../components/pm";
@@ -13,10 +13,13 @@ import { departmentService } from "../services/departmentService";
 import { roleService } from "../services/roleService";
 import { useToast } from "../hooks/useToast";
 import { useCustomFields, useTableCfValues } from "../hooks/useCustomFields";
-import { exportToExcel } from "../utils/exportExcel";
+import { exportToExcel, downloadTemplate as dlTemplate } from "../utils/exportExcel";
 import ProjectIcon from "../assets/Icons/projectIcon.webp";
 import EditIcon from "../assets/Icons/editIcon.webp";
 import DeleteIcon from "../assets/Icons/deleteIcon.webp";
+import BomIcon from "../assets/Icons/bomIcon.webp"
+import ManualIcon from "../assets/Icons/editIcon.webp"
+import UploadIcon from "../assets/Icons/uploadIcon.webp"
 import styles from "./ProjectPage.module.css";
 
 const DURATION_UNITS = ["HOURS", "DAYS", "WEEKS", "MONTHS", "YEARS"];
@@ -59,6 +62,13 @@ export default function ProjectPage() {
   const [bomParsed, setBomParsed] = useState(false);
   const fileRef = useRef();
   const [dragIdx, setDragIdx] = useState(null);
+
+  // Bulk upload (separate from BOM upload)
+  const [bulkModal, setBulkModal] = useState(false);
+  const [bulkXlFile, setBulkXlFile] = useState(null);
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkUploadResult, setBulkUploadResult] = useState(null);
+  const bulkFileRef = useRef();
 
   const toast = useToast();
   const fetchedRef = useRef(false);
@@ -185,8 +195,8 @@ export default function ProjectPage() {
   const goStep2 = useCallback(() => {
     if (!form.CATEGORY_ID) { toast.showWarning("Please select a category"); return; }
     if (!form.NAME.trim()) { toast.showWarning("Project name is required"); return; }
-    const missingCf = validateCf();
-    if (missingCf) { toast.showWarning(`"${missingCf}" is required`); return; }
+    const cfError = validateCf();
+    if (cfError) { toast.showWarning(cfError); return; }
     setStep(2);
   }, [form, toast, validateCf]);
 
@@ -314,6 +324,41 @@ export default function ProjectPage() {
   const handleSearchChange = useCallback((v) => { setSearch(v); setPage(1); }, []);
   const handleCatFilter = useCallback((v) => { setFilterCat(v); setPage(1); }, []);
 
+  const handleDownloadProjTemplate = useCallback(async () => {
+    try {
+      const headers = ["Category Name", "Project Name", "Description", ...cfFields.map((f) => f.FIELD_NAME)];
+      await dlTemplate("Projects", headers, "projects_template");
+    } catch {
+      toast.showError("Failed to download template");
+    }
+  }, [cfFields, toast]);
+
+  const openBulkXl = useCallback(() => {
+    setBulkXlFile(null);
+    setBulkUploadResult(null);
+    setBulkModal(true);
+  }, []);
+
+  const handleBulkFileChange = useCallback(async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    e.target.value = "";
+    setBulkXlFile(f);
+    setBulkUploadResult(null);
+    const fd = new FormData();
+    fd.append("file", f);
+    setBulkUploading(true);
+    try {
+      const res = await projectService.bulkUpload(fd);
+      setBulkUploadResult(res.data);
+      loadAll(true);
+    } catch (err) {
+      toast.showError(err?.response?.data?.detail || "Upload failed");
+    } finally {
+      setBulkUploading(false);
+    }
+  }, [loadAll, toast]);
+
   const fmtDays = (d) => (d != null ? `${parseFloat(d).toFixed(1)} d` : "—");
 
   return (
@@ -327,6 +372,8 @@ export default function ProjectPage() {
         refreshing={refreshing}
         actions={
           <>
+            <PMButton variant="ghost" onClick={handleDownloadProjTemplate}>Template</PMButton>
+            <PMButton variant="outline" onClick={openBulkXl}>Bulk Upload</PMButton>
             <PMButton variant="ghost" onClick={() => setCfOpen(true)}>Custom Fields</PMButton>
             <ExportButton onClick={handleExport} disabled={filtered.length === 0} />
             <PMButton variant="primary" onClick={openCreate}>New Project</PMButton>
@@ -508,7 +555,11 @@ export default function ProjectPage() {
                       className={`${styles.modeCard} ${form.BOM_MODE === "MANUAL" ? styles.modeCardActive : ""}`}
                       onClick={() => setForm((f) => ({ ...f, BOM_MODE: "MANUAL" }))}
                     >
-                      <div className={styles.modeCardIcon}>✏️</div>
+                      <div className={styles.modeCardIcon}>
+                        <div className={styles.modeCardIconWrap}>
+                          <img src={ManualIcon} alt="Manual" />
+                        </div>
+                      </div>
                       <div className={styles.modeCardTitle}>Manual</div>
                       <div className={styles.modeCardDesc}>Add tasks one by one</div>
                     </div>
@@ -516,7 +567,11 @@ export default function ProjectPage() {
                       className={`${styles.modeCard} ${form.BOM_MODE === "BOM_UPLOAD" ? styles.modeCardActive : ""}`}
                       onClick={() => setForm((f) => ({ ...f, BOM_MODE: "BOM_UPLOAD" }))}
                     >
-                      <div className={styles.modeCardIcon}>📊</div>
+                      <div className={styles.modeCardIcon}>
+                        <div className={styles.modeCardIconWrap}>
+                          <img src={BomIcon} alt="BOM Upload" />
+                        </div>
+                      </div>
                       <div className={styles.modeCardTitle}>BOM Upload</div>
                       <div className={styles.modeCardDesc}>Import task list from Excel</div>
                     </div>
@@ -531,7 +586,7 @@ export default function ProjectPage() {
                 {form.BOM_MODE === "BOM_UPLOAD" && !bomParsed && (
                   <div className={styles.bomSection}>
                     <div className={styles.dropzone} onClick={() => fileRef.current.click()}>
-                      <span className={styles.dropIcon}>📂</span>
+                      <span className={styles.dropIconWrap}><img src={UploadIcon} alt="Upload" /></span>
                       <span>{bomFile ? bomFile.name : "Click to select BOM Excel file (.xlsx)"}</span>
                       {bomParsing && <span className={styles.hint}>Parsing…</span>}
                     </div>
@@ -712,6 +767,68 @@ export default function ProjectPage() {
         </div>
       )}
 
+      {/* Bulk Upload Modal */}
+      {bulkModal && (
+        <PMModal
+          open={bulkModal}
+          onClose={() => setBulkModal(false)}
+          title="Bulk Upload Projects"
+          size="sm"
+        >
+          <p className={styles.bulkHint}>
+            Upload an Excel file with sheet name <strong>"Projects"</strong> and columns:{" "}
+            <strong>Category Name</strong>, <strong>Project Name</strong>, <strong>Description</strong>
+            {cfFields.length > 0 && <>, plus any custom fields</>}.
+            Existing records (matched by category + name) are updated; new ones are inserted.
+          </p>
+          <div className={styles.dropzone} onClick={() => bulkFileRef.current?.click()}>
+            <span className={styles.dropIconWrap}><img src={UploadIcon} alt="Upload" /></span>
+            <span>{bulkXlFile ? bulkXlFile.name : "Click to browse or drop Excel (.xlsx)"}</span>
+            {bulkUploading && <span>Uploading…</span>}
+          </div>
+          <input
+            ref={bulkFileRef}
+            type="file"
+            accept=".xlsx,.xls"
+            style={{ display: "none" }}
+            onChange={handleBulkFileChange}
+          />
+
+          {bulkUploadResult && (
+            <div className={styles.uploadResult}>
+              <div className={styles.resultStats}>
+                <div className={styles.resultStat}>
+                  <span className={styles.statValue}>{bulkUploadResult.inserted ?? 0}</span>
+                  <span className={styles.statLabel}>Inserted</span>
+                </div>
+                <div className={styles.resultStat}>
+                  <span className={styles.statValue}>{bulkUploadResult.updated ?? 0}</span>
+                  <span className={styles.statLabel}>Updated</span>
+                </div>
+                <div className={styles.resultStat}>
+                  <span className={styles.statValue}>{bulkUploadResult.skipped ?? 0}</span>
+                  <span className={styles.statLabel}>Skipped</span>
+                </div>
+              </div>
+              {bulkUploadResult.errors?.length > 0 && (
+                <div className={styles.errorSection}>
+                  <p className={styles.errorSectionTitle}>Errors ({bulkUploadResult.errors.length})</p>
+                  <ul className={styles.errorList}>
+                    {bulkUploadResult.errors.map((e, i) => (
+                      <li key={i} className={styles.errorItem}>
+                        <span className={styles.errorRowNum}>Row {e.row}</span>
+                        {e.field && <span className={styles.errorField}>{e.field}</span>}
+                        <span className={styles.errorMsg}>{e.message}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </PMModal>
+      )}
+
       {/* Custom Fields Modal */}
       <CustomFieldsModal
         open={cfOpen}
@@ -723,7 +840,7 @@ export default function ProjectPage() {
       <PMConfirmModal
         open={!!confirmModal}
         onClose={() => setConfirmModal(null)}
-        onConfirm={confirmModal?.onConfirm ?? (() => {})}
+        onConfirm={confirmModal?.onConfirm ?? (() => { })}
         title={confirmModal?.title}
         description={confirmModal?.description}
         confirmLabel="Delete"

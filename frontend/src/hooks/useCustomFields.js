@@ -35,11 +35,63 @@ export function useCustomFields(tableName) {
   }, []);
 
   const validateCf = useCallback(() => {
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const PHONE_RE = /^\+?[\d\s\-().]{7,20}$/;
+
     for (const field of fields) {
-      if (field.IS_REQUIRED) {
-        const val = cfValues[field.ID];
-        if (val === undefined || val === "" || val === null) return field.FIELD_NAME;
-        if (Array.isArray(val) && val.length === 0) return field.FIELD_NAME;
+      const val = cfValues[field.ID];
+      const empty =
+        val === undefined || val === "" || val === null ||
+        (Array.isArray(val) && val.length === 0);
+
+      if (field.IS_REQUIRED && empty) {
+        return `"${field.FIELD_NAME}" is required`;
+      }
+
+      if (!empty) {
+        switch (field.FIELD_TYPE) {
+          case "EMAIL":
+            if (!EMAIL_RE.test(String(val))) {
+              return `"${field.FIELD_NAME}" must be a valid email address (e.g. user@example.com)`;
+            }
+            break;
+          case "PHONE":
+            if (!PHONE_RE.test(String(val).trim())) {
+              return `"${field.FIELD_NAME}" must be a valid phone number`;
+            }
+            break;
+          case "NUMBER":
+            if (isNaN(Number(val))) {
+              return `"${field.FIELD_NAME}" must be a number`;
+            }
+            break;
+          case "DATE":
+          case "DATETIME":
+            if (isNaN(new Date(val).getTime())) {
+              return `"${field.FIELD_NAME}" must be a valid date`;
+            }
+            break;
+          case "SELECT":
+          case "RADIO": {
+            const opts = Array.isArray(field.OPTIONS) ? field.OPTIONS : [];
+            if (opts.length > 0 && !opts.includes(val)) {
+              return `"${field.FIELD_NAME}": "${val}" is not a valid option. Allowed: ${opts.join(", ")}`;
+            }
+            break;
+          }
+          case "CHECKBOX": {
+            const opts = Array.isArray(field.OPTIONS) ? field.OPTIONS : [];
+            if (opts.length > 0 && Array.isArray(val)) {
+              const invalid = val.filter((v) => !opts.includes(v));
+              if (invalid.length > 0) {
+                return `"${field.FIELD_NAME}": "${invalid.join(", ")}" are not valid options. Allowed: ${opts.join(", ")}`;
+              }
+            }
+            break;
+          }
+          default:
+            break;
+        }
       }
     }
     return null;
@@ -47,17 +99,18 @@ export function useCustomFields(tableName) {
 
   const saveCfValues = useCallback(async (rowId) => {
     for (const field of fields) {
-      const value = cfValues[field.ID];
-      if (value !== undefined && value !== null && value !== "") {
-        try {
-          await customFieldService.upsertValue({
-            TABLE_NAME: tableName,
-            TABLE_ROW_ID: String(rowId),
-            CUSTOM_FIELD_ID: field.ID,
-            CUSTOM_FIELD_VALUE: value,
-          });
-        } catch { /* silent */ }
-      }
+      const raw = cfValues[field.ID];
+      if (raw === undefined) continue; // never touched — no row to write or clear
+      // Normalize empty values to null so cleared optional fields are persisted
+      const value = (raw === "" || (Array.isArray(raw) && raw.length === 0)) ? null : raw;
+      try {
+        await customFieldService.upsertValue({
+          TABLE_NAME: tableName,
+          TABLE_ROW_ID: String(rowId),
+          CUSTOM_FIELD_ID: field.ID,
+          CUSTOM_FIELD_VALUE: value,
+        });
+      } catch { /* silent */ }
     }
   }, [fields, cfValues, tableName]);
 
