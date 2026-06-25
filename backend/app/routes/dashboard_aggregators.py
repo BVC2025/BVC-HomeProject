@@ -21,7 +21,7 @@ from app.models.models import (
     Customer,
     Quotation,
     SalesOrder,
-    CustomerProject,
+    Project,
     PurchaseOrder,
     Inventory,
     Attendance,
@@ -124,8 +124,8 @@ def sparklines(db: Session = Depends(get_db)):
         "total_quotations":        _count_per_day(db, Quotation, Quotation.CREATED_AT),
         "total_customers":         _count_per_day(db, Customer, Customer.CREATED_AT)
             if hasattr(Customer, "CREATED_AT") else [0]*7,
-        "active_projects":         _count_per_day(db, CustomerProject, CustomerProject.CREATED_AT)
-            if hasattr(CustomerProject, "CREATED_AT") else [0]*7,
+        "active_projects":         _count_per_day(db, Project, Project.CREATED_AT)
+            if hasattr(Project, "CREATED_AT") else [0]*7,
         "production_active":       _count_per_day(db, WorkOrder, WorkOrder.CREATED_AT)
             if hasattr(WorkOrder, "CREATED_AT") else [0]*7,
         "inventory_value":         [0]*7,  # snapshot quantity, no time series
@@ -208,14 +208,14 @@ def _score_production(db: Session) -> tuple:
 
     today = date.today()
 
-    active = db.query(func.count(CustomerProject.ID)).filter(
-        ~CustomerProject.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"])
+    active = db.query(func.count(Project.ID)).filter(
+        ~Project.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"])
     ).scalar() or 0
 
-    delayed = db.query(func.count(CustomerProject.ID)).filter(
-        ~CustomerProject.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"]),
-        CustomerProject.TARGET_DATE.isnot(None),
-        CustomerProject.TARGET_DATE < today,
+    delayed = db.query(func.count(Project.ID)).filter(
+        ~Project.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"]),
+        Project.TARGET_DATE.isnot(None),
+        Project.TARGET_DATE < today,
     ).scalar() or 0
 
     if active == 0:
@@ -442,20 +442,20 @@ def factory_status(db: Session = Depends(get_db)):
     cancelled   = by_status.get("CANCELLED",   0)
 
     # Active projects
-    active_projects = db.query(func.count(CustomerProject.ID)).filter(
-        ~CustomerProject.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"])
+    active_projects = db.query(func.count(Project.ID)).filter(
+        ~Project.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"])
     ).scalar() or 0
 
     today = date.today()
 
-    delayed_projects = db.query(func.count(CustomerProject.ID)).filter(
-        ~CustomerProject.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"]),
-        CustomerProject.TARGET_DATE.isnot(None),
-        CustomerProject.TARGET_DATE < today,
+    delayed_projects = db.query(func.count(Project.ID)).filter(
+        ~Project.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"]),
+        Project.TARGET_DATE.isnot(None),
+        Project.TARGET_DATE < today,
     ).scalar() or 0
 
-    completed_projects = db.query(func.count(CustomerProject.ID)).filter(
-        CustomerProject.STATUS.in_(["COMPLETED", "CLOSED"])
+    completed_projects = db.query(func.count(Project.ID)).filter(
+        Project.STATUS.in_(["COMPLETED", "CLOSED"])
     ).scalar() or 0
 
     # Efficiency — completed stages / total stages across IN_PROGRESS WOs
@@ -620,10 +620,10 @@ def insights(db: Session = Depends(get_db)):
 
     # --- 3. Delayed projects ----------------------------------------
     delayed_rows = db.query(Project).filter(
-        ~CustomerProject.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"]),
-        CustomerProject.TARGET_DATE.isnot(None),
-        CustomerProject.TARGET_DATE < today,
-    ).order_by(CustomerProject.TARGET_DATE.asc()).limit(3).all()
+        ~Project.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"]),
+        Project.TARGET_DATE.isnot(None),
+        Project.TARGET_DATE < today,
+    ).order_by(Project.TARGET_DATE.asc()).limit(3).all()
 
     if delayed_rows:
 
@@ -958,8 +958,8 @@ def production_flow(db: Session = Depends(get_db)):
         SalesOrder.STATUS.in_(["DRAFT", "AWAITING_ADVANCE", "CONFIRMED"])
     ).scalar() or 0
 
-    project_active = db.query(func.count(CustomerProject.ID)).filter(
-        ~CustomerProject.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"])
+    project_active = db.query(func.count(Project.ID)).filter(
+        ~Project.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"])
     ).scalar() or 0
 
     production_active = db.query(func.count(WorkOrder.ID)).filter(
@@ -1202,7 +1202,7 @@ def top_performers(db: Session = Depends(get_db)):
             best_team = {
                 "id":          dept.ID,
                 "name":        dept.NAME,
-                "code":        dept.DEPARTMENT_CODE if hasattr(dept, "DEPARTMENT_CODE") else None,
+                "code":        dept.CODE if hasattr(dept, "CODE") else None,
                 "designation": f"{dept_row[2]} members rated",
                 "photo_url":   None,
                 "score":       round(avg, 1),

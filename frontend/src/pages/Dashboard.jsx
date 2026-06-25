@@ -1,4 +1,4 @@
-﻿import { lazy, Suspense, useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 
 import {
   Link,
@@ -42,6 +42,7 @@ import Quotations from "./Quotations";
 import SalesOrders from "./SalesOrders";
 import InvoiceOrder from "./InvoiceOrder";
 import PurchaseOrders from "./PurchaseOrders";
+import Projects from "./Projects";
 import Inventory from "./Inventory";
 import Attendance from "./Attendance";
 import Machines from "./Machines";
@@ -71,11 +72,6 @@ import Payroll from "./Payroll";
 import StarPerformance from "./StarPerformance";
 import Allowances from "./Allowances";
 import ChatBot from "../components/ChatBot";
-const DepartmentManagement = lazy(() => import("./DepartmentManagement"));
-const OrgRoleManagement = lazy(() => import("./OrgRoleManagement"));
-const ProjectCategoryManagement = lazy(() => import("./ProjectCategoryManagement"));
-const ProjectPage = lazy(() => import("./ProjectPage"));
-const TaskTemplatePage = lazy(() => import("./TaskTemplatePage"));
 
 import styles from "./Dashboard.module.css";
 import {
@@ -1439,52 +1435,6 @@ function SidebarIcon({ name }) {
           <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1c.5.5 1.2.6 1.8.3.7-.3 1.1-1 1.1-1.7V3a2 2 0 0 1 4 0v.1c0 .7.4 1.4 1 1.7.6.3 1.3.2 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8c.3.6 1 1 1.7 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
         </svg>
       );
-    case "departments":
-      return (
-        <svg {...props}>
-          <rect x="3" y="10" width="18" height="11" rx="2" />
-          <path d="M7 10V7a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v3" />
-          <path d="M10 14h4" />
-        </svg>
-      );
-    case "org-roles":
-      return (
-        <svg {...props}>
-          <circle cx="8" cy="8" r="3" />
-          <path d="M4 20c0-3 2-5 4-5s4 2 4 5" />
-          <path d="M14 10h6M14 14h6" />
-        </svg>
-      );
-    case "proj-cat":
-      return (
-        <svg {...props}>
-          <path d="M4 7h16M4 12h10M4 17h7" />
-          <circle cx="19" cy="16" r="3" />
-          <path d="M19 13v3l2 1" />
-        </svg>
-      );
-    case "sub-template":
-      return (
-        <svg {...props}>
-          <rect x="3" y="5" width="18" height="14" rx="2" />
-          <path d="M3 9h18M8 13h3M8 16h5" />
-        </svg>
-      );
-    case "task-tmpl":
-      return (
-        <svg {...props}>
-          <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
-          <rect x="9" y="3" width="6" height="4" rx="1" />
-          <path d="M9 12l2 2 4-4" />
-        </svg>
-      );
-    case "custom-fields":
-      return (
-        <svg {...props}>
-          <path d="M12 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-          <path d="M14 2v6h6M8 13h8M8 17h5" />
-        </svg>
-      );
     default:
       return (
         <svg {...props}>
@@ -1507,8 +1457,6 @@ const NAV_GROUPS = [
       { to: "/approvals", icon: <SidebarIcon name="approvals" />, label: "Approval Center" },
       // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
       { to: "/rbac", icon: <SidebarIcon name="rbac" />, label: "RBAC" },
-      { to: "/departments", icon: <SidebarIcon name="departments" />, label: "Department Management" },
-      { to: "/org-roles", icon: <SidebarIcon name="org-roles" />, label: "Role Management" },
       { to: "/employees", icon: <SidebarIcon name="employees" />, label: "Employees" },
       { to: "/memos", icon: <SidebarIcon name="memos" />, label: "Memos" },
       { to: "/attendance", icon: <SidebarIcon name="attendance" />, label: "Attendance" },
@@ -1527,27 +1475,11 @@ const NAV_GROUPS = [
       { to: "/invoice-orders", icon: <SidebarIcon name="invoiceorders" />, label: "Invoice" }
     ]
   },
-  // {
-  //   key: "organization",
-  //   label: "Org Structure",
-  //   items: [
-  //     { to: "/departments", icon: <SidebarIcon name="departments" />, label: "Department Management" },
-  //     { to: "/org-roles", icon: <SidebarIcon name="org-roles" />, label: "Role Management" }
-  //   ]
-  // },
-  {
-    key: "project-mgmt",
-    label: "Project Management",
-    items: [
-      { to: "/project-categories", icon: <SidebarIcon name="proj-cat" />, label: "Project Categories" },
-      { to: "/projects", icon: <SidebarIcon name="sub-template" />, label: "Projects" },
-      { to: "/task-templates", icon: <SidebarIcon name="task-tmpl" />, label: "Task Templates" }
-    ]
-  },
   {
     key: "manufacturing",
-    label: "Manufacturing",
+    label: "Project & Manufacturing",
     items: [
+      { to: "/projects", icon: <SidebarIcon name="projects" />, label: "Projects" },
       { to: "/machines", icon: <SidebarIcon name="machines" />, label: "Machines" },
       { to: "/work-centers", icon: <SidebarIcon name="workcenters" />, label: "Work Centers" },
       { to: "/production", icon: <SidebarIcon name="production" />, label: "Production & BOM" },
@@ -1872,7 +1804,7 @@ function Dashboard() {
 
           <Route
             path="/projects"
-            element={<Suspense fallback={null}><ProjectPage /></Suspense>}
+            element={<Projects />}
           />
 
           <Route
@@ -1949,12 +1881,6 @@ function Dashboard() {
             path="/settings"
             element={<Settings />}
           />
-
-          {/* Organization & Project Management module */}
-          <Route path="/departments" element={<Suspense fallback={null}><DepartmentManagement /></Suspense>} />
-          <Route path="/org-roles" element={<Suspense fallback={null}><OrgRoleManagement /></Suspense>} />
-          <Route path="/project-categories" element={<Suspense fallback={null}><ProjectCategoryManagement /></Suspense>} />
-          <Route path="/task-templates" element={<Suspense fallback={null}><TaskTemplatePage /></Suspense>} />
 
         </Routes>
 

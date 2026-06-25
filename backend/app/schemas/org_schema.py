@@ -7,16 +7,20 @@ from typing import Optional, List
 # =========================
 
 class DepartmentCreate(BaseModel):
+
     NAME: str
-    DEPARTMENT_CODE: str
+    CODE: str
     DESCRIPTION: Optional[str] = None
+    HEAD_EMPLOYEE_ID: Optional[str] = None
     VENDOR_ID: int = 1
 
 
 class DepartmentUpdate(BaseModel):
+
     NAME: Optional[str] = None
-    DEPARTMENT_CODE: Optional[str] = None
+    CODE: Optional[str] = None
     DESCRIPTION: Optional[str] = None
+    HEAD_EMPLOYEE_ID: Optional[str] = None
 
 
 # =========================
@@ -24,6 +28,7 @@ class DepartmentUpdate(BaseModel):
 # =========================
 
 class DesignationCreate(BaseModel):
+
     TITLE: str
     DEPARTMENT_ID: int
     BASE_SALARY: float = 0.0
@@ -32,6 +37,7 @@ class DesignationCreate(BaseModel):
 
 
 class DesignationUpdate(BaseModel):
+
     TITLE: Optional[str] = None
     DEPARTMENT_ID: Optional[int] = None
     BASE_SALARY: Optional[float] = None
@@ -39,14 +45,16 @@ class DesignationUpdate(BaseModel):
 
 
 # =========================
-# ROLE (RBAC)
+# ROLE
 # =========================
 
 class RoleCreate(BaseModel):
-    NAME: str
+
+    ROLE_NAME: str
     DESCRIPTION: Optional[str] = None
     VENDOR_ID: int = 1
 
 
 class RolePermissionsSet(BaseModel):
+
     PERMISSION_IDS: List[int]

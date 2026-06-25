@@ -14,8 +14,7 @@
       "Bash(py -3 -c \"import ast; [ast.parse\\(open\\(f\\).read\\(\\), filename=f\\) for f in ['app/services/email_service.py','app/routes/project.py','app/routes/employee_task.py']]; print\\('Backend OK'\\)\")",
       "Bash(py -3 -c \"import ast; ast.parse\\(open\\('app/routes/project.py'\\).read\\(\\)\\); print\\('Backend OK'\\)\")",
       "Bash(py -3 -c \"import ast; ast.parse\\(open\\('app/main.py', encoding='utf-8'\\).read\\(\\)\\); print\\('Backend OK'\\)\")",
-      "WebFetch(domain:www.bvc24.com)",
-      "Bash(node --input-type=module)"
+      "WebFetch(domain:www.bvc24.com)"
     ]
   }
 }

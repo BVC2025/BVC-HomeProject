@@ -47,7 +47,7 @@ def _serialize_role(db: Session, role: Role) -> dict:
     )
     return {
         "ID":           role.ID,
-        "ROLE_NAME":    role.NAME,
+        "ROLE_NAME":    role.ROLE_NAME,
         "permission_count": perm_count,
         "member_count":     member_count,
     }
@@ -91,7 +91,7 @@ _READ_DEP = Depends(require("role.manage"))
 @router.get("/roles", dependencies=[_READ_DEP])
 def list_roles(db: Session = Depends(get_db)):
 
-    rows = db.query(Role).order_by(Role.NAME).all()
+    rows = db.query(Role).order_by(Role.ROLE_NAME).all()
     return [_serialize_role(db, r) for r in rows]
 
 
