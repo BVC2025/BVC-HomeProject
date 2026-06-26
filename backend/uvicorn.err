@@ -1,4 +1,7 @@
-D:\PUVI-DOC\Vendor-based Manufacturing ERP\backend\app\routes\leave.py:412: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+INFO:     Will watch for changes in these directories: ['D:\\PUVI-DOC\\Vendor-based Manufacturing ERP\\backend']
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+INFO:     Started reloader process [17940] using StatReload
+D:\PUVI-DOC\Vendor-based Manufacturing ERP\backend\app\routes\leave.py:424: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
   action: str = Query(..., regex="^(approve|reject)$"),
 INFO:     auto-migrate: ensured table supplier_payment exists
 INFO:     auto-migrate: ensured table discount_request exists
@@ -12,19 +15,39 @@ INFO:     auto-migrate: ensured table employee_memos exists
 INFO:     auto-migrate: ensured table attendance_security_logs exists
 INFO:     auto-migrate: widened project.DESCRIPTION \u2192 VARCHAR(2000) NULL
 INFO:     auto-migrate: widened project.PROJECT_NAME \u2192 VARCHAR(200) NULL
-INFO:     Started server process [18572]
+WARNING:  auto-seed-org-catalog skipped: (pymysql.err.IntegrityError) (1062, "Duplicate entry '1-SW' for key 'department.uq_dept_vendor_code'")
+[SQL: INSERT INTO department (`NAME`, `CODE`, `DESCRIPTION`, `HEAD_EMPLOYEE_ID`, `VENDOR_ID`, `CREATED_AT`) VALUES (%(NAME)s, %(CODE)s, %(DESCRIPTION)s, %(HEAD_EMPLOYEE_ID)s, %(VENDOR_ID)s, %(CREATED_AT)s)]
+[parameters: {'NAME': 'Software Development', 'CODE': 'SW', 'DESCRIPTION': None, 'HEAD_EMPLOYEE_ID': None, 'VENDOR_ID': 1, 'CREATED_AT': datetime.datetime(2026, 6, 25, 11, 10, 41, 907973)}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+INFO:     Started server process [17936]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
-D:\PUVI-DOC\Vendor-based Manufacturing ERP\backend\app\services\leave_chatbot_service.py:227: FutureWarning: 
-
-All support for the `google.generativeai` package has ended. It will no longer be receiving 
-updates or bug fixes. Please switch to the `google.genai` package as soon as possible.
-See README for more details:
-
-https://github.com/google-gemini/deprecated-generative-ai-python/blob/main/README.md
-
-  import google.generativeai as genai
+WARNING:  StatReload detected changes in 'app\routes\payroll.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [17936]
+D:\PUVI-DOC\Vendor-based Manufacturing ERP\backend\app\routes\leave.py:424: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+  action: str = Query(..., regex="^(approve|reject)$"),
+INFO:     auto-migrate: ensured table supplier_payment exists
+INFO:     auto-migrate: ensured table discount_request exists
+INFO:     auto-migrate: ensured table company_master exists
+INFO:     auto-migrate: ensured table salary_structure exists
+INFO:     auto-migrate: ensured table leave_quota_policy exists
+INFO:     auto-migrate: ensured table employee_document exists
+INFO:     auto-migrate: ensured table employee_onboarding_session exists
+INFO:     auto-migrate: ensured table geofence_settings exists
+INFO:     auto-migrate: ensured table employee_memos exists
+INFO:     auto-migrate: ensured table attendance_security_logs exists
+INFO:     auto-migrate: widened project.DESCRIPTION \u2192 VARCHAR(2000) NULL
+INFO:     auto-migrate: widened project.PROJECT_NAME \u2192 VARCHAR(200) NULL
+WARNING:  auto-seed-org-catalog skipped: (pymysql.err.IntegrityError) (1062, "Duplicate entry '1-SW' for key 'department.uq_dept_vendor_code'")
+[SQL: INSERT INTO department (`NAME`, `CODE`, `DESCRIPTION`, `HEAD_EMPLOYEE_ID`, `VENDOR_ID`, `CREATED_AT`) VALUES (%(NAME)s, %(CODE)s, %(DESCRIPTION)s, %(HEAD_EMPLOYEE_ID)s, %(VENDOR_ID)s, %(CREATED_AT)s)]
+[parameters: {'NAME': 'Software Development', 'CODE': 'SW', 'DESCRIPTION': None, 'HEAD_EMPLOYEE_ID': None, 'VENDOR_ID': 1, 'CREATED_AT': datetime.datetime(2026, 6, 25, 12, 3, 50, 828117)}]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)
+INFO:     Started server process [10140]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
 D:\PUVI-DOC\Vendor-based Manufacturing ERP\backend\venv\Lib\site-packages\fastapi\openapi\utils.py:252: UserWarning: Duplicate Operation ID quotation_dashboard_stats_quotations_dashboard_stats_get for function quotation_dashboard_stats at D:\PUVI-DOC\Vendor-based Manufacturing ERP\backend\app\routes\quotation.py
   warnings.warn(message, stacklevel=1)
 D:\PUVI-DOC\Vendor-based Manufacturing ERP\backend\venv\Lib\site-packages\fastapi\openapi\utils.py:252: UserWarning: Duplicate Operation ID quotation_pricing_breakdown_quotations_pricing_breakdown_get for function quotation_pricing_breakdown at D:\PUVI-DOC\Vendor-based Manufacturing ERP\backend\app\routes\quotation.py

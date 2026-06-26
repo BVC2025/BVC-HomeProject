@@ -9,7 +9,7 @@ you see the full picture in one run.
 Usage
 -----
   python -m scripts.test_employee_journey
-  python -m scripts.test_employee_journey --base http://127.0.0.1:8000
+  python -m scripts.test_employee_journey --base http://127.0.0.1:8001
 
 Exit codes
 ----------

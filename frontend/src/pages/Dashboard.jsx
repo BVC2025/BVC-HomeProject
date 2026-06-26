@@ -5,6 +5,7 @@ import {
   NavLink,
   Routes,
   Route,
+  Outlet,
   useNavigate,
   useLocation
 } from "react-router-dom";
@@ -71,7 +72,17 @@ import ApprovalCenter from "./ApprovalCenter";
 import Payroll from "./Payroll";
 import StarPerformance from "./StarPerformance";
 import Allowances from "./Allowances";
+import EmployeeProfile from "./EmployeeProfile";
+import Recruitment from "./Recruitment";
+import PayslipGenerator from "./PayslipGenerator";
+import OnboardingChecklist from "./OnboardingChecklist";
+import HrAutomation from "./HrAutomation";
+import MonthlyReports from "./MonthlyReports";
+import WorkforceAnalytics from "./WorkforceAnalytics";
 import ChatBot from "../components/ChatBot";
+function HrLayout() {
+  return <Outlet />;
+}
 
 import styles from "./Dashboard.module.css";
 import {
@@ -1220,6 +1231,21 @@ function SidebarIcon({ name }) {
           <rect x="14" y="12" width="7" height="9" rx="1.4" />
         </svg>
       );
+    case "apps":
+      return (
+        <svg {...props}>
+          {/* 3x3 grid — universal "app launcher" icon */}
+          <rect x="3" y="3" width="5" height="5" rx="1" />
+          <rect x="10" y="3" width="5" height="5" rx="1" />
+          <rect x="17" y="3" width="4" height="5" rx="1" />
+          <rect x="3" y="10" width="5" height="5" rx="1" />
+          <rect x="10" y="10" width="5" height="5" rx="1" />
+          <rect x="17" y="10" width="4" height="5" rx="1" />
+          <rect x="3" y="17" width="5" height="4" rx="1" />
+          <rect x="10" y="17" width="5" height="4" rx="1" />
+          <rect x="17" y="17" width="4" height="4" rx="1" />
+        </svg>
+      );
     case "approvals":
       return (
         <svg {...props}>
@@ -1292,6 +1318,16 @@ function SidebarIcon({ name }) {
           {/* Receipt / expense voucher */}
           <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z" />
           <path d="M9 8h6M9 12h6M9 16h4" />
+        </svg>
+      );
+    case "recruitment":
+      return (
+        <svg {...props}>
+          {/* Briefcase + magnifier — hiring */}
+          <rect x="3" y="7" width="18" height="13" rx="2" />
+          <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+          <circle cx="15.5" cy="14.5" r="2.5" />
+          <line x1="17.5" y1="16.5" x2="19" y2="18" />
         </svg>
       );
     case "customers":
@@ -1452,7 +1488,7 @@ const NAV_TOP = [
 const NAV_GROUPS = [
   {
     key: "org",
-    label: "Organization",
+    label: "HRMS",
     items: [
       { to: "/approvals", icon: <SidebarIcon name="approvals" />, label: "Approval Center" },
       // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
@@ -1462,7 +1498,14 @@ const NAV_GROUPS = [
       { to: "/attendance", icon: <SidebarIcon name="attendance" />, label: "Attendance" },
       { to: "/leave-management", icon: <SidebarIcon name="leaves" />, label: "Leave Management" },
       { to: "/payroll", icon: <SidebarIcon name="payroll" />, label: "Payroll" },
-      { to: "/star-performance", icon: <SidebarIcon name="star" />, label: "Star Performance" }
+      { to: "/payslip-generator", icon: <SidebarIcon name="payroll" />, label: "Generate Payslip" },
+      { to: "/star-performance", icon: <SidebarIcon name="star" />, label: "Star Performance" },
+      { to: "/allowances", icon: <SidebarIcon name="allowances" />, label: "Allowances" },
+      { to: "/recruitment", icon: <SidebarIcon name="recruitment" />, label: "Recruitment" },
+      { to: "/onboarding", icon: <SidebarIcon name="employees" />, label: "Onboarding" },
+      { to: "/hr-automation", icon: <SidebarIcon name="approvals" />, label: "HR Automation" },
+      { to: "/monthly-reports", icon: <SidebarIcon name="payroll" />, label: "Monthly Reports" },
+      { to: "/workforce-analytics", icon: <SidebarIcon name="star" />, label: "Workforce Analytics" }
     ]
   },
   {
@@ -1471,8 +1514,7 @@ const NAV_GROUPS = [
     items: [
       { to: "/customers", icon: <SidebarIcon name="customers" />, label: "Customers" },
       { to: "/quotations", icon: <SidebarIcon name="quotations" />, label: "Quotations" },
-      { to: "/sales-orders", icon: <SidebarIcon name="salesorders" />, label: "Sales Orders" },
-      { to: "/invoice-orders", icon: <SidebarIcon name="invoiceorders" />, label: "Invoice" }
+      { to: "/sales-orders", icon: <SidebarIcon name="salesorders" />, label: "Sales Orders" }
     ]
   },
   {
@@ -1641,6 +1683,24 @@ function Dashboard() {
 
   const closeSidebar = () => setSidebarOpen(false);
 
+  // Lock the page from scrolling underneath the open drawer on mobile.
+  useEffect(() => {
+    if (sidebarOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [sidebarOpen]);
+
+  // Auto-close the drawer when the viewport grows back to desktop so
+  // it doesn't get left in a stuck-open state after a rotation.
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 901px)");
+    const handler = (e) => { if (e.matches) setSidebarOpen(false); };
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
   const username =
     localStorage.getItem("username") || "User";
 
@@ -1665,11 +1725,24 @@ function Dashboard() {
     <div className="dashboard">
 
       <button
-        className="menu-toggle"
+        className={"menu-toggle" + (sidebarOpen ? " menu-toggle-open" : "")}
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        aria-label="Toggle menu"
+        aria-label={sidebarOpen ? "Close menu" : "Open menu"}
+        aria-expanded={sidebarOpen}
       >
-        {sidebarOpen ? "✕" : "☰"}
+        {sidebarOpen ? (
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2.4"
+            strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        ) : (
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2.4"
+            strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
+        )}
       </button>
 
       {
@@ -1757,8 +1830,6 @@ function Dashboard() {
           <Route path="/company-settings" element={<CompanySettings />} />
           <Route path="/holidays" element={<HolidayCalendar />} />
           <Route path="/geofence" element={<GeofenceSettings />} />
-          <Route path="/memos" element={<EmployeeMemos />} />
-
           <Route path="/approvals" element={<ApprovalCenter />} />
 
           {/* Legacy dashboard kept reachable for reference */}
@@ -1769,10 +1840,17 @@ function Dashboard() {
             element={<Organization />}
           />
 
-          <Route
-            path="/employees"
-            element={<Employees />}
-          />
+          {/* HR module — Odoo-style top sub-nav across 8 pages */}
+          <Route element={<HrLayout />}>
+            <Route path="/employees" element={<Employees />} />
+            <Route path="/attendance" element={<Attendance />} />
+            <Route path="/memos" element={<EmployeeMemos />} />
+            <Route path="/leave-management" element={<LeaveManagement />} />
+            <Route path="/allowances" element={<Allowances />} />
+            <Route path="/star-performance" element={<StarPerformance />} />
+            <Route path="/payroll" element={<Payroll />} />
+            <Route path="/payslip-generator" element={<PayslipGenerator />} />
+          </Route>
 
           <Route
             path="/employee-onboarding"
@@ -1813,11 +1891,6 @@ function Dashboard() {
           />
 
           <Route
-            path="/attendance"
-            element={<Attendance />}
-          />
-
-          <Route
             path="/machines"
             element={<Machines />}
           />
@@ -1853,23 +1926,33 @@ function Dashboard() {
           />
 
           <Route
-            path="/leave-management"
-            element={<LeaveManagement />}
+            path="/employees/:id/profile"
+            element={<EmployeeProfile />}
           />
 
           <Route
-            path="/payroll"
-            element={<Payroll />}
+            path="/recruitment"
+            element={<Recruitment />}
           />
 
           <Route
-            path="/star-performance"
-            element={<StarPerformance />}
+            path="/onboarding"
+            element={<OnboardingChecklist />}
           />
 
           <Route
-            path="/allowances"
-            element={<Allowances />}
+            path="/hr-automation"
+            element={<HrAutomation />}
+          />
+
+          <Route
+            path="/monthly-reports"
+            element={<MonthlyReports />}
+          />
+
+          <Route
+            path="/workforce-analytics"
+            element={<WorkforceAnalytics />}
           />
 
           <Route

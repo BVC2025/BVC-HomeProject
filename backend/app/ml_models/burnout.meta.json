@@ -1,0 +1,21 @@
+{
+  "name": "burnout",
+  "algo": "XGBoost",
+  "version": "1.0-synthetic-bootstrap",
+  "trained_at": "2026-06-24T05:19:06.150779",
+  "training_samples": 2400,
+  "features": [
+    "overtime_hours_30d",
+    "consecutive_workdays",
+    "leave_utilisation_pct",
+    "weekend_workdays_30d",
+    "late_evening_checkouts_30d",
+    "late_count_30d",
+    "tenure_months"
+  ],
+  "metrics": {
+    "accuracy": 0.6283,
+    "roc_auc": 0.6525,
+    "positive_rate_train": 0.4371
+  }
+}

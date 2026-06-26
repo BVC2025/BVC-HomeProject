@@ -13,18 +13,18 @@ import styles from "./CompanySettings.module.css";
 
 // Same base URL the API helper points at — used to render the logo
 // preview (which lives under /static on the backend).
-const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8000";
+const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8001";
 
 
 export default function CompanySettings() {
 
-  const [form, setForm]     = useState(null);
+  const [form, setForm] = useState(null);
   const [original, setOrig] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving]   = useState(false);
+  const [saving, setSaving] = useState(false);
   const [previewing, setPreviewing] = useState(false);
-  const [error, setError]     = useState("");
-  const [toast, setToast]     = useState("");
+  const [error, setError] = useState("");
+  const [toast, setToast] = useState("");
   const fileRef = useRef(null);
 
   const showToast = (msg) => {
@@ -163,10 +163,10 @@ export default function CompanySettings() {
             className={styles.previewBtn}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" strokeWidth="2.2"
-                 strokeLinecap="round" strokeLinejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
+              stroke="currentColor" strokeWidth="2.2"
+              strokeLinecap="round" strokeLinejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
             </svg>
             {previewing ? "Opening…" : "Preview PDF"}
           </button>
@@ -259,7 +259,7 @@ export default function CompanySettings() {
               />
             ) : (
               <div className={styles.logoEmptyText}>
-                No logo uploaded.<br/>
+                No logo uploaded.<br />
                 <span className={styles.logoEmptyHint}>
                   PNG / JPG / WebP / SVG · ≤ 2 MB
                 </span>

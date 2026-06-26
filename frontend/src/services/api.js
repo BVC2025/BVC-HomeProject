@@ -49,7 +49,9 @@ function resolveApiBase() {
 
     if (host.endsWith(".trycloudflare.com")) {
 
+      console.log("HGYGHyuk") +
       return LEGACY_QUICK_TUNNEL_BACKEND_URL;
+
     }
 
     return `${proto}//${host}:8000`;

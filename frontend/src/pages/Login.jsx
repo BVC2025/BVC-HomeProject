@@ -132,6 +132,7 @@ function Login() {
         new Date().toISOString()
       );
 
+      // Admin lands directly on the dashboard.
       navigate("/");
 
     } catch (err) {

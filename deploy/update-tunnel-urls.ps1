@@ -15,8 +15,8 @@
 #
 # Usage (from repo root):
 #   .\deploy\update-tunnel-urls.ps1 `
-#     -Frontend "https://poll-skill-won-conclusions.trycloudflare.com" `
-#     -Backend  "https://lender-buried-serious-duration.trycloudflare.com"
+# -Frontend "https://poll-skill-won-conclusions.trycloudflare.com" `
+# -Backend  "https://lender-buried-serious-duration.trycloudflare.com"
 #
 # After running, you still need to:
 #   • Restart Vite dev server     (Ctrl+C + `npm run dev`) — env-vars
@@ -53,16 +53,16 @@ Assert-TunnelUrl -Url $Backend  -Label "Backend"
 
 # Strip any trailing slash
 $Frontend = $Frontend.TrimEnd('/')
-$Backend  = $Backend.TrimEnd('/')
+$Backend = $Backend.TrimEnd('/')
 
 # ---- Resolve repo paths from this script's own location -------------
 
 $DeployDir = $PSScriptRoot
-$RepoRoot  = Split-Path -Parent $DeployDir
+$RepoRoot = Split-Path -Parent $DeployDir
 
-$envBackend  = Join-Path $RepoRoot "backend\.env"
+$envBackend = Join-Path $RepoRoot "backend\.env"
 $envFrontend = Join-Path $RepoRoot "frontend\.env.local"
-$apiJs       = Join-Path $RepoRoot "frontend\src\services\api.js"
+$apiJs = Join-Path $RepoRoot "frontend\src\services\api.js"
 
 foreach ($f in @($envBackend, $envFrontend, $apiJs)) {
     if (-not (Test-Path $f)) {
@@ -82,7 +82,8 @@ $content = Get-Content $envBackend -Raw
 
 if ($content -notmatch '(?m)^FRONTEND_BASE_URL\s*=') {
     Write-Host "[skip] FRONTEND_BASE_URL not found in backend/.env — leaving file alone" -ForegroundColor Yellow
-} else {
+}
+else {
     $new = [regex]::Replace($content, '(?m)^FRONTEND_BASE_URL\s*=.*$', "FRONTEND_BASE_URL=$Frontend")
     Set-Content -Path $envBackend -Value $new -NoNewline
     Write-Host "[updated] backend/.env  -> FRONTEND_BASE_URL=$Frontend" -ForegroundColor Green
@@ -94,7 +95,8 @@ $content = Get-Content $envFrontend -Raw
 
 if ($content -notmatch '(?m)^VITE_API_URL\s*=') {
     Write-Host "[skip] VITE_API_URL not found in frontend/.env.local — leaving file alone" -ForegroundColor Yellow
-} else {
+}
+else {
     $new = [regex]::Replace($content, '(?m)^VITE_API_URL\s*=.*$', "VITE_API_URL=$Backend")
     Set-Content -Path $envFrontend -Value $new -NoNewline
     Write-Host "[updated] frontend/.env.local  -> VITE_API_URL=$Backend" -ForegroundColor Green
@@ -106,7 +108,8 @@ $content = Get-Content $apiJs -Raw
 
 if ($content -notmatch 'LEGACY_QUICK_TUNNEL_BACKEND_URL\s*=') {
     Write-Host "[skip] LEGACY_QUICK_TUNNEL_BACKEND_URL not found in api.js — leaving file alone" -ForegroundColor Yellow
-} else {
+}
+else {
     # Match the constant declaration and replace just the URL string
     $pattern = '(LEGACY_QUICK_TUNNEL_BACKEND_URL\s*=\s*)"[^"]+"'
     $replace = "`$1`"$Backend`""

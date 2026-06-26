@@ -24,6 +24,16 @@ function Attendance() {
 
   const [view, setView] = useState("today");
 
+  // ---- History filters (only used when view === "all") ----
+  const [historyFilters, setHistoryFilters] = useState({
+    start_date: "",
+    end_date: "",
+    employee_id: "",
+    status: "",
+  });
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
   // ---- Geofencing: gate the check-in/out buttons until inside ----
   const [gpsCtx, setGpsCtx] = useState(null);
   // gpsCtx = { lat, lng, distance, accuracy, deviceInfo } | null
@@ -49,17 +59,38 @@ function Attendance() {
     }
   };
 
-  const fetchAllAttendance = async () => {
+  const fetchAllAttendance = async (filters = historyFilters, pageNum = page, pgSize = pageSize) => {
 
+    setHistoryLoading(true);
     try {
 
-      const response = await API.get("/attendance");
+      const params = {
+        limit: pgSize,
+        offset: (pageNum - 1) * pgSize,
+      };
+      if (filters.start_date) params.start_date = filters.start_date;
+      if (filters.end_date) params.end_date = filters.end_date;
+      if (filters.employee_id) params.employee_id = filters.employee_id;
+      if (filters.status) params.status = filters.status;
 
-      setRecords(response.data);
+      const response = await API.get("/attendance", { params });
+
+      // Backend now returns { total, limit, offset, rows }.
+      // Handle both the new shape and the legacy plain-array shape
+      // for safety while caches are warm.
+      const data = response.data;
+      if (Array.isArray(data)) {
+        setRecords(data);
+        setHistoryTotal(data.length);
+      } else {
+        setRecords(data.rows || []);
+        setHistoryTotal(data.total || 0);
+      }
 
     } catch (error) {
-
       console.log(error);
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -124,7 +155,12 @@ function Attendance() {
 
         DEVICE_INFO: gpsCtx.deviceInfo,
 
-        BROWSER_INFO: browserInfo
+        BROWSER_INFO: browserInfo,
+
+        // True when the user clicked "Skip GPS" on the gate. Tells the
+        // backend to still store the coords + distance but skip the
+        // out-of-geofence 403 reject. False on normal in-radius check-ins.
+        BYPASS_GEOFENCE: !!gpsCtx.gpsSkipped
       });
 
       refreshAll();
@@ -167,7 +203,9 @@ function Attendance() {
 
         LONGITUDE: gpsCtx.lng,
 
-        DEVICE_INFO: gpsCtx.deviceInfo
+        DEVICE_INFO: gpsCtx.deviceInfo,
+
+        BYPASS_GEOFENCE: !!gpsCtx.gpsSkipped
       });
 
       refreshAll();
@@ -181,6 +219,52 @@ function Attendance() {
         "Error checking out";
 
       alert(detail);
+    }
+  };
+
+  const otCheckIn = async () => {
+
+    if (!selectedEmployee) {
+
+      alert("Please select an employee");
+
+      return;
+    }
+
+    try {
+
+      await API.post("/ot-check-in", { EMPLOYEE_ID: selectedEmployee });
+
+      refreshAll();
+
+    } catch (error) {
+
+      console.log(error);
+
+      alert(error?.response?.data?.detail || "Error starting OT");
+    }
+  };
+
+  const otCheckOut = async () => {
+
+    if (!selectedEmployee) {
+
+      alert("Please select an employee");
+
+      return;
+    }
+
+    try {
+
+      await API.post("/ot-check-out", { EMPLOYEE_ID: selectedEmployee });
+
+      refreshAll();
+
+    } catch (error) {
+
+      console.log(error);
+
+      alert(error?.response?.data?.detail || "Error closing OT");
     }
   };
 
@@ -266,10 +350,10 @@ function Attendance() {
       status === "PRESENT"
         ? "badge-present"
         : status === "LATE"
-        ? "badge-late"
-        : status === "ABSENT"
-        ? "badge-absent"
-        : "badge-other";
+          ? "badge-late"
+          : status === "ABSENT"
+            ? "badge-absent"
+            : "badge-other";
 
     return (
       <span className={`status-badge ${cls}`}>
@@ -302,10 +386,25 @@ function Attendance() {
 
   }, [view]);
 
+  // For History view (view === "all"), rows come already paged from the server.
+  // For Today view, paginate client-side as before.
   const pagedRows = useMemo(
-    () => rows.slice((page - 1) * pageSize, page * pageSize),
-    [rows, page, pageSize]
+    () => view === "all"
+      ? rows                                                // server-paginated
+      : rows.slice((page - 1) * pageSize, page * pageSize), // client-paginated
+    [rows, page, pageSize, view]
   );
+
+  // Total used by the paginator — server count for History, length for Today.
+  const totalRows = view === "all" ? historyTotal : rows.length;
+
+  // Refetch history when filters or pagination change (only while on History tab).
+  useEffect(() => {
+    if (view === "all") {
+      fetchAllAttendance(historyFilters, page, pageSize);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, historyFilters, page, pageSize]);
 
   // ---- Geofence widget counters (live from backend) ----
   const [geoStats, setGeoStats] = useState(null);
@@ -317,7 +416,7 @@ function Attendance() {
     const load = () => API
       .get("/geofence/dashboard")
       .then((r) => mounted && setGeoStats(r.data))
-      .catch(() => {});
+      .catch(() => { });
 
     load();
 
@@ -331,120 +430,96 @@ function Attendance() {
 
     <div>
 
-      <h1>Attendance</h1>
-
-      <div className="cards">
-
-        <div className="card card-green">
-
-          <h3>Present Today</h3>
-
-          <p>{presentCount}</p>
-
-        </div>
-
-        <div className="card card-amber">
-
-          <h3>Late Today</h3>
-
-          <p>{lateCount}</p>
-
-        </div>
-
-        <div className="card card-blue">
-
-          <h3>Absent Today</h3>
-
-          <p>{absentCount}</p>
-
-        </div>
-
-        <div className="card card-violet">
-
-          <h3>Total Employees</h3>
-
-          <p>{employees.length}</p>
-
-        </div>
-
-      </div>
-
-      {/* ===== Geofence widgets — live counts from /geofence/dashboard ===== */}
-      <div className={styles.geoStrip}>
-        <div className={`${styles.geoWidget} ${styles.geoWidgetGreen}`}>
-          <div className={styles.geoLabel}>📍 Inside Geofence</div>
-          <div className={`${styles.geoValue} ${styles.geoValueGreen}`}>{geoStats?.inside_geofence ?? "—"}</div>
-          <div className={styles.geoSub}>employees inside office today</div>
-        </div>
-        <div className={`${styles.geoWidget} ${styles.geoWidgetRed}`}>
-          <div className={styles.geoLabel}>🚫 Outside Geofence</div>
-          <div className={`${styles.geoValue} ${styles.geoValueRed}`}>{geoStats?.outside_geofence ?? "—"}</div>
-          <div className={styles.geoSub}>marked from outside the radius</div>
-        </div>
-        <div className={`${styles.geoWidget} ${styles.geoWidgetAmber}`}>
-          <div className={styles.geoLabel}>🚨 Security Failures (Today)</div>
-          <div className={`${styles.geoValue} ${styles.geoValueAmber}`}>{geoStats?.security_failures_today ?? "—"}</div>
-          <div className={styles.geoSub}>
-            <a href="/geofence" className={styles.geoSubLink}>review log →</a>
+      {/* ===== Clean compact header ===== */}
+      <div className={styles.headerStrip}>
+        <div className={styles.headerTitleRow}>
+          <h1 className={styles.headerTitle}>Attendance</h1>
+          <div className={styles.headerDate}>
+            {new Date().toLocaleDateString("en-IN", {
+              weekday: "short", day: "numeric", month: "long", year: "numeric",
+            })}
           </div>
         </div>
+
+        {/* One inline stat row instead of seven cards */}
+        <div className={styles.statRow}>
+          <StatItem label="Present" value={presentCount} tone="green" />
+          <StatItem label="Late" value={lateCount} tone="amber" />
+          <StatItem label="Absent" value={absentCount} tone="red" />
+          <StatItem label="Total" value={employees.length} tone="slate" />
+          <div className={styles.statDivider} />
+          <StatItem label="Inside" value={geoStats?.inside_geofence ?? "—"} tone="green" small />
+          <StatItem label="Outside" value={geoStats?.outside_geofence ?? "—"} tone="red" small />
+          <StatItem
+            label="Sec. fails"
+            value={geoStats?.security_failures_today ?? "—"}
+            tone="amber"
+            small
+            href="/geofence"
+          />
+        </div>
       </div>
 
-      <h2 className="section-title">Mark Attendance</h2>
-
-      {/* Geofence gate — must pass before Check-In/Out work */}
+      {/* Compact GPS gate — single-line status */}
       <GeofenceGate
+        compact
         employeeId={selectedEmployee || null}
         onAllowed={(ctx) => setGpsCtx(ctx)}
         onBlocked={() => setGpsCtx(null)}
       />
 
-      <div className="employee-form">
+      {/* Mark-attendance action bar */}
+      <div className={styles.markBar}>
 
         <select
+          className={styles.markSelect}
           value={selectedEmployee}
-          onChange={(e) =>
-            setSelectedEmployee(e.target.value)
-          }
+          onChange={(e) => setSelectedEmployee(e.target.value)}
         >
-
-          <option value="">
-            -- Select Employee --
-          </option>
-
-          {
-            employees.map((emp) => (
-
-              <option key={emp.ID} value={emp.ID}>
-                {emp.NAME} ({emp.EMAIL})
-              </option>
-            ))
-          }
-
+          <option value="">Select employee…</option>
+          {employees.map((emp) => (
+            <option key={emp.ID} value={emp.ID}>
+              {emp.NAME} ({emp.EMPLOYEE_CODE || emp.EMAIL})
+            </option>
+          ))}
         </select>
 
         <button
-          className="start-btn"
+          className={`${styles.markBtn} ${styles.markBtnPrimary}`}
           onClick={checkIn}
           disabled={!gpsCtx}
           title={!gpsCtx ? "Waiting for geofence verification…" : "Check In"}
-          style={!gpsCtx ? { opacity: 0.45, cursor: "not-allowed" } : undefined}
         >
           Check In
         </button>
 
         <button
-          className="complete-btn"
+          className={`${styles.markBtn} ${styles.markBtnSecondary}`}
           onClick={checkOut}
           disabled={!gpsCtx}
           title={!gpsCtx ? "Waiting for geofence verification…" : "Check Out"}
-          style={!gpsCtx ? { opacity: 0.45, cursor: "not-allowed" } : undefined}
         >
           Check Out
         </button>
 
         <button
-          className="hold-btn"
+          className={`${styles.markBtn} ${styles.markBtnOt}`}
+          onClick={otCheckIn}
+          title="Start OT session (after regular check-out)"
+        >
+          OT Check In
+        </button>
+
+        <button
+          className={`${styles.markBtn} ${styles.markBtnOt}`}
+          onClick={otCheckOut}
+          title="Close OT session"
+        >
+          OT Check Out
+        </button>
+
+        <button
+          className={`${styles.markBtn} ${styles.markBtnDanger}`}
           onClick={markAbsent}
         >
           Mark Absent
@@ -484,137 +559,246 @@ function Attendance() {
           All Records
         </button>
 
+        <button
+          className={
+            "tab-btn" +
+            (view === "report" ? " tab-active" : "")
+          }
+          onClick={() => setView("report")}
+        >
+          Report
+        </button>
+
+        <button
+          className={
+            "tab-btn" +
+            (view === "tracking" ? " tab-active" : "")
+          }
+          onClick={() => setView("tracking")}
+        >
+          Employee Tracking
+        </button>
+
       </div>
 
       {view === "board" && <LiveFloorBoard />}
 
-      {view !== "board" && (
-      <>
-
-      <div className="table-wrapper">
-
-      <table className="employee-table">
-
-        <thead>
-
-          <tr>
-
-            <th>Date</th>
-
-            <th>Employee</th>
-
-            <th>Check In</th>
-
-            <th>Check Out</th>
-
-            <th>Hours</th>
-
-            <th>Status</th>
-
-            <th>Check-In Location</th>
-
-            <th>Check-Out Location</th>
-
-            <th>Distance</th>
-
-            <th>Geofence</th>
-
-            <th>Actions</th>
-
-          </tr>
-
-        </thead>
-
-        <tbody>
-
-          {
-            rows.length === 0 ? (
-
-              <tr>
-
-                <td
-                  colSpan="11"
-                  className={styles.emptyCell}
+      {/* ===== History filter bar — only on the All Records view ===== */}
+      {view === "all" && (
+        <div className={styles.historyFilters}>
+          <div className={styles.filterField}>
+            <label>From</label>
+            <input
+              type="date"
+              value={historyFilters.start_date}
+              onChange={(e) => {
+                setPage(1);
+                setHistoryFilters({ ...historyFilters, start_date: e.target.value });
+              }}
+            />
+          </div>
+          <div className={styles.filterField}>
+            <label>To</label>
+            <input
+              type="date"
+              value={historyFilters.end_date}
+              onChange={(e) => {
+                setPage(1);
+                setHistoryFilters({ ...historyFilters, end_date: e.target.value });
+              }}
+            />
+          </div>
+          <div className={styles.filterField}>
+            <label>Employee</label>
+            <select
+              value={historyFilters.employee_id}
+              onChange={(e) => {
+                setPage(1);
+                setHistoryFilters({ ...historyFilters, employee_id: e.target.value });
+              }}
+            >
+              <option value="">All employees</option>
+              {employees.map((emp) => (
+                <option key={emp.ID} value={emp.ID}>
+                  {emp.NAME} ({emp.EMPLOYEE_CODE || "—"})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className={styles.filterField}>
+            <label>Status</label>
+            <div className={styles.statusChips}>
+              {["", "PRESENT", "LATE", "ABSENT", "HALF_DAY"].map((s) => (
+                <button
+                  key={s || "ALL"}
+                  type="button"
+                  onClick={() => {
+                    setPage(1);
+                    setHistoryFilters({ ...historyFilters, status: s });
+                  }}
+                  className={
+                    `${styles.statusChip} ` +
+                    (historyFilters.status === s ? styles.statusChipActive : "")
+                  }
                 >
-                  No attendance records
-                </td>
+                  {s || "ALL"}
+                </button>
+              ))}
+            </div>
+          </div>
+          {(historyFilters.start_date || historyFilters.end_date ||
+            historyFilters.employee_id || historyFilters.status) && (
+              <button
+                type="button"
+                className={styles.filterClear}
+                onClick={() => {
+                  setPage(1);
+                  setHistoryFilters({
+                    start_date: "", end_date: "", employee_id: "", status: "",
+                  });
+                }}
+              >
+                ✕ Clear filters
+              </button>
+            )}
+          <div className={styles.filterResultCount}>
+            {historyLoading
+              ? "Loading…"
+              : `${historyTotal} record${historyTotal === 1 ? "" : "s"}`}
+          </div>
+        </div>
+      )}
 
-              </tr>
+      {view === "report" && <AttendanceReport employees={employees} />}
+      {view === "tracking" && <EmployeeTracking employees={employees} />}
 
-            ) : (
+      {(view === "today" || view === "all") && (
+        <>
 
-              pagedRows.map((row) => (
+          <div className="table-wrapper">
 
-                <tr key={row.ID}>
+            <table className="employee-table">
 
-                  <td>{row.DATE}</td>
+              <thead>
 
-                  <td>
-                    {row.EMPLOYEE_NAME || row.EMPLOYEE_ID}
-                  </td>
+                <tr>
 
-                  <td>{formatTime(row.CHECK_IN)}</td>
+                  <th>Date</th>
 
-                  <td>{formatTime(row.CHECK_OUT)}</td>
+                  <th>Employee</th>
 
-                  <td>
-                    {
-                      row.WORKED_HOURS !== null &&
-                      row.WORKED_HOURS !== undefined
-                        ? `${row.WORKED_HOURS} h`
-                        : "—"
-                    }
-                  </td>
+                  <th>Check In</th>
 
-                  <td>{statusBadge(row.STATUS)}</td>
+                  <th>Check Out</th>
 
-                  <td>{coordCell(row.CHECKIN_LATITUDE, row.CHECKIN_LONGITUDE, row.GEOFENCE_STATUS)}</td>
+                  <th>Hours</th>
 
-                  <td>{coordCell(row.CHECKOUT_LATITUDE, row.CHECKOUT_LONGITUDE, row.GEOFENCE_STATUS)}</td>
+                  <th>Status</th>
 
-                  <td>
-                    {row.CHECKIN_DISTANCE != null
-                      ? `${Math.round(row.CHECKIN_DISTANCE)} m`
-                      : (row.GEOFENCE_STATUS === "UNKNOWN"
-                          ? <span className={styles.gpsSkip}>GPS skipped</span>
-                          : "—")}
-                  </td>
+                  <th>Check-In Location</th>
 
-                  <td>{geofenceBadge(row.GEOFENCE_STATUS)}</td>
+                  <th>Check-Out Location</th>
 
-                  <td>
+                  <th>Distance</th>
 
-                    <IconButton
-                      variant="delete"
-                      onClick={() => deleteRecord(row.ID)}
-                      title="Delete attendance record"
-                    />
+                  <th>Geofence</th>
 
-                  </td>
+                  <th>Actions</th>
 
                 </tr>
-              ))
-            )
-          }
 
-        </tbody>
+              </thead>
 
-      </table>
+              <tbody>
 
-      </div>
+                {
+                  rows.length === 0 ? (
 
-      <TablePagination
-        total={rows.length}
-        page={page}
-        pageSize={pageSize}
-        onPageChange={setPage}
-        onPageSizeChange={(n) => {
-          setPageSize(n);
-          setPage(1);
-        }}
-      />
+                    <tr>
 
-      </>
+                      <td
+                        colSpan="11"
+                        className={styles.emptyCell}
+                      >
+                        No attendance records
+                      </td>
+
+                    </tr>
+
+                  ) : (
+
+                    pagedRows.map((row) => (
+
+                      <tr key={row.ID}>
+
+                        <td>{row.DATE}</td>
+
+                        <td>
+                          {row.EMPLOYEE_NAME || row.EMPLOYEE_ID}
+                        </td>
+
+                        <td>{formatTime(row.CHECK_IN)}</td>
+
+                        <td>{formatTime(row.CHECK_OUT)}</td>
+
+                        <td>
+                          {
+                            row.WORKED_HOURS !== null &&
+                              row.WORKED_HOURS !== undefined
+                              ? `${row.WORKED_HOURS} h`
+                              : "—"
+                          }
+                        </td>
+
+                        <td>{statusBadge(row.STATUS)}</td>
+
+                        <td>{coordCell(row.CHECKIN_LATITUDE, row.CHECKIN_LONGITUDE, row.GEOFENCE_STATUS)}</td>
+
+                        <td>{coordCell(row.CHECKOUT_LATITUDE, row.CHECKOUT_LONGITUDE, row.GEOFENCE_STATUS)}</td>
+
+                        <td>
+                          {row.CHECKIN_DISTANCE != null
+                            ? `${Math.round(row.CHECKIN_DISTANCE)} m`
+                            : (row.GEOFENCE_STATUS === "UNKNOWN"
+                              ? <span className={styles.gpsSkip}>GPS skipped</span>
+                              : "—")}
+                        </td>
+
+                        <td>{geofenceBadge(row.GEOFENCE_STATUS)}</td>
+
+                        <td>
+
+                          <IconButton
+                            variant="delete"
+                            onClick={() => deleteRecord(row.ID)}
+                            title="Delete attendance record"
+                          />
+
+                        </td>
+
+                      </tr>
+                    ))
+                  )
+                }
+
+              </tbody>
+
+            </table>
+
+          </div>
+
+          <TablePagination
+            total={totalRows}
+            page={page}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(n) => {
+              setPageSize(n);
+              setPage(1);
+            }}
+          />
+
+        </>
       )}
 
     </div>
@@ -1004,13 +1188,13 @@ function geofenceBadge(status) {
   if (!status) {
     return (
       <span title="No geofence data captured for this row"
-            className={`${styles.statusBadge} ${styles.badgeOther}`}>—</span>
+        className={`${styles.statusBadge} ${styles.badgeOther}`}>—</span>
     );
   }
   const theme = {
-    INSIDE:  { cls: styles.badgePresent, label: "INSIDE",      title: "Checked in inside the office geofence" },
-    OUTSIDE: { cls: styles.badgeAbsent,  label: "OUTSIDE",     title: "Checked in outside the allowed radius" },
-    UNKNOWN: { cls: styles.badgeLate,    label: "GPS SKIPPED", title: "Employee bypassed GPS — coordinates not captured" }
+    INSIDE: { cls: styles.badgePresent, label: "INSIDE", title: "Checked in inside the office geofence" },
+    OUTSIDE: { cls: styles.badgeAbsent, label: "OUTSIDE", title: "Checked in outside the allowed radius" },
+    UNKNOWN: { cls: styles.badgeLate, label: "GPS SKIPPED", title: "Employee bypassed GPS — coordinates not captured" }
   }[status] || { cls: styles.badgeOther, label: status, title: status };
   return (
     <span title={theme.title} className={`${styles.statusBadge} ${theme.cls}`}>
@@ -1019,6 +1203,425 @@ function geofenceBadge(status) {
   );
 }
 
+
+
+// =====================================================================
+// AttendanceReport — date-range summary with per-employee aggregates.
+// Uses GET /attendance/report?start_date=&end_date=
+// =====================================================================
+
+function AttendanceReport() {
+
+  // Default = current month
+  const today = new Date();
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+    .toISOString().slice(0, 10);
+  const monthEnd = today.toISOString().slice(0, 10);
+
+  const [startDate, setStartDate] = useState(monthStart);
+  const [endDate, setEndDate] = useState(monthEnd);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const load = async () => {
+    if (!startDate || !endDate) return;
+    setLoading(true); setError("");
+    try {
+      const res = await API.get("/attendance/report", {
+        params: { start_date: startDate, end_date: endDate },
+      });
+      setData(res.data);
+    } catch (e) {
+      setError(e?.response?.data?.detail || "Failed to load report");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  // Auto-reload when dates change
+  useEffect(() => {
+    if (startDate && endDate) load();
+    // eslint-disable-next-line
+  }, [startDate, endDate]);
+
+  // Quick-range buttons
+  const setRange = (days) => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - days + 1);
+    setStartDate(start.toISOString().slice(0, 10));
+    setEndDate(end.toISOString().slice(0, 10));
+  };
+
+  return (
+    <div className={styles.reportWrap}>
+
+      {/* Filter row */}
+      <div className={styles.historyFilters}>
+        <div className={styles.filterField}>
+          <label>From</label>
+          <input type="date" value={startDate}
+            onChange={(e) => setStartDate(e.target.value)} />
+        </div>
+        <div className={styles.filterField}>
+          <label>To</label>
+          <input type="date" value={endDate}
+            onChange={(e) => setEndDate(e.target.value)} />
+        </div>
+        <div className={styles.statusChips} style={{ alignSelf: "flex-end" }}>
+          <button type="button" className={styles.statusChip}
+            onClick={() => setRange(7)}>Last 7d</button>
+          <button type="button" className={styles.statusChip}
+            onClick={() => setRange(30)}>Last 30d</button>
+          <button type="button" className={styles.statusChip}
+            onClick={() => setRange(90)}>Last 90d</button>
+          <button type="button" className={styles.statusChip}
+            onClick={() => {
+              const t = new Date();
+              setStartDate(new Date(t.getFullYear(), t.getMonth(), 1)
+                .toISOString().slice(0, 10));
+              setEndDate(t.toISOString().slice(0, 10));
+            }}>This month</button>
+        </div>
+        <div className={styles.filterResultCount}>
+          {loading ? "Loading…" : data ? `${data.totals.employees} employees` : ""}
+        </div>
+      </div>
+
+      {error && <div className={styles.reportError}>{error}</div>}
+
+      {/* Summary tiles */}
+      {data && (
+        <div className={styles.reportTotals}>
+          <ReportTile label="Working Days" value={data.totals.working_days} />
+          <ReportTile label="Avg Attendance" value={`${data.totals.avg_attendance_pct}%`} />
+          <ReportTile label="Total Present" value={data.totals.total_present} />
+          <ReportTile label="Total Late" value={data.totals.total_late} accent="#d97706" />
+          <ReportTile label="Total Absent" value={data.totals.total_absent} accent="#dc2626" />
+          <ReportTile label="OT Hours" value={data.totals.total_overtime} accent="#0891b2" />
+        </div>
+      )}
+
+      {/* Per-employee table */}
+      <div className="table-wrapper">
+        <table className="employee-table">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Working Days</th>
+              <th>Present</th>
+              <th>Late</th>
+              <th>Absent</th>
+              <th>Worked Hours</th>
+              <th>OT Hours</th>
+              <th>Attendance %</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data?.rows?.length === 0 && (
+              <tr><td colSpan={8} style={{ textAlign: "center", padding: 24, color: "#64748b" }}>
+                No active employees found.
+              </td></tr>
+            )}
+            {data?.rows?.map((r) => (
+              <tr key={r.employee_id}>
+                <td>
+                  <div style={{ fontWeight: 700 }}>{r.employee_name}</div>
+                  <div style={{ fontSize: 11, color: "#64748b" }}>{r.employee_code}</div>
+                </td>
+                <td>{r.working_days}</td>
+                <td>{Number.isInteger(r.present) ? r.present : r.present.toFixed(1)}</td>
+                <td style={{ color: r.late >= 5 ? "#dc2626" : r.late >= 3 ? "#d97706" : "#475569" }}>
+                  {r.late}
+                </td>
+                <td style={{ color: r.absent > 0 ? "#dc2626" : "#475569" }}>
+                  {r.absent}
+                </td>
+                <td>{r.worked_hours}</td>
+                <td>{r.overtime_hours}</td>
+                <td>
+                  <div className={styles.attendanceBar}>
+                    <div className={styles.attendanceBarFill}
+                      style={{
+                        width: `${Math.max(0, Math.min(100, r.attendance_pct))}%`,
+                        background:
+                          r.attendance_pct >= 95 ? "#16a34a" :
+                            r.attendance_pct >= 75 ? "#d97706" : "#dc2626",
+                      }} />
+                  </div>
+                  <div style={{
+                    fontSize: 11, fontWeight: 700, marginTop: 2,
+                    color: r.attendance_pct >= 95 ? "#16a34a" :
+                      r.attendance_pct >= 75 ? "#d97706" : "#dc2626"
+                  }}>
+                    {r.attendance_pct.toFixed(1)}%
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+
+function ReportTile({ label, value, accent }) {
+  return (
+    <div className={styles.reportTile}
+      style={accent ? { borderLeftColor: accent } : undefined}>
+      <div className={styles.reportTileLabel}>{label}</div>
+      <div className={styles.reportTileValue}>{value}</div>
+    </div>
+  );
+}
+
+
+// =====================================================================
+// EmployeeTracking — per-employee detailed attendance over last N days.
+// Uses GET /attendance/employee/{id}/tracking?days=N
+// =====================================================================
+
+function EmployeeTracking({ employees }) {
+
+  const [empId, setEmpId] = useState("");
+  const [days, setDays] = useState(90);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const load = async () => {
+    if (!empId) { setData(null); return; }
+    setLoading(true); setError("");
+    try {
+      const res = await API.get(
+        `/attendance/employee/${empId}/tracking`,
+        { params: { days } }
+      );
+      setData(res.data);
+    } catch (e) {
+      setError(e?.response?.data?.detail || "Failed to load tracking data");
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [empId, days]);
+
+  // Group timeline rows by ISO week for the heatmap layout
+  const weeks = useMemo(() => {
+    if (!data?.timeline) return [];
+    const grouped = [];
+    let current = [];
+    let lastWeek = null;
+    for (const t of data.timeline) {
+      const d = new Date(t.date);
+      // ISO week number — use Sun-Sat grouping
+      const yearStart = new Date(d.getFullYear(), 0, 1);
+      const week = Math.floor(((d - yearStart) / 86400000 + yearStart.getDay()) / 7);
+      if (lastWeek !== null && week !== lastWeek) {
+        grouped.push(current);
+        current = [];
+      }
+      current.push(t);
+      lastWeek = week;
+    }
+    if (current.length) grouped.push(current);
+    return grouped;
+  }, [data]);
+
+  return (
+    <div className={styles.trackingWrap}>
+
+      {/* Controls */}
+      <div className={styles.historyFilters}>
+        <div className={styles.filterField}>
+          <label>Employee</label>
+          <select value={empId} onChange={(e) => setEmpId(e.target.value)}>
+            <option value="">— Pick an employee —</option>
+            {employees.map((emp) => (
+              <option key={emp.ID} value={emp.ID}>
+                {emp.NAME} ({emp.EMPLOYEE_CODE || "—"})
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className={styles.filterField}>
+          <label>Window</label>
+          <div className={styles.statusChips}>
+            {[30, 60, 90, 180].map((d) => (
+              <button key={d} type="button"
+                onClick={() => setDays(d)}
+                className={
+                  `${styles.statusChip} ` +
+                  (days === d ? styles.statusChipActive : "")
+                }
+              >{d}d</button>
+            ))}
+          </div>
+        </div>
+        <div className={styles.filterResultCount}>
+          {loading ? "Loading…"
+            : data ? `${data.window.working_days} working days`
+              : "Select an employee"}
+        </div>
+      </div>
+
+      {error && <div className={styles.reportError}>{error}</div>}
+
+      {!empId && !data && (
+        <div className={styles.trackingEmpty}>
+          Pick an employee above to see their attendance tracking.
+        </div>
+      )}
+
+      {data && (
+        <>
+          {/* KPI tiles */}
+          <div className={styles.reportTotals}>
+            <ReportTile label="Attendance" value={`${data.summary.attendance_pct}%`}
+              accent={data.summary.attendance_pct >= 95 ? "#16a34a"
+                : data.summary.attendance_pct >= 75 ? "#d97706" : "#dc2626"} />
+            <ReportTile label="Present" value={data.summary.present} />
+            <ReportTile label="Late" value={data.summary.late} accent="#d97706" />
+            <ReportTile label="Absent" value={data.summary.absent} accent="#dc2626" />
+            <ReportTile label="Worked Hours" value={data.summary.worked_hours} />
+            <ReportTile label="OT Hours" value={data.summary.overtime_hours} accent="#0891b2" />
+          </div>
+
+          {/* Calendar heatmap */}
+          <div className={styles.heatmapCard}>
+            <div className={styles.heatmapTitle}>
+              {days}-day calendar — {data.window.start_date} to {data.window.end_date}
+            </div>
+            <div className={styles.heatmapGrid}>
+              {weeks.map((week, wi) => (
+                <div key={wi} className={styles.heatmapWeek}>
+                  {week.map((t) => (
+                    <HeatCell key={t.date} day={t} />
+                  ))}
+                </div>
+              ))}
+            </div>
+            <div className={styles.heatmapLegend}>
+              <LegendDot color="#16a34a" label="Present" />
+              <LegendDot color="#d97706" label="Late" />
+              <LegendDot color="#dc2626" label="Absent" />
+              <LegendDot color="#7c3aed" label="Half-day" />
+              <LegendDot color="#cbd5e1" label="Weekly off" />
+              <LegendDot color="#f1f5f9" label="No data" />
+            </div>
+          </div>
+
+          {/* Recent records table */}
+          <div className={styles.heatmapCard}>
+            <div className={styles.heatmapTitle}>Recent days</div>
+            <div className="table-wrapper">
+              <table className="employee-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Day</th>
+                    <th>Check In</th>
+                    <th>Check Out</th>
+                    <th>Hours</th>
+                    <th>OT</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.timeline.slice().reverse().slice(0, 30).map((t) => (
+                    <tr key={t.date}>
+                      <td>{t.date}</td>
+                      <td>{t.weekday}</td>
+                      <td>{t.check_in || "—"}</td>
+                      <td>{t.check_out || "—"}</td>
+                      <td>{t.worked_hours || "—"}</td>
+                      <td>{t.overtime_hours || "—"}</td>
+                      <td><TrackingStatus status={t.status} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+
+function HeatCell({ day }) {
+  const color =
+    day.status === "PRESENT" ? "#16a34a" :
+      day.status === "LATE" ? "#d97706" :
+        day.status === "ABSENT" ? "#dc2626" :
+          day.status === "HALF_DAY" ? "#7c3aed" :
+            day.status === "WEEKLY_OFF" ? "#cbd5e1" :
+              "#f1f5f9"; // NO_DATA
+  return (
+    <div
+      title={`${day.date} (${day.weekday}) — ${day.status}${day.check_in ? ` · in ${day.check_in}` : ""}${day.check_out ? `, out ${day.check_out}` : ""}`}
+      className={styles.heatCell}
+      style={{ background: color }}
+    />
+  );
+}
+
+
+function LegendDot({ color, label }) {
+  return (
+    <span className={styles.legendItem}>
+      <span className={styles.legendDot} style={{ background: color }} />
+      <span>{label}</span>
+    </span>
+  );
+}
+
+
+// ----- Compact stat pill used in the page header -----
+function StatItem({ label, value, tone = "slate", small, href }) {
+  const cls =
+    tone === "green" ? styles.statItemGreen :
+      tone === "amber" ? styles.statItemAmber :
+        tone === "red" ? styles.statItemRed :
+          styles.statItemSlate;
+  const Tag = href ? "a" : "div";
+  const tagProps = href ? { href } : {};
+  return (
+    <Tag
+      {...tagProps}
+      className={`${styles.statItem} ${cls} ${small ? styles.statItemSmall : ""}`}
+    >
+      <span className={styles.statItemValue}>{value}</span>
+      <span className={styles.statItemLabel}>{label}</span>
+    </Tag>
+  );
+}
+
+
+function TrackingStatus({ status }) {
+  const map = {
+    PRESENT: { bg: "#dcfce7", fg: "#166534" },
+    LATE: { bg: "#fef3c7", fg: "#92400e" },
+    ABSENT: { bg: "#fee2e2", fg: "#991b1b" },
+    HALF_DAY: { bg: "#ede9fe", fg: "#5b21b6" },
+    WEEKLY_OFF: { bg: "#f1f5f9", fg: "#475569" },
+    NO_DATA: { bg: "#f8fafc", fg: "#94a3b8" },
+  };
+  const c = map[status] || map.NO_DATA;
+  return (
+    <span style={{
+      background: c.bg, color: c.fg, padding: "2px 10px",
+      borderRadius: 999, fontSize: 11, fontWeight: 800, letterSpacing: 0.4,
+    }}>{status.replace("_", " ")}</span>
+  );
+}
 
 
 export default Attendance;
