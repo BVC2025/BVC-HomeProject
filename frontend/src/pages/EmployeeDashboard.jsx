@@ -5,7 +5,6 @@ import API, { API_BASE_URL } from "../services/api";
 import ChatBot from "../components/ChatBot";
 import HRAssistant from "../components/HRAssistant";
 import LeaveChatbot from "../components/LeaveChatbot";
-import VoiceLeaveTest from "../components/VoiceLeaveTest";
 import MyAttendancePanel from "../components/MyAttendancePanel";
 import EmployeeProfileForm from "./EmployeeProfileForm";
 
@@ -726,10 +725,6 @@ function EmployeeDashboardBody() {
 
         {mainTab === "leave" && (
           <>
-            {/* Voice-driven leave POC. Backend wiring follows once the
-                STT transcription quality is validated with real voices. */}
-            <VoiceLeaveTest />
-
             {/* The chat-based leave assistant and the manual apply
                 form are temporarily removed from this tab — voice is
                 the new primary input. Components stay imported so
