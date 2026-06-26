@@ -15,6 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
+from app.auth.auth_bearer import get_current_admin
 
 from app.models.models import (
     Supplier,
@@ -38,7 +39,8 @@ router = APIRouter()
 def reset_and_seed(
     wipe: bool = Query(True, description="Delete existing data first"),
     vendor_id: int = Query(1),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: dict = Depends(get_current_admin),
 ):
     """
     Reset + seed procurement data.

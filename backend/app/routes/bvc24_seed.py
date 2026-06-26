@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 import bcrypt
 
 from app.database.database import get_db
+from app.auth.auth_bearer import get_current_admin
 
 from app.models.models import (
     Vendor,
@@ -1257,7 +1258,7 @@ def _seed_sample_inspection(
 
 
 @router.post("/seed-bvc24")
-def seed_bvc24(db: Session = Depends(get_db)):
+def seed_bvc24(db: Session = Depends(get_db), _: dict = Depends(get_current_admin)):
 
     vendor = _get_or_create_vendor(db)
 
