@@ -21,10 +21,8 @@ from fastapi.staticfiles import StaticFiles
 from app.routes import employee
 from app.database.database import engine
 from app.models.models import Base
-from app.routes.users import router as users_router
 from app.routes.auth import router as auth_router
-from app.routes.vendor import router as vendor_router
-# project_router (customer projects) removed — ProjectCategory→Project hierarchy now owns the "project" table
+from app.routes.project import router as project_router
 from app.routes.task import router as task_router
 from app.routes.inventory import router as inventory_router
 from app.routes.analytics import router as analytics_router
@@ -1300,10 +1298,8 @@ app.include_router(employee.router, tags=["Employees (IAM)"])
 app.include_router(employee_task_router, tags=["Employee Workflow"])
 app.include_router(task_approval_router, tags=["Task Approval"])
 app.include_router(task_router, tags=["Project Tasks"])
-# app.include_router(project_router, tags=["Projects"])  # removed — customer projects replaced by Project template hierarchy
+app.include_router(project_router, tags=["Projects & Customers"])
 app.include_router(project_template_router, tags=["Project Templates"])
-app.include_router(users_router, tags=["Users"])
-app.include_router(vendor_router, tags=["Vendors"])
 app.include_router(inventory_router, tags=["Inventory"])
 app.include_router(machine_router, tags=["Machines"])
 app.include_router(attendance_router, tags=["Attendance"])
