@@ -153,11 +153,11 @@ def _is_admin_role(role: Optional[Role]) -> bool:
     """True if this role is a management/admin role that should NOT
     receive shop-floor task assignments. Case-insensitive."""
 
-    if role is None or not role.ROLE_NAME:
+    if role is None or not role.NAME:
 
         return False
 
-    return role.ROLE_NAME.strip().lower() in ADMIN_ROLE_NAMES
+    return role.NAME.strip().lower() in ADMIN_ROLE_NAMES
 
 
 def find_fairest_owner(
@@ -455,7 +455,7 @@ def create_project_from_product(
 
     dept = db.query(Department).filter(
         Department.VENDOR_ID == vendor_id,
-        Department.CODE == code_hint
+        Department.DEPARTMENT_CODE == code_hint
     ).first()
 
     if dept:

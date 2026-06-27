@@ -1,9 +1,38 @@
-from sqlalchemy import Column, String, Integer, ForeignKey, Float, Date, Time, Text, UniqueConstraint
+from sqlalchemy import (
+    Column, String, Integer, ForeignKey, Float, Date, Time,
+    Text, UniqueConstraint, DateTime, Boolean, Numeric, JSON,
+    Enum as SAEnum
+)
 from sqlalchemy.orm import relationship
 from app.database.database import Base
 from datetime import datetime, time
-from sqlalchemy import DateTime
 import uuid
+
+# ──────────────────────────────────────────────
+# Shared SQLAlchemy Enum types
+# ──────────────────────────────────────────────
+FIELD_TYPE_ENUM = SAEnum(
+    "TEXT", "NUMBER", "DATE", "DATETIME", "CHECKBOX",
+    "RADIO", "SELECT", "TEXTAREA", "EMAIL", "PHONE",
+    name="field_type_enum", create_constraint=True
+)
+UNIT_ENUM = SAEnum(
+    "PCS", "KG", "GRAM", "LITER", "ML",
+    "METER", "CM", "BOX", "PACK", "SET",
+    name="unit_enum", create_constraint=True
+)
+DURATION_UNIT_ENUM = SAEnum(
+    "HOURS", "DAYS", "WEEKS", "MONTHS", "YEARS",
+    name="duration_unit_enum", create_constraint=True
+)
+TASK_STATUS_ENUM = SAEnum(
+    "PENDING", "IN_PROGRESS", "COMPLETED", "EXTENDED", "OVERDUE",
+    name="task_status_enum", create_constraint=True
+)
+ASSIGNMENT_MODE_ENUM = SAEnum(
+    "PARALLEL", "SEQUENTIAL",
+    name="assignment_mode_enum", create_constraint=True
+)
 
 class Vendor(Base):
     __tablename__ = "vendor"
@@ -207,21 +236,22 @@ class Role(Base):
 
     __tablename__ = "role"
 
-    ID = Column(Integer, primary_key=True, index=True)
-
-    ROLE_NAME = Column(String(100))
-
-    DESCRIPTION = Column(String(255), nullable=True)
-
-    IS_SYSTEM = Column(Integer, default=0)
-    # 1 = standard role seeded by us (cannot be deleted)
-    # 0 = custom role created by admin
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID"),
-        index=True
+    __table_args__ = (
+        UniqueConstraint("VENDOR_ID", "NAME", name="uq_role_vendor_name"),
     )
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
+
+    DEPARTMENT_ID = Column(Integer, ForeignKey("department.ID", ondelete="SET NULL"), nullable=True, index=True)
+
+    NAME = Column(String(100), nullable=False)
+
+    DESCRIPTION = Column(String(500), nullable=True)
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class Department(Base):
@@ -229,40 +259,21 @@ class Department(Base):
     __tablename__ = "department"
 
     __table_args__ = (
-        UniqueConstraint(
-            "VENDOR_ID", "CODE",
-            name="uq_dept_vendor_code"
-        ),
+        UniqueConstraint("VENDOR_ID", "DEPARTMENT_CODE", name="uq_dept_vendor_code"),
     )
 
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
 
-    NAME = Column(String(100))
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
 
-    CODE = Column(String(20))
-    # short code per vendor — e.g. "SW", "WLD", "PRD"
+    DEPARTMENT_CODE = Column(String(20), nullable=False)
 
-    DESCRIPTION = Column(String(255), nullable=True)
+    NAME = Column(String(100), nullable=False)
 
-    HEAD_EMPLOYEE_ID = Column(
-        String(36),
-        nullable=True
-        # FK to employee.ID added in Module 2 once Employee
-        # model is restructured — leave nullable for now
-    )
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID"),
-        index=True
-    )
+    DESCRIPTION = Column(String(500), nullable=True)
 
     CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class Designation(Base):
@@ -635,146 +646,81 @@ class ProjectCategory(Base):
 
     __tablename__ = "project_category"
 
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
+    __table_args__ = (
+        UniqueConstraint("VENDOR_ID", "NAME", name="uq_proj_cat_vendor_name"),
     )
 
-    SECTION = Column(
-        String(30),
-        index=True
-    )
+    ID = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
 
-    NAME = Column(
-        String(100),
-        unique=True
-    )
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
 
-    DESCRIPTION = Column(
-        String(255),
-        nullable=True
-    )
+    NAME = Column(String(100), nullable=False)
 
+    DESCRIPTION = Column(String(500), nullable=True)
 
-class SubProjectTemplate(Base):
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    __tablename__ = "sub_project_template"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    CATEGORY_ID = Column(
-        Integer,
-        ForeignKey("project_category.ID"),
-        index=True
-    )
-
-    NAME = Column(
-        String(100)
-    )
-
-    DESCRIPTION = Column(
-        String(500),
-        nullable=True
-    )
-
-    ESTIMATED_TOTAL_DAYS = Column(
-        Integer,
-        default=30
-    )
+    projects = relationship("Project", back_populates="category", cascade="all, delete-orphan")
 
 
 class Project(Base):
 
     __tablename__ = "project"
 
-    ID = Column(
-        Integer,
-        primary_key=True,
+    __table_args__ = (
+        UniqueConstraint("VENDOR_ID", "CATEGORY_ID", "NAME", name="uq_project_vendor_cat_name"),
+    )
+
+    ID = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
+
+    CATEGORY_ID = Column(
+        String(36),
+        ForeignKey("project_category.ID", ondelete="RESTRICT"),
+        nullable=False,
         index=True
     )
 
-    PROJECT_NAME = Column(
-        String(200)
+    NAME = Column(String(100), nullable=False)
+
+    DESCRIPTION = Column(String(500), nullable=True)
+
+    BOM_MODE = Column(String(20), nullable=True)
+
+    ESTIMATED_TOTAL_DAYS = Column(Numeric(10, 2), default=0.0, nullable=False)
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    category       = relationship("ProjectCategory", back_populates="projects")
+    task_templates = relationship(
+        "TaskTemplate", back_populates="project",
+        order_by="TaskTemplate.SEQUENCE_NUMBER",
+        cascade="all, delete-orphan"
     )
 
-    DESCRIPTION = Column(
-        String(2000)
-    )
 
-    STATUS = Column(
-        String(50),
-        default="PENDING"
-    )
+class CustomerProject(Base):
+    """Legacy customer-project records — table renamed to project_legacy by _rename_legacy_project_table()."""
 
-    SUB_PROJECT_TEMPLATE_ID = Column(
-        Integer,
-        ForeignKey("sub_project_template.ID"),
-        nullable=True,
-        index=True
-    )
+    __tablename__ = "project_legacy"
+    __table_args__ = {"extend_existing": True}
 
-    DEPARTMENT_ID = Column(
-        Integer,
-        ForeignKey("department.ID"),
-        nullable=True,
-        index=True
-    )
-
-    CUSTOMER_ID = Column(
-        Integer,
-        ForeignKey("customer.ID")
-    )
-
-    SKILLS_REQUIRED = Column(
-        String(500),
-        nullable=True
-    )
-    # comma-separated skill tags this project needs;
-    # used by allocation_service for skill-overlap scoring.
-
-    PRIORITY = Column(
-        String(20),
-        default="MEDIUM"
-    )
-    # HIGH / MEDIUM / LOW — weights into allocation score.
-
-    # ---- NEW: Product-as-source linkage --------------------------
-    # A Project is now an *instance* of a Product (Machine Model)
-    # being built for a Customer. The product's BOM + stages flow
-    # into the project's task graph automatically when the project
-    # is created via the /projects/from-product endpoint.
-
-    PRODUCT_MODEL_ID = Column(
-        Integer,
-        ForeignKey("product_model.ID"),
-        nullable=True,
-        index=True
-    )
-
-    QUANTITY = Column(
-        Integer,
-        default=1
-    )
-    # How many units of the product this project will deliver.
-
-    TARGET_DATE = Column(
-        Date,
-        nullable=True
-    )
-    # When the project should be completed by.
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID")
-    )
-
+    ID = Column(Integer, primary_key=True, index=True)
+    PROJECT_NAME = Column(String(200))
+    DESCRIPTION = Column(String(2000))
+    STATUS = Column(String(50), default="PENDING")
+    SUB_PROJECT_TEMPLATE_ID = Column(Integer, nullable=True, index=True)  # historical ref; old sub_project_template table archived to sub_project_template_legacy
+    DEPARTMENT_ID = Column(Integer, ForeignKey("department.ID"), nullable=True, index=True)
+    CUSTOMER_ID = Column(Integer, ForeignKey("customer.ID"))
+    SKILLS_REQUIRED = Column(String(500), nullable=True)
+    PRIORITY = Column(String(20), default="MEDIUM")
+    PRODUCT_MODEL_ID = Column(Integer, ForeignKey("product_model.ID"), nullable=True, index=True)
+    QUANTITY = Column(Integer, default=1)
+    TARGET_DATE = Column(Date, nullable=True)
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID"))
 
 
 class Task(Base):
@@ -810,7 +756,7 @@ class Task(Base):
 
     PROJECT_ID = Column(
         Integer,
-        ForeignKey("project.ID")
+        ForeignKey("project_legacy.ID")
     )
 
     ASSIGNED_TO = Column(
@@ -1093,7 +1039,7 @@ class TaskAssignment(Base):
 
     PROJECT_ID = Column(
         Integer,
-        ForeignKey("project.ID"),
+        ForeignKey("project_legacy.ID"),
         nullable=True,
         index=True
     )
@@ -1492,7 +1438,7 @@ class WorkOrder(Base):
 
     PROJECT_ID = Column(
         Integer,
-        ForeignKey("project.ID"),
+        ForeignKey("project_legacy.ID"),
         nullable=True,
         index=True
     )
@@ -2284,7 +2230,7 @@ class DailyAllocation(Base):
 
     PROJECT_ID = Column(
         Integer,
-        ForeignKey("project.ID"),
+        ForeignKey("project_legacy.ID"),
         nullable=True
     )
 
@@ -3018,7 +2964,7 @@ class PurchaseOrder(Base):
 
     LINKED_PROJECT_ID = Column(
         Integer,
-        ForeignKey("project.ID"),
+        ForeignKey("project_legacy.ID"),
         nullable=True,
         index=True
     )
@@ -3406,7 +3352,7 @@ class SalesOrderLine(Base):
 
     SPAWNED_PROJECT_ID = Column(
         Integer,
-        ForeignKey("project.ID"),
+        ForeignKey("project_legacy.ID"),
         nullable=True,
         index=True
     )
@@ -4179,7 +4125,6 @@ class AuditLog(Base):
 
     CREATED_AT  = Column(DateTime, default=datetime.utcnow, index=True)
 
-
 # ====================================================================
 # Employee Allowance / Expense Claim
 # ====================================================================
@@ -4887,3 +4832,61 @@ class OnboardingChecklistItem(Base):
     UPDATED_AT      = Column(DateTime, default=datetime.utcnow,
                              onupdate=datetime.utcnow)
 
+# ──────────────────────────────────────────────
+# Custom Fields System
+# ──────────────────────────────────────────────
+
+class CustomField(Base):
+    __tablename__ = "custom_fields"
+
+    ID          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    TABLE_NAME  = Column(String(100), nullable=False, index=True)
+    FIELD_NAME  = Column(String(50),  nullable=False)
+    FIELD_TYPE  = Column(FIELD_TYPE_ENUM, nullable=False)
+    OPTIONS     = Column(JSON, nullable=True)
+    IS_REQUIRED = Column(Boolean, default=False, nullable=False)
+    SORT_ORDER  = Column(Integer, nullable=False, default=0)
+    VENDOR_ID   = Column(Integer, ForeignKey("vendor.ID"), nullable=True, index=True)
+    CREATED_AT  = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT  = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    values = relationship("CustomFieldTableValue", back_populates="field", cascade="all, delete-orphan")
+
+
+class CustomFieldTableValue(Base):
+    __tablename__ = "custom_fields_table_values"
+
+    ID                 = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    TABLE_NAME         = Column(String(100), nullable=False, index=True)
+    TABLE_ROW_ID       = Column(String(36),  nullable=False, index=True)
+    CUSTOM_FIELD_ID    = Column(String(36), ForeignKey("custom_fields.ID", ondelete="CASCADE"), nullable=False)
+    CUSTOM_FIELD_VALUE = Column(JSON, nullable=True)
+    CREATED_AT         = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT         = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    field = relationship("CustomField", back_populates="values")
+
+
+# ──────────────────────────────────────────────
+# Task Template
+# ──────────────────────────────────────────────
+
+class TaskTemplate(Base):
+    __tablename__ = "task_template"
+
+    ID              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    PROJECT_ID      = Column(String(36), ForeignKey("project.ID", ondelete="RESTRICT"), nullable=False, index=True)
+    VENDOR_ID       = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
+    NAME            = Column(String(100), nullable=False)
+    DESCRIPTION     = Column(Text, nullable=True)
+    DURATION_VALUE  = Column(Numeric(7, 2), default=1.0, nullable=False)
+    DURATION_UNIT   = Column(DURATION_UNIT_ENUM, default="DAYS", nullable=False)
+    SEQUENCE_NUMBER = Column(Integer, nullable=False, default=0)
+    DEPARTMENT_ID   = Column(Integer, ForeignKey("department.ID", ondelete="SET NULL"), nullable=True, index=True)
+    ROLE_ID         = Column(Integer, ForeignKey("role.ID",       ondelete="SET NULL"), nullable=True, index=True)
+    CREATED_AT      = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    project    = relationship("Project", back_populates="task_templates")
+    department = relationship("Department", foreign_keys=[DEPARTMENT_ID])
+    role       = relationship("Role",       foreign_keys=[ROLE_ID])
