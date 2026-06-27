@@ -74,6 +74,10 @@ const OrgRoleManagement = lazy(() => import("./OrgRoleManagement"));
 const ProjectCategoryManagement = lazy(() => import("./ProjectCategoryManagement"));
 const ProjectPage = lazy(() => import("./ProjectPage"));
 const TaskTemplatePage = lazy(() => import("./TaskTemplatePage"));
+const InventoryCategoriesPage = lazy(() => import("./InventoryCategoriesPage"));
+const ProductMasterPage = lazy(() => import("./ProductMasterPage"));
+const SupplierManagementPage = lazy(() => import("./SupplierManagementPage"));
+const InventoryItemsPage = lazy(() => import("./InventoryItemsPage"));
 
 import styles from "./Dashboard.module.css";
 import {
@@ -1540,7 +1544,11 @@ const NAV_GROUPS = [
       { to: "/suppliers", icon: <SidebarIcon name="suppliers" />, label: "Suppliers" },
       { to: "/purchase", icon: <SidebarIcon name="purchase" />, label: "BOM-Supplier Map" },
       { to: "/purchase-orders", icon: <SidebarIcon name="purchaseorders" />, label: "Purchase Orders" },
-      { to: "/inventory", icon: <SidebarIcon name="inventory" />, label: "Inventory" }
+      { to: "/inventory", icon: <SidebarIcon name="inventory" />, label: "Inventory" },
+      { to: "/supplier-management", icon: <SidebarIcon name="suppliers" />, label: "Supplier Management" },
+      { to: "/inventory-categories", icon: <SidebarIcon name="inventory" />, label: "Inv. Categories" },
+      { to: "/product-master", icon: <SidebarIcon name="inventory" />, label: "Product Master" },
+      { to: "/inventory-items", icon: <SidebarIcon name="inventory" />, label: "Inventory Items" },
     ]
   },
   {
@@ -1921,6 +1929,12 @@ function Dashboard() {
           <Route path="/org-roles" element={<Suspense fallback={null}><OrgRoleManagement /></Suspense>} />
           <Route path="/project-categories" element={<Suspense fallback={null}><ProjectCategoryManagement /></Suspense>} />
           <Route path="/task-templates" element={<Suspense fallback={null}><TaskTemplatePage /></Suspense>} />
+
+          {/* Supplier & Inventory Management module */}
+          <Route path="/inventory-categories" element={<Suspense fallback={null}><InventoryCategoriesPage /></Suspense>} />
+          <Route path="/product-master" element={<Suspense fallback={null}><ProductMasterPage /></Suspense>} />
+          <Route path="/supplier-management" element={<Suspense fallback={null}><SupplierManagementPage /></Suspense>} />
+          <Route path="/inventory-items" element={<Suspense fallback={null}><InventoryItemsPage /></Suspense>} />
 
         </Routes>
 

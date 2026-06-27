@@ -8,6 +8,10 @@ from app.database.database import Base
 from datetime import datetime, time
 import uuid
 
+from app.models.project_models import ProjectCategory, Project, TaskTemplate  # noqa: F401
+from app.models.supplier_models import Supplier  # noqa: F401
+__all__ = ["ProjectCategory", "Project", "TaskTemplate", "Supplier"]  # re-exported from dedicated model files
+
 # ──────────────────────────────────────────────
 # Shared SQLAlchemy Enum types
 # ──────────────────────────────────────────────
@@ -659,65 +663,6 @@ class CustomerRequirement(Base):
     )
 
 
-class ProjectCategory(Base):
-
-    __tablename__ = "project_category"
-
-    __table_args__ = (
-        UniqueConstraint("VENDOR_ID", "NAME", name="uq_proj_cat_vendor_name"),
-    )
-
-    ID = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-
-    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
-
-    NAME = Column(String(100), nullable=False)
-
-    DESCRIPTION = Column(String(500), nullable=True)
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    projects = relationship("Project", back_populates="category", cascade="all, delete-orphan")
-
-
-class Project(Base):
-
-    __tablename__ = "project"
-
-    __table_args__ = (
-        UniqueConstraint("VENDOR_ID", "CATEGORY_ID", "NAME", name="uq_project_vendor_cat_name"),
-    )
-
-    ID = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-
-    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
-
-    CATEGORY_ID = Column(
-        String(36),
-        ForeignKey("project_category.ID", ondelete="RESTRICT"),
-        nullable=False,
-        index=True
-    )
-
-    NAME = Column(String(100), nullable=False)
-
-    DESCRIPTION = Column(String(500), nullable=True)
-
-    BOM_MODE = Column(String(20), nullable=True)
-
-    ESTIMATED_TOTAL_DAYS = Column(Numeric(10, 2), default=0.0, nullable=False)
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    category       = relationship("ProjectCategory", back_populates="projects")
-    task_templates = relationship(
-        "TaskTemplate", back_populates="project",
-        order_by="TaskTemplate.SEQUENCE_NUMBER",
-        cascade="all, delete-orphan"
-    )
-
 
 class CustomerProject(Base):
     """Legacy customer-project records — table renamed to project_legacy by _rename_legacy_project_table()."""
@@ -787,45 +732,6 @@ class Task(Base):
     )
 
 
-class MaterialCatalog(Base):
-
-    __tablename__ = "material_catalog"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    MATERIAL_NAME = Column(
-        String(100),
-        unique=True,
-        index=True
-    )
-
-
-class MaterialDepartment(Base):
-    """
-    Many-to-many: which departments can see / use which
-    materials. A material with no rows here is treated as
-    "unclassified" — visible only to admins / managers.
-    """
-
-    __tablename__ = "material_department"
-
-    MATERIAL_ID = Column(
-        Integer,
-        ForeignKey("material_catalog.ID"),
-        primary_key=True
-    )
-
-    DEPARTMENT_ID = Column(
-        Integer,
-        ForeignKey("department.ID"),
-        primary_key=True
-    )
-
 
 class Inventory(Base):
 
@@ -837,9 +743,9 @@ class Inventory(Base):
         index=True
     )
 
-    MATERIAL_ID = Column(
-        Integer,
-        ForeignKey("material_catalog.ID"),
+    PRODUCT_ID = Column(
+        String(36),
+        ForeignKey("product_master.ID", ondelete="SET NULL"),
         nullable=True,
         index=True
     )
@@ -1364,16 +1270,15 @@ class BOMItem(Base):
         index=True
     )
 
-    MATERIAL_ID = Column(
-        Integer,
-        ForeignKey("material_catalog.ID"),
+    PRODUCT_ID = Column(
+        String(36),
+        ForeignKey("product_master.ID", ondelete="SET NULL"),
         nullable=True,
         index=True
     )
 
     MATERIAL_NAME = Column(String(150))
-    # denormalized for fast list rendering even when the
-    # material catalog entry is missing.
+    # denormalized for fast list rendering even when the product entry is missing.
 
     QUANTITY = Column(Float, default=1.0)
 
@@ -1469,97 +1374,6 @@ class WorkOrder(Base):
     ACTUAL_START_DATE = Column(Date, nullable=True)
 
     ACTUAL_END_DATE = Column(Date, nullable=True)
-
-    NOTES = Column(String(500), nullable=True)
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID"),
-        index=True
-    )
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-
-    UPDATED_AT = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
-
-
-class Supplier(Base):
-    """
-    Supplier master — companies BVC24 buys raw materials,
-    components or services from. Distinct from `Vendor`, which
-    in this codebase represents the *tenant* (BVC24 itself).
-
-    Mirrors Employee master: full contact + KYC details so PO
-    workflow doesn't need to re-prompt. One row per supplier,
-    scoped to a tenant via VENDOR_ID.
-    """
-
-    __tablename__ = "supplier"
-
-    __table_args__ = (
-        UniqueConstraint(
-            "VENDOR_ID", "SUPPLIER_CODE",
-            name="uq_supplier_vendor_code"
-        ),
-    )
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    SUPPLIER_CODE = Column(
-        String(30),
-        index=True
-    )
-    # short SKU-style code per tenant, e.g. "SUP-SHEET-01"
-
-    COMPANY_NAME = Column(String(150))
-
-    CONTACT_PERSON = Column(String(100), nullable=True)
-
-    PHONE = Column(String(30), nullable=True)
-
-    EMAIL = Column(String(120), nullable=True)
-
-    ADDRESS_LINE1 = Column(String(200), nullable=True)
-
-    ADDRESS_LINE2 = Column(String(200), nullable=True)
-
-    CITY = Column(String(80), nullable=True)
-
-    STATE = Column(String(80), nullable=True)
-
-    PINCODE = Column(String(15), nullable=True)
-
-    GST_NUMBER = Column(String(20), nullable=True, index=True)
-
-    PAN_NUMBER = Column(String(15), nullable=True)
-
-    BANK_NAME = Column(String(100), nullable=True)
-
-    ACCOUNT_NUMBER = Column(String(40), nullable=True)
-
-    IFSC_CODE = Column(String(20), nullable=True)
-
-    CATEGORY = Column(String(60), nullable=True, index=True)
-    # e.g. "Sheet Metal", "Electronics", "Motors", "Display",
-    # "Payment Hardware", "Refrigeration", "Packaging"
-
-    PAYMENT_TERMS = Column(String(60), nullable=True)
-    # e.g. "NET 30", "Advance 50%", "COD"
-
-    STATUS = Column(
-        String(20),
-        default="ACTIVE"
-    )
-    # ACTIVE / INACTIVE / BLACKLISTED
 
     NOTES = Column(String(500), nullable=True)
 
@@ -3013,7 +2827,7 @@ class PurchaseOrder(Base):
 
 class PurchaseOrderLine(Base):
     """
-    One line on a PO. Links to MaterialCatalog when possible (so we
+    One line on a PO. Links to ProductMaster when possible (so we
     can update Inventory on receipt). QUANTITY_RECEIVED is the
     rolling sum across GRNs — when it reaches QUANTITY, the line is
     fully received.
@@ -3034,9 +2848,9 @@ class PurchaseOrderLine(Base):
         index=True
     )
 
-    MATERIAL_ID = Column(
-        Integer,
-        ForeignKey("material_catalog.ID"),
+    PRODUCT_ID = Column(
+        String(36),
+        ForeignKey("product_master.ID", ondelete="SET NULL"),
         nullable=True,
         index=True
     )
@@ -4170,27 +3984,3 @@ class CustomFieldTableValue(Base):
 
     field = relationship("CustomField", back_populates="values")
 
-
-# ──────────────────────────────────────────────
-# Task Template
-# ──────────────────────────────────────────────
-
-class TaskTemplate(Base):
-    __tablename__ = "task_template"
-
-    ID              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    PROJECT_ID      = Column(String(36), ForeignKey("project.ID", ondelete="RESTRICT"), nullable=False, index=True)
-    VENDOR_ID       = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
-    NAME            = Column(String(100), nullable=False)
-    DESCRIPTION     = Column(Text, nullable=True)
-    DURATION_VALUE  = Column(Numeric(7, 2), default=1.0, nullable=False)
-    DURATION_UNIT   = Column(DURATION_UNIT_ENUM, default="DAYS", nullable=False)
-    SEQUENCE_NUMBER = Column(Integer, nullable=False, default=0)
-    DEPARTMENT_ID   = Column(Integer, ForeignKey("department.ID", ondelete="SET NULL"), nullable=True, index=True)
-    ROLE_ID         = Column(Integer, ForeignKey("role.ID",       ondelete="SET NULL"), nullable=True, index=True)
-    CREATED_AT      = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    project    = relationship("Project", back_populates="task_templates")
-    department = relationship("Department", foreign_keys=[DEPARTMENT_ID])
-    role       = relationship("Role",       foreign_keys=[ROLE_ID])

@@ -6,15 +6,12 @@ from app.database.database import get_db
 
 from app.models.models import (
     Inventory,
-    MaterialCatalog,
-    MaterialDepartment,
-    Department,
     Employee,
-    Vendor
+    Vendor,
 )
+from app.models.inventory_models import ProductMaster
 
 from pydantic import BaseModel, Field
-from typing import List
 
 from app.auth.auth_bearer import get_current_employee
 
@@ -23,110 +20,7 @@ from app.schemas.inventory_schema import (
     StockUpdate
 )
 
-from app.services.seed_data import MATERIAL_CATALOG
-
-
 router = APIRouter()
-
-
-# =========================
-# MATERIAL CATALOG
-# =========================
-
-class MaterialDeptSet(BaseModel):
-
-    DEPARTMENT_IDS: List[int]
-
-
-@router.get("/materials-catalog")
-def list_catalog(
-    db: Session = Depends(get_db)
-):
-    """
-    Returns the master list of allowed material names with
-    the department IDs each one is tagged for.
-    """
-
-    rows = db.query(MaterialCatalog).order_by(
-        MaterialCatalog.MATERIAL_NAME
-    ).all()
-
-    # Build a map material_id -> [department_id, ...]
-    tag_map = {}
-
-    for row in db.query(MaterialDepartment).all():
-
-        tag_map.setdefault(row.MATERIAL_ID, []).append(row.DEPARTMENT_ID)
-
-    return [
-        {
-            "ID": r.ID,
-            "MATERIAL_NAME": r.MATERIAL_NAME,
-            "DEPARTMENT_IDS": tag_map.get(r.ID, [])
-        }
-        for r in rows
-    ]
-
-
-@router.put("/materials-catalog/{material_id}/departments")
-def set_material_departments(
-    material_id: int,
-    data: MaterialDeptSet,
-    db: Session = Depends(get_db)
-):
-    """
-    Replace the department tags for one material.
-    Empty list = unclassified (admin-only).
-    """
-
-    mat = db.query(MaterialCatalog).filter(
-        MaterialCatalog.ID == material_id
-    ).first()
-
-    if not mat:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Material not in catalog"
-        )
-
-    # Validate department IDs exist
-    if data.DEPARTMENT_IDS:
-
-        existing = {
-            d.ID for d in db.query(Department).filter(
-                Department.ID.in_(data.DEPARTMENT_IDS)
-            ).all()
-        }
-
-        unknown = set(data.DEPARTMENT_IDS) - existing
-
-        if unknown:
-
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unknown department IDs: {sorted(unknown)}"
-            )
-
-    # Wipe + insert (simpler than diffing)
-    db.query(MaterialDepartment).filter(
-        MaterialDepartment.MATERIAL_ID == material_id
-    ).delete()
-
-    for dept_id in set(data.DEPARTMENT_IDS):
-
-        db.add(MaterialDepartment(
-            MATERIAL_ID=material_id,
-            DEPARTMENT_ID=dept_id
-        ))
-
-    db.commit()
-
-    return {
-        "message": "Material tags updated",
-        "MATERIAL_ID": material_id,
-        "DEPARTMENT_IDS": sorted(set(data.DEPARTMENT_IDS))
-    }
 
 
 @router.get("/materials/for-me")
@@ -137,12 +31,9 @@ def materials_for_me(
 ):
     """
     Returns inventory rows scoped for the logged-in employee.
-
-    Filtering rules:
-      - If `project_id` is passed, scope to materials tagged
-        with that project's department.
-      - Otherwise, scope to the employee's own department.
-      - Admins / managers see everything regardless.
+    Scoping uses ProductMaster.DEPARTMENT_ID — products belonging to
+    the employee's (or project's) department.
+    Admins / managers see everything.
     """
 
     from app.models.models import CustomerProject as Project
@@ -153,150 +44,64 @@ def materials_for_me(
         "SUPER_ADMIN", "ADMIN", "MANAGER", "PRODUCTION_HEAD", "HR"
     )
 
-    # Admins / managers: full inventory (still optionally
-    # scoped to a project's dept if project_id was passed)
-    if admin_like and project_id is None:
-
-        rows = db.query(Inventory).all()
-
+    def _serialize(r):
         return {
-            "scope": "all",
-            "ROLE": role,
-            "INVENTORY": [
-                {
-                    "ID": r.ID,
-                    "MATERIAL_ID": r.MATERIAL_ID,
-                    "MATERIAL_NAME": r.MATERIAL_NAME,
-                    "QUANTITY": r.QUANTITY,
-                    "UNIT_PRICE": r.UNIT_PRICE,
-                    "VENDOR_ID": r.VENDOR_ID
-                }
-                for r in rows
-            ]
+            "ID": r.ID,
+            "PRODUCT_ID": r.PRODUCT_ID,
+            "MATERIAL_NAME": r.MATERIAL_NAME,
+            "QUANTITY": r.QUANTITY,
+            "UNIT_PRICE": r.UNIT_PRICE,
+            "VENDOR_ID": r.VENDOR_ID,
         }
+
+    if admin_like and project_id is None:
+        rows = db.query(Inventory).all()
+        return {"scope": "all", "ROLE": role, "INVENTORY": [_serialize(r) for r in rows]}
 
     # Determine which department to filter by
     scope_department_id = None
-
     scope_source = None
 
     if project_id is not None:
-
-        proj = db.query(Project).filter(
-            Project.ID == project_id
-        ).first()
-
+        proj = db.query(Project).filter(Project.ID == project_id).first()
         if proj and proj.DEPARTMENT_ID:
-
             scope_department_id = proj.DEPARTMENT_ID
-
             scope_source = "project"
 
     if scope_department_id is None:
-
-        # Fall back to the employee's own department
-        emp = db.query(Employee).filter(
-            Employee.ID == user.get("employee_id")
-        ).first()
-
+        emp = db.query(Employee).filter(Employee.ID == user.get("employee_id")).first()
         if not emp or not emp.DEPARTMENT_ID:
-
             return {
-                "scope": "department",
-                "DEPARTMENT_ID": None,
-                "PROJECT_ID": project_id,
-                "INVENTORY": [],
-                "message": (
-                    "No department to scope by. Ask your admin "
-                    "to set your department first."
-                )
+                "scope": "department", "DEPARTMENT_ID": None,
+                "PROJECT_ID": project_id, "INVENTORY": [],
+                "message": "No department to scope by. Ask your admin to set your department first."
             }
-
         scope_department_id = emp.DEPARTMENT_ID
-
         scope_source = "employee"
 
-    # Material IDs tagged for the chosen department
-    allowed_material_ids = [
-        row.MATERIAL_ID
-        for row in db.query(MaterialDepartment).filter(
-            MaterialDepartment.DEPARTMENT_ID == scope_department_id
+    # Products belonging to this department
+    allowed_product_ids = [
+        p.ID for p in db.query(ProductMaster).filter(
+            ProductMaster.DEPARTMENT_ID == scope_department_id
         ).all()
     ]
 
-    if not allowed_material_ids:
-
+    if not allowed_product_ids:
         return {
-            "scope": "department",
-            "DEPARTMENT_ID": scope_department_id,
-            "PROJECT_ID": project_id,
-            "SCOPE_SOURCE": scope_source,
+            "scope": "department", "DEPARTMENT_ID": scope_department_id,
+            "PROJECT_ID": project_id, "SCOPE_SOURCE": scope_source,
             "INVENTORY": [],
-            "message": (
-                "No materials are tagged for this department yet. "
-                "Ask your admin to assign relevant materials."
-            )
+            "message": "No products are assigned to this department yet.",
         }
 
-    rows = db.query(Inventory).filter(
-        Inventory.MATERIAL_ID.in_(allowed_material_ids)
-    ).all()
+    rows = db.query(Inventory).filter(Inventory.PRODUCT_ID.in_(allowed_product_ids)).all()
 
     return {
         "scope": "department",
         "DEPARTMENT_ID": scope_department_id,
         "PROJECT_ID": project_id,
         "SCOPE_SOURCE": scope_source,
-        "INVENTORY": [
-            {
-                "ID": r.ID,
-                "MATERIAL_ID": r.MATERIAL_ID,
-                "MATERIAL_NAME": r.MATERIAL_NAME,
-                "QUANTITY": r.QUANTITY,
-                "UNIT_PRICE": r.UNIT_PRICE
-            }
-            for r in rows
-        ]
-    }
-
-
-@router.post("/seed-materials")
-def seed_materials(
-    db: Session = Depends(get_db)
-):
-    """
-    Idempotent — inserts any catalog entries that are
-    missing, leaves existing ones alone.
-    """
-
-    created = 0
-
-    for name in MATERIAL_CATALOG:
-
-        existing = db.query(MaterialCatalog).filter(
-            MaterialCatalog.MATERIAL_NAME == name
-        ).first()
-
-        if existing:
-
-            continue
-
-        db.add(MaterialCatalog(MATERIAL_NAME=name))
-
-        created += 1
-
-    db.commit()
-
-    total = db.query(MaterialCatalog).count()
-
-    return {
-        "message": (
-            f"{created} catalog item(s) added"
-            if created > 0
-            else "Catalog already in sync"
-        ),
-        "added": created,
-        "total": total
+        "INVENTORY": [_serialize(r) for r in rows],
     }
 
 
@@ -312,82 +117,50 @@ def create_material(
 
     try:
 
-        # Resolve material — accept either MATERIAL_ID or MATERIAL_NAME
+        # Resolve product — accept either PRODUCT_ID or MATERIAL_NAME (matches PRODUCT_NAME)
+        product_id = data.PRODUCT_ID
         material_name = data.MATERIAL_NAME
 
-        material_id = data.MATERIAL_ID
-
-        if material_id:
-
-            catalog = db.query(MaterialCatalog).filter(
-                MaterialCatalog.ID == material_id
-            ).first()
-
-            if not catalog:
-
-                raise HTTPException(
-                    status_code=400,
-                    detail="Material not in catalog"
-                )
-
-            material_name = catalog.MATERIAL_NAME
+        if product_id:
+            product = db.query(ProductMaster).filter(ProductMaster.ID == product_id).first()
+            if not product:
+                raise HTTPException(status_code=400, detail="Product not found")
+            material_name = product.PRODUCT_NAME
 
         elif material_name:
-
-            catalog = db.query(MaterialCatalog).filter(
-                MaterialCatalog.MATERIAL_NAME == material_name
+            product = db.query(ProductMaster).filter(
+                ProductMaster.PRODUCT_NAME == material_name
             ).first()
-
-            if not catalog:
-
+            if not product:
                 raise HTTPException(
                     status_code=400,
-                    detail=(
-                        f"'{material_name}' is not in the catalog. "
-                        "Call POST /seed-materials first or pick "
-                        "a name from GET /materials-catalog."
-                    )
+                    detail=f"No product named '{material_name}' found. Create it in the product catalogue first.",
                 )
-
-            material_id = catalog.ID
+            product_id = product.ID
 
         else:
-
             raise HTTPException(
                 status_code=400,
-                detail="MATERIAL_ID or MATERIAL_NAME is required"
+                detail="PRODUCT_ID or MATERIAL_NAME is required",
             )
 
-        # Vendor required
-        vendor = db.query(Vendor).filter(
-            Vendor.ID == data.VENDOR_ID
-        ).first()
-
+        vendor = db.query(Vendor).filter(Vendor.ID == data.VENDOR_ID).first()
         if not vendor:
-
-            raise HTTPException(
-                status_code=400,
-                detail="Vendor not found"
-            )
+            raise HTTPException(status_code=400, detail="Vendor not found")
 
         material = Inventory(
-            MATERIAL_ID=material_id,
+            PRODUCT_ID=product_id,
             MATERIAL_NAME=material_name,
             QUANTITY=data.QUANTITY,
             UNIT_PRICE=data.UNIT_PRICE,
-            VENDOR_ID=data.VENDOR_ID
+            VENDOR_ID=data.VENDOR_ID,
         )
 
         db.add(material)
-
         db.commit()
-
         db.refresh(material)
 
-        return {
-            "message": "Material created successfully",
-            "material_id": material.ID
-        }
+        return {"message": "Material created successfully", "material_id": material.ID}
 
     except HTTPException:
 
@@ -397,10 +170,7 @@ def create_material(
 
         db.rollback()
 
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # =========================
@@ -562,7 +332,7 @@ def inventory_full(
     ).all()
 
     # --- Pre-fetch per-material relations ----------------------------------
-    material_ids = [r.MATERIAL_ID for r in rows if r.MATERIAL_ID]
+    material_ids = [r.PRODUCT_ID for r in rows if r.PRODUCT_ID]
 
     # BOMItem → preferred supplier mapping (one supplier per material;
     # if a material is in multiple BOMs with different suppliers, the
@@ -574,7 +344,7 @@ def inventory_full(
     if material_ids:
 
         boms = db.query(BOMItem).filter(
-            BOMItem.MATERIAL_ID.in_(material_ids)
+            BOMItem.PRODUCT_ID.in_(material_ids)
         ).all()
 
         supplier_ids = {b.PREFERRED_SUPPLIER_ID for b in boms if b.PREFERRED_SUPPLIER_ID}
@@ -608,17 +378,17 @@ def inventory_full(
 
         for b in boms:
 
-            if b.MATERIAL_ID is None:
+            if b.PRODUCT_ID is None:
 
                 continue
 
-            if b.PREFERRED_SUPPLIER_ID and b.MATERIAL_ID not in supplier_by_material:
+            if b.PREFERRED_SUPPLIER_ID and b.PRODUCT_ID not in supplier_by_material:
 
                 sup = supplier_map.get(b.PREFERRED_SUPPLIER_ID)
 
                 if sup:
 
-                    supplier_by_material[b.MATERIAL_ID] = sup
+                    supplier_by_material[b.PRODUCT_ID] = sup
 
             if b.PRODUCT_MODEL_ID:
 
@@ -626,7 +396,7 @@ def inventory_full(
 
                 if pm:
 
-                    products_by_material.setdefault(b.MATERIAL_ID, []).append(pm)
+                    products_by_material.setdefault(b.PRODUCT_ID, []).append(pm)
 
     # Last-received date per material via FINAL GRN line → PO line → material
     last_received_by_material = {}
@@ -635,7 +405,7 @@ def inventory_full(
 
         sub = (
             db.query(
-                PurchaseOrderLine.MATERIAL_ID,
+                PurchaseOrderLine.PRODUCT_ID,
                 func.max(GoodsReceiptNote.RECEIVED_DATE).label("last_date")
             )
             .join(
@@ -648,9 +418,9 @@ def inventory_full(
             )
             .filter(
                 GoodsReceiptNote.STATUS == "FINAL",
-                PurchaseOrderLine.MATERIAL_ID.in_(material_ids)
+                PurchaseOrderLine.PRODUCT_ID.in_(material_ids)
             )
-            .group_by(PurchaseOrderLine.MATERIAL_ID)
+            .group_by(PurchaseOrderLine.PRODUCT_ID)
             .all()
         )
 
@@ -715,7 +485,7 @@ def inventory_full(
 
         items.append({
             "ID": r.ID,
-            "MATERIAL_ID": r.MATERIAL_ID,
+            "PRODUCT_ID": r.PRODUCT_ID,
             "MATERIAL_NAME": r.MATERIAL_NAME,
             "CATEGORY": category,
             "QUANTITY": qty,
@@ -724,9 +494,9 @@ def inventory_full(
             "BELOW_MIN": below_min,
             "TOTAL_VALUE": round(line_value, 2),
             "STOCK_STATUS": stock_status,
-            "SUPPLIER": supplier_by_material.get(r.MATERIAL_ID),
-            "USED_IN_PRODUCTS": products_by_material.get(r.MATERIAL_ID, []),
-            "LAST_RECEIVED": last_received_by_material.get(r.MATERIAL_ID),
+            "SUPPLIER": supplier_by_material.get(r.PRODUCT_ID),
+            "USED_IN_PRODUCTS": products_by_material.get(r.PRODUCT_ID, []),
+            "LAST_RECEIVED": last_received_by_material.get(r.PRODUCT_ID),
             "VENDOR_ID": r.VENDOR_ID
         })
 
@@ -928,7 +698,7 @@ def inventory_movements(
 
         raise HTTPException(status_code=404, detail="Inventory row not found")
 
-    if not inv.MATERIAL_ID:
+    if not inv.PRODUCT_ID:
 
         return {"inventory": {"ID": inv.ID, "MATERIAL_NAME": inv.MATERIAL_NAME},
                 "movements": []}
@@ -942,7 +712,7 @@ def inventory_movements(
         .join(GoodsReceiptNote, GoodsReceiptNote.ID == GoodsReceiptLine.GRN_ID)
         .join(PurchaseOrderLine, PurchaseOrderLine.ID == GoodsReceiptLine.PO_LINE_ID)
         .filter(
-            PurchaseOrderLine.MATERIAL_ID == inv.MATERIAL_ID,
+            PurchaseOrderLine.PRODUCT_ID == inv.PRODUCT_ID,
             GoodsReceiptNote.STATUS == "FINAL"
         )
         .order_by(GoodsReceiptNote.FINALIZED_AT.desc())

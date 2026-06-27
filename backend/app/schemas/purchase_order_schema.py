@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 class POLineCreate(BaseModel):
 
-    MATERIAL_ID: Optional[int] = None
+    PRODUCT_ID: Optional[str] = None
     BOM_ITEM_ID: Optional[int] = None
     DESCRIPTION: str
     HSN_CODE: Optional[str] = None
@@ -19,7 +19,7 @@ class POLineCreate(BaseModel):
 
 class POLineUpdate(BaseModel):
 
-    MATERIAL_ID: Optional[int] = None
+    PRODUCT_ID: Optional[str] = None
     DESCRIPTION: Optional[str] = None
     HSN_CODE: Optional[str] = None
     QUANTITY: Optional[float] = None

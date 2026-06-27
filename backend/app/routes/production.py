@@ -29,7 +29,6 @@ from app.models.models import (
     BOMItem,
     WorkOrder,
     Project,
-    MaterialCatalog,
     Vendor,
     QCInspection,
     Supplier,
@@ -37,6 +36,7 @@ from app.models.models import (
     WorkOrderStageProgress,
     PurchaseOrderLine
 )
+from app.models.inventory_models import ProductMaster
 
 from app.schemas.production_schema import (
     ProductModelCreate,
@@ -441,7 +441,7 @@ def _serialize_bom(
     return {
         "ID": b.ID,
         "PRODUCT_MODEL_ID": b.PRODUCT_MODEL_ID,
-        "MATERIAL_ID": b.MATERIAL_ID,
+        "PRODUCT_ID": b.PRODUCT_ID,
         "MATERIAL_NAME": b.MATERIAL_NAME,
         "QUANTITY": b.QUANTITY,
         "UNIT": b.UNIT,
@@ -1195,22 +1195,22 @@ def add_bom_item(
 
         raise HTTPException(status_code=404, detail="Model not found")
 
-    # If MATERIAL_ID provided but no MATERIAL_NAME, fetch from catalog
+    # If PRODUCT_ID provided but no MATERIAL_NAME, fetch from ProductMaster
     material_name = data.MATERIAL_NAME
 
-    if data.MATERIAL_ID and not material_name:
+    if data.PRODUCT_ID and not material_name:
 
-        mat = db.query(MaterialCatalog).filter(
-            MaterialCatalog.ID == data.MATERIAL_ID
+        product = db.query(ProductMaster).filter(
+            ProductMaster.ID == data.PRODUCT_ID
         ).first()
 
-        if mat:
+        if product:
 
-            material_name = mat.MATERIAL_NAME
+            material_name = product.PRODUCT_NAME
 
     item = BOMItem(
         PRODUCT_MODEL_ID=model_id,
-        MATERIAL_ID=data.MATERIAL_ID,
+        PRODUCT_ID=data.PRODUCT_ID,
         MATERIAL_NAME=material_name,
         QUANTITY=data.QUANTITY,
         UNIT=data.UNIT,

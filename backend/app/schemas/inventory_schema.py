@@ -4,7 +4,7 @@ from typing import Optional
 
 class InventoryCreate(BaseModel):
 
-    MATERIAL_ID: Optional[int] = None
+    PRODUCT_ID: Optional[str] = None
     MATERIAL_NAME: Optional[str] = None
     QUANTITY: int
     UNIT_PRICE: float

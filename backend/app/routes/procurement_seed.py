@@ -18,11 +18,11 @@ from app.database.database import get_db
 
 from app.models.models import (
     Supplier,
-    MaterialCatalog,
     Inventory,
     ProductModel,
     BOMItem
 )
+from app.models.inventory_models import ProductMaster
 
 from app.services.vending_seed_data import (
     SUPPLIERS,
@@ -131,11 +131,10 @@ def reset_and_seed(
                 "goods_receipt_note",
                 "purchase_order_line",
                 "purchase_order",
-                # BOM + materials + inventory
+                # BOM + products + inventory
                 "inventory",
-                "material_department",
                 "bom_item",
-                "material_catalog",
+                "product_master",
                 # Products + suppliers
                 "product_model",
                 "supplier",
@@ -204,7 +203,7 @@ def reset_and_seed(
 
     summary["created"]["suppliers"] = len(code_to_supplier)
 
-    # ---- 3. SEED materials + matching Inventory rows ----
+    # ---- 3. SEED products (ProductMaster) + matching Inventory rows ----
     name_to_material = {}
 
     name_to_supplier_id = {}
@@ -213,13 +212,24 @@ def reset_and_seed(
 
     for name, price, supplier_code, unit, hsn in MATERIALS:
 
-        mat = db.query(MaterialCatalog).filter(
-            MaterialCatalog.MATERIAL_NAME == name
+        mat = db.query(ProductMaster).filter(
+            ProductMaster.VENDOR_ID == vendor_id,
+            ProductMaster.PRODUCT_NAME == name
         ).first()
 
         if not mat:
 
-            mat = MaterialCatalog(MATERIAL_NAME=name)
+            import re as _re
+            code = _re.sub(r"[^A-Z0-9]", "-", name.upper())[:40]
+
+            mat = ProductMaster(
+                VENDOR_ID=vendor_id,
+                PRODUCT_CODE=code,
+                PRODUCT_NAME=name,
+                HSN_CODE=hsn,
+                UNIT=unit or "PCS",
+                STATUS="ACTIVE"
+            )
 
             db.add(mat)
 
@@ -237,14 +247,14 @@ def reset_and_seed(
         # so PO+GRN flow has a starting point (Inventory price is
         # used by Auto-from-Project for PO line unit prices).
         inv = db.query(Inventory).filter(
-            Inventory.MATERIAL_ID == mat.ID,
+            Inventory.PRODUCT_ID == mat.ID,
             Inventory.VENDOR_ID == vendor_id
         ).first()
 
         if not inv:
 
             db.add(Inventory(
-                MATERIAL_ID=mat.ID,
+                PRODUCT_ID=mat.ID,
                 MATERIAL_NAME=name,
                 QUANTITY=0,
                 UNIT_PRICE=float(price),
@@ -255,7 +265,7 @@ def reset_and_seed(
 
     db.commit()
 
-    summary["created"]["materials"] = len(name_to_material)
+    summary["created"]["products"] = len(name_to_material)
 
     summary["created"]["inventory_rows"] = inventory_created
 
@@ -309,7 +319,7 @@ def reset_and_seed(
 
             db.add(BOMItem(
                 PRODUCT_MODEL_ID=prod.ID,
-                MATERIAL_ID=mat.ID,
+                PRODUCT_ID=mat.ID,
                 MATERIAL_NAME=mat_name,
                 QUANTITY=float(qty),
                 UNIT=unit,

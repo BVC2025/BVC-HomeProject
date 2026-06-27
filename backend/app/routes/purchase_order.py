@@ -29,8 +29,6 @@ Endpoints:
                                                  by supplier
 """
 
-import os
-
 from datetime import datetime, date
 from typing import Optional
 
@@ -45,7 +43,6 @@ from app.models.models import (
     Employee,
     Project,
     ProductModel,
-    MaterialCatalog,
     Inventory,
     BOMItem,
     PurchaseOrder,
@@ -248,7 +245,7 @@ def _serialize_po_line(l: PurchaseOrderLine, db: Session = None) -> dict:
     return {
         "ID": l.ID,
         "PO_ID": l.PO_ID,
-        "MATERIAL_ID": l.MATERIAL_ID,
+        "PRODUCT_ID": l.PRODUCT_ID,
         "BOM_ITEM_ID": l.BOM_ITEM_ID,
         "DESCRIPTION": l.DESCRIPTION,
         "HSN_CODE": l.HSN_CODE,
@@ -626,7 +623,7 @@ def create_po(
 
         line = PurchaseOrderLine(
             PO_ID=po.ID,
-            MATERIAL_ID=line_data.MATERIAL_ID,
+            PRODUCT_ID=line_data.PRODUCT_ID,
             BOM_ITEM_ID=line_data.BOM_ITEM_ID,
             DESCRIPTION=line_data.DESCRIPTION,
             HSN_CODE=line_data.HSN_CODE,
@@ -806,7 +803,7 @@ def add_line(
 
     line = PurchaseOrderLine(
         PO_ID=po_id,
-        MATERIAL_ID=data.MATERIAL_ID,
+        PRODUCT_ID=data.PRODUCT_ID,
         BOM_ITEM_ID=data.BOM_ITEM_ID,
         DESCRIPTION=data.DESCRIPTION,
         HSN_CODE=data.HSN_CODE,
@@ -1228,7 +1225,7 @@ def _apply_grn_to_inventory(db: Session, grn: GoodsReceiptNote) -> int:
     Inventory. Returns count of inventory rows touched. Caller commits.
 
     For each GRN line:
-      - Look up the PO line (for MATERIAL_ID, UNIT_PRICE)
+      - Look up the PO line (for PRODUCT_ID, UNIT_PRICE)
       - Find matching Inventory row (vendor + material)
       - QUANTITY += QUANTITY_RECEIVED
       - UNIT_PRICE = weighted average of old and new costs
@@ -1269,17 +1266,17 @@ def _apply_grn_to_inventory(db: Session, grn: GoodsReceiptNote) -> int:
             float(po_line.QUANTITY_RECEIVED or 0) + qty_in
         )
 
-        if not po_line.MATERIAL_ID:
+        if not po_line.PRODUCT_ID:
 
             # Free-text line — can't update Inventory, skip silently
             continue
 
-        material_id = po_line.MATERIAL_ID
+        product_id = po_line.PRODUCT_ID
 
         unit_price = float(po_line.UNIT_PRICE or 0)
 
         inv = db.query(Inventory).filter(
-            Inventory.MATERIAL_ID == material_id,
+            Inventory.PRODUCT_ID == product_id,
             Inventory.VENDOR_ID == (po.VENDOR_ID or 1)
         ).first()
 
@@ -1304,14 +1301,10 @@ def _apply_grn_to_inventory(db: Session, grn: GoodsReceiptNote) -> int:
 
         else:
 
-            # First time we're stocking this material — create row
-            mat = db.query(MaterialCatalog).filter(
-                MaterialCatalog.ID == material_id
-            ).first()
-
+            # First time we're stocking this product — create row
             inv = Inventory(
-                MATERIAL_ID=material_id,
-                MATERIAL_NAME=(mat.MATERIAL_NAME if mat else po_line.DESCRIPTION),
+                PRODUCT_ID=product_id,
+                MATERIAL_NAME=po_line.DESCRIPTION,
                 QUANTITY=int(qty_in),
                 UNIT_PRICE=unit_price,
                 VENDOR_ID=po.VENDOR_ID or 1
@@ -1854,19 +1847,19 @@ def auto_from_project(
 
     created_pos = []
 
-    # Lookup inventory unit prices for the materials
-    material_ids = [b.MATERIAL_ID for b in bom_rows if b.MATERIAL_ID]
+    # Lookup inventory unit prices for the products
+    product_ids = [b.PRODUCT_ID for b in bom_rows if b.PRODUCT_ID]
 
     inv_prices = {}
 
-    if material_ids:
+    if product_ids:
 
         for inv in db.query(Inventory).filter(
-            Inventory.MATERIAL_ID.in_(material_ids),
+            Inventory.PRODUCT_ID.in_(product_ids),
             Inventory.VENDOR_ID == (data.VENDOR_ID or 1)
         ).all():
 
-            inv_prices[inv.MATERIAL_ID] = float(inv.UNIT_PRICE or 0)
+            inv_prices[inv.PRODUCT_ID] = float(inv.UNIT_PRICE or 0)
 
     for supplier_id, items in by_supplier.items():
 
@@ -1896,11 +1889,11 @@ def auto_from_project(
 
             qty = float(b.QUANTITY or 0) * units
 
-            unit_price = inv_prices.get(b.MATERIAL_ID, 0.0)
+            unit_price = inv_prices.get(b.PRODUCT_ID, 0.0)
 
             line = PurchaseOrderLine(
                 PO_ID=po.ID,
-                MATERIAL_ID=b.MATERIAL_ID,
+                PRODUCT_ID=b.PRODUCT_ID,
                 BOM_ITEM_ID=b.ID,
                 DESCRIPTION=b.MATERIAL_NAME,
                 QUANTITY=qty,
