@@ -1544,6 +1544,8 @@ const NAV_GROUPS = [
       // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
 
       { to: "/rbac", icon: <SidebarIcon name="rbac" />, label: "RBAC" },
+      { to: "/departments", icon: <SidebarIcon name="departments" />, label: "Department Management" },
+      { to: "/org-roles", icon: <SidebarIcon name="org-roles" />, label: "Role Management" },
       { to: "/employees", icon: <SidebarIcon name="employees" />, label: "Employees" },
       { to: "/memos", icon: <SidebarIcon name="memos" />, label: "Memos" },
       { to: "/attendance", icon: <SidebarIcon name="attendance" />, label: "Attendance" },
@@ -1557,17 +1559,6 @@ const NAV_GROUPS = [
       { to: "/hr-automation", icon: <SidebarIcon name="approvals" />, label: "HR Automation" },
       { to: "/monthly-reports", icon: <SidebarIcon name="payroll" />, label: "Monthly Reports" },
       { to: "/workforce-analytics", icon: <SidebarIcon name="star" />, label: "Workforce Analytics" },
-
-      { to: "/rbac", icon: <SidebarIcon name="rbac" />, label: "RBAC" },
-      { to: "/departments", icon: <SidebarIcon name="departments" />, label: "Department Management" },
-      { to: "/org-roles", icon: <SidebarIcon name="org-roles" />, label: "Role Management" },
-      { to: "/employees", icon: <SidebarIcon name="employees" />, label: "Employees" },
-      { to: "/memos", icon: <SidebarIcon name="memos" />, label: "Memos" },
-      { to: "/attendance", icon: <SidebarIcon name="attendance" />, label: "Attendance" },
-      { to: "/leave-management", icon: <SidebarIcon name="leaves" />, label: "Leave Management" },
-      { to: "/payroll", icon: <SidebarIcon name="payroll" />, label: "Payroll" },
-      { to: "/star-performance", icon: <SidebarIcon name="star" />, label: "Star Performance" }
-
     ]
   },
   {
