@@ -1,0 +1,16 @@
+Payroll.jsx:258:11 ]
+     │
+ 251 │         <div className={styles.body}>
+     │          ─┬─  
+     │           ╰─── Opened here
+     │ 
+ 258 │         </button>
+     │           ───┬──  
+     │              ╰──── Expected `</div>`
+─────╯
+
+[builtin:vite-transform] Error: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+     ╭─[ src/pages/Payroll.jsx:403:26 ]
+     │
+ 403 │                         )}
+     │  
