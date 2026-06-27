@@ -818,13 +818,21 @@ function EmployeeDashboardBody() {
 function PortalTabNav({ active, onChange, badges = {} }) {
 
   const tabs = [
-    { key: "overview",    label: "Overview"    },
-    { key: "attendance",  label: "Attendance"  },
-    { key: "tasks",       label: "Tasks",       badge: badges.tasks },
-    { key: "leave",       label: "Leave",       badge: badges.leave },
-    { key: "memos",       label: "Memos"       },
-    { key: "allowance",   label: "Allowance"   },
-    { key: "payslips",    label: "Payslips"    },
+
+    { key: "overview", label: "Overview" },
+    { key: "attendance", label: "Attendance" },
+    { key: "tasks", label: "Tasks", badge: badges.tasks },
+    { key: "leave", label: "Leave", badge: badges.leave },
+    { key: "memos", label: "Memos" },
+    { key: "allowance", label: "Allowance" },
+    { key: "payslips", label: "Payslips" },
+
+    { key: "overview", label: "Overview" },
+    { key: "attendance", label: "Attendance" },
+    { key: "tasks", label: "Tasks", badge: badges.tasks },
+    { key: "leave", label: "Leave", badge: badges.leave },
+    { key: "memos", label: "Memos" },
+
     { key: "performance", label: "Performance" }
   ];
 

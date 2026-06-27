@@ -47,10 +47,21 @@
 }
 
 /* Badge accent colors — intentional hardcoded exceptions */
-.cardGreen  { border-top-color: #10b981; }
-.cardAmber  { border-top-color: #f59e0b; }
-.cardBlue   { border-top-color: #3b82f6; }
-.cardViolet { border-top-color: #7c3aed; }
+.cardGreen {
+  border-top-color: #10b981;
+}
+
+.cardAmber {
+  border-top-color: #f59e0b;
+}
+
+.cardBlue {
+  border-top-color: #3b82f6;
+}
+
+.cardViolet {
+  border-top-color: #7c3aed;
+}
 
 /* ─── Geofence widget strip ─────────────────────────────────── */
 
@@ -72,9 +83,20 @@
 }
 
 /* accent colors for each geofence tile — badge exceptions */
-.geoWidgetGreen  { border-color: #10b981; background: #ecfdf5; }
-.geoWidgetRed    { border-color: #ef4444; background: #fef2f2; }
-.geoWidgetAmber  { border-color: #f59e0b; background: #fffbeb; }
+.geoWidgetGreen {
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+
+.geoWidgetRed {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+
+.geoWidgetAmber {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
 
 .geoLabel {
   font-size: var(--font-xs);
@@ -92,9 +114,17 @@
 }
 
 /* Value accent colors — badge exceptions */
-.geoValueGreen  { color: #065f46; }
-.geoValueRed    { color: #991b1b; }
-.geoValueAmber  { color: #854d0e; }
+.geoValueGreen {
+  color: #065f46;
+}
+
+.geoValueRed {
+  color: #991b1b;
+}
+
+.geoValueAmber {
+  color: #854d0e;
+}
 
 .geoSub {
   font-size: var(--font-xs);
@@ -151,7 +181,9 @@
   transition: background var(--ease);
 }
 
-.startBtn:hover:not(:disabled) { background: #059669; }
+.startBtn:hover:not(:disabled) {
+  background: #059669;
+}
 
 .completeBtn {
   background: #ef4444;
@@ -166,7 +198,9 @@
   transition: background var(--ease);
 }
 
-.completeBtn:hover:not(:disabled) { background: #dc2626; }
+.completeBtn:hover:not(:disabled) {
+  background: #dc2626;
+}
 
 .holdBtn {
   background: var(--text-secondary);
@@ -181,7 +215,9 @@
   transition: background var(--ease);
 }
 
-.holdBtn:hover { background: var(--text-primary); }
+.holdBtn:hover {
+  background: var(--text-primary);
+}
 
 /* ─── Tab bar ───────────────────────────────────────────────── */
 
@@ -265,10 +301,25 @@
   cursor: default;
 }
 
-.badgePresent { background: #dcfce7; color: #166534; }
-.badgeLate    { background: #fef3c7; color: #854d0e; }
-.badgeAbsent  { background: #fee2e2; color: #991b1b; }
-.badgeOther   { background: var(--surface); color: var(--text-muted); }
+.badgePresent {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badgeLate {
+  background: #fef3c7;
+  color: #854d0e;
+}
+
+.badgeAbsent {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.badgeOther {
+  background: var(--surface);
+  color: var(--text-muted);
+}
 
 /* GPS-skip note in table */
 .gpsSkip {
@@ -540,6 +591,7 @@
   font-weight: var(--fw-bold);
   font-size: 13px;
 }
+
 
 
 /* ===== Attendance history filter bar ===== */
@@ -888,17 +940,37 @@
   color: var(--text-muted);
 }
 
-.statItemGreen { border-left: 3px solid #16a34a; }
-.statItemGreen .statItemValue { color: #16a34a; }
+.statItemGreen {
+  border-left: 3px solid #16a34a;
+}
 
-.statItemAmber { border-left: 3px solid #d97706; }
-.statItemAmber .statItemValue { color: #d97706; }
+.statItemGreen .statItemValue {
+  color: #16a34a;
+}
 
-.statItemRed { border-left: 3px solid #dc2626; }
-.statItemRed .statItemValue { color: #dc2626; }
+.statItemAmber {
+  border-left: 3px solid #d97706;
+}
 
-.statItemSlate { border-left: 3px solid var(--text-muted); }
-.statItemSlate .statItemValue { color: var(--text-primary); }
+.statItemAmber .statItemValue {
+  color: #d97706;
+}
+
+.statItemRed {
+  border-left: 3px solid #dc2626;
+}
+
+.statItemRed .statItemValue {
+  color: #dc2626;
+}
+
+.statItemSlate {
+  border-left: 3px solid var(--text-muted);
+}
+
+.statItemSlate .statItemValue {
+  color: var(--text-primary);
+}
 
 
 /* Mark attendance bar */

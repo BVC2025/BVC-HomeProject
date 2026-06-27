@@ -26,8 +26,8 @@ import styles from "./GeofenceGate.module.css";
 
 export default function GeofenceGate({
   employeeId = null,
-  onAllowed = () => {},
-  onBlocked = () => {},
+  onAllowed = () => { },
+  onBlocked = () => { },
   autoRefreshMs = 0,
   compact = false,    // Render a single-line status pill instead of the big card
 }) {
@@ -219,8 +219,8 @@ export default function GeofenceGate({
 
         setPhase(({
           PERMISSION_DENIED: "denied",
-          GPS_DISABLED:      "unavailable",
-          LOCATION_TIMEOUT:  "timeout"
+          GPS_DISABLED: "unavailable",
+          LOCATION_TIMEOUT: "timeout"
         })[reason] || "error");
 
         setErrorMsg(err.message || "Couldn't get your location.");
@@ -285,7 +285,7 @@ export default function GeofenceGate({
       return () => clearInterval(t);
     }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ---- Admin / dev escape hatch (moved up so compact-mode render can
@@ -463,13 +463,13 @@ export default function GeofenceGate({
           <b>Fixes that usually work:</b>
           <ol style={{ margin: "6px 0 0 18px", padding: 0, lineHeight: 1.6 }}>
             <li>Open this page on your <b>mobile phone</b> with Location ON
-                — phones have real GPS chips and Wi-Fi positioning.</li>
+              — phones have real GPS chips and Wi-Fi positioning.</li>
             <li>If you're on a desktop, connect to <b>office Wi-Fi</b> so
-                Windows can use Wi-Fi triangulation instead of IP.</li>
+              Windows can use Wi-Fi triangulation instead of IP.</li>
             <li>Check Windows&nbsp;Settings → Privacy → Location is ON,
-                AND your browser is allowed.</li>
+              AND your browser is allowed.</li>
             <li>Worst case: ask an admin to mark your attendance from
-                the Live Floor Board.</li>
+              the Live Floor Board.</li>
           </ol>
         </Body>
         <ActionRow>
@@ -561,6 +561,7 @@ function Retry({ onClick, label, inline = false }) {
   );
   if (inline) return btn;
   return <div className={styles.retryWrap}>{btn}</div>;
+
 }
 
 
@@ -578,31 +579,45 @@ function CompactBar({ phase, coords, serverInfo, errorMsg, onSkip, onRetry }) {
       case "loading":
         return { color: "#94a3b8", label: "Checking location…", sub: "Please allow GPS access if prompted." };
       case "inside":
-        return { color: "#16a34a", label: "Verified — inside office",
-                 sub: serverInfo?.distance_meters != null
-                   ? `${Math.round(serverInfo.distance_meters)}m from centre` : null };
+        return {
+          color: "#16a34a", label: "Verified — inside office",
+          sub: serverInfo?.distance_meters != null
+            ? `${Math.round(serverInfo.distance_meters)}m from centre` : null
+        };
       case "outside":
-        return { color: "#dc2626", label: "Outside office boundary",
-                 sub: serverInfo?.distance_meters != null
-                   ? `${Math.round(serverInfo.distance_meters)}m away` : null };
+        return {
+          color: "#dc2626", label: "Outside office boundary",
+          sub: serverInfo?.distance_meters != null
+            ? `${Math.round(serverInfo.distance_meters)}m away` : null
+        };
       case "bypassed":
       case "skipped":
         return { color: "#7c3aed", label: "GPS skipped — manual override active", sub: null };
       case "denied":
-        return { color: "#dc2626", label: "Location permission denied",
-                 sub: "Enable it in browser settings to verify presence." };
+        return {
+          color: "#dc2626", label: "Location permission denied",
+          sub: "Enable it in browser settings to verify presence."
+        };
       case "unavailable":
-        return { color: "#dc2626", label: "GPS unavailable",
-                 sub: "Windows Location may be turned off." };
+        return {
+          color: "#dc2626", label: "GPS unavailable",
+          sub: "Windows Location may be turned off."
+        };
       case "low_accuracy":
-        return { color: "#d97706", label: `GPS imprecise${acc ? ` (±${acc.toLocaleString()}m)` : ""}`,
-                 sub: "Use phone, or click Skip to mark anyway." };
+        return {
+          color: "#d97706", label: `GPS imprecise${acc ? ` (±${acc.toLocaleString()}m)` : ""}`,
+          sub: "Use phone, or click Skip to mark anyway."
+        };
       case "timeout":
-        return { color: "#d97706", label: "GPS timed out",
-                 sub: "Try Retry, or click Skip to mark anyway." };
+        return {
+          color: "#d97706", label: "GPS timed out",
+          sub: "Try Retry, or click Skip to mark anyway."
+        };
       case "error":
-        return { color: "#dc2626", label: "GPS error",
-                 sub: errorMsg || "Couldn't read location." };
+        return {
+          color: "#dc2626", label: "GPS error",
+          sub: errorMsg || "Couldn't read location."
+        };
       default:
         return { color: "#94a3b8", label: phase || "Pending", sub: null };
     }
@@ -650,5 +665,6 @@ function CompactBar({ phase, coords, serverInfo, errorMsg, onSkip, onRetry }) {
       </div>
     </div>
   );
+
 }
 

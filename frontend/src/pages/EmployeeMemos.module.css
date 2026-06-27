@@ -2,6 +2,7 @@
    EmployeeMemos.module.css
    ===================================================================== */
 
+
 /* ── Page banner — clean white, thin red accent on the left ─── */
 .hero {
   background: var(--card-bg, white);
@@ -11,6 +12,17 @@
   padding: 18px 24px;
   margin-bottom: 16px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+/* ── Hero strip ──────────────────────────────────────────────── */
+.hero {
+  background: var(--clr-primary);
+  color: #fff;
+  padding: 20px 28px;
+  border-radius: var(--radius-xl);
+  margin-bottom: 22px;
+  box-shadow: var(--shadow-md);
+
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -19,15 +31,23 @@
 }
 
 .heroEyebrow {
+
   font-size: 11px;
   letter-spacing: 1.6px;
   color: var(--clr-primary, #C8102E);
   font-weight: var(--fw-extrabold, 800);
+
+  font-size: var(--font-xs);
+  letter-spacing: 2px;
+  color: #f59e0b;
+  font-weight: var(--fw-bold);
+
   text-transform: uppercase;
 }
 
 .heroTitle {
   font-size: 22px;
+
   font-weight: var(--fw-black, 800);
   margin: 4px 0 0;
   line-height: 1.2;
@@ -79,22 +99,71 @@
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 10px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+
+  font-weight: var(--fw-bold);
+  margin: 4px 0 0;
+  line-height: 1.2;
+  color: #fff;
+  letter-spacing: -0.3px;
+}
+
+.heroBtn {
+  background: #fff;
+  color: #dc2626;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-weight: var(--fw-extrabold);
+  font-size: var(--font-xs);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+.heroBtn:hover {
+  opacity: 0.92;
+}
+
+/* ── Stat tiles ──────────────────────────────────────────────── */
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.statTile {
+  background: var(--card-bg);
+  padding: 14px 18px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+
   position: relative;
   overflow: hidden;
 }
 
 .statAccent {
   position: absolute;
+
   top: 0;
   left: 0;
   right: 0;
   height: 3px;
   width: auto;
   border-radius: 0;
+
+  top: 14px;
+  bottom: 14px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+
   /* background is set via inline style (runtime accent color) */
 }
 
 .statLabel {
+
   font-size: 10px;
   font-weight: var(--fw-extrabold, 800);
   color: var(--text-muted, #94a3b8);
@@ -109,6 +178,21 @@
   color: var(--text-primary, #0f172a);
   line-height: 1.1;
   letter-spacing: -0.3px;
+
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  color: var(--text-secondary);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.statValue {
+  font-size: 24px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  line-height: 1;
+
 }
 
 /* ── Filter bar ──────────────────────────────────────────────── */

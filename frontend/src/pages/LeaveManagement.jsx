@@ -332,6 +332,7 @@ function LeaveManagement() {
 
     <div className={styles.page}>
 
+
       {/* ── Page banner — clean white, thin red accent ── */}
       <div className={styles.pageBanner}>
         <div className={styles.pageBannerLeft}>
@@ -355,9 +356,15 @@ function LeaveManagement() {
       {summary && (
         <div className={styles.tilesGrid}>
           <Tile label="Pending" value={summary.pending} sub="needs MD action" color="#f59e0b" />
+
           <Tile label="Approved" value={summary.approved} sub="this period" color="#10b981" />
           <Tile label="Rejected" value={summary.rejected} sub="declined" color="#ef4444" />
           <Tile label="Cancelled" value={summary.cancelled} sub="withdrawn" color="#94a3b8" />
+
+          <Tile label="Approved" value={summary.approved} color="#10b981" />
+          <Tile label="Rejected" value={summary.rejected} color="#ef4444" />
+          <Tile label="Cancelled" value={summary.cancelled} color="#94a3b8" />
+
           <Tile label="On Leave Today" value={summary.on_leave_today} sub="currently absent" color="#7c3aed" />
         </div>
       )}
@@ -382,11 +389,15 @@ function LeaveManagement() {
       {/* Employee filter */}
       <div className={styles.filterRow}>
         <div className={styles.searchWrap}>
+
           <span className={styles.searchIcon}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" />
             </svg>
           </span>
+
+          <span className={styles.searchIcon}>🔍</span>
+
           <input
             value={empQuery}
             onChange={(e) => setEmpQuery(e.target.value)}
@@ -411,11 +422,11 @@ function LeaveManagement() {
         <div className={styles.tabContent}>
           <LeaveTable rows={pending.filter(matchesEmp)} onChanged={fetchAll} showActions={true} />
         </div>
-      )
-      }
+      )}
 
       {
         tab === "all" && (
+
           <div className={styles.tabContent}>
             {/* ===== Server-side history filter bar ===== */}
             <div className={styles.historyFilterBar}>
@@ -518,6 +529,7 @@ function LeaveManagement() {
                 >
                   {s ? s.replaceAll("_", " ") : "All"}
                 </button>
+
               ))}
             </div>
 
