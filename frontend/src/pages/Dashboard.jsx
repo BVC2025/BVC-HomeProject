@@ -1487,7 +1487,6 @@ const NAV_GROUPS = [
       { to: "/attendance",        icon: <SidebarIcon name="attendance"  />, label: "Attendance" },
       { to: "/leave-management",  icon: <SidebarIcon name="leaves"      />, label: "Leave Management" },
       { to: "/payroll",           icon: <SidebarIcon name="payroll"     />, label: "Payroll" },
-      { to: "/payslip-generator", icon: <SidebarIcon name="payroll"     />, label: "Generate Payslip" },
       { to: "/star-performance",  icon: <SidebarIcon name="star"        />, label: "Star Performance" },
       { to: "/allowances",        icon: <SidebarIcon name="allowances"  />, label: "Allowances" },
       { to: "/recruitment",       icon: <SidebarIcon name="recruitment" />, label: "Recruitment" },
