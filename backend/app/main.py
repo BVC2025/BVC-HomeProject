@@ -21,6 +21,9 @@ from fastapi.staticfiles import StaticFiles
 from app.routes import employee
 from app.database.database import engine
 from app.models.models import Base
+# Register new module models into Base.metadata BEFORE create_all()
+import app.models.inventory_models   # noqa: F401 — registers inventory tables
+import app.models.supplier_models    # noqa: F401 — registers supplier/procurement tables
 from app.routes.users import router as users_router
 from app.routes.auth import router as auth_router
 from app.routes.vendor import router as vendor_router
@@ -73,6 +76,13 @@ from app.routes.holiday import router as holiday_router    # Phase 2 Holiday Cal
 from app.routes.chatbot_ai import router as chatbot_ai_router  # AI chatbot v1 (Gemini)
 from app.routes.work_center import router as work_center_router  # Mfg Phase 1 — Work Centers
 from app.routes.custom_fields import router as custom_fields_router  # Custom Fields System
+# ── New Inventory & Supplier Procurement Module ──────────────────────
+from app.routes.supplier_onboarding import router as supplier_onboarding_router
+from app.routes.supplier_products import router as supplier_products_router
+from app.routes.supplier_ranking import router as supplier_ranking_router
+from app.routes.inventory_items import router as inventory_items_router
+from app.routes.inventory_movements import router as inventory_movements_router
+from app.routes.inventory_batches import router as inventory_batches_router
 from fastapi.middleware.cors import CORSMiddleware
 
 # Phase 3 — Audit log
@@ -1347,6 +1357,14 @@ app.include_router(holiday_router)
 app.include_router(chatbot_ai_router)
 app.include_router(work_center_router)
 app.include_router(custom_fields_router, tags=["Custom Fields"])
+
+# ── Inventory & Supplier Procurement Module ───────────────────────────────
+app.include_router(supplier_onboarding_router, prefix="/api")
+app.include_router(supplier_products_router, prefix="/api")
+app.include_router(supplier_ranking_router, prefix="/api")
+app.include_router(inventory_items_router, prefix="/api")
+app.include_router(inventory_movements_router, prefix="/api")
+app.include_router(inventory_batches_router, prefix="/api")
 
 
 @app.get("/", tags=["Health"])

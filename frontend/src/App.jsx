@@ -16,6 +16,7 @@ import SalesOrderPrint from "./pages/SalesOrderPrint";
 import OnboardingPortal from "./pages/OnboardingPortal";
 import OnboardingChat from "./pages/OnboardingChat";
 import EmployeeOnboardingChat from "./pages/EmployeeOnboardingChat";
+import SupplierRegistrationPortal from "./pages/SupplierRegistrationPortal";
 
 function isAuthenticated() {
 
@@ -126,6 +127,12 @@ function App() {
       <Route
         path="/employee-onboarding/:token"
         element={<EmployeeOnboardingChat />}
+      />
+
+      {/* Supplier self-registration portal — public, token-gated */}
+      <Route
+        path="/supplier-register/:token"
+        element={<SupplierRegistrationPortal />}
       />
 
       <Route
