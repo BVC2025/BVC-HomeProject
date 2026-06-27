@@ -41,6 +41,7 @@ import EmployeeOnboardingReview from "./EmployeeOnboardingReview";
 import Customers from "./Customers";
 import Quotations from "./Quotations";
 import SalesOrders from "./SalesOrders";
+import InvoiceOrder from "./InvoiceOrder";
 import PurchaseOrders from "./PurchaseOrders";
 import Projects from "./Projects";
 import Inventory from "./Inventory";
@@ -1234,13 +1235,13 @@ function SidebarIcon({ name }) {
       return (
         <svg {...props}>
           {/* 3x3 grid — universal "app launcher" icon */}
-          <rect x="3"  y="3"  width="5" height="5" rx="1" />
-          <rect x="10" y="3"  width="5" height="5" rx="1" />
-          <rect x="17" y="3"  width="4" height="5" rx="1" />
-          <rect x="3"  y="10" width="5" height="5" rx="1" />
+          <rect x="3" y="3" width="5" height="5" rx="1" />
+          <rect x="10" y="3" width="5" height="5" rx="1" />
+          <rect x="17" y="3" width="4" height="5" rx="1" />
+          <rect x="3" y="10" width="5" height="5" rx="1" />
           <rect x="10" y="10" width="5" height="5" rx="1" />
           <rect x="17" y="10" width="4" height="5" rx="1" />
-          <rect x="3"  y="17" width="5" height="4" rx="1" />
+          <rect x="3" y="17" width="5" height="4" rx="1" />
           <rect x="10" y="17" width="5" height="4" rx="1" />
           <rect x="17" y="17" width="4" height="4" rx="1" />
         </svg>
@@ -1350,6 +1351,16 @@ function SidebarIcon({ name }) {
           <rect x="6" y="4" width="12" height="17" rx="2" />
           <rect x="9" y="2.5" width="6" height="3" rx="1" />
           <path d="M9 11h6M9 15h6" />
+        </svg>
+      );
+
+    case "invoiceorders":
+      return (
+        <svg {...props}>
+          <rect x="5" y="3" width="14" height="18" rx="2" />
+          <path d="M9 7h6" />
+          <path d="M12 9v10" />
+          <path d="M14.2 11.4c0-1-1-1.6-2.2-1.6s-2.2.6-2.2 1.6.9 1.5 2.2 1.6c1.3.1 2.2.7 2.2 1.7s-1 1.6-2.2 1.6-2.2-.6-2.2-1.6" />
         </svg>
       );
     case "projects":
@@ -1481,20 +1492,30 @@ const NAV_GROUPS = [
     items: [
       { to: "/approvals", icon: <SidebarIcon name="approvals" />, label: "Approval Center" },
       // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
-      { to: "/rbac",              icon: <SidebarIcon name="rbac"        />, label: "RBAC" },
-      { to: "/employees",         icon: <SidebarIcon name="employees"   />, label: "Employees" },
-      { to: "/memos",             icon: <SidebarIcon name="memos"       />, label: "Memos" },
-      { to: "/attendance",        icon: <SidebarIcon name="attendance"  />, label: "Attendance" },
-      { to: "/leave-management",  icon: <SidebarIcon name="leaves"      />, label: "Leave Management" },
-      { to: "/payroll",           icon: <SidebarIcon name="payroll"     />, label: "Payroll" },
-      { to: "/payslip-generator", icon: <SidebarIcon name="payroll"     />, label: "Generate Payslip" },
-      { to: "/star-performance",  icon: <SidebarIcon name="star"        />, label: "Star Performance" },
-      { to: "/allowances",        icon: <SidebarIcon name="allowances"  />, label: "Allowances" },
-      { to: "/recruitment",       icon: <SidebarIcon name="recruitment" />, label: "Recruitment" },
-      { to: "/onboarding",        icon: <SidebarIcon name="employees"   />, label: "Onboarding" },
-      { to: "/hr-automation",     icon: <SidebarIcon name="approvals"   />, label: "HR Automation" },
-      { to: "/monthly-reports",   icon: <SidebarIcon name="payroll"     />, label: "Monthly Reports" },
-      { to: "/workforce-analytics", icon: <SidebarIcon name="star"      />, label: "Workforce Analytics" }
+
+      { to: "/rbac", icon: <SidebarIcon name="rbac" />, label: "RBAC" },
+      { to: "/employees", icon: <SidebarIcon name="employees" />, label: "Employees" },
+      { to: "/memos", icon: <SidebarIcon name="memos" />, label: "Memos" },
+      { to: "/attendance", icon: <SidebarIcon name="attendance" />, label: "Attendance" },
+      { to: "/leave-management", icon: <SidebarIcon name="leaves" />, label: "Leave Management" },
+      { to: "/payroll", icon: <SidebarIcon name="payroll" />, label: "Payroll" },
+      { to: "/payslip-generator", icon: <SidebarIcon name="payroll" />, label: "Generate Payslip" },
+      { to: "/star-performance", icon: <SidebarIcon name="star" />, label: "Star Performance" },
+      { to: "/allowances", icon: <SidebarIcon name="allowances" />, label: "Allowances" },
+      { to: "/recruitment", icon: <SidebarIcon name="recruitment" />, label: "Recruitment" },
+      { to: "/onboarding", icon: <SidebarIcon name="employees" />, label: "Onboarding" },
+      { to: "/hr-automation", icon: <SidebarIcon name="approvals" />, label: "HR Automation" },
+      { to: "/monthly-reports", icon: <SidebarIcon name="payroll" />, label: "Monthly Reports" },
+      { to: "/workforce-analytics", icon: <SidebarIcon name="star" />, label: "Workforce Analytics" },
+
+      { to: "/rbac", icon: <SidebarIcon name="rbac" />, label: "RBAC" },
+      { to: "/employees", icon: <SidebarIcon name="employees" />, label: "Employees" },
+      { to: "/memos", icon: <SidebarIcon name="memos" />, label: "Memos" },
+      { to: "/attendance", icon: <SidebarIcon name="attendance" />, label: "Attendance" },
+      { to: "/leave-management", icon: <SidebarIcon name="leaves" />, label: "Leave Management" },
+      { to: "/payroll", icon: <SidebarIcon name="payroll" />, label: "Payroll" },
+      { to: "/star-performance", icon: <SidebarIcon name="star" />, label: "Star Performance" }
+
     ]
   },
   {
@@ -1503,7 +1524,12 @@ const NAV_GROUPS = [
     items: [
       { to: "/customers", icon: <SidebarIcon name="customers" />, label: "Customers" },
       { to: "/quotations", icon: <SidebarIcon name="quotations" />, label: "Quotations" },
-      { to: "/sales-orders", icon: <SidebarIcon name="salesorders" />, label: "Sales Orders" }
+
+      { to: "/sales-orders", icon: <SidebarIcon name="salesorders" />, label: "Sales Orders" },
+
+      { to: "/sales-orders", icon: <SidebarIcon name="salesorders" />, label: "Sales Orders" },
+      { to: "/invoice-orders", icon: <SidebarIcon name="invoiceorders" />, label: "Invoice" }
+
     ]
   },
   {
@@ -1721,14 +1747,14 @@ function Dashboard() {
       >
         {sidebarOpen ? (
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" strokeWidth="2.4"
-               strokeLinecap="round" strokeLinejoin="round">
+            stroke="currentColor" strokeWidth="2.4"
+            strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 6 6 18M6 6l12 12" />
           </svg>
         ) : (
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" strokeWidth="2.4"
-               strokeLinecap="round" strokeLinejoin="round">
+            stroke="currentColor" strokeWidth="2.4"
+            strokeLinecap="round" strokeLinejoin="round">
             <path d="M4 7h16M4 12h16M4 17h16" />
           </svg>
         )}
@@ -1831,13 +1857,13 @@ function Dashboard() {
 
           {/* HR module — Odoo-style top sub-nav across 8 pages */}
           <Route element={<HrLayout />}>
-            <Route path="/employees"         element={<Employees />} />
-            <Route path="/attendance"        element={<Attendance />} />
-            <Route path="/memos"             element={<EmployeeMemos />} />
-            <Route path="/leave-management"  element={<LeaveManagement />} />
-            <Route path="/allowances"        element={<Allowances />} />
-            <Route path="/star-performance"  element={<StarPerformance />} />
-            <Route path="/payroll"           element={<Payroll />} />
+            <Route path="/employees" element={<Employees />} />
+            <Route path="/attendance" element={<Attendance />} />
+            <Route path="/memos" element={<EmployeeMemos />} />
+            <Route path="/leave-management" element={<LeaveManagement />} />
+            <Route path="/allowances" element={<Allowances />} />
+            <Route path="/star-performance" element={<StarPerformance />} />
+            <Route path="/payroll" element={<Payroll />} />
             <Route path="/payslip-generator" element={<PayslipGenerator />} />
           </Route>
 
@@ -1860,6 +1886,14 @@ function Dashboard() {
             path="/sales-orders"
             element={<SalesOrders />}
           />
+
+          <Route
+            path="/invoice-orders"
+            element={<InvoiceOrder />}
+          />
+          {/* new */}
+
+
 
           <Route
             path="/projects"

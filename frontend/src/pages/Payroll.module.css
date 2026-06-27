@@ -106,6 +106,7 @@
   line-height: var(--lh);
 }
 
+
 /* ─── Tab bar — pill style ──────────────────────────────────── */
 
 .tabBar {
@@ -267,8 +268,19 @@
   border-bottom: 1px solid var(--border);
 }
 
-.thRight  { text-align: right;  padding: var(--sp-2) var(--sp-2); font-weight: var(--fw-bold); border-bottom: 1px solid var(--border); }
-.thCenter { text-align: center; padding: var(--sp-2) var(--sp-2); font-weight: var(--fw-bold); border-bottom: 1px solid var(--border); }
+.thRight {
+  text-align: right;
+  padding: var(--sp-2) var(--sp-2);
+  font-weight: var(--fw-bold);
+  border-bottom: 1px solid var(--border);
+}
+
+.thCenter {
+  text-align: center;
+  padding: var(--sp-2) var(--sp-2);
+  font-weight: var(--fw-bold);
+  border-bottom: 1px solid var(--border);
+}
 
 .tr {
   border-bottom: 1px solid var(--border-light);
@@ -278,12 +290,32 @@
   background: var(--success-bg);
 }
 
-.td     { padding: var(--sp-3) var(--sp-2); text-align: left; }
-.tdRight  { padding: var(--sp-3) var(--sp-2); text-align: right; font-weight: var(--fw-bold); color: var(--text-primary); }
-.tdCenter { padding: var(--sp-3) var(--sp-2); text-align: center; }
+.td {
+  padding: var(--sp-3) var(--sp-2);
+  text-align: left;
+}
 
-.empName { font-weight: var(--fw-bold); color: var(--text-primary); }
-.empCode { font-size: var(--font-xs); color: var(--text-muted); }
+.tdRight {
+  padding: var(--sp-3) var(--sp-2);
+  text-align: right;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.tdCenter {
+  padding: var(--sp-3) var(--sp-2);
+  text-align: center;
+}
+
+.empName {
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.empCode {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
 
 .starRating {
   color: #D4A017;

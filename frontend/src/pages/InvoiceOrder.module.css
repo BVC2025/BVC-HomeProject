@@ -1,0 +1,574 @@
+/* ===================================================================
+   InvoiceOrder.module.css
+   Editable invoice / credit-note builder.
+
+   - The toolbar (chrome) uses the app theme custom-properties so it
+     matches every other module.
+   - The .sheet is a faithful A4 reproduction of the printed BVC
+     invoice: full bordered grid, grey title band, dark table header.
+   - Inputs are intentionally seamless (no border / transparent bg) so
+     the on-screen sheet already looks like the final paper, and the
+     PDF / print output is clean.
+=================================================================== */
+
+/* ── Page + toolbar chrome ───────────────────────────────────── */
+.page {
+  padding: 24px;
+  background: var(--surface);
+  min-height: 100%;
+}
+
+.toolbar {
+  background: var(--card-bg);
+  border-left: 4px solid var(--clr-primary);
+  border-radius: 18px;
+  padding: 18px 24px;
+  margin-bottom: 22px;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.title {
+  margin: 0;
+  font-size: 24px;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+}
+
+.toolbarActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.select {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  max-width: 220px;
+}
+
+.fileBtn {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  padding: 9px 16px;
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.fileBtn:hover {
+  background: var(--surface);
+}
+
+.btnPrimary {
+  border: none;
+  background: var(--clr-primary);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-weight: var(--fw-extrabold);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  box-shadow: var(--shadow-md);
+  transition: opacity 0.15s;
+}
+
+.btnPrimary:hover { opacity: 0.88; }
+.btnPrimary:disabled { opacity: 0.6; cursor: progress; }
+
+.btnGhost {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  padding: 10px 18px;
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btnGhost:hover { background: var(--surface); }
+
+/* ── A4 sheet shell ──────────────────────────────────────────── */
+.sheetWrap {
+  display: flex;
+  justify-content: center;
+}
+
+.sheet {
+  width: 210mm;
+  min-height: 297mm;
+  background: #ffffff;
+  color: #1a1a1a;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 10.5pt;
+  padding: 11mm;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  border: 1px solid #000;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Absorbs leftover vertical space so the signatures sit at the bottom
+   and the document fills the entire A4 page. */
+.spacer {
+  flex: 1 1 auto;
+  min-height: 18px;
+}
+
+/* Seamless editable inputs — look like plain text */
+.inp {
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  width: 100%;
+  padding: 1px 2px;
+  outline: none;
+  border-radius: 3px;
+}
+
+.inp:hover { background: #fff7f7; }
+.inp:focus { background: #fff1f2; box-shadow: inset 0 -1.5px 0 var(--clr-primary); }
+
+.inpInline { width: auto; display: inline; }
+.inpR { text-align: right; }
+.inpC { text-align: center; }
+
+/* ── Brand header ── */
+.brandRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid #000;
+  padding-bottom: 8px;
+}
+
+.logoBox {
+  width: 120px;
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.logoImg {
+  max-width: 120px;
+  max-height: 70px;
+  object-fit: contain;
+}
+
+.logoEmpty {
+  font-size: 8pt;
+  color: #94a3b8;
+  border: 1px dashed #cbd5e1;
+  padding: 18px 10px;
+  border-radius: 4px;
+}
+
+.companyBlock {
+  flex: 1;
+  text-align: center;
+}
+
+.companyName {
+  text-align: center;
+  font-size: 16pt;
+  font-weight: 800;
+  color: #111;
+}
+
+.companyLine {
+  text-align: center;
+  font-size: 9.5pt;
+  color: #333;
+}
+
+.companyLineStrong {
+  text-align: center;
+  font-size: 9.5pt;
+  font-weight: 700;
+  color: #111;
+  margin: 2px 0;
+}
+
+/* ── Title band ── */
+.titleBar {
+  background: #d9d9d9;
+  border: 1px solid #000;
+  border-top: none;
+  text-align: center;
+  font-weight: 800;
+  font-size: 13pt;
+  letter-spacing: 1.5px;
+  padding: 7px;
+  color: #111;
+}
+
+/* ── Meta grid ── */
+.metaRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid #000;
+  border-top: none;
+}
+
+.metaCol {
+  padding: 0;
+}
+
+.metaCol:first-child {
+  border-right: 1px solid #000;
+}
+
+.metaLine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid #cfcfcf;
+}
+
+.metaLineLast { border-bottom: none; }
+
+.metaLabel {
+  font-weight: 700;
+  min-width: 96px;
+  color: #111;
+}
+
+.metaInput {
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  flex: 1;
+  padding: 1px 2px;
+  outline: none;
+  border-radius: 3px;
+}
+
+.metaInput:hover { background: #fff7f7; }
+.metaInput:focus { background: #fff1f2; box-shadow: inset 0 -1.5px 0 var(--clr-primary); }
+
+/* ── Address blocks ── */
+.addrRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid #000;
+  border-top: none;
+}
+
+.addrCol {
+  border-right: 1px solid #000;
+  display: flex;
+  flex-direction: column;
+}
+
+.addrColLast { border-right: none; }
+
+.addrHead {
+  background: #595959;
+  color: #fff;
+  font-weight: 700;
+  font-size: 9.5pt;
+  padding: 5px 10px;
+  letter-spacing: 0.5px;
+}
+
+.addrBody {
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: #111;
+  font-weight: 600;
+  padding: 8px 10px;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  line-height: 1.5;
+}
+
+.addrBody:hover { background: #fff7f7; }
+.addrBody:focus { background: #fff1f2; }
+
+/* ── Line items table ── */
+.itemsTable {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #000;
+  border-top: none;
+}
+
+.itemsTable thead th {
+  background: #262626;
+  color: #fff;
+  font-size: 10pt;
+  font-weight: 700;
+  padding: 8px 6px;
+  text-align: center;
+  border-right: 1px solid #444;
+}
+
+.itemsTable tbody td {
+  border: 1px solid #cfcfcf;
+  padding: 8px 6px;
+  vertical-align: top;
+}
+
+.colSno { width: 7%; }
+.colDesc { width: 48%; text-align: left !important; }
+.colQty { width: 9%; }
+.colUnit { width: 9%; }
+.colPrice { width: 14%; }
+.colAmt { width: 13%; }
+.colDel { width: 28px; background: transparent !important; border: none !important; }
+
+.tcCenter { text-align: center; }
+.tcRight { text-align: right; }
+
+.descInput {
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-weight: 700;
+  color: #111;
+  width: 100%;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  padding: 0;
+  line-height: 1.4;
+}
+
+.descInput:hover { background: #fff7f7; }
+.descInput:focus { background: #fff1f2; }
+
+.hsnRow {
+  font-size: 9pt;
+  font-weight: 700;
+  color: #111;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.hsnInput { width: 90px; font-size: 9pt; }
+
+.amtCell { font-weight: 700; }
+
+.removeBtn {
+  border: none;
+  background: transparent;
+  color: var(--clr-primary);
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 4px;
+}
+
+.removeBtn:hover { color: #991b1b; }
+
+.addRowBtn,
+.addTermBtn {
+  margin-top: 6px;
+  border: 1px dashed var(--clr-primary);
+  background: #fff5f5;
+  color: var(--clr-primary);
+  font-weight: 700;
+  font-size: 8.5pt;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.addRowBtn:hover,
+.addTermBtn:hover { background: #ffe8e8; }
+
+/* ── Terms + totals ── */
+.lowerRow {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  border: 1px solid #000;
+  border-top: none;
+}
+
+.termsCol {
+  border-right: 1px solid #000;
+  padding: 6px 8px;
+}
+
+.termsTitle {
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: #111;
+}
+
+.termRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.termNum {
+  font-weight: 700;
+  min-width: 12px;
+}
+
+.termInput {
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: #333;
+  flex: 1;
+  resize: none;
+  outline: none;
+  overflow: hidden;
+  line-height: 1.4;
+  padding: 0;
+}
+
+.termInput:hover { background: #fff7f7; }
+.termInput:focus { background: #fff1f2; }
+
+.totalsCol {
+  display: flex;
+  flex-direction: column;
+}
+
+.totalLine {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 12px;
+  border-bottom: 1px solid #cfcfcf;
+  font-weight: 700;
+  color: #111;
+}
+
+.totalValue { font-variant-numeric: tabular-nums; }
+
+.gstInput {
+  width: 38px;
+  text-align: center;
+  font-weight: 700;
+}
+
+.netLine {
+  border-bottom: none;
+  background: #f2f2f2;
+  font-size: 12.5pt;
+  font-weight: 800;
+}
+
+/* ── Amount in words ── */
+.wordsRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #000;
+  border-top: none;
+  padding: 0;
+}
+
+.wordsLabel {
+  background: #d9d9d9;
+  font-weight: 700;
+  padding: 8px 12px;
+  border-right: 1px solid #000;
+  white-space: nowrap;
+}
+
+.wordsValue {
+  padding: 8px 12px;
+  font-weight: 700;
+  color: #111;
+}
+
+/* ── Bank details ── */
+.bankRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #000;
+  border-top: none;
+  padding: 8px 12px;
+  font-size: 9.5pt;
+}
+
+.bankLabel { font-weight: 700; white-space: nowrap; }
+.bankInput { font-size: 9.5pt; }
+
+/* ── Signatures ── */
+.signRow {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 26px;
+  padding: 0 10px 6px;
+}
+
+.signCol {
+  width: 45%;
+}
+
+.signColRight { text-align: right; }
+
+.signLabel {
+  font-weight: 700;
+  color: #111;
+  border-top: 1px solid #777;
+  padding-top: 4px;
+}
+
+.signName {
+  font-size: 9.5pt;
+  color: #333;
+  font-weight: 600;
+}
+
+.signNameRight { text-align: right; }
+
+/* ── Print: hide chrome shadows, keep crisp paper ── */
+@media print {
+  .page { padding: 0; background: #fff; }
+  .sheetWrap { display: block; }
+  .sheet {
+    box-shadow: none;
+    width: 100%;
+    /* Fill the printable A4 height (297mm − 2×6mm @page margin). */
+    min-height: 283mm;
+    padding: 8mm 9mm;
+    border: 1px solid #000;
+    margin: 0;
+  }
+  .inp:hover, .inp:focus,
+  .metaInput:hover, .metaInput:focus,
+  .addrBody:hover, .addrBody:focus,
+  .descInput:hover, .descInput:focus,
+  .termInput:hover, .termInput:focus {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+}

@@ -4887,4 +4887,3 @@ class OnboardingChecklistItem(Base):
     UPDATED_AT      = Column(DateTime, default=datetime.utcnow,
                              onupdate=datetime.utcnow)
 
-

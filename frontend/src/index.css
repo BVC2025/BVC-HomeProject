@@ -179,7 +179,7 @@ textarea,
 button {
   font-family: inherit;
   font-weight: inherit;
-  font-style:  inherit;
+  font-style: inherit;
   letter-spacing: inherit;
   font-size: 14px;
 }
@@ -187,11 +187,12 @@ button {
 table {
   font-size: 14px;
 }
+
 table th,
 table td {
   font-size: inherit;
   font-weight: inherit;
-  font-style:  inherit;
+  font-style: inherit;
 }
 
 /* Tabular numerals for invoices / payslips / quote line items. */
@@ -202,16 +203,22 @@ th {
 }
 
 /* Headings stay bold + italic. */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--heading);
   font-weight: 700;
-  font-style:  italic;
+  font-style: italic;
   letter-spacing: 0;
 }
 
 /* SVG icons must not inherit the italic slant — keep logos / nav /
    buttons' icons upright. */
-svg, svg * {
+svg,
+svg * {
   font-style: normal !important;
 }
 
@@ -232,19 +239,23 @@ svg, svg * {
 body,
 body *:not(svg):not(svg *):not(code):not(.counter) {
   font-family: "Segoe UI", "Segoe UI Bold Italic", system-ui,
-               -apple-system, Roboto, "Helvetica Neue", Arial,
-               sans-serif !important;
-  font-weight: 700  !important;
-  font-style:  italic !important;
+    -apple-system, Roboto, "Helvetica Neue", Arial,
+    sans-serif !important;
+  font-weight: 700 !important;
+  font-style: italic !important;
 }
 
 /* Keep monospace text upright + not bold so codes / IDs / GST numbers
    remain readable as data, not as prose. */
 [style*="ui-monospace"],
 [style*="monospace"],
-code, .counter, kbd, samp, pre {
+code,
+.counter,
+kbd,
+samp,
+pre {
   font-family: var(--mono) !important;
-  font-style:  normal !important;
+  font-style: normal !important;
   font-weight: 500 !important;
 }
 
@@ -271,20 +282,24 @@ h1 {
   font-size: 56px;
   letter-spacing: -1.68px;
   margin: 32px 0;
+
   @media (max-width: 1024px) {
     font-size: 36px;
     margin: 20px 0;
   }
 }
+
 h2 {
   font-size: 24px;
   line-height: 118%;
   letter-spacing: -0.24px;
   margin: 0 0 8px;
+
   @media (max-width: 1024px) {
     font-size: 20px;
   }
 }
+
 p {
   margin: 0;
 }
@@ -322,11 +337,28 @@ code {
 
 *,
 *::before,
-*::after { box-sizing: border-box; }
+*::after {
+  box-sizing: border-box;
+}
 
-img, svg, video, canvas { max-width: 100%; height: auto; }
-svg { height: auto; }   /* recharts/lucide etc. set explicit h+w */
-svg[width][height] { height: revert; }   /* keep icon sizes */
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+svg {
+  height: auto;
+}
+
+/* recharts/lucide etc. set explicit h+w */
+svg[width][height] {
+  height: revert;
+}
+
+/* keep icon sizes */
 
 /* Make the app root truly fluid below 1024px */
 @media (max-width: 1024px) {
@@ -340,6 +372,7 @@ svg[width][height] { height: revert; }   /* keep icon sizes */
    Selectors use "repeat(N," (no-space-tolerant) so both
    `repeat(3, 1fr)` and `repeat(3,1fr)` match. */
 @media (max-width: 900px) {
+
   [style*="repeat(3,"],
   [style*="repeat(4,"],
   [style*="repeat(5,"],
@@ -353,6 +386,7 @@ svg[width][height] { height: revert; }   /* keep icon sizes */
 
 /* Phone — collapse every multi-column grid to a single column */
 @media (max-width: 560px) {
+
   [style*="repeat(2,"],
   [style*="repeat(3,"],
   [style*="repeat(4,"],
@@ -400,6 +434,7 @@ svg[width][height] { height: revert; }   /* keep icon sizes */
 
 /* Modals / drawers with hard-coded widths → full screen on phones */
 @media (max-width: 560px) {
+
   [style*="width: 600px"],
   [style*="width: 640px"],
   [style*="width: 680px"],
@@ -438,13 +473,17 @@ svg[width][height] { height: revert; }   /* keep icon sizes */
 
 /* Charts shouldn't push the page wider than the viewport */
 .recharts-responsive-container,
-.recharts-wrapper { min-width: 0 !important; max-width: 100% !important; }
+.recharts-wrapper {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
 
 /* Force minimum 16px font on form controls below the iOS-zoom threshold —
    stops Safari from zooming in on focus. Doesn't affect placeholder text
    visually since most inputs use 13–14px which read as "slightly larger"
    only on phones. */
 @media (max-width: 560px) {
+
   input[type="text"],
   input[type="email"],
   input[type="password"],
@@ -466,4 +505,9 @@ svg[width][height] { height: revert; }   /* keep icon sizes */
   button {
     min-height: 38px;
   }
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
 }

@@ -1,6 +1,7 @@
 /* LeaveManagement page — scoped styles */
 
 /* ─── Page wrapper ──────────────────────────────────────────── */
+
 /* Fixed-height flex column: chrome stays put, table area scrolls
    independently. Height accounts for .main-content vertical padding
    (~66px) + a small safety margin. */
@@ -100,7 +101,71 @@
 }
 
 /* ─── KPI tiles grid — compact, uniform, top accent ────────── */
+.page {
+  padding: var(--sp-6);
+  background: var(--layout-bg);
+  min-height: 100%;
+}
 
+.header {
+  margin-bottom: var(--sp-5);
+}
+
+.pageTitle {
+  font-size: var(--font-2xl);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.pageSub {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: var(--sp-1);
+}
+
+/* ─── Policy banner ─────────────────────────────────────────── */
+
+.policyBanner {
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
+  border-left: 4px solid var(--info);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-5);
+  display: flex;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.policyLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1px;
+  color: var(--info);
+  text-transform: uppercase;
+  flex-basis: 100%;
+}
+
+.policyItem {
+  flex: 1;
+  min-width: 260px;
+}
+
+.policyItemTitle {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin-bottom: var(--sp-1);
+}
+
+.policyItemText {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  line-height: var(--lh);
+}
+
+/* ─── KPI tiles grid ────────────────────────────────────────── */
 .tilesGrid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -132,6 +197,23 @@
   font-weight: var(--fw-extrabold, 800);
   letter-spacing: 1.2px;
   color: var(--text-muted, #94a3b8);
+  gap: 14px;
+  margin-bottom: var(--sp-5);
+}
+
+.tile {
+  background: var(--card-bg);
+  padding: var(--sp-5);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  border-top: 3px solid var(--tile-color, var(--border));
+}
+
+.tileLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1px;
+  color: var(--text-secondary);
   text-transform: uppercase;
 }
 
@@ -165,6 +247,26 @@
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
   flex-shrink: 0;
   align-self: flex-start;
+  font-size: 28px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin-top: 6px;
+}
+
+.tileSub {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ─── Tab bar ───────────────────────────────────────────────── */
+
+.tabBar {
+  display: flex;
+  gap: var(--sp-1);
+  margin-bottom: var(--sp-5);
+  border-bottom: 1px solid var(--border);
+
 }
 
 .tab {
@@ -191,6 +293,21 @@
   color: white;
   background: var(--clr-primary, #C8102E);
   box-shadow: 0 1px 2px rgba(200, 16, 46, 0.25);
+  padding: var(--sp-2) var(--sp-5);
+  font-size: var(--font-base);
+  font-weight: var(--fw-semi);
+  font-family: var(--font);
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+  transition: color var(--ease), border-color var(--ease);
+}
+
+.tabActive {
+  color: var(--info);
+  border-bottom-color: var(--info);
+
 }
 
 /* ─── Filter row ────────────────────────────────────────────── */
@@ -207,11 +324,18 @@
   margin-bottom: 14px;
   flex-wrap: wrap;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+
 }
 
 .searchWrap {
   position: relative;
   flex: 0 0 280px;
+  flex: 0 0 300px;
   max-width: 100%;
 }
 
@@ -222,6 +346,11 @@
   transform: translateY(-50%);
   display: inline-flex;
   color: var(--text-muted, #94a3b8);
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: var(--font-sm);
+  color: var(--text-muted);
   pointer-events: none;
 }
 
@@ -242,6 +371,20 @@
 .searchInput:focus {
   border-color: var(--clr-primary, #C8102E);
   box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.08);
+  padding: 9px 30px 9px 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  outline: none;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  transition: border-color var(--ease);
+}
+
+.searchInput:focus {
+  border-color: var(--clr-primary);
+
 }
 
 .clearBtn {
@@ -253,6 +396,7 @@
   background: transparent;
   cursor: pointer;
   color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
   font-size: 14px;
   line-height: 1;
   padding: 4px;
@@ -262,6 +406,9 @@
   font-size: 12px;
   color: var(--text-secondary, #475569);
   font-weight: 600;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+
 }
 
 /* ─── Status filter buttons ─────────────────────────────────── */
@@ -299,6 +446,29 @@
   color: white;
   border-color: var(--clr-primary, #C8102E);
   box-shadow: 0 1px 2px rgba(200, 16, 46, 0.25);
+  gap: var(--sp-2);
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.statusBtn {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--slate-600);
+  padding: 6px var(--sp-3);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semi);
+  font-family: var(--font);
+  transition: all var(--ease);
+}
+
+.statusBtnActive {
+  background: var(--info);
+  color: var(--text-inverse);
+  border-color: var(--info);
+
 }
 
 /* ─── Leave table ───────────────────────────────────────────── */
@@ -320,6 +490,12 @@
   overflow-x: auto;
   flex: 1 1 auto;
   min-height: 0;
+
+}
+
+.tableScroll {
+  overflow: auto;
+
 }
 
 .tableEl {
@@ -338,6 +514,7 @@
   top: 0;
   z-index: 2;
   box-shadow: 0 1px 0 var(--border);
+
 }
 
 .th {
@@ -526,6 +703,7 @@
 }
 
 
+
 /* ===================================================================
    History tab — filter bar + pagination
    =================================================================== */
@@ -573,7 +751,7 @@
 .histField select:focus {
   outline: none;
   border-color: var(--clr-primary, #C8102E);
-  box-shadow: 0 0 0 3px var(--clr-primary-muted, rgba(200,16,46,0.10));
+  box-shadow: 0 0 0 3px var(--clr-primary-muted, rgba(200, 16, 46, 0.10));
 }
 
 .histClear {
@@ -672,7 +850,8 @@
 }
 
 .balanceYearBtn {
-  width: 28px; height: 28px;
+  width: 28px;
+  height: 28px;
   border: none;
   background: transparent;
   color: var(--text-muted, #64748b);
@@ -789,9 +968,17 @@
   transition: width 0.2s;
 }
 
-.balanceBar_low  { background: #16a34a; }
-.balanceBar_mid  { background: #d97706; }
-.balanceBar_high { background: #dc2626; }
+.balanceBar_low {
+  background: #16a34a;
+}
+
+.balanceBar_mid {
+  background: #d97706;
+}
+
+.balanceBar_high {
+  background: #dc2626;
+}
 
 .balanceCellUsed {
   font-size: 10px;
@@ -925,7 +1112,7 @@
 .adjField textarea:focus {
   outline: none;
   border-color: var(--clr-primary, #C8102E);
-  box-shadow: 0 0 0 3px var(--clr-primary-muted, rgba(200,16,46,0.10));
+  box-shadow: 0 0 0 3px var(--clr-primary-muted, rgba(200, 16, 46, 0.10));
 }
 
 .adjError {
@@ -970,8 +1157,15 @@
   font-size: 11px;
 }
 
-.adjDeltaPos { background: #dcfce7; color: #166534; }
-.adjDeltaNeg { background: #fee2e2; color: #991b1b; }
+.adjDeltaPos {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.adjDeltaNeg {
+  background: #fee2e2;
+  color: #991b1b;
+}
 
 .adjHistoryType {
   font-weight: 700;
