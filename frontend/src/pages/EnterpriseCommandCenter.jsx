@@ -1781,9 +1781,8 @@ export default function EnterpriseCommandCenter() {
         <FactoryFloor factory={factory} />
       </div>
 
-      {/* Approval + CRM funnel side-by-side */}
-      <div className={`${styles.twoColGrid} ${styles.twoColGrid12x1}`}>
-        <ApprovalCenter buckets={buckets} />
+      {/* CRM funnel */}
+      <div className={styles.singleColSection}>
         <CRMFunnel stats={stats} />
       </div>
 

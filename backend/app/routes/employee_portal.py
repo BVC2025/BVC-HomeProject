@@ -118,6 +118,7 @@ def _serialize_assignment(
         # In this schema both resolve to TaskAssignment.TASK_ID.
         "id": ta.TASK_ID,
         "task_id": ta.TASK_ID,
+        "assignment_id": ta.TASK_ID,
         "title": ta.TASK_NAME,
         "priority": getattr(ta, "PRIORITY", None),
         "due_date": _iso(ta.DUE_DATE),
@@ -433,12 +434,22 @@ def _employee_profile(
             department_name = d.NAME
 
     return {
+        # Uppercase keys — original spec, kept for backward-compat.
         "ID": emp.ID,
         "EMPLOYEE_CODE": emp.EMPLOYEE_CODE,
         "NAME": emp.NAME,
         "PHOTO_URL": getattr(emp, "PHOTO_URL", None),
         "DESIGNATION": designation_title,
         "DEPARTMENT": department_name,
+        # Lowercase aliases — the EmployeeDashboard ProfileStrip
+        # reads these. Without them the header shows blank
+        # ("Employee" / "—" / "?" avatar).
+        "id": emp.ID,
+        "employee_code": emp.EMPLOYEE_CODE,
+        "name": emp.NAME,
+        "photo_url": getattr(emp, "PHOTO_URL", None),
+        "designation": designation_title,
+        "department": department_name,
     }
 
 

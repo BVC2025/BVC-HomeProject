@@ -2348,13 +2348,23 @@ function Employees() {
       </div>
 
       <div className={styles.filterBar}>
-        <input
-          type="text"
-          placeholder="🔍 Search by name, code, email, skill, qualification..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className={styles.filterInput}
-        />
+        <div className={styles.filterSearchWrap}>
+          <span className={styles.filterSearchIcon} aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" strokeWidth="2.2"
+                 strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+          </span>
+          <input
+            type="text"
+            placeholder="Search by name, code, email, skill…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className={styles.filterInput}
+          />
+        </div>
         <select
           value={deptFilter}
           onChange={(e) => setDeptFilter(e.target.value)}
@@ -2461,6 +2471,7 @@ function InviteEmployeeModal({ onClose }) {
   const [form, setForm] = useState({
     INVITED_NAME: "",
     EMPLOYEE_CODE: "",
+    EMAIL: "",
     PASSWORD: "",
     EXPIRES_IN_DAYS: 2,
     DEPARTMENT_ID: "",
@@ -2538,6 +2549,15 @@ function InviteEmployeeModal({ onClose }) {
       return;
     }
 
+    const emailTrim = form.EMAIL.trim();
+
+    if (!emailTrim || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailTrim)) {
+
+      setError("A valid candidate email is required — the invite link is sent automatically.");
+
+      return;
+    }
+
     if (form.PASSWORD.trim().length < 6) {
 
       setError("Password must be at least 6 characters.");
@@ -2552,6 +2572,7 @@ function InviteEmployeeModal({ onClose }) {
       const res = await API.post("/employee-onboarding/invite", {
         INVITED_NAME: form.INVITED_NAME.trim(),
         EMPLOYEE_CODE: form.EMPLOYEE_CODE.trim() || null,
+        EMAIL: emailTrim,
         PASSWORD: form.PASSWORD,
         EXPIRES_IN_DAYS: Number(form.EXPIRES_IN_DAYS) || 2,
         DEPARTMENT_ID: form.DEPARTMENT_ID ? Number(form.DEPARTMENT_ID) : null,
@@ -2636,6 +2657,15 @@ function InviteEmployeeModal({ onClose }) {
                     value={form.EMPLOYEE_CODE}
                     onChange={set("EMPLOYEE_CODE")}
                     placeholder="EMP015"
+                    className={styles.inviteInput}
+                  />
+                </InviteField>
+                <InviteField label="Candidate email *" span={2}>
+                  <input
+                    type="email"
+                    value={form.EMAIL}
+                    onChange={set("EMAIL")}
+                    placeholder="ramesh.kumar@example.com"
                     className={styles.inviteInput}
                   />
                 </InviteField>
@@ -2747,13 +2777,42 @@ function InviteEmployeeModal({ onClose }) {
           {result && (
             <div className={styles.inviteResultBox}>
               <div className={styles.inviteResultHeader}>
-                ✅ INVITE CREATED
+                {result.email_sent ? "✅ INVITE SENT" : "✅ INVITE CREATED"}
                 {result.expires_at && (
                   <span className={styles.inviteResultExpiry}>
                     · expires {new Date(result.expires_at).toLocaleDateString("en-IN")}
                   </span>
                 )}
               </div>
+
+              <div
+                style={{
+                  marginBottom: 12,
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  lineHeight: 1.5,
+                  background: result.email_sent ? "#ecfdf5" : "#fef2f2",
+                  border: `1px solid ${result.email_sent ? "#a7f3d0" : "#fecaca"}`,
+                  color: result.email_sent ? "#065f46" : "#7A1022",
+                }}
+              >
+                {result.email_sent ? (
+                  <>
+                    The invite link was emailed to{" "}
+                    <b>{result.invited_email}</b>. The candidate can sign in
+                    using the Employee ID and password you set.
+                  </>
+                ) : (
+                  <>
+                    Invite created, but the email could not be delivered to{" "}
+                    <b>{result.invited_email}</b>
+                    {result.email_message ? ` (${result.email_message})` : ""}.
+                    Copy the link below and share it manually as a fallback.
+                  </>
+                )}
+              </div>
+
               <div className={styles.inviteLinkBox}>
                 {result.invite_link}
               </div>
@@ -2779,8 +2838,11 @@ function InviteEmployeeModal({ onClose }) {
                     setForm({
                       INVITED_NAME: "",
                       EMPLOYEE_CODE: "",
+                      EMAIL: "",
                       PASSWORD: "",
-                      EXPIRES_IN_DAYS: 2
+                      EXPIRES_IN_DAYS: 2,
+                      DEPARTMENT_ID: "",
+                      DESIGNATION_ID: ""
                     });
                   }}
                   className={styles.inviteNewBtn}

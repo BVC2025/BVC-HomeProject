@@ -77,6 +77,7 @@ export default function Payroll() {
   // ----- data -----
   const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [salaryStructMap, setSalaryStructMap] = useState({}); // EMP_ID -> GROSS_MONTHLY
   const [run, setRun] = useState(null);
   const [slips, setSlips] = useState([]);
   const [attendanceMap, setAttendanceMap] = useState({}); // EMP_ID -> stats
@@ -102,14 +103,39 @@ export default function Payroll() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ===== initial load: employees + departments =====
+  // ===== initial load: employees + departments + salary structures =====
+  // We fetch ALL employees (no status filter) and exclude only those
+  // who have been fully offboarded — RESIGNED / TERMINATED — since
+  // employees on notice / long leave / inactive still need a payslip
+  // for the months they worked.
+  //
+  // Salary structures (CTC breakdown) are fetched too so the page can
+  // show the GROSS_MONTHLY when HR entered the salary as a breakdown
+  // (Basic + HRA + DA + …) rather than the single employee.SALARY field.
   useEffect(() => {
     Promise.all([
-      API.get("/employees?status=ACTIVE").catch(() => ({ data: [] })),
+      API.get("/employees").catch(() => ({ data: [] })),
       API.get("/departments").catch(() => ({ data: [] })),
-    ]).then(([empRes, deptRes]) => {
-      setEmployees(Array.isArray(empRes.data) ? empRes.data : []);
+      API.get("/payroll/salary-structures").catch(() => ({ data: [] })),
+    ]).then(([empRes, deptRes, structRes]) => {
+      const all = Array.isArray(empRes.data) ? empRes.data : [];
+      const payable = all.filter((e) => {
+        const s = (e.STATUS || "ACTIVE").toUpperCase();
+        return s !== "RESIGNED" && s !== "TERMINATED";
+      });
+      setEmployees(payable);
       setDepartments(Array.isArray(deptRes.data) ? deptRes.data : []);
+
+      // Build a map: EMPLOYEE_ID -> GROSS_MONTHLY from the CTC breakdown.
+      // The backend already computes GROSS as the sum of BASIC + HRA + DA +
+      // CONVEYANCE + MEDICAL + SPECIAL + OTHER + BONUS + INCENTIVES.
+      const structs = Array.isArray(structRes.data) ? structRes.data : [];
+      const m = {};
+      for (const s of structs) {
+        const gross = Number(s.GROSS_MONTHLY || 0);
+        if (gross > 0 && s.EMPLOYEE_ID) m[s.EMPLOYEE_ID] = gross;
+      }
+      setSalaryStructMap(m);
     });
   }, []);
 
@@ -200,8 +226,15 @@ export default function Payroll() {
           const late = rows.filter((x) =>
             x.STATUS === "LATE" || isLateByTime(x.CHECK_IN)
           ).length;
-          return [e.ID, { present, absent, late }];
-        }).catch(() => [e.ID, { present: 0, absent: 0, late: 0 }])
+          // Total OT hours this month = sum of OVERTIME_HOURS from each row.
+          // Backend computes OVERTIME_HOURS from (OT_CHECK_OUT − OT_CHECK_IN)
+          // when an explicit OT session was logged.
+          const otHours = rows.reduce(
+            (s, x) => s + Math.max(0, Number(x.OVERTIME_HOURS) || 0),
+            0
+          );
+          return [e.ID, { present, absent, late, otHours: Math.round(otHours * 10) / 10 }];
+        }).catch(() => [e.ID, { present: 0, absent: 0, late: 0, otHours: 0 }])
       )
     ).then((pairs) => {
       if (cancelled) return;
@@ -258,11 +291,19 @@ export default function Payroll() {
 
     return employees.map((e) => {
       const slip = slipByEmp[e.ID];
-      const att  = attendanceMap[e.ID] || { present: 0, absent: 0, late: 0 };
+      const att  = attendanceMap[e.ID] || { present: 0, absent: 0, late: 0, otHours: 0 };
       const lv   = leaveMap[e.ID]     || { clDays: 0, permissionHours: 0, otherUnpaidDays: 0 };
 
-      const base = Number(e.SALARY ?? 0);
+      // Base salary precedence:
+      //   1. slip.BASE_SALARY  — locked-in figure after payroll was generated
+      //   2. salary_structure.GROSS_MONTHLY — when HR set the CTC breakdown
+      //   3. employee.SALARY  — when HR set the simple monthly amount
+      const slipBase  = Number(slip?.BASE_SALARY || 0);
+      const ctcBase   = Number(salaryStructMap[e.ID] || 0);
+      const flatBase  = Number(e.SALARY || 0);
+      const base = slipBase > 0 ? slipBase : (ctcBase > 0 ? ctcBase : flatBase);
       const perDay = base / WORKING_DAYS;
+      const hourly = perDay / HOURS_PER_DAY;
 
       // CL: up to 1 paid, extra is unpaid
       const clTotal       = lv.clDays;
@@ -278,17 +319,26 @@ export default function Payroll() {
       const unpaidDays = att.absent + clUnpaidDays + permUnpaidDays + lv.otherUnpaidDays;
       const deduction  = Math.round(unpaidDays * perDay * 100) / 100;
 
+      // OT pay = ot hours × hourly rate (straight time, no multiplier).
+      // Added to the final salary so a worker who put in extra hours
+      // earns more this month.
+      const otHours = Number(att.otHours || 0);
+      const otPay   = Math.round(otHours * hourly * 100) / 100;
+
       const increment = Number(increments[e.ID] || 0);
-      const net = Math.max(0, base - deduction + increment);
+      const net = Math.max(0, base - deduction + increment + otPay);
 
       return {
         emp: e,
         slip,
         base,
         perDay,
+        hourly,
         present: att.present,
         absent:  att.absent,
         late:    att.late,
+        otHours,
+        otPay,
         clTotal,
         clPaid,
         clUnpaidDays,
@@ -303,7 +353,7 @@ export default function Payroll() {
         slipStatus: slip?.STATUS || "PENDING",
       };
     });
-  }, [employees, slips, attendanceMap, leaveMap, increments]);
+  }, [employees, slips, attendanceMap, leaveMap, increments, salaryStructMap]);
 
   // ===== filter =====
   const filteredRows = useMemo(() => {
@@ -540,6 +590,7 @@ export default function Payroll() {
         <span>Paid CL: <strong>{MAX_PAID_CL}/month</strong></span>
         <span>Paid Permission: <strong>{MAX_PAID_PERM} hrs/month</strong></span>
         <span>Late cut-off: <strong>09:15</strong></span>
+        <span>OT: <strong>hourly rate × hours</strong></span>
         <span>Period: <strong>{MONTH_NAMES[month - 1]} {year}</strong></span>
       </div>
 
@@ -583,9 +634,10 @@ export default function Payroll() {
                   <th className={styles.thNum}>CL<br /><span className={styles.thMuted}>(used / paid)</span></th>
                   <th className={`${styles.thNum} ${styles.thPermission}`}>Permission<br /><span className={styles.thMuted}>(hrs used / 4)</span></th>
                   <th className={styles.thNum}>Late<br />Check-ins</th>
+                  <th className={styles.thNum}>OT<br /><span className={styles.thMuted}>(hours)</span></th>
                   <th className={styles.thNum}>Deduction<br /><span className={styles.thMuted}>(₹)</span></th>
                   <th className={styles.thNum}>Increment<br /><span className={styles.thMuted}>(₹)</span></th>
-                  <th className={`${styles.thNum} ${styles.thTotal}`}>Net Salary<br /><span className={styles.thMuted}>(₹)</span></th>
+                  <th className={`${styles.thNum} ${styles.thTotal}`}>Total Salary<br /><span className={styles.thMuted}>(₹)</span></th>
                   <th className={styles.thAct} />
                 </tr>
               </thead>
@@ -624,6 +676,16 @@ export default function Payroll() {
                         </span>
                       </td>
                       <td className={styles.tdNum}>{r.late}</td>
+                      <td className={styles.tdNum}>
+                        {r.otHours > 0 ? (
+                          <span title={`OT pay: ₹ ${inr(r.otPay)} (${r.otHours.toFixed(1)} h × ₹ ${inr2(r.hourly)}/h)`}
+                                style={{ color: "#7c3aed", fontWeight: 700 }}>
+                            {r.otHours.toFixed(1)} h
+                          </span>
+                        ) : (
+                          <span style={{ color: "#94a3b8" }}>—</span>
+                        )}
+                      </td>
                       <td className={`${styles.tdNum} ${r.deduction > 0 ? styles.tdDeduction : ""}`}>
                         {r.deduction > 0 ? `− ₹ ${inr(r.deduction)}` : "—"}
                       </td>
@@ -735,7 +797,10 @@ function SalarySummaryModal({ row, period, onClose }) {
                         value={`${r.permTotalH.toFixed(1)} h / ${r.permPaidH.toFixed(1)} h paid`}
                         warn={r.permUnpaidH > 0} />
             <SummaryRow label="Late check-ins"              value={r.late} />
+            <SummaryRow label="OT hours (overtime)"         value={`${r.otHours.toFixed(1)} h`}
+                        good={r.otHours > 0} />
             <SummaryRow label="Per-day rate"                value={`₹ ${inr2(r.perDay)}`} />
+            <SummaryRow label="Hourly rate"                 value={`₹ ${inr2(r.hourly)}`} />
             <SummaryRow label="Total unpaid days"           value={r.unpaidDays.toFixed(2)} />
           </div>
 
@@ -747,12 +812,14 @@ function SalarySummaryModal({ row, period, onClose }) {
                         bad />
             <SummaryRow label="Increment (HR selected)"     value={`+ ₹ ${inr(r.increment)}`}
                         good={r.increment > 0} />
+            <SummaryRow label="OT pay (overtime × hourly)"  value={`+ ₹ ${inr(r.otPay)}`}
+                        good={r.otPay > 0} />
           </div>
 
           <div className={styles.summaryDivider} />
 
           <div className={styles.summaryNet}>
-            <div className={styles.summaryNetLabel}>Net salary payable</div>
+            <div className={styles.summaryNetLabel}>Total salary payable</div>
             <div className={styles.summaryNetValue}>₹ {inr(r.net)}</div>
           </div>
 

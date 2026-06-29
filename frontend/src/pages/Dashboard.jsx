@@ -1479,7 +1479,6 @@ const NAV_GROUPS = [
     key: "org",
     label: "HRMS",
     items: [
-      { to: "/approvals", icon: <SidebarIcon name="approvals" />, label: "Approval Center" },
       // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
       { to: "/rbac",              icon: <SidebarIcon name="rbac"        />, label: "RBAC" },
       { to: "/employees",         icon: <SidebarIcon name="employees"   />, label: "Employees" },

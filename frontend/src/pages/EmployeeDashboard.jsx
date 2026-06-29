@@ -898,6 +898,386 @@ function applyOptimisticStatus(portal, assignmentId, newStatus) {
 
 
 // =================================================================
+// Zoho-style icon set (no emojis anywhere on the portal)
+// =================================================================
+
+const SVG_PATHS = {
+  overview:    "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
+  attendance:  "M19 3h-1V1h-2v2H8V1H6v2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 18H5V9h14v12z",
+  tasks:       "M9 16.17 4.83 12l-1.41 1.41L9 19 21 7l-1.41-1.41L9 16.17z",
+  leave:       "M12 2C8 2 5 5 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-4-3-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z",
+  memos:       "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z",
+  allowance:   "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 14.09v1.41h-2v-1.42c-1.27-.27-2.36-1.08-2.44-2.5h1.47c.08.81.62 1.43 1.97 1.43 1.45 0 1.78-.72 1.78-1.18 0-.61-.33-1.18-1.97-1.58-1.82-.44-3.06-1.18-3.06-2.66 0-1.24.99-2.05 2.25-2.32V5.87h2v1.42c1.36.34 2.04 1.38 2.08 2.51h-1.46c-.04-.86-.5-1.43-1.69-1.43-1.14 0-1.81.51-1.81 1.24 0 .64.5 1.06 1.97 1.43 1.47.37 3.06.99 3.06 2.83 0 1.31-.99 2.04-2.26 2.31z",
+  payslips:    "M19.5 3.5 18 2l-1.5 1.5L15 2l-1.5 1.5L12 2l-1.5 1.5L9 2 7.5 3.5 6 2v14H3v3a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3V2l-1.5 1.5zM14 19v.5a1.5 1.5 0 0 1-3 0V19H5v-4h11v4zm5-.5a1.5 1.5 0 0 1-3 0V13H8V4h11v14.5zM10 7h7v2h-7zm0 4h7v2h-7z",
+  performance: "M3 13h2v8H3zm6-4h2v12H9zm6-6h2v18h-2z",
+  clock:       "M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z",
+  bell:        "M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 0 0-5-5.91V4a1 1 0 0 0-2 0v1.09A6 6 0 0 0 6 11v5l-2 2v1h16v-1z",
+  logout:      "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8v-2H4z",
+  mic:         "M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5.91-3a1 1 0 0 0-1.98.34A4 4 0 0 1 12 15a4 4 0 0 1-3.93-3.66 1 1 0 0 0-1.98.34A6 6 0 0 0 11 16.92V19H8v2h8v-2h-3v-2.08a6 6 0 0 0 4.91-5.92z",
+  micOff:      "M19 11h-1.7c0 .58-.1 1.13-.27 1.64l1.27 1.27a6 6 0 0 0 .7-2.91zM15 11.16V5a3 3 0 0 0-6 0v.18L15 11.16zM3.41 2 2 3.41l6 6V11a3 3 0 0 0 4.94 2.31l1.42 1.42a4 4 0 0 1-6.34-3.39A1 1 0 0 0 6.04 11a6 6 0 0 0 4.96 5.92V19H8v2h8v-2h-3v-2.08c.85-.13 1.64-.45 2.34-.92L20.59 22 22 20.59 3.41 2z",
+  play:        "M8 5v14l11-7L8 5z",
+  pause:       "M6 4h4v16H6zm8 0h4v16h-4z",
+  check:       "M9 16.17 4.83 12l-1.41 1.41L9 19 21 7l-1.41-1.41L9 16.17z",
+  search:      "M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19 15.5 14zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z",
+  rotate:      "M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6a5.92 5.92 0 0 1 4.22 1.78L13 11h7V4z"
+};
+
+function Ico({ name, size = 16, style }) {
+  const d = SVG_PATHS[name];
+  if (!d) return null;
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+      style={style}
+    >
+      <path d={d} />
+    </svg>
+  );
+}
+
+
+// =================================================================
+// Z-shell — slim Zoho-style top header (replaces topbar + hero strip)
+// =================================================================
+
+function ZTopBar({
+  profile, productivity, employeeName, employeeCode,
+  attendanceStatus, loginTime,
+  voiceOn, onToggleVoice, voiceSupported,
+  unreadCount, onLogout
+}) {
+
+  const name = profile?.name || employeeName || "Employee";
+  const code = profile?.employee_code || employeeCode || "—";
+  const designation = profile?.designation || "";
+  const department = profile?.department || "";
+  const photoUrl = profile?.photo_url || null;
+  const score = Math.max(0, Math.min(100, Number(productivity?.score || 0)));
+
+  const initials = (name || "?")
+    .split(/\s+/)
+    .map((p) => p.charAt(0))
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "?";
+
+  const isLate = attendanceStatus === "LATE";
+
+  return (
+    <header className={styles.zHeader}>
+      <div className={styles.zHeaderLeft}>
+        <div className={styles.zAvatar}>
+          {photoUrl ? <img src={photoUrl} alt={name} /> : initials}
+        </div>
+        <div className={styles.zIdentText}>
+          <div className={styles.zIdentName}>
+            {name} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>· {code}</span>
+          </div>
+          <div className={styles.zIdentMeta}>
+            {designation || "—"}{department ? ` · ${department}` : ""}
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.zHeaderRight}>
+        <span
+          className={`${styles.zChip} ${isLate ? styles.zChipWarn : styles.zChipSuccess}`}
+          title={`Login: ${fmtTime(loginTime)}`}
+        >
+          <Ico name="clock" size={12} />
+          {attendanceStatus} · {fmtTime(loginTime)}
+        </span>
+
+        <span className={`${styles.zChip} ${styles.zChipScore}`} title="Productivity score">
+          <Ico name="performance" size={12} />
+          {score} / 100
+        </span>
+
+        {voiceSupported && (
+          <button
+            type="button"
+            onClick={onToggleVoice}
+            className={`${styles.zIconBtn}${voiceOn ? " " + styles.zIconBtnActive : ""}`}
+            title={voiceOn ? "Disable voice alerts" : "Enable voice alerts"}
+            aria-label="Toggle voice alerts"
+          >
+            <Ico name={voiceOn ? "mic" : "micOff"} size={14} />
+          </button>
+        )}
+
+        <button
+          type="button"
+          className={styles.zIconBtn}
+          title="Notifications"
+          aria-label="Notifications"
+        >
+          <Ico name="bell" size={14} />
+          {unreadCount > 0 && (
+            <span className={styles.zIconBtnBadge}>
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={onLogout}
+          className={styles.zIconBtn}
+          title="Log out"
+          aria-label="Log out"
+        >
+          <Ico name="logout" size={14} />
+        </button>
+      </div>
+    </header>
+  );
+}
+
+
+// =================================================================
+// Z-shell — slim underline tab strip (replaces PortalTabNav)
+// =================================================================
+
+function ZTabStrip({ active, onChange, badges = {} }) {
+
+  const tabs = [
+    { key: "overview",    label: "Overview",    icon: "overview" },
+    { key: "attendance",  label: "Attendance",  icon: "attendance" },
+    { key: "tasks",       label: "Tasks",       icon: "tasks", badge: badges.tasks },
+    { key: "leave",       label: "Leave",       icon: "leave", badge: badges.leave },
+    { key: "memos",       label: "Memos",       icon: "memos" },
+    { key: "allowance",   label: "Allowance",   icon: "allowance" },
+    { key: "payslips",    label: "Payslips",    icon: "payslips" },
+    { key: "performance", label: "Performance", icon: "performance" }
+  ];
+
+  return (
+    <div className={styles.zTabStrip}>
+      {tabs.map((t) => {
+        const isOn = t.key === active;
+        return (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => onChange(t.key)}
+            className={`${styles.zTab}${isOn ? " " + styles.zTabActive : ""}`}
+          >
+            <Ico name={t.icon} size={14} />
+            <span>{t.label}</span>
+            {!!t.badge && t.badge > 0 && (
+              <span className={styles.zTabBadge}>
+                {t.badge > 99 ? "99+" : t.badge}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+
+// =================================================================
+// Z-shell — Tasks page (replaces TodayTasksCard + TabbedTaskLists)
+// =================================================================
+
+const Z_TASK_STATUS_PILL = {
+  PENDING:     { label: "Pending",     cls: "zPillNeutral" },
+  IN_PROGRESS: { label: "In Progress", cls: "zPillInfo" },
+  ON_HOLD:     { label: "On Hold",     cls: "zPillWarn" },
+  COMPLETED:   { label: "Completed",   cls: "zPillSuccess" }
+};
+
+const Z_PRIORITY_PILL = {
+  HIGH:   "zPillDanger",
+  MEDIUM: "zPillWarn",
+  LOW:    "zPillNeutral"
+};
+
+function ZTasksPage({ buckets, busyMap, onUpdate }) {
+
+  const [filter, setFilter] = useState("pending");
+  const [q, setQ] = useState("");
+
+  const filters = [
+    { key: "today",       label: "Today",       count: buckets.today?.length || 0 },
+    { key: "pending",     label: "Pending",     count: buckets.pending?.length || 0 },
+    { key: "in_progress", label: "In Progress", count: buckets.in_progress?.length || 0 },
+    { key: "on_hold",     label: "On Hold",     count: buckets.on_hold?.length || 0 },
+    { key: "upcoming",    label: "Upcoming",    count: buckets.upcoming?.length || 0 },
+    { key: "completed",   label: "Completed",   count: buckets.completed?.length || 0 }
+  ];
+
+  const all = buckets[filter] || [];
+  const qNorm = q.trim().toLowerCase();
+  const rows = qNorm
+    ? all.filter((t) =>
+        (t.title || "").toLowerCase().includes(qNorm) ||
+        (t.project_name || "").toLowerCase().includes(qNorm))
+    : all;
+
+  return (
+    <div className={styles.zCard}>
+      <div className={styles.zCardHead}>
+        <div className={styles.zCardTitle}>
+          <Ico name="tasks" size={14} />
+          My Tasks
+        </div>
+        <div className={styles.zSearchBox}>
+          <Ico name="search" size={12} />
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search title or project"
+          />
+        </div>
+      </div>
+
+      <div className={styles.zFilterRow}>
+        {filters.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            onClick={() => setFilter(f.key)}
+            className={`${styles.zFilter}${filter === f.key ? " " + styles.zFilterActive : ""}`}
+          >
+            {f.label}
+            <span className={styles.zFilterCount}>{f.count}</span>
+          </button>
+        ))}
+      </div>
+
+      {rows.length === 0 ? (
+        <div className={styles.zEmpty}>
+          No tasks in this view.
+        </div>
+      ) : (
+        <div className={styles.zTableWrap}>
+          <table className={styles.zTable}>
+            <thead>
+              <tr>
+                <th style={{ width: "40%" }}>Task</th>
+                <th>Priority</th>
+                <th>Due</th>
+                <th>Status</th>
+                <th style={{ textAlign: "right" }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((t) => (
+                <ZTaskRow
+                  key={t.assignment_id || t.id}
+                  task={t}
+                  busy={!!busyMap[t.assignment_id]}
+                  onUpdate={onUpdate}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ZTaskRow({ task, busy, onUpdate }) {
+
+  const status = (task.status || "PENDING").toUpperCase();
+  const pill = Z_TASK_STATUS_PILL[status] || Z_TASK_STATUS_PILL.PENDING;
+  const priority = (task.priority || "MEDIUM").toUpperCase();
+  const priorityCls = Z_PRIORITY_PILL[priority] || "zPillNeutral";
+
+  const due = task.due_date ? fmtDate(task.due_date) : "—";
+  const remaining = task.remaining_days != null ? Number(task.remaining_days) : null;
+  const dueSub = remaining == null
+    ? null
+    : remaining < 0
+      ? `${Math.abs(remaining)}d overdue`
+      : remaining === 0
+        ? "due today"
+        : `${remaining}d left`;
+
+  const dueSubStyle = remaining != null && remaining < 0
+    ? { color: "var(--danger-dark)", fontWeight: 600 }
+    : remaining === 0
+      ? { color: "var(--warning-dark)", fontWeight: 600 }
+      : null;
+
+  const actions = (() => {
+    switch (status) {
+      case "PENDING":
+        return [
+          { target: "IN_PROGRESS", label: "Start", icon: "play",  cls: "zActionPrimary" },
+          { target: "ON_HOLD",     label: "Hold",  icon: "pause", cls: "zActionWarn" },
+          { target: "COMPLETED",   label: "Done",  icon: "check", cls: "zActionSuccess" }
+        ];
+      case "IN_PROGRESS":
+        return [
+          { target: "ON_HOLD",   label: "Hold", icon: "pause", cls: "zActionWarn" },
+          { target: "COMPLETED", label: "Done", icon: "check", cls: "zActionSuccess" }
+        ];
+      case "ON_HOLD":
+        return [
+          { target: "IN_PROGRESS", label: "Resume", icon: "play",  cls: "zActionPrimary" },
+          { target: "COMPLETED",   label: "Done",   icon: "check", cls: "zActionSuccess" }
+        ];
+      case "COMPLETED":
+      default:
+        return [];
+    }
+  })();
+
+  return (
+    <tr>
+      <td>
+        <div className={styles.zTaskTitle}>{task.title || "Untitled task"}</div>
+        {task.project_name && (
+          <div className={styles.zTaskMeta}>{task.project_name}</div>
+        )}
+      </td>
+      <td>
+        <span className={`${styles.zPill} ${styles[priorityCls]}`}>{priority}</span>
+      </td>
+      <td>
+        <div className={styles.zDue}>{due}</div>
+        {dueSub && (
+          <div className={styles.zDueSub} style={dueSubStyle || undefined}>{dueSub}</div>
+        )}
+      </td>
+      <td>
+        <span className={`${styles.zPill} ${styles[pill.cls]}`}>{pill.label}</span>
+      </td>
+      <td>
+        <div className={styles.zRowActions}>
+          {actions.length === 0 ? (
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>—</span>
+          ) : (
+            actions.map((a) => (
+              <button
+                key={a.target}
+                type="button"
+                disabled={busy}
+                onClick={() => onUpdate(task.assignment_id, a.target, status)}
+                className={`${styles.zActionBtn} ${styles[a.cls]}`}
+              >
+                <Ico name={a.icon} size={11} />
+                {busy ? "…" : a.label}
+              </button>
+            ))
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+
+// =================================================================
 // 1. PROFILE STRIP
 // =================================================================
 

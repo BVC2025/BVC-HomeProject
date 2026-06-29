@@ -1816,3 +1816,458 @@
   font-size: 18px;
   cursor: pointer;
 }
+
+/* ================================================================
+   Zoho-style redesign — Employee Portal (z* classes)
+   Slim compact top header + underline tab strip + dense Tasks table.
+   No emojis, sparse use of brand red, neutral palette elsewhere.
+   ================================================================ */
+
+.zPage {
+  padding: var(--sp-4);
+  background: var(--layout-bg);
+  min-height: 100%;
+}
+
+.zHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--sp-3);
+  gap: 12px;
+}
+
+.zHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.zAvatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--clr-primary-light);
+  color: var(--clr-primary);
+  font-weight: var(--fw-bold);
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 38px;
+  border: 1px solid var(--clr-primary-border);
+  overflow: hidden;
+  letter-spacing: 0.4px;
+}
+
+.zAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.zIdentText {
+  min-width: 0;
+}
+
+.zIdentName {
+  font-size: 13px;
+  font-weight: var(--fw-semi);
+  color: var(--text-primary);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zIdentMeta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: var(--fw-semi);
+  background: var(--neutral-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.zChipSuccess {
+  background: var(--success-bg);
+  color: var(--success-dark);
+  border-color: var(--success-border);
+}
+
+.zChipWarn {
+  background: var(--warning-bg);
+  color: var(--warning-dark);
+  border-color: var(--warning-border);
+}
+
+.zChipScore {
+  background: var(--clr-primary-light);
+  color: var(--clr-primary);
+  border-color: var(--clr-primary-border);
+}
+
+.zIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  position: relative;
+  transition: var(--ease);
+}
+
+.zIconBtn:hover {
+  background: var(--neutral-bg);
+  color: var(--text-primary);
+}
+
+.zIconBtnActive {
+  color: var(--clr-primary);
+  border-color: var(--clr-primary-border);
+  background: var(--clr-primary-light);
+}
+
+.zIconBtnBadge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: var(--clr-primary);
+  color: #fff;
+  font-size: 9px;
+  font-weight: var(--fw-bold);
+  border-radius: 999px;
+  padding: 1px 5px;
+  line-height: 1.3;
+  border: 1.5px solid var(--card-bg);
+  min-width: 16px;
+  text-align: center;
+}
+
+.zTabStrip {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0 8px;
+  margin-bottom: var(--sp-3);
+  overflow-x: auto;
+}
+
+.zTab {
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+  padding: 12px 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+  transition: var(--ease);
+}
+
+.zTab:hover {
+  color: var(--text-primary);
+}
+
+.zTabActive {
+  color: var(--clr-primary);
+  border-bottom-color: var(--clr-primary);
+  font-weight: var(--fw-semi);
+}
+
+.zTabBadge {
+  background: var(--neutral-bg);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  padding: 1px 6px;
+  border-radius: 999px;
+  line-height: 1.4;
+}
+
+.zTabActive .zTabBadge {
+  background: var(--clr-primary-light);
+  color: var(--clr-primary);
+}
+
+.zCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--sp-3);
+  overflow: hidden;
+}
+
+.zCardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card-bg);
+}
+
+.zCardTitle {
+  font-size: 13px;
+  font-weight: var(--fw-semi);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zCardSub {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.zFilterRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card-bg);
+  flex-wrap: wrap;
+}
+
+.zFilter {
+  background: transparent;
+  border: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+  padding: 5px 11px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: var(--ease);
+}
+
+.zFilter:hover {
+  border-color: var(--clr-primary-border);
+  color: var(--text-primary);
+}
+
+.zFilterActive {
+  background: var(--clr-primary);
+  color: #fff;
+  border-color: var(--clr-primary);
+}
+
+.zFilterCount {
+  background: var(--neutral-bg);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  padding: 1px 6px;
+  border-radius: 999px;
+  margin-left: 2px;
+}
+
+.zFilterActive .zFilterCount {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+.zTableWrap {
+  overflow-x: auto;
+}
+
+.zTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.zTable th {
+  text-align: left;
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 10px 16px;
+  background: var(--table-th-bg, #fafbfc);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.zTable td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.zTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.zTable tbody tr {
+  transition: background 0.1s;
+}
+
+.zTable tbody tr:hover {
+  background: var(--neutral-bg);
+}
+
+.zTable tbody tr:hover .zRowActions {
+  opacity: 1;
+}
+
+.zTaskTitle {
+  font-size: 12px;
+  font-weight: var(--fw-semi);
+  color: var(--text-primary);
+}
+
+.zTaskMeta {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.zPill {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.3px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.zPillNeutral { background: var(--neutral-bg); color: var(--text-secondary); border-color: var(--neutral-border); }
+.zPillInfo    { background: var(--info-bg);    color: var(--info);           border-color: var(--info-border); }
+.zPillSuccess { background: var(--success-bg); color: var(--success-dark);   border-color: var(--success-border); }
+.zPillWarn    { background: var(--warning-bg); color: var(--warning-dark);   border-color: var(--warning-border); }
+.zPillDanger  { background: var(--danger-bg);  color: var(--danger-dark);    border-color: var(--danger-border); }
+
+.zDue {
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.zDueSub {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.zRowActions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
+.zActionBtn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: var(--fw-medium);
+  padding: 5px 9px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: var(--ease);
+  white-space: nowrap;
+}
+
+.zActionBtn:hover:not(:disabled) {
+  background: var(--neutral-bg);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.zActionPrimary { color: var(--info); border-color: var(--info-border); }
+.zActionPrimary:hover:not(:disabled) { background: var(--info-bg); color: var(--info); }
+
+.zActionWarn    { color: var(--warning-dark); border-color: var(--warning-border); }
+.zActionWarn:hover:not(:disabled)    { background: var(--warning-bg); }
+
+.zActionSuccess { color: var(--success-dark); border-color: var(--success-border); }
+.zActionSuccess:hover:not(:disabled) { background: var(--success-bg); }
+
+.zActionBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.zEmpty {
+  padding: 36px 16px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.zSectionPlain {
+  padding: 4px 0;
+}
+
+.zSearchBox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  min-width: 220px;
+}
+
+.zSearchBox input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 12px;
+  width: 100%;
+  color: var(--text-primary);
+}
