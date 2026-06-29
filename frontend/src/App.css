@@ -2568,3 +2568,234 @@ body {
     max-width: 280px;
   }
 }
+
+
+/* ================================================================
+   GLOBAL RESPONSIVE UTILITIES — phase 1
+   ----------------------------------------------------------------
+   These rules apply across every page in the app without per-page
+   CSS edits. They work by:
+     1. Shrinking the design-token scale on small screens, so any
+        component that uses var(--sp-*) / var(--font-*) auto-shrinks.
+     2. Targeting raw HTML elements inside .main-content so tables,
+        forms, inputs, and buttons get sensible mobile defaults
+        regardless of which CSS-module wrote them.
+     3. Wildcard attribute selectors that match CSS-module class
+        names like Projects_modalPanel__abc123 — catches every
+        modal in the app without touching their individual modules.
+   ================================================================ */
+
+@media (max-width: 768px) {
+
+  /* ---- 1. Shrink the design-token scale ---- */
+  :root {
+    --sp-5: 14px;
+    --sp-6: 18px;
+    --sp-8: 22px;
+    --sp-10: 28px;
+    --font-base: 13px;
+    --font-md: 14px;
+    --font-lg: 16px;
+    --font-xl: 18px;
+    --font-2xl: 22px;
+    --font-3xl: 26px;
+  }
+
+  /* ---- 2. HTML elements inside main-content ---- */
+
+  /* Tables — block + horizontal scroll so they never blow out the
+     viewport. Cells keep their layout; the table itself scrolls. */
+  .main-content table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+    white-space: nowrap;
+  }
+
+  /* Form fields claim full width on mobile */
+  .main-content input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  .main-content select,
+  .main-content textarea {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Buttons get adequate touch target height */
+  .main-content button {
+    min-height: 36px;
+  }
+
+  /* Headings scale down */
+  .main-content h1 { font-size: 22px; line-height: 1.25; }
+  .main-content h2 { font-size: 18px; line-height: 1.3; }
+  .main-content h3 { font-size: 16px; }
+
+  /* ---- 3. Generic grid collapsers ---- */
+  /* Any class containing "Grid" with grid-template-columns set
+     by the module collapses to a single column. The !important
+     is needed to override module-scoped grid-template-columns. */
+  [class*="formGrid"],
+  [class*="FormGrid"],
+  [class*="statsGrid"],
+  [class*="StatsGrid"],
+  [class*="kpiGrid"],
+  [class*="KpiGrid"],
+  [class*="cardsGrid"],
+  [class*="CardsGrid"] {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Settings rows and any flex group meant to be horizontal but
+     gets cramped — collapse to vertical. */
+  [class*="formRow"]:not([class*="formRowKeep"]),
+  [class*="filterBar"],
+  [class*="FilterBar"] {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  /* When a flex-row container is flipped to column, the children's
+     `flex: x x BASIS` shorthand gets re-interpreted with BASIS as
+     height, so a 240px-basis select becomes 240px TALL. Reset every
+     direct child to natural height + full width to stop that. */
+  [class*="formRow"]:not([class*="formRowKeep"]) > *,
+  [class*="filterBar"] > *,
+  [class*="FilterBar"] > * {
+    flex: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* ---- 4. Modal panels (catches every CSS-module modal) ---- */
+  [class*="modalPanel"],
+  [class*="ModalPanel"],
+  [class*="modal-panel"] {
+    max-width: 96vw !important;
+    width: 96vw !important;
+    max-height: 92vh !important;
+    margin: 12px auto !important;
+    border-radius: 12px !important;
+    overflow-y: auto !important;
+  }
+
+  [class*="modalOverlay"],
+  [class*="ModalOverlay"],
+  [class*="modal-overlay"] {
+    padding: 4vh 2vw !important;
+  }
+
+  /* Modal close button — make sure it stays tappable */
+  [class*="modalCloseBtn"],
+  [class*="ModalCloseBtn"] {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  /* ---- 5. Recently-built Projects kanban ---- */
+  /* Each project column gets nearly full-width on mobile so the
+     user can read tasks; the board scrolls horizontally between
+     columns. The right-side donut chart already drops below the
+     board at 900px via Projects.module.css. */
+  [class*="kColumn"]:not([class*="kColumnHead"]):not([class*="kColumnTitle"]):not([class*="kColumnAction"]):not([class*="kColumnBody"]):not([class*="kColumnEmpty"]):not([class*="kColumnCount"]):not([class*="kColumnMenu"]) {
+    flex: 0 0 86vw !important;
+    max-width: 360px;
+  }
+
+  [class*="kToolbar"]:not([class*="kToolbarTitle"]) {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  [class*="kSearch"] {
+    flex: 1 1 100% !important;
+    max-width: none !important;
+  }
+
+  /* ---- 6. Recently-built EmployeeDashboard Zoho shell ---- */
+  [class*="zHeader"]:not([class*="zHeaderLeft"]):not([class*="zHeaderRight"]) {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  [class*="zHeaderRight"] {
+    flex-wrap: wrap !important;
+    justify-content: flex-end !important;
+  }
+
+  /* Tab strip becomes horizontal scroll if it overflows */
+  [class*="zTabStrip"] {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Z-tasks page table — already has overflow-x:auto on wrapper.
+     Make the cells less padded on mobile. */
+  [class*="zTable"] td,
+  [class*="zTable"] th {
+    padding: 9px 10px !important;
+  }
+}
+
+
+@media (max-width: 480px) {
+
+  /* ---- Tighter token scale on phones ---- */
+  :root {
+    --sp-4: 11px;
+    --sp-5: 12px;
+    --sp-6: 14px;
+    --sp-8: 18px;
+    --font-base: 13px;
+    --font-md: 13px;
+  }
+
+  .main-content {
+    padding: 56px 11px 11px !important;
+  }
+
+  /* Modal panels go nearly edge-to-edge on phones */
+  [class*="modalPanel"],
+  [class*="ModalPanel"] {
+    max-width: 98vw !important;
+    width: 98vw !important;
+    margin: 8px auto !important;
+    border-radius: 10px !important;
+  }
+
+  /* Section titles / heroes shrink further */
+  [class*="hero"] h1,
+  [class*="Hero"] h1,
+  [class*="heroAltTitle"],
+  [class*="heroTitle"] {
+    font-size: 19px !important;
+  }
+
+  /* Two-column action rows (Cancel + Submit pairs) stack */
+  [class*="formActions"],
+  [class*="FormActions"] {
+    flex-direction: column !important;
+  }
+
+  [class*="formActions"] > button,
+  [class*="FormActions"] > button {
+    width: 100% !important;
+  }
+
+  /* Status pills / chips stay readable */
+  [class*="pill"],
+  [class*="Pill"],
+  [class*="chip"]:not([class*="chipRow"]),
+  [class*="Chip"]:not([class*="ChipRow"]) {
+    white-space: nowrap;
+  }
+
+  /* Stat tiles on phones go single-column with smaller numbers */
+  [class*="statTile"] [class*="statTileValue"],
+  [class*="StatTile"] [class*="StatTileValue"] {
+    font-size: 22px !important;
+  }
+}

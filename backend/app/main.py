@@ -305,6 +305,7 @@ def _auto_migrate():
         ("leave_request",   "DURATION_HOURS", "FLOAT NULL"),
         # Per-task PRIORITY surfaced on the employee dashboard cards
         ("task_assignment", "PRIORITY",       "VARCHAR(10) NULL"),
+        ("task_assignment", "STAR_LEVEL",     "INT NULL DEFAULT 0"),
         # ---- Employee onboarding: admin-chosen password at invite time ----
         # Replaces the AI chatbot flow with admin-sets-password-at-invite +
         # candidate logs in to fill the registration form.
@@ -878,6 +879,72 @@ def _auto_migrate():
                             "auto-migrate: employee.%s blank-to-null "
                             "backfill skipped: %s", col, exc_bf
                         )
+
+            # ---- 6. Rebind stale foreign keys that still point at
+            #         the orphan `project_legacy` table.
+            # During an earlier schema reset somebody renamed `project`
+            # to `project_legacy` (or created a new `project` alongside
+            # the old one) and forgot to repoint the dependent FKs. The
+            # ORM still declares `ForeignKey("project.ID")`, but in the
+            # live DB the constraint still points at `project_legacy`,
+            # so every INSERT on the child table (e.g. work_order) fails
+            # with IntegrityError 1452 — "Cannot add or update a child
+            # row: a foreign key constraint fails".
+            #
+            # Strategy: enumerate any FK whose REFERENCED_TABLE_NAME is
+            # `project_legacy`, drop it, and re-add it against `project`.
+            try:
+
+                stale_fks = list(conn.execute(text("""
+                    SELECT TABLE_NAME, CONSTRAINT_NAME,
+                           COLUMN_NAME, REFERENCED_COLUMN_NAME
+                    FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+                    WHERE TABLE_SCHEMA = DATABASE()
+                      AND REFERENCED_TABLE_NAME = 'project_legacy'
+                """)))
+
+                for row in stale_fks:
+
+                    tname    = row[0]
+                    cname    = row[1]
+                    col      = row[2]
+                    ref_col  = row[3] or "ID"
+
+                    try:
+
+                        conn.execute(text(
+                            f"ALTER TABLE `{tname}` "
+                            f"DROP FOREIGN KEY `{cname}`"
+                        ))
+
+                        conn.execute(text(
+                            f"ALTER TABLE `{tname}` "
+                            f"ADD CONSTRAINT `{cname}` "
+                            f"FOREIGN KEY (`{col}`) "
+                            f"REFERENCES `project`(`{ref_col}`) "
+                            f"ON DELETE SET NULL"
+                        ))
+
+                        log.info(
+                            "auto-migrate: rebound FK %s.%s "
+                            "(%s) from project_legacy -> project",
+                            tname, cname, col
+                        )
+
+                    except Exception as exc_fk:
+
+                        log.warning(
+                            "auto-migrate: could not rebind FK "
+                            "%s.%s: %s",
+                            tname, cname, exc_fk
+                        )
+
+            except Exception as exc_fk_outer:
+
+                log.warning(
+                    "auto-migrate: project_legacy FK repair phase "
+                    "skipped: %s", exc_fk_outer
+                )
 
     except Exception as exc:
 

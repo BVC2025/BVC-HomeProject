@@ -583,154 +583,87 @@ function EmployeeDashboardBody() {
 
   return (
 
-    <div className={styles.page}>
+    <div className={styles.zPage}>
 
-      {/* ---------- TOP BAR ---------- */}
-      <header className={styles.topbar}>
-        <div className={styles.topbarLeft}>
-          <img
-            src="/logo.webp"
-            alt="logo"
-            className={styles.topbarLogo}
-          />
-          <div>
-            <div className={styles.topbarTitle}>
-              BVC24 · Employee Portal
-            </div>
-            <div className={styles.topbarMeta}>
-              {employeeName || profile.name} · {profile.employee_code}{" "}
-              {profile.department ? `· ${profile.department}` : ""}
-            </div>
-          </div>
-        </div>
+      {/* ---------- Zoho-style top bar ---------- */}
+      <ZTopBar
+        profile={profile}
+        productivity={productivity}
+        employeeName={employeeName}
+        employeeCode={employeeId}
+        attendanceStatus={attendanceStatus}
+        loginTime={loginTime}
+        voiceOn={voiceOn}
+        onToggleVoice={toggleVoice}
+        voiceSupported={isVoiceSupported()}
+        unreadCount={unreadCount}
+        onLogout={handleLogout}
+      />
 
-        <div className={styles.topbarRight}>
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 800,
-              padding: "5px 10px",
-              borderRadius: 999,
-              background: attendanceStatus === "LATE"
-                ? "rgba(244,179,36,0.22)"
-                : "rgba(34,197,94,0.22)",
-              color: attendanceStatus === "LATE" ? "#b45309" : "#16a34a",
-              letterSpacing: 0.4
-            }}
-            title={`Login: ${fmtTime(loginTime)}`}
-          >
-            {attendanceStatus} · {fmtTime(loginTime)}
+      {portalErr && (
+        <div className={styles.portalError}>
+          {portalErr}{" "}
+          <span className={styles.portalErrorNote}>
+            — supporting widgets below remain functional.
           </span>
-
-          {isVoiceSupported() && (
-            <button
-              type="button"
-              onClick={toggleVoice}
-              className={styles.topbarBtn}
-              title="Toggle voice alerts"
-            >
-              {voiceOn ? "🔊" : "🔇"} Voice
-            </button>
-          )}
-
-          <button type="button" className={styles.topbarBtn} onClick={handleLogout}>
-            Logout
-          </button>
-
-          {unreadCount > 0 && (
-            <span className={styles.topbarNotifBadge}>
-              🔔 {unreadCount}
-            </span>
-          )}
         </div>
-      </header>
+      )}
 
-      <main className={styles.mainContent}>
+      {loading && !portal && (
+        <div className={styles.loadingCard}>
+          Loading your workspace…
+        </div>
+      )}
 
-        {portalErr && (
-          <div className={styles.portalError}>
-            ⚠ {portalErr}{" "}
-            <span className={styles.portalErrorNote}>
-              — supporting widgets below remain functional.
-            </span>
-          </div>
-        )}
+      {/* ---------- Slim underline tab strip ---------- */}
+      <ZTabStrip
+        active={mainTab}
+        onChange={setMainTab}
+        badges={{
+          tasks: (taskBuckets.today?.length || 0)
+            + (taskBuckets.pending?.length || 0),
+          leave: (leaveHistory || []).filter(
+            (l) => l.STATUS === "PENDING_APPROVAL"
+          ).length
+        }}
+      />
 
-        {loading && !portal && (
-          <div className={styles.loadingCard}>
-            Loading your workspace…
-          </div>
-        )}
+      {/* ---------- TAB CONTENT ---------- */}
+      {mainTab === "overview" && (
+        <>
+          <KpiGrid kpis={kpis} />
+          <TodayTasksCard
+            tasks={taskBuckets.today}
+            busyMap={actionBusy}
+            onUpdate={updateAssignmentStatus}
+          />
+        </>
+      )}
 
-        {/* ---------- PROFILE STRIP (persistent across all tabs) ---------- */}
-        <ProfileStrip
-          profile={profile}
-          productivity={productivity}
-        />
+      {mainTab === "attendance" && (
+        <>
+          <MyAttendancePanel employeeId={employeeId} />
+          <AttendanceSummaryCard attendance={attendance} />
+        </>
+      )}
 
-        {/* ---------- TAB NAV — focuses each role-task on its own section ---------- */}
-        <PortalTabNav
-          active={mainTab}
-          onChange={setMainTab}
-          badges={{
-            tasks: (taskBuckets.today?.length || 0)
-              + (taskBuckets.pending?.length || 0),
-            leave: (leaveHistory || []).filter(
-              (l) => l.STATUS === "PENDING_APPROVAL"
-            ).length
-          }}
-        />
-
-        {/* ---------- TAB CONTENT ---------- */}
-        {mainTab === "overview" && (
-          <>
-            <KpiGrid kpis={kpis} />
-            <TodayTasksCard
-              tasks={taskBuckets.today}
-              busyMap={actionBusy}
-              onUpdate={updateAssignmentStatus}
+      {mainTab === "tasks" && (
+        <>
+          <ZTasksPage
+            buckets={taskBuckets}
+            busyMap={actionBusy}
+            onUpdate={updateAssignmentStatus}
+          />
+          <AssignedProjectsCard projects={projects} />
+          {productionStages.length > 0 && (
+            <ProductionStagesSection
+              stages={productionStages}
+              busyMap={stageBusy}
+              onUpdate={updateStage}
             />
-          </>
-        )}
-
-        {mainTab === "attendance" && (
-          <>
-            <MyAttendancePanel employeeId={employeeId} />
-            <AttendanceSummaryCard attendance={attendance} />
-          </>
-        )}
-
-        {mainTab === "tasks" && (
-          <>
-            <TodayTasksCard
-              tasks={taskBuckets.today}
-              busyMap={actionBusy}
-              onUpdate={updateAssignmentStatus}
-            />
-            <TabbedTaskLists
-              tab={tab}
-              onTabChange={setTab}
-              counts={{
-                pending: taskBuckets.pending.length,
-                in_progress: taskBuckets.in_progress.length,
-                on_hold: taskBuckets.on_hold.length,
-                upcoming: taskBuckets.upcoming.length,
-                completed: taskBuckets.completed.length
-              }}
-              tasks={tilesActiveTab}
-              busyMap={actionBusy}
-              onUpdate={updateAssignmentStatus}
-            />
-            <AssignedProjectsCard projects={projects} />
-            {productionStages.length > 0 && (
-              <ProductionStagesSection
-                stages={productionStages}
-                busyMap={stageBusy}
-                onUpdate={updateStage}
-              />
-            )}
-          </>
-        )}
+          )}
+        </>
+      )}
 
         {mainTab === "leave" && (
           <>
@@ -790,15 +723,13 @@ function EmployeeDashboardBody() {
           <MyPayslipsPanel employeeId={employeeId} />
         )}
 
-        {mainTab === "performance" && (
-          <>
-            <PerformanceBreakdownCard productivity={productivity} />
-            <MonthlyProductivityChart data={monthlyChart} />
-            <RewardsCard productivity={productivity} />
-          </>
-        )}
-
-      </main>
+      {mainTab === "performance" && (
+        <>
+          <PerformanceBreakdownCard productivity={productivity} />
+          <MonthlyProductivityChart data={monthlyChart} />
+          <RewardsCard productivity={productivity} />
+        </>
+      )}
 
       <Toast toast={toast} onClose={() => setToast(null)} />
       <ChatBot />

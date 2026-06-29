@@ -799,3 +799,905 @@
 .btnDone:hover {
   opacity: 0.9;
 }
+
+/* ================================================================
+   Odoo-style Project Kanban (k* classes)
+   ================================================================ */
+
+.kPage {
+  padding: 16px 20px;
+  background: var(--layout-bg);
+  min-height: 100%;
+}
+
+.kToolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 14px;
+}
+
+.kToolbarTitle {
+  font-size: 15px;
+  font-weight: var(--fw-semi);
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kToolbarTitle::before {
+  content: "";
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  background: var(--clr-primary);
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.kNewBtn {
+  background: var(--clr-primary);
+  color: #fff;
+  border: none;
+  font-size: 12px;
+  font-weight: var(--fw-semi);
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: var(--ease);
+}
+
+.kNewBtn:hover {
+  background: var(--clr-primary-darker);
+}
+
+.kSearch {
+  flex: 1;
+  max-width: 480px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+}
+
+.kSearch input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 12px;
+  color: var(--text-primary);
+  min-width: 0;
+}
+
+.kBoard {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  overflow-x: auto;
+  padding-bottom: 24px;
+}
+
+.kColumn {
+  flex: 0 0 320px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 130px);
+}
+
+.kColumnHead {
+  padding: 12px 14px 8px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--card-bg);
+  z-index: 1;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.kColumnTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.kColumnTitle {
+  font-size: 13px;
+  font-weight: var(--fw-semi);
+  color: var(--text-primary);
+  flex: 1;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kColumnTitle:hover {
+  color: var(--clr-primary);
+}
+
+.kColumnActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.kAddBtn {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--clr-primary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: var(--fw-bold);
+  transition: var(--ease);
+}
+
+.kAddBtn:hover {
+  background: var(--clr-primary);
+  color: #fff;
+  border-color: var(--clr-primary);
+}
+
+.kCollapseBtn {
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.kCollapseBtn:hover {
+  background: var(--neutral-bg);
+  color: var(--text-primary);
+}
+
+.kProgress {
+  height: 4px;
+  background: var(--neutral-bg);
+  border-radius: 999px;
+  overflow: hidden;
+  display: flex;
+}
+
+.kProgressFill {
+  background: var(--success);
+  height: 100%;
+  transition: width 0.3s;
+}
+
+.kColumnCount {
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  color: var(--text-muted);
+  text-align: right;
+  margin-top: 4px;
+  letter-spacing: 0.4px;
+}
+
+.kColumnBody {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.kColumnEmpty {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 16px 0;
+  font-style: italic;
+}
+
+.kTaskCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 11px;
+  font-size: 12px;
+  position: relative;
+  transition: var(--ease);
+  border-left: 3px solid var(--border);
+}
+
+.kTaskCard:hover {
+  box-shadow: var(--shadow-sm);
+  border-color: var(--border-strong);
+}
+
+.kTaskCardHigh   { border-left-color: var(--danger); }
+.kTaskCardMedium { border-left-color: var(--warning); }
+.kTaskCardLow    { border-left-color: var(--info); }
+
+.kTaskTitle {
+  font-size: 12px;
+  font-weight: var(--fw-semi);
+  color: var(--text-primary);
+  line-height: 1.35;
+  margin-bottom: 6px;
+  word-break: break-word;
+}
+
+.kTaskMenu {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  transition: opacity 0.15s;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kTaskCard:hover .kTaskMenu {
+  opacity: 1;
+}
+
+.kTaskMenu:hover {
+  background: var(--neutral-bg);
+  color: var(--text-primary);
+}
+
+.kTaskFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.kTaskFooterLeft {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kTaskFooterRight {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kClockIcon {
+  color: var(--text-muted);
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.kClockIconOverdue {
+  color: var(--danger);
+}
+
+.kStarRow {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.kStar {
+  background: none;
+  border: none;
+  padding: 0 1px;
+  cursor: pointer;
+  color: #e5e7eb;
+  display: inline-flex;
+  align-items: center;
+  transition: color 0.1s, transform 0.1s;
+}
+
+.kStar:hover {
+  color: #fde047;
+  transform: scale(1.1);
+}
+
+.kStarFilled {
+  color: #f59e0b;
+}
+
+.kAssignBtn {
+  width: 22px;
+  height: 22px;
+  border: 1px dashed var(--border-strong);
+  background: transparent;
+  border-radius: 999px;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  position: relative;
+  transition: var(--ease);
+}
+
+.kAssignBtn:hover {
+  border-color: var(--clr-primary);
+  color: var(--clr-primary);
+  border-style: solid;
+}
+
+.kAssignAvatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--clr-primary-light);
+  color: var(--clr-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+  border: 1px solid var(--clr-primary-border);
+  letter-spacing: 0.3px;
+}
+
+.kAssignAvatar:hover {
+  background: var(--clr-primary);
+  color: #fff;
+}
+
+.kStatusDot {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border-strong);
+  background: var(--card-bg);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: var(--ease);
+}
+
+.kStatusDot:hover {
+  transform: scale(1.1);
+}
+
+.kPopover {
+  position: absolute;
+  z-index: 50;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  min-width: 180px;
+}
+
+.kPopoverItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  font-size: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+}
+
+.kPopoverItem:hover {
+  background: var(--neutral-bg);
+}
+
+.kPopoverItemActive {
+  background: var(--clr-primary-light);
+  color: var(--clr-primary);
+}
+
+.kPopoverDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.kPopoverSearch {
+  padding: 4px;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 4px;
+}
+
+.kPopoverSearch input {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  color: var(--text-primary);
+  background: var(--card-bg);
+}
+
+.kPopoverScroll {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.kNewTaskRow {
+  background: var(--card-bg);
+  border: 1px dashed var(--clr-primary-border);
+  border-radius: var(--radius);
+  padding: 8px;
+}
+
+.kNewTaskInput {
+  width: 100%;
+  border: none;
+  outline: none;
+  font-size: 12px;
+  padding: 4px 0;
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.kNewTaskInput::placeholder {
+  color: var(--text-muted);
+}
+
+.kNewTaskActions {
+  display: flex;
+  gap: 5px;
+  margin-top: 4px;
+  align-items: center;
+}
+
+.kNewTaskBtn {
+  background: var(--clr-primary);
+  color: #fff;
+  border: none;
+  font-size: 11px;
+  font-weight: var(--fw-semi);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.kNewTaskBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.kNewTaskCancel {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.kNewTaskHint {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.kAddTaskTrigger {
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 6px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: var(--fw-medium);
+  width: 100%;
+  text-align: center;
+  transition: var(--ease);
+}
+
+.kAddTaskTrigger:hover {
+  color: var(--clr-primary);
+  border-color: var(--clr-primary);
+  background: var(--clr-primary-light);
+}
+
+.kProjectMeta {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.kTooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1f2937;
+  color: #fff;
+  font-size: 10px;
+  font-weight: var(--fw-semi);
+  padding: 3px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.kStar:hover .kTooltip,
+.kAssignBtn:hover .kTooltip,
+.kAssignAvatar:hover .kTooltip,
+.kStatusDot:hover .kTooltip {
+  opacity: 1;
+}
+
+/* ---------- Column 3-dot menu ---------- */
+
+.kColumnMenuBtn {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--ease);
+  padding: 0;
+}
+
+.kColumnMenuBtn:hover {
+  background: var(--neutral-bg);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.kMenuItemDanger {
+  color: var(--danger-dark) !important;
+}
+
+.kMenuItemDanger:hover {
+  background: var(--danger-bg) !important;
+}
+
+.kMenuDivider {
+  height: 1px;
+  background: var(--border-light);
+  margin: 4px 2px;
+}
+
+/* ---------- Delete-confirmation modal ---------- */
+
+.kConfirmBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 16px;
+  animation: kFadeIn 0.12s ease;
+}
+
+@keyframes kFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.kConfirmModal {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 440px;
+  padding: 24px 24px 18px;
+  position: relative;
+  animation: kPop 0.14s ease;
+}
+
+@keyframes kPop {
+  from { transform: scale(0.96); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+.kConfirmClose {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.kConfirmClose:hover {
+  background: var(--neutral-bg);
+  color: var(--text-primary);
+}
+
+.kConfirmTitle {
+  font-size: 18px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+
+.kConfirmBody {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.55;
+  margin-bottom: 22px;
+}
+
+.kConfirmActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+}
+
+.kBtnDanger {
+  background: var(--danger);
+  color: #fff;
+  border: none;
+  font-size: 12px;
+  font-weight: var(--fw-semi);
+  padding: 8px 18px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: var(--ease);
+  min-width: 100px;
+}
+
+.kBtnDanger:hover:not(:disabled) {
+  background: var(--danger-dark);
+}
+
+.kBtnDanger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.kBtnCancel {
+  background: var(--card-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  font-size: 12px;
+  font-weight: var(--fw-medium);
+  padding: 8px 18px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: var(--ease);
+  min-width: 100px;
+}
+
+.kBtnCancel:hover:not(:disabled) {
+  background: var(--neutral-bg);
+}
+
+.kBtnCancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------- "Coming soon" stub toast ---------- */
+
+.kStubToast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1f2937;
+  color: #fff;
+  font-size: 12px;
+  font-weight: var(--fw-semi);
+  padding: 9px 16px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  z-index: 300;
+  animation: kPop 0.15s ease;
+}
+
+/* ---------- Right-side chart panel ---------- */
+
+.kBoardWrap {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.kBoardScroll {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 24px;
+  align-items: flex-start;
+}
+
+.kRightPanel {
+  flex: 0 0 280px;
+  position: sticky;
+  top: 16px;
+  align-self: flex-start;
+}
+
+@media (max-width: 1100px) {
+  .kRightPanel {
+    flex-basis: 240px;
+  }
+}
+
+@media (max-width: 900px) {
+  .kBoardWrap {
+    flex-direction: column;
+  }
+  .kRightPanel {
+    flex: 0 0 auto;
+    width: 100%;
+    position: static;
+  }
+}
+
+.kChartCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.kChartTitle {
+  font-size: 13px;
+  font-weight: var(--fw-semi);
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.kChartSubtitle {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.kDonutWrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 14px;
+  position: relative;
+}
+
+.kDonutTotal {
+  font-size: 26px;
+  font-weight: 800;
+  fill: var(--text-primary);
+}
+
+.kDonutSub {
+  font-size: 9px;
+  fill: var(--text-muted);
+  font-weight: 700;
+  letter-spacing: 0.6px;
+}
+
+.kChartLegend {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.kChartLegendRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 3px 0;
+}
+
+.kChartLegendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.kChartLegendLabel {
+  flex: 1;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.kChartLegendCount {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  min-width: 24px;
+  text-align: right;
+}
+
+.kChartLegendPct {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 32px;
+  text-align: right;
+}
+
+.kEmptyChart {
+  padding: 28px 12px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.kEmptyDonut {
+  width: 160px;
+  height: 160px;
+  border-radius: 999px;
+  border: 22px solid var(--neutral-bg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: var(--fw-semi);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}

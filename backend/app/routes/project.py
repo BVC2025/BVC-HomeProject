@@ -2321,3 +2321,385 @@ def requirement_to_project(
         "requirement_id": req_id,
         "project": result
     }
+
+
+# ====================================================================
+# Kanban — per-project task CRUD for the Odoo-style project board.
+#
+# These endpoints feed the new Projects kanban UI. They expose the
+# full 8-state status vocabulary (PENDING, IN_PROGRESS, ON_HOLD,
+# COMPLETED, CHANGES_REQUESTED, APPROVED, CANCELLED, DONE) plus the
+# 0-3 STAR_LEVEL quick-progress indicator. Existing flows (Employee
+# Dashboard task buttons, Payroll) ignore the new states/columns.
+# ====================================================================
+
+KANBAN_TASK_STATUSES = {
+    "PENDING",
+    "IN_PROGRESS",
+    "ON_HOLD",
+    "COMPLETED",
+    "CHANGES_REQUESTED",
+    "APPROVED",
+    "CANCELLED",
+    "DONE",
+}
+
+
+class KanbanTaskCreate(BaseModel):
+
+    TASK_NAME: str
+    EMPLOYEE_ID: str | None = None
+    DUE_DATE: str | None = None
+    PRIORITY: str | None = "MEDIUM"
+    TASK_DETAILS: str | None = None
+
+
+class KanbanTaskUpdate(BaseModel):
+
+    TASK_NAME: str | None = None
+    EMPLOYEE_ID: str | None = None
+    DUE_DATE: str | None = None
+    PRIORITY: str | None = None
+    TASK_STATUS: str | None = None
+    STAR_LEVEL: int | None = None
+    TASK_DETAILS: str | None = None
+
+
+def _serialize_kanban_task(ta: TaskAssignment, db: Session) -> dict:
+
+    assignee_name = None
+    assignee_code = None
+
+    if ta.EMPLOYEE_ID:
+
+        emp = db.query(Employee).filter(Employee.ID == ta.EMPLOYEE_ID).first()
+
+        if emp is not None:
+
+            assignee_name = emp.NAME
+            assignee_code = emp.EMPLOYEE_CODE
+
+    return {
+        "id":             ta.TASK_ID,
+        "task_id":        ta.TASK_ID,
+        "project_id":     ta.PROJECT_ID,
+        "task_name":      ta.TASK_NAME,
+        "task_details":   ta.TASK_DETAILS,
+        "due_date":       ta.DUE_DATE.isoformat() if ta.DUE_DATE else None,
+        "assigned_date":  ta.ASSIGNED_DATE.isoformat() if ta.ASSIGNED_DATE else None,
+        "status":         (ta.TASK_STATUS or "PENDING").upper(),
+        "star_level":     int(getattr(ta, "STAR_LEVEL", 0) or 0),
+        "priority":       (getattr(ta, "PRIORITY", None) or "MEDIUM").upper(),
+        "employee_id":    ta.EMPLOYEE_ID,
+        "assignee_name":  assignee_name,
+        "assignee_code":  assignee_code,
+        "started_at":     ta.START_TIME.isoformat() if ta.START_TIME else None,
+        "completed_at":   ta.END_TIME.isoformat() if ta.END_TIME else None,
+    }
+
+
+@router.get("/projects/{project_id}/tasks")
+def kanban_list_project_tasks(
+    project_id: int,
+    db: Session = Depends(get_db)
+):
+    """Kanban: every task on a project, ordered by ID."""
+
+    project = db.query(Project).filter(Project.ID == project_id).first()
+
+    if project is None:
+
+        raise HTTPException(
+            status_code=404,
+            detail=f"Project {project_id} not found"
+        )
+
+    rows = (
+        db.query(TaskAssignment)
+        .filter(TaskAssignment.PROJECT_ID == project_id)
+        .order_by(TaskAssignment.TASK_ID.asc())
+        .all()
+    )
+
+    return [_serialize_kanban_task(r, db) for r in rows]
+
+
+@router.post("/projects/{project_id}/tasks")
+def kanban_create_project_task(
+    project_id: int,
+    body: KanbanTaskCreate,
+    db: Session = Depends(get_db)
+):
+    """Kanban: create a new task on a project. Used by the '+' button
+    inside each kanban column."""
+
+    project = db.query(Project).filter(Project.ID == project_id).first()
+
+    if project is None:
+
+        raise HTTPException(
+            status_code=404,
+            detail=f"Project {project_id} not found"
+        )
+
+    name = (body.TASK_NAME or "").strip()
+
+    if not name:
+
+        raise HTTPException(
+            status_code=400,
+            detail="TASK_NAME is required."
+        )
+
+    due_date_val = None
+
+    if body.DUE_DATE:
+
+        try:
+
+            due_date_val = datetime.strptime(
+                body.DUE_DATE[:10], "%Y-%m-%d"
+            ).date()
+
+        except ValueError:
+
+            raise HTTPException(
+                status_code=400,
+                detail="DUE_DATE must be ISO YYYY-MM-DD."
+            )
+
+    employee_id = (body.EMPLOYEE_ID or "").strip() or None
+
+    if employee_id:
+
+        emp = db.query(Employee).filter(Employee.ID == employee_id).first()
+
+        if emp is None:
+
+            raise HTTPException(
+                status_code=400,
+                detail=f"Employee {employee_id} not found."
+            )
+
+    ta = TaskAssignment(
+        PROJECT_ID=project_id,
+        EMPLOYEE_ID=employee_id,
+        TASK_NAME=name,
+        TASK_DETAILS=(body.TASK_DETAILS or None),
+        ASSIGNED_DATE=date.today(),
+        DUE_DATE=due_date_val,
+        TASK_STATUS="PENDING",
+        STAR_LEVEL=0,
+        PRIORITY=(body.PRIORITY or "MEDIUM").upper(),
+        APPROVAL_STATUS="APPROVED",
+        UPDATED_AT=datetime.utcnow(),
+    )
+
+    db.add(ta)
+
+    try:
+
+        db.commit()
+
+        db.refresh(ta)
+
+    except Exception as exc:
+
+        db.rollback()
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create task: {exc}"
+        )
+
+    return _serialize_kanban_task(ta, db)
+
+
+@router.patch("/projects/tasks/{task_id}")
+def kanban_update_task(
+    task_id: int,
+    body: KanbanTaskUpdate,
+    db: Session = Depends(get_db)
+):
+    """Kanban: update any field on a task — status, stars, assignee,
+    name, due date, priority. Used by every interaction on the kanban
+    card."""
+
+    ta = (
+        db.query(TaskAssignment)
+        .filter(TaskAssignment.TASK_ID == task_id)
+        .first()
+    )
+
+    if ta is None:
+
+        raise HTTPException(
+            status_code=404,
+            detail=f"Task {task_id} not found."
+        )
+
+    if body.TASK_NAME is not None:
+
+        new_name = body.TASK_NAME.strip()
+
+        if not new_name:
+
+            raise HTTPException(
+                status_code=400,
+                detail="TASK_NAME cannot be empty."
+            )
+
+        ta.TASK_NAME = new_name
+
+    if body.TASK_DETAILS is not None:
+
+        ta.TASK_DETAILS = body.TASK_DETAILS.strip() or None
+
+    if body.PRIORITY is not None:
+
+        ta.PRIORITY = body.PRIORITY.strip().upper() or "MEDIUM"
+
+    if body.DUE_DATE is not None:
+
+        if body.DUE_DATE == "":
+
+            ta.DUE_DATE = None
+
+        else:
+
+            try:
+
+                ta.DUE_DATE = datetime.strptime(
+                    body.DUE_DATE[:10], "%Y-%m-%d"
+                ).date()
+
+            except ValueError:
+
+                raise HTTPException(
+                    status_code=400,
+                    detail="DUE_DATE must be ISO YYYY-MM-DD."
+                )
+
+    if body.EMPLOYEE_ID is not None:
+
+        eid = body.EMPLOYEE_ID.strip() or None
+
+        if eid:
+
+            emp = db.query(Employee).filter(Employee.ID == eid).first()
+
+            if emp is None:
+
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Employee {eid} not found."
+                )
+
+        ta.EMPLOYEE_ID = eid
+
+    if body.TASK_STATUS is not None:
+
+        new_status = (body.TASK_STATUS or "").upper().strip()
+
+        if new_status not in KANBAN_TASK_STATUSES:
+
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Invalid status '{body.TASK_STATUS}'. "
+                    f"Allowed: {sorted(KANBAN_TASK_STATUSES)}"
+                )
+            )
+
+        ta.TASK_STATUS = new_status
+
+        now = datetime.utcnow()
+
+        if new_status == "IN_PROGRESS" and ta.START_TIME is None:
+
+            ta.START_TIME = now
+
+        elif new_status in ("COMPLETED", "DONE", "APPROVED"):
+
+            if ta.END_TIME is None:
+
+                ta.END_TIME = now
+
+    if body.STAR_LEVEL is not None:
+
+        try:
+
+            level = int(body.STAR_LEVEL)
+
+        except (TypeError, ValueError):
+
+            raise HTTPException(
+                status_code=400,
+                detail="STAR_LEVEL must be an integer 0-3."
+            )
+
+        if level < 0 or level > 3:
+
+            raise HTTPException(
+                status_code=400,
+                detail="STAR_LEVEL must be in range 0-3."
+            )
+
+        ta.STAR_LEVEL = level
+
+    ta.UPDATED_AT = datetime.utcnow()
+
+    try:
+
+        db.commit()
+
+        db.refresh(ta)
+
+    except Exception as exc:
+
+        db.rollback()
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update task: {exc}"
+        )
+
+    return _serialize_kanban_task(ta, db)
+
+
+@router.delete("/projects/tasks/{task_id}")
+def kanban_delete_task(
+    task_id: int,
+    db: Session = Depends(get_db)
+):
+    """Kanban: delete a task from a project."""
+
+    ta = (
+        db.query(TaskAssignment)
+        .filter(TaskAssignment.TASK_ID == task_id)
+        .first()
+    )
+
+    if ta is None:
+
+        raise HTTPException(
+            status_code=404,
+            detail=f"Task {task_id} not found."
+        )
+
+    db.delete(ta)
+
+    try:
+
+        db.commit()
+
+    except Exception as exc:
+
+        db.rollback()
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to delete task: {exc}"
+        )
+
+    return {"ok": True, "deleted_id": task_id}

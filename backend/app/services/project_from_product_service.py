@@ -710,6 +710,15 @@ def create_project_from_product(
                 else ("owner_fallback" if project_owner else "unassigned")
             )
 
+        # ---- AUTO-ASSIGNMENT DISABLED (per UI flow) ----
+        # Tasks are created unassigned so the operator can pick the
+        # employee manually from the kanban "Assign" button. The
+        # specialist / project-owner lookup above is kept intact in
+        # case auto-assignment is brought back later — to re-enable
+        # delete the two override lines below.
+        assignee_id = None
+        assignee_source = "manual"
+
         progress = WorkOrderStageProgress(
             WORK_ORDER_ID=wo.ID,
             STAGE_ID=stage.ID,
@@ -783,11 +792,14 @@ def create_project_from_product(
             "due_date": stage_due_date.isoformat(),
             "estimated_hours": stage.ESTIMATED_HOURS,
             "days_needed": days_needed,
-            "assigned_employee_id": project_owner.ID if project_owner else None,
-            "assigned_employee_name": project_owner.NAME if project_owner else None,
-            "assigned_employee_code": project_owner.EMPLOYEE_CODE if project_owner else None,
-            "assigned_employee_email": project_owner.EMAIL if project_owner else None,
-            "skill_match_score": owner_score if project_owner else 0,
+            # Auto-assignment is disabled — tasks land unassigned and
+            # the operator picks the employee from the kanban "Assign"
+            # button. See assignee_id override earlier in the loop.
+            "assigned_employee_id": None,
+            "assigned_employee_name": None,
+            "assigned_employee_code": None,
+            "assigned_employee_email": None,
+            "skill_match_score": 0,
             "approval_status": "PENDING"
         })
 
@@ -1183,9 +1195,12 @@ def backfill_project_tasks(
                 WorkOrderStageProgress.STAGE_ID == stage.ID
             ).first()
 
-            if progress and project_owner:
-
-                progress.ASSIGNED_TO_ID = project_owner.ID
+            # AUTO-ASSIGNMENT DISABLED — see note in
+            # create_project_from_product. Backfill no longer pre-binds
+            # the stage progress to project_owner; operator picks the
+            # assignee manually from the kanban.
+            # if progress and project_owner:
+            #     progress.ASSIGNED_TO_ID = project_owner.ID
 
         task_name = f"Stage {stage.SEQUENCE}: {stage.STAGE_NAME}"
 
@@ -1216,14 +1231,15 @@ def backfill_project_tasks(
 
             continue
 
-        if project_owner:
-
-            assigned_employees[project_owner.ID] = (
-                assigned_employees.get(project_owner.ID, 0) + 1
-            )
+        # AUTO-ASSIGNMENT DISABLED — backfill leaves new tasks
+        # unassigned; operator picks the employee from the kanban.
+        # if project_owner:
+        #     assigned_employees[project_owner.ID] = (
+        #         assigned_employees.get(project_owner.ID, 0) + 1
+        #     )
 
         task = TaskAssignment(
-            EMPLOYEE_ID=project_owner.ID if project_owner else None,
+            EMPLOYEE_ID=None,
             PROJECT_ID=project.ID,
             TASK_NAME=task_name,
             TASK_DETAILS=(
@@ -1256,11 +1272,11 @@ def backfill_project_tasks(
             "due_date": stage_due_date.isoformat(),
             "estimated_hours": stage.ESTIMATED_HOURS,
             "days_needed": days_needed,
-            "assigned_employee_id": project_owner.ID if project_owner else None,
-            "assigned_employee_name": project_owner.NAME if project_owner else None,
-            "assigned_employee_code": project_owner.EMPLOYEE_CODE if project_owner else None,
-            "assigned_employee_email": project_owner.EMAIL if project_owner else None,
-            "skill_match_score": owner_score if project_owner else 0,
+            "assigned_employee_id": None,
+            "assigned_employee_name": None,
+            "assigned_employee_code": None,
+            "assigned_employee_email": None,
+            "skill_match_score": 0,
             "approval_status": "PENDING"
         })
 

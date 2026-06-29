@@ -1107,8 +1107,25 @@ class TaskAssignment(Base):
     DUE_DATE = Column(Date, nullable=True)
 
     TASK_STATUS = Column(
-        String(20),
+        String(30),
         default="PENDING"
+    )
+
+    # Odoo-style quick-progress indicator: 0 = none, 1 = Start,
+    # 2 = In Progress, 3 = Complete. Independent of TASK_STATUS so
+    # the kanban can show a quick visual flag without changing the
+    # workflow state. Existing flows (Employee Dashboard, Payroll)
+    # ignore this column.
+    STAR_LEVEL = Column(
+        Integer,
+        default=0,
+        nullable=True
+    )
+
+    PRIORITY = Column(
+        String(10),
+        default="MEDIUM",
+        nullable=True
     )
 
     # ---- Approval workflow ----
