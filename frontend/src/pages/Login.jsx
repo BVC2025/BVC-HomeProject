@@ -197,10 +197,10 @@ function Login() {
         localStorage.removeItem("pending_yesterday");
       }
 
-      // Employee landing: RoleBasedLanding at "/" gates on profile
-      // completion → renders the EmployeeProfileForm on first login
-      // and the Leave & Permission page on every subsequent login.
-      navigate("/");
+      // Employee landing: send them through the welcome screen first.
+      // The welcome page's "Continue to Dashboard" button then routes
+      // to "/" which resolves via RoleBasedLanding → EmployeeDashboard.
+      navigate("/welcome", { replace: true });
 
     } catch (err) {
 

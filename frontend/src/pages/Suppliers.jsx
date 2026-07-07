@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import API from "../services/api";
 
 import EntityDrawer from "../components/EntityDrawer";
+import Pagination from "../components/Pagination";
 import styles from "./Suppliers.module.css";
 
 
@@ -319,6 +320,14 @@ function Suppliers() {
 
   const [drawerId, setDrawerId] = useState(null);
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
+  const pagedSuppliers = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return suppliers.slice(start, start + pageSize);
+  }, [suppliers, page, pageSize]);
+
   const fetchSuppliers = async () => {
 
     setLoading(true);
@@ -557,7 +566,7 @@ function Suppliers() {
                 </tr>
               )}
 
-              {suppliers.map((s) => {
+              {pagedSuppliers.map((s) => {
 
                 const t = STATUS_THEMES[s.STATUS] || STATUS_THEMES.INACTIVE;
 
@@ -647,6 +656,16 @@ function Suppliers() {
             </tbody>
           </table>
         </div>
+
+        {!loading && suppliers.length > 0 && (
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={suppliers.length}
+            onPageChange={setPage}
+            onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+          />
+        )}
       </div>
 
       {editing && (

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import API, { API_BASE_URL } from "../services/api";
+import Pagination from "../components/Pagination";
 import styles from "./Employees.module.css";
 
 
@@ -2210,6 +2211,9 @@ function Employees() {
 
   const [deptFilter, setDeptFilter] = useState("");
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
   const [showAdd, setShowAdd] = useState(false);
 
   const [showInvite, setShowInvite] = useState(false);
@@ -2264,6 +2268,16 @@ function Employees() {
     });
 
   }, [employees, search, deptFilter]);
+
+  // Reset to page 1 whenever the filter changes (so we don't land on
+  // an empty page beyond the new result set's last page).
+  useEffect(() => { setPage(1); }, [search, deptFilter]);
+
+  // Slice the filtered list for the current page.
+  const pagedEmployees = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
 
   const stats = useMemo(() => {
 
@@ -2400,17 +2414,26 @@ function Employees() {
 
       {
         !loading && filtered.length > 0 && (
-          <div className={styles.cardGrid}>
-            {filtered.map((emp) => (
-              <EmployeeCard
-                key={emp.ID}
-                employee={emp}
-                onView={setViewing}
-                onEdit={setEditingEmployee}
-                onDelete={handleDelete}
-              />
-            ))}
-          </div>
+          <>
+            <div className={styles.cardGrid}>
+              {pagedEmployees.map((emp) => (
+                <EmployeeCard
+                  key={emp.ID}
+                  employee={emp}
+                  onView={setViewing}
+                  onEdit={setEditingEmployee}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              total={filtered.length}
+              onPageChange={setPage}
+              onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+            />
+          </>
         )
       }
 

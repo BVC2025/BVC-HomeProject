@@ -78,6 +78,8 @@ from app.routes.hr_chat import router as hr_chat_router          # Unified HR As
 from app.routes.recruitment import router as recruitment_router  # Phase 2 — AI Recruitment Assistant
 from app.routes.employee_payslips import router as my_payslips_router  # Employee self-service payslips
 from app.routes.onboarding_checklist import router as onboarding_checklist_router  # Post-joining onboarding
+from app.routes.shifts import router as shifts_router  # Shift Management
+from app.routes.ai_chat import router as ai_chat_router  # AI Agent — Phase 1 intent router
 from app.routes.attendance_ai import router as attendance_ai_router  # Attendance Automation (Phase 1)
 from app.routes.leave_decisions import router as leave_decisions_router  # Leave Automation (Phase 1)
 from app.routes.monthly_reports import router as monthly_reports_router  # Auto monthly attendance + payroll reports
@@ -300,12 +302,21 @@ def _auto_migrate():
         ("quotation", "VIEW_COUNT",         "INT NOT NULL DEFAULT 0"),
         # ---- Phase 5: SO advance-due tracking ----
         ("sales_order", "ADVANCE_DUE_DATE", "DATE NULL"),
+        # ---- Attendance late tracking ----
+        # Whole minutes past the office start time when the employee checked in.
+        # 0 when PRESENT / on time. Independent of the Permission module — a
+        # late arrival is NOT a permission request.
+        ("attendance",      "LATE_MINUTES",   "INT NULL DEFAULT 0"),
         # ---- Unified Employee Dashboard (Permission support) ----
         # LEAVE_TYPE='PERMISSION' rows track sub-day time-off in hours
         ("leave_request",   "DURATION_HOURS", "FLOAT NULL"),
         # Per-task PRIORITY surfaced on the employee dashboard cards
         ("task_assignment", "PRIORITY",       "VARCHAR(10) NULL"),
         ("task_assignment", "STAR_LEVEL",     "INT NULL DEFAULT 0"),
+        # Recruitment — link a job to its manpower requisition
+        ("recruitment_job",  "REQUISITION_ID",  "INT NULL"),
+        # Onboarding — corporate email provisioned during auto-onboarding
+        ("employee",         "CORPORATE_EMAIL", "VARCHAR(120) NULL"),
         # ---- Employee onboarding: admin-chosen password at invite time ----
         # Replaces the AI chatbot flow with admin-sets-password-at-invite +
         # candidate logs in to fill the registration form.
@@ -1400,6 +1411,8 @@ app.include_router(hr_chat_router)
 app.include_router(recruitment_router)
 app.include_router(my_payslips_router)
 app.include_router(onboarding_checklist_router)
+app.include_router(shifts_router)
+app.include_router(ai_chat_router)
 app.include_router(attendance_ai_router)
 app.include_router(leave_decisions_router)
 app.include_router(monthly_reports_router)

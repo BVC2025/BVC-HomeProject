@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import styles from "./Quotations.module.css";
 import API from "../services/api";
+import Pagination from "../components/Pagination";
 
 
 // ===================================================================
@@ -1210,6 +1211,9 @@ function Quotations() {
 
   const [searchQ, setSearchQ] = useState("");
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
   const [editorOpen, setEditorOpen] = useState(false);
 
   const [editingId, setEditingId] = useState(null);
@@ -1266,6 +1270,13 @@ function Quotations() {
     );
 
   }, [rows, searchQ]);
+
+  useEffect(() => { setPage(1); }, [searchQ, statusFilter]);
+
+  const pagedRows = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
 
   const stats = useMemo(() => {
 
@@ -1402,7 +1413,7 @@ function Quotations() {
 
       {!loading && filtered.length > 0 && (
         <div className={styles.list}>
-          {filtered.map((r) => {
+          {pagedRows.map((r) => {
 
             const isProtected = !["DRAFT", "REJECTED", "EXPIRED"].includes(r.STATUS);
 
@@ -1485,6 +1496,16 @@ function Quotations() {
             );
           })}
         </div>
+      )}
+
+      {!loading && filtered.length > 0 && (
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={filtered.length}
+          onPageChange={setPage}
+          onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+        />
       )}
 
       {editorOpen && (

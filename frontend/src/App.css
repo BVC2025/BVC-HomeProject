@@ -146,19 +146,26 @@
   padding: 0;
 }
 
+html {
+  height: 100%;
+}
+
 body {
   font-family: var(--font);
   font-size: var(--font-base);
   color: var(--text-primary);
   background: var(--layout-bg);
   width: 100%;
-  min-height: 100vh;
+  height: 100%;
+  /* Lock the body so the page itself never scrolls. Only inner
+     content regions (.main-content, .zMainContent) scroll. */
+  overflow: hidden;
   line-height: var(--lh);
 }
 
 #root {
   width: 100%;
-  min-height: 100vh;
+  height: 100%;
 }
 
 
@@ -788,7 +795,8 @@ body {
 .dashboard {
   display: flex;
   width: 100%;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .menu-toggle {
@@ -1210,6 +1218,8 @@ body {
   flex: 1;
   padding: 26px 30px 40px;
   overflow-y: auto;
+  overflow-x: hidden;
+  height: 100vh;
   min-width: 0;
   background: var(--layout-bg);
 }

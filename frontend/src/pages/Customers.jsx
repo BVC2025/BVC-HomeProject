@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 
 import EntityDrawer from "../components/EntityDrawer";
+import Pagination from "../components/Pagination";
 
 import styles from "./Customers.module.css";
 
@@ -2037,6 +2038,9 @@ function Customers() {
 
   const [generatingFor, setGeneratingFor] = useState(null);
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
   const fetchAll = async () => {
 
     setLoading(true);
@@ -2084,6 +2088,13 @@ function Customers() {
     });
 
   }, [customers, search, statusFilter, industryFilter]);
+
+  useEffect(() => { setPage(1); }, [search, statusFilter, industryFilter]);
+
+  const pagedCustomers = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
 
   const stats = useMemo(() => {
 
@@ -2231,7 +2242,7 @@ function Customers() {
       )}
 
       <div className={styles.cardsGrid}>
-        {filtered.map((c) => (
+        {pagedCustomers.map((c) => (
           <CustomerCard
             key={c.ID}
             customer={c}
@@ -2242,6 +2253,16 @@ function Customers() {
           />
         ))}
       </div>
+
+      {!loading && filtered.length > 0 && (
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={filtered.length}
+          onPageChange={setPage}
+          onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+        />
+      )}
 
       {editing != null && (
         <CustomerEditor

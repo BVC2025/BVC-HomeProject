@@ -147,6 +147,10 @@
   padding: 0;
 }
 
+html {
+  height: 100%;
+}
+
 body {
   margin: 0;
   font-family: var(--font);
@@ -155,7 +159,8 @@ body {
   background: var(--layout-bg);
   line-height: var(--lh);
   width: 100%;
-  min-height: 100vh;
+  height: 100%;
+  overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -163,7 +168,7 @@ body {
 
 #root {
   width: 100%;
-  min-height: 100vh;
+  height: 100%;
 }
 
 /* Form controls inherit the page font by default in most browsers, but

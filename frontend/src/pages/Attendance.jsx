@@ -344,7 +344,7 @@ function Attendance() {
     });
   };
 
-  const statusBadge = (status) => {
+  const statusBadge = (status, lateMinutes = 0) => {
 
     const cls =
       status === "PRESENT"
@@ -355,9 +355,14 @@ function Attendance() {
         ? "badge-absent"
         : "badge-other";
 
+    const label =
+      status === "LATE" && Number(lateMinutes) > 0
+        ? `LATE · ${Number(lateMinutes)}m`
+        : status;
+
     return (
       <span className={`status-badge ${cls}`}>
-        {status}
+        {label}
       </span>
     );
   };
@@ -750,7 +755,7 @@ function Attendance() {
                     }
                   </td>
 
-                  <td>{statusBadge(row.STATUS)}</td>
+                  <td>{statusBadge(row.STATUS, row.LATE_MINUTES)}</td>
 
                   <td>{coordCell(row.CHECKIN_LATITUDE, row.CHECKIN_LONGITUDE, row.GEOFENCE_STATUS)}</td>
 

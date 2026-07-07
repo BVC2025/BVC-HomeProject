@@ -789,6 +789,51 @@
   background: #fef2f2;
 }
 
+/* Quick status buttons under each project card */
+.projectStatusBtnRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.projectStatusBtn {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.projectStatusBtn:hover:not(:disabled) {
+  background: #fef2f2;
+  color: #C8102E;
+  border-color: #fecaca;
+}
+
+.projectStatusBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.projectStatusBtnActive {
+  background: #C8102E;
+  color: #ffffff;
+  border-color: #C8102E;
+}
+
+.projectStatusBtnActive:hover:not(:disabled) {
+  background: #7A1022;
+  color: #ffffff;
+  border-color: #7A1022;
+}
+
 /* ── Performance Breakdown ───────────────────────────────────────── */
 
 .perfCard {
@@ -2270,4 +2315,568 @@
   font-size: 12px;
   width: 100%;
   color: var(--text-primary);
+}
+
+/* ================================================================
+   Sidebar shell — Admin-Dashboard-style left rail + main content
+   ================================================================ */
+
+.zShell {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--layout-bg);
+}
+
+.zSidebar {
+  flex: 0 0 240px;
+  background: var(--card-bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 10;
+}
+
+.zSidebarBrand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 16px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.zSidebarBrandLogo {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--clr-primary);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.zSidebarBrandText {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.zSidebarBrandSub {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.zSidebarNav {
+  flex: 1;
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+.zSidebarGroupLabel {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 10px 12px 4px;
+}
+
+.zSidebarItem {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  position: relative;
+  transition: background 0.15s, color 0.15s;
+}
+
+.zSidebarItem:hover {
+  background: var(--neutral-bg);
+  color: var(--text-primary);
+}
+
+.zSidebarItemActive {
+  background: var(--clr-primary-light);
+  color: var(--clr-primary);
+  font-weight: 600;
+}
+
+.zSidebarItemActive::before {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  background: var(--clr-primary);
+  border-radius: 0 3px 3px 0;
+}
+
+.zSidebarItemIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.zSidebarItemActive .zSidebarItemIcon {
+  color: var(--clr-primary);
+}
+
+.zSidebarItemLabel {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zSidebarItemBadge {
+  background: var(--clr-primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  min-width: 18px;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.zSidebarFooter {
+  padding: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.zSidebarUserCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--neutral-bg);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.zSidebarUserAvatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--clr-primary-light);
+  color: var(--clr-primary);
+  border: 1px solid var(--clr-primary-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.zSidebarUserAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.zSidebarUserInfo {
+  min-width: 0;
+  flex: 1;
+}
+
+.zSidebarUserName {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zSidebarUserMeta {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+}
+
+.zSidebarLogout {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: var(--ease);
+}
+
+.zSidebarLogout:hover {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: var(--danger-border);
+}
+
+.zMain {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.zMainHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 22px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  gap: 12px;
+}
+
+.zMainHeaderLeft {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.zHamburger {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.zHamburger:hover {
+  background: #fef2f2;
+  color: #C8102E;
+  border-color: #fecaca;
+}
+
+.zMainTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zMainHeaderRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.zMainContent {
+  flex: 1;
+  padding: 18px 22px;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+/* ---- Mobile: sidebar becomes slide-in drawer ---- */
+.zSidebarOverlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 50;
+}
+
+@media (max-width: 900px) {
+  .zSidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.08);
+  }
+
+  .zSidebarOpen {
+    transform: translateX(0);
+  }
+
+  .zSidebarOverlay {
+    display: block;
+  }
+
+  .zHamburger {
+    display: inline-flex;
+  }
+
+  .zMainHeader {
+    padding: 11px 14px;
+  }
+
+  .zMainContent {
+    padding: 14px;
+  }
+}
+
+/* Tablet / large phone — hide the productivity chip so the
+   attendance chip + icons don't get squeezed off the right edge. */
+@media (max-width: 640px) {
+  .zMainHeader .zChipScore {
+    display: none;
+  }
+
+  .zMainTitle {
+    font-size: 15px;
+  }
+
+  .zMainHeader .zChip {
+    padding: 3px 8px;
+    font-size: 10px;
+  }
+
+  .zMainHeader {
+    gap: 8px;
+  }
+
+  .zMainHeaderRight {
+    gap: 6px;
+  }
+
+  /* z-table cells get tighter padding so columns fit */
+  .zTable td,
+  .zTable th {
+    padding: 9px 10px;
+  }
+
+  /* Z-tasks search box collapses */
+  .zCardHead {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .zSearchBox {
+    width: 100%;
+    min-width: 0;
+  }
+}
+
+/* Phone — sidebar drawer at 85% with a sane cap; remaining chrome
+   tightens; attendance chip becomes icon-only to leave space for
+   the bell + voice icons. */
+@media (max-width: 480px) {
+  .zSidebar {
+    width: 85%;
+    max-width: 280px;
+  }
+
+  .zMainContent {
+    padding: 12px;
+  }
+
+  .zMainHeader {
+    padding: 10px 12px;
+  }
+
+  .zMainHeader .zChip {
+    font-size: 0;
+    padding: 5px 7px;
+    gap: 0;
+  }
+
+  .zMainHeader .zChip svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Smaller icon buttons on tight phones */
+  .zMainHeader .zIconBtn {
+    width: 30px;
+    height: 30px;
+  }
+
+  /* Sidebar brand text shrinks on tiny phones */
+  .zSidebarBrandText {
+    font-size: 13px;
+  }
+
+  /* Z-tasks filter chips stack horizontally with scroll */
+  .zFilterRow {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .zFilter {
+    flex-shrink: 0;
+  }
+}
+
+
+/* ================================================================
+   Attendance overview — admin-Attendance-style stat rows
+   (matches Attendance.module.css .headerStrip / .statRow / .statItem
+    one-to-one)
+   ================================================================ */
+
+.zAttCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: 18px 22px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-xs);
+}
+
+.zAttTitleRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.zAttTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: var(--fw-black);
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+
+.zAttDate {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: var(--fw-bold);
+  background: var(--surface);
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+}
+
+.zAttStatRow {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.zAttDivider {
+  width: 1px;
+  background: var(--border);
+  margin: 4px 4px;
+  align-self: stretch;
+}
+
+.zAttItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid transparent;
+  min-width: 92px;
+  transition: transform 0.12s, background 0.12s;
+}
+
+.zAttItem:hover {
+  transform: translateY(-1px);
+  background: var(--card-bg);
+}
+
+.zAttItemValue {
+  font-size: 22px;
+  font-weight: var(--fw-black);
+  color: var(--text-primary);
+  line-height: 1.1;
+  letter-spacing: -0.3px;
+}
+
+.zAttItemLabel {
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.zAttItemSub {
+  font-size: 10px;
+  font-weight: var(--fw-semi);
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.zAttItemGreen  { border-left: 3px solid #16a34a; }
+.zAttItemGreen  .zAttItemValue { color: #16a34a; }
+
+.zAttItemAmber  { border-left: 3px solid #d97706; }
+.zAttItemAmber  .zAttItemValue { color: #d97706; }
+
+.zAttItemRed    { border-left: 3px solid #dc2626; }
+.zAttItemRed    .zAttItemValue { color: #dc2626; }
+
+.zAttItemBlue   { border-left: 3px solid #2563eb; }
+.zAttItemBlue   .zAttItemValue { color: #2563eb; }
+
+.zAttItemSlate  { border-left: 3px solid var(--text-muted); }
+.zAttItemSlate  .zAttItemValue { color: var(--text-primary); }
+
+@media (max-width: 480px) {
+  .zAttCard {
+    padding: 14px 14px;
+  }
+  .zAttItem {
+    min-width: 78px;
+    padding: 7px 11px;
+  }
+  .zAttItemValue {
+    font-size: 18px;
+  }
 }

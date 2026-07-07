@@ -2371,6 +2371,91 @@ def admin_approve_session(
             detail=f"Could not finalize approval: {exc}"
         )
 
+    # ---- AUTO-ONBOARDING HOOK ----
+    # Fire the full onboarding pipeline (checklist seed + welcome kit +
+    # mandatory trainings + corporate email + welcome email to personal
+    # inbox) the moment the Employee row is created. Non-blocking: if
+    # anything fails we log and continue — the manual "Run Auto-Onboard"
+    # button in the UI is always available as a fallback.
+    auto_result = None
+
+    try:
+
+        from app.routes.onboarding_checklist import (
+            _seed_default_checklist,
+            _refresh_derived_items,
+            _seed_default_kit,
+            _generate_corporate_email,
+            _send_welcome_email,
+        )
+        from app.models.models import TrainingProgram, TrainingAssignment
+
+        _seed_default_checklist(db, emp)
+
+        kit_created = _seed_default_kit(db, emp)
+
+        # Mandatory trainings
+        programs = (
+            db.query(TrainingProgram)
+            .filter(
+                TrainingProgram.IS_MANDATORY == 1,
+                TrainingProgram.IS_ACTIVE == 1,
+                TrainingProgram.VENDOR_ID == emp.VENDOR_ID,
+            )
+            .all()
+        )
+        existing = {
+            r.TRAINING_PROGRAM_ID for r in
+            db.query(TrainingAssignment.TRAINING_PROGRAM_ID)
+            .filter(TrainingAssignment.EMPLOYEE_ID == emp.ID)
+            .all()
+        }
+        trainings_created = 0
+        for prog in programs:
+            if prog.ID in existing:
+                continue
+            db.add(TrainingAssignment(
+                EMPLOYEE_ID=emp.ID,
+                TRAINING_PROGRAM_ID=prog.ID,
+                ASSIGNED_DATE=datetime.utcnow().date(),
+                STATUS="ASSIGNED",
+                VENDOR_ID=emp.VENDOR_ID,
+            ))
+            trainings_created += 1
+
+        # Corporate email (only if not already set)
+        email_generated = False
+        if not (emp.CORPORATE_EMAIL or "").strip():
+            emp.CORPORATE_EMAIL = _generate_corporate_email(db, emp)
+            email_generated = True
+
+        _refresh_derived_items(db, emp)
+        db.commit()
+
+        # Fire-and-forget welcome email
+        if email_generated and emp.EMAIL:
+            try:
+                _send_welcome_email(emp, emp.CORPORATE_EMAIL)
+            except Exception:
+                pass
+
+        auto_result = {
+            "kit_seeded_count": kit_created,
+            "trainings_seeded_count": trainings_created,
+            "email_provisioned": email_generated,
+            "corporate_email": emp.CORPORATE_EMAIL,
+        }
+
+    except Exception as exc:
+
+        # Never fail the approval because of auto-onboard hiccups —
+        # the manual "Run Auto-Onboard" button covers it.
+        db.rollback()
+        import logging
+        logging.getLogger("uvicorn").warning(
+            "auto-onboard skipped for %s: %s", emp.ID, exc
+        )
+
     return {
         "message": (
             f"Employee {emp.NAME} ({emp.EMPLOYEE_CODE}) created and "
@@ -2379,6 +2464,7 @@ def admin_approve_session(
         "employee_id": emp.ID,
         "employee_code": emp.EMPLOYEE_CODE,
         "session": _serialize_for_admin_list(s),
+        "auto_onboard": auto_result,
     }
 
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import API from "../services/api";
+import Pagination from "../components/Pagination";
 import styles from "./Inventory.module.css";
 
 
@@ -546,6 +547,9 @@ function Inventory() {
 
   const [search, setSearch] = useState("");
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
   const [categoryFilter, setCategoryFilter] = useState("");
 
   const [statusFilter, setStatusFilter] = useState("");
@@ -597,6 +601,13 @@ function Inventory() {
   const summary = data?.summary || {};
 
   const allCategories = Object.keys(summary.categories || {}).sort();
+
+  useEffect(() => { setPage(1); }, [search]);
+
+  const pagedItems = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
 
   return (
     <div className={styles.pageWrapper}>
@@ -714,16 +725,25 @@ function Inventory() {
       )}
 
       {!loading && filtered.length > 0 && (
-        <div className={styles.cardGrid}>
-          {filtered.map((item) => (
-            <MaterialCard
-              key={item.ID}
-              item={item}
-              onOpen={setOpenItem}
-              onAdjust={setAdjustItem}
-            />
-          ))}
-        </div>
+        <>
+          <div className={styles.cardGrid}>
+            {pagedItems.map((item) => (
+              <MaterialCard
+                key={item.ID}
+                item={item}
+                onOpen={setOpenItem}
+                onAdjust={setAdjustItem}
+              />
+            ))}
+          </div>
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={filtered.length}
+            onPageChange={setPage}
+            onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+          />
+        </>
       )}
 
       {openItem && (

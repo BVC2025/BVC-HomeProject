@@ -13,6 +13,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import API, { API_BASE_URL } from "../services/api";
+import Pagination from "../components/Pagination";
 import styles from "./EmployeeMemos.module.css";
 
 
@@ -105,6 +106,19 @@ function EmployeeMemos({ employeeIdLocked = null } = {}) {
   // overlays
   const [showCreate, setShowCreate] = useState(false);
   const [viewing, setViewing] = useState(null);
+
+  // pagination
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
+  useEffect(() => { setPage(1); }, [
+    search, filterEmp, filterType, filterSev, filterStat, dateFrom, dateTo
+  ]);
+
+  const pagedRows = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return (rows || []).slice(start, start + pageSize);
+  }, [rows, page, pageSize]);
 
   // -- Data loading --------------------------------------------------
   const buildParams = () => {
@@ -305,7 +319,7 @@ function EmployeeMemos({ employeeIdLocked = null } = {}) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((m) => (
+              {pagedRows.map((m) => (
                 <MemoRow
                   key={m.ID}
                   memo={m}
@@ -317,6 +331,16 @@ function EmployeeMemos({ employeeIdLocked = null } = {}) {
               ))}
             </tbody>
           </table>
+        )}
+
+        {!loading && rows && rows.length > 0 && (
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={rows.length}
+            onPageChange={setPage}
+            onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+          />
         )}
       </div>
 

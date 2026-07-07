@@ -75,6 +75,7 @@ import EmployeeProfile from "./EmployeeProfile";
 import Recruitment from "./Recruitment";
 import PayslipGenerator from "./PayslipGenerator";
 import OnboardingChecklist from "./OnboardingChecklist";
+import ShiftManagement from "./ShiftManagement";
 import HrAutomation from "./HrAutomation";
 import MonthlyReports from "./MonthlyReports";
 import WorkforceAnalytics from "./WorkforceAnalytics";
@@ -1484,6 +1485,7 @@ const NAV_GROUPS = [
       { to: "/employees",         icon: <SidebarIcon name="employees"   />, label: "Employees" },
       { to: "/memos",             icon: <SidebarIcon name="memos"       />, label: "Memos" },
       { to: "/attendance",        icon: <SidebarIcon name="attendance"  />, label: "Attendance" },
+      { to: "/shifts",            icon: <SidebarIcon name="attendance"  />, label: "Shift Management" },
       { to: "/leave-management",  icon: <SidebarIcon name="leaves"      />, label: "Leave Management" },
       { to: "/payroll",           icon: <SidebarIcon name="payroll"     />, label: "Payroll" },
       { to: "/star-performance",  icon: <SidebarIcon name="star"        />, label: "Star Performance" },
@@ -1491,8 +1493,8 @@ const NAV_GROUPS = [
       { to: "/recruitment",       icon: <SidebarIcon name="recruitment" />, label: "Recruitment" },
       { to: "/onboarding",        icon: <SidebarIcon name="employees"   />, label: "Onboarding" },
       { to: "/hr-automation",     icon: <SidebarIcon name="approvals"   />, label: "HR Automation" },
-      { to: "/monthly-reports",   icon: <SidebarIcon name="payroll"     />, label: "Monthly Reports" },
-      { to: "/workforce-analytics", icon: <SidebarIcon name="star"      />, label: "Workforce Analytics" }
+      { to: "/monthly-reports",   icon: <SidebarIcon name="payroll"     />, label: "Monthly Reports" }
+      // { to: "/workforce-analytics", icon: <SidebarIcon name="star"      />, label: "Workforce Analytics" }  // temporarily hidden per request
     ]
   },
   {
@@ -1831,6 +1833,7 @@ function Dashboard() {
           <Route element={<HrLayout />}>
             <Route path="/employees"         element={<Employees />} />
             <Route path="/attendance"        element={<Attendance />} />
+            <Route path="/shifts"            element={<ShiftManagement />} />
             <Route path="/memos"             element={<EmployeeMemos />} />
             <Route path="/leave-management"  element={<LeaveManagement />} />
             <Route path="/allowances"        element={<Allowances />} />

@@ -489,25 +489,15 @@ def _estimate_experience_years(
 # Optional Gemini refinement
 # =====================================================================
 
-def _llm_refine(text: str, rule_based: ParsedResume) -> Optional[Dict[str, Any]]:
-    """Ask Gemini to extract anything the rules missed. Returns a dict
-    of additive fields. Best-effort — returns None on any failure."""
-    api_key = os.getenv("GEMINI_API_KEY", "").strip()
-    if not api_key:
-        return None
-
-    try:
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
-    except Exception:
-        return None
+def _build_refine_prompt(text: str, rule_based: ParsedResume) -> str:
+    """Prompt is model-agnostic — same string is fed to Gemini or Ollama."""
 
     snippet = text[:6000]   # bound the prompt; resumes rarely need more
     have = rule_based.to_dict()
     have.pop("raw_text", None)
     have_str = json.dumps(have, default=str)
 
-    prompt = (
+    return (
         "You are a resume parser. Extract structured candidate data from "
         "the resume text below. Return STRICT JSON only — no markdown.\n\n"
         "Schema:\n"
@@ -530,6 +520,115 @@ def _llm_refine(text: str, rule_based: ParsedResume) -> Optional[Dict[str, Any]]
         "Return JSON only:"
     )
 
+
+def _selected_parser_backend() -> str:
+    """Which LLM backend the resume parser should use. Default: ollama."""
+
+    val = (os.getenv("AI_RESUME_PARSER_BACKEND") or "").strip().lower()
+
+    if val in {"ollama", "gemini", "auto"}:
+
+        return val
+
+    return "ollama"
+
+
+def _llm_refine(text: str, rule_based: ParsedResume) -> Optional[Dict[str, Any]]:
+    """Ask the configured LLM to extract anything the rules missed.
+    Best-effort — returns None on any failure and the rule-based
+    output stands. Never raises.
+
+    Backend chosen by AI_RESUME_PARSER_BACKEND:
+      ollama (default) — local Qwen 2.5 7B via Ollama (JSON grammar mode)
+      gemini           — legacy Google Gemini path
+      auto             — Ollama first, Gemini fallback
+    """
+
+    import logging
+    log = logging.getLogger("uvicorn")
+
+    prompt = _build_refine_prompt(text, rule_based)
+
+    backend = _selected_parser_backend()
+
+    if backend == "ollama":
+
+        return _refine_ollama(prompt, log)
+
+    if backend == "gemini":
+
+        return _refine_gemini(prompt, log)
+
+    # auto — try Ollama, fall back to Gemini
+    out = _refine_ollama(prompt, log)
+
+    if out is not None:
+
+        return out
+
+    log.info("resume_parser: ollama miss, falling back to gemini")
+
+    return _refine_gemini(prompt, log)
+
+
+def _refine_ollama(prompt: str, log) -> Optional[Dict[str, Any]]:
+    """Route resume parsing through Qwen 2.5 7B on the local Ollama
+    daemon. Qwen produces much better structured JSON than Phi-3 mini —
+    worth the extra ~60 sec per resume on CPU."""
+
+    try:
+
+        from app.services import ollama_client
+
+    except Exception:
+
+        return None
+
+    text = ollama_client.generate(
+        prompt=prompt,
+        temperature=0.2,
+        max_tokens=2000,
+        format="json",
+        model=ollama_client.parser_model(),
+        # Resume parsing on Qwen 7B via CPU is slow; give it 3 min.
+        timeout=int(os.getenv("OLLAMA_PARSER_TIMEOUT_SEC", "180")),
+    )
+
+    if not text:
+
+        log.info("resume_parser: ollama returned no text")
+
+        return None
+
+    parsed = _safe_json(text)
+
+    if not parsed:
+
+        log.warning("resume_parser: ollama returned non-JSON: %r", text[:200])
+
+        return None
+
+    log.info(
+        "resume_parser: ollama success, %d fields present",
+        sum(1 for v in parsed.values() if v),
+    )
+
+    return parsed
+
+
+def _refine_gemini(prompt: str, log) -> Optional[Dict[str, Any]]:
+    """Legacy Gemini path — kept verbatim for rollback."""
+
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        return None
+
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=api_key)
+    except Exception:
+        return None
+
     for model_name in ["gemini-2.5-flash-lite", "gemini-2.0-flash-lite",
                       "gemini-2.5-flash", "gemini-2.0-flash"]:
         try:
@@ -544,6 +643,7 @@ def _llm_refine(text: str, rule_based: ParsedResume) -> Optional[Dict[str, Any]]
             resp = model.generate_content(prompt)
             parsed = _safe_json(resp.text or "")
             if parsed:
+                log.info("resume_parser: gemini success via %s", model_name)
                 return parsed
         except Exception:
             continue

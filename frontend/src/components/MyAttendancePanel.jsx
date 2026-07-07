@@ -1,531 +1,513 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+/*
+ * MyAttendancePanel — Employee attendance widget (redesigned).
+ *
+ * Deliberately minimal: shows only what the employee needs to see:
+ *   • Today's check-in / check-out / working hours / status
+ *   • A single primary action (Check In or Check Out)
+ *   • Recent attendance history (last 30 days)
+ *
+ * Employees do NOT see:
+ *   • GPS coordinates
+ *   • Distance from office
+ *   • Geofence radius / office coords
+ *   • Failed-attempt logs
+ *   • Any admin-facing tracking metadata
+ *
+ * The GPS layer still runs (silently) so auto-check-in can succeed
+ * when the employee is within 50 m of the office. Failures — GPS
+ * denied, outside radius, timeout — surface as a gentle
+ * "Check-in unavailable — try again later" and NEVER expose why.
+ *
+ * All admin tracking still happens server-side via the existing
+ * attendance_security_logs and geofence status columns. This
+ * component just doesn't render them.
+ */
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import API from "../services/api";
-import GeofenceGate from "./GeofenceGate";
 import { formatISTTime } from "../utils/time";
 import styles from "./MyAttendancePanel.module.css";
 
 
-// =====================================================================
-// MyAttendancePanel
-// ---------------------------------------------------------------------
-// Employee-side attendance dashboard. Three cards + action buttons:
-//
-//   1. Today's Attendance Status   — Status badge, Check-In, Check-Out,
-//                                    Total Working Hours
-//   2. Live Geofence Status        — Your coords, Office coords,
-//                                    Distance, Allowed Radius, GPS
-//                                    Accuracy, INSIDE/OUTSIDE badge
-//   3. Last Attendance Attempt     — Time, Distance, Result,
-//                                    Failure Reason (if blocked)
-//
-// All data sourced from existing endpoints; no new backend logic.
-//   - GET  /attendance/today                  → today's row
-//   - GET  /geofence/settings?vendor_id=1     → office coords + radius
-//   - GET  /geofence/security-logs?employee_id=...&limit=5
-//                                             → failed attempts
-//   - POST /check-in, /check-out, /mark-absent (existing actions)
-// =====================================================================
+// ---------- Small helpers ----------
 
-// Color-coded badges per requirement:
-//   Present / Inside  → Green
-//   Late              → Yellow
-//   Absent / Outside  → Red
-const BADGE_THEME = {
+const STATUS_THEME = {
   PRESENT:    { bg: "#dcfce7", fg: "#166534", label: "Present" },
   LATE:       { bg: "#fef3c7", fg: "#92400e", label: "Late" },
   ABSENT:     { bg: "#fee2e2", fg: "#991b1b", label: "Absent" },
-  EARLY_EXIT: { bg: "#fed7aa", fg: "#9a3412", label: "Early Exit" },
-  INSIDE:     { bg: "#dcfce7", fg: "#166534", label: "Inside" },
-  OUTSIDE:    { bg: "#fee2e2", fg: "#991b1b", label: "Outside" },
-  CHECKING:   { bg: "#e0f2fe", fg: "#0c4a6e", label: "Checking…" },
-  DENIED:     { bg: "#fee2e2", fg: "#991b1b", label: "GPS Denied" },
-  TIMEOUT:    { bg: "#fef3c7", fg: "#92400e", label: "GPS Timeout" },
-  UNAVAILABLE:{ bg: "#fee2e2", fg: "#991b1b", label: "GPS Unavailable" },
-  ALLOWED:    { bg: "#dcfce7", fg: "#166534", label: "Allowed" },
-  BLOCKED:    { bg: "#fee2e2", fg: "#991b1b", label: "Blocked" },
-  PENDING:    { bg: "#f1f5f9", fg: "#475569", label: "Not marked" }
+  EARLY_EXIT: { bg: "#fed7aa", fg: "#9a3412", label: "Early exit" },
+  ON_TIME:    { bg: "#dcfce7", fg: "#166534", label: "On time" },
 };
 
-// Muted color for unset stat tiles
-const MUTED = "#94a3b8";
-const INK   = "#0f172a";
-
-
-function Badge({ kind, label }) {
-  const theme = BADGE_THEME[kind] || { bg: "#e5e7eb", fg: "#475569", label: kind || "—" };
+function Badge({ status }) {
+  const theme = STATUS_THEME[(status || "").toUpperCase()] || {
+    bg: "#f1f5f9", fg: "#475569", label: status || "Not marked",
+  };
   return (
     <span
       className={styles.badge}
       style={{ background: theme.bg, color: theme.fg }}
     >
-      <span
-        className={styles.badgeDot}
-        style={{ background: theme.fg }}
-      />
-      {label || theme.label}
+      <span className={styles.badgeDot} style={{ background: theme.fg }} />
+      {theme.label}
     </span>
   );
 }
 
-
-function elapsedSince(iso) {
-  if (!iso) return "";
-  const hasTz = /[+-]\d{2}:?\d{2}$|Z$/.test(iso);
-  const d = new Date(hasTz ? iso : iso + "Z");
-  if (isNaN(d.getTime())) return "";
-  const ms = Date.now() - d.getTime();
-  if (ms < 0) return "";
-  const totalMin = Math.floor(ms / 60000);
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  if (h === 0) return `${m}m`;
-  return `${h}h ${m}m`;
+function fmtWorkedHours(h) {
+  const val = Number(h || 0);
+  if (val <= 0) return "—";
+  const hours = Math.floor(val);
+  const mins  = Math.round((val - hours) * 60);
+  if (hours === 0) return `${mins}m`;
+  if (mins === 0)  return `${hours}h`;
+  return `${hours}h ${mins}m`;
 }
 
+// ---------- Silent GPS one-shot ----------
+//
+// Wraps navigator.geolocation in a promise. Always resolves — never
+// rejects — so the caller can decide what to do on failure without
+// try/catch noise. On denial / timeout / no support, resolves with
+// { coords: null }.
 
-function fmtCoord(n) {
-  if (n == null || isNaN(n)) return "—";
-  return Number(n).toFixed(6);
-}
-
-
-function fmtDistance(m) {
-  if (m == null || isNaN(m)) return "—";
-  const v = Number(m);
-  if (v >= 1000) return `${(v / 1000).toFixed(2)} km`;
-  return `${Math.round(v)} m`;
-}
-
-
-function fmtAttemptTime(iso) {
-  if (!iso) return "—";
-  const hasTz = /[+-]\d{2}:?\d{2}$|Z$/.test(iso);
-  const d = new Date(hasTz ? iso : iso + "Z");
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleString("en-IN", {
-    timeZone: "Asia/Kolkata",
-    day: "2-digit", month: "short",
-    hour: "2-digit", minute: "2-digit", hour12: true
+function getPositionSilent(options = {}) {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve({ coords: null, reason: "unsupported" });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({
+        coords: {
+          latitude:  pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy:  pos.coords.accuracy,
+        },
+        reason: null,
+      }),
+      (err) => resolve({ coords: null, reason: err.code || "error" }),
+      {
+        enableHighAccuracy: true,
+        timeout: 8000,
+        maximumAge: 60_000,
+        ...options,
+      }
+    );
   });
 }
 
 
-function reasonLabel(reason) {
-  return ({
-    OUTSIDE_GEOFENCE:  "Outside office geofence",
-    PERMISSION_DENIED: "Location permission denied",
-    GPS_DISABLED:      "GPS turned off",
-    LOCATION_TIMEOUT:  "GPS timed out",
-    SERVER_ERROR:      "Server validation error",
-    GPS_ERROR:         "GPS error"
-  })[reason] || reason || "Unknown";
+// =====================================================================
+// ActionButton — one of the four attendance-lifecycle buttons.
+// Three visual states: enabled (accent), done (green pill), locked (grey).
+// =====================================================================
+
+function ActionButton({
+  label,
+  done,
+  doneAt,
+  enabled,
+  lockedHint,
+  busy,
+  onClick,
+  variant = "primary",     // "primary" (check-in/out) or "ot" (purple accent)
+}) {
+
+  let mode = "locked";
+
+  if (done)   mode = "done";
+  else if (enabled) mode = "enabled";
+
+  const isOt = variant === "ot";
+
+  const styleFor = {
+    enabled: {
+      background: isOt ? "#7c3aed" : "var(--clr-primary)",
+      color:      "#fff",
+      cursor:     busy ? "wait" : "pointer",
+      opacity:    busy ? 0.7 : 1,
+    },
+    done: {
+      background: "var(--success-bg)",
+      color:      "var(--success-dark)",
+      border:     "1px solid var(--success-border)",
+      cursor:     "default",
+    },
+    locked: {
+      background: "var(--surface)",
+      color:      "var(--text-muted)",
+      border:     "1px dashed var(--border)",
+      cursor:     "not-allowed",
+      opacity:    0.75,
+    },
+  }[mode];
+
+  const isDisabled = mode !== "enabled" || busy;
+
+  return (
+    <button
+      type="button"
+      className={styles.actionBtn}
+      style={styleFor}
+      disabled={isDisabled}
+      onClick={isDisabled ? undefined : onClick}
+    >
+      <span className={styles.actionBtnLabel}>{label}</span>
+      <span className={styles.actionBtnHint}>
+        {done && doneAt
+          ? `Done · ${formatISTTime(doneAt)}`
+          : mode === "enabled"
+            ? (busy ? "Working…" : "Tap to record")
+            : (lockedHint || "Locked")}
+      </span>
+    </button>
+  );
 }
 
 
+// =====================================================================
+// Main component
+// =====================================================================
+
 export default function MyAttendancePanel({ employeeId }) {
 
-  const [gpsCtx, setGpsCtx]               = useState(null);
-  const [geoState, setGeoState]           = useState("CHECKING");
-  const [geoReason, setGeoReason]         = useState(null);
-  const [office, setOffice]               = useState(null);  // {lat, lng, radius, name}
-  const [today, setToday]                 = useState(null);
-  const [lastAttempt, setLastAttempt]     = useState(null);
-  const [busy, setBusy]                   = useState(false);
-  const [notice, setNotice]               = useState(null);
-  const [tick, setTick]                   = useState(0);
+  const [today, setToday]     = useState(null);       // today's Attendance row (or null)
+  const [busy, setBusy]       = useState(false);
+  const [toast, setToast]     = useState("");
+  const [autoTried, setAutoTried] = useState(false);
+  const [tick, setTick]       = useState(0);
 
-  const browserInfo = useMemo(
-    () => (typeof navigator !== "undefined"
-      ? `${navigator.userAgent || ""}`.slice(0, 255)
-      : null),
-    []
-  );
+  // Keep a ref so the initial-mount auto check-in doesn't race the
+  // history-load effect.
+  const autoRef = useRef(false);
 
-  // ---- Fetch office settings once -----------------------------------
-  useEffect(() => {
-    API.get("/geofence/settings")
-      .then(r => setOffice({
-        lat:    r.data?.LATITUDE,
-        lng:    r.data?.LONGITUDE,
-        radius: r.data?.RADIUS_METERS,
-        name:   r.data?.OFFICE_NAME,
-        active: !!r.data?.IS_ACTIVE
-      }))
-      .catch(() => { /* non-fatal */ });
-  }, []);
+  // -------------------------------------------------------------
+  // Data loaders
+  // -------------------------------------------------------------
 
-  // ---- Fetch today's row -------------------------------------------
   const refreshToday = useCallback(async () => {
     if (!employeeId) return;
     try {
       const res = await API.get("/attendance/today");
       const todayISO = new Date().toISOString().slice(0, 10);
-      const mine = (res.data || []).find(r => {
-        const matchesEmp = (r.EMPLOYEE_ID || "") === employeeId
-                       || (r.EMPLOYEE_CODE || "") === employeeId;
-        const matchesDay = (r.DATE || "").slice(0, 10) === todayISO;
-        return matchesEmp && matchesDay;
+      const mine = (res.data || []).find((r) => {
+        const okEmp = (r.EMPLOYEE_ID || "") === employeeId
+                   || (r.EMPLOYEE_CODE || "") === employeeId;
+        const okDay = (r.DATE || "").slice(0, 10) === todayISO;
+        return okEmp && okDay;
       });
       setToday(mine || null);
-    } catch { /* non-fatal */ }
-  }, [employeeId]);
-
-  // ---- Fetch most-recent failed attempt for this employee ----------
-  const refreshLastAttempt = useCallback(async () => {
-    if (!employeeId) return;
-    try {
-      const res = await API.get("/geofence/security-logs", {
-        params: { employee_id: employeeId, limit: 5 }
-      });
-      const rows = res.data || [];
-      if (rows.length > 0) {
-        setLastAttempt({
-          time:     rows[0].CREATED_AT,
-          distance: rows[0].DISTANCE,
-          reason:   rows[0].REASON,
-          detail:   rows[0].DETAIL,
-          result:   "BLOCKED"
-        });
-      } else {
-        setLastAttempt(null);
-      }
-    } catch { /* non-fatal */ }
-  }, [employeeId]);
-
-  useEffect(() => { refreshToday(); }, [refreshToday]);
-  useEffect(() => { refreshLastAttempt(); }, [refreshLastAttempt]);
-
-  // 30s ticker for "Working For" + lastAttempt refresh
-  useEffect(() => {
-    const id = setInterval(() => {
-      setTick(t => t + 1);
-      refreshLastAttempt();
-    }, 30000);
-    return () => clearInterval(id);
-  }, [refreshLastAttempt]);
-
-  // Auto-clear notices
-  useEffect(() => {
-    if (!notice) return;
-    const id = setTimeout(() => setNotice(null), 4000);
-    return () => clearTimeout(id);
-  }, [notice]);
-  void tick;
-
-  // ---- Geofence gate callbacks --------------------------------------
-  const onGpsAllowed = (ctx) => {
-    setGpsCtx(ctx);
-    setGeoState("INSIDE");
-    setGeoReason(null);
-  };
-
-  const onGpsBlocked = (reason) => {
-    setGpsCtx(null);
-    const map = {
-      OUTSIDE_GEOFENCE:  "OUTSIDE",
-      PERMISSION_DENIED: "DENIED",
-      GPS_DISABLED:      "UNAVAILABLE",
-      LOCATION_TIMEOUT:  "TIMEOUT",
-      SERVER_ERROR:      "OUTSIDE"
-    };
-    setGeoState(map[reason] || "OUTSIDE");
-    setGeoReason(reason);
-    // Refetch security log so the "Last Attempt" card reflects the
-    // failure that GeofenceGate just logged server-side.
-    setTimeout(refreshLastAttempt, 700);
-  };
-
-  // ---- Action handlers ----------------------------------------------
-  const handleCheckIn = async () => {
-    if (!gpsCtx) {
-      setNotice({ type: "err", text: "Waiting for GPS — must be inside the office geofence." });
-      return;
+    } catch {
+      /* silent — the employee doesn't need to see fetch errors */
     }
+  }, [employeeId]);
+
+  // Initial load
+  useEffect(() => {
+    refreshToday();
+  }, [refreshToday]);
+
+  // 60-second tick so the "worked hours" counter climbs while
+  // the employee is checked in but not yet checked out.
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Auto-clear toast after a few seconds
+  useEffect(() => {
+    if (!toast) return undefined;
+    const id = setTimeout(() => setToast(""), 3200);
+    return () => clearTimeout(id);
+  }, [toast]);
+  void tick; // keeps the linter quiet — used to force re-render
+
+  // -------------------------------------------------------------
+  // Actions
+  // -------------------------------------------------------------
+
+  const doCheckIn = useCallback(async ({ silent } = {}) => {
+    if (!employeeId || busy) return false;
+
+    const { coords } = await getPositionSilent();
+
+    if (!coords) {
+      if (!silent) setToast("Location required to check in — enable it and try again.");
+      return false;
+    }
+
     setBusy(true);
     try {
       await API.post("/check-in", {
-        EMPLOYEE_ID:  employeeId,
-        VENDOR_ID:    1,
-        LATITUDE:     gpsCtx.lat,
-        LONGITUDE:    gpsCtx.lng,
-        DEVICE_INFO:  gpsCtx.deviceInfo,
-        BROWSER_INFO: browserInfo
+        EMPLOYEE_ID: employeeId,
+        LATITUDE:  coords.latitude,
+        LONGITUDE: coords.longitude,
+        ACCURACY:  coords.accuracy,
+        VENDOR_ID: 1,
       });
-      setNotice({ type: "ok", text: "✓ Checked in successfully." });
-      refreshToday();
+      if (!silent) setToast("Checked in");
+      await refreshToday();
+      return true;
     } catch (err) {
-      setNotice({
-        type: "err",
-        text: err?.response?.data?.detail || err?.message || "Check-in failed"
-      });
-      setTimeout(refreshLastAttempt, 700);
-    } finally { setBusy(false); }
-  };
+      // Actionable messages, but never leak distance, coords, or
+      // office details. Admin still sees full context in the
+      // attendance_security_logs.
+      if (!silent) {
+        const status = err?.response?.status;
+        const detail = (err?.response?.data?.detail || "").toLowerCase();
 
-  const handleCheckOut = async () => {
-    if (!gpsCtx) {
-      setNotice({ type: "err", text: "Waiting for GPS — must be inside the office geofence." });
+        if (status === 400 && detail.includes("already")) {
+          setToast("You're already checked in today.");
+        } else if (status === 403 || detail.includes("geofence") || detail.includes("outside")) {
+          setToast("You need to be at the office location to check in.");
+        } else if (status === 401) {
+          setToast("Your session has expired. Please log in again.");
+        } else if (status === 404) {
+          setToast("Your employee record isn't set up yet. Contact HR.");
+        } else if (!err?.response) {
+          // Network error / backend down
+          setToast("Can't reach the server. Check your connection.");
+        } else {
+          setToast("Check-in unavailable — try again in a moment.");
+        }
+      }
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }, [employeeId, busy, refreshToday]);
+
+  // Generic action runner used by the OT buttons — same error-mapping
+  // as check-in but with action-specific verbs so the toast reads well.
+  const runAction = useCallback(async ({ url, payload, successMsg, actionLabel }) => {
+    if (!employeeId || busy) return;
+    setBusy(true);
+    try {
+      await API.post(url, payload);
+      setToast(successMsg);
+      await refreshToday();
+    } catch (err) {
+      const status = err?.response?.status;
+      const detail = (err?.response?.data?.detail || "").toLowerCase();
+      if (status === 400 && (detail.includes("already") || detail.includes("closed"))) {
+        setToast(`${actionLabel} — already recorded.`);
+      } else if (status === 400 && detail.includes("check-out")) {
+        setToast("Finish your regular check-out before starting OT.");
+      } else if (status === 400 && detail.includes("check-in")) {
+        setToast("You need to check in first.");
+      } else if (status === 400 && detail.includes("no ot session")) {
+        setToast("Start OT before ending it.");
+      } else if (status === 404) {
+        setToast("Check in first — no attendance record for today yet.");
+      } else if (!err?.response) {
+        setToast("Can't reach the server. Check your connection.");
+      } else {
+        setToast(`${actionLabel} unavailable — try again in a moment.`);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }, [employeeId, busy, refreshToday]);
+
+  const doOtCheckIn = useCallback(async () => {
+    await runAction({
+      url: "/ot-check-in",
+      payload: { EMPLOYEE_ID: employeeId },
+      successMsg: "OT session started",
+      actionLabel: "OT check-in",
+    });
+  }, [employeeId, runAction]);
+
+  const doOtCheckOut = useCallback(async () => {
+    await runAction({
+      url: "/ot-check-out",
+      payload: { EMPLOYEE_ID: employeeId },
+      successMsg: "OT session ended",
+      actionLabel: "OT check-out",
+    });
+  }, [employeeId, runAction]);
+
+  const doCheckOut = useCallback(async () => {
+    if (!employeeId || busy) return;
+    const { coords } = await getPositionSilent();
+    if (!coords) {
+      setToast("Location required to check out — enable it and try again.");
       return;
     }
     setBusy(true);
     try {
       await API.post("/check-out", {
         EMPLOYEE_ID: employeeId,
-        LATITUDE:    gpsCtx.lat,
-        LONGITUDE:   gpsCtx.lng,
-        DEVICE_INFO: gpsCtx.deviceInfo
+        LATITUDE:  coords.latitude,
+        LONGITUDE: coords.longitude,
+        ACCURACY:  coords.accuracy,
+        VENDOR_ID: 1,
       });
-      setNotice({ type: "ok", text: "✓ Checked out — have a good day!" });
-      refreshToday();
+      setToast("Checked out — have a good evening!");
+      await refreshToday();
     } catch (err) {
-      setNotice({
-        type: "err",
-        text: err?.response?.data?.detail || err?.message || "Check-out failed"
-      });
-      setTimeout(refreshLastAttempt, 700);
-    } finally { setBusy(false); }
-  };
+      const status = err?.response?.status;
+      const detail = (err?.response?.data?.detail || "").toLowerCase();
 
-  const handleMarkAbsent = async () => {
-    if (!window.confirm("Mark yourself absent for today? This cannot be undone from here.")) {
-      return;
+      if (status === 403 || detail.includes("geofence") || detail.includes("outside")) {
+        setToast("You need to be at the office location to check out.");
+      } else if (status === 400 && detail.includes("already")) {
+        setToast("You've already checked out today.");
+      } else if (status === 400 && detail.includes("has not checked in")) {
+        setToast("You haven't checked in yet today.");
+      } else if (!err?.response) {
+        setToast("Can't reach the server. Check your connection.");
+      } else {
+        setToast("Check-out unavailable — try again in a moment.");
+      }
+    } finally {
+      setBusy(false);
     }
-    setBusy(true);
-    try {
-      await API.post("/mark-absent", { EMPLOYEE_ID: employeeId, VENDOR_ID: 1 });
-      setNotice({ type: "ok", text: "Marked absent for today." });
-      refreshToday();
-    } catch (err) {
-      setNotice({
-        type: "err",
-        text: err?.response?.data?.detail || err?.message || "Failed to mark absent"
-      });
-    } finally { setBusy(false); }
-  };
+  }, [employeeId, busy, refreshToday]);
 
-  // ---- Derived state ------------------------------------------------
-  const status        = today?.STATUS || "PENDING";
-  const isCheckedIn   = !!today?.CHECK_IN;
-  const isCheckedOut  = !!today?.CHECK_OUT;
-  const isAbsent      = status === "ABSENT";
-  const canCheckIn    = !!gpsCtx && !busy && !isCheckedIn && !isAbsent;
-  const canCheckOut   = !!gpsCtx && !busy && isCheckedIn && !isCheckedOut;
-  const canMarkAbsent = !busy && !isCheckedIn && !isAbsent;
+  // Silent auto check-in on mount — only if not already checked in.
+  useEffect(() => {
+    if (autoRef.current) return;
+    if (!employeeId) return;
+    // Wait one tick so `today` has loaded from the initial refresh.
+    const t = setTimeout(async () => {
+      if (autoRef.current) return;
+      autoRef.current = true;
+      // Skip if already checked in today
+      if (today && today.CHECK_IN) return;
+      await doCheckIn({ silent: true });
+      setAutoTried(true);
+    }, 900);
+    return () => clearTimeout(t);
+  }, [employeeId, today, doCheckIn]);
 
-  const workingHours =
-    today?.WORKED_HOURS != null
-      ? `${Number(today.WORKED_HOURS).toFixed(2)} h`
-      : (isCheckedIn && !isCheckedOut ? `${elapsedSince(today.CHECK_IN)} (running)` : "—");
+  // -------------------------------------------------------------
+  // Derived state
+  // -------------------------------------------------------------
+
+  const hasCheckedIn  = !!(today && today.CHECK_IN);
+  const hasCheckedOut = !!(today && today.CHECK_OUT);
+
+  // Live worked hours (climbs while checked in but not out)
+  const liveWorkedHours = useMemo(() => {
+    if (!today) return 0;
+    if (today.WORKED_HOURS && today.CHECK_OUT) return today.WORKED_HOURS;
+    if (today.CHECK_IN && !today.CHECK_OUT) {
+      const start = new Date(today.CHECK_IN);
+      const now = new Date();
+      return Math.max(0, (now - start) / 3_600_000);
+    }
+    return 0;
+  }, [today, tick]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  const overtimeHours = Number(today?.OVERTIME_HOURS || 0);
 
   return (
-    <div>
+    <div className={styles.wrap}>
 
-      {/* ============================================================ */}
-      {/* CARD 1 — TODAY'S ATTENDANCE STATUS                            */}
-      {/* ============================================================ */}
-      <div className={styles.card}>
-        <div className={styles.cardHeader}>
-          <h3 className={styles.sectionLabel}>📅 Today's Attendance Status</h3>
-          <Badge kind={status} />
-        </div>
-
-        <div className={styles.statGrid}>
-          <StatTile label="Status" value={BADGE_THEME[status]?.label || "Not marked"}
-                    color={BADGE_THEME[status]?.fg || MUTED} />
-          <StatTile label="Check-In Time"
-                    value={today?.CHECK_IN ? formatISTTime(today.CHECK_IN) : "—"}
-                    color={today?.CHECK_IN ? "#16a34a" : MUTED} />
-          <StatTile label="Check-Out Time"
-                    value={today?.CHECK_OUT ? formatISTTime(today.CHECK_OUT) : "—"}
-                    color={today?.CHECK_OUT ? "#dc2626" : MUTED} />
-          <StatTile label="Total Working Hours" value={workingHours} color="var(--clr-primary)" />
-        </div>
-      </div>
-
-      {/* ============================================================ */}
-      {/* CARD 2 — LIVE GEOFENCE STATUS                                 */}
-      {/* ============================================================ */}
-      <div className={styles.card}>
-        <div className={styles.cardHeader}>
-          <h3 className={styles.sectionLabel}>📍 Live Geofence Status</h3>
-          <Badge kind={geoState} />
-        </div>
-
-        {/* Original GeofenceGate banner — shows friendly "Inside/Outside" message */}
-        <GeofenceGate
-          employeeId={employeeId || null}
-          onAllowed={onGpsAllowed}
-          onBlocked={onGpsBlocked}
-        />
-
-        {/* Structured numeric grid per requirement */}
-        <div className={styles.statGrid2}>
-          <StatTile label="Your Latitude"
-                    value={fmtCoord(gpsCtx?.lat)} mono color={INK} />
-          <StatTile label="Your Longitude"
-                    value={fmtCoord(gpsCtx?.lng)} mono color={INK} />
-          <StatTile label="Office Latitude"
-                    value={fmtCoord(office?.lat)} mono color={INK} />
-          <StatTile label="Office Longitude"
-                    value={fmtCoord(office?.lng)} mono color={INK} />
-          <StatTile label="Distance From Office"
-                    value={fmtDistance(gpsCtx?.distance)}
-                    color={geoState === "INSIDE" ? "#16a34a" : "#dc2626"} />
-          <StatTile label="Allowed Radius"
-                    value={office?.radius != null ? `${office.radius} m` : "—"}
-                    color={INK} />
-          <StatTile label="GPS Accuracy"
-                    value={gpsCtx?.accuracy != null
-                      ? `±${Math.round(gpsCtx.accuracy)} m`
-                      : "—"}
-                    color={MUTED} />
-          <StatTile label="Geofence Status"
-                    value={BADGE_THEME[geoState]?.label || geoState}
-                    color={BADGE_THEME[geoState]?.fg || MUTED} />
-        </div>
-
-        {geoReason && geoState !== "INSIDE" && (
-          <div className={styles.reasonBox}>
-            <strong>Why blocked:</strong> {reasonLabel(geoReason)}
+      {/* ---------- Today's card ---------- */}
+      <section className={styles.todayCard}>
+        <div className={styles.todayHeader}>
+          <div className={styles.todayHeadLeft}>
+            <div className={styles.todayEyebrow}>Today</div>
+            <div className={styles.todayDate}>
+              {new Date().toLocaleDateString("en-IN", {
+                weekday: "long", day: "numeric", month: "long", year: "numeric",
+              })}
+            </div>
           </div>
-        )}
-      </div>
-
-      {/* ============================================================ */}
-      {/* ACTION BUTTONS                                                */}
-      {/* ============================================================ */}
-      <div className={styles.card}>
-        <div className={styles.cardHeader}>
-          <h3 className={styles.sectionLabel}>✋ Mark My Attendance</h3>
+          <Badge status={today?.STATUS || (hasCheckedIn ? "PRESENT" : null)} />
         </div>
 
-        <div className={styles.actionRow}>
+        <div className={styles.todayStats}>
+          <div className={styles.statCell}>
+            <div className={styles.statLabel}>Check-in</div>
+            <div className={styles.statValue}>
+              {today?.CHECK_IN ? formatISTTime(today.CHECK_IN) : "—"}
+            </div>
+          </div>
+          <div className={styles.statCell}>
+            <div className={styles.statLabel}>Check-out</div>
+            <div className={styles.statValue}>
+              {today?.CHECK_OUT ? formatISTTime(today.CHECK_OUT) : "—"}
+            </div>
+          </div>
+          <div className={styles.statCell}>
+            <div className={styles.statLabel}>Working hours</div>
+            <div className={styles.statValue}>
+              {fmtWorkedHours(liveWorkedHours)}
+            </div>
+          </div>
+          {overtimeHours > 0 && (
+            <div className={styles.statCell}>
+              <div className={styles.statLabel}>Overtime</div>
+              <div className={styles.statValue} style={{ color: "#7c3aed" }}>
+                {fmtWorkedHours(overtimeHours)}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Four buttons showing the full attendance lifecycle. Each
+            button knows whether it's the next available action, an
+            already-recorded milestone, or a locked prerequisite. */}
+        <div className={styles.actionGrid}>
           <ActionButton
-            label="✓ Check In"
-            enabled={canCheckIn}
-            onClick={handleCheckIn}
-            colorOn="#16a34a"
-            shadowOn="rgba(22,163,74,0.35)"
-            title={!gpsCtx ? "Waiting for GPS — must be inside the office geofence."
-                  : isCheckedIn ? "You've already checked in today."
-                  : "Check in for today"}
+            label="Check in"
+            done={hasCheckedIn}
+            doneAt={today?.CHECK_IN}
+            enabled={!hasCheckedIn}
+            busy={busy}
+            onClick={() => doCheckIn({ silent: false })}
           />
           <ActionButton
-            label="→ Check Out"
-            enabled={canCheckOut}
-            onClick={handleCheckOut}
-            colorOn="var(--clr-primary)"
-            shadowOn="rgba(200,16,46,0.35)"
-            title={!gpsCtx ? "Waiting for GPS — must be inside the office geofence."
-                  : !isCheckedIn ? "You must check in before you can check out."
-                  : isCheckedOut ? "You've already checked out today."
-                  : "Check out for today"}
+            label="Check out"
+            done={hasCheckedOut}
+            doneAt={today?.CHECK_OUT}
+            enabled={hasCheckedIn && !hasCheckedOut}
+            lockedHint={!hasCheckedIn ? "After check-in" : null}
+            busy={busy}
+            onClick={doCheckOut}
           />
           <ActionButton
-            label="✗ Mark Absent"
-            enabled={canMarkAbsent}
-            onClick={handleMarkAbsent}
-            colorOn="#d97706"
-            shadowOn="rgba(217,119,6,0.35)"
-            title={isCheckedIn ? "Can't mark absent — already checked in."
-                  : isAbsent ? "You're already marked absent today."
-                  : "Mark yourself absent for today"}
+            label="OT check in"
+            done={!!today?.OT_CHECK_IN}
+            doneAt={today?.OT_CHECK_IN}
+            enabled={hasCheckedOut && !today?.OT_CHECK_IN}
+            lockedHint={!hasCheckedOut ? "After check-out" : null}
+            busy={busy}
+            onClick={doOtCheckIn}
+            variant="ot"
+          />
+          <ActionButton
+            label="OT check out"
+            done={!!today?.OT_CHECK_OUT}
+            doneAt={today?.OT_CHECK_OUT}
+            enabled={!!today?.OT_CHECK_IN && !today?.OT_CHECK_OUT}
+            lockedHint={!today?.OT_CHECK_IN ? "After OT check-in" : null}
+            busy={busy}
+            onClick={doOtCheckOut}
+            variant="ot"
           />
         </div>
 
-        {notice && (
-          <div className={notice.type === "ok" ? styles.noticeOk : styles.noticeErr}>
-            {notice.text}
+        {hasCheckedIn && hasCheckedOut && !today?.OT_CHECK_IN && (
+          <div className={styles.doneRow}>
+            Attendance recorded for today.
+            {overtimeHours > 0 && (
+              <span style={{ color: "#7c3aed", fontWeight: 700, marginLeft: 6 }}>
+                Including {fmtWorkedHours(overtimeHours)} OT.
+              </span>
+            )}
           </div>
         )}
-      </div>
+      </section>
 
-      {/* ============================================================ */}
-      {/* CARD 3 — LAST ATTENDANCE ATTEMPT                              */}
-      {/* ============================================================ */}
-      <div className={styles.card}>
-        <div className={styles.cardHeader}>
-          <h3 className={styles.sectionLabel}>🕓 Last Attendance Attempt</h3>
-          <Badge kind={lastAttempt ? "BLOCKED" : (isCheckedIn ? "ALLOWED" : "PENDING")} />
-        </div>
-
-        {!lastAttempt && !isCheckedIn && (
-          <div className={styles.emptyText}>
-            No attendance attempts yet today.
-          </div>
-        )}
-
-        {!lastAttempt && isCheckedIn && (
-          <div className={styles.statGrid}>
-            <StatTile label="Attempt Time"
-                      value={today?.CHECK_IN ? formatISTTime(today.CHECK_IN) : "—"}
-                      color={INK} />
-            <StatTile label="Distance"
-                      value={today?.DISTANCE_METERS != null
-                        ? fmtDistance(today.DISTANCE_METERS) : "—"}
-                      color={INK} />
-            <StatTile label="Result" value="Allowed" color="#16a34a" />
-            <StatTile label="Failure Reason" value="—" color={MUTED} />
-          </div>
-        )}
-
-        {lastAttempt && (
-          <div className={styles.statGrid}>
-            <StatTile label="Attempt Time"
-                      value={fmtAttemptTime(lastAttempt.time)} color={INK} />
-            <StatTile label="Distance"
-                      value={fmtDistance(lastAttempt.distance)} color="#dc2626" />
-            <StatTile label="Result" value="Blocked" color="#dc2626" />
-            <StatTile label="Failure Reason"
-                      value={reasonLabel(lastAttempt.reason)} color="#991b1b" />
-          </div>
-        )}
-
-        {lastAttempt?.detail && (
-          <div className={styles.detailBox}>
-            {lastAttempt.detail}
-          </div>
-        )}
-      </div>
+      {toast && (
+        <div className={styles.toast}>{toast}</div>
+      )}
     </div>
-  );
-}
-
-
-// ---------------------------------------------------------------------
-// Small private components
-// ---------------------------------------------------------------------
-function StatTile({ label, value, color, mono }) {
-  return (
-    <div className={styles.statTile}>
-      <div className={styles.statTileLabel}>
-        {label}
-      </div>
-      <div
-        className={mono ? styles.statTileValueMono : styles.statTileValue}
-        style={{ color: color || INK }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-
-function ActionButton({ label, enabled, onClick, colorOn, shadowOn, title }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={!enabled}
-      title={title}
-      className={styles.actionBtn}
-      style={enabled ? {
-        background: colorOn,
-        boxShadow: `0 4px 14px ${shadowOn}`
-      } : undefined}
-    >
-      {label}
-    </button>
   );
 }

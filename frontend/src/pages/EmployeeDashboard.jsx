@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import API, { API_BASE_URL } from "../services/api";
 import ChatBot from "../components/ChatBot";
@@ -11,6 +11,7 @@ import MyLeaveStatus from "../components/MyLeaveStatus";
 import MyAttendancePanel from "../components/MyAttendancePanel";
 import MyAllowanceSection from "../components/MyAllowanceSection";
 import MyPayslipsPanel from "../components/MyPayslipsPanel";
+import MyPermissionSection from "../components/MyPermissionSection";
 import EmployeeProfileForm from "./EmployeeProfileForm";
 
 import styles from "./EmployeeDashboard.module.css";
@@ -235,6 +236,7 @@ function EmployeeDashboard() {
 function EmployeeDashboardBody() {
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   // localStorage keys written by Login.jsx (Employee login flow):
   //   employee_id, employee_name, department, employee_role,
@@ -254,10 +256,19 @@ function EmployeeDashboardBody() {
   const [toast, setToast] = useState(null);
   const [tab, setTab] = useState("pending");
 
-  // Top-level tab for the redesigned employee portal. Splits the long
-  // single-scroll page into focused sections: Overview / Attendance /
-  // Tasks / Leave / Memos / Performance.
-  const [mainTab, setMainTab] = useState("overview");
+  // Which section is currently shown. Deep-linked from the welcome
+  // screen via location.state.tab; falls back to "attendance" so an
+  // unadorned visit to "/" still shows something useful.
+  const [mainTab, setMainTab] = useState(
+    () => location.state?.tab || "attendance"
+  );
+
+  // Re-sync when the user comes back through the welcome tiles.
+  useEffect(() => {
+    const t = location.state?.tab;
+    if (t && t !== mainTab) setMainTab(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state?.tab]);
 
   // Bumped whenever the AI agent successfully submits a leave so the
   // MyLeaveStatus panel reloads without a page refresh.
@@ -420,6 +431,43 @@ function EmployeeDashboardBody() {
     }
   };
 
+  // Bulk-update every task assigned to this employee within a project
+  // via PATCH /employee/{id}/projects/{project_id}/status. Used by the
+  // 4 status buttons on each Assigned Projects card.
+  const [projectBusy, setProjectBusy] = useState({});   // { [projectId]: true }
+
+  const updateProjectStatus = async (projectId, newStatus, currentStatus) => {
+    if (!projectId || projectBusy[projectId]) return;
+    if (newStatus === currentStatus) return;             // no-op click
+
+    setProjectBusy((b) => ({ ...b, [projectId]: true }));
+
+    try {
+      const res = await API.patch(
+        `/employee/${employeeId}/projects/${projectId}/status`,
+        { status: newStatus }
+      );
+      const changed = res?.data?.changed_count ?? 0;
+      setToast({
+        message: (
+          changed > 0
+            ? `Project updated — ${changed} task(s) → ${newStatus.replace("_", " ")}.`
+            : `Project already at ${newStatus.replace("_", " ")}.`
+        )
+      });
+      await fetchPortalDashboard();
+    } catch (e) {
+      const detail = e?.response?.data?.detail || "Failed to update project";
+      setToast({ message: `⚠ ${detail}` });
+    } finally {
+      setProjectBusy((b) => {
+        const next = { ...b };
+        delete next[projectId];
+        return next;
+      });
+    }
+  };
+
   const updateStage = async (stage, newStatus) => {
     const key = `${stage.WORK_ORDER_ID}-${stage.STAGE_ID}`;
     setStageBusy((b) => ({ ...b, [key]: true }));
@@ -550,7 +598,22 @@ function EmployeeDashboardBody() {
     current_streak: 0
   };
 
-  const kpis = portal?.kpis || {};
+  // KpiGrid expects per-bucket task counts (total_assigned, today,
+  // pending, in_progress, on_hold, completed, upcoming, overdue).
+  // The backend already filters by EMPLOYEE_ID == employee_id, so
+  // these counts only reflect tasks actually assigned to this
+  // employee — unassigned tasks (EMPLOYEE_ID = NULL) are excluded.
+  const summary = portal?.task_summary || {};
+  const kpis = {
+    total_assigned: summary.total       ?? 0,
+    today:          summary.today       ?? 0,
+    pending:        summary.pending     ?? 0,
+    in_progress:    summary.in_progress ?? 0,
+    on_hold:        summary.on_hold     ?? 0,
+    completed:      summary.completed   ?? 0,
+    upcoming:       summary.upcoming    ?? 0,
+    overdue:        summary.overdue     ?? 0,
+  };
   const taskBuckets = {
     today: portal?.tasks?.today || [],
     pending: portal?.tasks?.pending || [],
@@ -576,6 +639,35 @@ function EmployeeDashboardBody() {
     }
   })();
 
+  // Bell badge now surfaces OVERDUE tasks only — a task is overdue
+  // when its remaining_days is negative and it isn't COMPLETED. That
+  // means the bell only lights up when the employee genuinely has
+  // something they haven't submitted on time.
+  const overdueTasks = [
+    ...(taskBuckets.today || []),
+    ...(taskBuckets.pending || []),
+    ...(taskBuckets.in_progress || []),
+    ...(taskBuckets.on_hold || [])
+  ].filter((t) => {
+    const days = Number(t?.remaining_days);
+    const status = String(t?.status || "").toUpperCase();
+    return Number.isFinite(days) && days < 0 && status !== "COMPLETED";
+  });
+  const overdueCount = overdueTasks.length;
+
+  const showOverdueToast = () => {
+    if (overdueCount === 0) {
+      setToast({ message: "You're all caught up. No pending overdue tasks." });
+      return;
+    }
+    const first = overdueTasks[0];
+    const others = overdueCount > 1 ? ` (+${overdueCount - 1} more)` : "";
+    const title = first?.title ? `“${first.title}”` : "a task";
+    setToast({
+      message: `⚠ Time is over — your task ${title} is still pending.${others}`
+    });
+  };
+
 
   // =============================================================
   // RENDER
@@ -583,153 +675,109 @@ function EmployeeDashboardBody() {
 
   return (
 
-    <div className={styles.zPage}>
+    <div className={styles.zShell}>
 
-      {/* ---------- Zoho-style top bar ---------- */}
-      <ZTopBar
-        profile={profile}
-        productivity={productivity}
-        employeeName={employeeName}
-        employeeCode={employeeId}
-        attendanceStatus={attendanceStatus}
-        loginTime={loginTime}
-        voiceOn={voiceOn}
-        onToggleVoice={toggleVoice}
-        voiceSupported={isVoiceSupported()}
-        unreadCount={unreadCount}
-        onLogout={handleLogout}
-      />
+      <main className={styles.zMain}>
 
-      {portalErr && (
-        <div className={styles.portalError}>
-          {portalErr}{" "}
-          <span className={styles.portalErrorNote}>
-            — supporting widgets below remain functional.
-          </span>
-        </div>
-      )}
+        <ZMainHeader
+          title={Z_TAB_TITLES[mainTab] || "Dashboard"}
+          attendanceStatus={attendanceStatus}
+          loginTime={loginTime}
+          productivity={productivity}
+          voiceOn={voiceOn}
+          onToggleVoice={toggleVoice}
+          voiceSupported={isVoiceSupported()}
+          overdueCount={overdueCount}
+          onBellClick={showOverdueToast}
+          onGoHome={() => navigate("/welcome")}
+          onLogout={handleLogout}
+        />
 
-      {loading && !portal && (
-        <div className={styles.loadingCard}>
-          Loading your workspace…
-        </div>
-      )}
+        <div className={styles.zMainContent}>
 
-      {/* ---------- Slim underline tab strip ---------- */}
-      <ZTabStrip
-        active={mainTab}
-        onChange={setMainTab}
-        badges={{
-          tasks: (taskBuckets.today?.length || 0)
-            + (taskBuckets.pending?.length || 0),
-          leave: (leaveHistory || []).filter(
-            (l) => l.STATUS === "PENDING_APPROVAL"
-          ).length
-        }}
-      />
-
-      {/* ---------- TAB CONTENT ---------- */}
-      {mainTab === "overview" && (
-        <>
-          <KpiGrid kpis={kpis} />
-          <TodayTasksCard
-            tasks={taskBuckets.today}
-            busyMap={actionBusy}
-            onUpdate={updateAssignmentStatus}
-          />
-        </>
-      )}
-
-      {mainTab === "attendance" && (
-        <>
-          <MyAttendancePanel employeeId={employeeId} />
-          <AttendanceSummaryCard attendance={attendance} />
-        </>
-      )}
-
-      {mainTab === "tasks" && (
-        <>
-          <ZTasksPage
-            buckets={taskBuckets}
-            busyMap={actionBusy}
-            onUpdate={updateAssignmentStatus}
-          />
-          <AssignedProjectsCard projects={projects} />
-          {productionStages.length > 0 && (
-            <ProductionStagesSection
-              stages={productionStages}
-              busyMap={stageBusy}
-              onUpdate={updateStage}
-            />
-          )}
-        </>
-      )}
-
-        {mainTab === "leave" && (
-          <>
-            {/* Primary: conversational AI leave assistant — extracts
-                dates / type / reason, validates balance, asks for
-                confirmation, submits to manager. */}
-            <LeaveAgentChat
-              employeeId={employeeId}
-              onLeaveSubmitted={() => setLeaveStatusRefresh((n) => n + 1)}
-            />
-
-            {/* Live status panel — shows every leave request with
-                approval state, auto-refreshes after a submit + every 30s. */}
-            <MyLeaveStatus
-              employeeId={employeeId}
-              refreshSignal={leaveStatusRefresh}
-            />
-
-            {/* Voice-driven leave POC stays for quick voice tests. */}
-            <div style={{ marginTop: 16 }}>
-              <VoiceLeaveTest />
+          {portalErr && (
+            <div className={styles.portalError}>
+              {portalErr}{" "}
+              <span className={styles.portalErrorNote}>
+                — supporting widgets below remain functional.
+              </span>
             </div>
+          )}
 
-            {/* The chat-based leave assistant and the manual apply
-                form are temporarily removed from this tab — voice is
-                the new primary input. Components stay imported so
-                bringing them back is a 3-line change. To restore:
+          {loading && !portal && (
+            <div className={styles.loadingCard}>
+              Loading your workspace…
+            </div>
+          )}
 
-                <LeaveChatbot
-                  employeeId={employeeId}
-                  onLeaveSubmitted={() => {
-                    fetchLeaveHistory?.();
-                    fetchLeaveBalance?.();
-                  }}
+          {mainTab === "attendance" && (
+            <MyAttendancePanel employeeId={employeeId} />
+          )}
+
+          {mainTab === "tasks" && (
+            <>
+              <ZTasksPage
+                buckets={taskBuckets}
+                busyMap={actionBusy}
+                onUpdate={updateAssignmentStatus}
+              />
+              <AssignedProjectsCard
+                projects={projects}
+                busyMap={projectBusy}
+                onUpdate={updateProjectStatus}
+              />
+              {productionStages.length > 0 && (
+                <ProductionStagesSection
+                  stages={productionStages}
+                  busyMap={stageBusy}
+                  onUpdate={updateStage}
                 />
-                <LeavePermissionSection
-                  balance={leaveBalance}
-                  leaveHistory={leaveHistory}
-                  permissionHistory={permissionHistory}
-                  onSubmitLeave={submitLeave}
-                  onSubmitPermission={submitPermission}
-                  onCancel={cancelLeave}
-                />
-            */}
-          </>
-        )}
+              )}
+            </>
+          )}
 
-        {mainTab === "memos" && (
-          <MyMemosCard employeeId={employeeId} />
-        )}
+          {mainTab === "leave" && (
+            <>
+              <LeaveAgentChat
+                employeeId={employeeId}
+                onLeaveSubmitted={() => setLeaveStatusRefresh((n) => n + 1)}
+              />
+              <MyLeaveStatus
+                employeeId={employeeId}
+                refreshSignal={leaveStatusRefresh}
+              />
+              <div style={{ marginTop: 16 }}>
+                <VoiceLeaveTest />
+              </div>
+            </>
+          )}
 
-        {mainTab === "allowance" && (
-          <MyAllowanceSection employeeId={employeeId} />
-        )}
+          {mainTab === "permission" && (
+            <MyPermissionSection employeeId={employeeId} />
+          )}
 
-        {mainTab === "payslips" && (
-          <MyPayslipsPanel employeeId={employeeId} />
-        )}
+          {mainTab === "memos" && (
+            <MyMemosCard employeeId={employeeId} />
+          )}
 
-      {mainTab === "performance" && (
-        <>
-          <PerformanceBreakdownCard productivity={productivity} />
-          <MonthlyProductivityChart data={monthlyChart} />
-          <RewardsCard productivity={productivity} />
-        </>
-      )}
+          {mainTab === "allowance" && (
+            <MyAllowanceSection employeeId={employeeId} />
+          )}
+
+          {mainTab === "payslips" && (
+            <MyPayslipsPanel employeeId={employeeId} />
+          )}
+
+          {mainTab === "performance" && (
+            <>
+              <PerformanceBreakdownCard productivity={productivity} />
+              <MonthlyProductivityChart data={monthlyChart} />
+              <RewardsCard productivity={productivity} />
+            </>
+          )}
+
+        </div>
+      </main>
 
       <Toast toast={toast} onClose={() => setToast(null)} />
       <ChatBot />
@@ -980,6 +1028,7 @@ function ZTabStrip({ active, onChange, badges = {} }) {
     { key: "attendance",  label: "Attendance",  icon: "attendance" },
     { key: "tasks",       label: "Tasks",       icon: "tasks", badge: badges.tasks },
     { key: "leave",       label: "Leave",       icon: "leave", badge: badges.leave },
+    { key: "permission",  label: "Permission",  icon: "clock" },
     { key: "memos",       label: "Memos",       icon: "memos" },
     { key: "allowance",   label: "Allowance",   icon: "allowance" },
     { key: "payslips",    label: "Payslips",    icon: "payslips" },
@@ -1008,6 +1057,221 @@ function ZTabStrip({ active, onChange, badges = {} }) {
         );
       })}
     </div>
+  );
+}
+
+
+// =================================================================
+// Z-shell — left sidebar (Admin-Dashboard style) + main header
+// =================================================================
+
+const Z_TAB_TITLES = {
+  attendance:  "Attendance",
+  tasks:       "Tasks",
+  leave:       "Leave",
+  permission:  "Permission",
+  memos:       "Memos",
+  allowance:   "Allowance",
+  payslips:    "Payslips",
+  performance: "Performance"
+};
+
+function ZSidebar({
+  active, onChange, badges = {},
+  profile, employeeName, employeeCode,
+  onLogout,
+  open, onClose
+}) {
+
+  const name = profile?.name || employeeName || "Employee";
+  const code = profile?.employee_code || employeeCode || "—";
+  const designation = profile?.designation || "—";
+  const department = profile?.department || "";
+  const photoUrl = profile?.photo_url || null;
+
+  const initials = (name || "?")
+    .split(/\s+/)
+    .map((p) => p.charAt(0))
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "?";
+
+  const items = [
+    { key: "attendance",  label: "Attendance",  icon: "attendance" },
+    { key: "tasks",       label: "Tasks",       icon: "tasks", badge: badges.tasks },
+    { key: "leave",       label: "Leave",       icon: "leave", badge: badges.leave },
+    { key: "permission",  label: "Permission",  icon: "clock" },
+    { key: "memos",       label: "Memos",       icon: "memos" },
+    { key: "allowance",   label: "Allowance",   icon: "allowance" },
+    { key: "payslips",    label: "Payslips",    icon: "payslips" },
+    { key: "performance", label: "Performance", icon: "performance" }
+  ];
+
+  return (
+    <>
+      {open && (
+        <div
+          className={styles.zSidebarOverlay}
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={`${styles.zSidebar}${open ? " " + styles.zSidebarOpen : ""}`}
+      >
+
+        <div className={styles.zSidebarBrand}>
+          <div className={styles.zSidebarBrandLogo}>B</div>
+          <div>
+            <div className={styles.zSidebarBrandText}>Bharath ERP</div>
+            <div className={styles.zSidebarBrandSub}>Employee Portal</div>
+          </div>
+        </div>
+
+        <nav className={styles.zSidebarNav}>
+          <div className={styles.zSidebarGroupLabel}>Workspace</div>
+          {items.map((t) => {
+            const isOn = t.key === active;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => { onChange(t.key); onClose?.(); }}
+                className={`${styles.zSidebarItem}${isOn ? " " + styles.zSidebarItemActive : ""}`}
+              >
+                <span className={styles.zSidebarItemIcon}>
+                  <Ico name={t.icon} size={16} />
+                </span>
+                <span className={styles.zSidebarItemLabel}>{t.label}</span>
+                {!!t.badge && t.badge > 0 && (
+                  <span className={styles.zSidebarItemBadge}>
+                    {t.badge > 99 ? "99+" : t.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className={styles.zSidebarFooter}>
+          <div className={styles.zSidebarUserCard}>
+            <div className={styles.zSidebarUserAvatar}>
+              {photoUrl ? <img src={photoUrl} alt={name} /> : initials}
+            </div>
+            <div className={styles.zSidebarUserInfo}>
+              <div className={styles.zSidebarUserName}>{name}</div>
+              <div className={styles.zSidebarUserMeta}>
+                {code}{department ? ` · ${department}` : ""}
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onLogout}
+            className={styles.zSidebarLogout}
+          >
+            <Ico name="logout" size={13} />
+            Logout
+          </button>
+        </div>
+
+      </aside>
+    </>
+  );
+}
+
+
+function ZMainHeader({
+  title,
+  attendanceStatus, loginTime,
+  productivity,
+  voiceOn, onToggleVoice, voiceSupported,
+  overdueCount, onBellClick,
+  onGoHome, onLogout
+}) {
+
+  const isLate = attendanceStatus === "LATE";
+  const score = Math.max(0, Math.min(100, Number(productivity?.score || 0)));
+
+  return (
+    <header className={styles.zMainHeader}>
+      <div className={styles.zMainHeaderLeft}>
+        <button
+          type="button"
+          className={styles.zHamburger}
+          onClick={onGoHome}
+          aria-label="Back to home"
+          title="Back to home"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" strokeWidth="2.2"
+               strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 11l9-8 9 8" />
+            <path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10" />
+          </svg>
+        </button>
+        <h1 className={styles.zMainTitle}>{title}</h1>
+      </div>
+
+      <div className={styles.zMainHeaderRight}>
+        <span
+          className={`${styles.zChip} ${isLate ? styles.zChipWarn : styles.zChipSuccess}`}
+          title={`Login: ${fmtTime(loginTime)}`}
+        >
+          <Ico name="clock" size={12} />
+          {attendanceStatus} · {fmtTime(loginTime)}
+        </span>
+
+        <span
+          className={`${styles.zChip} ${styles.zChipScore}`}
+          title="Productivity score"
+        >
+          <Ico name="performance" size={12} />
+          {score} / 100
+        </span>
+
+        {voiceSupported && (
+          <button
+            type="button"
+            onClick={onToggleVoice}
+            className={`${styles.zIconBtn}${voiceOn ? " " + styles.zIconBtnActive : ""}`}
+            title={voiceOn ? "Disable voice alerts" : "Enable voice alerts"}
+            aria-label="Toggle voice alerts"
+          >
+            <Ico name={voiceOn ? "mic" : "micOff"} size={14} />
+          </button>
+        )}
+
+        <button
+          type="button"
+          className={styles.zIconBtn}
+          onClick={onBellClick}
+          title={
+            overdueCount > 0
+              ? `${overdueCount} overdue task${overdueCount === 1 ? "" : "s"}`
+              : "No overdue tasks"
+          }
+          aria-label="Overdue task alerts"
+        >
+          <Ico name="bell" size={14} />
+          {overdueCount > 0 && (
+            <span className={styles.zIconBtnBadge}>
+              {overdueCount > 99 ? "99+" : overdueCount}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          className={styles.zIconBtn}
+          onClick={onLogout}
+          title="Log out"
+          aria-label="Log out"
+        >
+          <Ico name="logout" size={14} />
+        </button>
+      </div>
+    </header>
   );
 }
 
@@ -1612,7 +1876,18 @@ function taskActionBtn(color, busy) {
 // 5. ASSIGNED PROJECTS CARD
 // =================================================================
 
-function AssignedProjectsCard({ projects }) {
+function AssignedProjectsCard({ projects, busyMap = {}, onUpdate }) {
+
+  // Four fixed statuses the employee can flip a project to via the
+  // quick-buttons under each card. Bulk-updates every task assigned to
+  // this employee within the project via PATCH /projects/:id/status.
+  const PROJECT_STATUS_BUTTONS = [
+    { key: "PENDING",     label: "Pending"     },
+    { key: "IN_PROGRESS", label: "In Progress" },
+    { key: "ON_HOLD",     label: "On Hold"     },
+    { key: "COMPLETED",   label: "Completed"   }
+  ];
+
   return (
     <section className={styles.projectsCard}>
       <div className={styles.kpiSectionLabel} style={{ marginBottom: 12 }}>
@@ -1624,14 +1899,16 @@ function AssignedProjectsCard({ projects }) {
       ) : (
         <div className={styles.projectsGrid}>
           {projects.map((p) => {
+            const projectId = p.id || p.project_id;
             const total = Number(p.my_stages_count || 0);
             const done = Number(p.my_completed_count || 0);
             const pct = total > 0 ? Math.round((done / total) * 100) : 0;
             const statusKey = (p.status || "PENDING").toUpperCase();
             const sPill = STATUS_PILL[statusKey] || STATUS_PILL.PENDING;
+            const busy = !!busyMap[projectId];
             return (
               <div
-                key={p.project_id || p.id || p.name}
+                key={projectId || p.name}
                 className={styles.projectCard}
               >
                 <div className={styles.projectCardName}>
@@ -1670,6 +1947,31 @@ function AssignedProjectsCard({ projects }) {
                     style={{ width: `${pct}%` }}
                   />
                 </div>
+
+                {/* Status quick-buttons — flips ALL of this employee's
+                    task assignments in the project to the chosen status.
+                    The current status button is highlighted; clicking it
+                    is a no-op server-side but the UI still calls through
+                    for consistency. */}
+                <div className={styles.projectStatusBtnRow}>
+                  {PROJECT_STATUS_BUTTONS.map((btn) => {
+                    const isCurrent = btn.key === statusKey;
+                    return (
+                      <button
+                        key={btn.key}
+                        type="button"
+                        disabled={busy || !projectId || !onUpdate}
+                        onClick={() => onUpdate?.(projectId, btn.key, statusKey)}
+                        className={
+                          `${styles.projectStatusBtn}` +
+                          (isCurrent ? ` ${styles.projectStatusBtnActive}` : "")
+                        }
+                      >
+                        {busy ? "…" : btn.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}
@@ -1686,15 +1988,22 @@ function AssignedProjectsCard({ projects }) {
 
 function PerformanceBreakdownCard({ productivity }) {
 
+  // Task completion / memo / star-performance mirror server-side fields
+  // that may not yet be populated — fall back to 0 so the UI stays clean.
+  const attendancePct  = Number(productivity?.attendance_pct        ?? 0);
+  const taskDonePct    = Number(productivity?.task_completion_pct   ?? productivity?.project_contribution_pct ?? 0);
+  const onTimePct      = Number(productivity?.on_time_pct           ?? 0);
+  const memoPct        = Number(productivity?.memo_pct              ?? 0);
+  const starPct        = Number(productivity?.star_pct              ?? productivity?.score ?? 0);
+  const ratingStars    = Math.round(Number(productivity?.rating     ?? 0));
+
   const rows = [
-    { label: "Productivity Score", value: productivity?.score, suffix: "/ 100", bar: productivity?.score },
-    { label: "On-Time Completion", value: productivity?.on_time_pct, suffix: "%", bar: productivity?.on_time_pct },
-    { label: "Attendance", value: productivity?.attendance_pct, suffix: "%", bar: productivity?.attendance_pct },
-    { label: "Avg Completion Hours", value: productivity?.avg_completion_hours, suffix: " hrs", bar: null },
-    { label: "Project Contribution", value: productivity?.project_contribution_pct, suffix: "%", bar: productivity?.project_contribution_pct },
-    { label: "Delayed Tasks", value: productivity?.delayed_tasks, suffix: "", bar: null },
-    { label: "Total Points Earned", value: productivity?.points_total, suffix: " pts", bar: null },
-    { label: "Overall Rating", value: null, suffix: "", bar: null, stars: Math.round(Number(productivity?.rating || 0)) }
+    { label: "Attendance",         value: attendancePct, suffix: "%", bar: attendancePct },
+    { label: "Task Completion",    value: taskDonePct,   suffix: "%", bar: taskDonePct   },
+    { label: "On-Time Completion", value: onTimePct,     suffix: "%", bar: onTimePct     },
+    { label: "Memo",               value: memoPct,       suffix: "%", bar: memoPct       },
+    { label: "Star Performance",   value: starPct,       suffix: "%", bar: starPct       },
+    { label: "Overall Rating",     value: null,          suffix: "",  bar: null, stars: ratingStars }
   ];
 
   return (
@@ -1871,6 +2180,142 @@ function MonthlyProductivityChart({ data }) {
 // =================================================================
 // 8. ATTENDANCE SUMMARY CARD
 // =================================================================
+
+// =================================================================
+// Z-shell — Attendance overview page (admin-Attendance-style stat rows)
+// Two cards: "This month" (attendance counts) + "Leave & permissions"
+// (balance remaining + pending counts).
+// =================================================================
+
+function ZAttItem({ label, value, sub, tone = "slate" }) {
+  const toneCls = {
+    green: styles.zAttItemGreen,
+    amber: styles.zAttItemAmber,
+    red:   styles.zAttItemRed,
+    blue:  styles.zAttItemBlue,
+    slate: styles.zAttItemSlate,
+  }[tone] || styles.zAttItemSlate;
+
+  return (
+    <div className={`${styles.zAttItem} ${toneCls}`}>
+      <div className={styles.zAttItemValue}>{value}</div>
+      <div className={styles.zAttItemLabel}>{label}</div>
+      {sub && <div className={styles.zAttItemSub}>{sub}</div>}
+    </div>
+  );
+}
+
+function MyAttendanceOverview({
+  attendance, leaveBalance, leaveHistory, permissionHistory
+}) {
+
+  const today = new Date();
+  const dateLabel = today.toLocaleDateString("en-IN", {
+    weekday: "short", day: "numeric", month: "long", year: "numeric"
+  });
+  const monthLabel = today.toLocaleString("en-IN", {
+    month: "long", year: "numeric"
+  });
+
+  const present    = Number(attendance?.present    ?? 0);
+  const absent     = Number(attendance?.absent     ?? 0);
+  const lateCnt    = Number(attendance?.late       ?? 0);
+  const leaveCnt   = Number(attendance?.leave      ?? 0);
+  const permCnt    = Number(attendance?.permission ?? 0);
+  const pct        = Number(attendance?.percentage ?? 0);
+  const workingDays =
+    Number(attendance?.working_days ?? attendance?.total_days ?? 0);
+
+  const casual = leaveBalance?.CASUAL || { total: 0, used: 0, remaining: 0 };
+  const sick   = leaveBalance?.SICK   || { total: 0, used: 0, remaining: 0 };
+  const earned = leaveBalance?.EARNED || { total: 0, used: 0, remaining: 0 };
+
+  const pendingLeave = (leaveHistory || []).filter(
+    (l) => (l.STATUS || "").toUpperCase() === "PENDING_APPROVAL"
+  ).length;
+
+  const pendingPerm = (permissionHistory || []).filter(
+    (p) => (p.STATUS || "").toUpperCase() === "PENDING_APPROVAL"
+  ).length;
+
+  const usedLeave = Number(casual.used || 0) + Number(sick.used || 0) + Number(earned.used || 0);
+
+  return (
+    <>
+      {/* ---- Card 1: Attendance — identical to admin headerStrip ---- */}
+      <section className={styles.zAttCard}>
+        <div className={styles.zAttTitleRow}>
+          <h2 className={styles.zAttTitle}>Attendance · {monthLabel}</h2>
+          <div className={styles.zAttDate}>{dateLabel}</div>
+        </div>
+
+        <div className={styles.zAttStatRow}>
+          <ZAttItem label="Present"    value={present}  tone="green" />
+          <ZAttItem label="Late"       value={lateCnt}  tone="amber" />
+          <ZAttItem label="Absent"     value={absent}   tone="red"   />
+          <ZAttItem label="Leave"      value={leaveCnt} tone="amber" />
+          <ZAttItem label="Permission" value={permCnt}  tone="blue"  />
+          <div className={styles.zAttDivider} />
+          <ZAttItem label="Attendance" value={`${pct}%`} tone="slate" />
+          {workingDays > 0 && (
+            <ZAttItem label="Working days" value={workingDays} tone="slate" />
+          )}
+        </div>
+      </section>
+
+      {/* ---- Card 2: Leave & permissions — same headerStrip style ---- */}
+      <section className={styles.zAttCard}>
+        <div className={styles.zAttTitleRow}>
+          <h2 className={styles.zAttTitle}>
+            Leave & permissions · {today.getFullYear()}
+          </h2>
+          <div className={styles.zAttDate}>
+            {(leaveBalance && leaveBalance.YEAR) || today.getFullYear()} year
+          </div>
+        </div>
+
+        <div className={styles.zAttStatRow}>
+          <ZAttItem
+            label="Casual"
+            value={casual.remaining ?? 0}
+            sub={`of ${casual.total ?? 0} · used ${casual.used ?? 0}`}
+            tone="green"
+          />
+          <ZAttItem
+            label="Sick"
+            value={sick.remaining ?? 0}
+            sub={`of ${sick.total ?? 0} · used ${sick.used ?? 0}`}
+            tone="amber"
+          />
+          <ZAttItem
+            label="Earned"
+            value={earned.remaining ?? 0}
+            sub={`of ${earned.total ?? 0} · used ${earned.used ?? 0}`}
+            tone="blue"
+          />
+          <div className={styles.zAttDivider} />
+          <ZAttItem
+            label="Pending leave"
+            value={pendingLeave}
+            tone={pendingLeave > 0 ? "amber" : "slate"}
+          />
+          <ZAttItem
+            label="Pending permission"
+            value={pendingPerm}
+            tone={pendingPerm > 0 ? "amber" : "slate"}
+          />
+          <ZAttItem
+            label="Total taken"
+            value={usedLeave}
+            sub="this year"
+            tone="slate"
+          />
+        </div>
+      </section>
+    </>
+  );
+}
+
 
 function AttendanceSummaryCard({ attendance }) {
 

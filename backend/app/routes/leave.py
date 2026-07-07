@@ -1253,6 +1253,53 @@ def apply_permission(
             )
         )
 
+    # ---- Monthly cap enforcement ----
+    # Company policy: max 4 hours of paid permission per calendar month.
+    # We count APPROVED + PENDING_APPROVAL toward the cap so employees
+    # can't stack multiple pending requests past the limit while their
+    # first one is still awaiting a decision. HR/admin retains the
+    # ability to force-approve via a manual DB update or via the
+    # approval-override endpoint if operational needs demand it.
+    MAX_PAID_PERM_HOURS_PER_MONTH = 4.0
+
+    _perm_date = data.PERMISSION_DATE
+
+    month_start = _perm_date.replace(day=1)
+
+    if _perm_date.month == 12:
+        next_month_start = _perm_date.replace(year=_perm_date.year + 1, month=1, day=1)
+    else:
+        next_month_start = _perm_date.replace(month=_perm_date.month + 1, day=1)
+
+    monthly_rows = db.query(LeaveRequest).filter(
+        LeaveRequest.EMPLOYEE_ID == employee.ID,
+        LeaveRequest.LEAVE_TYPE == "PERMISSION",
+        LeaveRequest.STATUS.in_(["PENDING_APPROVAL", "APPROVED"]),
+        LeaveRequest.START_DATE >= month_start,
+        LeaveRequest.START_DATE <  next_month_start,
+    ).all()
+
+    already_committed = sum(float(r.DURATION_HOURS or 0) for r in monthly_rows)
+
+    remaining_this_month = max(
+        0.0,
+        MAX_PAID_PERM_HOURS_PER_MONTH - already_committed,
+    )
+
+    if hours > remaining_this_month:
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Monthly permission limit reached. You have already "
+                f"used {already_committed:g} of "
+                f"{MAX_PAID_PERM_HOURS_PER_MONTH:g} hours this month "
+                f"(including any pending requests), so you can request "
+                f"at most {remaining_this_month:g} more hours. Contact "
+                f"HR for an override if operationally required."
+            )
+        )
+
     leave = LeaveRequest(
         EMPLOYEE_ID=employee.ID,
         LEAVE_TYPE="PERMISSION",
@@ -1332,6 +1379,75 @@ def list_my_permissions(
     )
 
     return [_serialize_leave(lv, e) for lv, e in rows]
+
+
+@router.get("/permission-balance/{employee_id}")
+def permission_balance(
+    employee_id: str,
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
+):
+    """Current-month permission usage for the employee.
+
+    Returns:
+      cap_hours       — the monthly ceiling (4.0)
+      used_hours      — sum(APPROVED + PENDING) DURATION_HOURS this month
+      approved_hours  — sum of APPROVED only
+      pending_hours   — sum of PENDING_APPROVAL only
+      remaining_hours — cap_hours - used_hours, floored at 0
+      month           — YYYY-MM (server-side "today")
+      can_request     — True if remaining_hours > 0
+    """
+
+    assert_self_or_admin(employee_id, payload)
+
+    emp = _resolve_employee(db, employee_id)
+
+    if not emp:
+
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    from datetime import date as _date
+
+    today = _date.today()
+
+    month_start = today.replace(day=1)
+
+    if today.month == 12:
+        next_month_start = today.replace(year=today.year + 1, month=1, day=1)
+    else:
+        next_month_start = today.replace(month=today.month + 1, day=1)
+
+    rows = db.query(LeaveRequest).filter(
+        LeaveRequest.EMPLOYEE_ID == emp.ID,
+        LeaveRequest.LEAVE_TYPE == "PERMISSION",
+        LeaveRequest.STATUS.in_(["PENDING_APPROVAL", "APPROVED"]),
+        LeaveRequest.START_DATE >= month_start,
+        LeaveRequest.START_DATE <  next_month_start,
+    ).all()
+
+    approved_hours = sum(
+        float(r.DURATION_HOURS or 0) for r in rows if r.STATUS == "APPROVED"
+    )
+    pending_hours  = sum(
+        float(r.DURATION_HOURS or 0) for r in rows if r.STATUS == "PENDING_APPROVAL"
+    )
+    used_hours = approved_hours + pending_hours
+
+    CAP = 4.0
+
+    remaining = max(0.0, CAP - used_hours)
+
+    return {
+        "employee_id":     emp.ID,
+        "month":           today.strftime("%Y-%m"),
+        "cap_hours":       CAP,
+        "used_hours":      round(used_hours, 2),
+        "approved_hours":  round(approved_hours, 2),
+        "pending_hours":   round(pending_hours, 2),
+        "remaining_hours": round(remaining, 2),
+        "can_request":     remaining > 0.0,
+    }
 
 
 @router.get("/dashboard-summary/{employee_id}")

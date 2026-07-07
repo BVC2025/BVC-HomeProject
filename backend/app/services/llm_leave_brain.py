@@ -1,7 +1,7 @@
 """
-LLM-driven leave-agent brain (Gemini-backed).
+LLM-driven leave-agent brain.
 
-This is the "AI" part of the leave agent. It does in a single call:
+Does in a single call:
   1. Understand the user's message + current state + history
   2. Update the collected leave-request fields
   3. Generate a natural-language reply
@@ -13,8 +13,19 @@ The orchestrator (leave_agent_service.py) is still in charge of:
   • Tool execution (creating the leave request on confirmation)
 
 This separation keeps the AI useful AND safe: it can't fabricate
-data-writes; only the orchestrator can. If Gemini fails or is
+data-writes; only the orchestrator can. If the LLM fails or is
 unreachable, the orchestrator falls back to the rule-based parser.
+
+BACKEND SELECTION (Phase 4 migration)
+  Controlled by env var `AI_LEAVE_BACKEND`:
+    - "ollama"  (default) — self-hosted Phi-3-mini via Ollama
+    - "gemini"           — legacy Google Gemini path (kept for rollback)
+    - "auto"             — try Ollama first, fall back to Gemini if
+                           Ollama returns None (helpful during A/B
+                           evaluation of the self-hosted stack)
+
+Whichever backend answered is recorded in BrainResult.source so the
+orchestrator + logs can compare quality between the two.
 """
 
 from __future__ import annotations
@@ -157,12 +168,29 @@ class BrainResult:
     next_state:   str
     suggestions:  List[str]
     raw_json:     Optional[str] = None  # for audit / debugging
-    source:       str = "gemini"        # "gemini" | "rule-fallback"
+    source:       str = "ollama"        # "ollama" | "gemini" | "rule-fallback"
 
 
 # ---------------------------------------------------------------
-# Entry point
+# Backend dispatch — Ollama (default) / Gemini / auto
 # ---------------------------------------------------------------
+
+import logging
+
+_log = logging.getLogger("uvicorn")
+
+
+def _selected_backend() -> str:
+    """Read AI_LEAVE_BACKEND from env, normalise, default to 'ollama'."""
+
+    val = (os.getenv("AI_LEAVE_BACKEND") or "").strip().lower()
+
+    if val in {"ollama", "gemini", "auto"}:
+
+        return val
+
+    return "ollama"
+
 
 def think(
     *,
@@ -175,19 +203,9 @@ def think(
     user_message: str,
     balance_snapshot: Optional[Dict[str, Any]] = None,
 ) -> Optional[BrainResult]:
-    """Call Gemini with the leave-agent system prompt and return a
-    parsed BrainResult. Returns None on failure (orchestrator should
-    fall back to the rule-based path)."""
-
-    api_key = os.getenv("GEMINI_API_KEY", "").strip()
-    if not api_key:
-        return None
-
-    try:
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
-    except Exception:
-        return None
+    """Public entry point. Dispatches to the configured backend.
+    Returns None on failure (orchestrator falls back to the rule-based
+    parser)."""
 
     prompt = _build_prompt(
         employee_name=employee_name,
@@ -200,7 +218,115 @@ def think(
         balance_snapshot=balance_snapshot,
     )
 
+    backend = _selected_backend()
+
+    if backend == "ollama":
+
+        result = _think_ollama(prompt)
+        _log.info(
+            "llm_leave_brain: backend=ollama outcome=%s",
+            "hit" if result else "miss",
+        )
+        return result
+
+    if backend == "gemini":
+
+        result = _think_gemini(prompt)
+        _log.info(
+            "llm_leave_brain: backend=gemini outcome=%s",
+            "hit" if result else "miss",
+        )
+        return result
+
+    # backend == "auto" — Ollama first, Gemini fallback for A/B eval
+    result = _think_ollama(prompt)
+
+    if result is not None:
+
+        _log.info("llm_leave_brain: backend=auto resolved=ollama")
+        return result
+
+    _log.info("llm_leave_brain: backend=auto ollama miss, falling back to gemini")
+
+    result = _think_gemini(prompt)
+
+    _log.info(
+        "llm_leave_brain: backend=auto resolved=%s",
+        "gemini" if result else "none",
+    )
+
+    return result
+
+
+# ---------------------------------------------------------------
+# Ollama backend — self-hosted Phi-3-mini, JSON grammar mode
+# ---------------------------------------------------------------
+
+
+def _think_ollama(prompt: str) -> Optional[BrainResult]:
+    """Call the local Ollama daemon with JSON-grammar-enforced output."""
+
+    try:
+
+        from app.services import ollama_client
+
+    except Exception:
+
+        return None
+
+    text = ollama_client.generate(
+        prompt=prompt,
+        temperature=0.4,
+        top_p=0.9,
+        max_tokens=600,
+        format="json",
+    )
+
+    if not text:
+
+        return None
+
+    parsed = _parse_json_strict(text)
+
+    if not parsed:
+
+        _log.warning("llm_leave_brain: Ollama returned non-JSON: %r", text[:200])
+
+        return None
+
+    result = _coerce(parsed)
+    result.source = "ollama"
+
+    return result
+
+
+# ---------------------------------------------------------------
+# Gemini backend — legacy, kept for AI_LEAVE_BACKEND=gemini rollback
+# ---------------------------------------------------------------
+
+
+def _think_gemini(prompt: str) -> Optional[BrainResult]:
+    """Original Gemini implementation. Preserved verbatim so the
+    rollback flag genuinely restores the previous behaviour."""
+
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+
+    if not api_key:
+
+        return None
+
+    try:
+
+        import google.generativeai as genai
+
+        genai.configure(api_key=api_key)
+
+    except Exception:
+
+        return None
+
     preferred = (os.getenv("GEMINI_MODEL") or "").strip()
+
     chain = (
         [preferred] + [m for m in GEMINI_MODEL_CHAIN if m != preferred]
         if preferred
@@ -208,7 +334,9 @@ def think(
     )
 
     for model_name in chain:
+
         try:
+
             model = genai.GenerativeModel(
                 model_name,
                 generation_config={
@@ -218,12 +346,21 @@ def think(
                     "response_mime_type": "application/json",
                 },
             )
+
             resp = model.generate_content(prompt)
+
             text = (resp.text or "").strip()
+
             parsed = _parse_json_strict(text)
+
             if parsed:
-                return _coerce(parsed)
+
+                result = _coerce(parsed)
+                result.source = "gemini"
+                return result
+
         except Exception:
+
             continue
 
     return None
@@ -352,5 +489,7 @@ def _coerce(p: Dict[str, Any]) -> BrainResult:
         next_state=state,
         suggestions=suggestions,
         raw_json=json.dumps(p),
-        source="gemini",
+        # `source` is overridden by whichever backend called _coerce.
+        # Defaulting to "ollama" here matches the new backend default.
+        source="ollama",
     )

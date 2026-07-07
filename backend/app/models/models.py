@@ -39,6 +39,12 @@ class Employee(Base):
 
     EMAIL = Column(String(100), unique=True, nullable=True)
 
+    CORPORATE_EMAIL = Column(String(120), unique=True, nullable=True, index=True)
+    # Company-assigned email (e.g. firstname.lastname@bvc24.com).
+    # Distinct from EMAIL (which is the candidate's personal inbox
+    # used during recruitment / onboarding invites). Auto-provisioned
+    # by /hr-onboarding/employees/{id}/provision-email.
+
     PHONE = Column(String(20), nullable=True)
 
     PASSWORD = Column(String(255))   # bcrypt
@@ -1250,6 +1256,11 @@ class Attendance(Base):
         default="PRESENT"
     )
     # PRESENT / LATE / ABSENT / HALF_DAY
+
+    LATE_MINUTES = Column(Integer, nullable=True, default=0)
+    # Whole minutes past the office start time. 0 when PRESENT / on time.
+    # Set at check-in; independent of the Permission module (a late
+    # arrival is NOT a permission request — those go through leave.py).
 
     WORKED_HOURS = Column(Float, nullable=True)
 
@@ -4324,6 +4335,96 @@ class AILeaveConversation(Base):
 # is officially hired, at which point a normal Employee row is created
 # through the existing onboarding flow.
 
+class ManpowerRequisition(Base):
+    """Manpower requisition — the front of the recruitment funnel.
+
+    A department raises a request for headcount ("we need 2 backend
+    engineers"), HR reviews, an approver either approves or rejects,
+    and on approval the requisition is converted into one or more
+    RecruitmentJob rows via `/recruitment/requisitions/{id}/convert`.
+    """
+
+    __tablename__ = "recruitment_requisition"
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    REQ_CODE = Column(String(30), unique=True, index=True, nullable=True)
+    # Auto-generated: MRF-2026-0001
+
+    # ----- What are we asking for -----
+    POSITION_TITLE = Column(String(150), nullable=False)
+    DEPARTMENT     = Column(String(100), nullable=True)
+    LOCATION       = Column(String(100), nullable=True)
+
+    EMPLOYMENT_TYPE = Column(String(30), default="FULL_TIME")
+    # FULL_TIME / PART_TIME / CONTRACT / INTERN
+
+    HEADCOUNT = Column(Integer, nullable=False, default=1)
+
+    EXPERIENCE_MIN_YEARS = Column(Float, nullable=True, default=0.0)
+    EXPERIENCE_MAX_YEARS = Column(Float, nullable=True)
+
+    BUDGET_CTC_MIN = Column(Float, nullable=True)
+    BUDGET_CTC_MAX = Column(Float, nullable=True)
+
+    REQUIRED_SKILLS   = Column(String(1000), nullable=True)
+    PREFERRED_SKILLS  = Column(String(1000), nullable=True)
+    REQUIRED_EDUCATION = Column(String(200), nullable=True)
+
+    JUSTIFICATION = Column(String(2000), nullable=True)
+    # Why this hire is needed. Free-text.
+
+    URGENCY = Column(String(20), default="NORMAL", index=True)
+    # LOW / NORMAL / HIGH / CRITICAL
+
+    NEEDED_BY_DATE = Column(Date, nullable=True)
+    # When the position needs to be filled by.
+
+    # ----- Approval workflow -----
+    STATUS = Column(String(20), default="PENDING", index=True)
+    # PENDING / APPROVED / REJECTED / ON_HOLD / CANCELLED / CONVERTED
+    # CONVERTED = at least one RecruitmentJob has been spawned from
+    # this requisition.
+
+    REJECTION_REASON = Column(String(500), nullable=True)
+
+    REQUESTED_BY_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=True,
+        index=True,
+    )
+    # The department head / requester employee.
+
+    APPROVED_BY_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=True,
+    )
+    APPROVED_AT = Column(DateTime, nullable=True)
+
+    # ----- Convert-to-job link -----
+    CONVERTED_JOB_ID = Column(
+        Integer,
+        ForeignKey("recruitment_job.ID", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    # First job spawned from this requisition. Additional jobs may
+    # be created via subsequent conversions, but we only pin the
+    # first for quick lookup.
+
+    VENDOR_ID = Column(
+        Integer,
+        ForeignKey("vendor.ID"),
+        nullable=True,
+        index=True,
+    )
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class RecruitmentJob(Base):
     """An open position the company is hiring for."""
 
@@ -4370,6 +4471,16 @@ class RecruitmentJob(Base):
         ForeignKey("employee.ID"),
         nullable=True,
     )
+
+    REQUISITION_ID = Column(
+        Integer,
+        ForeignKey("recruitment_requisition.ID", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    # Traces this job back to the ManpowerRequisition it was spawned
+    # from. Nullable so jobs can still be created ad-hoc without a
+    # requisition (e.g. urgent replacements).
 
     VENDOR_ID = Column(
         Integer,
@@ -4903,5 +5014,164 @@ class OnboardingChecklistItem(Base):
     CREATED_AT      = Column(DateTime, default=datetime.utcnow)
     UPDATED_AT      = Column(DateTime, default=datetime.utcnow,
                              onupdate=datetime.utcnow)
+
+
+# =====================================================================
+# SHIFT MANAGEMENT
+#
+# Three tables:
+#   Shift              — master (named templates like "Morning", "Night")
+#   ShiftAssignment    — per-employee per-date scheduled shift
+#   ShiftChangeRequest — swap / new-shift approval workflow
+#
+# Employee.SHIFT_START/END is kept as the "default shift" fallback used
+# by /shifts/schedule/auto-fill when no explicit assignment exists.
+# =====================================================================
+
+
+class Shift(Base):
+    """Named shift template. Every scheduled ShiftAssignment references
+    one Shift so payroll + attendance can derive expected hours, break
+    minutes, night differential, etc. from a single source of truth."""
+
+    __tablename__ = "shift_master"
+    __table_args__ = (
+        UniqueConstraint("VENDOR_ID", "SHIFT_CODE", name="uq_shift_vendor_code"),
+    )
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    SHIFT_CODE = Column(String(30), nullable=False)
+    # Short code, e.g. "M", "E", "N", "GEN"
+
+    NAME = Column(String(80), nullable=False)
+    # Human-friendly: "Morning", "General", "Night Shift"
+
+    START_TIME = Column(Time, nullable=False, default=time(9, 0))
+    END_TIME   = Column(Time, nullable=False, default=time(18, 0))
+
+    CROSS_MIDNIGHT = Column(Integer, default=0)
+    # 1 if the shift ends on the next calendar day (e.g. 22:00-06:00).
+    # When 1, ShiftAssignment.SHIFT_DATE refers to the *start* date.
+
+    BREAK_MINUTES = Column(Integer, default=60)
+    # Unpaid break in minutes. Payroll subtracts this from gross hours.
+
+    CATEGORY = Column(String(20), default="DAY", index=True)
+    # DAY / NIGHT / FLEXIBLE / SPLIT
+
+    IS_NIGHT = Column(Integer, default=0)
+    # 1 if this qualifies for the night-shift differential /
+    # allowance calc. Independent of CROSS_MIDNIGHT — a 20:00–04:00
+    # shift is CROSS_MIDNIGHT=1 AND IS_NIGHT=1.
+
+    NIGHT_ALLOWANCE_PCT = Column(Float, nullable=True, default=0.0)
+    # % uplift on that day's basic pay if IS_NIGHT=1.
+
+    FLEX_WINDOW_MINUTES = Column(Integer, nullable=True, default=0)
+    # For FLEXIBLE shifts: how many minutes ± the start/end an
+    # employee may check in/out. 0 = strict.
+
+    COLOR = Column(String(20), nullable=True, default="#3b82f6")
+    # UI colour for the calendar cell.
+
+    DESCRIPTION = Column(String(300), nullable=True)
+
+    IS_ACTIVE = Column(Integer, default=1, index=True)
+
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID"),
+                       nullable=False, index=True)
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow,
+                        onupdate=datetime.utcnow)
+
+
+class ShiftAssignment(Base):
+    """One row per employee × date. Nullable SHIFT_ID = OFF-day (e.g.
+    weekly off / leave). Uniqueness enforced so an employee can't be
+    double-booked on the same date."""
+
+    __tablename__ = "shift_assignment"
+    __table_args__ = (
+        UniqueConstraint(
+            "EMPLOYEE_ID", "SHIFT_DATE",
+            name="uq_shift_emp_date",
+        ),
+    )
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    EMPLOYEE_ID = Column(String(36), ForeignKey("employee.ID"),
+                         nullable=False, index=True)
+
+    SHIFT_ID = Column(Integer, ForeignKey("shift_master.ID"),
+                      nullable=True, index=True)
+    # Nullable: OFF-day / weekly off / leave day → no shift.
+
+    SHIFT_DATE = Column(Date, nullable=False, index=True)
+    # If the shift crosses midnight, this is the *start* date.
+
+    STATUS = Column(String(20), default="SCHEDULED", index=True)
+    # SCHEDULED / COMPLETED / MISSED / SWAPPED / CANCELLED
+
+    NOTES = Column(String(300), nullable=True)
+
+    ASSIGNED_BY_ID = Column(String(36), ForeignKey("employee.ID"),
+                            nullable=True)
+
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID"),
+                       nullable=False, index=True)
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow,
+                        onupdate=datetime.utcnow)
+
+
+class ShiftChangeRequest(Base):
+    """Employee-initiated request to change or swap a scheduled shift.
+    HR / manager approves, at which point the referenced ShiftAssignment
+    row is mutated."""
+
+    __tablename__ = "shift_change_request"
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    REQUESTED_BY_ID = Column(String(36), ForeignKey("employee.ID"),
+                             nullable=False, index=True)
+
+    SHIFT_DATE = Column(Date, nullable=False, index=True)
+    # The date being changed.
+
+    FROM_SHIFT_ID = Column(Integer, ForeignKey("shift_master.ID"),
+                           nullable=True)
+    # Current shift on SHIFT_DATE. Null if today was an OFF-day.
+
+    TO_SHIFT_ID = Column(Integer, ForeignKey("shift_master.ID"),
+                         nullable=True)
+    # Requested shift. Null if requesting a leave / OFF-day.
+
+    SWAP_WITH_EMPLOYEE_ID = Column(String(36), ForeignKey("employee.ID"),
+                                   nullable=True)
+    # Optional: swap-partner. If set, the partner's assignment on the
+    # same date is also mutated when approved.
+
+    REASON = Column(String(500), nullable=True)
+
+    STATUS = Column(String(20), default="PENDING", index=True)
+    # PENDING / APPROVED / REJECTED / CANCELLED
+
+    REJECTION_REASON = Column(String(500), nullable=True)
+
+    APPROVED_BY_ID = Column(String(36), ForeignKey("employee.ID"),
+                            nullable=True)
+    APPROVED_AT = Column(DateTime, nullable=True)
+
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID"),
+                       nullable=False, index=True)
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow,
+                        onupdate=datetime.utcnow)
 
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import styles from "./PurchaseOrders.module.css";
 import API from "../services/api";
+import Pagination from "../components/Pagination";
 
 
 // ===================================================================
@@ -1423,6 +1424,9 @@ function PurchaseOrders() {
 
   const [search, setSearch] = useState("");
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
   const [editorOpen, setEditorOpen] = useState(false);
 
   const [editingId, setEditingId] = useState(null);
@@ -1457,6 +1461,13 @@ function PurchaseOrders() {
     );
 
   }, [rows, search]);
+
+  useEffect(() => { setPage(1); }, [search, statusFilter]);
+
+  const pagedRows = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
 
   const stats = useMemo(() => {
 
@@ -1526,7 +1537,7 @@ function PurchaseOrders() {
 
       {!loading && filtered.length > 0 && (
         <div className={styles.poList}>
-          {filtered.map((r) => (
+          {pagedRows.map((r) => (
             <div key={r.ID} onClick={() => { setEditingId(r.ID); setEditorOpen(true); }} className={styles.poRow}>
               <div>
                 <div className={styles.poRowNumber}>{r.PO_NUMBER}</div>
@@ -1550,6 +1561,16 @@ function PurchaseOrders() {
             </div>
           ))}
         </div>
+      )}
+
+      {!loading && filtered.length > 0 && (
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={filtered.length}
+          onPageChange={setPage}
+          onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+        />
       )}
 
       {editorOpen && (

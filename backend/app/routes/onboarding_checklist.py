@@ -203,11 +203,12 @@ DEFAULT_CHECKLIST = [
     ("DOC_OFFER_SIGNED",  "Signed offer letter received",  "DOC",      40),
     ("DEPT_ASSIGNED",     "Department assigned",           "DEPT",     50),
     ("ROLE_ASSIGNED",     "Role / designation assigned",   "ROLE",     60),
+    ("MANAGER_ASSIGNED",  "Reporting manager assigned",    "OTHER",    65),
     ("ASSETS_ALLOCATED",  "Assets allocated",              "ASSET",    70),
     ("TRAINING_ASSIGNED", "Induction training assigned",   "TRAINING", 80),
     ("WELCOME_KIT",       "Welcome kit handed over",       "KIT",      90),
     ("ID_CARD_ISSUED",    "Company ID card issued",        "OTHER",   100),
-    ("EMAIL_PROVISIONED", "Email + system access created", "OTHER",   110),
+    ("EMAIL_PROVISIONED", "Corporate email + access ready","OTHER",   110),
 ]
 
 
@@ -248,9 +249,11 @@ def _refresh_derived_items(db: Session, employee: Employee) -> None:
         item.STATUS = "DONE"
         item.COMPLETED_DATE = date.today()
 
-    # DEPT / ROLE
-    _mark("DEPT_ASSIGNED", bool(employee.DEPARTMENT_ID))
-    _mark("ROLE_ASSIGNED", bool(employee.DESIGNATION_ID))
+    # DEPT / ROLE / MANAGER
+    _mark("DEPT_ASSIGNED",    bool(employee.DEPARTMENT_ID))
+    _mark("ROLE_ASSIGNED",    bool(employee.DESIGNATION_ID))
+    _mark("MANAGER_ASSIGNED", bool(getattr(employee, "REPORTING_MANAGER_ID", None)))
+    _mark("EMAIL_PROVISIONED", bool(getattr(employee, "CORPORATE_EMAIL", None)))
 
     # Docs — leverage existing EmployeeDocument table
     docs = (db.query(EmployeeDocument)
@@ -779,3 +782,511 @@ def onboarding_overview(only_in_progress: bool = Query(False),
         ))
     db.commit()
     return rows
+
+
+# =====================================================================
+# AUTO-ONBOARDING PIPELINE
+#
+# The whole point: HR shouldn't manually seed each employee's onboarding
+# artifacts. When someone joins, everything should already be in place.
+#
+# The four endpoints below are the automation primitives:
+#
+#   PATCH  /employees/{id}/reporting-manager       assign / change manager
+#   POST   /employees/{id}/provision-email         auto-generate CORPORATE_EMAIL
+#   POST   /employees/{id}/seed-mandatory-trainings  bulk-assign IS_MANDATORY=1
+#   POST   /employees/{id}/auto-onboard             the master orchestrator
+#
+# `auto-onboard` runs everything idempotently — safe to re-run at any time
+# for existing employees; safe to call from an event hook when a new
+# Employee row is created.
+# =====================================================================
+
+
+class ReportingManagerIn(BaseModel):
+    reporting_manager_id: Optional[str] = None
+    # Nullable → clears the manager if the caller passes null / omits.
+
+
+class EmailProvisionResult(BaseModel):
+    corporate_email: str
+    was_generated: bool
+    welcome_email_sent: bool
+    welcome_email_message: Optional[str] = None
+
+
+class AutoOnboardResult(BaseModel):
+    employee_id: str
+    checklist_seeded: bool
+    kit_seeded_count: int
+    trainings_seeded_count: int
+    email_provisioned: bool
+    corporate_email: Optional[str] = None
+    already_present: List[str] = []
+    # Names of steps that were already done, for audit visibility.
+
+
+def _slugify(text: str) -> str:
+    """firstname.lastname (lowercased, ASCII only, no doubled dots)."""
+
+    import re, unicodedata
+
+    if not text:
+
+        return ""
+
+    # Strip diacritics, keep ASCII letters + spaces
+    norm = unicodedata.normalize("NFKD", text)
+    ascii_only = "".join(ch for ch in norm if not unicodedata.combining(ch))
+    lowered = ascii_only.lower()
+
+    # Replace anything that isn't [a-z0-9] with space, then collapse
+    cleaned = re.sub(r"[^a-z0-9]+", " ", lowered).strip()
+
+    parts = [p for p in cleaned.split() if p]
+
+    if not parts:
+
+        return ""
+
+    return ".".join(parts)
+
+
+def _generate_corporate_email(db: Session, employee: Employee) -> str:
+    """firstname.lastname@bvc24.com, with a numeric suffix on collision."""
+
+    import os
+
+    domain = os.getenv("CORPORATE_EMAIL_DOMAIN", "bvc24.com").strip() or "bvc24.com"
+
+    local = _slugify(employee.NAME or "")
+
+    if not local:
+
+        # Fall back to the employee code so we still get a unique address
+        local = (employee.EMPLOYEE_CODE or f"emp{employee.ID}").lower().replace("_", ".")
+
+    candidate = f"{local}@{domain}"
+
+    # Collision check — append .1, .2, ... until unique
+    suffix = 1
+
+    while db.query(Employee).filter(
+        Employee.CORPORATE_EMAIL == candidate,
+        Employee.ID != employee.ID,
+    ).first() is not None:
+
+        candidate = f"{local}.{suffix}@{domain}"
+        suffix += 1
+
+    return candidate
+
+
+def _send_welcome_email(employee: Employee, corporate_email: str) -> (bool, str):
+    """Best-effort welcome email to the candidate's personal inbox with
+    their newly-assigned corporate credentials. Returns (ok, message)."""
+
+    if not employee.EMAIL:
+
+        return False, "No personal email on file — skipped."
+
+    try:
+
+        from app.services.email_service import send_alert_email
+
+        html = f"""
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif;">
+  <div style="max-width:600px;margin:30px auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 6px 30px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#C8102E,#8B0B1F);color:white;padding:24px 28px;">
+      <div style="font-size:11px;font-weight:800;letter-spacing:2px;opacity:0.9;">BVC24 · WELCOME ABOARD</div>
+      <h1 style="margin:6px 0 0;font-size:22px;">Welcome to Bharath Vending Corporation, {employee.NAME}!</h1>
+    </div>
+    <div style="padding:26px 28px;color:#0f172a;line-height:1.55;">
+      <p>Hello {employee.NAME},</p>
+      <p>We're excited to have you on board. Your onboarding is now underway — HR will guide you through the joining checklist over the next few days.</p>
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 18px;margin:18px 0;">
+        <div style="font-size:11px;color:#7A1022;font-weight:700;letter-spacing:1.5px;margin-bottom:6px;">YOUR CORPORATE EMAIL</div>
+        <div style="font-size:14px;"><b>{corporate_email}</b></div>
+        <div style="font-size:12px;color:#64748b;margin-top:8px;">
+          Access details will be shared separately once your IT setup is provisioned.
+        </div>
+      </div>
+      <p>In the meantime, please make sure your documents (Aadhaar, PAN, bank proof) are ready — HR may request scans as part of the checklist.</p>
+      <p style="margin-top:24px;">Welcome again,<br><b>BVC24 HR Team</b></p>
+    </div>
+    <div style="background:#f8fafc;padding:14px 28px;font-size:11px;color:#94a3b8;text-align:center;">
+      Bharath Vending Corporation · Chennai, Tamil Nadu · www.bvc24.in
+    </div>
+  </div>
+</body>
+</html>
+"""
+
+        ok, msg = send_alert_email(
+            "Welcome to BVC24 — your corporate email",
+            html,
+            recipient=employee.EMAIL,
+        )
+
+        return bool(ok), (msg or "")
+
+    except Exception as exc:
+
+        return False, f"send failed: {exc}"
+
+
+@router.patch("/employees/{emp_id}/reporting-manager")
+def assign_reporting_manager(
+    emp_id: str,
+    payload: ReportingManagerIn,
+    db: Session = Depends(get_db),
+    _admin: Employee = Depends(get_current_admin),
+):
+    """Assign or clear a reporting manager for an employee.
+
+    Rejects self-manager (can't report to yourself) and rejects circular
+    chains (A→B, B→A). Auto-derives the MANAGER_ASSIGNED checklist item
+    on the next fetch."""
+
+    emp = _require_employee(db, emp_id)
+
+    mgr_id = payload.reporting_manager_id
+
+    if mgr_id:
+
+        if mgr_id == emp.ID:
+
+            raise HTTPException(
+                status_code=400,
+                detail="An employee cannot report to themselves.",
+            )
+
+        mgr = db.query(Employee).filter(Employee.ID == mgr_id).first()
+
+        if mgr is None:
+
+            raise HTTPException(
+                status_code=404,
+                detail=f"Manager {mgr_id} not found.",
+            )
+
+        # Circular-chain guard — walk up the manager chain from mgr and
+        # make sure emp doesn't appear.
+        seen = set()
+
+        cursor = mgr
+
+        while cursor is not None and cursor.REPORTING_MANAGER_ID:
+
+            if cursor.REPORTING_MANAGER_ID in seen:
+
+                break    # existing loop somewhere; stop walking
+
+            seen.add(cursor.REPORTING_MANAGER_ID)
+
+            if cursor.REPORTING_MANAGER_ID == emp.ID:
+
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Circular reporting chain detected — assigning "
+                        f"{mgr.NAME} would make the reporting graph a cycle."
+                    ),
+                )
+
+            cursor = db.query(Employee).filter(
+                Employee.ID == cursor.REPORTING_MANAGER_ID
+            ).first()
+
+    emp.REPORTING_MANAGER_ID = mgr_id or None
+
+    db.commit()
+    db.refresh(emp)
+
+    # Refresh checklist so MANAGER_ASSIGNED flips DONE immediately.
+    _seed_default_checklist(db, emp)
+    _refresh_derived_items(db, emp)
+    db.commit()
+
+    return {
+        "employee_id": emp.ID,
+        "reporting_manager_id": emp.REPORTING_MANAGER_ID,
+    }
+
+
+@router.post("/employees/{emp_id}/provision-email", response_model=EmailProvisionResult)
+def provision_corporate_email(
+    emp_id: str,
+    db: Session = Depends(get_db),
+    _admin: Employee = Depends(get_current_admin),
+):
+    """Auto-generate a corporate email for the employee, save it, and
+    send a welcome email to their personal inbox with the new address.
+
+    Idempotent: if CORPORATE_EMAIL is already set, returns it unchanged
+    without sending another welcome email."""
+
+    emp = _require_employee(db, emp_id)
+
+    was_generated = False
+
+    if not (emp.CORPORATE_EMAIL or "").strip():
+
+        emp.CORPORATE_EMAIL = _generate_corporate_email(db, emp)
+        db.commit()
+        db.refresh(emp)
+        was_generated = True
+
+    # Auto-derive EMAIL_PROVISIONED on the checklist
+    _seed_default_checklist(db, emp)
+    _refresh_derived_items(db, emp)
+    db.commit()
+
+    welcome_ok = False
+    welcome_msg = None
+
+    if was_generated:
+
+        welcome_ok, welcome_msg = _send_welcome_email(emp, emp.CORPORATE_EMAIL)
+
+    return EmailProvisionResult(
+        corporate_email=emp.CORPORATE_EMAIL,
+        was_generated=was_generated,
+        welcome_email_sent=welcome_ok,
+        welcome_email_message=welcome_msg,
+    )
+
+
+@router.post("/employees/{emp_id}/seed-mandatory-trainings")
+def seed_mandatory_trainings(
+    emp_id: str,
+    db: Session = Depends(get_db),
+    _admin: Employee = Depends(get_current_admin),
+):
+    """Bulk-assign every IS_MANDATORY=1 TrainingProgram in the employee's
+    vendor scope. Idempotent — skips programs that already have an
+    assignment row for this employee."""
+
+    emp = _require_employee(db, emp_id)
+
+    programs = (
+        db.query(TrainingProgram)
+        .filter(
+            TrainingProgram.IS_MANDATORY == 1,
+            TrainingProgram.IS_ACTIVE == 1,
+            TrainingProgram.VENDOR_ID == emp.VENDOR_ID,
+        )
+        .all()
+    )
+
+    existing = {
+        r.TRAINING_PROGRAM_ID for r in
+        db.query(TrainingAssignment.TRAINING_PROGRAM_ID)
+        .filter(TrainingAssignment.EMPLOYEE_ID == emp.ID)
+        .all()
+    }
+
+    created = 0
+
+    for prog in programs:
+
+        if prog.ID in existing:
+
+            continue
+
+        db.add(TrainingAssignment(
+            EMPLOYEE_ID=emp.ID,
+            TRAINING_PROGRAM_ID=prog.ID,
+            ASSIGNED_DATE=date.today(),
+            STATUS="ASSIGNED",
+            VENDOR_ID=emp.VENDOR_ID,
+        ))
+
+        created += 1
+
+    db.commit()
+
+    # Derive TRAINING_ASSIGNED checklist DONE
+    _seed_default_checklist(db, emp)
+    _refresh_derived_items(db, emp)
+    db.commit()
+
+    return {
+        "employee_id": emp.ID,
+        "programs_available": len(programs),
+        "assignments_created": created,
+        "assignments_already_present": len(programs) - created,
+    }
+
+
+def _seed_default_kit(db: Session, employee: Employee) -> int:
+    """Internal: create WelcomeKitIssuance rows for every IS_DEFAULT=1 kit
+    item that isn't already issued to this employee. Returns count created."""
+
+    items = (
+        db.query(WelcomeKitItem)
+        .filter(
+            WelcomeKitItem.IS_DEFAULT == 1,
+            WelcomeKitItem.IS_ACTIVE == 1,
+            WelcomeKitItem.VENDOR_ID == employee.VENDOR_ID,
+        )
+        .all()
+    )
+
+    existing = {
+        r.WELCOME_KIT_ITEM_ID for r in
+        db.query(WelcomeKitIssuance.WELCOME_KIT_ITEM_ID)
+        .filter(WelcomeKitIssuance.EMPLOYEE_ID == employee.ID)
+        .all()
+    }
+
+    created = 0
+
+    for it in items:
+
+        if it.ID in existing:
+
+            continue
+
+        db.add(WelcomeKitIssuance(
+            EMPLOYEE_ID=employee.ID,
+            WELCOME_KIT_ITEM_ID=it.ID,
+            STATUS="PENDING",
+            VENDOR_ID=employee.VENDOR_ID,
+        ))
+
+        created += 1
+
+    return created
+
+
+@router.post("/employees/{emp_id}/auto-onboard", response_model=AutoOnboardResult)
+def auto_onboard(
+    emp_id: str,
+    db: Session = Depends(get_db),
+    _admin: Employee = Depends(get_current_admin),
+):
+    """Master orchestrator — runs everything an ERP should do the moment
+    an employee is hired:
+
+      1. Seed the joining checklist (11 default items)
+      2. Seed the default welcome-kit items as PENDING issuances
+      3. Assign every mandatory training program
+      4. Provision a corporate email + send welcome email to personal inbox
+
+    Idempotent: every step is safe to re-run. Steps already completed are
+    reported in `already_present` for audit visibility.
+    """
+
+    emp = _require_employee(db, emp_id)
+
+    already: List[str] = []
+
+    # 1. Checklist
+    pre_count = (
+        db.query(OnboardingChecklistItem)
+        .filter(OnboardingChecklistItem.EMPLOYEE_ID == emp.ID)
+        .count()
+    )
+
+    _seed_default_checklist(db, emp)
+    db.commit()
+
+    post_count = (
+        db.query(OnboardingChecklistItem)
+        .filter(OnboardingChecklistItem.EMPLOYEE_ID == emp.ID)
+        .count()
+    )
+
+    checklist_seeded = post_count > pre_count
+
+    if not checklist_seeded and pre_count > 0:
+
+        already.append("checklist")
+
+    # 2. Welcome kit
+    kit_created = _seed_default_kit(db, emp)
+    db.commit()
+
+    if kit_created == 0:
+
+        already.append("welcome_kit")
+
+    # 3. Mandatory trainings
+    programs = (
+        db.query(TrainingProgram)
+        .filter(
+            TrainingProgram.IS_MANDATORY == 1,
+            TrainingProgram.IS_ACTIVE == 1,
+            TrainingProgram.VENDOR_ID == emp.VENDOR_ID,
+        )
+        .all()
+    )
+    existing = {
+        r.TRAINING_PROGRAM_ID for r in
+        db.query(TrainingAssignment.TRAINING_PROGRAM_ID)
+        .filter(TrainingAssignment.EMPLOYEE_ID == emp.ID)
+        .all()
+    }
+
+    trainings_created = 0
+
+    for prog in programs:
+
+        if prog.ID in existing:
+
+            continue
+
+        db.add(TrainingAssignment(
+            EMPLOYEE_ID=emp.ID,
+            TRAINING_PROGRAM_ID=prog.ID,
+            ASSIGNED_DATE=date.today(),
+            STATUS="ASSIGNED",
+            VENDOR_ID=emp.VENDOR_ID,
+        ))
+        trainings_created += 1
+
+    db.commit()
+
+    if trainings_created == 0 and programs:
+
+        already.append("mandatory_trainings")
+
+    # 4. Corporate email
+    was_generated = False
+
+    if not (emp.CORPORATE_EMAIL or "").strip():
+
+        emp.CORPORATE_EMAIL = _generate_corporate_email(db, emp)
+        db.commit()
+        db.refresh(emp)
+        was_generated = True
+
+        # Fire-and-forget welcome email — non-blocking on failure
+        try:
+
+            _send_welcome_email(emp, emp.CORPORATE_EMAIL)
+
+        except Exception:
+
+            pass
+
+    else:
+
+        already.append("corporate_email")
+
+    # Finally refresh derived checklist items
+    _refresh_derived_items(db, emp)
+    db.commit()
+
+    return AutoOnboardResult(
+        employee_id=emp.ID,
+        checklist_seeded=checklist_seeded,
+        kit_seeded_count=kit_created,
+        trainings_seeded_count=trainings_created,
+        email_provisioned=was_generated,
+        corporate_email=emp.CORPORATE_EMAIL,
+        already_present=already,
+    )

@@ -54,6 +54,7 @@ from app.database.database import get_db
 from app.models.models import (
     RecruitmentJob, Candidate, CandidateApplication,
     Interview, OfferLetter, Employee,
+    ManpowerRequisition,
 )
 from app.services.resume_parser import parse_resume, ParsedResume
 from app.services.recruitment_screening import (
@@ -372,6 +373,196 @@ _STATIC_RESUME_DIR = (
 )
 
 
+@router.post("/candidates/parse")
+def parse_candidate_resume(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    """Parse a resume WITHOUT persisting the Candidate row.
+
+    Phase 5 migration companion: with resume parsing running on the
+    local Qwen 2.5 7B model instead of Gemini, field-level accuracy
+    drops from ~90-95% to ~65-75%. This endpoint lets the frontend
+    show HR a "review parsed fields before saving" modal so mistakes
+    are caught before they hit the DB.
+
+    Flow:
+      1. Frontend uploads the resume here → gets parsed JSON + a
+         resume_url pointing to the file already saved on disk.
+      2. HR reviews / corrects the fields inside the modal.
+      3. Frontend POSTs the corrected payload to /candidates
+         (or /candidates/upload with skip_parse=true) to persist.
+
+    If the caller wants the legacy behaviour (parse + save in one
+    shot), they can still use /candidates/upload."""
+
+    raw = file.file.read()
+
+    if not raw:
+
+        raise HTTPException(status_code=400, detail="Empty file")
+
+    parsed: ParsedResume = parse_resume(file.filename or "resume.pdf", raw)
+
+    # Persist the file to disk (needed regardless — HR needs the file
+    # to review the original alongside the parsed fields).
+    _STATIC_RESUME_DIR.mkdir(parents=True, exist_ok=True)
+
+    safe_ext = (file.filename or "").rsplit(".", 1)[-1].lower() or "bin"
+
+    fname = f"{uuid.uuid4().hex[:10]}.{safe_ext}"
+
+    dest = _STATIC_RESUME_DIR / fname
+
+    with dest.open("wb") as out:
+
+        out.write(raw)
+
+    resume_url = f"/static/recruitment/resumes/{fname}"
+
+    # Check whether we already have a candidate with this email so the
+    # review modal can warn "existing candidate — will update" instead
+    # of "new candidate — will create".
+    existing = None
+
+    if parsed.email:
+
+        existing = (
+            db.query(Candidate)
+            .filter(Candidate.EMAIL == parsed.email)
+            .first()
+        )
+
+    return {
+        "resume_url":   resume_url,
+        "parsed":       parsed.to_dict(),
+        "existing_id":  existing.ID if existing else None,
+        "existing_name": existing.FULL_NAME if existing else None,
+    }
+
+
+class CandidateCreateFromReview(BaseModel):
+    """Payload the frontend sends after HR reviews the parsed fields.
+
+    resume_url must come from a prior /candidates/parse call — the
+    file was already saved to disk in that step."""
+
+    resume_url:       str
+    full_name:        str
+    email:            Optional[str] = None
+    phone:            Optional[str] = None
+    location:         Optional[str] = None
+    linkedin:         Optional[str] = None
+
+    skills:           List[str] = []
+    languages:        List[str] = []
+    certifications:   List[str] = []
+
+    education:        List[Dict[str, Any]] = []
+    work_experience:  List[Dict[str, Any]] = []
+    projects:         List[Dict[str, Any]] = []
+
+    total_experience_years: Optional[float] = None
+    highest_qualification:  Optional[str]   = None
+
+    resume_text:      Optional[str] = None   # parsed.raw_text from step 1
+    source:           Optional[str] = None
+    notes:            Optional[str] = None
+
+
+@router.post("/candidates")
+def create_candidate_from_review(
+    body: CandidateCreateFromReview,
+    db: Session = Depends(get_db),
+):
+    """Second step of the review-then-save flow.
+
+    Front-end has already POSTed the file to /candidates/parse and
+    let HR correct any fields. This endpoint takes the corrected
+    payload + the resume_url from step 1 and persists the Candidate
+    row. If the email matches an existing candidate, that row is
+    updated instead of a duplicate being created."""
+
+    resume_url = (body.resume_url or "").strip()
+
+    if not resume_url:
+
+        raise HTTPException(status_code=400, detail="resume_url is required")
+
+    full_name = (body.full_name or "").strip() or "Unknown candidate"
+
+    # Update-if-exists by email (same rule as /candidates/upload)
+    cand: Optional[Candidate] = None
+
+    if body.email:
+
+        cand = db.query(Candidate).filter(Candidate.EMAIL == body.email).first()
+
+    parsed_dict = {
+        "full_name":              body.full_name,
+        "email":                  body.email,
+        "phone":                  body.phone,
+        "location":               body.location,
+        "linkedin":               body.linkedin,
+        "skills":                 body.skills,
+        "languages":              body.languages,
+        "certifications":         body.certifications,
+        "education":              body.education,
+        "work_experience":        body.work_experience,
+        "projects":               body.projects,
+        "total_experience_years": body.total_experience_years,
+        "highest_qualification":  body.highest_qualification,
+    }
+
+    parsed_json = json.dumps(parsed_dict, default=str)
+
+    if cand is None:
+
+        cand = Candidate(
+            CANDIDATE_CODE=next_code("CAND", db, Candidate, "CANDIDATE_CODE"),
+            FULL_NAME=full_name,
+            EMAIL=body.email,
+            PHONE=body.phone,
+            LOCATION=body.location,
+            RESUME_URL=resume_url,
+            RESUME_TEXT=(body.resume_text or "")[:60000],
+            PARSED_JSON=parsed_json,
+            TOTAL_EXPERIENCE_YEARS=body.total_experience_years,
+            HIGHEST_QUALIFICATION=body.highest_qualification,
+            SKILLS=", ".join(s for s in body.skills if s),
+            STATUS="NEW",
+            SOURCE=body.source,
+            NOTES=body.notes,
+            VENDOR_ID=1,
+        )
+        db.add(cand)
+
+    else:
+
+        cand.FULL_NAME  = full_name or cand.FULL_NAME
+        cand.PHONE      = body.phone or cand.PHONE
+        cand.LOCATION   = body.location or cand.LOCATION
+        cand.RESUME_URL = resume_url
+        if body.resume_text:
+            cand.RESUME_TEXT = body.resume_text[:60000]
+        cand.PARSED_JSON = parsed_json
+        if body.total_experience_years is not None:
+            cand.TOTAL_EXPERIENCE_YEARS = body.total_experience_years
+        if body.highest_qualification:
+            cand.HIGHEST_QUALIFICATION = body.highest_qualification
+        if body.skills:
+            cand.SKILLS = ", ".join(s for s in body.skills if s)
+        if body.source:
+            cand.SOURCE = body.source
+        if body.notes:
+            cand.NOTES = body.notes
+        cand.UPDATED_AT = datetime.utcnow()
+
+    db.commit(); db.refresh(cand)
+
+    return _serialize_candidate(cand, include_parsed=True)
+
+
 @router.post("/candidates/upload")
 def upload_candidate(
     file: UploadFile = File(...),
@@ -381,7 +572,11 @@ def upload_candidate(
 ):
     """Upload + parse a resume in one shot. If a candidate with the
     parsed email already exists, the existing row is updated; otherwise
-    a new candidate is created. Returns the canonical candidate row."""
+    a new candidate is created. Returns the canonical candidate row.
+
+    NOTE: this legacy one-shot endpoint is kept for callers that skip
+    the review modal. New code should prefer /candidates/parse →
+    /candidates so HR can catch parse errors before they hit the DB."""
 
     raw = file.file.read()
     if not raw:
@@ -1163,3 +1358,488 @@ def update_offer_status(offer_id: int, body: OfferStatusUpdate, db: Session = De
         o.RESPONDED_AT = datetime.utcnow()
     db.commit(); db.refresh(o)
     return _serialize_offer(o)
+
+
+# =====================================================================
+# MANPOWER REQUISITIONS — the front of the recruitment funnel.
+#
+# Department raises a request → HR reviews → approver approves/rejects
+# → on approval, one or more RecruitmentJob rows are spawned via
+# `/recruitment/requisitions/{id}/convert`.
+# =====================================================================
+
+REQ_ALLOWED_STATUS = {
+    "PENDING", "APPROVED", "REJECTED", "ON_HOLD", "CANCELLED", "CONVERTED"
+}
+
+REQ_ALLOWED_URGENCY = {"LOW", "NORMAL", "HIGH", "CRITICAL"}
+
+
+class RequisitionCreate(BaseModel):
+    POSITION_TITLE: str = Field(..., min_length=1)
+    DEPARTMENT: Optional[str] = None
+    LOCATION: Optional[str] = None
+    EMPLOYMENT_TYPE: Optional[str] = "FULL_TIME"
+    HEADCOUNT: int = 1
+    EXPERIENCE_MIN_YEARS: Optional[float] = 0.0
+    EXPERIENCE_MAX_YEARS: Optional[float] = None
+    BUDGET_CTC_MIN: Optional[float] = None
+    BUDGET_CTC_MAX: Optional[float] = None
+    REQUIRED_SKILLS: Optional[str] = None
+    PREFERRED_SKILLS: Optional[str] = None
+    REQUIRED_EDUCATION: Optional[str] = None
+    JUSTIFICATION: Optional[str] = None
+    URGENCY: Optional[str] = "NORMAL"
+    NEEDED_BY_DATE: Optional[str] = None    # ISO YYYY-MM-DD
+    REQUESTED_BY_ID: Optional[str] = None
+    VENDOR_ID: Optional[int] = 1
+
+
+class RequisitionUpdate(BaseModel):
+    POSITION_TITLE: Optional[str] = None
+    DEPARTMENT: Optional[str] = None
+    LOCATION: Optional[str] = None
+    EMPLOYMENT_TYPE: Optional[str] = None
+    HEADCOUNT: Optional[int] = None
+    EXPERIENCE_MIN_YEARS: Optional[float] = None
+    EXPERIENCE_MAX_YEARS: Optional[float] = None
+    BUDGET_CTC_MIN: Optional[float] = None
+    BUDGET_CTC_MAX: Optional[float] = None
+    REQUIRED_SKILLS: Optional[str] = None
+    PREFERRED_SKILLS: Optional[str] = None
+    REQUIRED_EDUCATION: Optional[str] = None
+    JUSTIFICATION: Optional[str] = None
+    URGENCY: Optional[str] = None
+    NEEDED_BY_DATE: Optional[str] = None
+
+
+class RequisitionDecision(BaseModel):
+    APPROVED_BY_ID: Optional[str] = None
+    REJECTION_REASON: Optional[str] = None
+
+
+def _serialize_requisition(r: ManpowerRequisition, db: Session) -> dict:
+
+    requester_name = None
+    approver_name = None
+
+    if r.REQUESTED_BY_ID:
+        emp = db.query(Employee).filter(Employee.ID == r.REQUESTED_BY_ID).first()
+        if emp is not None:
+            requester_name = emp.NAME
+
+    if r.APPROVED_BY_ID:
+        emp = db.query(Employee).filter(Employee.ID == r.APPROVED_BY_ID).first()
+        if emp is not None:
+            approver_name = emp.NAME
+
+    return {
+        "ID":                  r.ID,
+        "REQ_CODE":            r.REQ_CODE,
+        "POSITION_TITLE":      r.POSITION_TITLE,
+        "DEPARTMENT":          r.DEPARTMENT,
+        "LOCATION":            r.LOCATION,
+        "EMPLOYMENT_TYPE":     r.EMPLOYMENT_TYPE,
+        "HEADCOUNT":           r.HEADCOUNT,
+        "EXPERIENCE_MIN_YEARS": r.EXPERIENCE_MIN_YEARS,
+        "EXPERIENCE_MAX_YEARS": r.EXPERIENCE_MAX_YEARS,
+        "BUDGET_CTC_MIN":      r.BUDGET_CTC_MIN,
+        "BUDGET_CTC_MAX":      r.BUDGET_CTC_MAX,
+        "REQUIRED_SKILLS":     r.REQUIRED_SKILLS,
+        "PREFERRED_SKILLS":    r.PREFERRED_SKILLS,
+        "REQUIRED_EDUCATION":  r.REQUIRED_EDUCATION,
+        "JUSTIFICATION":       r.JUSTIFICATION,
+        "URGENCY":             r.URGENCY,
+        "NEEDED_BY_DATE":      r.NEEDED_BY_DATE.isoformat() if r.NEEDED_BY_DATE else None,
+        "STATUS":              r.STATUS,
+        "REJECTION_REASON":    r.REJECTION_REASON,
+        "REQUESTED_BY_ID":     r.REQUESTED_BY_ID,
+        "REQUESTED_BY_NAME":   requester_name,
+        "APPROVED_BY_ID":      r.APPROVED_BY_ID,
+        "APPROVED_BY_NAME":    approver_name,
+        "APPROVED_AT":         r.APPROVED_AT.isoformat() if r.APPROVED_AT else None,
+        "CONVERTED_JOB_ID":    r.CONVERTED_JOB_ID,
+        "VENDOR_ID":           r.VENDOR_ID,
+        "CREATED_AT":          r.CREATED_AT.isoformat() if r.CREATED_AT else None,
+        "UPDATED_AT":          r.UPDATED_AT.isoformat() if r.UPDATED_AT else None,
+    }
+
+
+def _next_req_code(db: Session) -> str:
+    """MRF-YYYY-NNNN, incrementing per calendar year."""
+
+    year = datetime.utcnow().year
+    prefix = f"MRF-{year}-"
+    last = (
+        db.query(ManpowerRequisition)
+        .filter(ManpowerRequisition.REQ_CODE.like(f"{prefix}%"))
+        .order_by(ManpowerRequisition.ID.desc())
+        .first()
+    )
+    if last is None or not last.REQ_CODE:
+        return f"{prefix}0001"
+    try:
+        n = int(last.REQ_CODE.split("-")[-1]) + 1
+    except (ValueError, IndexError):
+        n = 1
+    return f"{prefix}{n:04d}"
+
+
+def _parse_iso_date(s: Optional[str]):
+    if not s:
+        return None
+    try:
+        return datetime.strptime(s[:10], "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Date must be ISO YYYY-MM-DD.",
+        )
+
+
+@router.post("/requisitions")
+def create_requisition(body: RequisitionCreate, db: Session = Depends(get_db)):
+    """Create a new manpower requisition — starts in PENDING."""
+
+    title = (body.POSITION_TITLE or "").strip()
+
+    if not title:
+
+        raise HTTPException(
+            status_code=400,
+            detail="POSITION_TITLE is required.",
+        )
+
+    urgency = (body.URGENCY or "NORMAL").upper()
+
+    if urgency not in REQ_ALLOWED_URGENCY:
+
+        raise HTTPException(
+            status_code=400,
+            detail=f"URGENCY must be one of {sorted(REQ_ALLOWED_URGENCY)}",
+        )
+
+    headcount = int(body.HEADCOUNT or 1)
+
+    if headcount < 1:
+
+        raise HTTPException(
+            status_code=400,
+            detail="HEADCOUNT must be at least 1.",
+        )
+
+    req = ManpowerRequisition(
+        REQ_CODE=_next_req_code(db),
+        POSITION_TITLE=title,
+        DEPARTMENT=(body.DEPARTMENT or None),
+        LOCATION=(body.LOCATION or None),
+        EMPLOYMENT_TYPE=(body.EMPLOYMENT_TYPE or "FULL_TIME"),
+        HEADCOUNT=headcount,
+        EXPERIENCE_MIN_YEARS=body.EXPERIENCE_MIN_YEARS,
+        EXPERIENCE_MAX_YEARS=body.EXPERIENCE_MAX_YEARS,
+        BUDGET_CTC_MIN=body.BUDGET_CTC_MIN,
+        BUDGET_CTC_MAX=body.BUDGET_CTC_MAX,
+        REQUIRED_SKILLS=body.REQUIRED_SKILLS,
+        PREFERRED_SKILLS=body.PREFERRED_SKILLS,
+        REQUIRED_EDUCATION=body.REQUIRED_EDUCATION,
+        JUSTIFICATION=body.JUSTIFICATION,
+        URGENCY=urgency,
+        NEEDED_BY_DATE=_parse_iso_date(body.NEEDED_BY_DATE),
+        REQUESTED_BY_ID=body.REQUESTED_BY_ID,
+        VENDOR_ID=body.VENDOR_ID or 1,
+        STATUS="PENDING",
+    )
+
+    db.add(req)
+
+    try:
+
+        db.commit()
+
+        db.refresh(req)
+
+    except Exception as exc:
+
+        db.rollback()
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create requisition: {exc}",
+        )
+
+    return _serialize_requisition(req, db)
+
+
+@router.get("/requisitions")
+def list_requisitions(
+    status: Optional[str] = None,
+    urgency: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """List all requisitions, optionally filtered by status / urgency."""
+
+    q = db.query(ManpowerRequisition)
+
+    if status:
+
+        q = q.filter(ManpowerRequisition.STATUS == status.upper())
+
+    if urgency:
+
+        q = q.filter(ManpowerRequisition.URGENCY == urgency.upper())
+
+    rows = q.order_by(ManpowerRequisition.ID.desc()).all()
+
+    return [_serialize_requisition(r, db) for r in rows]
+
+
+@router.get("/requisitions/{req_id}")
+def get_requisition(req_id: int, db: Session = Depends(get_db)):
+
+    r = db.query(ManpowerRequisition).filter(
+        ManpowerRequisition.ID == req_id
+    ).first()
+
+    if r is None:
+
+        raise HTTPException(
+            status_code=404,
+            detail=f"Requisition {req_id} not found.",
+        )
+
+    return _serialize_requisition(r, db)
+
+
+@router.patch("/requisitions/{req_id}")
+def update_requisition(
+    req_id: int,
+    body: RequisitionUpdate,
+    db: Session = Depends(get_db),
+):
+    """Only editable while still PENDING or ON_HOLD."""
+
+    r = db.query(ManpowerRequisition).filter(
+        ManpowerRequisition.ID == req_id
+    ).first()
+
+    if r is None:
+
+        raise HTTPException(status_code=404, detail=f"Requisition {req_id} not found.")
+
+    if r.STATUS not in ("PENDING", "ON_HOLD"):
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Cannot edit a requisition in status {r.STATUS}. "
+                "Only PENDING or ON_HOLD requisitions are editable."
+            ),
+        )
+
+    data = body.model_dump(exclude_unset=True)
+
+    if "URGENCY" in data and data["URGENCY"]:
+
+        u = data["URGENCY"].upper()
+        if u not in REQ_ALLOWED_URGENCY:
+            raise HTTPException(
+                status_code=400,
+                detail=f"URGENCY must be one of {sorted(REQ_ALLOWED_URGENCY)}",
+            )
+        data["URGENCY"] = u
+
+    if "NEEDED_BY_DATE" in data:
+
+        data["NEEDED_BY_DATE"] = _parse_iso_date(data["NEEDED_BY_DATE"])
+
+    if "HEADCOUNT" in data and data["HEADCOUNT"] is not None:
+
+        if int(data["HEADCOUNT"]) < 1:
+            raise HTTPException(
+                status_code=400,
+                detail="HEADCOUNT must be at least 1.",
+            )
+
+    for key, value in data.items():
+
+        setattr(r, key, value)
+
+    r.UPDATED_AT = datetime.utcnow()
+
+    db.commit(); db.refresh(r)
+
+    return _serialize_requisition(r, db)
+
+
+@router.post("/requisitions/{req_id}/approve")
+def approve_requisition(
+    req_id: int,
+    body: RequisitionDecision,
+    db: Session = Depends(get_db),
+):
+    """Mark a pending requisition as APPROVED — clears it for conversion."""
+
+    r = db.query(ManpowerRequisition).filter(
+        ManpowerRequisition.ID == req_id
+    ).first()
+
+    if r is None:
+
+        raise HTTPException(status_code=404, detail=f"Requisition {req_id} not found.")
+
+    if r.STATUS != "PENDING":
+
+        raise HTTPException(
+            status_code=400,
+            detail=f"Only PENDING requisitions can be approved (current: {r.STATUS}).",
+        )
+
+    r.STATUS = "APPROVED"
+    r.APPROVED_BY_ID = body.APPROVED_BY_ID
+    r.APPROVED_AT = datetime.utcnow()
+    r.REJECTION_REASON = None
+    r.UPDATED_AT = datetime.utcnow()
+
+    db.commit(); db.refresh(r)
+
+    return _serialize_requisition(r, db)
+
+
+@router.post("/requisitions/{req_id}/reject")
+def reject_requisition(
+    req_id: int,
+    body: RequisitionDecision,
+    db: Session = Depends(get_db),
+):
+    """Reject a requisition. Requires a reason in the body."""
+
+    r = db.query(ManpowerRequisition).filter(
+        ManpowerRequisition.ID == req_id
+    ).first()
+
+    if r is None:
+
+        raise HTTPException(status_code=404, detail=f"Requisition {req_id} not found.")
+
+    if r.STATUS not in ("PENDING", "ON_HOLD"):
+
+        raise HTTPException(
+            status_code=400,
+            detail=f"Only PENDING or ON_HOLD requisitions can be rejected (current: {r.STATUS}).",
+        )
+
+    reason = (body.REJECTION_REASON or "").strip()
+
+    if not reason:
+
+        raise HTTPException(
+            status_code=400,
+            detail="REJECTION_REASON is required.",
+        )
+
+    r.STATUS = "REJECTED"
+    r.REJECTION_REASON = reason
+    r.APPROVED_BY_ID = body.APPROVED_BY_ID    # who rejected
+    r.APPROVED_AT = datetime.utcnow()
+    r.UPDATED_AT = datetime.utcnow()
+
+    db.commit(); db.refresh(r)
+
+    return _serialize_requisition(r, db)
+
+
+@router.post("/requisitions/{req_id}/convert")
+def convert_requisition_to_job(
+    req_id: int,
+    db: Session = Depends(get_db),
+):
+    """Spawn a RecruitmentJob row from an APPROVED requisition, copying
+    all the position + skill + budget details across. Sets the
+    requisition's STATUS to CONVERTED and pins the new job's ID."""
+
+    r = db.query(ManpowerRequisition).filter(
+        ManpowerRequisition.ID == req_id
+    ).first()
+
+    if r is None:
+
+        raise HTTPException(status_code=404, detail=f"Requisition {req_id} not found.")
+
+    if r.STATUS != "APPROVED":
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Only APPROVED requisitions can be converted "
+                f"(current: {r.STATUS})."
+            ),
+        )
+
+    # Generate a job code using the same helper the jobs route uses.
+    # Signature: next_code(prefix, db, model, code_field).
+    job_code = next_code("JOB", db, RecruitmentJob, "JOB_CODE")
+
+    job = RecruitmentJob(
+        JOB_CODE=job_code,
+        TITLE=r.POSITION_TITLE,
+        DEPARTMENT=r.DEPARTMENT,
+        LOCATION=r.LOCATION,
+        EMPLOYMENT_TYPE=r.EMPLOYMENT_TYPE or "FULL_TIME",
+        EXPERIENCE_MIN_YEARS=r.EXPERIENCE_MIN_YEARS or 0.0,
+        EXPERIENCE_MAX_YEARS=r.EXPERIENCE_MAX_YEARS,
+        SALARY_MIN=r.BUDGET_CTC_MIN,
+        SALARY_MAX=r.BUDGET_CTC_MAX,
+        REQUIRED_SKILLS=r.REQUIRED_SKILLS,
+        PREFERRED_SKILLS=r.PREFERRED_SKILLS,
+        REQUIRED_EDUCATION=r.REQUIRED_EDUCATION,
+        DESCRIPTION=r.JUSTIFICATION,
+        STATUS="OPEN",
+        OPENINGS=r.HEADCOUNT or 1,
+        REQUISITION_ID=r.ID,
+        CREATED_BY_ID=r.APPROVED_BY_ID,
+        VENDOR_ID=r.VENDOR_ID or 1,
+    )
+
+    db.add(job)
+    db.flush()
+
+    r.STATUS = "CONVERTED"
+    r.CONVERTED_JOB_ID = job.ID
+    r.UPDATED_AT = datetime.utcnow()
+
+    db.commit(); db.refresh(r); db.refresh(job)
+
+    return {
+        "requisition": _serialize_requisition(r, db),
+        "job_id": job.ID,
+        "job_code": job.JOB_CODE,
+    }
+
+
+@router.delete("/requisitions/{req_id}")
+def delete_requisition(req_id: int, db: Session = Depends(get_db)):
+    """Delete a requisition. Not allowed once converted to a job — cancel
+    instead so the audit trail is preserved."""
+
+    r = db.query(ManpowerRequisition).filter(
+        ManpowerRequisition.ID == req_id
+    ).first()
+
+    if r is None:
+
+        raise HTTPException(status_code=404, detail=f"Requisition {req_id} not found.")
+
+    if r.STATUS == "CONVERTED":
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Cannot delete a requisition that has already been "
+                "converted to a job. Cancel the job instead."
+            ),
+        )
+
+    db.delete(r)
+    db.commit()
+
+    return {"ok": True, "deleted_id": req_id}
