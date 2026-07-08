@@ -35,7 +35,7 @@ from datetime import datetime, timedelta, time as dtime
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File, Form, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -100,15 +100,51 @@ _CANDIDATE_DOC_TYPES = {
 }
 
 
-def _frontend_base_url() -> str:
+def _frontend_base_url(request: "Request | None" = None) -> str:
+    """Resolve the public URL the customer/employee should reach the
+    frontend on. Used when building invite/onboarding links that go
+    out via email or WhatsApp.
 
-    base = (
-        os.getenv("FRONTEND_BASE_URL")
-        or os.getenv("FRONTEND_URL")
-        or "http://localhost:5173"
-    )
+    Resolution order:
+      1. FRONTEND_BASE_URL / FRONTEND_URL env vars (production, fixed)
+      2. The request's `Origin` header, then `Referer` host —
+         set by the browser to the admin's current frontend URL.
+         When the admin opens the UI through a Cloudflare tunnel, this
+         is the tunnel hostname; when through localhost, it's localhost.
+         This eliminates the need to keep .env in sync with a rotating
+         quick-tunnel URL.
+      3. `http://localhost:5173` — final fallback for non-HTTP callers
+         (cron jobs, scripts) where neither env nor request is set.
+    """
 
-    return base.rstrip("/")
+    env_val = (os.getenv("FRONTEND_BASE_URL") or os.getenv("FRONTEND_URL") or "").strip()
+
+    if env_val:
+        return env_val.rstrip("/")
+
+    if request is not None:
+
+        # Origin is set on cross-origin POSTs (admin clicking "send invite"
+        # in the React app issues one). Use its scheme + host as-is.
+        origin = request.headers.get("origin")
+
+        if origin:
+            return origin.rstrip("/")
+
+        # Referer is more loosely set but includes the host the admin
+        # is browsing from. Strip the path component.
+        referer = request.headers.get("referer")
+
+        if referer:
+            try:
+                from urllib.parse import urlparse
+                p = urlparse(referer)
+                if p.scheme and p.netloc:
+                    return f"{p.scheme}://{p.netloc}"
+            except Exception:
+                pass
+
+    return "http://localhost:5173"
 
 
 # =========================
@@ -397,16 +433,22 @@ class ChatBody(BaseModel):
 
 
 class InviteCreate(BaseModel):
-    """New flow: admin sets {Name + Employee ID + Password} on invite.
+    """New flow: admin sets {Name + Employee ID + Password + Role} on invite.
 
     Email/phone are NOT collected here — the candidate fills them in
     on the registration form after logging in with the credentials
-    chosen by admin."""
+    chosen by admin. DEPARTMENT_ID + DESIGNATION_ID are optional but
+    strongly recommended — they pre-set the candidate's role so the
+    Employee row is fully populated on approval without an extra
+    HR step."""
 
     INVITED_NAME: str = Field(..., min_length=1)
     EMPLOYEE_CODE: str = Field(..., min_length=1)
     PASSWORD: str = Field(..., min_length=1)
+    EMAIL: str = Field(..., min_length=3)
     EXPIRES_IN_DAYS: int = 2
+    DEPARTMENT_ID:  Optional[int] = None
+    DESIGNATION_ID: Optional[int] = None
 
 
 class OnboardingLogin(BaseModel):
@@ -1178,6 +1220,7 @@ def public_submit(
 @router.post("/employee-onboarding/invite", dependencies=[Depends(require("onboarding.invite"))])
 def admin_create_invite(
     body: InviteCreate,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """Generate a fresh invitation.
@@ -1192,6 +1235,8 @@ def admin_create_invite(
     employee_code = (body.EMPLOYEE_CODE or "").strip()
 
     password = body.PASSWORD or ""
+
+    invited_email = (body.EMAIL or "").strip()
 
     if not invited_name:
 
@@ -1212,6 +1257,16 @@ def admin_create_invite(
         raise HTTPException(
             status_code=400,
             detail="Password must be at least 6 characters."
+        )
+
+    if not invited_email or not re.match(
+        r"^[^@\s]+@[^@\s]+\.[^@\s]+$", invited_email
+    ):
+
+        raise HTTPException(
+            status_code=400,
+            detail="A valid candidate EMAIL is required so the invite "
+                   "link can be sent automatically."
         )
 
     # ---- Refuse if EMPLOYEE_CODE is already taken ----
@@ -1262,7 +1317,7 @@ def admin_create_invite(
     s = EmployeeOnboardingSession(
         TOKEN=token,
         INVITED_NAME=invited_name,
-        INVITED_EMAIL=None,
+        INVITED_EMAIL=invited_email,
         INVITED_PHONE=None,
         EMPLOYEE_CODE=employee_code,
         PASSWORD_HASH=hash_password(password),
@@ -1270,6 +1325,8 @@ def admin_create_invite(
         COLLECTED_DATA=json.dumps({}),
         CHAT_HISTORY=json.dumps([]),
         EXPIRES_AT=expires_at,
+        DEPARTMENT_ID=body.DEPARTMENT_ID,
+        DESIGNATION_ID=body.DESIGNATION_ID,
     )
 
     db.add(s)
@@ -1289,7 +1346,59 @@ def admin_create_invite(
             detail=f"Could not create invite: {exc}"
         )
 
-    invite_link = f"{_frontend_base_url()}/employee-onboarding/{token}"
+    invite_link = f"{_frontend_base_url(request)}/employee-onboarding/{token}"
+
+    # ---- Automatically email the invite link to the candidate ----
+    email_sent = False
+    email_message = "not attempted"
+
+    try:
+
+        from app.services.email_service import send_alert_email
+
+        html = f"""
+<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,sans-serif;">
+  <div style="max-width:600px;margin:30px auto;background:white;border-radius:12px;overflow:hidden;box-shadow:0 6px 30px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#C8102E,#8B0B1F);color:white;padding:24px 28px;">
+      <div style="font-size:11px;font-weight:800;letter-spacing:2px;opacity:0.9;">BVC24 · EMPLOYEE ONBOARDING</div>
+      <h1 style="margin:6px 0 0;font-size:22px;">You're invited to join Bharath Vending Corporation</h1>
+    </div>
+    <div style="padding:26px 28px;color:#0f172a;line-height:1.55;">
+      <p>Hello {invited_name},</p>
+      <p>HR has invited you to complete your employee profile on the BVC24 portal. Our assistant will guide you through a short conversation to collect your details — it takes about 5 minutes.</p>
+      <div style="background:#fef2f3;border:1px solid #fecaca;border-radius:10px;padding:14px 18px;margin:18px 0;">
+        <div style="font-size:11px;color:#7A1022;font-weight:700;letter-spacing:1.5px;margin-bottom:6px;">YOUR LOGIN</div>
+        <div style="font-size:14px;"><b>Employee ID:</b> {employee_code}</div>
+        <div style="font-size:14px;"><b>Password:</b> {password}</div>
+      </div>
+      <p style="text-align:center;margin:24px 0;">
+        <a href="{invite_link}" style="display:inline-block;background:linear-gradient(135deg,#C8102E,#8B0B1F);color:white;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;">Start Onboarding</a>
+      </p>
+      <p style="font-size:12px;color:#64748b;">Or copy this link into your browser:<br><span style="word-break:break-all;color:#C8102E;">{invite_link}</span></p>
+      <p style="font-size:12px;color:#64748b;">This link expires on <b>{s.EXPIRES_AT.strftime('%d %b %Y, %I:%M %p') if s.EXPIRES_AT else ''}</b>.</p>
+      <p style="margin-top:24px;">Welcome aboard,<br><b>BVC24 HR Team</b></p>
+    </div>
+    <div style="background:#f8fafc;padding:14px 28px;font-size:11px;color:#94a3b8;text-align:center;">
+      Bharath Vending Corporation · Chennai, Tamil Nadu · www.bvc24.in
+    </div>
+  </div>
+</body>
+</html>
+"""
+
+        subject = "Your BVC24 Employee Onboarding Link"
+
+        email_sent, email_message = send_alert_email(
+            subject, html, recipient=invited_email
+        )
+
+    except Exception as exc:
+
+        email_sent = False
+
+        email_message = f"send failed: {exc}"
 
     return {
         "id": s.ID,
@@ -1298,7 +1407,10 @@ def admin_create_invite(
         "expires_at": s.EXPIRES_AT.isoformat() if s.EXPIRES_AT else None,
         "status": s.STATUS,
         "invited_name": s.INVITED_NAME,
+        "invited_email": s.INVITED_EMAIL,
         "employee_code": s.EMPLOYEE_CODE,
+        "email_sent": bool(email_sent),
+        "email_message": email_message,
     }
 
 
@@ -2004,6 +2116,14 @@ def admin_approve_session(
 
         candidate_password = secrets.token_urlsafe(10)
 
+    # Resolve org assignment with a 2-stage fallback so the dropdowns
+    # the admin picked at invite time aren't silently lost:
+    #   1. HR's approval-time override (org_overrides) — highest priority
+    #   2. The invite-time selection stored on the session itself
+    #      (s.DEPARTMENT_ID / s.DESIGNATION_ID — see InviteEmployeeModal)
+    final_department_id  = org_overrides.get("DEPARTMENT_ID")  or s.DEPARTMENT_ID
+    final_designation_id = org_overrides.get("DESIGNATION_ID") or s.DESIGNATION_ID
+
     # Build the EmployeeCreate payload
     payload = {
         "EMPLOYEE_CODE": chosen_code,
@@ -2011,8 +2131,8 @@ def admin_approve_session(
         "EMAIL":         _val("EMAIL"),
         "PHONE":         _val("PHONE"),
         "PASSWORD":      candidate_password,
-        "DEPARTMENT_ID": org_overrides.get("DEPARTMENT_ID"),
-        "DESIGNATION_ID": org_overrides.get("DESIGNATION_ID"),
+        "DEPARTMENT_ID": final_department_id,
+        "DESIGNATION_ID": final_designation_id,
         "ROLE_ID":       org_overrides.get("ROLE_ID"),
         "REPORTING_MANAGER_ID": None,
         "JOINING_DATE":  None,
@@ -2251,6 +2371,91 @@ def admin_approve_session(
             detail=f"Could not finalize approval: {exc}"
         )
 
+    # ---- AUTO-ONBOARDING HOOK ----
+    # Fire the full onboarding pipeline (checklist seed + welcome kit +
+    # mandatory trainings + corporate email + welcome email to personal
+    # inbox) the moment the Employee row is created. Non-blocking: if
+    # anything fails we log and continue — the manual "Run Auto-Onboard"
+    # button in the UI is always available as a fallback.
+    auto_result = None
+
+    try:
+
+        from app.routes.onboarding_checklist import (
+            _seed_default_checklist,
+            _refresh_derived_items,
+            _seed_default_kit,
+            _generate_corporate_email,
+            _send_welcome_email,
+        )
+        from app.models.models import TrainingProgram, TrainingAssignment
+
+        _seed_default_checklist(db, emp)
+
+        kit_created = _seed_default_kit(db, emp)
+
+        # Mandatory trainings
+        programs = (
+            db.query(TrainingProgram)
+            .filter(
+                TrainingProgram.IS_MANDATORY == 1,
+                TrainingProgram.IS_ACTIVE == 1,
+                TrainingProgram.VENDOR_ID == emp.VENDOR_ID,
+            )
+            .all()
+        )
+        existing = {
+            r.TRAINING_PROGRAM_ID for r in
+            db.query(TrainingAssignment.TRAINING_PROGRAM_ID)
+            .filter(TrainingAssignment.EMPLOYEE_ID == emp.ID)
+            .all()
+        }
+        trainings_created = 0
+        for prog in programs:
+            if prog.ID in existing:
+                continue
+            db.add(TrainingAssignment(
+                EMPLOYEE_ID=emp.ID,
+                TRAINING_PROGRAM_ID=prog.ID,
+                ASSIGNED_DATE=datetime.utcnow().date(),
+                STATUS="ASSIGNED",
+                VENDOR_ID=emp.VENDOR_ID,
+            ))
+            trainings_created += 1
+
+        # Corporate email (only if not already set)
+        email_generated = False
+        if not (emp.CORPORATE_EMAIL or "").strip():
+            emp.CORPORATE_EMAIL = _generate_corporate_email(db, emp)
+            email_generated = True
+
+        _refresh_derived_items(db, emp)
+        db.commit()
+
+        # Fire-and-forget welcome email
+        if email_generated and emp.EMAIL:
+            try:
+                _send_welcome_email(emp, emp.CORPORATE_EMAIL)
+            except Exception:
+                pass
+
+        auto_result = {
+            "kit_seeded_count": kit_created,
+            "trainings_seeded_count": trainings_created,
+            "email_provisioned": email_generated,
+            "corporate_email": emp.CORPORATE_EMAIL,
+        }
+
+    except Exception as exc:
+
+        # Never fail the approval because of auto-onboard hiccups —
+        # the manual "Run Auto-Onboard" button covers it.
+        db.rollback()
+        import logging
+        logging.getLogger("uvicorn").warning(
+            "auto-onboard skipped for %s: %s", emp.ID, exc
+        )
+
     return {
         "message": (
             f"Employee {emp.NAME} ({emp.EMPLOYEE_CODE}) created and "
@@ -2259,6 +2464,7 @@ def admin_approve_session(
         "employee_id": emp.ID,
         "employee_code": emp.EMPLOYEE_CODE,
         "session": _serialize_for_admin_list(s),
+        "auto_onboard": auto_result,
     }
 
 
@@ -2377,6 +2583,7 @@ def admin_delete_session(
 @router.post("/employee-onboarding/sessions/{session_id}/resend-link", dependencies=[Depends(require("onboarding.sessions.resend"))])
 def admin_resend_link(
     session_id: int,
+    request: Request,
     expires_in_days: int = Query(7, ge=1, le=90),
     db: Session = Depends(get_db)
 ):
@@ -2426,7 +2633,7 @@ def admin_resend_link(
             detail=f"Could not resend link: {exc}"
         )
 
-    invite_link = f"{_frontend_base_url()}/employee-onboarding/{new_token}"
+    invite_link = f"{_frontend_base_url(request)}/employee-onboarding/{new_token}"
 
     return {
         "message": "New invite link generated.",

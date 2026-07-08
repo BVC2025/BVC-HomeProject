@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 
 import { API_BASE_URL } from "../services/api";
+import styles from "./EmployeeOnboardingChat.module.css";
 
 
 // ----------------------------------------------------------------
@@ -11,16 +12,6 @@ import { API_BASE_URL } from "../services/api";
 
 const pub = axios.create({ baseURL: API_BASE_URL });
 
-
-// BVC palette (mirrors the rest of the project)
-const COLOURS = {
-  primary: "#C8102E",
-  dark:    "#8B0B1F",
-  deepest: "#4A0E18",
-  ink:     "#0f172a",
-  gold:    "#F4B324",
-  paper:   "#f3f4f6",
-};
 
 const GENDERS = ["MALE", "FEMALE", "OTHER", "PREFER_NOT_TO_SAY"];
 const EMPLOYMENT_TYPES = ["FRESHER", "EXPERIENCED"];
@@ -175,17 +166,8 @@ function initials(name) {
 
 function FormSection({ title, color, children }) {
   return (
-    <div style={{ marginBottom: 22 }}>
-      <div style={{
-        fontSize: 11,
-        fontWeight: 800,
-        letterSpacing: 1.4,
-        color,
-        textTransform: "uppercase",
-        marginBottom: 12,
-        paddingBottom: 6,
-        borderBottom: `2px solid ${color}33`
-      }}>
+    <div className={styles.formSection}>
+      <div className={styles.formSectionTitle} style={{ color, borderBottom: `2px solid ${color}33` }}>
         {title}
       </div>
       {children}
@@ -195,11 +177,7 @@ function FormSection({ title, color, children }) {
 
 function FormGrid({ cols, children }) {
   return (
-    <div style={{
-      display: "grid",
-      gridTemplateColumns: `repeat(${cols}, 1fr)`,
-      gap: 12
-    }}>
+    <div className={styles.formGrid2} style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
       {children}
     </div>
   );
@@ -211,44 +189,17 @@ function FormField({ label, span, children, error, fieldName }) {
       style={{ gridColumn: span ? `span ${span}` : undefined }}
       data-field={fieldName}
     >
-      <label style={{
-        display: "block",
-        fontSize: 11,
-        fontWeight: 700,
-        color: error ? "#dc2626" : "#475569",
-        marginBottom: 4,
-        letterSpacing: 0.3
-      }}>
+      <label className={error ? styles.fieldLabelError : styles.fieldLabel}>
         {label}
       </label>
       {children}
       {error && (
-        <div style={{
-          marginTop: 4,
-          fontSize: 11,
-          fontWeight: 600,
-          color: "#dc2626",
-          lineHeight: 1.35
-        }}>
+        <div className={styles.fieldError}>
           {error}
         </div>
       )}
     </div>
   );
-}
-
-function inputStyle(hasError) {
-  return {
-    width: "100%",
-    padding: "9px 12px",
-    border: `1px solid ${hasError ? "#dc2626" : "#cbd5e1"}`,
-    borderRadius: 8,
-    fontSize: 13,
-    fontFamily: "inherit",
-    outline: "none",
-    boxSizing: "border-box",
-    boxShadow: hasError ? "0 0 0 2px rgba(220, 38, 38, 0.10)" : "none"
-  };
 }
 
 
@@ -257,29 +208,12 @@ function inputStyle(hasError) {
 // ================================================================
 function HeaderStrip({ invitedName }) {
   return (
-    <div style={{
-      background: `linear-gradient(120deg, ${COLOURS.deepest} 0%, ${COLOURS.dark} 50%, ${COLOURS.primary} 100%)`,
-      color: "white",
-      padding: "22px 28px",
-      boxShadow: "0 8px 24px rgba(139,11,31,0.22)"
-    }}>
-      <div style={{ maxWidth: 980, margin: "0 auto" }}>
-        <div style={{
-          fontSize: 11,
-          letterSpacing: 2.4,
-          opacity: 0.85,
-          fontWeight: 800,
-          textTransform: "uppercase"
-        }}>
+    <div className={styles.headerStrip}>
+      <div className={styles.headerInner}>
+        <div className={styles.headerLabel}>
           BVC24 · Employee Registration
         </div>
-        <h1 style={{
-          fontSize: 24,
-          fontWeight: 900,
-          margin: "4px 0 0",
-          lineHeight: 1.2,
-          color: "white"
-        }}>
+        <h1 className={styles.headerTitle}>
           {invitedName
             ? <>Welcome, {invitedName}</>
             : "Employee Registration"}
@@ -324,30 +258,12 @@ function FinalStateCard({ status, reason }) {
   }
 
   return (
-    <div style={{
-      maxWidth: 520,
-      margin: "60px auto",
-      background: "white",
-      borderRadius: 16,
-      boxShadow: "0 20px 60px rgba(15,23,42,0.12)",
-      padding: 36,
-      textAlign: "center",
-      borderTop: `4px solid ${tint}`
-    }}>
-      <div style={{ fontSize: 56, marginBottom: 8 }}>{icon}</div>
-      <div style={{
-        fontSize: 20,
-        fontWeight: 900,
-        color: COLOURS.ink,
-        marginBottom: 8
-      }}>
+    <div className={styles.finalCard} style={{ borderTop: `4px solid ${tint}` }}>
+      <div className={styles.finalIcon}>{icon}</div>
+      <div className={styles.finalTitle}>
         {title}
       </div>
-      <div style={{
-        fontSize: 13,
-        color: "#475569",
-        lineHeight: 1.6
-      }}>
+      <div className={styles.finalBody}>
         {body}
       </div>
     </div>
@@ -360,30 +276,12 @@ function FinalStateCard({ status, reason }) {
 // ================================================================
 function SubmittedCard() {
   return (
-    <div style={{
-      maxWidth: 560,
-      margin: "60px auto",
-      background: "white",
-      borderRadius: 18,
-      boxShadow: "0 24px 60px rgba(15,23,42,0.14)",
-      padding: 44,
-      textAlign: "center",
-      borderTop: `5px solid ${COLOURS.primary}`
-    }}>
-      <div style={{ fontSize: 64, marginBottom: 10 }}>🎉</div>
-      <div style={{
-        fontSize: 22,
-        fontWeight: 900,
-        color: COLOURS.ink,
-        marginBottom: 10
-      }}>
+    <div className={styles.submittedCard}>
+      <div className={styles.submittedIcon}>🎉</div>
+      <div className={styles.submittedTitle}>
         Submitted for HR Approval
       </div>
-      <div style={{
-        fontSize: 14,
-        color: "#475569",
-        lineHeight: 1.65
-      }}>
+      <div className={styles.submittedMessage}>
         Your details have been sent to the admin. You'll be notified
         once your account is activated.
       </div>
@@ -689,111 +587,45 @@ function RegistrationForm({ token, session, onSubmitted }) {
   return (
     <form
       onSubmit={submit}
-      style={{
-        maxWidth: 820,
-        margin: "30px auto",
-        background: "white",
-        borderRadius: 16,
-        boxShadow: "0 18px 50px rgba(15,23,42,0.10)",
-        padding: 28,
-        borderTop: `4px solid ${COLOURS.primary}`
-      }}
+      className={styles.regForm}
     >
-      <div style={{
-        fontSize: 11,
-        fontWeight: 800,
-        letterSpacing: 2,
-        color: COLOURS.primary,
-        textTransform: "uppercase"
-      }}>
+      <div className={styles.stepLabel}>
         Step 2 of 2
       </div>
-      <h2 style={{
-        fontSize: 22,
-        fontWeight: 900,
-        color: COLOURS.ink,
-        margin: "6px 0 4px"
-      }}>
+      <h2 className={styles.regTitle}>
         Complete your registration
       </h2>
-      <div style={{
-        fontSize: 12,
-        color: "#64748b",
-        marginBottom: 22,
-        lineHeight: 1.55
-      }}>
+      <div className={styles.regSubtitle}>
         Fill in your personal, contact, education and professional
         details. The admin will review and activate your account.
       </div>
 
       {error && (
-        <div style={{
-          background: "#fef2f2",
-          color: "#b91c1c",
-          border: "1px solid #fecaca",
-          padding: 12,
-          borderRadius: 8,
-          marginBottom: 18,
-          fontSize: 13,
-          fontWeight: 600
-        }}>
+        <div className={styles.errorBanner}>
           {error}
         </div>
       )}
 
       {/* ============== PHOTO ============== */}
-      <div style={{
-        background: `linear-gradient(135deg, ${COLOURS.primary}10, ${COLOURS.dark}14)`,
-        border: `1px dashed ${COLOURS.primary}66`,
-        borderRadius: 14,
-        padding: 18,
-        marginBottom: 22,
-        display: "flex",
-        gap: 18,
-        alignItems: "center"
-      }}>
-        <div style={{
-          width: 100,
-          height: 100,
-          borderRadius: "50%",
-          background: photoPreview
-            ? `url(${photoPreview}) center/cover`
-            : `linear-gradient(135deg, ${COLOURS.primary}, ${COLOURS.dark})`,
-          color: "white",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontWeight: 800,
-          fontSize: 38,
-          border: "3px solid white",
-          boxShadow: "0 6px 20px rgba(139,11,31,0.3)",
-          flexShrink: 0
-        }}>
+      <div className={styles.photoBlock}>
+        <div
+          className={styles.photoAvatar}
+          style={photoPreview ? { backgroundImage: `url(${photoPreview})` } : undefined}
+        >
           {!photoPreview && initials(form.NAME)}
         </div>
 
-        <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 800, color: COLOURS.ink, fontSize: 14 }}>
+        <div className={styles.photoMeta}>
+          <div className={styles.photoTitle}>
             Passport-size photo
           </div>
-          <div style={{ fontSize: 11, color: "#64748b", marginTop: 4, lineHeight: 1.5 }}>
+          <div className={styles.photoHint}>
             PNG / JPG / WEBP. This will appear on your employee profile,
             attendance views, and resume.
           </div>
           <label
             htmlFor="onb-photo-input"
-            style={{
-              display: "inline-block",
-              marginTop: 10,
-              background: `linear-gradient(135deg, ${COLOURS.primary}, ${COLOURS.dark})`,
-              color: "white",
-              padding: "7px 16px",
-              borderRadius: 8,
-              cursor: uploading ? "default" : "pointer",
-              fontSize: 12,
-              fontWeight: 700,
-              opacity: uploading ? 0.7 : 1
-            }}
+            className={uploading ? styles.photoUploadLabelUploading : styles.photoUploadLabel}
           >
             {uploading
               ? "Uploading…"
@@ -818,12 +650,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               type="text"
               value={form.EMPLOYEE_CODE}
               readOnly
-              style={{
-                ...inputStyle(),
-                background: "#f1f5f9",
-                color: "#64748b",
-                cursor: "not-allowed"
-              }}
+              className={styles.inputReadonly}
             />
           </FormField>
           <FormField label="Employee Name *" error={errors.NAME} fieldName="NAME">
@@ -833,7 +660,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               onChange={set("NAME")}
               onBlur={blur("NAME")}
               placeholder="Ramesh Kumar"
-              style={inputStyle(!!errors.NAME)}
+              className={errors.NAME ? styles.inputError : styles.input}
             />
           </FormField>
           <FormField label="Father's Name">
@@ -842,7 +669,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               value={form.FATHER_NAME}
               onChange={set("FATHER_NAME")}
               placeholder="Murugan"
-              style={inputStyle()}
+              className={styles.input}
             />
           </FormField>
           <FormField label="Mother's Name">
@@ -851,7 +678,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               value={form.MOTHER_NAME}
               onChange={set("MOTHER_NAME")}
               placeholder="Lakshmi"
-              style={inputStyle()}
+              className={styles.input}
             />
           </FormField>
           <FormField label="Date of Birth" error={errors.DOB} fieldName="DOB">
@@ -860,14 +687,14 @@ function RegistrationForm({ token, session, onSubmitted }) {
               value={form.DOB}
               onChange={set("DOB")}
               onBlur={blur("DOB")}
-              style={inputStyle(!!errors.DOB)}
+              className={errors.DOB ? styles.inputError : styles.input}
             />
           </FormField>
           <FormField label="Gender">
             <select
               value={form.GENDER}
               onChange={set("GENDER")}
-              style={inputStyle()}
+              className={styles.input}
             >
               <option value="">— pick —</option>
               {GENDERS.map((g) => (
@@ -879,7 +706,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
             <select
               value={form.MARITAL_STATUS}
               onChange={set("MARITAL_STATUS")}
-              style={inputStyle()}
+              className={styles.input}
             >
               <option value="">— pick —</option>
               {MARITAL_STATUSES.map((m) => (
@@ -893,14 +720,14 @@ function RegistrationForm({ token, session, onSubmitted }) {
               value={form.OCCUPATION}
               onChange={set("OCCUPATION")}
               placeholder="Mechanical Technician"
-              style={inputStyle()}
+              className={styles.input}
             />
           </FormField>
           <FormField label="Blood Group">
             <select
               value={form.BLOOD_GROUP}
               onChange={set("BLOOD_GROUP")}
-              style={inputStyle()}
+              className={styles.input}
             >
               <option value="">— pick —</option>
               {["A+","A-","B+","B-","O+","O-","AB+","AB-"].map((b) => (
@@ -914,7 +741,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               value={form.NATIONALITY}
               onChange={set("NATIONALITY")}
               placeholder="Indian"
-              style={inputStyle()}
+              className={styles.input}
             />
           </FormField>
           <FormField label="Emergency Contact Name">
@@ -923,7 +750,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               value={form.EMERGENCY_CONTACT_NAME}
               onChange={set("EMERGENCY_CONTACT_NAME")}
               placeholder="Father / Spouse / Sibling"
-              style={inputStyle()}
+              className={styles.input}
             />
           </FormField>
           <FormField
@@ -938,7 +765,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               onBlur={blur("EMERGENCY_CONTACT_PHONE")}
               placeholder="9876543210"
               maxLength={15}
-              style={inputStyle(!!errors.EMERGENCY_CONTACT_PHONE)}
+              className={errors.EMERGENCY_CONTACT_PHONE ? styles.inputError : styles.input}
             />
           </FormField>
           <FormField label="Relationship" span={2}>
@@ -947,7 +774,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               value={form.EMERGENCY_CONTACT_RELATION}
               onChange={set("EMERGENCY_CONTACT_RELATION")}
               placeholder="Father / Mother / Spouse / Sibling"
-              style={inputStyle()}
+              className={styles.input}
             />
           </FormField>
         </FormGrid>
@@ -964,7 +791,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               onBlur={blur("PHONE")}
               placeholder="9876543210"
               maxLength={15}
-              style={inputStyle(!!errors.PHONE)}
+              className={errors.PHONE ? styles.inputError : styles.input}
             />
           </FormField>
           <FormField label="Email" error={errors.EMAIL} fieldName="EMAIL">
@@ -974,7 +801,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               onChange={set("EMAIL")}
               onBlur={blur("EMAIL")}
               placeholder="ramesh@bvc24.in"
-              style={inputStyle(!!errors.EMAIL)}
+              className={errors.EMAIL ? styles.inputError : styles.input}
             />
           </FormField>
           <FormField label="Address (Street / House No)" span={2}>
@@ -983,7 +810,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               value={form.ADDRESS}
               onChange={set("ADDRESS")}
               placeholder="Plot 12, ABC Street, Near XYZ Park"
-              style={inputStyle()}
+              className={styles.input}
             />
           </FormField>
           <FormField label="City">
@@ -992,7 +819,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               value={form.CITY}
               onChange={set("CITY")}
               placeholder="Coimbatore"
-              style={inputStyle()}
+              className={styles.input}
             />
           </FormField>
           <FormField label="State">
@@ -1001,7 +828,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               value={form.STATE}
               onChange={set("STATE")}
               placeholder="Tamil Nadu"
-              style={inputStyle()}
+              className={styles.input}
             />
           </FormField>
           <FormField label="Pincode" span={2} error={errors.PINCODE} fieldName="PINCODE">
@@ -1013,7 +840,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               onBlur={blur("PINCODE")}
               placeholder="641001"
               maxLength={6}
-              style={inputStyle(!!errors.PINCODE)}
+              className={errors.PINCODE ? styles.inputError : styles.input}
             />
           </FormField>
         </FormGrid>
@@ -1028,7 +855,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               value={form.QUALIFICATION}
               onChange={set("QUALIFICATION")}
               placeholder="BE Mechanical Engineering"
-              style={inputStyle()}
+              className={styles.input}
             />
           </FormField>
           <FormField
@@ -1044,7 +871,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               onChange={set("YEAR_OF_PASSING")}
               onBlur={blur("YEAR_OF_PASSING")}
               placeholder="2020"
-              style={inputStyle(!!errors.YEAR_OF_PASSING)}
+              className={errors.YEAR_OF_PASSING ? styles.inputError : styles.input}
             />
           </FormField>
           <FormField label="College">
@@ -1053,7 +880,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               value={form.COLLEGE}
               onChange={set("COLLEGE")}
               placeholder="PSG College of Technology"
-              style={inputStyle()}
+              className={styles.input}
             />
           </FormField>
           <FormField label="University">
@@ -1062,7 +889,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               value={form.UNIVERSITY}
               onChange={set("UNIVERSITY")}
               placeholder="Anna University"
-              style={inputStyle()}
+              className={styles.input}
             />
           </FormField>
           <FormField
@@ -1080,7 +907,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               onChange={set("PERCENTAGE")}
               onBlur={blur("PERCENTAGE")}
               placeholder="85.5"
-              style={inputStyle(!!errors.PERCENTAGE)}
+              className={errors.PERCENTAGE ? styles.inputError : styles.input}
             />
           </FormField>
         </FormGrid>
@@ -1093,7 +920,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
             <select
               value={form.EMPLOYMENT_TYPE}
               onChange={set("EMPLOYMENT_TYPE")}
-              style={inputStyle()}
+              className={styles.input}
             >
               {EMPLOYMENT_TYPES.map((t) => (
                 <option key={t} value={t}>{t}</option>
@@ -1113,7 +940,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               onChange={set("EXPERIENCE_YEARS")}
               onBlur={blur("EXPERIENCE_YEARS")}
               placeholder="0"
-              style={inputStyle(!!errors.EXPERIENCE_YEARS)}
+              className={errors.EXPERIENCE_YEARS ? styles.inputError : styles.input}
             />
           </FormField>
           <FormField label="Previous Company">
@@ -1122,7 +949,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               value={form.PREVIOUS_COMPANY}
               onChange={set("PREVIOUS_COMPANY")}
               placeholder="ABC Manufacturing Pvt Ltd"
-              style={inputStyle()}
+              className={styles.input}
             />
           </FormField>
           <FormField
@@ -1138,7 +965,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               onChange={set("PREVIOUS_SALARY")}
               onBlur={blur("PREVIOUS_SALARY")}
               placeholder="45000"
-              style={inputStyle(!!errors.PREVIOUS_SALARY)}
+              className={errors.PREVIOUS_SALARY ? styles.inputError : styles.input}
             />
           </FormField>
           <FormField label="Skills (comma-separated)" span={2}>
@@ -1147,7 +974,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               value={form.SKILLS}
               onChange={set("SKILLS")}
               placeholder="solidworks, wiring, assembly, quality check"
-              style={inputStyle()}
+              className={styles.input}
             />
           </FormField>
           <FormField label="Experience Details" span={2}>
@@ -1156,7 +983,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               value={form.EXPERIENCE_DETAILS}
               onChange={set("EXPERIENCE_DETAILS")}
               placeholder={"ABC Manufacturing — 2 yrs (CNC operator)\nXYZ Industries — 1 yr (Welder)"}
-              style={inputStyle()}
+              className={styles.input}
             />
           </FormField>
           <FormField label="Past Working Projects" span={2}>
@@ -1165,7 +992,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               value={form.PAST_PROJECTS}
               onChange={set("PAST_PROJECTS")}
               placeholder={"• Snack Vending Machine v2\n• Industrial Conveyor Belt System\n• Custom CNC retrofit"}
-              style={inputStyle()}
+              className={styles.input}
             />
           </FormField>
         </FormGrid>
@@ -1187,7 +1014,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               onBlur={blur("BANK_ACCOUNT_NUMBER")}
               placeholder="50100123456789"
               maxLength={18}
-              style={inputStyle(!!errors.BANK_ACCOUNT_NUMBER)}
+              className={errors.BANK_ACCOUNT_NUMBER ? styles.inputError : styles.input}
             />
           </FormField>
           <FormField label="Bank Name">
@@ -1196,7 +1023,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               value={form.BANK_NAME}
               onChange={set("BANK_NAME")}
               placeholder="HDFC Bank"
-              style={inputStyle()}
+              className={styles.input}
             />
           </FormField>
           <FormField
@@ -1211,7 +1038,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               onBlur={blur("IFSC_CODE")}
               placeholder="HDFC0001234"
               maxLength={11}
-              style={{ ...inputStyle(!!errors.IFSC_CODE), textTransform: "uppercase" }}
+              className={`${errors.IFSC_CODE ? styles.inputError : styles.input} ${styles.inputUppercase}`}
             />
           </FormField>
           <FormField
@@ -1226,7 +1053,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               onBlur={blur("PAN_NUMBER")}
               placeholder="ABCDE1234F"
               maxLength={10}
-              style={{ ...inputStyle(!!errors.PAN_NUMBER), textTransform: "uppercase" }}
+              className={`${errors.PAN_NUMBER ? styles.inputError : styles.input} ${styles.inputUppercase}`}
             />
           </FormField>
           <FormField
@@ -1243,7 +1070,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
               onBlur={blur("AADHAAR_NUMBER")}
               placeholder="1234 5678 9012"
               maxLength={14}
-              style={inputStyle(!!errors.AADHAAR_NUMBER)}
+              className={errors.AADHAAR_NUMBER ? styles.inputError : styles.input}
             />
           </FormField>
         </FormGrid>
@@ -1257,23 +1084,14 @@ function RegistrationForm({ token, session, onSubmitted }) {
             value={form.NOTES}
             onChange={set("NOTES")}
             placeholder="Anything else you'd like your manager to know"
-            style={inputStyle()}
+            className={styles.input}
           />
         </FormField>
       </FormSection>
 
       {/* ============== 7. DOCUMENTS ============== */}
       <FormSection title="⑦ Documents" color="#ea580c">
-        <div style={{
-          background: "#fff7ed",
-          border: "1px solid #fed7aa",
-          borderRadius: 10,
-          padding: 12,
-          marginBottom: 14,
-          fontSize: 12,
-          color: "#7c2d12",
-          lineHeight: 1.55,
-        }}>
+        <div className={styles.docsHint}>
           Upload your <b>resume, marksheets, degree certificate, Aadhaar, PAN</b>,
           and any other documents HR will need. Allowed: PDF, JPG, PNG, DOC/DOCX,
           XLS/XLSX, TXT. Max 10&nbsp;MB per file. You can upload as many as you
@@ -1285,7 +1103,7 @@ function RegistrationForm({ token, session, onSubmitted }) {
             <select
               value={docType}
               onChange={(e) => setDocType(e.target.value)}
-              style={inputStyle()}
+              className={styles.input}
             >
               {DOC_TYPES.map((t) => (
                 <option key={t} value={t}>
@@ -1301,126 +1119,53 @@ function RegistrationForm({ token, session, onSubmitted }) {
               onChange={handleDocUpload}
               disabled={docUploading}
               accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.txt"
-              style={{
-                ...inputStyle(),
-                padding: "8px 10px",
-                cursor: docUploading ? "wait" : "pointer",
-              }}
+              className={`${styles.input} ${docUploading ? styles.inputFileWaiting : styles.inputFileIdle}`}
             />
           </FormField>
         </FormGrid>
 
         {docError && (
-          <div style={{
-            marginTop: 10,
-            padding: "8px 12px",
-            background: "#fee2e2",
-            border: "1px solid #fca5a5",
-            borderRadius: 8,
-            color: "#991b1b",
-            fontSize: 12,
-            fontWeight: 600,
-          }}>
+          <div className={styles.docError}>
             {docError}
           </div>
         )}
 
         {docUploading && (
-          <div style={{
-            marginTop: 10,
-            fontSize: 12,
-            color: "#7c2d12",
-            fontWeight: 600,
-          }}>
+          <div className={styles.docUploading}>
             Uploading…
           </div>
         )}
 
         {/* Uploaded list */}
-        <div style={{ marginTop: 14 }}>
-          <div style={{
-            fontSize: 11,
-            fontWeight: 700,
-            textTransform: "uppercase",
-            letterSpacing: 0.6,
-            color: "#64748b",
-            marginBottom: 6,
-          }}>
+        <div className={styles.docListWrapper}>
+          <div className={styles.docListHeader}>
             Uploaded ({docs.length})
           </div>
 
           {docs.length === 0 ? (
-            <div style={{
-              padding: "16px 12px",
-              textAlign: "center",
-              color: "#94a3b8",
-              fontSize: 12,
-              border: "1px dashed #e2e8f0",
-              borderRadius: 8,
-            }}>
+            <div className={styles.docListEmpty}>
               No documents uploaded yet.
             </div>
           ) : (
-            <div style={{
-              border: "1px solid #e2e8f0",
-              borderRadius: 8,
-              overflow: "hidden",
-            }}>
+            <div className={styles.docList}>
               {docs.map((d, i) => (
                 <div
                   key={d.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "10px 12px",
-                    background: i % 2 === 0 ? "#fff" : "#f8fafc",
-                    borderBottom: i < docs.length - 1 ? "1px solid #e2e8f0" : "none",
-                    fontSize: 13,
-                  }}
+                  className={`${styles.docRow} ${i % 2 === 0 ? styles.docRowEven : styles.docRowOdd}`}
                 >
-                  <span style={{
-                    fontSize: 10,
-                    fontWeight: 800,
-                    color: "#9a3412",
-                    background: "#ffedd5",
-                    padding: "3px 8px",
-                    borderRadius: 999,
-                    letterSpacing: 0.3,
-                    whiteSpace: "nowrap",
-                  }}>
+                  <span className={styles.docTypeChip}>
                     {(d.doc_type || "").replace(/_/g, " ")}
                   </span>
-                  <span style={{
-                    flex: 1,
-                    minWidth: 0,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                    color: COLOURS.ink,
-                  }} title={d.original_name}>
+                  <span className={styles.docName} title={d.original_name}>
                     {d.original_name}
                   </span>
-                  <span style={{
-                    color: "#94a3b8",
-                    fontSize: 11,
-                    whiteSpace: "nowrap",
-                  }}>
+                  <span className={styles.docSize}>
                     {fmtBytes(d.size)}
                   </span>
                   <button
                     type="button"
                     onClick={() => handleDocDelete(d.id)}
-                    style={{
-                      padding: "5px 10px",
-                      border: "1px solid #fca5a5",
-                      background: "#fee2e2",
-                      color: "#991b1b",
-                      borderRadius: 6,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      cursor: "pointer",
-                    }}
+                    className={styles.btnDocRemove}
                   >
                     Remove
                   </button>
@@ -1431,30 +1176,11 @@ function RegistrationForm({ token, session, onSubmitted }) {
         </div>
       </FormSection>
 
-      <div style={{
-        display: "flex",
-        justifyContent: "flex-end",
-        marginTop: 24,
-        paddingTop: 18,
-        borderTop: "1px solid #e2e8f0"
-      }}>
+      <div className={styles.formFooter}>
         <button
           type="submit"
           disabled={submitting || uploading}
-          style={{
-            background: (submitting || uploading)
-              ? "#cbd5e1"
-              : `linear-gradient(135deg, ${COLOURS.primary}, ${COLOURS.dark})`,
-            color: "white",
-            border: "none",
-            padding: "12px 30px",
-            borderRadius: 12,
-            fontWeight: 800,
-            fontSize: 14,
-            cursor: (submitting || uploading) ? "default" : "pointer",
-            boxShadow: "0 10px 24px rgba(200,16,46,0.28)",
-            letterSpacing: 0.4
-          }}
+          className={(submitting || uploading) ? styles.btnSubmitDisabled : styles.btnSubmit}
         >
           {submitting ? "Submitting…" : "✓ Submit for HR Approval"}
         </button>
@@ -1561,23 +1287,11 @@ function EmployeeOnboardingChat() {
   // Render branches
   // ----------------------------------------------------------------
 
-  const bodyStyle = {
-    minHeight: "100vh",
-    background: COLOURS.paper,
-    fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
-    color: COLOURS.ink
-  };
-
   if (loading) {
     return (
-      <div style={bodyStyle}>
+      <div className={styles.body}>
         <HeaderStrip invitedName="" />
-        <div style={{
-          textAlign: "center",
-          padding: 60,
-          color: "#64748b",
-          fontSize: 14
-        }}>
+        <div className={styles.loadingState}>
           Loading your onboarding session…
         </div>
       </div>
@@ -1586,7 +1300,7 @@ function EmployeeOnboardingChat() {
 
   if (metaError) {
     return (
-      <div style={bodyStyle}>
+      <div className={styles.body}>
         <HeaderStrip invitedName="" />
         <FinalStateCard status="EXPIRED" reason={metaError} />
       </div>
@@ -1599,7 +1313,7 @@ function EmployeeOnboardingChat() {
   // localStorage. The candidate is done (one way or another).
   if (status !== "OPEN") {
     return (
-      <div style={bodyStyle}>
+      <div className={styles.body}>
         <HeaderStrip invitedName={invitedName} />
         <FinalStateCard
           status={status}
@@ -1612,7 +1326,7 @@ function EmployeeOnboardingChat() {
   // Just submitted the form in this session — celebratory card.
   if (submitted) {
     return (
-      <div style={bodyStyle}>
+      <div className={styles.body}>
         <HeaderStrip invitedName={invitedName} />
         <SubmittedCard />
       </div>
@@ -1622,7 +1336,7 @@ function EmployeeOnboardingChat() {
   // Logged-in candidate → show the registration form
   if (session) {
     return (
-      <div style={bodyStyle}>
+      <div className={styles.body}>
         <HeaderStrip invitedName={invitedName} />
         <RegistrationForm
           token={token}
@@ -1637,14 +1351,9 @@ function EmployeeOnboardingChat() {
   // navigation to /login. Render a small holding view while React
   // unmounts this page.
   return (
-    <div style={bodyStyle}>
+    <div className={styles.body}>
       <HeaderStrip invitedName={invitedName} />
-      <div style={{
-        textAlign: "center",
-        padding: 60,
-        color: "#64748b",
-        fontSize: 14
-      }}>
+      <div className={styles.loadingState}>
         Redirecting to sign-in…
       </div>
     </div>

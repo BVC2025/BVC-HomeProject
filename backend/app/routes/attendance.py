@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
+from typing import Optional
+from pydantic import BaseModel
 
 from app.database.database import get_db
 
@@ -25,6 +27,8 @@ from app.routes.geofence import (
     haversine_meters,
     _get_or_create_settings as get_geofence_settings
 )
+
+from app.utils.employee_resolver import resolve_employee_uuid
 
 from app.auth.auth_bearer import (
     get_current_admin,
@@ -113,7 +117,10 @@ def _log_failure(
     db.commit()
 
 
-WORK_START_HOUR = 10
+# Fallback office-start used only when the Setting rows are missing.
+# Source of truth is attendance_settings_service.get_office_hours(db)
+# — that reads from the `setting` table (configurable from the UI).
+WORK_START_HOUR = 9
 WORK_START_MINUTE = 0
 
 
@@ -121,15 +128,44 @@ WORK_START_MINUTE = 0
 # HELPERS
 # =========================
 
-def compute_status(check_in_time: datetime) -> str:
+def _resolve_office_start(db: Session) -> time:
+    """Look up the office start time from Settings, fall back to constants."""
+    try:
+        from app.services.attendance_settings_service import get_office_hours
+        start, _end = get_office_hours(db)
+        return start
+    except Exception:
+        return time(WORK_START_HOUR, WORK_START_MINUTE)
 
+
+def compute_status_and_late(
+    check_in_time: datetime,
+    cutoff: time
+) -> tuple:
+    """Return (status, late_minutes).
+
+    late_minutes is 0 when the employee is on time; otherwise it's the
+    number of whole minutes past the cutoff. Used at check-in to record
+    exactly how late an employee was — this is stored on the Attendance
+    row so admins can see "LATE · 30m" instead of just "LATE".
+    """
     if not check_in_time:
+        return "PRESENT", 0
 
-        return "PRESENT"
+    if check_in_time.time() <= cutoff:
+        return "PRESENT", 0
 
+    cutoff_dt = datetime.combine(check_in_time.date(), cutoff)
+    delta_seconds = (check_in_time - cutoff_dt).total_seconds()
+    late_min = max(0, int(delta_seconds // 60))
+    return "LATE", late_min
+
+
+def compute_status(check_in_time: datetime) -> str:
+    """Kept for any legacy callers that only want the status flag."""
     cutoff = time(WORK_START_HOUR, WORK_START_MINUTE)
-
-    return "LATE" if check_in_time.time() > cutoff else "PRESENT"
+    status, _ = compute_status_and_late(check_in_time, cutoff)
+    return status
 
 
 # =========================
@@ -148,6 +184,12 @@ def check_in(
     # operators or HR via the live floor board) may check in anyone.
     assert_self_or_admin(data.EMPLOYEE_ID, payload)
 
+    # Normalise either UUID or EMPLOYEE_CODE (e.g. "EMP101") to the
+    # canonical UUID. The /employee-login flow returns the CODE under
+    # the EMPLOYEE_ID key, so self-service callers need this bridge.
+    # Raises 404 here if the employee genuinely doesn't exist.
+    data.EMPLOYEE_ID = resolve_employee_uuid(db, data.EMPLOYEE_ID)
+
     emp = db.query(Employee).filter(
         Employee.ID == data.EMPLOYEE_ID
     ).first()
@@ -164,7 +206,7 @@ def check_in(
     # ---- Geofence gate (server-side re-validation) ----
     geo = _check_geofence(db, data.VENDOR_ID, data.LATITUDE, data.LONGITUDE)
 
-    if not geo["allowed"]:
+    if not geo["allowed"] and not data.BYPASS_GEOFENCE:
 
         _log_failure(
             db, data.EMPLOYEE_ID, "OUTSIDE_GEOFENCE",
@@ -183,6 +225,17 @@ def check_in(
             )
         )
 
+    # If the caller explicitly bypassed the gate, log the override
+    # for audit + tag the status so HR can filter on it later.
+    if not geo["allowed"] and data.BYPASS_GEOFENCE:
+        _log_failure(
+            db, data.EMPLOYEE_ID, "GEOFENCE_BYPASSED",
+            data.LATITUDE, data.LONGITUDE, geo["distance_m"],
+            "Admin/employee bypassed geofence gate at check-in.",
+            data.DEVICE_INFO, ip, data.VENDOR_ID
+        )
+        geo["status"] = "BYPASSED"
+
     today = date.today()
 
     record = db.query(Attendance).filter(
@@ -191,6 +244,11 @@ def check_in(
     ).first()
 
     now = datetime.now()
+
+    # Resolve today's office start from Settings so admins can change it
+    # from the UI without a code deploy. Falls back to 9:00 constants.
+    office_start = _resolve_office_start(db)
+    status_flag, late_min = compute_status_and_late(now, office_start)
 
     if record:
 
@@ -202,8 +260,8 @@ def check_in(
             )
 
         record.CHECK_IN = now
-
-        record.STATUS = compute_status(now)
+        record.STATUS = status_flag
+        record.LATE_MINUTES = late_min
 
     else:
 
@@ -211,7 +269,8 @@ def check_in(
             EMPLOYEE_ID=data.EMPLOYEE_ID,
             DATE=today,
             CHECK_IN=now,
-            STATUS=compute_status(now),
+            STATUS=status_flag,
+            LATE_MINUTES=late_min,
             VENDOR_ID=data.VENDOR_ID
         )
 
@@ -231,9 +290,14 @@ def check_in(
     db.refresh(record)
 
     return {
-        "message": "Checked in",
+        "message": (
+            f"Checked in — {record.LATE_MINUTES} minute(s) late."
+            if record.STATUS == "LATE" and (record.LATE_MINUTES or 0) > 0
+            else "Checked in"
+        ),
         "attendance_id": record.ID,
         "status": record.STATUS,
+        "late_minutes": record.LATE_MINUTES or 0,
         "geofence_status": record.GEOFENCE_STATUS,
         "distance_meters": record.CHECKIN_DISTANCE
     }
@@ -254,6 +318,9 @@ def check_out(
     # An employee can only check OUT as themselves; admins may
     # check out anyone (e.g. shift supervisor closing the floor).
     assert_self_or_admin(data.EMPLOYEE_ID, payload)
+
+    # Accept either UUID or EMPLOYEE_CODE — see check-in route comment.
+    data.EMPLOYEE_ID = resolve_employee_uuid(db, data.EMPLOYEE_ID)
 
     today = date.today()
 
@@ -290,7 +357,7 @@ def check_out(
 
     geo = _check_geofence(db, vendor_id, data.LATITUDE, data.LONGITUDE)
 
-    if not geo["allowed"]:
+    if not geo["allowed"] and not data.BYPASS_GEOFENCE:
 
         _log_failure(
             db, data.EMPLOYEE_ID, "OUTSIDE_GEOFENCE",
@@ -308,6 +375,17 @@ def check_out(
             )
         )
 
+    if not geo["allowed"] and data.BYPASS_GEOFENCE:
+        _log_failure(
+            db, data.EMPLOYEE_ID, "GEOFENCE_BYPASSED",
+            data.LATITUDE, data.LONGITUDE, geo["distance_m"],
+            "Admin/employee bypassed geofence gate at check-out.",
+            data.DEVICE_INFO, ip, vendor_id
+        )
+        # Keep the existing GEOFENCE_STATUS on the record (set at check-in
+        # time) — checkout-side bypass doesn't overwrite the morning's
+        # geofence verdict. Distance below is still computed + stored.
+
     now = datetime.now()
 
     record.CHECK_OUT = now
@@ -319,7 +397,25 @@ def check_out(
 
     record.WORKED_HOURS = hours
 
-    record.OVERTIME_HOURS = max(0, round(hours - 8, 2))
+    # ---- Auto-compute OT for work after 18:00 ----
+    # Company policy: any time worked past 18:00 is treated as overtime
+    # (unless an explicit OT session was already logged via
+    # /attendance/ot-check-in, in which case we don't double-count).
+    if not record.OVERTIME_HOURS and not record.OT_CHECK_IN:
+
+        ot_cutoff = now.replace(hour=18, minute=0, second=0, microsecond=0)
+
+        if now > ot_cutoff and record.CHECK_IN < ot_cutoff:
+
+            # OT is the wall-clock time worked between 18:00 and now
+            ot_seconds = (now - ot_cutoff).total_seconds()
+
+            record.OVERTIME_HOURS = round(ot_seconds / 3600, 2)
+
+        elif record.CHECK_IN >= ot_cutoff:
+
+            # Employee started AND ended after 18:00 — entire shift is OT
+            record.OVERTIME_HOURS = hours
 
     # ---- Persist check-out geo ----
     record.CHECKOUT_LATITUDE  = data.LATITUDE
@@ -338,6 +434,116 @@ def check_out(
 
 
 # =========================
+# OT CHECK-IN / CHECK-OUT
+# =========================
+# Overtime is a SECOND session within the same day. The employee
+# completes their regular check-out first, then starts an OT session
+# when they continue working. OT hours are computed strictly from
+# (OT_CHECK_OUT - OT_CHECK_IN).
+
+class _OtRequest(BaseModel):
+    EMPLOYEE_ID: str
+
+
+@router.post("/ot-check-in")
+def ot_check_in(
+    data: _OtRequest,
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
+):
+    """Start the OT session for today. Requires regular check-out to
+    be done first. Idempotent — re-calling while OT is in progress
+    returns the existing OT_CHECK_IN."""
+
+    assert_self_or_admin(data.EMPLOYEE_ID, payload)
+    data.EMPLOYEE_ID = resolve_employee_uuid(db, data.EMPLOYEE_ID)
+
+    today = date.today()
+    record = db.query(Attendance).filter(
+        Attendance.EMPLOYEE_ID == data.EMPLOYEE_ID,
+        Attendance.DATE == today
+    ).first()
+
+    if not record:
+        raise HTTPException(
+            status_code=404,
+            detail="No check-in record for today. Check in first."
+        )
+
+    if not record.CHECK_OUT:
+        raise HTTPException(
+            status_code=400,
+            detail="Complete the regular check-out before starting OT."
+        )
+
+    if record.OT_CHECK_OUT:
+        raise HTTPException(
+            status_code=400,
+            detail="OT session for today is already closed."
+        )
+
+    if record.OT_CHECK_IN:
+        # Idempotent — return the existing timestamp
+        return {
+            "message": "OT already in progress",
+            "ot_check_in": record.OT_CHECK_IN.isoformat()
+        }
+
+    record.OT_CHECK_IN = datetime.now()
+    db.commit()
+
+    return {
+        "message": "OT started",
+        "attendance_id": record.ID,
+        "ot_check_in": record.OT_CHECK_IN.isoformat()
+    }
+
+
+@router.post("/ot-check-out")
+def ot_check_out(
+    data: _OtRequest,
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
+):
+    """Close the OT session — computes OVERTIME_HOURS from the delta."""
+
+    assert_self_or_admin(data.EMPLOYEE_ID, payload)
+    data.EMPLOYEE_ID = resolve_employee_uuid(db, data.EMPLOYEE_ID)
+
+    today = date.today()
+    record = db.query(Attendance).filter(
+        Attendance.EMPLOYEE_ID == data.EMPLOYEE_ID,
+        Attendance.DATE == today
+    ).first()
+
+    if not record or not record.OT_CHECK_IN:
+        raise HTTPException(
+            status_code=400,
+            detail="No OT session in progress. Start OT first."
+        )
+
+    if record.OT_CHECK_OUT:
+        raise HTTPException(
+            status_code=400,
+            detail="OT session for today is already closed."
+        )
+
+    now = datetime.now()
+    record.OT_CHECK_OUT = now
+    delta = now - record.OT_CHECK_IN
+    record.OVERTIME_HOURS = max(0.0, round(delta.total_seconds() / 3600, 2))
+    db.commit()
+
+    return {
+        "message": "OT closed",
+        "attendance_id": record.ID,
+        "ot_check_in":  record.OT_CHECK_IN.isoformat(),
+        "ot_check_out": record.OT_CHECK_OUT.isoformat(),
+        "overtime_hours": record.OVERTIME_HOURS
+    }
+
+
+# =========================
 # MARK ABSENT
 # =========================
 
@@ -346,6 +552,9 @@ def mark_absent(
     data: MarkAbsentRequest,
     db: Session = Depends(get_db)
 ):
+
+    # Accept either UUID or EMPLOYEE_CODE — see check-in route comment.
+    data.EMPLOYEE_ID = resolve_employee_uuid(db, data.EMPLOYEE_ID)
 
     today = date.today()
 
@@ -395,45 +604,62 @@ def mark_absent(
 
 @router.get("/attendance", dependencies=[Depends(require("attendance.view.all"))])
 def get_attendance(
-    db: Session = Depends(get_db)
+    start_date:  Optional[date] = Query(None, description="Inclusive lower bound on DATE"),
+    end_date:    Optional[date] = Query(None, description="Inclusive upper bound on DATE"),
+    employee_id: Optional[str]  = Query(None, description="Employee UUID or EMPLOYEE_CODE"),
+    status:      Optional[str]  = Query(None, description="PRESENT / LATE / ABSENT / HALF_DAY"),
+    limit:       int            = Query(100, ge=1, le=1000),
+    offset:      int            = Query(0,   ge=0),
+    db: Session = Depends(get_db),
 ):
+    """
+    Filterable attendance history.
 
-    rows = db.query(
-        Attendance,
-        Employee.NAME,
-        Employee.EMPLOYEE_CODE
+    Returns an envelope `{ total, rows }` so the UI can paginate. With no
+    filters, returns the most-recent `limit` rows.
+    """
+    q = db.query(
+        Attendance, Employee.NAME, Employee.EMPLOYEE_CODE
     ).outerjoin(
-        Employee,
-        Attendance.EMPLOYEE_ID == Employee.ID
-    ).order_by(
+        Employee, Attendance.EMPLOYEE_ID == Employee.ID
+    )
+
+    if start_date:
+        q = q.filter(Attendance.DATE >= start_date)
+    if end_date:
+        q = q.filter(Attendance.DATE <= end_date)
+    if status:
+        q = q.filter(Attendance.STATUS == status.upper().strip())
+    if employee_id:
+        # Accept either UUID or EMPLOYEE_CODE
+        q = q.filter(
+            (Attendance.EMPLOYEE_ID == employee_id) |
+            (Employee.EMPLOYEE_CODE == employee_id)
+        )
+
+    total = q.count()
+
+    rows = q.order_by(
         Attendance.DATE.desc(),
         Attendance.CHECK_IN.desc()
-    ).all()
+    ).offset(offset).limit(limit).all()
 
     out = []
-
     for record, name, code in rows:
-
         out.append({
             "ID": record.ID,
             "EMPLOYEE_ID": record.EMPLOYEE_ID,
             "EMPLOYEE_CODE": code,
             "EMPLOYEE_NAME": name,
-            "DATE": (
-                record.DATE.isoformat()
-                if record.DATE else None
-            ),
-            "CHECK_IN": (
-                record.CHECK_IN.isoformat()
-                if record.CHECK_IN else None
-            ),
-            "CHECK_OUT": (
-                record.CHECK_OUT.isoformat()
-                if record.CHECK_OUT else None
-            ),
+            "DATE": record.DATE.isoformat() if record.DATE else None,
+            "CHECK_IN":  record.CHECK_IN.isoformat()  if record.CHECK_IN  else None,
+            "CHECK_OUT": record.CHECK_OUT.isoformat() if record.CHECK_OUT else None,
             "STATUS": record.STATUS,
+            "LATE_MINUTES": record.LATE_MINUTES or 0,
             "WORKED_HOURS": record.WORKED_HOURS,
             "OVERTIME_HOURS": record.OVERTIME_HOURS,
+            "OT_CHECK_IN":  record.OT_CHECK_IN.isoformat()  if record.OT_CHECK_IN  else None,
+            "OT_CHECK_OUT": record.OT_CHECK_OUT.isoformat() if record.OT_CHECK_OUT else None,
             "REMARKS": record.REMARKS,
             "VENDOR_ID": record.VENDOR_ID,
             # ---- Geofence ----
@@ -446,10 +672,15 @@ def get_attendance(
             "GEOFENCE_STATUS":    record.GEOFENCE_STATUS,
             "DEVICE_INFO":        record.DEVICE_INFO,
             "BROWSER_INFO":       record.BROWSER_INFO,
-            "IP_ADDRESS":         record.IP_ADDRESS
+            "IP_ADDRESS":         record.IP_ADDRESS,
         })
 
-    return out
+    return {
+        "total":  total,
+        "limit":  limit,
+        "offset": offset,
+        "rows":   out,
+    }
 
 
 @router.get("/attendance/today")
@@ -499,8 +730,11 @@ def get_today_attendance(
                 if rec.CHECK_OUT else None
             ),
             "STATUS": rec.STATUS,
+            "LATE_MINUTES": rec.LATE_MINUTES or 0,
             "WORKED_HOURS": rec.WORKED_HOURS,
             "OVERTIME_HOURS": rec.OVERTIME_HOURS,
+            "OT_CHECK_IN":  rec.OT_CHECK_IN.isoformat()  if rec.OT_CHECK_IN  else None,
+            "OT_CHECK_OUT": rec.OT_CHECK_OUT.isoformat() if rec.OT_CHECK_OUT else None,
             # ---- Geofence (must match /attendance shape so the Today
             # ----  tab renders the same columns as All Records)
             "CHECKIN_LATITUDE":   rec.CHECKIN_LATITUDE,
@@ -515,6 +749,52 @@ def get_today_attendance(
             "IP_ADDRESS":         rec.IP_ADDRESS
         }
         for rec, name, code in rows
+    ]
+
+
+@router.get("/attendance/my-history")
+def my_attendance_history(
+    days: int = 30,
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
+):
+    """Employee's own recent attendance rows — check-in / check-out /
+    working hours / OT / status. Strips every GPS + geofence field
+    before returning so nothing sensitive is exposed on the employee
+    portal. Own data only regardless of role."""
+
+    caller_id = payload.get("employee_id")
+
+    if not caller_id:
+
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    caller_id = resolve_employee_uuid(db, caller_id)
+
+    days = max(1, min(365, int(days or 30)))
+
+    horizon = date.today() - timedelta(days=days - 1)
+
+    rows = (
+        db.query(Attendance)
+        .filter(
+            Attendance.EMPLOYEE_ID == caller_id,
+            Attendance.DATE >= horizon,
+        )
+        .order_by(Attendance.DATE.desc())
+        .all()
+    )
+
+    return [
+        {
+            "date":           r.DATE.isoformat() if r.DATE else None,
+            "check_in":       r.CHECK_IN.isoformat()  if r.CHECK_IN  else None,
+            "check_out":      r.CHECK_OUT.isoformat() if r.CHECK_OUT else None,
+            "status":         r.STATUS,
+            "worked_hours":   float(r.WORKED_HOURS or 0),
+            "overtime_hours": float(r.OVERTIME_HOURS or 0),
+        }
+        for r in rows
     ]
 
 
@@ -689,3 +969,213 @@ def delete_attendance(
     db.commit()
 
     return {"message": "Attendance deleted"}
+
+
+# =====================================================================
+# ATTENDANCE REPORT — per-employee aggregates over a date range
+# =====================================================================
+
+@router.get("/attendance/report",
+            dependencies=[Depends(require("attendance.view.all"))])
+def attendance_report(
+    start_date: date = Query(..., description="Inclusive lower bound"),
+    end_date:   date = Query(..., description="Inclusive upper bound"),
+    db: Session = Depends(get_db),
+):
+    """
+    Returns per-employee summary across the date range:
+      - working_days (date range total)
+      - present, absent, late, half_day counts
+      - worked_hours, overtime_hours
+      - attendance_pct
+    Plus a totals block for the whole company.
+    """
+    if end_date < start_date:
+        raise HTTPException(400, "end_date must be >= start_date")
+
+    # Pre-load ACTIVE employees so we surface zeros for those with no
+    # attendance rows in the range.
+    employees = (db.query(Employee)
+                 .filter(Employee.STATUS == "ACTIVE")
+                 .order_by(Employee.NAME.asc()).all())
+
+    # Aggregate attendance per employee in one query
+    from collections import defaultdict
+    buckets = defaultdict(lambda: {
+        "present": 0, "absent": 0, "late": 0, "half_day": 0,
+        "worked_hours": 0.0, "overtime_hours": 0.0,
+    })
+    rows = (db.query(Attendance)
+            .filter(Attendance.DATE >= start_date,
+                    Attendance.DATE <= end_date).all())
+    for r in rows:
+        b = buckets[r.EMPLOYEE_ID]
+        s = (r.STATUS or "").upper()
+        if   s == "PRESENT":  b["present"]  += 1
+        elif s == "LATE":     b["late"]     += 1; b["present"] += 1
+        elif s == "ABSENT":   b["absent"]   += 1
+        elif s == "HALF_DAY": b["half_day"] += 1; b["present"] += 0.5
+        b["worked_hours"]   += float(r.WORKED_HOURS or 0)
+        b["overtime_hours"] += float(r.OVERTIME_HOURS or 0)
+
+    # Working-day count = total days in range minus Sundays
+    working_days = 0
+    d = start_date
+    while d <= end_date:
+        if d.weekday() != 6:   # 6 = Sunday
+            working_days += 1
+        d = date.fromordinal(d.toordinal() + 1)
+
+    items = []
+    for emp in employees:
+        b = buckets[emp.ID]
+        present = b["present"]
+        attendance_pct = (
+            round(present / working_days * 100, 1)
+            if working_days else 0.0
+        )
+        items.append({
+            "employee_id":   emp.ID,
+            "employee_code": emp.EMPLOYEE_CODE,
+            "employee_name": emp.NAME,
+            "working_days":  working_days,
+            "present":       present,
+            "absent":        b["absent"],
+            "late":          b["late"],
+            "half_day":      b["half_day"],
+            "worked_hours":  round(b["worked_hours"], 1),
+            "overtime_hours":round(b["overtime_hours"], 1),
+            "attendance_pct": attendance_pct,
+        })
+
+    # Sort by attendance_pct desc so top performers show first
+    items.sort(key=lambda r: (-r["attendance_pct"], r["employee_name"]))
+
+    totals = {
+        "employees":       len(items),
+        "working_days":    working_days,
+        "total_present":   sum(i["present"]  for i in items),
+        "total_absent":    sum(i["absent"]   for i in items),
+        "total_late":      sum(i["late"]     for i in items),
+        "total_hours":     round(sum(i["worked_hours"]   for i in items), 1),
+        "total_overtime":  round(sum(i["overtime_hours"] for i in items), 1),
+        "avg_attendance_pct": (
+            round(sum(i["attendance_pct"] for i in items) / len(items), 1)
+            if items else 0.0
+        ),
+    }
+
+    return {
+        "start_date": start_date.isoformat(),
+        "end_date":   end_date.isoformat(),
+        "totals":     totals,
+        "rows":       items,
+    }
+
+
+# =====================================================================
+# EMPLOYEE TRACKING — per-employee daily attendance over last N days
+# =====================================================================
+
+@router.get("/attendance/employee/{employee_id}/tracking")
+def employee_attendance_tracking(
+    employee_id: str,
+    days: int = Query(90, ge=7, le=365),
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
+):
+    """Per-employee tracking view used by the Attendance > Tracking tab.
+
+      - summary KPIs (present, absent, late, hours, attendance %)
+      - daily timeline (date → status) for the last N days, used by the
+        UI to render a calendar heatmap
+    """
+    from datetime import timedelta as _td
+
+    emp = (db.query(Employee)
+           .filter((Employee.ID == employee_id) |
+                   (Employee.EMPLOYEE_CODE == employee_id)).first())
+    if not emp:
+        raise HTTPException(404, "Employee not found")
+
+    end_d   = date.today()
+    start_d = end_d - _td(days=days - 1)
+
+    rows = (db.query(Attendance)
+            .filter(Attendance.EMPLOYEE_ID == emp.ID,
+                    Attendance.DATE >= start_d,
+                    Attendance.DATE <= end_d)
+            .order_by(Attendance.DATE.asc()).all())
+
+    by_date = {r.DATE: r for r in rows}
+
+    timeline = []
+    present, absent, late, half = 0, 0, 0, 0
+    worked_hours, ot_hours = 0.0, 0.0
+
+    d = start_d
+    while d <= end_d:
+        rec = by_date.get(d)
+        if rec:
+            s = (rec.STATUS or "").upper()
+            if s == "PRESENT":  present += 1
+            elif s == "LATE":   late    += 1; present += 1
+            elif s == "ABSENT": absent  += 1
+            elif s == "HALF_DAY": half += 1; present += 0.5
+            worked_hours += float(rec.WORKED_HOURS or 0)
+            ot_hours     += float(rec.OVERTIME_HOURS or 0)
+            check_in_str = (
+                rec.CHECK_IN.strftime("%H:%M") if rec.CHECK_IN else None
+            )
+            check_out_str = (
+                rec.CHECK_OUT.strftime("%H:%M") if rec.CHECK_OUT else None
+            )
+            timeline.append({
+                "date":          d.isoformat(),
+                "weekday":       d.strftime("%a"),
+                "status":        s,
+                "check_in":      check_in_str,
+                "check_out":     check_out_str,
+                "worked_hours":  float(rec.WORKED_HOURS or 0),
+                "overtime_hours":float(rec.OVERTIME_HOURS or 0),
+            })
+        else:
+            # No row for that day — treat Sundays as WEEKLY_OFF, else NO_DATA
+            timeline.append({
+                "date":     d.isoformat(),
+                "weekday":  d.strftime("%a"),
+                "status":   "WEEKLY_OFF" if d.weekday() == 6 else "NO_DATA",
+                "check_in": None, "check_out": None,
+                "worked_hours": 0, "overtime_hours": 0,
+            })
+        d = date.fromordinal(d.toordinal() + 1)
+
+    # Working days = days in range minus Sundays
+    working_days = sum(1 for t in timeline if t["status"] != "WEEKLY_OFF")
+    attendance_pct = round(present / working_days * 100, 1) if working_days else 0.0
+
+    return {
+        "employee": {
+            "id":   emp.ID,
+            "code": emp.EMPLOYEE_CODE,
+            "name": emp.NAME,
+            "department_id":  emp.DEPARTMENT_ID,
+            "designation_id": emp.DESIGNATION_ID,
+        },
+        "window": {
+            "start_date":   start_d.isoformat(),
+            "end_date":     end_d.isoformat(),
+            "days":         days,
+            "working_days": working_days,
+        },
+        "summary": {
+            "present":         present,
+            "absent":          absent,
+            "late":            late,
+            "half_day":        half,
+            "worked_hours":    round(worked_hours, 1),
+            "overtime_hours":  round(ot_hours, 1),
+            "attendance_pct":  attendance_pct,
+        },
+        "timeline": timeline,
+    }

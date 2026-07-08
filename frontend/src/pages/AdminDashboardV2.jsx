@@ -1,4 +1,4 @@
-// =====================================================================
+﻿// =====================================================================
 // AI-POWERED ERP MISSION CONTROL — Phase 1 Foundation
 // =====================================================================
 // P1 scope:
@@ -25,6 +25,7 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 import API from "../services/api";
+import styles from "./AdminDashboardV2.module.css";
 
 
 // =====================================================================
@@ -309,16 +310,7 @@ function HeroParticles() {
   }, [theme]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        position: "absolute",
-        inset: 0,
-        width: "100%",
-        height: "100%",
-        pointerEvents: "none",
-      }}
-    />
+    <canvas ref={canvasRef} className={styles.heroCanvas} />
   );
 }
 
@@ -370,131 +362,46 @@ function HeroCommandCenter({ stats, loading }) {
   });
 
   return (
-    <section style={{
-      position: "relative",
-      overflow: "hidden",
-      borderRadius: "var(--r-xl)",
-      padding: "32px 36px",
-      minHeight: 260,
-      background: `
-        radial-gradient(circle at 20% 30%, var(--mesh-1) 0%, transparent 55%),
-        radial-gradient(circle at 80% 20%, var(--mesh-3) 0%, transparent 55%),
-        radial-gradient(circle at 60% 80%, var(--mesh-4) 0%, transparent 55%),
-        radial-gradient(circle at 30% 70%, var(--mesh-2) 0%, transparent 55%),
-        linear-gradient(135deg, var(--c-surface) 0%, var(--c-surface-2) 100%)
-      `,
-      boxShadow: "var(--shadow-2)",
-      border: "1px solid var(--c-border)",
-    }}>
+    <section className={styles.hero}>
 
       {/* Mesh drift overlay */}
-      <div style={{
-        position: "absolute",
-        inset: "-30%",
-        background: `
-          radial-gradient(circle at 25% 25%, var(--mesh-1), transparent 50%),
-          radial-gradient(circle at 75% 30%, var(--mesh-3), transparent 50%),
-          radial-gradient(circle at 50% 80%, var(--mesh-4), transparent 50%)
-        `,
-        animation: "bvc-mesh-drift 22s ease-in-out infinite",
-        pointerEvents: "none",
-      }} />
+      <div className={styles.heroMeshOverlay} />
 
       {/* Light sweep */}
-      <div style={{
-        position: "absolute",
-        top: 0, bottom: 0, left: 0,
-        width: "30%",
-        background: "linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.15) 50%, transparent 70%)",
-        animation: "bvc-light-sweep 7s ease-in-out infinite",
-        pointerEvents: "none",
-      }} />
+      <div className={styles.heroLightSweep} />
 
       {/* Particles */}
       <HeroParticles />
 
       {/* Content */}
-      <div style={{
-        position: "relative",
-        zIndex: 2,
-        display: "grid",
-        gridTemplateColumns: "1fr auto",
-        gap: 28,
-        alignItems: "flex-start",
-      }}>
+      <div className={styles.heroContent}>
         {/* Left — welcome + company + datetime */}
         <div>
-          <div style={{
-            fontSize: 11,
-            fontWeight: 800,
-            letterSpacing: 2,
-            color: "var(--c-primary)",
-            textTransform: "uppercase",
-          }}>
+          <div className={styles.heroEyebrow}>
             BVC24 · AI MISSION CONTROL
           </div>
-          <h1 style={{
-            margin: "8px 0 4px",
-            fontSize: 36,
-            fontWeight: 900,
-            lineHeight: 1.1,
-            color: "var(--c-text)",
-            letterSpacing: -0.5,
-            fontFamily: "var(--font-display)",
-          }}>
+          <h1 className={styles.heroTitle}>
             Welcome back, {username}
           </h1>
-          <div style={{
-            fontSize: 14,
-            color: "var(--c-text-muted)",
-            fontWeight: 500,
-          }}>
+          <div className={styles.heroCompany}>
             {company.LEGAL_NAME || "BVC24"}
           </div>
-          <div style={{
-            marginTop: 18,
-            display: "flex",
-            gap: 18,
-            alignItems: "baseline",
-            fontFamily: "var(--font-mono)",
-          }}>
+          <div className={styles.heroClock}>
             <div>
-              <div style={{
-                fontSize: 10, letterSpacing: 1.5, fontWeight: 700,
-                color: "var(--c-text-subtle)", textTransform: "uppercase",
-              }}>
-                Date
-              </div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "var(--c-text)" }}>
-                {dateStr}
-              </div>
+              <div className={styles.clockLabel}>Date</div>
+              <div className={styles.clockDate}>{dateStr}</div>
             </div>
             <div>
-              <div style={{
-                fontSize: 10, letterSpacing: 1.5, fontWeight: 700,
-                color: "var(--c-text-subtle)", textTransform: "uppercase",
-              }}>
-                Time
-              </div>
-              <div style={{
-                fontSize: 22,
-                fontWeight: 800,
-                color: "var(--c-primary-2)",
-                textShadow: "0 0 22px rgba(217,4,41,0.35)",
-              }}>
-                {timeStr} <span style={{ fontSize: 11, color: "var(--c-text-subtle)" }}>IST</span>
+              <div className={styles.clockLabel}>Time</div>
+              <div className={styles.clockTime}>
+                {timeStr} <span className={styles.clockIST}>IST</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Right — 4 status pills */}
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(2, minmax(160px, 1fr))",
-          gap: 12,
-          minWidth: 360,
-        }}>
+        <div className={styles.heroPillGrid}>
           <StatusPill
             label="ERP Status"
             value="ONLINE"
@@ -545,55 +452,23 @@ function StatusPill({ label, value, tone, icon, loading, mono }) {
   };
   const t = toneColors[tone] || toneColors.info;
   return (
-    <div style={{
-      display: "flex",
-      alignItems: "center",
-      gap: 10,
-      padding: "10px 14px",
-      borderRadius: 14,
-      background: "var(--glass-bg)",
-      backdropFilter: "var(--glass-blur)",
-      border: `1px solid ${t.border}`,
-      boxShadow: "var(--shadow-1)",
-    }}>
-      <div style={{
-        width: 38, height: 38,
-        borderRadius: 10,
-        background: t.bg,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 20,
-      }}>
+    <div className={styles.statusPill} style={{ border: `1px solid ${t.border}` }}>
+      <div
+        className={styles.statusPillIconBox}
+        style={{ background: t.bg }}
+      >
         {icon}
       </div>
-      <div style={{ minWidth: 0 }}>
-        <div style={{
-          fontSize: 9,
-          letterSpacing: 1.4,
-          fontWeight: 800,
-          color: "var(--c-text-muted)",
-          textTransform: "uppercase",
-        }}>
-          {label}
-        </div>
-        <div style={{
-          fontSize: 14,
-          fontWeight: 800,
-          color: t.text,
-          fontFamily: mono ? "var(--font-mono)" : "var(--font-display)",
-          marginTop: 2,
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-        }}>
-          {tone === "ok" && (
-            <span style={{
-              width: 8, height: 8,
-              borderRadius: "50%",
-              background: "var(--c-accent-ok)",
-              animation: "bvc-pulse-dot 1.5s ease-in-out infinite",
-              flexShrink: 0,
-            }} />
-          )}
+      <div className={styles.statusPillText}>
+        <div className={styles.statusPillLabel}>{label}</div>
+        <div
+          className={styles.statusPillValue}
+          style={{
+            color: t.text,
+            fontFamily: mono ? "var(--font-mono)" : "var(--font-display)",
+          }}
+        >
+          {tone === "ok" && <span className={styles.pulseDot} />}
           {loading ? <Skeleton width={70} /> : value}
         </div>
       </div>
@@ -622,11 +497,11 @@ const KPI_DEFS = [
 ];
 
 const TONE_GRADIENTS = {
-  primary: "linear-gradient(135deg, #D90429 0%, #B3001B 100%)",
-  ok:      "linear-gradient(135deg, #10B981 0%, #047857 100%)",
-  info:    "linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)",
-  warn:    "linear-gradient(135deg, #F59E0B 0%, #B45309 100%)",
-  purple:  "linear-gradient(135deg, #8B5CF6 0%, #5B21B6 100%)",
+  primary: "#D90429",
+  ok:      "#10B981",
+  info:    "#3B82F6",
+  warn:    "#F59E0B",
+  purple:  "#8B5CF6",
 };
 
 function useCountUp(value, duration = 1200) {
@@ -675,8 +550,6 @@ function KPICard({ def, value, series, index, loading }) {
     return { dir: change > 0 ? "up" : "down", pct: Math.abs(change) };
   }, [series]);
 
-  const [hover, setHover] = useState(false);
-
   const onClick = () => {
     if (def.href && def.href !== "#") {
       window.location.href = def.href;
@@ -686,87 +559,30 @@ function KPICard({ def, value, series, index, loading }) {
   return (
     <div
       onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        position: "relative",
-        overflow: "hidden",
-        background: "var(--c-surface)",
-        border: "1px solid var(--c-border)",
-        borderRadius: "var(--r-lg)",
-        padding: "18px 20px",
-        cursor: def.href === "#" ? "default" : "pointer",
-        boxShadow: hover ? "var(--shadow-3)" : "var(--shadow-1)",
-        transform: hover ? "translateY(-4px)" : "translateY(0)",
-        transition: "transform 0.28s var(--ease-out), box-shadow 0.28s var(--ease-out)",
-        animation: `bvc-tile-in 0.6s var(--ease-out) ${index * 0.05}s both`,
-      }}
+      className={`${styles.kpiCard} ${def.href === "#" ? styles.kpiCardDefault : styles.kpiCardClickable}`}
+      style={{ animationDelay: `${index * 0.05}s` }}
     >
-      {/* Subtle gradient bar at top */}
-      <div style={{
-        position: "absolute",
-        top: 0, left: 0, right: 0,
-        height: 3,
-        background: TONE_GRADIENTS[def.tone] || TONE_GRADIENTS.primary,
-      }} />
+      {/* Subtle gradient bar at top — per-tone, data-driven */}
+      <div
+        className={styles.kpiTopBar}
+        style={{ background: TONE_GRADIENTS[def.tone] || TONE_GRADIENTS.primary }}
+      />
 
-      {/* Hover glow tint */}
-      <div style={{
-        position: "absolute",
-        inset: 0,
-        background: hover
-          ? `radial-gradient(circle at 50% 0%, ${toneRGB(def.tone, 0.10)}, transparent 60%)`
-          : "transparent",
-        pointerEvents: "none",
-        transition: "background 0.32s var(--ease-out)",
-      }} />
+      {/* Hover glow tint — CSS handles opacity/visibility */}
+      <div className={styles.kpiGlowTint} />
 
-      <div style={{
-        position: "relative",
-        zIndex: 1,
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "flex-start",
-        marginBottom: 10,
-      }}>
-        <div style={{
-          fontSize: 10,
-          fontWeight: 800,
-          letterSpacing: 1.4,
-          color: "var(--c-text-muted)",
-          textTransform: "uppercase",
-        }}>
-          {def.label}
-        </div>
-        <div style={{
-          width: 36, height: 36,
-          borderRadius: 10,
-          background: TONE_GRADIENTS[def.tone] || TONE_GRADIENTS.primary,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 17,
-          boxShadow: hover ? `0 0 18px ${toneRGB(def.tone, 0.50)}` : "none",
-          transform: hover ? "rotate(-6deg) scale(1.08)" : "rotate(0)",
-          transition: "all 0.28s var(--ease-out)",
-        }}>
+      <div className={styles.kpiHeader}>
+        <div className={styles.kpiLabel}>{def.label}</div>
+        <div
+          className={styles.kpiIconBox}
+          style={{ background: TONE_GRADIENTS[def.tone] || TONE_GRADIENTS.primary }}
+        >
           {def.icon}
         </div>
       </div>
 
-      <div style={{
-        position: "relative",
-        zIndex: 1,
-        display: "flex",
-        alignItems: "baseline",
-        gap: 10,
-        marginBottom: 6,
-      }}>
-        <div style={{
-          fontSize: 28,
-          fontWeight: 900,
-          color: "var(--c-text)",
-          fontFamily: "var(--font-mono)",
-          lineHeight: 1.1,
-        }}>
+      <div className={styles.kpiValueRow}>
+        <div className={styles.kpiValue}>
           {loading ? <Skeleton width={120} height={28} /> : text}
         </div>
         {trend && !loading && (
@@ -775,32 +591,16 @@ function KPICard({ def, value, series, index, loading }) {
       </div>
 
       {/* Real sparkline driven by 7-day series */}
-      <div style={{
-        position: "relative",
-        zIndex: 1,
-        height: 32,
-        marginTop: 8,
-      }}>
-        <Sparkline series={series} tone={def.tone} animated={hover} />
+      <div className={styles.kpiSparkWrap}>
+        <Sparkline series={series} tone={def.tone} />
       </div>
 
       {/* Bottom strip */}
-      <div style={{
-        position: "relative",
-        zIndex: 1,
-        marginTop: 8,
-        height: 2,
-        background: "var(--c-border)",
-        borderRadius: 999,
-        overflow: "hidden",
-      }}>
-        <div style={{
-          height: "100%",
-          width: hover ? "100%" : "40%",
-          background: TONE_GRADIENTS[def.tone] || TONE_GRADIENTS.primary,
-          transition: "width 0.55s var(--ease-out)",
-          borderRadius: 999,
-        }} />
+      <div className={styles.kpiStripTrack}>
+        <div
+          className={styles.kpiStripFill}
+          style={{ background: TONE_GRADIENTS[def.tone] || TONE_GRADIENTS.primary }}
+        />
       </div>
     </div>
   );
@@ -892,25 +692,13 @@ function Sparkline({ series, tone, animated }) {
 
 function TrendBadge({ dir, pct }) {
   const map = {
-    up:   { bg: "rgba(16,185,129,0.16)", color: "var(--c-accent-ok)",   arrow: "▲" },
-    down: { bg: "rgba(217,4,41,0.16)",    color: "var(--c-primary-2)",  arrow: "▼" },
-    flat: { bg: "rgba(100,116,139,0.16)", color: "var(--c-text-muted)", arrow: "–" },
+    up:   { cls: styles.trendUp,   arrow: "▲" },
+    down: { cls: styles.trendDown, arrow: "▼" },
+    flat: { cls: styles.trendFlat, arrow: "–" },
   };
   const s = map[dir] || map.flat;
   return (
-    <span style={{
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 3,
-      padding: "2px 6px",
-      borderRadius: 5,
-      background: s.bg,
-      color: s.color,
-      fontSize: 10,
-      fontWeight: 800,
-      fontFamily: "var(--font-mono)",
-      lineHeight: 1.2,
-    }}>
+    <span className={`${styles.trendBadge} ${s.cls}`}>
       <span>{s.arrow}</span>
       <span>{pct.toFixed(0)}%</span>
     </span>
@@ -924,19 +712,10 @@ function TrendBadge({ dir, pct }) {
 
 function Skeleton({ width = 80, height = 14 }) {
   return (
-    <span style={{
-      display: "inline-block",
-      width,
-      height,
-      borderRadius: 6,
-      background: `linear-gradient(90deg,
-        var(--c-surface-2) 0%,
-        var(--c-surface-3) 50%,
-        var(--c-surface-2) 100%)`,
-      backgroundSize: "200% 100%",
-      animation: "bvc-skeleton 1.4s ease-in-out infinite",
-      verticalAlign: "middle",
-    }} />
+    <span
+      className={styles.skeleton}
+      style={{ width, height }}
+    />
   );
 }
 
@@ -954,24 +733,9 @@ function ThemeToggle() {
     <button
       onClick={() => setTheme(next)}
       title={`Theme: ${label} — click to cycle (current visible: ${theme})`}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "8px 14px",
-        background: "var(--glass-bg)",
-        backdropFilter: "var(--glass-blur)",
-        border: "1px solid var(--glass-border)",
-        borderRadius: 999,
-        color: "var(--c-text)",
-        fontSize: 12,
-        fontWeight: 700,
-        letterSpacing: 0.4,
-        cursor: "pointer",
-        boxShadow: "var(--shadow-1)",
-      }}
+      className={styles.themeToggleBtn}
     >
-      <span style={{ fontSize: 14 }}>{icon}</span>
+      <span className={styles.themeToggleIcon}>{icon}</span>
       <span>{label}</span>
     </button>
   );
@@ -1035,23 +799,9 @@ function AdminDashboardV2Inner() {
   }, [fetchAll]);
 
   return (
-    <div
-      className="bvc-themed"
-      style={{
-        padding: 24,
-        background: "var(--c-bg)",
-        minHeight: "calc(100vh - 80px)",
-        color: "var(--c-text)",
-        position: "relative",
-      }}
-    >
+    <div className={`bvc-themed ${styles.page}`}>
       {/* Floating theme toggle */}
-      <div style={{
-        position: "absolute",
-        top: 18,
-        right: 24,
-        zIndex: 10,
-      }}>
+      <div className={styles.themeToggleAnchor}>
         <ThemeToggle />
       </div>
 
@@ -1060,26 +810,11 @@ function AdminDashboardV2Inner() {
 
       {/* Error banner */}
       {error && (
-        <div style={{
-          marginTop: 18,
-          padding: "10px 14px",
-          background: "rgba(217,4,41,0.10)",
-          border: "1px solid rgba(217,4,41,0.30)",
-          borderRadius: "var(--r-md)",
-          color: "var(--c-primary-2)",
-          fontSize: 13,
-        }}>
-          ⚠ {error}
-        </div>
+        <div className={styles.errorBanner}>⚠ {error}</div>
       )}
 
       {/* KPI grid */}
-      <section style={{
-        marginTop: 24,
-        display: "grid",
-        gap: 16,
-        gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-      }}>
+      <section className={styles.kpiGrid}>
         {KPI_DEFS.map((def, i) => (
           <KPICard
             key={def.key}
@@ -1093,60 +828,39 @@ function AdminDashboardV2Inner() {
       </section>
 
       {/* Health Score + Factory Control — 2-column row */}
-      <section style={{
-        marginTop: 24,
-        display: "grid",
-        gap: 16,
-        gridTemplateColumns: "minmax(360px, 1fr) minmax(360px, 1fr)",
-      }}>
+      <section className={styles.twoColRow}>
         <HealthScorePanel data={health} />
         <FactoryControlPanel data={factory} />
       </section>
 
       {/* Production Flow — full width */}
-      <section style={{ marginTop: 16 }}>
+      <section className={styles.fullWidthSection}>
         <ProductionFlowPanel data={flow} />
       </section>
 
       {/* AI Insights + Approval Center — 2-col */}
-      <section style={{
-        marginTop: 16,
-        display: "grid",
-        gap: 16,
-        gridTemplateColumns: "minmax(380px, 1.4fr) minmax(320px, 1fr)",
-      }}>
+      <section className={styles.insightsApprovalRow}>
         <AIInsightEngine insights={insights} />
         <ApprovalEmbed approvals={approvals} />
       </section>
 
       {/* Activity timeline — full width */}
-      <section style={{ marginTop: 16 }}>
+      <section className={styles.fullWidthSection}>
         <ActivityTimeline items={activity} />
       </section>
 
       {/* Top Performers — full width */}
-      <section style={{ marginTop: 16 }}>
+      <section className={styles.fullWidthSection}>
         <TopPerformersPanel performers={performers} />
       </section>
 
       {/* Enterprise Analytics — full width tabbed chart */}
-      <section style={{ marginTop: 16 }}>
+      <section className={styles.fullWidthSection}>
         <EnterpriseAnalytics />
       </section>
 
       {/* Placeholder for phases P5-P8 */}
-      <section style={{
-        marginTop: 32,
-        padding: "20px 22px",
-        background: "var(--glass-bg)",
-        backdropFilter: "var(--glass-blur)",
-        border: "1px dashed var(--c-border-2)",
-        borderRadius: "var(--r-lg)",
-        textAlign: "center",
-        color: "var(--c-text-muted)",
-        fontSize: 13,
-        fontStyle: "italic",
-      }}>
+      <section className={styles.comingSoon}>
         🚧 Phases 6–8 land here: Notification Drawer · polish ·
         error boundaries · print stylesheet · handover.
       </section>
@@ -1167,32 +881,19 @@ function TopPerformersPanel({ performers }) {
       title="Top Performers"
       icon="🏆"
       right={(
-        <div style={{
-          fontSize: 10, fontWeight: 700, letterSpacing: 1,
-          color: "var(--c-text-muted)", textTransform: "uppercase",
-        }}>
+        <div className={styles.performerCountLabel}>
           {performers.length} spotlight{performers.length === 1 ? "" : "s"}
         </div>
       )}
     >
       {performers.length === 0 ? (
-        <div style={{
-          padding: 30,
-          textAlign: "center",
-          color: "var(--c-text-muted)",
-          fontStyle: "italic",
-          fontSize: 13,
-        }}>
+        <div className={styles.performerEmptyMsg}>
           No performance data captured yet — top performers will appear
           once attendance, sales, and production activity is recorded
           this month.
         </div>
       ) : (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 12,
-        }}>
+        <div className={styles.performerGrid}>
           {performers.map((p, i) => (
             <PerformerCard key={i} p={p} index={i} />
           ))}
@@ -1214,51 +915,33 @@ function PerformerCard({ p, index }) {
     : null;
 
   return (
-    <div style={{
-      position: "relative",
-      overflow: "hidden",
-      padding: "16px 14px 14px",
-      background: `linear-gradient(160deg, var(--c-surface) 0%, ${toneRGB(tone, 0.06)} 100%)`,
-      border: `1px solid ${toneRGB(tone, 0.32)}`,
-      borderRadius: "var(--r-lg)",
-      boxShadow: "var(--shadow-1)",
-      animation: `bvc-tile-in 0.55s var(--ease-out) ${index * 0.07}s both`,
-    }}>
+    <div
+      className={styles.performerCard}
+      style={{
+        border: `1px solid ${toneRGB(tone, 0.32)}`,
+        animationDelay: `${index * 0.07}s`,
+      }}
+    >
       {/* Gradient halo behind avatar */}
-      <div style={{
-        position: "absolute",
-        top: -28, right: -28,
-        width: 120, height: 120,
-        borderRadius: "50%",
-        background: `radial-gradient(circle, ${toneRGB(tone, 0.20)}, transparent 70%)`,
-        pointerEvents: "none",
-      }} />
+      <div
+        className={styles.performerHalo}
+        style={{ background: `radial-gradient(circle, ${toneRGB(tone, 0.20)}, transparent 70%)` }}
+      />
 
       {/* Avatar */}
-      <div style={{
-        position: "relative",
-        zIndex: 1,
-        display: "flex", justifyContent: "center",
-        marginBottom: 10,
-      }}>
-        <div style={{
-          position: "relative",
-          width: 64, height: 64,
-          borderRadius: "50%",
-          background: photoSrc
-            ? "var(--c-surface-2)"
-            : `linear-gradient(135deg, ${toneRGB(tone, 0.85)}, ${toneRGB(tone, 1)})`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 28, fontWeight: 900, color: "white",
-          boxShadow: `0 8px 24px ${toneRGB(tone, 0.40)}`,
-          border: `3px solid var(--c-surface)`,
-          overflow: "hidden",
-        }}>
+      <div className={styles.performerAvatarWrap}>
+        <div
+          className={styles.performerAvatar}
+          style={{
+            background: photoSrc ? "var(--c-surface-2)" : toneRGB(tone, 0.85),
+            boxShadow: `0 8px 24px ${toneRGB(tone, 0.40)}`,
+          }}
+        >
           {photoSrc ? (
             <img
               src={photoSrc}
               alt={p.name}
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              className={styles.performerAvatarImg}
               onError={(e) => {
                 e.currentTarget.style.display = "none";
                 if (e.currentTarget.nextSibling) {
@@ -1268,11 +951,7 @@ function PerformerCard({ p, index }) {
             />
           ) : null}
           {photoSrc ? (
-            <span style={{
-              display: "none",
-              position: "absolute", inset: 0,
-              alignItems: "center", justifyContent: "center",
-            }}>
+            <span className={styles.performerAvatarFallback}>
               {p.initial}
             </span>
           ) : (
@@ -1281,12 +960,7 @@ function PerformerCard({ p, index }) {
 
           {/* Crown / medal overlay for first card (EoM) */}
           {index === 0 && (
-            <div style={{
-              position: "absolute",
-              top: -10, right: -6,
-              fontSize: 22,
-              filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.30))",
-            }}>
+            <div className={styles.performerCrown}>
               👑
             </div>
           )}
@@ -1294,70 +968,37 @@ function PerformerCard({ p, index }) {
       </div>
 
       {/* Badge pill */}
-      <div style={{
-        position: "relative", zIndex: 1,
-        textAlign: "center",
-        marginBottom: 6,
-      }}>
-        <span style={{
-          display: "inline-block",
-          padding: "3px 10px",
-          borderRadius: 999,
-          background: toneRGB(tone, 0.16),
-          color: toneRGB(tone, 1),
-          fontSize: 10,
-          fontWeight: 800,
-          letterSpacing: 0.5,
-          border: `1px solid ${toneRGB(tone, 0.30)}`,
-        }}>
+      <div className={styles.performerBadgeRow}>
+        <span
+          className={styles.performerBadge}
+          style={{
+            background: toneRGB(tone, 0.16),
+            color: toneRGB(tone, 1),
+            border: `1px solid ${toneRGB(tone, 0.30)}`,
+          }}
+        >
           {p.badge}
         </span>
       </div>
 
       {/* Name */}
-      <div style={{
-        position: "relative", zIndex: 1,
-        fontSize: 15, fontWeight: 900,
-        color: "var(--c-text)",
-        textAlign: "center",
-        lineHeight: 1.2,
-      }}>
+      <div className={styles.performerName}>
         {p.name}
       </div>
 
       {/* Designation / department */}
       {p.designation && (
-        <div style={{
-          position: "relative", zIndex: 1,
-          fontSize: 11, color: "var(--c-text-muted)",
-          textAlign: "center", marginTop: 2,
-        }}>
+        <div className={styles.performerDesig}>
           {p.designation}
         </div>
       )}
 
       {/* Score / subtitle */}
-      <div style={{
-        position: "relative", zIndex: 1,
-        marginTop: 10,
-        padding: "8px 10px",
-        background: "var(--c-surface-2)",
-        border: "1px solid var(--c-border)",
-        borderRadius: 10,
-        textAlign: "center",
-      }}>
-        <div style={{
-          fontSize: 18, fontWeight: 900,
-          fontFamily: "var(--font-mono)",
-          color: toneRGB(tone, 1),
-          lineHeight: 1,
-        }}>
+      <div className={styles.performerScore}>
+        <div className={styles.performerScoreVal} style={{ color: toneRGB(tone, 1) }}>
           {p.score ? p.score : "—"}
         </div>
-        <div style={{
-          fontSize: 10, color: "var(--c-text-muted)",
-          marginTop: 2,
-        }}>
+        <div className={styles.performerScoreSub}>
           {p.subtitle || p.score_label}
         </div>
       </div>
@@ -1423,25 +1064,12 @@ function EnterpriseAnalytics() {
       title="Performance over time"
       icon="📊"
       right={(
-        <div style={{ display: "flex", gap: 4 }}>
+        <div className={styles.analyticsRangeBtns}>
           {ANALYTICS_RANGES.map((r) => (
             <button
               key={r.key}
               onClick={() => setRange(r.key)}
-              style={{
-                padding: "4px 12px",
-                fontSize: 10,
-                fontWeight: 800,
-                letterSpacing: 0.6,
-                background: range === r.key
-                  ? `linear-gradient(135deg, var(--c-primary), var(--c-primary-2))`
-                  : "var(--c-surface-2)",
-                color: range === r.key ? "white" : "var(--c-text-muted)",
-                border: "1px solid var(--c-border)",
-                borderRadius: 999,
-                cursor: "pointer",
-                boxShadow: range === r.key ? "0 4px 12px rgba(217,4,41,0.30)" : "none",
-              }}
+              className={`${styles.analyticsRangeBtn}${range === r.key ? ` ${styles.analyticsRangeBtnActive}` : ""}`}
             >
               {r.label}
             </button>
@@ -1450,34 +1078,17 @@ function EnterpriseAnalytics() {
       )}
     >
       {/* Tab strip */}
-      <div style={{
-        display: "flex",
-        gap: 4,
-        overflowX: "auto",
-        paddingBottom: 8,
-        marginBottom: 12,
-        borderBottom: "1px solid var(--c-border)",
-      }}>
+      <div className={styles.analyticsTabStrip}>
         {ANALYTICS_TABS.map((t) => {
           const isActive = active === t.key;
           return (
             <button
               key={t.key}
               onClick={() => setActive(t.key)}
+              className={`${styles.analyticsTab}${isActive ? ` ${styles.analyticsTabActive}` : ""}`}
               style={{
-                display: "flex", alignItems: "center", gap: 6,
-                padding: "8px 14px",
-                fontSize: 12,
-                fontWeight: 800,
-                background: isActive
-                  ? "var(--c-surface-2)"
-                  : "transparent",
-                color: isActive ? toneRGB(t.tone, 1) : "var(--c-text-muted)",
-                border: "none",
-                borderBottom: `2px solid ${isActive ? toneRGB(t.tone, 1) : "transparent"}`,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                transition: "color 0.15s, border-color 0.15s",
+                color: isActive ? toneRGB(t.tone, 1) : undefined,
+                borderBottomColor: isActive ? toneRGB(t.tone, 1) : undefined,
               }}
             >
               <span>{t.icon}</span>
@@ -1488,26 +1099,12 @@ function EnterpriseAnalytics() {
       </div>
 
       {/* Header — total + trend */}
-      <div style={{
-        display: "flex",
-        alignItems: "baseline",
-        gap: 16,
-        marginBottom: 10,
-      }}>
+      <div className={styles.analyticsTotals}>
         <div>
-          <div style={{
-            fontSize: 10, letterSpacing: 1.5, fontWeight: 800,
-            color: "var(--c-text-muted)", textTransform: "uppercase",
-          }}>
+          <div className={styles.analyticsTotalLabel}>
             {range.toUpperCase()} total
           </div>
-          <div style={{
-            fontSize: 30, fontWeight: 900,
-            color: toneRGB(tab.tone, 1),
-            fontFamily: "var(--font-mono)",
-            lineHeight: 1,
-            marginTop: 2,
-          }}>
+          <div className={styles.analyticsTotalVal} style={{ color: toneRGB(tab.tone, 1) }}>
             {tab.format === "money" ? formatMoney(total) : Number(total).toLocaleString("en-IN")}
           </div>
         </div>
@@ -1517,21 +1114,9 @@ function EnterpriseAnalytics() {
       </div>
 
       {/* Chart */}
-      <div style={{
-        height: 260,
-        position: "relative",
-      }}>
+      <div className={styles.analyticsChartWrap}>
         {loading && (
-          <div style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "var(--c-text-muted)",
-            fontSize: 12,
-            fontStyle: "italic",
-          }}>
-            Loading…
-          </div>
+          <div className={styles.analyticsLoading}>Loading…</div>
         )}
         <ResponsiveContainer width="100%" height="100%">
           {tab.chart === "bar" ? (
@@ -1645,25 +1230,25 @@ function EnterpriseAnalytics() {
 
 const SEVERITY_STYLES = {
   critical: {
-    bg: "linear-gradient(135deg, rgba(217,4,41,0.10), rgba(217,4,41,0.04))",
+    bg: "rgba(217,4,41,0.06)",
     border: "rgba(217,4,41,0.35)",
     color: "var(--c-primary-2)",
     label: "Critical",
   },
   warning: {
-    bg: "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(245,158,11,0.04))",
+    bg: "rgba(245,158,11,0.08)",
     border: "rgba(245,158,11,0.40)",
     color: "var(--c-accent-warn)",
     label: "Warning",
   },
   info: {
-    bg: "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(59,130,246,0.04))",
+    bg: "rgba(59,130,246,0.08)",
     border: "rgba(59,130,246,0.40)",
     color: "var(--c-accent-info)",
     label: "Info",
   },
   success: {
-    bg: "linear-gradient(135deg, rgba(16,185,129,0.12), rgba(16,185,129,0.04))",
+    bg: "rgba(16,185,129,0.08)",
     border: "rgba(16,185,129,0.40)",
     color: "var(--c-accent-ok)",
     label: "On Track",
@@ -1677,35 +1262,18 @@ function AIInsightEngine({ insights }) {
       title="What needs your attention"
       icon="🤖"
       right={(
-        <div style={{
-          display: "inline-flex", alignItems: "center", gap: 6,
-          padding: "4px 10px", borderRadius: 999,
-          background: "rgba(139,92,246,0.14)",
-          border: "1px solid rgba(139,92,246,0.35)",
-          color: "var(--c-accent-purple)",
-          fontSize: 10, fontWeight: 800, letterSpacing: 1,
-        }}>
-          <span style={{
-            width: 6, height: 6, borderRadius: "50%",
-            background: "var(--c-accent-purple)",
-            animation: "bvc-pulse-dot 1.5s ease-in-out infinite",
-          }} />
+        <div className={styles.livePill}>
+          <span className={styles.liveDot} />
           LIVE
         </div>
       )}
     >
       {insights.length === 0 ? (
-        <div style={{
-          padding: 30,
-          textAlign: "center",
-          color: "var(--c-text-muted)",
-          fontStyle: "italic",
-          fontSize: 13,
-        }}>
+        <div className={styles.insightEmptyMsg}>
           No insights yet — data is still loading.
         </div>
       ) : (
-        <div style={{ display: "grid", gap: 10 }}>
+        <div className={styles.insightList}>
           {insights.map((insight, i) => (
             <InsightCard key={i} insight={insight} index={i} />
           ))}
@@ -1718,89 +1286,41 @@ function AIInsightEngine({ insights }) {
 function InsightCard({ insight, index }) {
   const s = SEVERITY_STYLES[insight.severity] || SEVERITY_STYLES.info;
   return (
-    <div style={{
-      position: "relative",
-      padding: "12px 14px",
-      background: s.bg,
-      border: `1px solid ${s.border}`,
-      borderRadius: 12,
-      animation: `bvc-tile-in 0.5s var(--ease-out) ${index * 0.07}s both`,
-    }}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-        <div style={{
-          width: 36, height: 36,
-          borderRadius: 10,
-          background: "var(--c-surface)",
-          border: `1px solid ${s.border}`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 18,
-          flexShrink: 0,
-        }}>
+    <div
+      className={styles.insightCard}
+      style={{
+        background: s.bg,
+        border: `1px solid ${s.border}`,
+        animationDelay: `${index * 0.07}s`,
+      }}
+    >
+      <div className={styles.insightCardInner}>
+        <div className={styles.insightIconBox} style={{ border: `1px solid ${s.border}` }}>
           {insight.icon}
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            marginBottom: 2,
-          }}>
-            <span style={{
-              fontSize: 9, fontWeight: 800, letterSpacing: 1,
-              padding: "1px 6px", borderRadius: 4,
-              background: s.color, color: "white",
-              textTransform: "uppercase",
-            }}>
+        <div className={styles.insightBody}>
+          <div className={styles.insightBadgeRow}>
+            <span className={styles.insightBadge} style={{ background: s.color }}>
               {s.label}
             </span>
           </div>
-          <div style={{
-            fontSize: 13,
-            fontWeight: 800,
-            color: "var(--c-text)",
-            lineHeight: 1.35,
-          }}>
+          <div className={styles.insightTitle}>
             {insight.title}
           </div>
           {insight.body && (
-            <div style={{
-              fontSize: 11,
-              color: "var(--c-text-muted)",
-              marginTop: 2,
-              lineHeight: 1.45,
-            }}>
+            <div className={styles.insightDesc}>
               {insight.body}
             </div>
           )}
-          <div style={{
-            marginTop: 8,
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            flexWrap: "wrap",
-          }}>
-            <div style={{
-              fontSize: 11,
-              fontStyle: "italic",
-              color: s.color,
-              fontWeight: 700,
-            }}>
+          <div className={styles.insightActions}>
+            <div className={styles.insightSuggestion} style={{ color: s.color }}>
               💡 {insight.suggestion}
             </div>
             {insight.action_url && insight.action_url !== "#" && (
               <a
                 href={insight.action_url}
-                style={{
-                  fontSize: 10,
-                  fontWeight: 800,
-                  padding: "4px 10px",
-                  borderRadius: 6,
-                  background: s.color,
-                  color: "white",
-                  textDecoration: "none",
-                  whiteSpace: "nowrap",
-                  letterSpacing: 0.4,
-                }}
+                className={styles.insightActionLink}
+                style={{ background: s.color }}
               >
                 {insight.action_label || "Open"} →
               </a>
@@ -1837,35 +1357,19 @@ function ApprovalEmbed({ approvals }) {
       title={`${total} waiting on you`}
       icon="✅"
       right={(
-        <a href="/approvals" style={{
-          fontSize: 11, fontWeight: 800, letterSpacing: 0.4,
-          padding: "5px 12px", borderRadius: 999,
-          background: "linear-gradient(135deg, var(--c-primary), var(--c-primary-2))",
-          color: "white", textDecoration: "none",
-          boxShadow: "0 4px 12px rgba(217,4,41,0.30)",
-        }}>
+        <a href="/approvals" className={styles.approvalOpenBtn}>
           Open ↗
         </a>
       )}
     >
       {total === 0 ? (
-        <div style={{
-          padding: 26,
-          textAlign: "center",
-          color: "var(--c-accent-ok)",
-        }}>
-          <div style={{ fontSize: 42 }}>✨</div>
-          <div style={{ fontSize: 14, fontWeight: 800, marginTop: 6 }}>
-            All caught up
-          </div>
-          <div style={{
-            fontSize: 11, color: "var(--c-text-muted)", marginTop: 2,
-          }}>
-            Nothing waiting on your sign-off right now.
-          </div>
+        <div className={styles.approvalEmpty}>
+          <div className={styles.approvalEmptyIcon}>✨</div>
+          <div className={styles.approvalEmptyTitle}>All caught up</div>
+          <div className={styles.approvalEmptyBody}>Nothing waiting on your sign-off right now.</div>
         </div>
       ) : (
-        <div style={{ display: "grid", gap: 8 }}>
+        <div className={styles.approvalList}>
           {APPROVAL_BUCKETS.map((b) => {
             const count = (buckets[b.key] || []).length;
             if (count === 0) return null;
@@ -1873,49 +1377,27 @@ function ApprovalEmbed({ approvals }) {
               <a
                 key={b.key}
                 href="/approvals"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "10px 14px",
-                  background: "var(--c-surface-2)",
-                  border: "1px solid var(--c-border)",
-                  borderRadius: 10,
-                  textDecoration: "none",
-                  color: "var(--c-text)",
-                  transition: "transform 0.15s var(--ease-out), border-color 0.15s",
-                }}
+                className={styles.approvalRow}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "translateX(2px)";
                   e.currentTarget.style.borderColor = toneRGB(b.color, 0.50);
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "translateX(0)";
-                  e.currentTarget.style.borderColor = "var(--c-border)";
+                  e.currentTarget.style.borderColor = "";
                 }}
               >
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  fontSize: 12, fontWeight: 700,
-                }}>
-                  <span style={{
-                    width: 30, height: 30,
-                    borderRadius: 8,
-                    background: toneRGB(b.color, 0.14),
-                    border: `1px solid ${toneRGB(b.color, 0.30)}`,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 14,
-                  }}>
+                <div className={styles.approvalRowLeft}>
+                  <span
+                    className={styles.approvalIconSpan}
+                    style={{
+                      background: toneRGB(b.color, 0.14),
+                      border: `1px solid ${toneRGB(b.color, 0.30)}`,
+                    }}
+                  >
                     {b.icon}
                   </span>
                   {b.label}
                 </div>
-                <div style={{
-                  fontSize: 14,
-                  fontWeight: 900,
-                  fontFamily: "var(--font-mono)",
-                  color: toneRGB(b.color, 1),
-                }}>
+                <div className={styles.approvalRowCount} style={{ color: toneRGB(b.color, 1) }}>
                   {count}
                 </div>
               </a>
@@ -1952,31 +1434,17 @@ function ActivityTimeline({ items }) {
       title="Today across BVC24"
       icon="📡"
       right={(
-        <div style={{
-          fontSize: 10, fontWeight: 700, letterSpacing: 1,
-          color: "var(--c-text-muted)", textTransform: "uppercase",
-        }}>
+        <div className={styles.activityCountLabel}>
           {items.length} events
         </div>
       )}
     >
       {items.length === 0 ? (
-        <div style={{
-          padding: 26,
-          textAlign: "center",
-          color: "var(--c-text-muted)",
-          fontStyle: "italic",
-          fontSize: 13,
-        }}>
+        <div className={styles.activityEmptyMsg}>
           No activity yet — events will appear here as they happen.
         </div>
       ) : (
-        <div style={{
-          position: "relative",
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-          gap: 8,
-        }}>
+        <div className={styles.timelineGrid}>
           {items.slice(0, 14).map((item, i) => (
             <TimelineRow key={`${item.kind}-${item.ts}-${i}`} item={item} index={i} />
           ))}
@@ -1991,68 +1459,33 @@ function TimelineRow({ item, index }) {
   return (
     <a
       href={item.href || "#"}
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 10,
-        padding: "10px 12px",
-        background: "var(--c-surface-2)",
-        border: "1px solid var(--c-border)",
-        borderRadius: 10,
-        textDecoration: "none",
-        color: "var(--c-text)",
-        animation: `bvc-tile-in 0.45s var(--ease-out) ${index * 0.03}s both`,
-        transition: "border-color 0.18s, transform 0.18s",
-      }}
+      className={styles.timelineRow}
+      style={{ animationDelay: `${index * 0.03}s` }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = toneRGB(color, 0.45);
-        e.currentTarget.style.transform = "translateX(2px)";
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = "var(--c-border)";
-        e.currentTarget.style.transform = "translateX(0)";
+        e.currentTarget.style.borderColor = "";
       }}
     >
-      <div style={{
-        width: 30, height: 30,
-        borderRadius: 9,
-        background: toneRGB(color, 0.16),
-        border: `1px solid ${toneRGB(color, 0.30)}`,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 14,
-        flexShrink: 0,
-      }}>
+      <div
+        className={styles.timelineIconBox}
+        style={{
+          background: toneRGB(color, 0.16),
+          border: `1px solid ${toneRGB(color, 0.30)}`,
+        }}
+      >
         {item.icon}
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          fontSize: 12,
-          fontWeight: 700,
-          color: "var(--c-text)",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}>
+      <div className={styles.timelineRowBody}>
+        <div className={styles.timelineText}>
           {item.text}
         </div>
-        <div style={{
-          fontSize: 10,
-          color: "var(--c-text-muted)",
-          marginTop: 1,
-          display: "flex",
-          gap: 6,
-        }}>
+        <div className={styles.timelineMeta}>
           {item.subtext && (
-            <span style={{
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}>{item.subtext}</span>
+            <span className={styles.timelineSubtext}>{item.subtext}</span>
           )}
-          <span style={{
-            marginLeft: "auto",
-            fontFamily: "var(--font-mono)",
-            color: "var(--c-text-subtle)",
-            flexShrink: 0,
-          }}>
+          <span className={styles.timelineTs}>
             {formatRelative(item.ts)}
           </span>
         </div>
@@ -2102,14 +1535,9 @@ function HealthScorePanel({ data }) {
       title="Overall Score"
       icon="🧠"
     >
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "auto 1fr",
-        gap: 24,
-        alignItems: "center",
-      }}>
+      <div className={styles.healthGrid}>
         {/* Circular score */}
-        <div style={{ position: "relative", width: 192, height: 192 }}>
+        <div className={styles.healthCircleWrap}>
           <svg width="192" height="192" viewBox="0 0 192 192">
             <circle
               cx="96" cy="96" r={R}
@@ -2460,10 +1888,7 @@ function ProductionFlowPanel({ data }) {
                   position: "absolute",
                   top: 30, left: "50%", right: "-50%",
                   height: 2,
-                  background: `linear-gradient(90deg,
-                    var(--c-primary) 0%,
-                    var(--c-accent-warn) 50%,
-                    var(--c-accent-ok) 100%)`,
+                  background: "var(--c-primary)",
                   zIndex: 0,
                   opacity: 0.55,
                 }} />
@@ -2476,7 +1901,7 @@ function ProductionFlowPanel({ data }) {
                 width: 60, height: 60,
                 borderRadius: "50%",
                 background: isCompleted
-                  ? "linear-gradient(135deg, #10B981, #047857)"
+                  ? "#10B981"
                   : "var(--c-surface)",
                 border: `2px solid ${
                   isCompleted ? "transparent" : "var(--c-primary-2)"
@@ -2566,7 +1991,7 @@ function PanelCard({ eyebrow, title, icon, right, children }) {
         position: "absolute",
         top: 0, left: 0, right: 0,
         height: 2,
-        background: "linear-gradient(90deg, var(--c-primary), var(--c-accent-warn), var(--c-accent-info))",
+        background: "var(--c-primary)",
         opacity: 0.55,
       }} />
 
@@ -2581,7 +2006,7 @@ function PanelCard({ eyebrow, title, icon, right, children }) {
             <div style={{
               width: 36, height: 36,
               borderRadius: 10,
-              background: "linear-gradient(135deg, var(--c-primary), var(--c-primary-2))",
+              background: "var(--c-primary)",
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 16,
               color: "white",
@@ -2778,8 +2203,8 @@ function AIAssistantFAB({ openSignal }) {
           borderRadius: "50%",
           border: "none",
           background: open
-            ? "linear-gradient(135deg, #1F2937, #0B1220)"
-            : "linear-gradient(135deg, var(--c-primary), var(--c-primary-2))",
+            ? "#1F2937"
+            : "var(--c-primary)",
           color: "white",
           fontSize: 26,
           cursor: "pointer",
@@ -2814,13 +2239,13 @@ function AIAssistantFAB({ openSignal }) {
           <div style={{
             position: "relative",
             overflow: "hidden",
-            background: "linear-gradient(135deg, #1A0508 0%, #4A0E18 50%, var(--c-primary-2) 100%)",
+            background: "#991b1b",
             color: "white",
             padding: "14px 18px",
           }}>
             <div style={{
               position: "absolute", inset: 0,
-              background: "linear-gradient(115deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.10) 50%, rgba(255,255,255,0) 70%)",
+              background: "transparent",
               backgroundSize: "200% 100%",
               animation: "bvc-light-sweep 7s ease-in-out infinite",
               pointerEvents: "none",
@@ -2959,7 +2384,7 @@ function AIAssistantFAB({ openSignal }) {
                   width: 38, height: 38, borderRadius: "50%",
                   border: "none",
                   background: listening
-                    ? "linear-gradient(135deg, var(--c-primary), var(--c-primary-2))"
+                    ? "var(--c-primary)"
                     : "var(--c-surface-2)",
                   color: listening ? "white" : "var(--c-text-muted)",
                   fontSize: 16,
@@ -2979,7 +2404,7 @@ function AIAssistantFAB({ openSignal }) {
                 padding: "10px 16px",
                 background: busy || !input.trim()
                   ? "var(--c-surface-3)"
-                  : "linear-gradient(135deg, var(--c-primary), var(--c-primary-2))",
+                  : "var(--c-primary)",
                 color: "white",
                 border: "none",
                 borderRadius: 999,
@@ -3018,7 +2443,7 @@ function FabBubble({ role, text, data, suggestions, via, time, onSuggestion }) {
         <div style={{
           padding: "8px 12px",
           background: isUser
-            ? "linear-gradient(135deg, var(--c-primary), var(--c-primary-2))"
+            ? "var(--c-primary)"
             : "var(--c-surface)",
           color: isUser ? "white" : "var(--c-text)",
           borderRadius: isUser ? "12px 12px 4px 12px" : "12px 12px 12px 4px",
@@ -3270,7 +2695,7 @@ function QuickActionsFAB({ onLaunchAI }) {
             style={{
               display: "flex", alignItems: "center", gap: 10,
               padding: "8px 10px",
-              background: "linear-gradient(135deg, rgba(244,179,36,0.10), rgba(244,179,36,0.04))",
+              background: "rgba(244,179,36,0.08)",
               border: `1px solid ${toneRGB("warn", 0.40)}`,
               borderRadius: 10,
               cursor: "pointer",
@@ -3307,8 +2732,8 @@ function QuickActionsFAB({ onLaunchAI }) {
           borderRadius: "50%",
           border: "none",
           background: open
-            ? "linear-gradient(135deg, #1F2937, #0B1220)"
-            : "linear-gradient(135deg, var(--c-accent-info), #1D4ED8)",
+            ? "#1F2937"
+            : "var(--c-accent-info)",
           color: "white",
           fontSize: 22,
           cursor: "pointer",

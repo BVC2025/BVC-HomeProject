@@ -1,0 +1,1213 @@
+/* =====================================================================
+   EnterpriseCommandCenter — CSS Module
+   All colours use design-token CSS variables. Only badge/status chip
+   accent colours are allowed as hardcoded exceptions.
+   ===================================================================== */
+
+/* ------------------------------------------------------------------
+   Card shell
+   ------------------------------------------------------------------ */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ------------------------------------------------------------------
+   SectionTitle
+   ------------------------------------------------------------------ */
+.sectionTitleWrap {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  gap: 12px;
+}
+
+.sectionEyebrow {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 1.6px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
+}
+
+/* ------------------------------------------------------------------
+   Pill / badge
+   ------------------------------------------------------------------ */
+.pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+/* ------------------------------------------------------------------
+   HERO BAR
+   ------------------------------------------------------------------ */
+.heroBar {
+  /* background: var(--clr-primary); */
+  background: var(--card-bg);
+  border-left: 4px solid var(--clr-primary);
+  border-radius: 18px;
+  padding: 26px 32px;
+  color: var(--text-primary);
+  margin-bottom: 22px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+/* Decorative highlight blobs — purely cosmetic, no gradients */
+.heroDecorTopRight {
+  position: absolute;
+  top: -60px;
+  right: -40px;
+  width: 280px;
+  height: 280px;
+  /* background: rgba(253, 224, 71, 0.10); */
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.heroDecorBottomWash {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 55%;
+  /* background: rgba(0, 0, 0, 0.15); */
+  pointer-events: none;
+}
+
+.heroInner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.heroLeft {
+  flex: 1 1 320px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.heroLogoWrap {
+  width: 55px;
+  height: 62px;
+  border-radius: 8px;
+  background: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow);
+  padding: 2px 0px;
+  flex-shrink: 0;
+}
+
+.heroLogoWrap img {
+  width: 110%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.heroCompanyTag {
+  font-size: var(--font-xs);
+  font-weight: 700;
+  letter-spacing: 2.4px;
+  color: var(--text-secondary);
+  /* gold accent — badge exception */
+  text-transform: uppercase;
+}
+
+.heroWelcome {
+  font-size: 22px;
+  font-weight: 700;
+  margin-top: 2px;
+  letter-spacing: -0.3px;
+  color: var(--text-primary);
+}
+
+.heroDateLine {
+  font-size: var(--font-sm);
+  opacity: 0.85;
+  margin-top: 4px;
+  color: var(--text-secondary);
+  /* hero-only tint — badge exception */
+}
+
+.heroTimeAccent {
+  color: var(--text-secondary);
+  /* gold accent — badge exception */
+  font-weight: 600;
+}
+
+.heroStats {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.heroStatItem {
+  min-width: 120px;
+}
+
+.heroStatItem+.heroStatItem {
+  padding-left: 18px;
+  border-left: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.heroStatLabel {
+  font-size: 9px;
+  opacity: 0.85;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--text-primary);
+  /* hero-only tint — badge exception */
+}
+
+.heroStatValue {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  letter-spacing: -0.3px;
+}
+
+/* ------------------------------------------------------------------
+   Executive KPI row
+   ------------------------------------------------------------------ */
+.execKpiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.execKpiCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px 22px 20px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.15s, box-shadow 0.15s;
+  cursor: default;
+}
+
+.execKpiCard.clickable {
+  cursor: pointer;
+}
+
+.execKpiCard.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.execKpiAccentBar {
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+}
+
+.execKpiLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.execKpiValue {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.6px;
+  line-height: 1;
+}
+
+.execKpiDeltaRow {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.execKpiDeltaBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.execKpiDeltaLabel {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ------------------------------------------------------------------
+   Business Health Grid
+   ------------------------------------------------------------------ */
+.businessHealthSection {
+  margin-bottom: 22px;
+}
+
+.businessHealthGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.healthQuadCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.healthQuadTopBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 56px;
+}
+
+.healthQuadHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.healthQuadMarker {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.healthQuadTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
+}
+
+.healthQuadDataGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.healthQuadMetricLabel {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.8px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.healthQuadMetricValue {
+  font-size: 22px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  margin-top: 2px;
+  letter-spacing: -0.3px;
+}
+
+.healthQuadMetricSub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+/* ------------------------------------------------------------------
+   Health Gauge
+   ------------------------------------------------------------------ */
+.healthGaugeWrap {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 24px;
+  align-items: center;
+}
+
+.healthGaugeSvgCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.healthGaugeLabel {
+  margin-top: 4px;
+  padding: 4px 14px;
+  border-radius: var(--radius-full);
+  font-weight: var(--fw-extrabold);
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.healthSubScoreRow {
+  margin-bottom: 12px;
+}
+
+.healthSubScoreHeader {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.healthSubScoreBarTrack {
+  height: 8px;
+  background: var(--surface);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.healthSubScoreBarFill {
+  height: 100%;
+  transition: width 0.6s ease;
+  border-radius: var(--radius-full);
+}
+
+/* ------------------------------------------------------------------
+   Production Pipeline
+   ------------------------------------------------------------------ */
+.pipelineStageCircle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--clr-primary);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: var(--fw-extrabold);
+  margin-bottom: 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+.pipelineStageLabel {
+  font-size: 10px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  text-align: center;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.pipelineStageValue {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.pipelineConvBadge {
+  font-size: 9px;
+  font-weight: 700;
+  margin-top: 2px;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* Connector arrow */
+.pipelineArrow {
+  position: absolute;
+  right: -8px;
+  top: 32px;
+  font-size: 16px;
+  color: var(--text-muted);
+  z-index: 1;
+}
+
+/* ------------------------------------------------------------------
+   Factory Floor
+   ------------------------------------------------------------------ */
+.factoryBarTrack {
+  height: 14px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  display: flex;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.factoryMachineGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.factoryMachineTile {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.factoryMachineTileHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.factoryMachineTileDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.factoryMachineTileLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.factoryMachineTileValue {
+  font-size: 20px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+}
+
+/* ------------------------------------------------------------------
+   Approval Center
+   ------------------------------------------------------------------ */
+.approvalGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+.approvalItem {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.approvalItem:hover {
+  border-color: var(--clr-primary);
+}
+
+.approvalItemHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.approvalItemLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+/* ------------------------------------------------------------------
+   CRM Funnel
+   ------------------------------------------------------------------ */
+.funnelList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.funnelRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.funnelStageLabel {
+  width: 100px;
+  font-size: 11px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.funnelBarTrack {
+  flex: 1;
+  position: relative;
+  height: 26px;
+}
+
+.funnelBarFill {
+  height: 100%;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  padding-left: 12px;
+  color: #fff;
+  font-weight: var(--fw-extrabold);
+  font-size: 12px;
+  transition: width 0.6s ease;
+}
+
+.funnelConvLabel {
+  width: 60px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: right;
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------------------
+   Inventory Command
+   ------------------------------------------------------------------ */
+.inventoryMetaGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.inventoryMetaTile {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  position: relative;
+}
+
+.inventoryMetaTopBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 30%;
+  border-radius: 2px 0 0 0;
+}
+
+.inventoryMetaLabel {
+  font-size: 9px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-muted);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.inventoryMetaValue {
+  font-size: 22px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  margin-top: 4px;
+  letter-spacing: -0.3px;
+}
+
+.inventoryLowStockTitle {
+  font-size: 10px;
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.inventoryLowStockList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.inventoryLowStockRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-radius: 6px;
+}
+
+/* ------------------------------------------------------------------
+   Employee Leaderboard
+   ------------------------------------------------------------------ */
+.leaderboardCard {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  background: var(--card-bg);
+}
+
+/* Gold top-performer highlight — badge/status exception */
+.leaderboardCardFirst {
+  background: #fffbeb;
+}
+
+.leaderboardMedal {
+  font-size: 30px;
+  margin-bottom: 4px;
+}
+
+.leaderboardRank {
+  font-size: 9px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.leaderboardName {
+  font-size: 14px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  margin: 6px 0 2px;
+}
+
+.leaderboardCode {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.leaderboardStatGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.lbStat {
+  background: var(--surface);
+  padding: 6px 4px;
+  border-radius: 6px;
+}
+
+.lbStatLabel {
+  font-size: 8px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.lbStatValue {
+  font-size: 13px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  margin-top: 1px;
+}
+
+/* ------------------------------------------------------------------
+   Activity Timeline
+   ------------------------------------------------------------------ */
+.timelineWrap {
+  position: relative;
+  padding-left: 22px;
+}
+
+.timelineSpine {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  background: var(--surface);
+}
+
+.timelineItem {
+  position: relative;
+}
+
+.timelineDot {
+  position: absolute;
+  left: -22px;
+  top: 4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--card-bg);
+  border: 3px solid var(--clr-primary);
+  box-shadow: 0 0 0 3px var(--card-bg);
+}
+
+.timelineTime {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.4px;
+}
+
+.timelineTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+
+.timelineDetail {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ------------------------------------------------------------------
+   Executive Analytics
+   ------------------------------------------------------------------ */
+.analyticsTabRow {
+  display: flex;
+  gap: 4px;
+}
+
+.analyticsMetricRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+/* ------------------------------------------------------------------
+   Memo Summary Card
+   ------------------------------------------------------------------ */
+.memoGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.memoTile {
+  border-radius: 10px;
+  padding: 14px;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.memoTile:hover {
+  transform: translateY(-1px);
+}
+
+.memoTileHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 6px;
+}
+
+.memoTileEmoji {
+  font-size: 16px;
+}
+
+.memoTileLabel {
+  font-size: 9px;
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  text-align: right;
+  line-height: 1.2;
+}
+
+.memoTileValue {
+  font-size: 28px;
+  font-weight: var(--fw-extrabold);
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+
+/* ------------------------------------------------------------------
+   Quick Actions FAB
+   ------------------------------------------------------------------ */
+.fabOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  z-index: 990;
+}
+
+.fabMenu {
+  position: fixed;
+  bottom: 96px;
+  right: 28px;
+  width: 280px;
+  z-index: 991;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  box-shadow: var(--shadow-md);
+}
+
+.fabMenuTitle {
+  font-size: 10px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-muted);
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.fabActionGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.fabActionBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.fabActionBtn:hover {
+  background: var(--surface);
+  /* will be slightly tinted by JS dynamic inline for redSoft — kept as-is */
+  filter: brightness(0.95);
+}
+
+.fabBtn {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--clr-primary);
+  color: #fff;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  z-index: 992;
+  box-shadow: var(--shadow-md);
+  font-weight: var(--fw-extrabold);
+  transition: opacity 0.15s;
+}
+
+.fabBtn:hover {
+  opacity: 0.9;
+}
+
+/* ------------------------------------------------------------------
+   Page shell
+   ------------------------------------------------------------------ */
+.pageShell {
+  background: var(--layout-bg);
+  min-height: 100vh;
+  padding: 20px 28px 80px;
+  color: var(--text-primary);
+}
+
+/* ------------------------------------------------------------------
+   Health gauge — no-data note
+   ------------------------------------------------------------------ */
+.healthNoDataNote {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ------------------------------------------------------------------
+   Production pipeline — per-stage column wrapper
+   ------------------------------------------------------------------ */
+.pipelineStageCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+/* ------------------------------------------------------------------
+   Approval center — count badge (always red when count > 0)
+   ------------------------------------------------------------------ */
+.approvalCountBadgeRed {
+  background: var(--danger);
+}
+
+/* ------------------------------------------------------------------
+   AI Priority Center
+   ------------------------------------------------------------------ */
+.aiPriorityGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.aiPriorityCol {
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  min-height: 200px;
+}
+
+.aiPriorityColTitle {
+  font-size: var(--font-xs);
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.aiPriorityEmpty {
+  font-size: var(--font-xs);
+  padding: 30px 4px;
+  text-align: center;
+  opacity: 0.7;
+  color: var(--text-muted);
+}
+
+.aiInsightCard {
+  background: var(--card-bg);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+
+.aiInsightTitle {
+  font-size: 12px;
+  font-weight: 800;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.aiInsightDetail {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.aiInsightBtn {
+  background: transparent;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+}
+
+/* ------------------------------------------------------------------
+   Factory Floor — utilization action / percent label
+   ------------------------------------------------------------------ */
+.factoryUtilLabel {
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.factoryUtilUnit {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+/* ------------------------------------------------------------------
+   Approval Center — dynamic buttons
+   ------------------------------------------------------------------ */
+.approvalMarker {
+  font-size: var(--font-xs);
+  font-weight: 700;
+  letter-spacing: 0.6px;
+}
+
+.approvalCountBadge {
+  color: var(--text-inverse);
+  padding: 1px 8px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.approvalBtn {
+  border: none;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  width: 100%;
+  text-transform: uppercase;
+}
+
+/* ------------------------------------------------------------------
+   Health Gauge — sub-score labels
+   ------------------------------------------------------------------ */
+.healthSubLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.healthSubValue {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* ------------------------------------------------------------------
+   Inventory low-stock name / value spans
+   ------------------------------------------------------------------ */
+.inventoryLowName {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.inventoryLowValue {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--danger);
+}
+
+/* ------------------------------------------------------------------
+   Employee Leaderboard — card grid
+   ------------------------------------------------------------------ */
+.leaderboardGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.leaderboardCardGold {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  text-align: center;
+  /* gold tint — badge/status exception */
+  background: #fffbeb;
+}
+
+.leaderboardEmptyNote {
+  padding: 28px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ------------------------------------------------------------------
+   Activity Timeline — inline spine / dot / event items
+   ------------------------------------------------------------------ */
+.timelineSpineWrap {
+  position: relative;
+  padding-left: 22px;
+}
+
+.timelineItemWrap {
+  position: relative;
+}
+
+.timelineEmptyNote {
+  padding: 30px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ------------------------------------------------------------------
+   Executive Analytics — tab and metric buttons (dynamic active state)
+   ------------------------------------------------------------------ */
+.analyticsTabBtn {
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-xs);
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+}
+
+.analyticsMetricBtn {
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-xs);
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.2px;
+}
+
+.analyticsChartArea {
+  width: 100%;
+  height: 280px;
+}
+
+.analyticsEmptyNote {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ------------------------------------------------------------------
+   Memo Summary — "Open Memos" button
+   ------------------------------------------------------------------ */
+.memoOpenBtn {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-xs);
+  font-weight: 800;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+}
+
+/* ------------------------------------------------------------------
+   Quick Actions FAB — action icon span
+   ------------------------------------------------------------------ */
+.fabActionIcon {
+  font-size: 14px;
+}
+
+/* ------------------------------------------------------------------
+   Utility — two-column layouts
+   ------------------------------------------------------------------ */
+.twoColGrid {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.twoColGrid12 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.twoColGrid12x1 {
+  grid-template-columns: 1.2fr 1fr;
+}
+
+.singleColSection {
+  margin-bottom: 22px;
+}

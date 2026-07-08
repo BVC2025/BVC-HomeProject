@@ -273,6 +273,11 @@ def _serialize_score(score: PerformanceScore, employee=None) -> dict:
         "ACTUAL_HOURS": score.ACTUAL_HOURS,
         "ATTENDANCE_STARS": score.ATTENDANCE_STARS,
         "TASK_STARS": score.TASK_STARS,
+        "LEAVE_STARS": score.LEAVE_STARS or 0.0,
+        "PERMISSION_STARS": score.PERMISSION_STARS or 0.0,
+        "LEAVE_DAYS_TAKEN": score.LEAVE_DAYS_TAKEN or 0.0,
+        "PERMISSION_HOURS_TAKEN": score.PERMISSION_HOURS_TAKEN or 0.0,
+        # Legacy fields exposed so old UI compatibility code stays harmless
         "PRODUCTIVITY_STARS": score.PRODUCTIVITY_STARS,
         "CONSISTENCY_STARS": score.CONSISTENCY_STARS,
         "OVERALL_STARS": score.OVERALL_STARS,

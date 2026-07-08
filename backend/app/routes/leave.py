@@ -421,7 +421,7 @@ def _decision_html(title: str, message: str, color: str = "#10b981") -> str:
 @router.get("/decide/{token}", response_class=HTMLResponse)
 def decide_leave(
     token: str,
-    action: str = Query(..., regex="^(approve|reject)$"),
+    action: str = Query(..., pattern="^(approve|reject)$"),
     reason: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
@@ -726,38 +726,66 @@ def list_pending(
 
 @router.get("/all", dependencies=[Depends(require("leave.view.all"))])
 def list_all(
-    vendor_id: int = 1,
-    status: Optional[str] = None,
-    leave_type: Optional[str] = None,
-    employee_id: Optional[str] = None,
-    db: Session = Depends(get_db)
+    vendor_id:    int = 1,
+    status:       Optional[str]  = None,
+    leave_type:   Optional[str]  = None,
+    employee_id:  Optional[str]  = None,
+    department_id: Optional[int] = None,
+    start_date:   Optional[date] = Query(None, description="Inclusive — leaves overlapping this date or later"),
+    end_date:     Optional[date] = Query(None, description="Inclusive — leaves overlapping this date or earlier"),
+    limit:        int = Query(100, ge=1, le=1000),
+    offset:       int = Query(0,   ge=0),
+    db: Session = Depends(get_db),
 ):
-
+    """
+    Filterable leave history. Returns an envelope `{total, limit, offset, rows}`
+    so the UI can paginate without dumping every leave in the DB to the browser.
+    Date filters are 'overlap' semantics: a leave is included if its date range
+    intersects [start_date, end_date].
+    """
     vendor_id = _resolve_vendor_id(db, vendor_id)
 
     q = (
         db.query(LeaveRequest, Employee)
-        .outerjoin(
-            Employee, LeaveRequest.EMPLOYEE_ID == Employee.ID
-        )
+        .outerjoin(Employee, LeaveRequest.EMPLOYEE_ID == Employee.ID)
         .filter(LeaveRequest.VENDOR_ID == vendor_id)
     )
 
     if status:
-
         q = q.filter(LeaveRequest.STATUS == status)
 
     if leave_type:
-
         q = q.filter(LeaveRequest.LEAVE_TYPE == leave_type)
 
     if employee_id:
+        # Accept UUID or EMPLOYEE_CODE
+        q = q.filter(
+            (LeaveRequest.EMPLOYEE_ID == employee_id) |
+            (Employee.EMPLOYEE_CODE == employee_id)
+        )
 
-        q = q.filter(LeaveRequest.EMPLOYEE_ID == employee_id)
+    if department_id:
+        q = q.filter(Employee.DEPARTMENT_ID == department_id)
 
-    rows = q.order_by(LeaveRequest.CREATED_AT.desc()).all()
+    if start_date:
+        # Leave overlaps when its END_DATE >= start_date
+        q = q.filter(LeaveRequest.END_DATE >= start_date)
 
-    return [_serialize_leave(lv, emp) for lv, emp in rows]
+    if end_date:
+        # Leave overlaps when its START_DATE <= end_date
+        q = q.filter(LeaveRequest.START_DATE <= end_date)
+
+    total = q.count()
+
+    rows = (q.order_by(LeaveRequest.CREATED_AT.desc())
+              .offset(offset).limit(limit).all())
+
+    return {
+        "total":  total,
+        "limit":  limit,
+        "offset": offset,
+        "rows":   [_serialize_leave(lv, emp) for lv, emp in rows],
+    }
 
 
 @router.get("/my-requests")
@@ -892,6 +920,175 @@ def get_balance(
         },
         "balance": serialize_balance(bal)
     }
+
+
+# ----------------------------------------------------------------
+# HR Leave Balance overview + manual adjustment
+# ----------------------------------------------------------------
+
+@router.get("/balances/all", dependencies=[Depends(require("leave.view.all"))])
+def list_all_balances(
+    year: Optional[int] = None,
+    vendor_id: int = 1,
+    db: Session = Depends(get_db),
+):
+    """Returns one row per active employee with their leave balance for
+    the given year (defaults to current year). HR uses this for the
+    'who's running low on leave' overview."""
+    from app.models.models import LeaveBalance as LB
+    vendor_id = _resolve_vendor_id(db, vendor_id)
+    yr = year or datetime.utcnow().year
+
+    employees = (db.query(Employee)
+                 .filter(Employee.VENDOR_ID == vendor_id,
+                         Employee.STATUS == "ACTIVE")
+                 .order_by(Employee.NAME.asc()).all())
+
+    # Pre-fetch balances in one query
+    bal_map = {}
+    for b in (db.query(LB).filter(LB.YEAR == yr).all()):
+        bal_map[b.EMPLOYEE_ID] = b
+
+    out = []
+    for emp in employees:
+        bal = bal_map.get(emp.ID)
+        # Per-type available = TOTAL + CARRYOVER - USED
+        def avail(prefix):
+            if not bal: return {"total": 0, "used": 0, "carryover": 0, "available": 0}
+            t = float(getattr(bal, f"{prefix}_TOTAL",     0) or 0)
+            u = float(getattr(bal, f"{prefix}_USED",      0) or 0)
+            c = float(getattr(bal, f"{prefix}_CARRYOVER", 0) or 0)
+            return {"total": t, "used": u, "carryover": c, "available": t + c - u}
+
+        out.append({
+            "employee_id":   emp.ID,
+            "employee_code": emp.EMPLOYEE_CODE,
+            "employee_name": emp.NAME,
+            "department_id": emp.DEPARTMENT_ID,
+            "year": yr,
+            "casual":    avail("CASUAL"),
+            "sick":      avail("SICK"),
+            "earned":    avail("EARNED"),
+            "maternity": avail("MATERNITY"),
+            "has_balance_row": bal is not None,
+        })
+
+    return {"year": yr, "rows": out}
+
+
+@router.patch("/balance/{employee_id}/adjust",
+              dependencies=[Depends(require("leave.policy.manage"))])
+def adjust_balance(
+    employee_id: str,
+    body: dict,                      # { leave_type, delta_days, reason, notes?, year? }
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
+):
+    """Manually credit or debit an employee's leave balance.
+
+    Body:
+      - leave_type   : CASUAL | SICK | EARNED | MATERNITY (required)
+      - delta_days   : +ve = credit, -ve = debit (required, must not be 0)
+      - reason       : string >= 3 chars (required)
+      - notes        : optional free text
+      - year         : optional, defaults to current year
+    """
+    from app.models.models import LeaveBalance as LB, LeaveBalanceAdjustment
+
+    leave_type = (body.get("leave_type") or "").upper().strip()
+    if leave_type not in {"CASUAL", "SICK", "EARNED", "MATERNITY"}:
+        raise HTTPException(400, "leave_type must be CASUAL / SICK / EARNED / MATERNITY")
+
+    try:
+        delta = float(body.get("delta_days"))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "delta_days must be a number")
+    if delta == 0:
+        raise HTTPException(400, "delta_days cannot be zero")
+
+    reason = (body.get("reason") or "").strip()
+    if len(reason) < 3:
+        raise HTTPException(400, "reason must be at least 3 characters")
+
+    emp = _resolve_employee(db, employee_id)
+    if not emp:
+        raise HTTPException(404, "Employee not found")
+
+    yr = int(body.get("year") or datetime.utcnow().year)
+
+    bal = (db.query(LB)
+           .filter(LB.EMPLOYEE_ID == emp.ID, LB.YEAR == yr).first())
+    if not bal:
+        # Auto-create a zero balance row so the adjustment lands somewhere
+        bal = LB(EMPLOYEE_ID=emp.ID, YEAR=yr)
+        db.add(bal)
+        db.flush()
+
+    col = f"{leave_type}_TOTAL"
+    old_total = float(getattr(bal, col) or 0)
+    new_total = old_total + delta
+    if new_total < 0:
+        raise HTTPException(400,
+            f"Adjustment would make {leave_type}_TOTAL negative "
+            f"(old={old_total}, delta={delta})")
+    setattr(bal, col, new_total)
+
+    audit = LeaveBalanceAdjustment(
+        EMPLOYEE_ID=emp.ID, YEAR=yr,
+        LEAVE_TYPE=leave_type, DELTA_DAYS=delta,
+        OLD_TOTAL=old_total, NEW_TOTAL=new_total,
+        REASON=reason, NOTES=(body.get("notes") or "").strip() or None,
+        ADJUSTED_BY_ID=payload.get("employee_id"),
+        VENDOR_ID=emp.VENDOR_ID,
+    )
+    db.add(audit)
+    db.commit()
+    db.refresh(audit)
+
+    return {
+        "ok": True,
+        "employee_id": emp.ID,
+        "leave_type": leave_type,
+        "old_total": old_total,
+        "new_total": new_total,
+        "audit_id": audit.ID,
+    }
+
+
+@router.get("/balance/{employee_id}/adjustments",
+            dependencies=[Depends(require("leave.view.all"))])
+def list_balance_adjustments(
+    employee_id: str,
+    db: Session = Depends(get_db),
+):
+    """Audit trail of HR-initiated balance changes for one employee."""
+    from app.models.models import LeaveBalanceAdjustment
+
+    emp = _resolve_employee(db, employee_id)
+    if not emp:
+        raise HTTPException(404, "Employee not found")
+
+    rows = (db.query(LeaveBalanceAdjustment)
+            .filter(LeaveBalanceAdjustment.EMPLOYEE_ID == emp.ID)
+            .order_by(LeaveBalanceAdjustment.ADJUSTED_AT.desc()).all())
+
+    # Resolve actor names
+    actor_ids = {r.ADJUSTED_BY_ID for r in rows if r.ADJUSTED_BY_ID}
+    actors = {a.ID: a.NAME for a in
+              db.query(Employee).filter(Employee.ID.in_(actor_ids)).all()} \
+             if actor_ids else {}
+
+    return [{
+        "id": r.ID, "year": r.YEAR,
+        "leave_type": r.LEAVE_TYPE,
+        "delta_days": float(r.DELTA_DAYS),
+        "old_total":  float(r.OLD_TOTAL or 0),
+        "new_total":  float(r.NEW_TOTAL or 0),
+        "reason":     r.REASON,
+        "notes":      r.NOTES,
+        "adjusted_by_name": actors.get(r.ADJUSTED_BY_ID),
+        "adjusted_at": r.ADJUSTED_AT.isoformat() if r.ADJUSTED_AT else None,
+    } for r in rows]
 
 
 # ----------------------------------------------------------------
@@ -1056,6 +1253,53 @@ def apply_permission(
             )
         )
 
+    # ---- Monthly cap enforcement ----
+    # Company policy: max 4 hours of paid permission per calendar month.
+    # We count APPROVED + PENDING_APPROVAL toward the cap so employees
+    # can't stack multiple pending requests past the limit while their
+    # first one is still awaiting a decision. HR/admin retains the
+    # ability to force-approve via a manual DB update or via the
+    # approval-override endpoint if operational needs demand it.
+    MAX_PAID_PERM_HOURS_PER_MONTH = 4.0
+
+    _perm_date = data.PERMISSION_DATE
+
+    month_start = _perm_date.replace(day=1)
+
+    if _perm_date.month == 12:
+        next_month_start = _perm_date.replace(year=_perm_date.year + 1, month=1, day=1)
+    else:
+        next_month_start = _perm_date.replace(month=_perm_date.month + 1, day=1)
+
+    monthly_rows = db.query(LeaveRequest).filter(
+        LeaveRequest.EMPLOYEE_ID == employee.ID,
+        LeaveRequest.LEAVE_TYPE == "PERMISSION",
+        LeaveRequest.STATUS.in_(["PENDING_APPROVAL", "APPROVED"]),
+        LeaveRequest.START_DATE >= month_start,
+        LeaveRequest.START_DATE <  next_month_start,
+    ).all()
+
+    already_committed = sum(float(r.DURATION_HOURS or 0) for r in monthly_rows)
+
+    remaining_this_month = max(
+        0.0,
+        MAX_PAID_PERM_HOURS_PER_MONTH - already_committed,
+    )
+
+    if hours > remaining_this_month:
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Monthly permission limit reached. You have already "
+                f"used {already_committed:g} of "
+                f"{MAX_PAID_PERM_HOURS_PER_MONTH:g} hours this month "
+                f"(including any pending requests), so you can request "
+                f"at most {remaining_this_month:g} more hours. Contact "
+                f"HR for an override if operationally required."
+            )
+        )
+
     leave = LeaveRequest(
         EMPLOYEE_ID=employee.ID,
         LEAVE_TYPE="PERMISSION",
@@ -1135,6 +1379,75 @@ def list_my_permissions(
     )
 
     return [_serialize_leave(lv, e) for lv, e in rows]
+
+
+@router.get("/permission-balance/{employee_id}")
+def permission_balance(
+    employee_id: str,
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
+):
+    """Current-month permission usage for the employee.
+
+    Returns:
+      cap_hours       — the monthly ceiling (4.0)
+      used_hours      — sum(APPROVED + PENDING) DURATION_HOURS this month
+      approved_hours  — sum of APPROVED only
+      pending_hours   — sum of PENDING_APPROVAL only
+      remaining_hours — cap_hours - used_hours, floored at 0
+      month           — YYYY-MM (server-side "today")
+      can_request     — True if remaining_hours > 0
+    """
+
+    assert_self_or_admin(employee_id, payload)
+
+    emp = _resolve_employee(db, employee_id)
+
+    if not emp:
+
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    from datetime import date as _date
+
+    today = _date.today()
+
+    month_start = today.replace(day=1)
+
+    if today.month == 12:
+        next_month_start = today.replace(year=today.year + 1, month=1, day=1)
+    else:
+        next_month_start = today.replace(month=today.month + 1, day=1)
+
+    rows = db.query(LeaveRequest).filter(
+        LeaveRequest.EMPLOYEE_ID == emp.ID,
+        LeaveRequest.LEAVE_TYPE == "PERMISSION",
+        LeaveRequest.STATUS.in_(["PENDING_APPROVAL", "APPROVED"]),
+        LeaveRequest.START_DATE >= month_start,
+        LeaveRequest.START_DATE <  next_month_start,
+    ).all()
+
+    approved_hours = sum(
+        float(r.DURATION_HOURS or 0) for r in rows if r.STATUS == "APPROVED"
+    )
+    pending_hours  = sum(
+        float(r.DURATION_HOURS or 0) for r in rows if r.STATUS == "PENDING_APPROVAL"
+    )
+    used_hours = approved_hours + pending_hours
+
+    CAP = 4.0
+
+    remaining = max(0.0, CAP - used_hours)
+
+    return {
+        "employee_id":     emp.ID,
+        "month":           today.strftime("%Y-%m"),
+        "cap_hours":       CAP,
+        "used_hours":      round(used_hours, 2),
+        "approved_hours":  round(approved_hours, 2),
+        "pending_hours":   round(pending_hours, 2),
+        "remaining_hours": round(remaining, 2),
+        "can_request":     remaining > 0.0,
+    }
 
 
 @router.get("/dashboard-summary/{employee_id}")

@@ -11,23 +11,6 @@ class Vendor(Base):
     ID = Column(Integer, primary_key=True)
     VENDOR_NAME = Column(String(100))
 
-    root_users = relationship("RootUser", back_populates="vendor")
-class RootUser(Base):
-    __tablename__ = "root_user"
-
-    ID = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-
-    EMAIL = Column(String(100), unique=True)
-
-    PASSWORD = Column(String(255))
-
-    STATUS = Column(String(20), default="ACTIVE")
-    
-
-    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID"))
-
-    vendor = relationship("Vendor", back_populates="root_users")
-
 
 class Employee(Base):
     """
@@ -55,6 +38,12 @@ class Employee(Base):
     NAME = Column(String(100))
 
     EMAIL = Column(String(100), unique=True, nullable=True)
+
+    CORPORATE_EMAIL = Column(String(120), unique=True, nullable=True, index=True)
+    # Company-assigned email (e.g. firstname.lastname@bvc24.com).
+    # Distinct from EMAIL (which is the candidate's personal inbox
+    # used during recruitment / onboarding invites). Auto-provisioned
+    # by /hr-onboarding/employees/{id}/provision-email.
 
     PHONE = Column(String(20), nullable=True)
 
@@ -912,10 +901,89 @@ class Inventory(Base):
         default=0.0
     )
 
+    MIN_STOCK = Column(
+        Integer,
+        default=0
+    )
+    # Reorder threshold. When QUANTITY drops at or below this value,
+    # a low-stock Notification is generated. 0 means alerts disabled
+    # for this row.
+
     VENDOR_ID = Column(
         Integer,
         ForeignKey("vendor.ID"),
         index=True
+    )
+
+
+class WorkCenter(Base):
+    """A physical or logical work-station capability used in routing.
+
+    Odoo-style separation: ProcessStage = "WHAT to do in the process",
+    WorkCenter = "WHERE / by what capability it gets done". Multiple
+    Machines may belong to the same Work Center (e.g. three identical
+    welding bays); routing assigns each stage to one Work Center, and
+    the scheduler picks an available machine from that pool.
+
+    Adding this table does NOT touch any existing data — current
+    BOMs and Work Orders keep working without a Work Center reference.
+    The Routing feature (next phase) starts populating it.
+    """
+
+    __tablename__ = "work_center"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "VENDOR_ID", "NAME",
+            name="uq_work_center_vendor_name"
+        ),
+    )
+
+    ID = Column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+        index=True
+    )
+
+    NAME = Column(String(100), nullable=False)
+    # Human-readable: "Laser Cutting", "Welding Bay", "Assembly Line A"
+
+    CODE = Column(String(20), nullable=True)
+    # Short code for reports: "LC", "WLD", "PAINT", "ASM", "TEST"
+
+    CATEGORY = Column(String(40), default="ASSEMBLY")
+    # FABRICATION / WELDING / PAINTING / ASSEMBLY / TESTING /
+    # PACKAGING / QC / OTHER — informational grouping
+
+    CAPACITY_PER_HOUR = Column(Float, default=1.0)
+    # Theoretical throughput in units/hour. Used later for Gantt
+    # scheduling. Default 1 = "one unit per hour" — safe placeholder.
+
+    HOURLY_COST = Column(Float, default=0.0)
+    # Optional costing field for future job-cost rollup.
+
+    LOCATION = Column(String(200), nullable=True)
+    # Free text — "Bay 3, Ground Floor"
+
+    NOTES = Column(String(500), nullable=True)
+
+    IS_ACTIVE = Column(Integer, default=1)
+
+    VENDOR_ID = Column(
+        Integer,
+        ForeignKey("vendor.ID"),
+        nullable=False,
+        default=1,
+        index=True
+    )
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+
+    UPDATED_AT = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow
     )
 
 
@@ -1045,8 +1113,25 @@ class TaskAssignment(Base):
     DUE_DATE = Column(Date, nullable=True)
 
     TASK_STATUS = Column(
-        String(20),
+        String(30),
         default="PENDING"
+    )
+
+    # Odoo-style quick-progress indicator: 0 = none, 1 = Start,
+    # 2 = In Progress, 3 = Complete. Independent of TASK_STATUS so
+    # the kanban can show a quick visual flag without changing the
+    # workflow state. Existing flows (Employee Dashboard, Payroll)
+    # ignore this column.
+    STAR_LEVEL = Column(
+        Integer,
+        default=0,
+        nullable=True
+    )
+
+    PRIORITY = Column(
+        String(10),
+        default="MEDIUM",
+        nullable=True
     )
 
     # ---- Approval workflow ----
@@ -1172,9 +1257,21 @@ class Attendance(Base):
     )
     # PRESENT / LATE / ABSENT / HALF_DAY
 
+    LATE_MINUTES = Column(Integer, nullable=True, default=0)
+    # Whole minutes past the office start time. 0 when PRESENT / on time.
+    # Set at check-in; independent of the Permission module (a late
+    # arrival is NOT a permission request — those go through leave.py).
+
     WORKED_HOURS = Column(Float, nullable=True)
 
     OVERTIME_HOURS = Column(Float, default=0.0)
+
+    # ---- Explicit OT session (separate from regular CHECK_IN/CHECK_OUT) ----
+    # An employee logs OT only AFTER their regular check-out. OVERTIME_HOURS
+    # above is computed from (OT_CHECK_OUT - OT_CHECK_IN) — regular hours over
+    # 8 are NOT auto-credited as OT anymore.
+    OT_CHECK_IN  = Column(DateTime, nullable=True)
+    OT_CHECK_OUT = Column(DateTime, nullable=True)
 
     REMARKS = Column(String(255), nullable=True)
 
@@ -1217,7 +1314,7 @@ class GeofenceSettings(Base):
     OFFICE_NAME   = Column(String(150), nullable=True)
     LATITUDE      = Column(Float, nullable=False, default=0.0)
     LONGITUDE     = Column(Float, nullable=False, default=0.0)
-    RADIUS_METERS = Column(Integer, nullable=False, default=100)
+    RADIUS_METERS = Column(Integer, nullable=False, default=50)
     IS_ACTIVE     = Column(Integer, default=1)
     # 1 = enforce geofencing, 0 = allow attendance from anywhere (kill-switch)
     CREATED_AT    = Column(DateTime, default=datetime.utcnow)
@@ -2426,6 +2523,26 @@ class PayrollSlip(Base):
 
     NOTES = Column(String(500), nullable=True)
 
+    # Per-slip payment workflow (simpler than run-level statuses).
+    # 'PENDING' on generation; flips to 'PAID' when the admin clicks
+    # Mark Paid against this employee's row.
+    STATUS = Column(String(20), default="PENDING")
+    PAID_AT = Column(DateTime, nullable=True)
+
+    # Sum of LeaveRequest.DURATION_HOURS for TYPE='PERMISSION' rows
+    # falling inside this slip's pay period. Surfaced as an input
+    # column on the employee-list view; does not itself affect pay.
+    PERMISSION_HOURS = Column(Float, default=0.0)
+
+    # Snapshot of the employee's PerformanceScore.OVERALL_STARS for
+    # this pay period (0.0–5.0). Drives STAR_BONUS below.
+    PERFORMANCE_STARS = Column(Float, default=0.0)
+
+    # Star-rating-driven bonus added on top of the salary calculation.
+    # bonus = round(PERFORMANCE_STARS × BONUS_PER_STAR), included in
+    # GROSS_PAY and NET_PAY.
+    STAR_BONUS = Column(Float, default=0.0)
+
     CREATED_AT = Column(DateTime, default=datetime.utcnow)
 
 
@@ -2561,17 +2678,31 @@ class PerformanceScore(Base):
     ACTUAL_HOURS = Column(Float, default=0.0)
     # Sum of actual_hours across the same tasks (from WorkOrderStageProgress)
 
-    # --- Outputs (the 4 star scores + overall) ---
+    # --- Inputs added for the Leave + Permission dimensions ---
+    LEAVE_DAYS_TAKEN = Column(Float, default=0.0)
+    # Approved UNPAID/LOP leave days in this pay period
+
+    PERMISSION_HOURS_TAKEN = Column(Float, default=0.0)
+    # Approved PERMISSION leave duration (hours) in this pay period
+
+    # --- Outputs (4 star scores + overall) ---
+    # Active dimensions (current scheme): attendance + task + leave + permission
     ATTENDANCE_STARS = Column(Float, default=0.0)
 
     TASK_STARS = Column(Float, default=0.0)
 
+    LEAVE_STARS = Column(Float, default=0.0)
+
+    PERMISSION_STARS = Column(Float, default=0.0)
+
+    # Legacy dimensions — no longer used in the overall, kept so old
+    # rows still serialise without a NULL surprise.
     PRODUCTIVITY_STARS = Column(Float, default=0.0)
 
     CONSISTENCY_STARS = Column(Float, default=0.0)
 
     OVERALL_STARS = Column(Float, default=0.0)
-    # weighted average of the four — what UI shows as ⭐⭐⭐⭐½
+    # Equal-weight average of attendance + task + leave + permission
 
     # --- MD actions taken based on this score ---
     RECOMMENDED_FOR_PROMOTION = Column(Integer, default=0)  # 0/1
@@ -3558,6 +3689,24 @@ class EmployeeOnboardingSession(Base):
     # for /employee-onboarding/{token}/login, then copied onto
     # Employee.PASSWORD at approval time.
 
+    # Admin-chosen role assignment at invite time. Surfaced as a pair
+    # of dropdowns on the InviteEmployeeModal; carried through to the
+    # candidate's form as the default selection; copied onto the
+    # Employee row at approval.
+    DEPARTMENT_ID = Column(
+        Integer,
+        ForeignKey("department.ID"),
+        nullable=True,
+        index=True,
+    )
+
+    DESIGNATION_ID = Column(
+        Integer,
+        ForeignKey("designation.ID"),
+        nullable=True,
+        index=True,
+    )
+
     STATUS = Column(String(30), default="OPEN")
     # OPEN / SUBMITTED / APPROVED / REJECTED / EXPIRED
 
@@ -3750,6 +3899,62 @@ class EmployeeMemo(Base):
         Integer,
         ForeignKey("vendor.ID"),
         nullable=True
+    )
+
+
+# ====================================================================
+# Holiday Calendar (Phase 2 — replaces hardcoded 26 working days)
+# ====================================================================
+# One row per declared holiday. Used by:
+#   - payroll_service._working_days_in_month(year, month, vendor_id)
+#   - star_performance_service (working-day denominator)
+#
+# Sundays are implicitly holidays (handled in code, not stored). Saturday
+# may or may not be a holiday depending on company policy — for BVC24,
+# Saturdays are working days. To mark a Saturday as off, just add a row.
+
+class HolidayCalendar(Base):
+    """Vendor-scoped list of non-working calendar dates."""
+
+    __tablename__ = "holiday_calendar"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "VENDOR_ID", "HOLIDAY_DATE",
+            name="uq_holiday_per_vendor_per_date"
+        ),
+    )
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    VENDOR_ID = Column(
+        Integer,
+        ForeignKey("vendor.ID"),
+        nullable=False,
+        default=1,
+        index=True
+    )
+
+    HOLIDAY_DATE = Column(Date, nullable=False, index=True)
+
+    NAME = Column(String(120), nullable=False)
+    # Human-readable label — e.g. "Diwali", "Republic Day", "Sankranti"
+
+    TYPE = Column(String(30), default="NATIONAL")
+    # NATIONAL / REGIONAL / COMPANY — informational only
+
+    IS_OPTIONAL = Column(Integer, default=0)
+    # 0/1: optional holidays (e.g. Easter) — counted in the working-day
+    # math only if the admin explicitly marks them as such.
+
+    NOTES = Column(String(500), nullable=True)
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+
+    UPDATED_AT = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow
     )
 
 
@@ -4001,3 +4206,972 @@ class AuditLog(Base):
     USER_AGENT  = Column(String(500), nullable=True)
 
     CREATED_AT  = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+# ====================================================================
+# Employee Allowance / Expense Claim
+# ====================================================================
+# Employee submits an office-related expense (travel, food, supplies,
+# etc.). MD / approver gets an email notification, reviews the request
+# in the admin Allowances page, and approves or rejects it.
+
+class EmployeeAllowance(Base):
+    """One row per expense claim submitted by an employee."""
+
+    __tablename__ = "employee_allowance"
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    EMPLOYEE_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=False,
+        index=True
+    )
+
+    CATEGORY = Column(String(40), nullable=False, index=True)
+    # TRAVEL / FOOD / ACCOMMODATION / OFFICE_SUPPLIES / FUEL /
+    # COMMUNICATION / CLIENT_MEETING / TRAINING / OTHER
+
+    AMOUNT = Column(Float, nullable=False, default=0.0)
+
+    EXPENSE_DATE = Column(Date, nullable=False, index=True)
+
+    DESCRIPTION = Column(String(1000), nullable=True)
+
+    RECEIPT_URL = Column(String(500), nullable=True)
+
+    STATUS = Column(String(20), default="PENDING", index=True)
+    # PENDING / APPROVED / REJECTED
+
+    SUBMITTED_AT = Column(DateTime, default=datetime.utcnow, index=True)
+
+    REVIEWED_BY_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=True
+    )
+
+    REVIEWED_AT = Column(DateTime, nullable=True)
+
+    REVIEW_NOTES = Column(String(1000), nullable=True)
+
+    VENDOR_ID = Column(
+        Integer,
+        ForeignKey("vendor.ID"),
+        nullable=True,
+        index=True
+    )
+
+
+# ====================================================================
+# AI Leave Agent — conversation state + audit trail
+# ====================================================================
+# One row per "session" of an employee chatting with the leave agent.
+# Persists the state machine + message log + extracted fields so the
+# conversation can resume across page reloads, and every AI-driven
+# action has a complete audit trail.
+
+class AILeaveConversation(Base):
+    """Persistent state for an AI leave-request conversation."""
+
+    __tablename__ = "ai_leave_conversation"
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    EMPLOYEE_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=False,
+        index=True
+    )
+
+    # State machine. Values:
+    #   COLLECTING  -> still gathering required info
+    #   CONFIRMING  -> showed summary, awaiting yes/no
+    #   EXECUTED    -> leave request submitted (terminal success)
+    #   CANCELLED   -> employee cancelled mid-flow
+    #   FAILED      -> validation/policy rejection
+    STATE = Column(String(20), default="COLLECTING", index=True)
+
+    # Detected intent for this session.
+    # REQUEST / BALANCE / STATUS / CANCEL / MODIFY / UNKNOWN
+    INTENT = Column(String(20), nullable=True)
+
+    # Extracted-and-validated entity values, JSON-encoded.
+    COLLECTED_JSON = Column(Text, nullable=True)
+
+    # Full message log (chronological), JSON-encoded list.
+    MESSAGES_JSON = Column(Text, nullable=True)
+
+    # Links back to the LeaveRequest row that was created (if any).
+    # ON DELETE SET NULL — if the leave request is deleted, the
+    # conversation row stays (audit trail) with the link cleared.
+    LEAVE_REQUEST_ID = Column(
+        Integer,
+        ForeignKey("leave_request.ID", ondelete="SET NULL"),
+        nullable=True,
+        index=True
+    )
+
+    RESULT_MESSAGE = Column(String(500), nullable=True)
+
+    STARTED_AT   = Column(DateTime, default=datetime.utcnow)
+    LAST_AT      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    COMPLETED_AT = Column(DateTime, nullable=True)
+
+    VENDOR_ID = Column(
+        Integer,
+        ForeignKey("vendor.ID"),
+        nullable=True,
+        index=True
+    )
+
+
+# =====================================================================
+# Phase 2 — AI Recruitment Assistant
+# =====================================================================
+# All additive. Recruitment lives in its own namespace until a candidate
+# is officially hired, at which point a normal Employee row is created
+# through the existing onboarding flow.
+
+class ManpowerRequisition(Base):
+    """Manpower requisition — the front of the recruitment funnel.
+
+    A department raises a request for headcount ("we need 2 backend
+    engineers"), HR reviews, an approver either approves or rejects,
+    and on approval the requisition is converted into one or more
+    RecruitmentJob rows via `/recruitment/requisitions/{id}/convert`.
+    """
+
+    __tablename__ = "recruitment_requisition"
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    REQ_CODE = Column(String(30), unique=True, index=True, nullable=True)
+    # Auto-generated: MRF-2026-0001
+
+    # ----- What are we asking for -----
+    POSITION_TITLE = Column(String(150), nullable=False)
+    DEPARTMENT     = Column(String(100), nullable=True)
+    LOCATION       = Column(String(100), nullable=True)
+
+    EMPLOYMENT_TYPE = Column(String(30), default="FULL_TIME")
+    # FULL_TIME / PART_TIME / CONTRACT / INTERN
+
+    HEADCOUNT = Column(Integer, nullable=False, default=1)
+
+    EXPERIENCE_MIN_YEARS = Column(Float, nullable=True, default=0.0)
+    EXPERIENCE_MAX_YEARS = Column(Float, nullable=True)
+
+    BUDGET_CTC_MIN = Column(Float, nullable=True)
+    BUDGET_CTC_MAX = Column(Float, nullable=True)
+
+    REQUIRED_SKILLS   = Column(String(1000), nullable=True)
+    PREFERRED_SKILLS  = Column(String(1000), nullable=True)
+    REQUIRED_EDUCATION = Column(String(200), nullable=True)
+
+    JUSTIFICATION = Column(String(2000), nullable=True)
+    # Why this hire is needed. Free-text.
+
+    URGENCY = Column(String(20), default="NORMAL", index=True)
+    # LOW / NORMAL / HIGH / CRITICAL
+
+    NEEDED_BY_DATE = Column(Date, nullable=True)
+    # When the position needs to be filled by.
+
+    # ----- Approval workflow -----
+    STATUS = Column(String(20), default="PENDING", index=True)
+    # PENDING / APPROVED / REJECTED / ON_HOLD / CANCELLED / CONVERTED
+    # CONVERTED = at least one RecruitmentJob has been spawned from
+    # this requisition.
+
+    REJECTION_REASON = Column(String(500), nullable=True)
+
+    REQUESTED_BY_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=True,
+        index=True,
+    )
+    # The department head / requester employee.
+
+    APPROVED_BY_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=True,
+    )
+    APPROVED_AT = Column(DateTime, nullable=True)
+
+    # ----- Convert-to-job link -----
+    CONVERTED_JOB_ID = Column(
+        Integer,
+        ForeignKey("recruitment_job.ID", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    # First job spawned from this requisition. Additional jobs may
+    # be created via subsequent conversions, but we only pin the
+    # first for quick lookup.
+
+    VENDOR_ID = Column(
+        Integer,
+        ForeignKey("vendor.ID"),
+        nullable=True,
+        index=True,
+    )
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class RecruitmentJob(Base):
+    """An open position the company is hiring for."""
+
+    __tablename__ = "recruitment_job"
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    JOB_CODE = Column(String(30), unique=True, index=True, nullable=True)
+    # Auto-generated: JOB-2026-0001
+
+    TITLE = Column(String(150), nullable=False)
+    DEPARTMENT = Column(String(100), nullable=True)
+    LOCATION = Column(String(100), nullable=True)
+
+    EMPLOYMENT_TYPE = Column(String(30), default="FULL_TIME")
+    # FULL_TIME / PART_TIME / CONTRACT / INTERN
+
+    EXPERIENCE_MIN_YEARS = Column(Float, nullable=True, default=0.0)
+    EXPERIENCE_MAX_YEARS = Column(Float, nullable=True)
+
+    SALARY_MIN = Column(Float, nullable=True)
+    SALARY_MAX = Column(Float, nullable=True)
+
+    REQUIRED_SKILLS = Column(String(1000), nullable=True)
+    # Comma-separated skills, e.g. "Python, FastAPI, MySQL, React"
+
+    PREFERRED_SKILLS = Column(String(1000), nullable=True)
+
+    REQUIRED_EDUCATION = Column(String(200), nullable=True)
+    # e.g. "B.E. Mechanical" or "B.Tech / MCA"
+
+    DESCRIPTION = Column(String(4000), nullable=True)
+
+    STATUS = Column(String(20), default="OPEN", index=True)
+    # OPEN / ON_HOLD / FILLED / CANCELLED
+
+    OPENINGS = Column(Integer, default=1)
+
+    OPENED_AT = Column(DateTime, default=datetime.utcnow)
+    CLOSED_AT = Column(DateTime, nullable=True)
+
+    CREATED_BY_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=True,
+    )
+
+    REQUISITION_ID = Column(
+        Integer,
+        ForeignKey("recruitment_requisition.ID", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    # Traces this job back to the ManpowerRequisition it was spawned
+    # from. Nullable so jobs can still be created ad-hoc without a
+    # requisition (e.g. urgent replacements).
+
+    VENDOR_ID = Column(
+        Integer,
+        ForeignKey("vendor.ID"),
+        nullable=True,
+        index=True,
+    )
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Candidate(Base):
+    """One row per unique candidate (deduped by email)."""
+
+    __tablename__ = "recruitment_candidate"
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    CANDIDATE_CODE = Column(String(30), unique=True, index=True, nullable=True)
+    # Auto-generated: CAND-2026-0001
+
+    # ----- Identity -----
+    FULL_NAME = Column(String(150), nullable=False)
+    EMAIL     = Column(String(120), index=True, nullable=True)
+    PHONE     = Column(String(30),  nullable=True)
+    LOCATION  = Column(String(120), nullable=True)
+
+    # ----- Resume (raw + parsed) -----
+    RESUME_URL = Column(String(500), nullable=True)
+    # /static/recruitment/resumes/<id>/<file>
+
+    RESUME_TEXT = Column(Text, nullable=True)
+    # Full plain-text extraction for searching / re-parsing
+
+    PARSED_JSON = Column(Text, nullable=True)
+    # JSON blob with skills, education list, work_experience list,
+    # certifications, languages, projects, total_experience_years
+
+    # ----- Quick-search fields (denormalised from parsed JSON) -----
+    TOTAL_EXPERIENCE_YEARS = Column(Float, nullable=True, default=0.0)
+    HIGHEST_QUALIFICATION  = Column(String(200), nullable=True)
+    SKILLS                 = Column(String(2000), nullable=True)
+    # Comma-separated for SQL LIKE searches
+
+    # ----- Status -----
+    STATUS = Column(String(30), default="NEW", index=True)
+    # NEW / SCREENED / SHORTLISTED / INTERVIEWING / OFFERED /
+    # HIRED / REJECTED / ON_HOLD
+
+    SOURCE = Column(String(50), nullable=True)
+    # WEBSITE / REFERRAL / LINKEDIN / AGENCY / WALK_IN / OTHER
+
+    NOTES = Column(String(2000), nullable=True)
+
+    VENDOR_ID = Column(
+        Integer,
+        ForeignKey("vendor.ID"),
+        nullable=True,
+        index=True,
+    )
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class CandidateApplication(Base):
+    """Links a candidate to a specific job + holds screening results."""
+
+    __tablename__ = "recruitment_application"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "CANDIDATE_ID", "JOB_ID",
+            name="uq_candidate_per_job",
+        ),
+    )
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    CANDIDATE_ID = Column(
+        Integer,
+        ForeignKey("recruitment_candidate.ID", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+
+    JOB_ID = Column(
+        Integer,
+        ForeignKey("recruitment_job.ID", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+
+    # ----- Screening results -----
+    SCREENING_STATUS = Column(String(20), default="PENDING", index=True)
+    # PENDING / HIGHLY_SUITABLE / SUITABLE / PARTIALLY_SUITABLE / NOT_SUITABLE
+
+    SKILL_MATCH_PCT       = Column(Float, default=0.0)
+    EXPERIENCE_MATCH_PCT  = Column(Float, default=0.0)
+    EDUCATION_MATCH_PCT   = Column(Float, default=0.0)
+    OVERALL_SCORE         = Column(Float, default=0.0)
+    # Weighted: 0.5 * skill + 0.3 * experience + 0.2 * education
+
+    MATCHING_SKILLS = Column(String(2000), nullable=True)
+    MISSING_SKILLS  = Column(String(2000), nullable=True)
+
+    SCREENING_SUMMARY = Column(Text, nullable=True)
+    # AI-generated narrative, e.g. "Strong Python / FastAPI fit; lacks
+    # MySQL exposure; senior-level experience."
+
+    SCREENED_AT = Column(DateTime, nullable=True)
+
+    # ----- Pipeline state -----
+    STATUS = Column(String(30), default="APPLIED", index=True)
+    # APPLIED / SCREENING / SHORTLISTED / INTERVIEWED / OFFERED /
+    # HIRED / REJECTED / WITHDRAWN
+
+    REJECTION_REASON = Column(String(500), nullable=True)
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Interview(Base):
+    """One scheduled interview for a candidate application."""
+
+    __tablename__ = "recruitment_interview"
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    APPLICATION_ID = Column(
+        Integer,
+        ForeignKey("recruitment_application.ID", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+
+    ROUND = Column(Integer, default=1)
+    # 1 = screening, 2 = technical, 3 = HR, etc.
+
+    ROUND_TYPE = Column(String(40), nullable=True)
+    # SCREENING / TECHNICAL / HR / MANAGERIAL / FINAL
+
+    SCHEDULED_AT = Column(DateTime, nullable=False, index=True)
+
+    DURATION_MINUTES = Column(Integer, default=45)
+
+    MODE = Column(String(20), default="ONLINE")
+    # ONLINE / IN_PERSON / PHONE
+
+    MEETING_LINK = Column(String(500), nullable=True)
+    LOCATION     = Column(String(200), nullable=True)
+
+    INTERVIEWER_NAME  = Column(String(150), nullable=True)
+    INTERVIEWER_EMAIL = Column(String(120), nullable=True)
+
+    STATUS = Column(String(20), default="SCHEDULED", index=True)
+    # SCHEDULED / RESCHEDULED / COMPLETED / NO_SHOW / CANCELLED
+
+    # ----- After the interview -----
+    SCORE = Column(Float, nullable=True)               # 0-10
+    RECOMMENDATION = Column(String(30), nullable=True) # HIRE / REJECT / HOLD / NEXT_ROUND
+    FEEDBACK = Column(Text, nullable=True)
+
+    SUGGESTED_QUESTIONS = Column(Text, nullable=True)
+    # AI-generated, based on candidate's skills + JD
+
+    CREATED_AT  = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT  = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class OfferLetter(Base):
+    """One offer letter draft per application (latest wins)."""
+
+    __tablename__ = "recruitment_offer"
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    APPLICATION_ID = Column(
+        Integer,
+        ForeignKey("recruitment_application.ID", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+
+    OFFER_NUMBER = Column(String(40), unique=True, index=True, nullable=True)
+    # Auto-generated: OFFER-2026-0001
+
+    JOB_TITLE = Column(String(150), nullable=False)
+    DEPARTMENT = Column(String(100), nullable=True)
+
+    COMPENSATION_CTC = Column(Float, nullable=False)
+    COMPENSATION_BREAKDOWN = Column(Text, nullable=True)
+    # JSON: { "basic": ..., "hra": ..., "allowances": ..., "bonus": ... }
+
+    BENEFITS = Column(Text, nullable=True)
+    # Free-text or JSON list
+
+    JOINING_DATE = Column(Date, nullable=True)
+    PROBATION_MONTHS = Column(Integer, default=6)
+    NOTICE_PERIOD_DAYS = Column(Integer, default=30)
+
+    EMPLOYMENT_TERMS = Column(Text, nullable=True)
+    SPECIAL_CLAUSES  = Column(Text, nullable=True)
+
+    LETTER_PDF_URL = Column(String(500), nullable=True)
+    # /static/recruitment/offers/<id>/<file>.pdf
+
+    STATUS = Column(String(20), default="DRAFTED", index=True)
+    # DRAFTED / REVIEWED / SENT / ACCEPTED / REJECTED / EXPIRED
+
+    SENT_AT     = Column(DateTime, nullable=True)
+    RESPONDED_AT = Column(DateTime, nullable=True)
+
+    CREATED_BY_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=True,
+    )
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# =====================================================================
+# POST-JOINING ONBOARDING — checklist, assets, training, welcome kit
+# =====================================================================
+
+
+class AssetMaster(Base):
+    """Catalogue of allocatable assets — Laptop, Phone, ID Card, Locker, etc.
+    Per-vendor list managed by HR. Instances are tracked in AssetAllocation."""
+
+    __tablename__ = "asset_master"
+
+    ID          = Column(Integer, primary_key=True, autoincrement=True)
+    NAME        = Column(String(80), nullable=False)
+    CATEGORY    = Column(String(40), nullable=False)
+    # LAPTOP / PHONE / ID_CARD / LOCKER / TOOL / VEHICLE / OTHER
+    DESCRIPTION = Column(String(255), nullable=True)
+    IS_ACTIVE   = Column(Integer, default=1)
+    VENDOR_ID   = Column(Integer, ForeignKey("vendor.ID"), nullable=False, index=True)
+    CREATED_AT  = Column(DateTime, default=datetime.utcnow)
+
+
+class AssetAllocation(Base):
+    """One row per asset issuance to an employee."""
+
+    __tablename__ = "asset_allocation"
+
+    ID              = Column(Integer, primary_key=True, autoincrement=True)
+    EMPLOYEE_ID     = Column(String(36), ForeignKey("employee.ID"),
+                             nullable=False, index=True)
+    ASSET_MASTER_ID = Column(Integer, ForeignKey("asset_master.ID"),
+                             nullable=False)
+    SERIAL_NUMBER   = Column(String(80), nullable=True)
+    ISSUED_DATE     = Column(Date, nullable=True)
+    RETURNED_DATE   = Column(Date, nullable=True)
+    STATUS          = Column(String(20), default="ISSUED")
+    # ISSUED / RETURNED / LOST / DAMAGED
+    NOTES           = Column(String(255), nullable=True)
+    ISSUED_BY_ID    = Column(String(36), ForeignKey("employee.ID"), nullable=True)
+    VENDOR_ID       = Column(Integer, ForeignKey("vendor.ID"),
+                             nullable=False, index=True)
+    CREATED_AT      = Column(DateTime, default=datetime.utcnow)
+
+
+class TrainingProgram(Base):
+    """Catalogue of trainings — Induction, Safety, ISO 9001, etc."""
+
+    __tablename__ = "training_program"
+
+    ID            = Column(Integer, primary_key=True, autoincrement=True)
+    NAME          = Column(String(120), nullable=False)
+    DESCRIPTION   = Column(Text, nullable=True)
+    DURATION_DAYS = Column(Integer, default=1)
+    IS_MANDATORY  = Column(Integer, default=0)
+    # If 1, every new joiner gets it auto-assigned via the checklist seeder.
+    IS_ACTIVE     = Column(Integer, default=1)
+    VENDOR_ID     = Column(Integer, ForeignKey("vendor.ID"),
+                           nullable=False, index=True)
+    CREATED_AT    = Column(DateTime, default=datetime.utcnow)
+
+
+class TrainingAssignment(Base):
+    """Per-employee training tracking."""
+
+    __tablename__ = "training_assignment"
+
+    ID                  = Column(Integer, primary_key=True, autoincrement=True)
+    EMPLOYEE_ID         = Column(String(36), ForeignKey("employee.ID"),
+                                 nullable=False, index=True)
+    TRAINING_PROGRAM_ID = Column(Integer, ForeignKey("training_program.ID"),
+                                 nullable=False)
+    ASSIGNED_DATE       = Column(Date, default=lambda: datetime.utcnow().date())
+    DUE_DATE            = Column(Date, nullable=True)
+    COMPLETED_DATE      = Column(Date, nullable=True)
+    STATUS              = Column(String(20), default="ASSIGNED")
+    # ASSIGNED / IN_PROGRESS / COMPLETED / SKIPPED
+    SCORE               = Column(Float, nullable=True)
+    NOTES               = Column(String(255), nullable=True)
+    ASSIGNED_BY_ID      = Column(String(36), ForeignKey("employee.ID"),
+                                 nullable=True)
+    VENDOR_ID           = Column(Integer, ForeignKey("vendor.ID"),
+                                 nullable=False, index=True)
+    CREATED_AT          = Column(DateTime, default=datetime.utcnow)
+
+
+class WelcomeKitItem(Base):
+    """Catalogue of welcome-kit items — T-shirt, Mug, Notebook, Backpack, etc."""
+
+    __tablename__ = "welcome_kit_item"
+
+    ID          = Column(Integer, primary_key=True, autoincrement=True)
+    NAME        = Column(String(80), nullable=False)
+    DESCRIPTION = Column(String(255), nullable=True)
+    IS_DEFAULT  = Column(Integer, default=1)
+    # If 1, auto-added to every new joiner's welcome kit by the seeder.
+    IS_ACTIVE   = Column(Integer, default=1)
+    VENDOR_ID   = Column(Integer, ForeignKey("vendor.ID"),
+                         nullable=False, index=True)
+    CREATED_AT  = Column(DateTime, default=datetime.utcnow)
+
+
+class WelcomeKitIssuance(Base):
+    """Per-employee record of which kit items have been handed over."""
+
+    __tablename__ = "welcome_kit_issuance"
+
+    ID                  = Column(Integer, primary_key=True, autoincrement=True)
+    EMPLOYEE_ID         = Column(String(36), ForeignKey("employee.ID"),
+                                 nullable=False, index=True)
+    WELCOME_KIT_ITEM_ID = Column(Integer, ForeignKey("welcome_kit_item.ID"),
+                                 nullable=False)
+    ISSUED_DATE         = Column(Date, nullable=True)
+    STATUS              = Column(String(20), default="PENDING")
+    # PENDING / ISSUED / DECLINED
+    NOTES               = Column(String(255), nullable=True)
+    ISSUED_BY_ID        = Column(String(36), ForeignKey("employee.ID"),
+                                 nullable=True)
+    VENDOR_ID           = Column(Integer, ForeignKey("vendor.ID"),
+                                 nullable=False, index=True)
+    CREATED_AT          = Column(DateTime, default=datetime.utcnow)
+
+
+class LeaveBalanceAdjustment(Base):
+    """Audit trail of every manual leave-balance adjustment by HR.
+
+    Inserted by PATCH /leave/balance/{employee_id}/adjust — write-only.
+    Each row records what HR credited/debited, which leave type, when,
+    and the mandatory reason. Lets HR replay any balance change."""
+
+    __tablename__ = "leave_balance_adjustment"
+
+    ID            = Column(Integer, primary_key=True, autoincrement=True)
+    EMPLOYEE_ID   = Column(String(36), ForeignKey("employee.ID"),
+                           nullable=False, index=True)
+    YEAR          = Column(Integer, nullable=False)
+    LEAVE_TYPE    = Column(String(20), nullable=False)
+    # CASUAL / SICK / EARNED / MATERNITY
+    DELTA_DAYS    = Column(Float, nullable=False)
+    # +ve = credit (e.g. comp-off earned), -ve = debit (manual deduction)
+    OLD_TOTAL     = Column(Float, nullable=True)
+    NEW_TOTAL     = Column(Float, nullable=True)
+    REASON        = Column(String(255), nullable=False)
+    NOTES         = Column(Text, nullable=True)
+    ADJUSTED_BY_ID = Column(String(36), ForeignKey("employee.ID"), nullable=True)
+    ADJUSTED_AT   = Column(DateTime, default=datetime.utcnow)
+    VENDOR_ID     = Column(Integer, ForeignKey("vendor.ID"),
+                           nullable=False, index=True)
+
+
+class EmployeeStatusHistory(Base):
+    """Audit trail of every employee status change.
+    Inserted by PATCH /employees/{id}/status — never updated, never
+    deleted. HR can replay an employee's whole lifecycle from this table:
+      ACTIVE → ON_NOTICE → RESIGNED / TERMINATED / RETIRED / ON_LEAVE_LONG
+    """
+
+    __tablename__ = "employee_status_history"
+
+    ID              = Column(Integer, primary_key=True, autoincrement=True)
+    EMPLOYEE_ID     = Column(String(36), ForeignKey("employee.ID"),
+                             nullable=False, index=True)
+    OLD_STATUS      = Column(String(30), nullable=True)
+    NEW_STATUS      = Column(String(30), nullable=False)
+    REASON          = Column(String(255), nullable=False)
+    EFFECTIVE_DATE  = Column(Date, nullable=False,
+                             default=lambda: datetime.utcnow().date())
+    NOTES           = Column(Text, nullable=True)
+    CHANGED_BY_ID   = Column(String(36), ForeignKey("employee.ID"), nullable=True)
+    CHANGED_AT      = Column(DateTime, default=datetime.utcnow)
+    VENDOR_ID       = Column(Integer, ForeignKey("vendor.ID"),
+                             nullable=False, index=True)
+
+
+class MonthlyAttendanceReport(Base):
+    """One row per (employee, year, month). Auto-generated by the
+    MonthlyReportService — aggregates attendance + leave + overtime +
+    salary deduction signals so HR has a one-row summary to act on at
+    payroll time."""
+
+    __tablename__ = "monthly_attendance_report"
+    __table_args__ = (
+        UniqueConstraint("EMPLOYEE_ID", "YEAR", "MONTH",
+                         name="uq_mar_emp_year_month"),
+    )
+
+    ID            = Column(Integer, primary_key=True, autoincrement=True)
+    EMPLOYEE_ID   = Column(String(36), ForeignKey("employee.ID"),
+                           nullable=False, index=True)
+    YEAR          = Column(Integer, nullable=False, index=True)
+    MONTH         = Column(Integer, nullable=False, index=True)
+    # 1-12
+
+    # --- Day counts ---
+    TOTAL_DAYS         = Column(Integer, default=0)
+    WORKING_DAYS       = Column(Integer, default=0)
+    HOLIDAYS           = Column(Integer, default=0)
+    SUNDAYS            = Column(Integer, default=0)
+    PRESENT_DAYS       = Column(Float,   default=0.0)
+    ABSENT_DAYS        = Column(Float,   default=0.0)
+    HALF_DAYS          = Column(Float,   default=0.0)
+    LATE_COUNT         = Column(Integer, default=0)
+    EARLY_EXIT_COUNT   = Column(Integer, default=0)
+
+    # --- Leave breakdown ---
+    PAID_LEAVES        = Column(Float, default=0.0)
+    UNPAID_LEAVES      = Column(Float, default=0.0)
+    CL_USED            = Column(Float, default=0.0)
+    SICK_USED          = Column(Float, default=0.0)
+    EARNED_USED        = Column(Float, default=0.0)
+    EXCESS_LEAVES      = Column(Float, default=0.0)
+    # Sum of leave days that exceed the employee's available balance for
+    # the calendar year (treated as unpaid).
+
+    # --- Hours ---
+    WORKED_HOURS       = Column(Float, default=0.0)
+    OVERTIME_HOURS     = Column(Float, default=0.0)
+    EXPECTED_HOURS     = Column(Float, default=0.0)
+
+    # --- Compliance / KPIs ---
+    ATTENDANCE_PCT     = Column(Float, default=0.0)
+    HOUR_COMPLIANCE_PCT= Column(Float, default=0.0)
+
+    # --- Salary impact ---
+    MONTHLY_SALARY     = Column(Float, default=0.0)
+    DAILY_WAGE         = Column(Float, default=0.0)
+    ABSENCE_DEDUCTION  = Column(Float, default=0.0)
+    LATE_DEDUCTION     = Column(Float, default=0.0)
+    OT_PAYABLE         = Column(Float, default=0.0)
+    NET_PAYABLE        = Column(Float, default=0.0)
+
+    # --- AI insights — free-form narrative HR can paste into the payslip ---
+    INSIGHTS_JSON      = Column(Text, nullable=True)
+    PDF_PATH           = Column(String(500), nullable=True)
+
+    STATUS             = Column(String(20), default="GENERATED", index=True)
+    # GENERATED / SHARED / LOCKED
+
+    GENERATED_BY_ID    = Column(String(36), ForeignKey("employee.ID"),
+                                nullable=True)
+    VENDOR_ID          = Column(Integer, ForeignKey("vendor.ID"),
+                                nullable=False, index=True)
+    CREATED_AT         = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT         = Column(DateTime, default=datetime.utcnow,
+                                onupdate=datetime.utcnow)
+
+
+class AttendanceAlert(Base):
+    """An automated alert raised by the AttendanceMonitor when an employee's
+    attendance pattern breaches a configured threshold.
+
+    Severity is computed on creation (INFO / WARNING / CRITICAL). The same
+    alert key is deduplicated per (employee, day) so re-running the monitor
+    multiple times in a day doesn't spam notifications."""
+
+    __tablename__ = "attendance_alert"
+    __table_args__ = (
+        UniqueConstraint("EMPLOYEE_ID", "ALERT_KEY", "ALERT_DATE",
+                         name="uq_alert_emp_key_date"),
+    )
+
+    ID            = Column(Integer, primary_key=True, autoincrement=True)
+    EMPLOYEE_ID   = Column(String(36), ForeignKey("employee.ID"),
+                           nullable=False, index=True)
+    ALERT_KEY     = Column(String(40), nullable=False, index=True)
+    # LATE_PATTERN / ABSENT_PATTERN / OT_ABUSE / EARLY_EXIT_PATTERN
+    SEVERITY      = Column(String(20), nullable=False, default="WARNING")
+    # INFO / WARNING / CRITICAL
+    ALERT_DATE    = Column(Date, nullable=False, default=lambda: datetime.utcnow().date())
+    WINDOW_DAYS   = Column(Integer, default=30)
+    METRIC_VALUE  = Column(Float, nullable=True)
+    THRESHOLD     = Column(Float, nullable=True)
+    TITLE         = Column(String(180), nullable=False)
+    DETAIL        = Column(Text, nullable=True)
+    STATUS        = Column(String(20), default="OPEN", index=True)
+    # OPEN / ACKNOWLEDGED / DISMISSED
+    ACKNOWLEDGED_BY_ID = Column(String(36), ForeignKey("employee.ID"), nullable=True)
+    ACKNOWLEDGED_AT    = Column(DateTime, nullable=True)
+    VENDOR_ID     = Column(Integer, ForeignKey("vendor.ID"), nullable=False, index=True)
+    CREATED_AT    = Column(DateTime, default=datetime.utcnow)
+
+
+class OnboardingChecklistItem(Base):
+    """Single row per (employee, checklist key). Auto-seeded on hire by
+    OnboardingService. Keys are stable strings so the UI renders a
+    fixed-order checklist without joining seven tables per request."""
+
+    __tablename__ = "onboarding_checklist_item"
+    __table_args__ = (
+        UniqueConstraint("EMPLOYEE_ID", "ITEM_KEY", name="uq_chk_emp_key"),
+    )
+
+    ID              = Column(Integer, primary_key=True, autoincrement=True)
+    EMPLOYEE_ID     = Column(String(36), ForeignKey("employee.ID"),
+                             nullable=False, index=True)
+    ITEM_KEY        = Column(String(60), nullable=False)
+    LABEL           = Column(String(120), nullable=False)
+    CATEGORY        = Column(String(30), nullable=False)
+    # DOC / DEPT / ROLE / ASSET / TRAINING / KIT / OTHER
+    STATUS          = Column(String(20), default="PENDING")
+    # PENDING / DONE / SKIPPED
+    COMPLETED_DATE  = Column(Date, nullable=True)
+    COMPLETED_BY_ID = Column(String(36), ForeignKey("employee.ID"), nullable=True)
+    NOTES           = Column(String(255), nullable=True)
+    SORT_ORDER      = Column(Integer, default=100)
+    VENDOR_ID       = Column(Integer, ForeignKey("vendor.ID"),
+                             nullable=False, index=True)
+    CREATED_AT      = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT      = Column(DateTime, default=datetime.utcnow,
+                             onupdate=datetime.utcnow)
+
+
+# =====================================================================
+# SHIFT MANAGEMENT
+#
+# Three tables:
+#   Shift              — master (named templates like "Morning", "Night")
+#   ShiftAssignment    — per-employee per-date scheduled shift
+#   ShiftChangeRequest — swap / new-shift approval workflow
+#
+# Employee.SHIFT_START/END is kept as the "default shift" fallback used
+# by /shifts/schedule/auto-fill when no explicit assignment exists.
+# =====================================================================
+
+
+class Shift(Base):
+    """Named shift template. Every scheduled ShiftAssignment references
+    one Shift so payroll + attendance can derive expected hours, break
+    minutes, night differential, etc. from a single source of truth."""
+
+    __tablename__ = "shift_master"
+    __table_args__ = (
+        UniqueConstraint("VENDOR_ID", "SHIFT_CODE", name="uq_shift_vendor_code"),
+    )
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    SHIFT_CODE = Column(String(30), nullable=False)
+    # Short code, e.g. "M", "E", "N", "GEN"
+
+    NAME = Column(String(80), nullable=False)
+    # Human-friendly: "Morning", "General", "Night Shift"
+
+    START_TIME = Column(Time, nullable=False, default=time(9, 0))
+    END_TIME   = Column(Time, nullable=False, default=time(18, 0))
+
+    CROSS_MIDNIGHT = Column(Integer, default=0)
+    # 1 if the shift ends on the next calendar day (e.g. 22:00-06:00).
+    # When 1, ShiftAssignment.SHIFT_DATE refers to the *start* date.
+
+    BREAK_MINUTES = Column(Integer, default=60)
+    # Unpaid break in minutes. Payroll subtracts this from gross hours.
+
+    CATEGORY = Column(String(20), default="DAY", index=True)
+    # DAY / NIGHT / FLEXIBLE / SPLIT
+
+    IS_NIGHT = Column(Integer, default=0)
+    # 1 if this qualifies for the night-shift differential /
+    # allowance calc. Independent of CROSS_MIDNIGHT — a 20:00–04:00
+    # shift is CROSS_MIDNIGHT=1 AND IS_NIGHT=1.
+
+    NIGHT_ALLOWANCE_PCT = Column(Float, nullable=True, default=0.0)
+    # % uplift on that day's basic pay if IS_NIGHT=1.
+
+    FLEX_WINDOW_MINUTES = Column(Integer, nullable=True, default=0)
+    # For FLEXIBLE shifts: how many minutes ± the start/end an
+    # employee may check in/out. 0 = strict.
+
+    COLOR = Column(String(20), nullable=True, default="#3b82f6")
+    # UI colour for the calendar cell.
+
+    DESCRIPTION = Column(String(300), nullable=True)
+
+    IS_ACTIVE = Column(Integer, default=1, index=True)
+
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID"),
+                       nullable=False, index=True)
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow,
+                        onupdate=datetime.utcnow)
+
+
+class ShiftAssignment(Base):
+    """One row per employee × date. Nullable SHIFT_ID = OFF-day (e.g.
+    weekly off / leave). Uniqueness enforced so an employee can't be
+    double-booked on the same date."""
+
+    __tablename__ = "shift_assignment"
+    __table_args__ = (
+        UniqueConstraint(
+            "EMPLOYEE_ID", "SHIFT_DATE",
+            name="uq_shift_emp_date",
+        ),
+    )
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    EMPLOYEE_ID = Column(String(36), ForeignKey("employee.ID"),
+                         nullable=False, index=True)
+
+    SHIFT_ID = Column(Integer, ForeignKey("shift_master.ID"),
+                      nullable=True, index=True)
+    # Nullable: OFF-day / weekly off / leave day → no shift.
+
+    SHIFT_DATE = Column(Date, nullable=False, index=True)
+    # If the shift crosses midnight, this is the *start* date.
+
+    STATUS = Column(String(20), default="SCHEDULED", index=True)
+    # SCHEDULED / COMPLETED / MISSED / SWAPPED / CANCELLED
+
+    NOTES = Column(String(300), nullable=True)
+
+    ASSIGNED_BY_ID = Column(String(36), ForeignKey("employee.ID"),
+                            nullable=True)
+
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID"),
+                       nullable=False, index=True)
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow,
+                        onupdate=datetime.utcnow)
+
+
+class ShiftChangeRequest(Base):
+    """Employee-initiated request to change or swap a scheduled shift.
+    HR / manager approves, at which point the referenced ShiftAssignment
+    row is mutated."""
+
+    __tablename__ = "shift_change_request"
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    REQUESTED_BY_ID = Column(String(36), ForeignKey("employee.ID"),
+                             nullable=False, index=True)
+
+    SHIFT_DATE = Column(Date, nullable=False, index=True)
+    # The date being changed.
+
+    FROM_SHIFT_ID = Column(Integer, ForeignKey("shift_master.ID"),
+                           nullable=True)
+    # Current shift on SHIFT_DATE. Null if today was an OFF-day.
+
+    TO_SHIFT_ID = Column(Integer, ForeignKey("shift_master.ID"),
+                         nullable=True)
+    # Requested shift. Null if requesting a leave / OFF-day.
+
+    SWAP_WITH_EMPLOYEE_ID = Column(String(36), ForeignKey("employee.ID"),
+                                   nullable=True)
+    # Optional: swap-partner. If set, the partner's assignment on the
+    # same date is also mutated when approved.
+
+    REASON = Column(String(500), nullable=True)
+
+    STATUS = Column(String(20), default="PENDING", index=True)
+    # PENDING / APPROVED / REJECTED / CANCELLED
+
+    REJECTION_REASON = Column(String(500), nullable=True)
+
+    APPROVED_BY_ID = Column(String(36), ForeignKey("employee.ID"),
+                            nullable=True)
+    APPROVED_AT = Column(DateTime, nullable=True)
+
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID"),
+                       nullable=False, index=True)
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow,
+                        onupdate=datetime.utcnow)
+
+

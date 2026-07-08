@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 
 import {
   Link,
   NavLink,
   Routes,
   Route,
+  Outlet,
   useNavigate,
   useLocation
 } from "react-router-dom";
@@ -48,7 +49,7 @@ import Machines from "./Machines";
 import Reports from "./Reports";
 import Settings from "./Settings";
 import Organization from "./Organization";
-import MDReview from "./MDReview";
+// MDReview removed Phase 2 — superseded by Star Performance
 import Production from "./Production";
 import Quality from "./Quality";
 import Suppliers from "./Suppliers";
@@ -60,16 +61,30 @@ import AdminDashboardV2 from "./AdminDashboardV2";
 import EnterpriseCommandCenter from "./EnterpriseCommandCenter";
 import RoleManagement from "./RoleManagement";
 import RbacPermissions from "./RbacPermissions";
+import HolidayCalendar from "./HolidayCalendar";
+import WorkCenters from "./WorkCenters";
 import CompanySettings from "./CompanySettings";
 import GeofenceSettings from "./GeofenceSettings";
 import EmployeeMemos from "./EmployeeMemos";
 import ApprovalCenter from "./ApprovalCenter";
-import AICommandCenter from "./AICommandCenter";
-import Workflow from "./Workflow";
+// AICommandCenter + Workflow removed Phase 2 — were placeholder stubs
 import Payroll from "./Payroll";
 import StarPerformance from "./StarPerformance";
+import Allowances from "./Allowances";
+import EmployeeProfile from "./EmployeeProfile";
+import Recruitment from "./Recruitment";
+import PayslipGenerator from "./PayslipGenerator";
+import OnboardingChecklist from "./OnboardingChecklist";
+import ShiftManagement from "./ShiftManagement";
+import HrAutomation from "./HrAutomation";
+import MonthlyReports from "./MonthlyReports";
+import WorkforceAnalytics from "./WorkforceAnalytics";
 import ChatBot from "../components/ChatBot";
+function HrLayout() {
+  return <Outlet />;
+}
 
+import styles from "./Dashboard.module.css";
 import {
   PALETTE as CHART_COLORS,
   TASK_STATUS_COLORS,
@@ -290,7 +305,14 @@ function NotificationBell() {
         aria-label="Notifications"
       >
 
-        🔔
+        <svg
+          width="22" height="22" viewBox="0 0 24 24"
+          fill="none" stroke="#dc2626" strokeWidth="1.8"
+          strokeLinecap="round" strokeLinejoin="round"
+        >
+          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+          <path d="M10 21a2 2 0 0 0 4 0" />
+        </svg>
 
         {
           unread > 0 && (
@@ -367,8 +389,8 @@ function NotificationBell() {
                           {
                             n.CREATED_AT
                               ? new Date(
-                                  n.CREATED_AT
-                                ).toLocaleString()
+                                n.CREATED_AT
+                              ).toLocaleString()
                               : ""
                           }
                         </div>
@@ -498,29 +520,13 @@ function InventorySummaryCard({ items, loading }) {
 
     <div className="chart-card">
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          marginBottom: 10,
-          flexWrap: "wrap"
-        }}
-      >
-        <h3 style={{ margin: 0 }}>
-          Inventory Summary
-        </h3>
+      <div className={styles.chartCardHeader}>
+        <h3 className={styles.chartCardTitle}>Inventory Summary</h3>
 
-        <div
-          style={{
-            fontSize: 12,
-            color: "#64748b"
-          }}
-        >
+        <div className={styles.chartCapNote}>
           {chartData.length} of {items.length} shown
           {isOverCap && (
-            <span style={{ color: "#d97706" }}>
+            <span className={styles.chartCapWarn}>
               {" "}· capped at {CHART_ITEM_CAP}
             </span>
           )}
@@ -529,39 +535,15 @@ function InventorySummaryCard({ items, loading }) {
 
       {/* Chip row */}
       {items.length > 0 && (
-
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 6,
-            marginBottom: 14,
-            maxHeight: 110,
-            overflowY: "auto",
-            padding: "4px 2px"
-          }}
-        >
+        <div className={styles.chipRow}>
           {items.map((it) => {
-
             const isOn = selected.has(it.name);
-
             return (
               <button
                 key={it.name}
                 type="button"
                 onClick={() => toggle(it.name)}
-                style={{
-                  padding: "4px 10px",
-                  borderRadius: 999,
-                  fontSize: 11,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                  border: "1px solid "
-                    + (isOn ? "#2563eb" : "#cbd5e1"),
-                  background: isOn ? "#2563eb" : "#fff",
-                  color: isOn ? "#fff" : "#475569"
-                }}
+                className={`${styles.chip}${isOn ? ` ${styles.chipOn}` : ""}`}
                 title={`₹${(it.value || 0).toLocaleString()}`}
               >
                 {isOn && <span>✓ </span>}
@@ -574,40 +556,17 @@ function InventorySummaryCard({ items, loading }) {
 
       {/* Quick actions */}
       {items.length > 0 && (
-        <div
-          style={{
-            display: "flex",
-            gap: 6,
-            marginBottom: 12,
-            flexWrap: "wrap"
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => selectTopN(DEFAULT_TOP_N)}
-            style={miniBtnStyle(false)}
-          >
+        <div className={styles.quickRow}>
+          <button type="button" onClick={() => selectTopN(DEFAULT_TOP_N)} className={styles.miniBtn}>
             Top {DEFAULT_TOP_N} by value
           </button>
-          <button
-            type="button"
-            onClick={() => selectTopN(CHART_ITEM_CAP)}
-            style={miniBtnStyle(false)}
-          >
+          <button type="button" onClick={() => selectTopN(CHART_ITEM_CAP)} className={styles.miniBtn}>
             Top {CHART_ITEM_CAP}
           </button>
-          <button
-            type="button"
-            onClick={() => selectTopN(items.length)}
-            style={miniBtnStyle(false)}
-          >
+          <button type="button" onClick={() => selectTopN(items.length)} className={styles.miniBtn}>
             All ({items.length})
           </button>
-          <button
-            type="button"
-            onClick={clearAll}
-            style={miniBtnStyle(true)}
-          >
+          <button type="button" onClick={clearAll} className={`${styles.miniBtn} ${styles.miniBtnDanger}`}>
             Clear
           </button>
         </div>
@@ -693,8 +652,8 @@ function InventorySummaryCard({ items, loading }) {
           {loading
             ? "Loading…"
             : items.length === 0
-            ? "No inventory data"
-            : "Pick at least one item from the chips above."}
+              ? "No inventory data"
+              : "Pick at least one item from the chips above."}
         </p>
       )}
 
@@ -702,20 +661,6 @@ function InventorySummaryCard({ items, loading }) {
   );
 }
 
-
-function miniBtnStyle(isDanger) {
-
-  return {
-    padding: "4px 10px",
-    borderRadius: 6,
-    fontSize: 11,
-    fontWeight: 600,
-    cursor: "pointer",
-    border: "1px solid " + (isDanger ? "#fecaca" : "#cbd5e1"),
-    background: isDanger ? "#fef2f2" : "#f8fafc",
-    color: isDanger ? "#b91c1c" : "#475569"
-  };
-}
 
 
 function DashboardHomeLegacy() {
@@ -903,8 +848,8 @@ function DashboardHomeLegacy() {
               loading
                 ? "…"
                 : `₹ ${Number(
-                    stats?.inventory_value ?? 0
-                  ).toLocaleString()}`
+                  stats?.inventory_value ?? 0
+                ).toLocaleString()}`
             }
           </p>
 
@@ -1255,82 +1200,348 @@ function DashboardHomeLegacy() {
 
 // =================================================================
 // Sidebar navigation — grouped, collapsible sections for a cleaner
-// professional layout. Top-level items (Dashboard, Workflow Map)
-// stay always-visible; the rest are inside category groups.
+// professional layout. Top-level items (Dashboard) stay always-visible;
+// the rest are inside category groups.
+//
+// Icons are inline SVGs (Heroicons-style outline) instead of emojis —
+// matches the BVC24 corporate brand and renders consistently across
+// platforms.
 // =================================================================
 
+function SidebarIcon({ name }) {
+
+  const props = {
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.6,
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  };
+
+  switch (name) {
+    case "dashboard":
+      return (
+        <svg {...props}>
+          <rect x="3" y="3" width="7" height="9" rx="1.4" />
+          <rect x="14" y="3" width="7" height="5" rx="1.4" />
+          <rect x="3" y="16" width="7" height="5" rx="1.4" />
+          <rect x="14" y="12" width="7" height="9" rx="1.4" />
+        </svg>
+      );
+    case "apps":
+      return (
+        <svg {...props}>
+          {/* 3x3 grid — universal "app launcher" icon */}
+          <rect x="3"  y="3"  width="5" height="5" rx="1" />
+          <rect x="10" y="3"  width="5" height="5" rx="1" />
+          <rect x="17" y="3"  width="4" height="5" rx="1" />
+          <rect x="3"  y="10" width="5" height="5" rx="1" />
+          <rect x="10" y="10" width="5" height="5" rx="1" />
+          <rect x="17" y="10" width="4" height="5" rx="1" />
+          <rect x="3"  y="17" width="5" height="4" rx="1" />
+          <rect x="10" y="17" width="5" height="4" rx="1" />
+          <rect x="17" y="17" width="4" height="4" rx="1" />
+        </svg>
+      );
+    case "approvals":
+      return (
+        <svg {...props}>
+          <path d="M9 12l2 2 4-4" />
+          <circle cx="12" cy="12" r="9" />
+        </svg>
+      );
+    case "roles":
+      return (
+        <svg {...props}>
+          <rect x="4" y="10" width="16" height="11" rx="2" />
+          <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+        </svg>
+      );
+    case "rbac":
+      return (
+        <svg {...props}>
+          <path d="M12 3l8 3v6c0 5-3.6 8.4-8 9-4.4-.6-8-4-8-9V6l8-3z" />
+          <path d="M9 12l2 2 4-4" />
+        </svg>
+      );
+    case "employees":
+      return (
+        <svg {...props}>
+          <circle cx="9" cy="8" r="3.5" />
+          <path d="M3 21c0-3.6 2.7-6 6-6s6 2.4 6 6" />
+          <circle cx="17" cy="9" r="2.6" />
+          <path d="M15 21c0-2.5 1.6-4.5 4-4.5" />
+        </svg>
+      );
+    case "memos":
+      return (
+        <svg {...props}>
+          <rect x="5" y="3" width="14" height="18" rx="2" />
+          <path d="M9 8h6M9 12h6M9 16h4" />
+        </svg>
+      );
+    case "attendance":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3.5 2" />
+        </svg>
+      );
+    case "leaves":
+      return (
+        <svg {...props}>
+          <rect x="3" y="5" width="18" height="16" rx="2" />
+          <path d="M3 10h18M8 3v4M16 3v4" />
+          <circle cx="12" cy="15" r="1.2" fill="currentColor" />
+        </svg>
+      );
+    case "payroll":
+      return (
+        <svg {...props}>
+          <rect x="3" y="6" width="18" height="13" rx="2" />
+          <circle cx="12" cy="12.5" r="2.6" />
+          <path d="M3 10h18" />
+        </svg>
+      );
+    case "star":
+      return (
+        <svg {...props}>
+          <path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.7 6.6 19.5l1.2-6L3.3 9.3l6.1-.7L12 3z" />
+        </svg>
+      );
+    case "allowances":
+      return (
+        <svg {...props}>
+          {/* Receipt / expense voucher */}
+          <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z" />
+          <path d="M9 8h6M9 12h6M9 16h4" />
+        </svg>
+      );
+    case "recruitment":
+      return (
+        <svg {...props}>
+          {/* Briefcase + magnifier — hiring */}
+          <rect x="3" y="7" width="18" height="13" rx="2" />
+          <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+          <circle cx="15.5" cy="14.5" r="2.5" />
+          <line x1="17.5" y1="16.5" x2="19" y2="18" />
+        </svg>
+      );
+    case "customers":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="8" r="3.5" />
+          <path d="M5 21c0-4 3-7 7-7s7 3 7 7" />
+        </svg>
+      );
+    case "quotations":
+      return (
+        <svg {...props}>
+          <path d="M7 3h7l4 4v14H7z" />
+          <path d="M14 3v4h4" />
+          <path d="M10 13h4M10 17h4" />
+        </svg>
+      );
+    case "salesorders":
+      return (
+        <svg {...props}>
+          <rect x="6" y="4" width="12" height="17" rx="2" />
+          <rect x="9" y="2.5" width="6" height="3" rx="1" />
+          <path d="M9 11h6M9 15h6" />
+        </svg>
+      );
+    case "projects":
+      return (
+        <svg {...props}>
+          <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+        </svg>
+      );
+    case "machines":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1c.5.5 1.2.6 1.8.3.7-.3 1.1-1 1.1-1.7V3a2 2 0 0 1 4 0v.1c0 .7.4 1.4 1 1.7.6.3 1.3.2 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8c.3.6 1 1 1.7 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+        </svg>
+      );
+    case "production":
+      return (
+        <svg {...props}>
+          <path d="M3 21V11l5 3V11l5 3V11l5 3v7z" />
+          <path d="M3 21h18" />
+          <rect x="9" y="17" width="2" height="3" />
+          <rect x="14" y="17" width="2" height="3" />
+        </svg>
+      );
+    case "quality":
+      return (
+        <svg {...props}>
+          <path d="M12 3l8 3v6c0 5-3.6 8.4-8 9-4.4-.6-8-4-8-9V6l8-3z" />
+          <path d="M8.5 12l2.5 2.5L15.5 10" />
+        </svg>
+      );
+    case "suppliers":
+      return (
+        <svg {...props}>
+          <path d="M3 7h11v10H3z" />
+          <path d="M14 10h4l3 3v4h-7z" />
+          <circle cx="7" cy="18.5" r="1.8" />
+          <circle cx="17" cy="18.5" r="1.8" />
+        </svg>
+      );
+    case "purchase":
+      return (
+        <svg {...props}>
+          <path d="M3 5h2l2.5 11h10l2-7H6.5" />
+          <circle cx="9" cy="20" r="1.5" />
+          <circle cx="17" cy="20" r="1.5" />
+        </svg>
+      );
+    case "purchaseorders":
+      return (
+        <svg {...props}>
+          <rect x="5" y="4" width="14" height="17" rx="2" />
+          <path d="M9 9h6M9 13h6M9 17h4" />
+        </svg>
+      );
+    case "inventory":
+      return (
+        <svg {...props}>
+          <path d="M3 7l9-4 9 4-9 4-9-4z" />
+          <path d="M3 7v10l9 4V11" />
+          <path d="M21 7v10l-9 4" />
+        </svg>
+      );
+    case "reports":
+      return (
+        <svg {...props}>
+          <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+        </svg>
+      );
+    case "company":
+      return (
+        <svg {...props}>
+          <rect x="4" y="3" width="16" height="18" rx="1.5" />
+          <path d="M8 7h2M8 11h2M8 15h2M14 7h2M14 11h2M14 15h2" />
+          <path d="M10 21v-3h4v3" />
+        </svg>
+      );
+    case "geofence":
+      return (
+        <svg {...props}>
+          <path d="M12 21s7-6.5 7-12a7 7 0 0 0-14 0c0 5.5 7 12 7 12z" />
+          <circle cx="12" cy="9" r="2.5" />
+        </svg>
+      );
+    case "holidays":
+      return (
+        <svg {...props}>
+          <rect x="3" y="5" width="18" height="16" rx="2" />
+          <path d="M3 10h18M8 3v4M16 3v4" />
+          <circle cx="8" cy="14" r="1.2" fill="currentColor" />
+          <circle cx="16" cy="14" r="1.2" fill="currentColor" />
+          <circle cx="12" cy="17.5" r="1.2" fill="currentColor" />
+        </svg>
+      );
+    case "workcenters":
+      return (
+        <svg {...props}>
+          <rect x="3" y="10" width="4" height="11" rx="0.6" />
+          <rect x="10" y="6" width="4" height="15" rx="0.6" />
+          <rect x="17" y="13" width="4" height="8" rx="0.6" />
+          <path d="M3 21h18" />
+        </svg>
+      );
+    case "settings":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1c.5.5 1.2.6 1.8.3.7-.3 1.1-1 1.1-1.7V3a2 2 0 0 1 4 0v.1c0 .7.4 1.4 1 1.7.6.3 1.3.2 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8c.3.6 1 1 1.7 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+        </svg>
+      );
+    default:
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      );
+  }
+}
+
+
 const NAV_TOP = [
-  { to: "/",            icon: "📊", label: "Dashboard" },
-  { to: "/ai-command",  icon: "🤖", label: "AI Command Center" },
-  // { to: "/workflow",    icon: "🔗", label: "Workflow Map" }  // temporarily hidden
+  { to: "/", icon: <SidebarIcon name="dashboard" />, label: "Dashboard" }
 ];
 
 const NAV_GROUPS = [
   {
     key: "org",
-    label: "Organization Management",
-    icon: "🏢",
+    label: "HRMS",
     items: [
-      { to: "/approvals",         icon: "✅", label: "Approval Center" },
-      { to: "/roles",             icon: "🔐", label: "Roles & Permissions" },
-      { to: "/rbac",              icon: "🛡️", label: "RBAC (Permission Grants)" },
-      { to: "/employees",         icon: "👥", label: "Employees" },
-      { to: "/memos",             icon: "📋", label: "Memos" },
-      { to: "/attendance",        icon: "🕒", label: "Attendance" },
-      { to: "/leave-management",  icon: "🌴", label: "Leave Management" },
-      { to: "/payroll",           icon: "💰", label: "Payroll" },
-      { to: "/star-performance",  icon: "⭐", label: "Star Performance" }
+      // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
+      { to: "/rbac",              icon: <SidebarIcon name="rbac"        />, label: "RBAC" },
+      { to: "/employees",         icon: <SidebarIcon name="employees"   />, label: "Employees" },
+      { to: "/memos",             icon: <SidebarIcon name="memos"       />, label: "Memos" },
+      { to: "/attendance",        icon: <SidebarIcon name="attendance"  />, label: "Attendance" },
+      { to: "/shifts",            icon: <SidebarIcon name="attendance"  />, label: "Shift Management" },
+      { to: "/leave-management",  icon: <SidebarIcon name="leaves"      />, label: "Leave Management" },
+      { to: "/payroll",           icon: <SidebarIcon name="payroll"     />, label: "Payroll" },
+      { to: "/star-performance",  icon: <SidebarIcon name="star"        />, label: "Star Performance" },
+      { to: "/allowances",        icon: <SidebarIcon name="allowances"  />, label: "Allowances" },
+      { to: "/recruitment",       icon: <SidebarIcon name="recruitment" />, label: "Recruitment" },
+      { to: "/onboarding",        icon: <SidebarIcon name="employees"   />, label: "Onboarding" },
+      { to: "/hr-automation",     icon: <SidebarIcon name="approvals"   />, label: "HR Automation" },
+      { to: "/monthly-reports",   icon: <SidebarIcon name="payroll"     />, label: "Monthly Reports" }
+      // { to: "/workforce-analytics", icon: <SidebarIcon name="star"      />, label: "Workforce Analytics" }  // temporarily hidden per request
     ]
   },
   {
     key: "crm",
     label: "CRM & Sales",
-    icon: "💼",
     items: [
-      { to: "/customers",     icon: "🤝", label: "Customers" },
-      { to: "/quotations",    icon: "📄", label: "Quotations" },
-      { to: "/sales-orders",  icon: "📑", label: "Sales Orders" }
+      { to: "/customers", icon: <SidebarIcon name="customers" />, label: "Customers" },
+      { to: "/quotations", icon: <SidebarIcon name="quotations" />, label: "Quotations" },
+      { to: "/sales-orders", icon: <SidebarIcon name="salesorders" />, label: "Sales Orders" }
     ]
   },
   {
     key: "manufacturing",
     label: "Project & Manufacturing",
-    icon: "🏭",
     items: [
-      { to: "/projects",   icon: "📁", label: "Projects" },
-      { to: "/machines",   icon: "🤖", label: "Machines" },
-      { to: "/production", icon: "🏭", label: "Production & BOM" },
-      { to: "/quality",    icon: "✅", label: "Quality Management" }
+      { to: "/projects", icon: <SidebarIcon name="projects" />, label: "Projects" },
+      { to: "/machines", icon: <SidebarIcon name="machines" />, label: "Machines" },
+      { to: "/work-centers", icon: <SidebarIcon name="workcenters" />, label: "Work Centers" },
+      { to: "/production", icon: <SidebarIcon name="production" />, label: "Production & BOM" },
+      { to: "/quality", icon: <SidebarIcon name="quality" />, label: "Quality Management" }
     ]
   },
   {
     key: "purchase",
     label: "Purchase & Inventory",
-    icon: "🛒",
     items: [
-      { to: "/suppliers",       icon: "🚚", label: "Suppliers" },
-      { to: "/purchase",        icon: "🛒", label: "BOM-Supplier Map" },
-      { to: "/purchase-orders", icon: "📋", label: "Purchase Orders" },
-      { to: "/inventory",       icon: "📦", label: "Inventory" }
+      { to: "/suppliers", icon: <SidebarIcon name="suppliers" />, label: "Suppliers" },
+      { to: "/purchase", icon: <SidebarIcon name="purchase" />, label: "BOM-Supplier Map" },
+      { to: "/purchase-orders", icon: <SidebarIcon name="purchaseorders" />, label: "Purchase Orders" },
+      { to: "/inventory", icon: <SidebarIcon name="inventory" />, label: "Inventory" }
     ]
   },
   {
     key: "reports",
     label: "Reports & Analytics",
-    icon: "📑",
     items: [
-      { to: "/reports", icon: "📑", label: "Reports" }
+      { to: "/reports", icon: <SidebarIcon name="reports" />, label: "Reports" }
     ]
   },
   {
     key: "system",
     label: "System",
-    // (filled in below — Company Settings inserted before Settings)
-    icon: "⚙️",
     items: [
-      { to: "/company-settings", icon: "🏢", label: "Company Settings" },
-      { to: "/geofence", icon: "📍", label: "Geofence Settings" },
-      { to: "/settings", icon: "⚙️", label: "Settings" }
+      { to: "/company-settings", icon: <SidebarIcon name="company" />, label: "Company Settings" },
+      { to: "/holidays", icon: <SidebarIcon name="holidays" />, label: "Holiday Calendar" },
+      { to: "/geofence", icon: <SidebarIcon name="geofence" />, label: "Geofence Settings" },
+      { to: "/settings", icon: <SidebarIcon name="settings" />, label: "Settings" }
     ]
   }
 ];
@@ -1420,72 +1631,24 @@ function SidebarNav({ onItemClick }) {
             <button
               type="button"
               onClick={() => toggle(group.key)}
-              className={
-                "sidebar-section-header" +
-                (hasActive ? " sidebar-section-header-active" : "")
-              }
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "10px 14px",
-                marginTop: 14,
-                marginBottom: 4,
-                background: "transparent",
-                border: "none",
-                color: hasActive
-                  ? "rgba(255,255,255,0.95)"
-                  : "rgba(255,255,255,0.55)",
-                fontSize: 10,
-                fontWeight: 800,
-                letterSpacing: 1.4,
-                textTransform: "uppercase",
-                cursor: "pointer",
-                textAlign: "left",
-                borderRadius: 6,
-                transition: "color 0.15s, background 0.15s"
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = "rgba(255,255,255,0.9)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = hasActive
-                  ? "rgba(255,255,255,0.95)"
-                  : "rgba(255,255,255,0.55)";
-              }}
+              className={`${styles.navGroupBtn}${hasActive ? ` ${styles.navGroupBtnActive}` : ""}`}
             >
-              <span style={{ fontSize: 13, opacity: 0.8 }}>
-                {group.icon}
-              </span>
-              <span style={{ flex: 1 }}>{group.label}</span>
-              <span
-                style={{
-                  fontSize: 9,
-                  opacity: 0.7,
-                  transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
-                  transition: "transform 0.2s"
-                }}
-              >
-                ▼
+              <span className={styles.navGroupLabelSpan}>{group.label}</span>
+              <span className={`${styles.navGroupArrow}${isOpen ? ` ${styles.navGroupArrowOpen}` : ""}`}>
+                ▾
               </span>
             </button>
 
             <div
-              style={{
-                maxHeight: isOpen ? `${group.items.length * 46}px` : 0,
-                overflow: "hidden",
-                transition: "max-height 0.25s ease-in-out",
-                opacity: isOpen ? 1 : 0
-              }}
+              className={`${styles.navGroupItems} ${isOpen ? styles.navGroupItemsOpen : styles.navGroupItemsClosed}`}
+              style={{ maxHeight: isOpen ? `${group.items.length * 46}px` : 0 }}
             >
               {group.items.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
                   onClick={onItemClick}
-                  className={linkClass}
-                  style={{ paddingLeft: 28 }}
+                  className={`${linkClass} ${styles.navSubItem}`}
                 >
                   <span className="sidebar-icon">{item.icon}</span>
                   <span>{item.label}</span>
@@ -1509,15 +1672,33 @@ function Dashboard() {
 
   const closeSidebar = () => setSidebarOpen(false);
 
+  // Lock the page from scrolling underneath the open drawer on mobile.
+  useEffect(() => {
+    if (sidebarOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = prev; };
+    }
+  }, [sidebarOpen]);
+
+  // Auto-close the drawer when the viewport grows back to desktop so
+  // it doesn't get left in a stuck-open state after a rotation.
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 901px)");
+    const handler = (e) => { if (e.matches) setSidebarOpen(false); };
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
   const username =
     localStorage.getItem("username") || "User";
 
   const handleLogout = () => {
 
-    if (!window.confirm("Log out of Vending ERP?")) {
+    // if (!window.confirm("Log out of Vending ERP?")) {
 
-      return;
-    }
+    //   return;
+    // }
 
     localStorage.removeItem("auth");
 
@@ -1533,11 +1714,24 @@ function Dashboard() {
     <div className="dashboard">
 
       <button
-        className="menu-toggle"
+        className={"menu-toggle" + (sidebarOpen ? " menu-toggle-open" : "")}
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        aria-label="Toggle menu"
+        aria-label={sidebarOpen ? "Close menu" : "Open menu"}
+        aria-expanded={sidebarOpen}
       >
-        {sidebarOpen ? "✕" : "☰"}
+        {sidebarOpen ? (
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" strokeWidth="2.4"
+               strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
+        ) : (
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" strokeWidth="2.4"
+               strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
+        )}
       </button>
 
       {
@@ -1558,7 +1752,7 @@ function Dashboard() {
         <div className="sidebar-brand">
 
           <img
-            src="/bharath-logo.png"
+            src="/logo.webp"
             alt="Bharath Vending Corporation"
             className="sidebar-logo"
           />
@@ -1595,7 +1789,7 @@ function Dashboard() {
             className="logout-btn"
             onClick={handleLogout}
           >
-            ⏻ Logout
+            ↪ Logout
           </button>
 
         </div>
@@ -1620,30 +1814,33 @@ function Dashboard() {
           <Route path="/dashboard-v1" element={<AdminDashboard />} />
 
           <Route path="/roles" element={<RoleManagement />} />
-          <Route path="/rbac"  element={<RbacPermissions />} />
+          <Route path="/rbac" element={<RbacPermissions />} />
 
           <Route path="/company-settings" element={<CompanySettings />} />
+          <Route path="/holidays" element={<HolidayCalendar />} />
           <Route path="/geofence" element={<GeofenceSettings />} />
-          <Route path="/memos" element={<EmployeeMemos />} />
-
           <Route path="/approvals" element={<ApprovalCenter />} />
-
-          <Route path="/ai-command" element={<AICommandCenter />} />
 
           {/* Legacy dashboard kept reachable for reference */}
           <Route path="/dashboard-legacy" element={<DashboardHome />} />
-
-          <Route path="/workflow" element={<Workflow />} />
 
           <Route
             path="/organization"
             element={<Organization />}
           />
 
-          <Route
-            path="/employees"
-            element={<Employees />}
-          />
+          {/* HR module — Odoo-style top sub-nav across 8 pages */}
+          <Route element={<HrLayout />}>
+            <Route path="/employees"         element={<Employees />} />
+            <Route path="/attendance"        element={<Attendance />} />
+            <Route path="/shifts"            element={<ShiftManagement />} />
+            <Route path="/memos"             element={<EmployeeMemos />} />
+            <Route path="/leave-management"  element={<LeaveManagement />} />
+            <Route path="/allowances"        element={<Allowances />} />
+            <Route path="/star-performance"  element={<StarPerformance />} />
+            <Route path="/payroll"           element={<Payroll />} />
+            <Route path="/payslip-generator" element={<PayslipGenerator />} />
+          </Route>
 
           <Route
             path="/employee-onboarding"
@@ -1676,13 +1873,13 @@ function Dashboard() {
           />
 
           <Route
-            path="/attendance"
-            element={<Attendance />}
+            path="/machines"
+            element={<Machines />}
           />
 
           <Route
-            path="/machines"
-            element={<Machines />}
+            path="/work-centers"
+            element={<WorkCenters />}
           />
 
           <Route
@@ -1711,23 +1908,33 @@ function Dashboard() {
           />
 
           <Route
-            path="/leave-management"
-            element={<LeaveManagement />}
+            path="/employees/:id/profile"
+            element={<EmployeeProfile />}
           />
 
           <Route
-            path="/payroll"
-            element={<Payroll />}
+            path="/recruitment"
+            element={<Recruitment />}
           />
 
           <Route
-            path="/star-performance"
-            element={<StarPerformance />}
+            path="/onboarding"
+            element={<OnboardingChecklist />}
           />
 
           <Route
-            path="/md-review"
-            element={<MDReview />}
+            path="/hr-automation"
+            element={<HrAutomation />}
+          />
+
+          <Route
+            path="/monthly-reports"
+            element={<MonthlyReports />}
+          />
+
+          <Route
+            path="/workforce-analytics"
+            element={<WorkforceAnalytics />}
           />
 
           <Route

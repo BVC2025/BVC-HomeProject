@@ -53,10 +53,11 @@ from app.services.email_service import send_task_assignment_email
 from app.services.attendance_settings_service import (
     get_office_hours,
     is_before_end,
-    get_grace_minutes
 )
 
-from app.services.leave_service import auto_create_permission
+# Note: auto_create_permission is intentionally NOT imported here.
+# Permissions are only created when an employee explicitly submits
+# one via POST /leave/apply-permission — see backend/app/routes/leave.py.
 
 
 router = APIRouter()
@@ -92,6 +93,23 @@ def ensure_today_attendance(
     now: datetime,
     vendor_id: int
 ):
+    """Ensure an Attendance row exists for today, but do NOT mark
+    CHECK_IN automatically. Geofenced check-in is a separate explicit
+    action — the employee must tap the Check In button so the server
+    can validate their GPS coordinates against the office geofence.
+
+    Legacy "login = check-in" auto-fill was removed because it bypassed
+    the geofence gate and created phantom 4 PM check-ins whenever an
+    admin browsed the portal in the evening.
+
+    The row's STATUS is still computed at login time so that LATE
+    detection (used for late-coming notifications / auto-permissions)
+    works without waiting for the actual check-in.
+
+    Returns (row, fresh) where `fresh=True` means the row was created
+    in this call — used by the caller to decide whether to fire the
+    late-login notification.
+    """
 
     today = now.date()
 
@@ -107,24 +125,12 @@ def ensure_today_attendance(
         row = Attendance(
             EMPLOYEE_ID=employee_id,
             DATE=today,
-            CHECK_IN=now,
+            CHECK_IN=None,
             STATUS=compute_login_status(now, start),
             VENDOR_ID=vendor_id
         )
 
         db.add(row)
-
-        db.commit()
-
-        db.refresh(row)
-
-        return row, True
-
-    if row.CHECK_IN is None:
-
-        row.CHECK_IN = now
-
-        row.STATUS = compute_login_status(now, start)
 
         db.commit()
 
@@ -629,6 +635,11 @@ def employee_login(
 
     if fresh and attendance.STATUS == "LATE":
 
+        # Notify HR / manager of a late login. The late duration is
+        # already persisted on the attendance row as LATE_MINUTES —
+        # we do NOT create a Permission row from this. Permissions are
+        # only recorded when the employee explicitly submits one via
+        # POST /leave/apply-permission.
         push_notification(
             db,
             title=f"Late login: {emp.NAME}",
@@ -640,43 +651,6 @@ def employee_login(
             ntype="WARNING",
             vendor_id=emp.VENDOR_ID or 1
         )
-
-        # Phase D — auto-create a LATE_COMING Permission row when
-        # the employee is past the configured grace window.
-        try:
-
-            office_start, _ = get_office_hours(db)
-
-            late_grace_min, _ = get_grace_minutes(db)
-
-            start_dt = datetime.combine(now.date(), office_start)
-
-            minutes_late = max(0, int((now - start_dt).total_seconds() // 60))
-
-            if minutes_late > late_grace_min:
-
-                hours_late = round(minutes_late / 60.0, 2)
-
-                auto_create_permission(
-                    db,
-                    employee_id=emp.ID,
-                    on_date=now.date(),
-                    subtype="LATE_COMING",
-                    duration_hours=hours_late,
-                    reason=(
-                        f"Auto-recorded: logged in at "
-                        f"{now.strftime('%H:%M')} "
-                        f"({minutes_late} min after "
-                        f"{office_start.strftime('%H:%M')} cutoff, "
-                        f"beyond {late_grace_min} min grace)."
-                    ),
-                    vendor_id=emp.VENDOR_ID or 1
-                )
-
-        except Exception:
-
-            # Best-effort: never block login on the permission write
-            pass
 
     if fresh and pending_yesterday:
 
@@ -819,56 +793,24 @@ def employee_logout(
 
     if early_exit:
 
+        # Notify manager of an early checkout for awareness. No
+        # Permission row is created — if the employee needs paid
+        # time off, they submit a Permission Request explicitly.
         push_notification(
             db,
             title=f"Early exit: {emp.NAME}",
             message=(
                 f"{emp.EMPLOYEE_CODE} checked out at "
                 f"{now.strftime('%H:%M')}, before the "
-                f"{end.strftime('%H:%M')} office close. "
-                f"Recorded as Permission / Early Exit."
+                f"{end.strftime('%H:%M')} office close."
             ),
             ntype="WARNING",
             vendor_id=emp.VENDOR_ID or 1
         )
 
-        # Phase D — auto-create EARLY_EXIT Permission past the grace.
-        try:
-
-            _, early_grace_min = get_grace_minutes(db)
-
-            end_dt = datetime.combine(now.date(), end)
-
-            minutes_early = max(0, int((end_dt - now).total_seconds() // 60))
-
-            if minutes_early > early_grace_min:
-
-                hours_early = round(minutes_early / 60.0, 2)
-
-                auto_create_permission(
-                    db,
-                    employee_id=emp.ID,
-                    on_date=now.date(),
-                    subtype="EARLY_EXIT",
-                    duration_hours=hours_early,
-                    reason=(
-                        f"Auto-recorded: checked out at "
-                        f"{now.strftime('%H:%M')} "
-                        f"({minutes_early} min before "
-                        f"{end.strftime('%H:%M')} office close, "
-                        f"beyond {early_grace_min} min grace)."
-                    ),
-                    vendor_id=emp.VENDOR_ID or 1
-                )
-
-        except Exception:
-
-            # Best-effort: never block logout on the permission write
-            pass
-
     return {
         "message": (
-            "Recorded as Permission / Early Exit."
+            "Checked out early."
             if early_exit
             else "Logged out"
         ),

@@ -59,7 +59,7 @@ from app.routes.employee_onboarding import router as employee_onboarding_router
 from app.routes.employee_documents import router as employee_documents_router
 from app.routes.admin_dashboard import router as admin_dashboard_router
 from app.routes.approvals import router as approvals_router
-from app.routes.ai_command import router as ai_command_router
+# ai_command router removed Phase 2 — front-end stub was deleted
 from app.routes.dashboard_aggregators import router as dashboard_aggregators_router
 from app.routes.ai import router as ai_router
 from app.routes.public_enquiry import router as public_enquiry_router
@@ -69,6 +69,22 @@ from app.routes.leave_chatbot import router as leave_chatbot_router
 from app.routes.employee_portal import router as employee_portal_router
 from app.routes.audit import router as audit_router  # Phase 3 security
 from app.routes.rbac import router as rbac_router    # Phase 2 RBAC
+from app.routes.holiday import router as holiday_router    # Phase 2 Holiday Calendar
+from app.routes.chatbot_ai import router as chatbot_ai_router  # AI chatbot v1 (Gemini)
+from app.routes.work_center import router as work_center_router  # Mfg Phase 1 — Work Centers
+from app.routes.allowance import router as allowance_router  # Employee expense claims
+from app.routes.leave_agent import router as leave_agent_router  # AI Leave Agent
+from app.routes.hr_chat import router as hr_chat_router          # Unified HR Assistant
+from app.routes.recruitment import router as recruitment_router  # Phase 2 — AI Recruitment Assistant
+from app.routes.employee_payslips import router as my_payslips_router  # Employee self-service payslips
+from app.routes.onboarding_checklist import router as onboarding_checklist_router  # Post-joining onboarding
+from app.routes.shifts import router as shifts_router  # Shift Management
+from app.routes.ai_chat import router as ai_chat_router  # AI Agent — Phase 1 intent router
+from app.routes.attendance_ai import router as attendance_ai_router  # Attendance Automation (Phase 1)
+from app.routes.leave_decisions import router as leave_decisions_router  # Leave Automation (Phase 1)
+from app.routes.monthly_reports import router as monthly_reports_router  # Auto monthly attendance + payroll reports
+from app.routes.employee_status import router as employee_status_router  # Employee lifecycle status tracking
+from app.routes.employee_insights import router as employee_insights_router  # AI workforce analytics
 from fastapi.middleware.cors import CORSMiddleware
 
 # Phase 3 — Audit log
@@ -94,6 +110,11 @@ class AuditMiddleware(BaseHTTPMiddleware):
     table stays small and write volume stays low. Failed requests
     (4xx/5xx) ARE captured — that's the most forensically useful
     case (intrusion attempts, permission violations, etc.).
+
+    Also surfaces CORS preflight failures to stdout — these are easy
+    to miss because they never reach a route handler and never get
+    audited. When an OPTIONS request returns 400, we log the Origin
+    so you can extend the CORS allow-list without debugging blind.
     """
 
     async def dispatch(self, request, call_next):
@@ -104,6 +125,16 @@ class AuditMiddleware(BaseHTTPMiddleware):
         # Decide AFTER we have a status code so we can include it
         method = request.method
         path = request.url.path
+
+        # CORS preflight diagnostic — only log the bad ones to keep
+        # noise low. A 200 OPTIONS means CORS approved; a 400 means
+        # the Origin was rejected by CORSMiddleware.
+        if method == "OPTIONS" and response.status_code == 400:
+            origin = request.headers.get("origin", "<missing>")
+            print(
+                f"[cors-reject] OPTIONS {path}  origin={origin}  "
+                f"-> 400 (extend allow_origins / allow_origin_regex in main.py)"
+            )
 
         if not should_audit(method, path):
             return response
@@ -129,9 +160,51 @@ class AuditMiddleware(BaseHTTPMiddleware):
 # first → audit added first runs second.
 app.add_middleware(AuditMiddleware)
 
+# CORS — explicit allow-list. allow_origins=["*"] is incompatible with
+# allow_credentials=True per the CORS spec (browsers reject the combo),
+# so we enumerate. Override via env: CORS_ALLOWED_ORIGINS="a.com,b.com".
+# LAN IPs (for mobile-on-WiFi testing) are matched by regex below.
+_DEFAULT_CORS_ORIGINS = [
+    "https://erp.bvc24.com",        # production frontend
+    "https://api.bvc24.com",        # in case anything self-loads
+    "http://localhost:5173",        # vite dev
+    "http://localhost:5174",        # vite dev (alt port)
+    "http://localhost:4173",        # vite preview (production build)
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:4173",
+]
+
+_env_origins = os.getenv("CORS_ALLOWED_ORIGINS", "").strip()
+
+if _env_origins:
+
+    _cors_origins = [o.strip() for o in _env_origins.split(",") if o.strip()]
+
+else:
+
+    _cors_origins = _DEFAULT_CORS_ORIGINS
+
+# The regex below covers TWO dynamic-origin families that can't be
+# enumerated in the static list above:
+#
+#   1. LAN IPs over HTTP — for mobile-on-WiFi testing.
+#      e.g. http://192.168.1.56:5173 / http://10.0.0.5:4173
+#
+#   2. Cloudflare Quick Tunnel hostnames — *.trycloudflare.com over HTTPS.
+#      These rotate on every `cloudflared` restart, so a pinned URL
+#      would force a code edit every time the tunnel comes back up.
+#      Generic pattern: lowercase letters/digits/hyphens, then
+#      ".trycloudflare.com". Named-tunnel hosts (erp.bvc24.com,
+#      api.bvc24.com) are in the static list and don't need a regex.
+_CORS_ORIGIN_REGEX = (
+    r"^http://(10|127|192\.168|172\.(1[6-9]|2\d|3[01]))\.[\d.]+:\d{4}$"
+    r"|^https://[a-z0-9-]+\.trycloudflare\.com$"
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
+    allow_origin_regex=_CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -229,15 +302,32 @@ def _auto_migrate():
         ("quotation", "VIEW_COUNT",         "INT NOT NULL DEFAULT 0"),
         # ---- Phase 5: SO advance-due tracking ----
         ("sales_order", "ADVANCE_DUE_DATE", "DATE NULL"),
+        # ---- Attendance late tracking ----
+        # Whole minutes past the office start time when the employee checked in.
+        # 0 when PRESENT / on time. Independent of the Permission module — a
+        # late arrival is NOT a permission request.
+        ("attendance",      "LATE_MINUTES",   "INT NULL DEFAULT 0"),
         # ---- Unified Employee Dashboard (Permission support) ----
         # LEAVE_TYPE='PERMISSION' rows track sub-day time-off in hours
         ("leave_request",   "DURATION_HOURS", "FLOAT NULL"),
         # Per-task PRIORITY surfaced on the employee dashboard cards
         ("task_assignment", "PRIORITY",       "VARCHAR(10) NULL"),
+        ("task_assignment", "STAR_LEVEL",     "INT NULL DEFAULT 0"),
+        # Recruitment — link a job to its manpower requisition
+        ("recruitment_job",  "REQUISITION_ID",  "INT NULL"),
+        # Onboarding — corporate email provisioned during auto-onboarding
+        ("employee",         "CORPORATE_EMAIL", "VARCHAR(120) NULL"),
         # ---- Employee onboarding: admin-chosen password at invite time ----
         # Replaces the AI chatbot flow with admin-sets-password-at-invite +
         # candidate logs in to fill the registration form.
         ("employee_onboarding_session", "PASSWORD_HASH", "VARCHAR(255) NULL"),
+        # Phase 2 — admin can pre-set role at invite time
+        ("employee_onboarding_session", "DEPARTMENT_ID",  "INT NULL"),
+        ("employee_onboarding_session", "DESIGNATION_ID", "INT NULL"),
+        # ---- Manufacturing Phase 1: Reorder alerts ---------
+        # Threshold below which the inventory row triggers a low-stock
+        # notification. NULL/0 means "no alerting for this material".
+        ("inventory", "MIN_STOCK", "INT NULL DEFAULT 0"),
         # ---- HR Module Phase A — Employee column expansion (2026-06-01) ----
         ("employee", "BLOOD_GROUP",                "VARCHAR(5)   NULL"),
         ("employee", "NATIONALITY",                "VARCHAR(50)  NULL"),
@@ -280,6 +370,21 @@ def _auto_migrate():
         ("payroll_slip", "ESI_EMPLOYEE",          "FLOAT NULL DEFAULT 0"),
         ("payroll_slip", "ESI_EMPLOYER",          "FLOAT NULL DEFAULT 0"),
         ("payroll_slip", "PROFESSIONAL_TAX",      "FLOAT NULL DEFAULT 0"),
+        # Per-slip payment tracking — lets the UI mark each employee
+        # Paid independently instead of finalising a whole run.
+        ("payroll_slip", "STATUS",                "VARCHAR(20) NULL DEFAULT 'PENDING'"),
+        ("payroll_slip", "PAID_AT",               "DATETIME NULL"),
+        # Permission hours used by the employee in this pay period
+        # (LeaveRequest rows where TYPE='PERMISSION', summed).
+        ("payroll_slip", "PERMISSION_HOURS",      "FLOAT NULL DEFAULT 0"),
+        # Star-rating bonus — feeds into NET_PAY (BONUS_PER_STAR × stars).
+        ("payroll_slip", "PERFORMANCE_STARS",     "FLOAT NULL DEFAULT 0"),
+        ("payroll_slip", "STAR_BONUS",            "FLOAT NULL DEFAULT 0"),
+        # PerformanceScore — Leave + Permission dimensions (new scheme).
+        ("performance_score", "LEAVE_DAYS_TAKEN",       "FLOAT NULL DEFAULT 0"),
+        ("performance_score", "PERMISSION_HOURS_TAKEN", "FLOAT NULL DEFAULT 0"),
+        ("performance_score", "LEAVE_STARS",            "FLOAT NULL DEFAULT 0"),
+        ("performance_score", "PERMISSION_STARS",       "FLOAT NULL DEFAULT 0"),
         # ---- Geofenced attendance (Module: Geofence) ----
         ("attendance", "CHECKIN_LATITUDE",   "FLOAT NULL"),
         ("attendance", "CHECKIN_LONGITUDE",  "FLOAT NULL"),
@@ -291,6 +396,10 @@ def _auto_migrate():
         ("attendance", "DEVICE_INFO",        "VARCHAR(255) NULL"),
         ("attendance", "BROWSER_INFO",       "VARCHAR(255) NULL"),
         ("attendance", "IP_ADDRESS",         "VARCHAR(60) NULL"),
+        # Explicit OT session timestamps (overtime is now tracked as a
+        # separate check-in/check-out, never auto-derived from regular hours)
+        ("attendance", "OT_CHECK_IN",        "DATETIME NULL"),
+        ("attendance", "OT_CHECK_OUT",       "DATETIME NULL"),
     ]
 
     # Indexes / unique constraints that earlier model versions
@@ -537,7 +646,7 @@ def _auto_migrate():
                 `OFFICE_NAME` VARCHAR(150) NULL,
                 `LATITUDE` FLOAT NOT NULL DEFAULT 0,
                 `LONGITUDE` FLOAT NOT NULL DEFAULT 0,
-                `RADIUS_METERS` INT NOT NULL DEFAULT 100,
+                `RADIUS_METERS` INT NOT NULL DEFAULT 50,
                 `IS_ACTIVE` INT NOT NULL DEFAULT 1,
                 `CREATED_AT` DATETIME NULL,
                 `UPDATED_AT` DATETIME NULL,
@@ -782,6 +891,72 @@ def _auto_migrate():
                             "backfill skipped: %s", col, exc_bf
                         )
 
+            # ---- 6. Rebind stale foreign keys that still point at
+            #         the orphan `project_legacy` table.
+            # During an earlier schema reset somebody renamed `project`
+            # to `project_legacy` (or created a new `project` alongside
+            # the old one) and forgot to repoint the dependent FKs. The
+            # ORM still declares `ForeignKey("project.ID")`, but in the
+            # live DB the constraint still points at `project_legacy`,
+            # so every INSERT on the child table (e.g. work_order) fails
+            # with IntegrityError 1452 — "Cannot add or update a child
+            # row: a foreign key constraint fails".
+            #
+            # Strategy: enumerate any FK whose REFERENCED_TABLE_NAME is
+            # `project_legacy`, drop it, and re-add it against `project`.
+            try:
+
+                stale_fks = list(conn.execute(text("""
+                    SELECT TABLE_NAME, CONSTRAINT_NAME,
+                           COLUMN_NAME, REFERENCED_COLUMN_NAME
+                    FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+                    WHERE TABLE_SCHEMA = DATABASE()
+                      AND REFERENCED_TABLE_NAME = 'project_legacy'
+                """)))
+
+                for row in stale_fks:
+
+                    tname    = row[0]
+                    cname    = row[1]
+                    col      = row[2]
+                    ref_col  = row[3] or "ID"
+
+                    try:
+
+                        conn.execute(text(
+                            f"ALTER TABLE `{tname}` "
+                            f"DROP FOREIGN KEY `{cname}`"
+                        ))
+
+                        conn.execute(text(
+                            f"ALTER TABLE `{tname}` "
+                            f"ADD CONSTRAINT `{cname}` "
+                            f"FOREIGN KEY (`{col}`) "
+                            f"REFERENCES `project`(`{ref_col}`) "
+                            f"ON DELETE SET NULL"
+                        ))
+
+                        log.info(
+                            "auto-migrate: rebound FK %s.%s "
+                            "(%s) from project_legacy -> project",
+                            tname, cname, col
+                        )
+
+                    except Exception as exc_fk:
+
+                        log.warning(
+                            "auto-migrate: could not rebind FK "
+                            "%s.%s: %s",
+                            tname, cname, exc_fk
+                        )
+
+            except Exception as exc_fk_outer:
+
+                log.warning(
+                    "auto-migrate: project_legacy FK repair phase "
+                    "skipped: %s", exc_fk_outer
+                )
+
     except Exception as exc:
 
         log.warning("auto-migrate skipped: %s", exc)
@@ -790,17 +965,286 @@ def _auto_migrate():
 _auto_migrate()
 
 
+def _auto_seed_holidays():
+    """If no holidays exist for the current year, seed the bundled
+    Indian national list (NATIONAL + Tamil New Year). Idempotent —
+    runs once on first boot per year per vendor."""
+
+    from sqlalchemy.orm import sessionmaker
+    from datetime import date
+    from app.models.models import HolidayCalendar
+    from app.routes.holiday import INDIA_NATIONAL_HOLIDAYS
+
+    Session = sessionmaker(bind=engine)
+
+    db = Session()
+
+    try:
+
+        current_year = date.today().year
+
+        # Seed the current year + next year so payroll for early-Jan
+        # ever runs without manual setup.
+        for year in (current_year, current_year + 1):
+
+            existing = (
+                db.query(HolidayCalendar)
+                  .filter(
+                      HolidayCalendar.VENDOR_ID == 1,
+                      HolidayCalendar.HOLIDAY_DATE >= date(year, 1, 1),
+                      HolidayCalendar.HOLIDAY_DATE <= date(year, 12, 31),
+                  )
+                  .count()
+            )
+
+            if existing > 0:
+                continue
+
+            catalog = INDIA_NATIONAL_HOLIDAYS.get(year)
+
+            if not catalog:
+                continue
+
+            for iso, name, htype in catalog:
+
+                db.add(HolidayCalendar(
+                    HOLIDAY_DATE=date.fromisoformat(iso),
+                    NAME=name,
+                    TYPE=htype,
+                    IS_OPTIONAL=0,
+                    VENDOR_ID=1,
+                ))
+
+        db.commit()
+
+    except Exception as exc:
+
+        db.rollback()
+
+        import logging
+
+        logging.getLogger("uvicorn").warning(
+            "auto-seed-holidays skipped: %s", exc
+        )
+
+    finally:
+
+        db.close()
+
+
+_auto_seed_holidays()
+
+
+# Canonical department + designation lists for a manufacturing company.
+# Inserted ADDITIVELY — existing custom entries are kept, missing ones
+# are added. Order doesn't matter; we de-dupe by (VENDOR_ID, NAME).
+_MFG_DEPARTMENTS = [
+    ("Software Development",          "SW"),
+    ("Accounts & Finance",            "FIN"),
+    ("Sales",                         "SAL"),
+    ("Purchase / Procurement",        "PUR"),
+    ("Design & Engineering",          "DSN"),
+    ("Electrical",                    "ELE"),
+    ("Welding",                       "WLD"),
+    ("Fitting",                       "FIT"),
+    ("Assembly",                      "ASM"),
+    ("Production",                    "PRD"),
+    ("Quality Control",               "QC"),
+    ("Quality Assurance",             "QA"),
+    ("Maintenance",                   "MNT"),
+    ("Manufacturing",                 "MFG"),
+    ("Operations",                    "OPS"),
+    ("Stores / Inventory",            "INV"),
+    ("Logistics",                     "LOG"),
+    ("Supply Chain Management",       "SCM"),
+    ("Research & Development",        "RND"),
+    ("Human Resources",               "HR"),
+    ("Administration",                "ADM"),
+    ("Safety (EHS)",                  "EHS"),
+    ("Planning",                      "PLN"),
+    ("Project Management",            "PM"),
+    ("Tool Room",                     "TR"),
+    ("Machine Shop",                  "MS"),
+    ("Fabrication",                   "FAB"),
+    ("Inspection",                    "INSP"),
+    ("Packaging",                     "PKG"),
+    ("Dispatch",                      "DSP"),
+    ("Customer Support / Service",    "CS"),
+    ("Information Technology",        "IT"),
+]
+
+_MFG_DESIGNATIONS = [
+    "Trainee", "Apprentice", "Operator", "Technician", "Fitter",
+    "Welder", "Electrician", "Supervisor", "Senior Supervisor",
+    "Engineer", "Senior Engineer", "Design Engineer", "Production Engineer",
+    "Quality Engineer", "Maintenance Engineer", "Team Leader",
+    "Shift In-Charge", "Assistant Manager", "Deputy Manager", "Manager",
+    "Senior Manager", "General Manager", "Department Head", "Executive",
+    "Senior Executive", "Accountant", "Purchase Executive",
+    "Sales Executive", "HR Executive", "HR Manager", "IT Administrator",
+    "Project Engineer", "Project Manager", "Plant Head", "Factory Manager",
+    "Director",
+]
+
+
+def _auto_seed_org_catalog():
+    """Top up Department + Designation tables with the canonical
+    manufacturing-industry list. Existing entries are NEVER modified;
+    only missing names get inserted. Safe to re-run on every boot."""
+
+    from sqlalchemy.orm import sessionmaker
+    from app.models.models import Department, Designation
+
+    Session = sessionmaker(bind=engine)
+    db = Session()
+
+    try:
+
+        # ---- Departments ------------------------------------------
+        existing_dept_names = {
+            (d.NAME or "").strip().lower()
+            for d in db.query(Department).filter(Department.VENDOR_ID == 1).all()
+        }
+
+        dept_added = 0
+        for name, code in _MFG_DEPARTMENTS:
+            if name.strip().lower() in existing_dept_names:
+                continue
+            db.add(Department(NAME=name, CODE=code, VENDOR_ID=1))
+            dept_added += 1
+
+        if dept_added:
+            db.commit()
+
+        # ---- Designations -----------------------------------------
+        # Designation is keyed by TITLE alone (no vendor scope on the
+        # model — it's company-agnostic). Use a case-insensitive set.
+        existing_des_titles = {
+            (d.TITLE or "").strip().lower()
+            for d in db.query(Designation).all()
+        }
+
+        des_added = 0
+        for title in _MFG_DESIGNATIONS:
+            if title.strip().lower() in existing_des_titles:
+                continue
+            db.add(Designation(TITLE=title))
+            des_added += 1
+
+        if des_added:
+            db.commit()
+
+        if dept_added or des_added:
+
+            import logging
+            logging.getLogger("uvicorn").info(
+                "auto-seed-org-catalog: +%d departments, +%d designations",
+                dept_added, des_added,
+            )
+
+    except Exception as exc:
+
+        db.rollback()
+
+        import logging
+        logging.getLogger("uvicorn").warning(
+            "auto-seed-org-catalog skipped: %s", exc
+        )
+
+    finally:
+
+        db.close()
+
+
+_auto_seed_org_catalog()
+
+
+# Canonical Work Center catalog for a manufacturing shop. Inserted
+# additively — existing custom work centers are kept. Vendor-scoped.
+_MFG_WORK_CENTERS = [
+    ("Laser Cutting",   "LC",    "FABRICATION", 5.0),
+    ("Welding",         "WLD",   "WELDING",     3.0),
+    ("Fitting",         "FIT",   "ASSEMBLY",    4.0),
+    ("Painting",        "PAINT", "PAINTING",    2.0),
+    ("Assembly",        "ASM",   "ASSEMBLY",    2.0),
+    ("Testing",         "TEST",  "TESTING",     6.0),
+    ("Quality Control", "QC",    "QC",          8.0),
+    ("Packaging",       "PKG",   "PACKAGING",   10.0),
+    ("Dispatch",        "DSP",   "OTHER",       12.0),
+]
+
+
+def _auto_seed_work_centers():
+    """Top up the work_center table with the canonical manufacturing
+    list. Existing entries are NEVER modified; only missing names
+    get inserted. Safe to re-run on every boot."""
+
+    from sqlalchemy.orm import sessionmaker
+    from app.models.models import WorkCenter
+
+    Session = sessionmaker(bind=engine)
+    db = Session()
+
+    try:
+
+        existing_names = {
+            (w.NAME or "").strip().lower()
+            for w in db.query(WorkCenter).filter(WorkCenter.VENDOR_ID == 1).all()
+        }
+
+        added = 0
+        for name, code, category, capacity in _MFG_WORK_CENTERS:
+            if name.strip().lower() in existing_names:
+                continue
+            db.add(WorkCenter(
+                NAME=name,
+                CODE=code,
+                CATEGORY=category,
+                CAPACITY_PER_HOUR=capacity,
+                IS_ACTIVE=1,
+                VENDOR_ID=1,
+            ))
+            added += 1
+
+        if added:
+            db.commit()
+            import logging
+            logging.getLogger("uvicorn").info(
+                "auto-seed-work-centers: +%d work centers", added
+            )
+
+    except Exception as exc:
+
+        db.rollback()
+
+        import logging
+        logging.getLogger("uvicorn").warning(
+            "auto-seed-work-centers skipped: %s", exc
+        )
+
+    finally:
+
+        db.close()
+
+
+_auto_seed_work_centers()
+
+
 def _auto_seed_org():
     """If Department / Role / Designation are empty for vendor 1,
     seed the MANUFACTURING preset. Idempotent — only runs when the
     tables are actually empty so existing tenant data is never
     overwritten."""
 
+    import logging
+
     from sqlalchemy.orm import sessionmaker
 
     from app.models.models import Department, Role, Designation
 
     from app.routes.organization import do_seed_org
+
+    log = logging.getLogger("uvicorn")
 
     SessionLocal = sessionmaker(bind=engine)
 
@@ -952,7 +1396,7 @@ app.include_router(employee_onboarding_router, tags=["Employee Onboarding Portal
 app.include_router(employee_documents_router, tags=["Employee Documents"])
 app.include_router(admin_dashboard_router)
 app.include_router(approvals_router)
-app.include_router(ai_command_router)
+# app.include_router(ai_command_router)  # removed Phase 2
 app.include_router(dashboard_aggregators_router)
 app.include_router(ai_router)
 app.include_router(public_enquiry_router)
@@ -962,6 +1406,22 @@ app.include_router(leave_chatbot_router)
 app.include_router(employee_portal_router, tags=["Employee Portal"])
 app.include_router(audit_router)
 app.include_router(rbac_router)
+app.include_router(holiday_router)
+app.include_router(chatbot_ai_router)
+app.include_router(work_center_router)
+app.include_router(allowance_router, tags=["Allowances"])
+app.include_router(leave_agent_router)
+app.include_router(hr_chat_router)
+app.include_router(recruitment_router)
+app.include_router(my_payslips_router)
+app.include_router(onboarding_checklist_router)
+app.include_router(shifts_router)
+app.include_router(ai_chat_router)
+app.include_router(attendance_ai_router)
+app.include_router(leave_decisions_router)
+app.include_router(monthly_reports_router)
+app.include_router(employee_status_router)
+app.include_router(employee_insights_router)
 
 
 @app.get("/", tags=["Health"])

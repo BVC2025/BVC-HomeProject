@@ -1,0 +1,15 @@
+{
+  "name": "anomaly",
+  "algo": "IsolationForest",
+  "version": "1.0-synthetic-bootstrap",
+  "trained_at": "2026-06-24T05:19:06.383391",
+  "training_samples": 2000,
+  "features": [
+    "weekly_late_count",
+    "weekly_absent_count",
+    "weekly_ot_hours"
+  ],
+  "metrics": {
+    "contamination_setting": 0.06
+  }
+}

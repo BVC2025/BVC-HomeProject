@@ -1,346 +1,364 @@
 // =====================================================================
-// Employee Memo Management — standalone page at /memos
+// EmployeeMemos.jsx — Admin/HR Memo module
 //
-// Full memo audit trail: list, filter, search, create, view, edit,
-// acknowledge, close, cancel, soft-delete, CSV export.
-//
-// Embeddable: when used inside the Employee profile's Memos tab,
-// pass `employeeIdLocked` so the page hides the employee filter and
-// scopes everything to that one employee.
+// Layout (top → bottom):
+//   1. Hero       — red strip with eyebrow HR + title "Memos" + Issue button
+//   2. Stat tiles — 4 thin tiles (Total / Active / Pending Ack / Critical)
+//   3. Filter bar — search + memo-type + severity + status + date range
+//   4. Table      — one row per memo, click to open the detail drawer
+//   5. Create modal      (opened from "Issue Memo" CTA)
+//   6. View / edit drawer (opened by clicking a row)
 // =====================================================================
 
 import { useEffect, useMemo, useState } from "react";
 
 import API, { API_BASE_URL } from "../services/api";
+import Pagination from "../components/Pagination";
+import styles from "./EmployeeMemos.module.css";
 
 
-// =====================================================================
-// Constants
-// =====================================================================
+// --------------- Domain constants (mirror backend) -----------------
 
-const MEMO_TYPES = [
-  { key: "WARNING",                label: "Warning",                emoji: "⚠️", color: "#dc2626", bg: "#fef2f2" },
-  { key: "APPRECIATION",           label: "Appreciation",           emoji: "👏", color: "#16a34a", bg: "#dcfce7" },
-  { key: "DISCIPLINARY",           label: "Disciplinary",           emoji: "🚫", color: "#991b1b", bg: "#fee2e2" },
-  { key: "INFORMATION",            label: "Information",            emoji: "ℹ️", color: "#2563eb", bg: "#dbeafe" },
-  { key: "CUSTOMER_COMPLAINT",     label: "Customer Complaint",     emoji: "📨", color: "#ea580c", bg: "#fff7ed" },
-  { key: "PERFORMANCE_RECOGNITION",label: "Performance Recognition",emoji: "🏆", color: "#0d9488", bg: "#ccfbf1" },
-  { key: "SHOW_CAUSE_NOTICE",      label: "Show Cause Notice",      emoji: "📜", color: "#7c2d12", bg: "#fef3c7" }
+const MEMO_TYPE_OPTIONS = [
+  { value: "WARNING", label: "Warning" },
+  { value: "APPRECIATION", label: "Appreciation" },
+  { value: "DISCIPLINARY", label: "Disciplinary" },
+  { value: "INFORMATION", label: "Information" },
+  { value: "CUSTOMER_COMPLAINT", label: "Customer Complaint" },
+  { value: "PERFORMANCE_RECOGNITION", label: "Performance Recognition" },
+  { value: "SHOW_CAUSE_NOTICE", label: "Show Cause Notice" }
 ];
 
+const SEVERITY_OPTIONS = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 
-const SEVERITIES = [
-  { key: "LOW",      color: "#10b981", bg: "#dcfce7" },
-  { key: "MEDIUM",   color: "#f59e0b", bg: "#fef3c7" },
-  { key: "HIGH",     color: "#ef4444", bg: "#fee2e2" },
-  { key: "CRITICAL", color: "#7c2d12", bg: "#fef2f2" }
-];
+const STATUS_OPTIONS = ["ACTIVE", "CLOSED", "CANCELLED"];
 
 
-const STATUSES = [
-  { key: "ACTIVE",    color: "#3b82f6", bg: "#dbeafe" },
-  { key: "CLOSED",    color: "#10b981", bg: "#dcfce7" },
-  { key: "CANCELLED", color: "#94a3b8", bg: "#f1f5f9" }
-];
+// Brand-aligned colour map for type & severity pills.
+const TYPE_COLORS = {
+  WARNING: { bg: "#fef3c7", fg: "#92400e" },
+  APPRECIATION: { bg: "#dcfce7", fg: "#166534" },
+  DISCIPLINARY: { bg: "#fee2e2", fg: "#991b1b" },
+  INFORMATION: { bg: "#dbeafe", fg: "#1e40af" },
+  CUSTOMER_COMPLAINT: { bg: "#ffedd5", fg: "#9a3412" },
+  PERFORMANCE_RECOGNITION: { bg: "#fae8ff", fg: "#86198f" },
+  SHOW_CAUSE_NOTICE: { bg: "#fee2e2", fg: "#7f1d1d" }
+};
+
+const SEVERITY_COLORS = {
+  LOW: { bg: "#e0e7ff", fg: "#3730a3" },
+  MEDIUM: { bg: "#fef3c7", fg: "#92400e" },
+  HIGH: { bg: "#fed7aa", fg: "#9a3412" },
+  CRITICAL: { bg: "#fecaca", fg: "#991b1b" }
+};
+
+const STATUS_COLORS = {
+  ACTIVE: { bg: "#dbeafe", fg: "#1e40af" },
+  CLOSED: { bg: "#e2e8f0", fg: "#334155" },
+  CANCELLED: { bg: "#fee2e2", fg: "#991b1b" }
+};
 
 
-const themeForType = (t) => MEMO_TYPES.find((x) => x.key === t) || MEMO_TYPES[3];
-const themeForSev  = (s) => SEVERITIES.find((x) => x.key === s) || SEVERITIES[0];
-const themeForStat = (s) => STATUSES.find((x) => x.key === s)   || STATUSES[0];
+function fmtDate(iso) {
+
+  if (!iso) return "—";
+
+  const d = new Date(iso);
+
+  if (Number.isNaN(d.getTime())) return "—";
+
+  return d.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  });
+}
+
+
+function prettyType(t) {
+
+  const opt = MEMO_TYPE_OPTIONS.find((o) => o.value === t);
+
+  return opt ? opt.label : (t || "—");
+}
 
 
 // =====================================================================
 // MAIN PAGE
 // =====================================================================
 
-export default function EmployeeMemos({ employeeIdLocked: lockedProp = null, compact = false }) {
+function EmployeeMemos({ employeeIdLocked = null } = {}) {
 
-  // URL ?employee_id=… also locks the filter (used from Employee cards)
-  const urlEmpId = (() => {
+  const [rows, setRows] = useState([]);
+  const [stats, setStats] = useState({});
+  const [employees, setEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-    try {
+  // filters
+  const [search, setSearch] = useState("");
+  const [filterEmp, setFilterEmp] = useState(employeeIdLocked || "");
+  const [filterType, setFilterType] = useState("");
+  const [filterSev, setFilterSev] = useState("");
+  const [filterStat, setFilterStat] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
-      const u = new URL(window.location.href);
+  // overlays
+  const [showCreate, setShowCreate] = useState(false);
+  const [viewing, setViewing] = useState(null);
 
-      return u.searchParams.get("employee_id") || null;
+  // pagination
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
-    } catch { return null; }
-  })();
+  useEffect(() => { setPage(1); }, [
+    search, filterEmp, filterType, filterSev, filterStat, dateFrom, dateTo
+  ]);
 
-  const employeeIdLocked = lockedProp || urlEmpId;
+  const pagedRows = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return (rows || []).slice(start, start + pageSize);
+  }, [rows, page, pageSize]);
 
-  const [rows,         setRows]         = useState([]);
+  // -- Data loading --------------------------------------------------
+  const buildParams = () => {
 
-  const [total,        setTotal]        = useState(0);
+    const p = new URLSearchParams();
 
-  const [loading,      setLoading]      = useState(true);
+    if (search.trim()) p.set("search", search.trim());
+    if (filterEmp) p.set("employee_id", filterEmp);
+    if (filterType) p.set("memo_type", filterType);
+    if (filterSev) p.set("severity", filterSev);
+    if (filterStat) p.set("status", filterStat);
+    if (dateFrom) p.set("date_from", dateFrom);
+    if (dateTo) p.set("date_to", dateTo);
 
-  const [stats,        setStats]        = useState({});
+    p.set("limit", "200");
 
-  const [employees,    setEmployees]    = useState([]);
+    return p.toString();
+  };
 
-  const [editing,      setEditing]      = useState(null);   // memo being viewed/edited
-
-  const [showCreate,   setShowCreate]   = useState(false);
-
-  // Filters
-  const [filterEmp,    setFilterEmp]    = useState(employeeIdLocked || "");
-
-  const [filterType,   setFilterType]   = useState("");
-
-  const [filterSev,    setFilterSev]    = useState("");
-
-  const [filterStat,   setFilterStat]   = useState("");
-
-  const [dateFrom,     setDateFrom]     = useState("");
-
-  const [dateTo,       setDateTo]       = useState("");
-
-  const [search,       setSearch]       = useState("");
-
-  const loadAll = () => {
+  const loadAll = async () => {
 
     setLoading(true);
 
-    const params = new URLSearchParams();
+    try {
 
-    if (filterEmp)  params.set("employee_id", filterEmp);
-    if (filterType) params.set("memo_type", filterType);
-    if (filterSev)  params.set("severity", filterSev);
-    if (filterStat) params.set("status", filterStat);
-    if (dateFrom)   params.set("date_from", dateFrom);
-    if (dateTo)     params.set("date_to", dateTo);
-    if (search.trim()) params.set("search", search.trim());
+      const params = buildParams();
 
-    params.set("limit", "200");
+      const statsParams = filterEmp ? `?employee_id=${filterEmp}` : "";
 
-    const statsParams = filterEmp ? `?employee_id=${filterEmp}` : "";
+      const [memosRes, statsRes] = await Promise.all([
+        API.get(`/memos?${params}`).catch(() => ({ data: { rows: [] } })),
+        API.get(`/memos/stats${statsParams}`).catch(() => ({ data: {} }))
+      ]);
 
-    Promise.all([
-      API.get(`/memos?${params.toString()}`).catch(() => ({ data: { total: 0, rows: [] } })),
-      API.get(`/memos/stats${statsParams}`).catch(() => ({ data: {} }))
-    ]).then(([listRes, statsRes]) => {
-
-      setRows(listRes.data?.rows || []);
-
-      setTotal(listRes.data?.total || 0);
-
+      setRows(memosRes.data?.rows || []);
       setStats(statsRes.data || {});
 
+    } finally {
+
       setLoading(false);
-    });
-  };
-
-  // Initial load + employee dropdown
-  useEffect(() => {
-
-    if (!employeeIdLocked) {
-
-      API.get("/employees")
-        .then((r) => setEmployees(r.data || []))
-        .catch(() => {});
     }
+  };
 
-  }, [employeeIdLocked]);
+  useEffect(() => {
 
-  // Reload whenever filters change
+    API.get("/employees")
+      .then((r) => setEmployees(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setEmployees([]));
+
+  }, []);
+
   useEffect(() => {
 
     loadAll();
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filterEmp, filterType, filterSev, filterStat, dateFrom, dateTo]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, filterEmp, filterType, filterSev, filterStat, dateFrom, dateTo]);
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    loadAll();
+  // -- Row actions ---------------------------------------------------
+  const closeMemo = (id) => API.post(`/memos/${id}/close`).then(loadAll);
+
+  const cancelMemo = (id) => API.post(`/memos/${id}/cancel`).then(loadAll);
+
+  const deleteMemo = (id) => {
+
+    if (!window.confirm("Delete this memo? It will be soft-deleted (recoverable).")) return;
+
+    API.delete(`/memos/${id}`).then(loadAll);
   };
 
-  const exportCsv = () => {
+  const empOptions = useMemo(() => {
 
-    const params = new URLSearchParams();
-    if (filterEmp)  params.set("employee_id", filterEmp);
-    if (filterType) params.set("memo_type", filterType);
-    if (filterSev)  params.set("severity", filterSev);
-    if (filterStat) params.set("status", filterStat);
-    if (dateFrom)   params.set("date_from", dateFrom);
-    if (dateTo)     params.set("date_to", dateTo);
+    return employees.map((e) => ({
+      id: e.ID,
+      name: e.NAME || "",
+      code: e.EMPLOYEE_CODE || ""
+    }));
 
-    window.open(`${API_BASE_URL || ""}/memos/export/csv?${params.toString()}`, "_blank");
-  };
-
-  // =====================================================================
-  // RENDER
-  // =====================================================================
+  }, [employees]);
 
   return (
 
-    <div style={{ padding: compact ? 0 : 24, fontFamily: "Inter, system-ui, sans-serif" }}>
+    <div>
 
-      {/* ============ Header ============ */}
-      {!compact && (
-        <div style={{ marginBottom: 18 }}>
-          <div style={eyebrow}>HR · Audit Trail</div>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0f172a", margin: "4px 0 4px" }}>
-            📋 Employee Memo Management
-          </h1>
-          <div style={{ color: "#64748b", fontSize: 13 }}>
-            Complete history of warnings, appreciations, disciplinary actions, complaints and recognitions.
+      {/* HERO ------------------------------------------------------- */}
+      <div className={styles.hero}>
+        <div>
+          <div className={styles.heroEyebrow}>
+            HR
           </div>
+          <h1 className={styles.heroTitle}>
+            Memos
+          </h1>
         </div>
-      )}
 
-      {/* ============ Stats row ============ */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(5, 1fr)",
-        gap: 10,
-        marginBottom: 18
-      }}>
-        <StatTile label="Total Memos"      value={stats.total ?? 0}                  accent="#3b82f6" />
-        <StatTile label="Active Warnings"  value={stats.active_warnings ?? 0}        accent="#dc2626" />
-        <StatTile label="Disciplinary Open"value={stats.disciplinary_open ?? 0}      accent="#7c2d12" />
-        <StatTile label="Appreciations (M)" value={stats.appreciations_this_month ?? 0} accent="#16a34a" />
-        <StatTile label="Pending Ack."     value={stats.pending_acknowledgement ?? 0}accent="#f59e0b" />
-      </div>
-
-      {/* ============ Filter / search bar ============ */}
-      <div style={{
-        background: "white",
-        border: "1px solid #e2e8f0",
-        borderRadius: 12,
-        padding: 14,
-        marginBottom: 14,
-        display: "grid",
-        gridTemplateColumns: employeeIdLocked
-          ? "1fr 1fr 1fr 1fr 1fr auto"
-          : "1.6fr 1fr 1fr 1fr 1fr 1fr auto",
-        gap: 10,
-        alignItems: "end"
-      }}>
-
-        {!employeeIdLocked && (
-          <Field label="Employee">
-            <select value={filterEmp} onChange={(e) => setFilterEmp(e.target.value)} style={inputStyle}>
-              <option value="">All employees</option>
-              {employees.map((e) => (
-                <option key={e.ID} value={e.ID}>{e.NAME} ({e.EMPLOYEE_CODE})</option>
-              ))}
-            </select>
-          </Field>
-        )}
-
-        <Field label="Type">
-          <select value={filterType} onChange={(e) => setFilterType(e.target.value)} style={inputStyle}>
-            <option value="">All types</option>
-            {MEMO_TYPES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
-          </select>
-        </Field>
-
-        <Field label="Severity">
-          <select value={filterSev} onChange={(e) => setFilterSev(e.target.value)} style={inputStyle}>
-            <option value="">All</option>
-            {SEVERITIES.map((s) => <option key={s.key} value={s.key}>{s.key}</option>)}
-          </select>
-        </Field>
-
-        <Field label="Status">
-          <select value={filterStat} onChange={(e) => setFilterStat(e.target.value)} style={inputStyle}>
-            <option value="">All</option>
-            {STATUSES.map((s) => <option key={s.key} value={s.key}>{s.key}</option>)}
-          </select>
-        </Field>
-
-        <Field label="From">
-          <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={inputStyle} />
-        </Field>
-
-        <Field label="To">
-          <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={inputStyle} />
-        </Field>
-
-        <button onClick={() => setShowCreate(true)} style={btnPrimary}>
-          + New Memo
+        <button
+          onClick={() => setShowCreate(true)}
+          className={styles.heroBtn}
+        >
+          + Issue Memo
         </button>
       </div>
 
-      {/* Search + export row */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 14, alignItems: "center" }}>
-        <form onSubmit={handleSearchSubmit} style={{ flex: 1 }}>
-          <input
-            placeholder="🔍 Search by memo ID, subject, employee name…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ ...inputStyle, width: "100%", padding: "10px 14px" }}
-          />
-        </form>
-        <button onClick={exportCsv} style={btnGhost}>📥 Export CSV</button>
-        <button onClick={loadAll} style={btnGhost}>🔄 Refresh</button>
-        <span style={{ fontSize: 12, color: "#64748b", fontWeight: 700 }}>
-          {total} record{total !== 1 ? "s" : ""}
-        </span>
+      {/* STAT TILES ------------------------------------------------- */}
+      <div className={styles.statGrid}>
+        <StatTile label="Total" value={stats.total ?? 0} accent="#0f172a" />
+        <StatTile label="Active" value={stats.active ?? 0} accent="#1e40af" />
+        <StatTile label="Pending Ack." value={stats.pending_acknowledgement ?? 0} accent="#92400e" />
+        <StatTile label="Active Warnings" value={stats.active_warnings ?? 0} accent="#991b1b" />
       </div>
 
-      {/* ============ Table ============ */}
-      <div style={{
-        background: "white",
-        border: "1px solid #e2e8f0",
-        borderRadius: 12,
-        overflow: "hidden"
-      }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-          <thead style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
-            <tr>
-              {["Memo ID", "Date", "Type", "Subject", "Severity", "Issued By", "Status", "Ack", "Actions"].map((h) => (
-                <th key={h} style={th}>{h}</th>
-              ))}
-              {!employeeIdLocked && <th style={th}>Employee</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {loading && (
-              <tr><td colSpan={employeeIdLocked ? 9 : 10} style={{ padding: 30, textAlign: "center", color: "#94a3b8" }}>Loading…</td></tr>
-            )}
-            {!loading && rows.length === 0 && (
-              <tr><td colSpan={employeeIdLocked ? 9 : 10} style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>
-                No memos found.
-              </td></tr>
-            )}
-            {rows.map((r) => (
+      {/* FILTER BAR ------------------------------------------------- */}
+      <div className={styles.filterBar}>
+        <input
+          type="text"
+          placeholder="Search by memo number, subject, or employee"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className={styles.searchInput}
+        />
 
-              <MemoRow
-                key={r.ID}
-                row={r}
-                hideEmployee={!!employeeIdLocked}
-                onOpen={() => setEditing(r)}
-                onClose={() => API.post(`/memos/${r.ID}/close`).then(loadAll)}
-                onCancel={() => API.post(`/memos/${r.ID}/cancel`).then(loadAll)}
-                onDelete={() => {
-                  if (!window.confirm(`Soft-delete ${r.MEMO_NUMBER}? Data stays in the audit log but is hidden from default lists.`)) return;
-                  API.delete(`/memos/${r.ID}`).then(loadAll);
-                }}
-              />
+        {!employeeIdLocked && (
+          <select
+            value={filterEmp}
+            onChange={(e) => setFilterEmp(e.target.value)}
+            className={styles.filterSelect}
+          >
+            <option value="">All employees</option>
+            {empOptions.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.code ? `${e.code} — ${e.name}` : e.name}
+              </option>
             ))}
-          </tbody>
-        </table>
+          </select>
+        )}
+
+        <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className={styles.filterSelect}>
+          <option value="">All types</option>
+          {MEMO_TYPE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+
+        <select value={filterSev} onChange={(e) => setFilterSev(e.target.value)} className={styles.filterSelect}>
+          <option value="">All severities</option>
+          {SEVERITY_OPTIONS.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+
+        <select value={filterStat} onChange={(e) => setFilterStat(e.target.value)} className={styles.filterSelect}>
+          <option value="">All statuses</option>
+          {STATUS_OPTIONS.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => setDateFrom(e.target.value)}
+          className={styles.filterSelect}
+        />
+
+        <input
+          type="date"
+          value={dateTo}
+          onChange={(e) => setDateTo(e.target.value)}
+          className={styles.filterSelect}
+        />
       </div>
 
-      {/* ============ Create modal ============ */}
+      {/* TABLE ------------------------------------------------------ */}
+      <div className={styles.tableCard}>
+        {loading && (
+          <div className={styles.loadingText}>Loading…</div>
+        )}
+
+        {!loading && rows.length === 0 && (
+          <div className={styles.emptyState}>
+            No memos match the current filters.
+            Click <strong>+ Issue Memo</strong> to create one.
+          </div>
+        )}
+
+        {!loading && rows.length > 0 && (
+          <table className={styles.table}>
+            <thead className={styles.thead}>
+              <tr>
+                <th className={styles.th}>Memo No.</th>
+                <th className={styles.th}>Employee</th>
+                <th className={styles.th}>Type</th>
+                <th className={styles.th}>Subject</th>
+                <th className={`${styles.th} ${styles.thCenter}`}>Severity</th>
+                <th className={`${styles.th} ${styles.thCenter}`}>Status</th>
+                <th className={`${styles.th} ${styles.thCenter}`}>Issue Date</th>
+                <th className={`${styles.th} ${styles.thRight}`}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pagedRows.map((m) => (
+                <MemoRow
+                  key={m.ID}
+                  memo={m}
+                  onOpen={() => setViewing(m)}
+                  onClose={() => closeMemo(m.ID)}
+                  onCancel={() => cancelMemo(m.ID)}
+                  onDelete={() => deleteMemo(m.ID)}
+                />
+              ))}
+            </tbody>
+          </table>
+        )}
+
+        {!loading && rows && rows.length > 0 && (
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={rows.length}
+            onPageChange={setPage}
+            onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+          />
+        )}
+      </div>
+
+      {/* OVERLAYS --------------------------------------------------- */}
       {showCreate && (
         <CreateMemoModal
-          employees={employees}
+          employees={empOptions}
           employeeIdLocked={employeeIdLocked}
           onClose={() => setShowCreate(false)}
           onSaved={() => { setShowCreate(false); loadAll(); }}
         />
       )}
 
-      {/* ============ View / edit drawer ============ */}
-      {editing && (
+      {viewing && (
         <ViewMemoDrawer
-          memo={editing}
-          onClose={() => setEditing(null)}
-          onChanged={() => { setEditing(null); loadAll(); }}
+          memo={viewing}
+          onClose={() => setViewing(null)}
+          onChanged={() => { setViewing(null); loadAll(); }}
         />
       )}
     </div>
@@ -349,107 +367,127 @@ export default function EmployeeMemos({ employeeIdLocked: lockedProp = null, com
 
 
 // =====================================================================
-// Sub-components
+// MEMO ROW
 // =====================================================================
 
-function MemoRow({ row, hideEmployee, onOpen, onClose, onCancel, onDelete }) {
+function MemoRow({ memo, onOpen, onClose, onCancel, onDelete }) {
 
-  const typeTheme = themeForType(row.MEMO_TYPE);
-  const sevTheme  = themeForSev(row.SEVERITY);
-  const statTheme = themeForStat(row.STATUS);
+  const isLocked = memo.STATUS !== "ACTIVE";
 
   return (
-    <tr style={{ borderBottom: "1px solid #f1f5f9", cursor: "pointer" }}
-        onClick={onOpen}>
-      <td style={{ ...td, fontFamily: "ui-monospace, monospace", fontWeight: 700, color: "#1e40af" }}>
-        {row.MEMO_NUMBER}
-      </td>
-      <td style={td}>{row.ISSUE_DATE || "—"}</td>
-      <td style={td}>
-        <Pill bg={typeTheme.bg} color={typeTheme.color}>
-          {typeTheme.emoji} {typeTheme.label}
-        </Pill>
-      </td>
-      <td style={{ ...td, maxWidth: 280, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {row.SUBJECT}
-      </td>
-      <td style={td}>
-        <Pill bg={sevTheme.bg} color={sevTheme.color}>{row.SEVERITY}</Pill>
-      </td>
-      <td style={td}>{row.ISSUED_BY || "—"}</td>
-      <td style={td}>
-        <Pill bg={statTheme.bg} color={statTheme.color}>{row.STATUS}</Pill>
-      </td>
-      <td style={td}>
-        {row.ACKNOWLEDGED_BY_EMPLOYEE
-          ? <span style={{ color: "#16a34a", fontWeight: 700 }}>✓ Yes</span>
-          : <span style={{ color: "#f59e0b", fontWeight: 700 }}>○ Pending</span>}
-      </td>
-      <td style={td} onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: "flex", gap: 4 }}>
-          <IconBtn title="View"   onClick={onOpen}>👁</IconBtn>
-          {row.STATUS === "ACTIVE" && <IconBtn title="Close"  onClick={onClose}>✓</IconBtn>}
-          {row.STATUS === "ACTIVE" && <IconBtn title="Cancel" onClick={onCancel}>✗</IconBtn>}
-          {row.ATTACHMENT_URL && (
-            <a href={row.ATTACHMENT_URL} target="_blank" rel="noreferrer" title="Download attachment"
-               onClick={(e) => e.stopPropagation()}
-               style={{ ...iconBtnStyle, textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-              📎
-            </a>
-          )}
-          <IconBtn title="Delete" onClick={onDelete} danger>🗑</IconBtn>
+    <tr className={styles.memoRow}>
+      <td className={styles.td}>
+        <div
+          onClick={onOpen}
+          className={styles.memoNumber}
+        >
+          {memo.MEMO_NUMBER || "—"}
         </div>
       </td>
-      {!hideEmployee && (
-        <td style={td}>
-          <div style={{ fontWeight: 700, color: "#0f172a" }}>{row.EMPLOYEE_NAME || "—"}</div>
-          <div style={{ fontSize: 10, color: "#94a3b8" }}>{row.EMPLOYEE_CODE || ""}</div>
-        </td>
-      )}
+
+      <td className={styles.td}>
+        <div className={styles.empName}>
+          {memo.EMPLOYEE_NAME || "—"}
+        </div>
+        <div className={styles.empCode}>
+          {memo.EMPLOYEE_CODE || ""}
+        </div>
+      </td>
+
+      <td className={styles.td}>
+        <Pill {...(TYPE_COLORS[memo.MEMO_TYPE] || {})}>
+          {prettyType(memo.MEMO_TYPE)}
+        </Pill>
+      </td>
+
+      <td className={styles.td}>
+        <div
+          onClick={onOpen}
+          className={styles.subjectCell}
+          title={memo.SUBJECT}
+        >
+          {memo.SUBJECT}
+        </div>
+      </td>
+
+      <td className={`${styles.td} ${styles.tdCenter}`}>
+        <Pill {...(SEVERITY_COLORS[memo.SEVERITY] || {})}>
+          {memo.SEVERITY}
+        </Pill>
+      </td>
+
+      <td className={`${styles.td} ${styles.tdCenter}`}>
+        <Pill {...(STATUS_COLORS[memo.STATUS] || {})}>
+          {memo.STATUS}
+        </Pill>
+        {memo.ACKNOWLEDGED_BY_EMPLOYEE && (
+          <div className={styles.ackBadge}>
+            ACK
+          </div>
+        )}
+      </td>
+
+      <td className={`${styles.td} ${styles.tdCenter} ${styles.dateCell}`}>
+        {fmtDate(memo.ISSUE_DATE)}
+      </td>
+
+      <td className={`${styles.td} ${styles.tdRight}`}>
+        <div className={styles.rowActions}>
+          <RowBtn onClick={onOpen}>View</RowBtn>
+          {!isLocked && <RowBtn onClick={onClose}>Close</RowBtn>}
+          {!isLocked && <RowBtn onClick={onCancel}>Cancel</RowBtn>}
+          <RowBtn danger onClick={onDelete}>Delete</RowBtn>
+        </div>
+      </td>
     </tr>
   );
 }
 
 
+// =====================================================================
+// CREATE MEMO MODAL
+// =====================================================================
+
 function CreateMemoModal({ employees, employeeIdLocked, onClose, onSaved }) {
 
   const [form, setForm] = useState({
     EMPLOYEE_ID: employeeIdLocked || "",
-    MEMO_TYPE:   "WARNING",
-    SUBJECT:     "",
+    MEMO_TYPE: "WARNING",
+    SEVERITY: "LOW",
+    SUBJECT: "",
     DESCRIPTION: "",
-    SEVERITY:    "LOW",
-    STATUS:      "ACTIVE",
-    ISSUED_BY:   "",
-    ISSUE_DATE:  new Date().toISOString().slice(0, 10),
-    REMARKS:     ""
+    ISSUED_BY: "",
+    ISSUE_DATE: new Date().toISOString().slice(0, 10),
+    REMARKS: ""
   });
 
-  const [file,     setFile]     = useState(null);
+  const [file, setFile] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  const [saving,   setSaving]   = useState(false);
+  const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  const [error,    setError]    = useState("");
+  const save = async () => {
 
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+    if (!form.EMPLOYEE_ID || !form.MEMO_TYPE || !form.SUBJECT.trim()) {
 
-  const save = async (notify = false) => {
+      setError("Employee, type, and subject are required.");
 
-    setError("");
-
-    if (!form.EMPLOYEE_ID) { setError("Pick an employee."); return; }
-
-    if (!form.SUBJECT.trim()) { setError("Subject is required."); return; }
+      return;
+    }
 
     setSaving(true);
+
+    setError("");
 
     try {
 
       const fd = new FormData();
 
-      Object.entries(form).forEach(([k, v]) => fd.append(k, v ?? ""));
+      Object.entries(form).forEach(([k, v]) => {
 
-      fd.append("VENDOR_ID", "1");
+        if (v !== "" && v !== null && v !== undefined) fd.append(k, v);
+      });
 
       if (file) fd.append("attachment", file);
 
@@ -457,11 +495,11 @@ function CreateMemoModal({ employees, employeeIdLocked, onClose, onSaved }) {
         headers: { "Content-Type": "multipart/form-data" }
       });
 
-      onSaved?.();
+      onSaved();
 
-    } catch (e) {
+    } catch (err) {
 
-      setError(e?.response?.data?.detail || "Save failed");
+      setError(err?.response?.data?.detail || "Could not create memo.");
 
     } finally {
 
@@ -470,298 +508,390 @@ function CreateMemoModal({ employees, employeeIdLocked, onClose, onSaved }) {
   };
 
   return (
+    <Modal title="Issue Memo" onClose={onClose} width={720}>
+      <div className={styles.formGrid}>
+        <Field label="Employee" required>
+          <select
+            value={form.EMPLOYEE_ID}
+            onChange={(e) => update("EMPLOYEE_ID", e.target.value)}
+            disabled={!!employeeIdLocked}
+            className={styles.fieldInput}
+          >
+            <option value="">— Select —</option>
+            {employees.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.code ? `${e.code} — ${e.name}` : e.name}
+              </option>
+            ))}
+          </select>
+        </Field>
 
-    <div style={overlay} onClick={onClose}>
+        <Field label="Memo Type" required>
+          <select
+            value={form.MEMO_TYPE}
+            onChange={(e) => update("MEMO_TYPE", e.target.value)}
+            className={styles.fieldInput}
+          >
+            {MEMO_TYPE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </Field>
 
-      <div onClick={(e) => e.stopPropagation()} style={{
-        ...modal,
-        maxWidth: 720
-      }}>
+        <Field label="Severity" required>
+          <div className={styles.severityRow}>
+            {SEVERITY_OPTIONS.map((s) => {
 
-        <ModalHeader title="📋 New Memo" onClose={onClose} />
+              const isOn = form.SEVERITY === s;
 
-        <div style={modalBody}>
+              const c = SEVERITY_COLORS[s] || {};
 
-          <div style={grid2}>
-            <Field label="Employee *">
-              <select
-                value={form.EMPLOYEE_ID}
-                onChange={set("EMPLOYEE_ID")}
-                disabled={!!employeeIdLocked}
-                style={inputStyle}
-              >
-                <option value="">— pick —</option>
-                {employees.map((e) => (
-                  <option key={e.ID} value={e.ID}>{e.NAME} ({e.EMPLOYEE_CODE})</option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="Memo Type *">
-              <select value={form.MEMO_TYPE} onChange={set("MEMO_TYPE")} style={inputStyle}>
-                {MEMO_TYPES.map((t) => (
-                  <option key={t.key} value={t.key}>{t.emoji} {t.label}</option>
-                ))}
-              </select>
-            </Field>
+              return (
+                <button
+                  type="button"
+                  key={s}
+                  onClick={() => update("SEVERITY", s)}
+                  className={styles.severityBtn}
+                  style={{
+                    border: `1px solid ${isOn ? c.fg : "#cbd5e1"}`,
+                    background: isOn ? c.bg : "white",
+                    color: isOn ? c.fg : "#475569"
+                  }}
+                >
+                  {s}
+                </button>
+              );
+            })}
           </div>
+        </Field>
 
-          <Field label="Subject *">
-            <input value={form.SUBJECT} onChange={set("SUBJECT")} style={inputStyle}
-                   placeholder="e.g. Repeated late attendance in May 2026" />
-          </Field>
+        <Field label="Issue Date" required>
+          <input
+            type="date"
+            value={form.ISSUE_DATE}
+            onChange={(e) => update("ISSUE_DATE", e.target.value)}
+            className={styles.fieldInput}
+          />
+        </Field>
 
-          <Field label="Description">
-            <textarea value={form.DESCRIPTION} onChange={set("DESCRIPTION")} rows={4} style={inputStyle}
-                      placeholder="Background, specific incidents, action expected…" />
-          </Field>
+        <Field label="Subject" required full>
+          <input
+            type="text"
+            maxLength={200}
+            value={form.SUBJECT}
+            onChange={(e) => update("SUBJECT", e.target.value)}
+            placeholder="e.g. Repeated late attendance in May 2026"
+            className={styles.fieldInput}
+          />
+        </Field>
 
-          <div style={grid3}>
-            <Field label="Severity *">
-              <select value={form.SEVERITY} onChange={set("SEVERITY")} style={inputStyle}>
-                {SEVERITIES.map((s) => <option key={s.key} value={s.key}>{s.key}</option>)}
-              </select>
-            </Field>
-            <Field label="Status">
-              <select value={form.STATUS} onChange={set("STATUS")} style={inputStyle}>
-                {STATUSES.map((s) => <option key={s.key} value={s.key}>{s.key}</option>)}
-              </select>
-            </Field>
-            <Field label="Issue Date *">
-              <input type="date" value={form.ISSUE_DATE} onChange={set("ISSUE_DATE")} style={inputStyle} />
-            </Field>
-          </div>
+        <Field label="Description" full>
+          <textarea
+            rows={4}
+            maxLength={4000}
+            value={form.DESCRIPTION}
+            onChange={(e) => update("DESCRIPTION", e.target.value)}
+            placeholder="Background, specific incidents, action expected, deadline…"
+            className={styles.fieldInput}
+            style={{ resize: "vertical" }}
+          />
+        </Field>
 
-          <div style={grid2}>
-            <Field label="Issued By *">
-              <input value={form.ISSUED_BY} onChange={set("ISSUED_BY")} style={inputStyle}
-                     placeholder="e.g. HR Manager, MD, Plant Head" />
-            </Field>
-            <Field label="Attachment">
-              <input type="file" onChange={(e) => setFile(e.target.files?.[0] || null)}
-                     style={{ ...inputStyle, padding: 8 }} />
-            </Field>
-          </div>
+        <Field label="Issued By">
+          <input
+            type="text"
+            maxLength={100}
+            value={form.ISSUED_BY}
+            onChange={(e) => update("ISSUED_BY", e.target.value)}
+            placeholder="e.g. HR Manager, MD"
+            className={styles.fieldInput}
+          />
+        </Field>
 
-          <Field label="Internal Remarks">
-            <textarea value={form.REMARKS} onChange={set("REMARKS")} rows={2} style={inputStyle}
-                      placeholder="Optional notes for HR records (not shown to employee)" />
-          </Field>
+        <Field label="Attachment">
+          <input
+            type="file"
+            accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            style={{ fontSize: 12 }}
+          />
+        </Field>
 
-          {error && (
-            <div style={errBox}>{error}</div>
-          )}
-        </div>
-
-        <div style={modalFooter}>
-          <button onClick={onClose} style={btnGhost}>Cancel</button>
-          <button onClick={() => save(false)} disabled={saving} style={btnPrimary}>
-            {saving ? "Saving…" : "Save Memo"}
-          </button>
-        </div>
+        <Field label="Internal Remarks (HR only)" full>
+          <textarea
+            rows={2}
+            maxLength={2000}
+            value={form.REMARKS}
+            onChange={(e) => update("REMARKS", e.target.value)}
+            placeholder="Optional notes for HR records — not shown to the employee"
+            className={styles.fieldInput}
+            style={{ resize: "vertical" }}
+          />
+        </Field>
       </div>
-    </div>
+
+      {error && (
+        <div className={styles.errorBox}>
+          {error}
+        </div>
+      )}
+
+      <div className={styles.modalFooter}>
+        <button onClick={onClose} className={styles.btnSecondary}>Cancel</button>
+        <button onClick={save} disabled={saving} className={styles.btnPrimary}>
+          {saving ? "Issuing…" : "Issue Memo"}
+        </button>
+      </div>
+    </Modal>
   );
 }
 
 
+// =====================================================================
+// VIEW / EDIT DRAWER
+// =====================================================================
+
 function ViewMemoDrawer({ memo, onClose, onChanged }) {
 
-  const [editMode,   setEditMode]   = useState(false);
+  const [editMode, setEditMode] = useState(false);
 
-  const [form,       setForm]       = useState({
-    SUBJECT:     memo.SUBJECT || "",
+  const [form, setForm] = useState({
+    SUBJECT: memo.SUBJECT || "",
     DESCRIPTION: memo.DESCRIPTION || "",
-    SEVERITY:    memo.SEVERITY || "LOW",
-    STATUS:      memo.STATUS || "ACTIVE",
-    ISSUED_BY:   memo.ISSUED_BY || "",
-    ISSUE_DATE:  memo.ISSUE_DATE || "",
-    REMARKS:     memo.REMARKS || ""
+    SEVERITY: memo.SEVERITY || "LOW",
+    ISSUED_BY: memo.ISSUED_BY || "",
+    REMARKS: memo.REMARKS || ""
   });
 
-  const [saving,     setSaving]     = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const [error, setError] = useState("");
+
+  const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const save = async () => {
 
     setSaving(true);
 
+    setError("");
+
     try {
 
       await API.patch(`/memos/${memo.ID}`, form);
 
-      onChanged?.();
+      onChanged();
 
-    } finally {
+    } catch (err) {
+
+      setError(err?.response?.data?.detail || "Could not save changes.");
 
       setSaving(false);
     }
   };
 
-  const acknowledge = async () => {
-
-    if (!window.confirm("Confirm receipt — record that the employee has acknowledged this memo?")) return;
-
-    await API.post(`/memos/${memo.ID}/acknowledge`, {});
-
-    onChanged?.();
-  };
-
-  const typeTheme = themeForType(memo.MEMO_TYPE);
-  const sevTheme  = themeForSev(memo.SEVERITY);
-  const statTheme = themeForStat(memo.STATUS);
+  const isLocked = memo.STATUS !== "ACTIVE";
 
   return (
+    <Modal title={memo.MEMO_NUMBER || "Memo"} onClose={onClose} width={680}>
+      {/* Status row */}
+      <div className={styles.pillRow}>
+        <Pill {...(TYPE_COLORS[memo.MEMO_TYPE] || {})}>
+          {prettyType(memo.MEMO_TYPE)}
+        </Pill>
+        <Pill {...(SEVERITY_COLORS[memo.SEVERITY] || {})}>
+          {memo.SEVERITY}
+        </Pill>
+        <Pill {...(STATUS_COLORS[memo.STATUS] || {})}>
+          {memo.STATUS}
+        </Pill>
+        {memo.ACKNOWLEDGED_BY_EMPLOYEE && (
+          <Pill bg="#dcfce7" fg="#166534">
+            ACKNOWLEDGED · {fmtDate(memo.ACKNOWLEDGED_DATE)}
+          </Pill>
+        )}
+      </div>
 
-    <div style={overlay} onClick={onClose}>
+      {/* Read-only header */}
+      <div className={styles.viewHeaderGrid}>
+        <ReadField label="Employee" value={`${memo.EMPLOYEE_CODE || ""} · ${memo.EMPLOYEE_NAME || ""}`} />
+        <ReadField label="Issue Date" value={fmtDate(memo.ISSUE_DATE)} />
+      </div>
 
-      <div onClick={(e) => e.stopPropagation()} style={{
-        position: "absolute", right: 0, top: 0, bottom: 0,
-        width: "min(640px, 92vw)",
-        background: "white",
-        boxShadow: "-20px 0 60px rgba(0,0,0,0.2)",
-        overflow: "hidden", display: "flex", flexDirection: "column"
-      }}>
-
-        {/* Header */}
-        <div style={{
-          padding: "20px 24px",
-          background: `linear-gradient(135deg, ${typeTheme.color}, ${typeTheme.color}cc)`,
-          color: "white"
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div>
-              <div style={{ fontSize: 10, letterSpacing: 1.6, fontWeight: 800, opacity: 0.85, textTransform: "uppercase" }}>
-                {memo.MEMO_NUMBER}
-              </div>
-              <div style={{ fontSize: 19, fontWeight: 800, marginTop: 4, letterSpacing: -0.2 }}>
-                {typeTheme.emoji} {typeTheme.label}
-              </div>
-              <div style={{ fontSize: 13, opacity: 0.9, marginTop: 2 }}>
-                {memo.EMPLOYEE_NAME} ({memo.EMPLOYEE_CODE}) · {memo.ISSUE_DATE}
-              </div>
+      {/* Editable body */}
+      {editMode && !isLocked ? (
+        <div className={styles.editGrid}>
+          <Field label="Subject">
+            <input
+              type="text"
+              maxLength={200}
+              value={form.SUBJECT}
+              onChange={(e) => update("SUBJECT", e.target.value)}
+              className={styles.fieldInput}
+            />
+          </Field>
+          <Field label="Severity">
+            <select
+              value={form.SEVERITY}
+              onChange={(e) => update("SEVERITY", e.target.value)}
+              className={styles.fieldInput}
+            >
+              {SEVERITY_OPTIONS.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Description">
+            <textarea
+              rows={5}
+              maxLength={4000}
+              value={form.DESCRIPTION}
+              onChange={(e) => update("DESCRIPTION", e.target.value)}
+              className={styles.fieldInput}
+              style={{ resize: "vertical" }}
+            />
+          </Field>
+          <Field label="Issued By">
+            <input
+              type="text"
+              maxLength={100}
+              value={form.ISSUED_BY}
+              onChange={(e) => update("ISSUED_BY", e.target.value)}
+              className={styles.fieldInput}
+            />
+          </Field>
+          <Field label="Internal Remarks (HR only)">
+            <textarea
+              rows={2}
+              maxLength={2000}
+              value={form.REMARKS}
+              onChange={(e) => update("REMARKS", e.target.value)}
+              className={styles.fieldInput}
+              style={{ resize: "vertical" }}
+            />
+          </Field>
+        </div>
+      ) : (
+        <>
+          <ReadField label="Subject" value={memo.SUBJECT} />
+          <ReadField label="Description" value={memo.DESCRIPTION} multiline />
+          <ReadField label="Issued By" value={memo.ISSUED_BY} />
+          <ReadField label="Internal Remarks (HR only)" value={memo.REMARKS} multiline />
+          {memo.ATTACHMENT_URL && (
+            <div style={{ marginTop: 12 }}>
+              <a
+                href={`${API_BASE_URL}${memo.ATTACHMENT_URL}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.attachLink}
+              >
+                {memo.ATTACHMENT_NAME || "Open attachment"}
+              </a>
             </div>
-            <button onClick={onClose} style={{
-              background: "rgba(255,255,255,0.2)", color: "white", border: "none",
-              padding: "4px 12px", borderRadius: 6, fontSize: 18, cursor: "pointer"
-            }}>×</button>
-          </div>
-        </div>
-
-        {/* Body */}
-        <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
-
-          {/* Badges */}
-          <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
-            <Pill bg={sevTheme.bg}  color={sevTheme.color}>{memo.SEVERITY}</Pill>
-            <Pill bg={statTheme.bg} color={statTheme.color}>{memo.STATUS}</Pill>
-            {memo.ACKNOWLEDGED_BY_EMPLOYEE && (
-              <Pill bg="#dcfce7" color="#15803d">✓ Acknowledged</Pill>
-            )}
-          </div>
-
-          {!editMode && (
-            <>
-              <ReadField label="Subject" value={memo.SUBJECT} />
-              <ReadField label="Description" value={memo.DESCRIPTION} multiline />
-              <div style={grid2}>
-                <ReadField label="Issued By" value={memo.ISSUED_BY} />
-                <ReadField label="Issue Date" value={memo.ISSUE_DATE} />
-              </div>
-              {memo.ATTACHMENT_URL && (
-                <ReadField label="Attachment" value={
-                  <a href={memo.ATTACHMENT_URL} target="_blank" rel="noreferrer"
-                     style={{ color: "#2563eb", fontWeight: 700, textDecoration: "none" }}>
-                    📎 {memo.ATTACHMENT_NAME || "Download"}
-                  </a>
-                } />
-              )}
-              <ReadField label="Internal Remarks" value={memo.REMARKS} multiline />
-              {memo.ACKNOWLEDGED_BY_EMPLOYEE && (
-                <ReadField label="Acknowledged Date" value={
-                  memo.ACKNOWLEDGED_DATE ? new Date(memo.ACKNOWLEDGED_DATE).toLocaleString() : "—"
-                } />
-              )}
-              <ReadField label="Created" value={memo.CREATED_AT ? new Date(memo.CREATED_AT).toLocaleString() : "—"} />
-            </>
           )}
+        </>
+      )}
 
-          {editMode && (
-            <>
-              <Field label="Subject"><input style={inputStyle} value={form.SUBJECT} onChange={set("SUBJECT")} /></Field>
-              <Field label="Description"><textarea rows={4} style={inputStyle} value={form.DESCRIPTION} onChange={set("DESCRIPTION")} /></Field>
-              <div style={grid3}>
-                <Field label="Severity">
-                  <select value={form.SEVERITY} onChange={set("SEVERITY")} style={inputStyle}>
-                    {SEVERITIES.map((s) => <option key={s.key} value={s.key}>{s.key}</option>)}
-                  </select>
-                </Field>
-                <Field label="Status">
-                  <select value={form.STATUS} onChange={set("STATUS")} style={inputStyle}>
-                    {STATUSES.map((s) => <option key={s.key} value={s.key}>{s.key}</option>)}
-                  </select>
-                </Field>
-                <Field label="Issue Date">
-                  <input type="date" value={form.ISSUE_DATE} onChange={set("ISSUE_DATE")} style={inputStyle} />
-                </Field>
-              </div>
-              <Field label="Issued By"><input style={inputStyle} value={form.ISSUED_BY} onChange={set("ISSUED_BY")} /></Field>
-              <Field label="Remarks"><textarea rows={2} style={inputStyle} value={form.REMARKS} onChange={set("REMARKS")} /></Field>
-            </>
-          )}
+      {error && (
+        <div className={styles.errorBox}>
+          {error}
         </div>
+      )}
 
-        {/* Footer */}
-        <div style={modalFooter}>
-          {!editMode && !memo.ACKNOWLEDGED_BY_EMPLOYEE && (
-            <button onClick={acknowledge} style={btnAck}>
-              ✓ Record Acknowledgement
+      {/* Footer actions */}
+      <div className={styles.modalFooterSpread}>
+        <div className={styles.footerLeft}>
+          {!editMode && !isLocked && (
+            <button onClick={() => setEditMode(true)} className={styles.btnSecondary}>
+              Edit
             </button>
           )}
-          {!editMode && <button onClick={() => setEditMode(true)} style={btnGhost}>Edit</button>}
-          {editMode  && <button onClick={() => setEditMode(false)} style={btnGhost}>Cancel</button>}
-          {editMode  && <button onClick={save} disabled={saving} style={btnPrimary}>{saving ? "Saving…" : "Save"}</button>}
+          {!isLocked && (
+            <button
+              onClick={() => API.post(`/memos/${memo.ID}/close`).then(onChanged)}
+              className={styles.btnSecondary}
+            >
+              Close Memo
+            </button>
+          )}
+          {!isLocked && (
+            <button
+              onClick={() => API.post(`/memos/${memo.ID}/cancel`).then(onChanged)}
+              className={styles.btnSecondary}
+            >
+              Cancel Memo
+            </button>
+          )}
         </div>
+
+        <div className={styles.footerRight}>
+          {editMode && (
+            <>
+              <button onClick={() => setEditMode(false)} className={styles.btnSecondary}>
+                Discard
+              </button>
+              <button onClick={save} disabled={saving} className={styles.btnPrimary}>
+                {saving ? "Saving…" : "Save Changes"}
+              </button>
+            </>
+          )}
+          {!editMode && (
+            <button onClick={onClose} className={styles.btnPrimary}>Done</button>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+
+// =====================================================================
+// SMALL HELPERS / STYLED PRIMITIVES
+// =====================================================================
+
+function StatTile({ label, value, accent }) {
+
+  return (
+    <div className={styles.statTile}>
+      <div className={styles.statAccent} style={{ background: accent }} />
+      <div className={styles.statLabel}>
+        {label}
+      </div>
+      <div className={styles.statValue}>
+        {value}
       </div>
     </div>
   );
 }
 
 
-// =====================================================================
-// Tiny atoms
-// =====================================================================
-
-function StatTile({ label, value, accent }) {
+function Pill({ children, bg = "#e2e8f0", fg = "#475569" }) {
 
   return (
-    <div style={{
-      background: "white",
-      border: "1px solid #e2e8f0",
-      borderRadius: 12,
-      padding: 14,
-      borderTop: `3px solid ${accent}`
+    <span style={{
+      display: "inline-block",
+      padding: "3px 10px",
+      borderRadius: 999,
+      fontSize: 10,
+      fontWeight: 800,
+      letterSpacing: 0.5,
+      background: bg,
+      color: fg,
+      textTransform: "uppercase"
     }}>
-      <div style={{
-        fontSize: 10, fontWeight: 800, letterSpacing: 1.2, color: "#64748b",
-        textTransform: "uppercase"
-      }}>{label}</div>
-      <div style={{
-        fontSize: 26, fontWeight: 800, color: "#0f172a", marginTop: 4, letterSpacing: -0.4
-      }}>{value}</div>
-    </div>
+      {children}
+    </span>
   );
 }
 
 
-function Field({ label, children }) {
+function Field({ label, required, full, children }) {
+
   return (
-    <div style={{ marginBottom: 12 }}>
-      <label style={{
-        display: "block", fontSize: 11, fontWeight: 700, color: "#475569",
-        marginBottom: 4, letterSpacing: 0.3
-      }}>{label}</label>
+    <div style={{ gridColumn: full ? "1 / -1" : undefined }}>
+      <div className={styles.fieldLabel}>
+        {label}
+        {required && <span className={styles.required}>*</span>}
+      </div>
       {children}
     </div>
   );
@@ -769,183 +899,65 @@ function Field({ label, children }) {
 
 
 function ReadField({ label, value, multiline = false }) {
+
   return (
-    <div style={{ marginBottom: 14 }}>
-      <div style={{
-        fontSize: 10, fontWeight: 800, color: "#64748b", letterSpacing: 1,
-        textTransform: "uppercase", marginBottom: 3
-      }}>{label}</div>
-      <div style={{
-        fontSize: 13, color: value ? "#0f172a" : "#94a3b8", fontWeight: 500,
-        whiteSpace: multiline ? "pre-wrap" : "normal", lineHeight: 1.55
-      }}>{value || "—"}</div>
+    <div className={styles.readField}>
+      <div className={styles.fieldLabel}>
+        {label}
+      </div>
+      <div className={`${styles.readFieldValue}${multiline ? "" : ""}`} style={{ whiteSpace: multiline ? "pre-wrap" : "normal" }}>
+        {value || <span className={styles.readFieldEmpty}>—</span>}
+      </div>
     </div>
   );
 }
 
 
-function Pill({ children, bg, color }) {
+function RowBtn({ children, onClick, danger }) {
+
   return (
-    <span style={{
-      display: "inline-block", padding: "2px 10px", borderRadius: 999,
-      fontSize: 10, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase",
-      background: bg, color
-    }}>{children}</span>
+    <button
+      onClick={onClick}
+      className={`${styles.rowBtn}${danger ? ` ${styles.rowBtnDanger}` : ""}`}
+    >
+      {children}
+    </button>
   );
 }
 
 
-function IconBtn({ children, onClick, title, danger = false }) {
-  return (
-    <button onClick={onClick} title={title} style={{
-      ...iconBtnStyle,
-      color: danger ? "#dc2626" : "#475569",
-      borderColor: danger ? "#fecaca" : "#cbd5e1"
-    }}>{children}</button>
-  );
-}
+function Modal({ title, onClose, children, width = 600 }) {
 
-
-function ModalHeader({ title, onClose }) {
   return (
-    <div style={{
-      padding: "18px 24px", borderBottom: "1px solid #e2e8f0",
-      display: "flex", justifyContent: "space-between", alignItems: "center",
-      background: "linear-gradient(135deg, #C8102E, #8B0B1F)", color: "white"
-    }}>
-      <div style={{ fontSize: 17, fontWeight: 800, letterSpacing: -0.2 }}>{title}</div>
-      <button onClick={onClose} style={{
-        background: "rgba(255,255,255,0.2)", color: "white", border: "none",
-        padding: "4px 12px", borderRadius: 6, fontSize: 18, cursor: "pointer"
-      }}>×</button>
+    <div
+      onClick={onClose}
+      className={styles.modalBackdrop}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className={styles.modalBox}
+        style={{ maxWidth: width }}
+      >
+        <div className={styles.modalHeader}>
+          <div className={styles.modalTitle}>
+            {title}
+          </div>
+          <button
+            onClick={onClose}
+            className={styles.modalClose}
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className={styles.modalBody}>
+          {children}
+        </div>
+      </div>
     </div>
   );
 }
 
 
-// =====================================================================
-// Styles
-// =====================================================================
-
-const eyebrow = {
-  fontSize: 10, fontWeight: 800, letterSpacing: 1.6, color: "#64748b",
-  textTransform: "uppercase"
-};
-
-const inputStyle = {
-  width: "100%",
-  padding: "9px 11px",
-  border: "1px solid #cbd5e1",
-  borderRadius: 8,
-  fontSize: 13,
-  outline: "none",
-  fontFamily: "inherit",
-  boxSizing: "border-box",
-  background: "white"
-};
-
-const grid2 = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 };
-
-const grid3 = { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 12 };
-
-const btnPrimary = {
-  background: "linear-gradient(135deg, #C8102E, #8B0B1F)",
-  color: "white",
-  border: "none",
-  padding: "9px 18px",
-  borderRadius: 8,
-  fontWeight: 800,
-  fontSize: 13,
-  cursor: "pointer",
-  letterSpacing: 0.3
-};
-
-const btnGhost = {
-  background: "white",
-  color: "#475569",
-  border: "1px solid #cbd5e1",
-  padding: "8px 14px",
-  borderRadius: 8,
-  fontWeight: 700,
-  fontSize: 12,
-  cursor: "pointer"
-};
-
-const btnAck = {
-  background: "linear-gradient(135deg, #10b981, #059669)",
-  color: "white",
-  border: "none",
-  padding: "9px 16px",
-  borderRadius: 8,
-  fontWeight: 800,
-  fontSize: 13,
-  cursor: "pointer",
-  marginRight: "auto"
-};
-
-const iconBtnStyle = {
-  background: "white",
-  border: "1px solid #cbd5e1",
-  width: 30, height: 30,
-  borderRadius: 6,
-  fontSize: 13,
-  cursor: "pointer",
-  display: "inline-flex", alignItems: "center", justifyContent: "center"
-};
-
-const th = {
-  textAlign: "left",
-  padding: "10px 12px",
-  fontSize: 10,
-  fontWeight: 800,
-  letterSpacing: 0.6,
-  color: "#475569",
-  textTransform: "uppercase"
-};
-
-const td = {
-  padding: "10px 12px",
-  fontSize: 12,
-  color: "#0f172a",
-  verticalAlign: "middle"
-};
-
-const overlay = {
-  position: "fixed", inset: 0,
-  background: "rgba(15,23,42,0.45)",
-  zIndex: 950,
-  display: "flex", alignItems: "flex-start", justifyContent: "center",
-  padding: "5vh 0"
-};
-
-const modal = {
-  background: "white",
-  borderRadius: 14,
-  overflow: "hidden",
-  width: "min(720px, 92vw)",
-  maxHeight: "90vh",
-  display: "flex",
-  flexDirection: "column",
-  boxShadow: "0 30px 80px rgba(15,23,42,0.3)"
-};
-
-const modalBody = { flex: 1, overflowY: "auto", padding: 24 };
-
-const modalFooter = {
-  padding: "14px 24px",
-  borderTop: "1px solid #e2e8f0",
-  display: "flex",
-  justifyContent: "flex-end",
-  gap: 10,
-  background: "#f8fafc"
-};
-
-const errBox = {
-  marginTop: 6,
-  padding: "8px 12px",
-  background: "#fef2f2",
-  border: "1px solid #fecaca",
-  borderRadius: 8,
-  color: "#991b1b",
-  fontSize: 12
-};
+export default EmployeeMemos;

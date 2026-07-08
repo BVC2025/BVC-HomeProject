@@ -1,4 +1,4 @@
-// =====================================================================
+﻿// =====================================================================
 // GeofenceGate — reusable widget the Attendance pages render BEFORE
 // they enable the actual check-in / biometric / face-scan UI.
 //
@@ -21,13 +21,15 @@
 import { useEffect, useRef, useState } from "react";
 
 import API from "../services/api";
+import styles from "./GeofenceGate.module.css";
 
 
 export default function GeofenceGate({
   employeeId = null,
   onAllowed = () => {},
   onBlocked = () => {},
-  autoRefreshMs = 0
+  autoRefreshMs = 0,
+  compact = false,    // Render a single-line status pill instead of the big card
 }) {
 
   const [phase, setPhase] = useState("loading");
@@ -91,6 +93,29 @@ export default function GeofenceGate({
     }
 
     setCoords({ lat, lng, accuracy });
+
+    // ---- Accuracy gate ---------------------------------------------
+    // Real GPS / Wi-Fi positioning is accurate to 5-100m. An accuracy
+    // reading worse than 500m almost always means the browser fell back
+    // to IP-geolocation — which places the device anywhere in a city-wide
+    // circle. Letting that through would block legit at-office users
+    // because the "you are here" guess is kilometres off. Block it
+    // explicitly with a clear message instead.
+    const MAX_TRUSTED_ACCURACY_METERS = 500;
+
+    if (Number.isFinite(accuracy) && accuracy > MAX_TRUSTED_ACCURACY_METERS) {
+
+      setPhase("low_accuracy");
+
+      reportFailure(
+        "LOW_GPS_ACCURACY", lat, lng, null,
+        `accuracy=${Math.round(accuracy)}m (threshold ${MAX_TRUSTED_ACCURACY_METERS}m)`
+      );
+
+      onBlocked("LOW_GPS_ACCURACY");
+
+      return;
+    }
 
     try {
 
@@ -263,7 +288,36 @@ export default function GeofenceGate({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ---- Admin / dev escape hatch (moved up so compact-mode render can
+  //      reference it before any phase-based return) ----
+  function skipGps() {
+    setPhase("skipped");
+    onAllowed({
+      lat: Number.isFinite(coords?.lat) ? coords.lat : null,
+      lng: Number.isFinite(coords?.lng) ? coords.lng : null,
+      accuracy: coords?.accuracy ?? null,
+      distance: null,
+      deviceInfo,
+      gpsSkipped: true,
+    });
+  }
+
   // ---- Render -----------------------------------------------------
+
+  // Compact mode: render a single-line status pill regardless of phase.
+  // Same callbacks still fire — only the visual is condensed.
+  if (compact) {
+    return (
+      <CompactBar
+        phase={phase}
+        coords={coords}
+        serverInfo={serverInfo}
+        errorMsg={errorMsg}
+        onSkip={skipGps}
+        onRetry={requestLocation}
+      />
+    );
+  }
 
   if (phase === "loading") {
 
@@ -285,7 +339,7 @@ export default function GeofenceGate({
         <Title color="#475569">⚠ Geofence Enforcement Off</Title>
         <Body>
           The admin has turned <b>OFF</b> geofence enforcement at{" "}
-          <a href="/geofence" style={{ color: "#6366f1" }}>Geofence Settings</a>.
+          <a href="/geofence" className={styles.gpsLink}>Geofence Settings</a>.
           Check-in / Check-out are allowed from anywhere. Re-enable
           enforcement when you're ready for production.
         </Body>
@@ -328,22 +382,7 @@ export default function GeofenceGate({
     );
   }
 
-  // ---- Admin / dev escape hatch ----
-  // When GPS is denied / unavailable / times out, render a "Mark
-  // attendance anyway" button. Clicking it calls onAllowed() with
-  // null coords. The backend already accepts null lat/lng (we kept
-  // it back-compat) so the check-in succeeds with GEOFENCE_STATUS =
-  // UNKNOWN. This unblocks anyone on a locked Windows machine while
-  // still letting the audit trail see that GPS couldn't be read.
-  const skipGps = () => {
-
-    setPhase("skipped");
-
-    onAllowed({
-      lat: null, lng: null, accuracy: null,
-      distance: null, deviceInfo
-    });
-  };
+  // (skipGps was moved up before the render block — see above.)
 
   if (phase === "skipped") {
 
@@ -370,7 +409,7 @@ export default function GeofenceGate({
         <Body>
           Your browser is blocking location access. To enable GPS:
           <ol style={{ marginTop: 8, paddingLeft: 20 }}>
-            <li>Open a new tab → <code style={kbd}>chrome://settings/content/location</code></li>
+            <li>Open a new tab → <code className={styles.kbd}>chrome://settings/content/location</code></li>
             <li>Find <b>localhost:5173</b> under "Not allowed" → click 🗑</li>
             <li>Come back to this tab and reload</li>
           </ol>
@@ -400,6 +439,42 @@ export default function GeofenceGate({
         <ActionRow>
           <SkipBtn onClick={skipGps}>✓ Skip GPS — mark attendance anyway</SkipBtn>
           <Retry onClick={requestLocation} label="Retry" inline />
+        </ActionRow>
+      </Card>
+    );
+  }
+
+  if (phase === "low_accuracy") {
+
+    const acc = coords?.accuracy
+      ? Math.round(coords.accuracy)
+      : null;
+
+    return (
+
+      <Card border="#fde68a" bg="#fffbeb">
+        <Title color="#854d0e">⚠ GPS reading is too imprecise</Title>
+        <Body>
+          The browser returned a location accurate to <b>±{acc ? acc.toLocaleString() : "?"}m</b>{" "}
+          — that's not a real GPS fix, it's an IP-based guess that can
+          be tens of kilometres off. Even if you're sitting at the office,
+          the geofence check would fail because we can't trust this reading.
+          <br /><br />
+          <b>Fixes that usually work:</b>
+          <ol style={{ margin: "6px 0 0 18px", padding: 0, lineHeight: 1.6 }}>
+            <li>Open this page on your <b>mobile phone</b> with Location ON
+                — phones have real GPS chips and Wi-Fi positioning.</li>
+            <li>If you're on a desktop, connect to <b>office Wi-Fi</b> so
+                Windows can use Wi-Fi triangulation instead of IP.</li>
+            <li>Check Windows&nbsp;Settings → Privacy → Location is ON,
+                AND your browser is allowed.</li>
+            <li>Worst case: ask an admin to mark your attendance from
+                the Live Floor Board.</li>
+          </ol>
+        </Body>
+        <ActionRow>
+          <SkipBtn onClick={skipGps}>✓ Skip GPS — mark attendance anyway</SkipBtn>
+          <Retry onClick={requestLocation} label="🔄 Retry GPS" inline />
         </ActionRow>
       </Card>
     );
@@ -441,138 +516,139 @@ export default function GeofenceGate({
 // ---- Action button row + skip button helpers ----
 
 function ActionRow({ children }) {
-
-  return (
-    <div style={{
-      marginTop: 12,
-      display: "flex",
-      gap: 10,
-      flexWrap: "wrap",
-      alignItems: "center"
-    }}>
-      {children}
-    </div>
-  );
+  return <div className={styles.actionRow}>{children}</div>;
 }
-
 
 function SkipBtn({ onClick, children }) {
-
-  return (
-    <button
-      onClick={onClick}
-      style={{
-        background: "linear-gradient(135deg, #f59e0b, #d97706)",
-        color: "white",
-        border: "none",
-        padding: "10px 18px",
-        borderRadius: 8,
-        fontWeight: 800,
-        fontSize: 13,
-        cursor: "pointer",
-        letterSpacing: 0.3,
-        boxShadow: "0 4px 12px rgba(245,158,11,0.30)"
-      }}
-    >
-      {children}
-    </button>
-  );
+  return <button onClick={onClick} className={styles.skipBtn}>{children}</button>;
 }
-
-
-const kbd = {
-  background: "#1e293b",
-  color: "#e2e8f0",
-  padding: "2px 6px",
-  borderRadius: 4,
-  fontFamily: "ui-monospace, monospace",
-  fontSize: 11
-};
-
 
 // ---- Sub-components --------------------------------------------------
 
 function Card({ border, bg, children }) {
-
   return (
-    <div style={{
-      border: `1px solid ${border}`,
-      background: bg,
-      borderRadius: 12,
-      padding: "16px 20px",
-      marginBottom: 16,
-      boxShadow: "0 4px 14px rgba(15,23,42,0.04)"
-    }}>
+    <div className={styles.card} style={{ border: `1px solid ${border}`, background: bg }}>
       {children}
     </div>
   );
 }
 
-
-function Title({ color = "#0f172a", children }) {
-
+function Title({ color = "var(--text-primary)", children }) {
   return (
-    <div style={{ fontSize: 15, fontWeight: 800, color, marginBottom: 6 }}>
+    <div className={styles.title} style={{ color }}>
       {children}
     </div>
   );
 }
-
 
 function Body({ children }) {
-
-  return (
-    <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.6 }}>
-      {children}
-    </div>
-  );
+  return <div className={styles.body}>{children}</div>;
 }
 
-
 function Coords({ coords }) {
-
   if (!coords) return null;
-
   return (
-    <div style={{
-      marginTop: 8,
-      fontSize: 11,
-      color: "#94a3b8",
-      fontFamily: "ui-monospace, monospace"
-    }}>
+    <div className={styles.coords}>
       {coords.lat?.toFixed(6)}, {coords.lng?.toFixed(6)}
       {coords.accuracy && <span> · ±{Math.round(coords.accuracy)}m accuracy</span>}
     </div>
   );
 }
 
-
 function Retry({ onClick, label, inline = false }) {
-
   const btn = (
-
-    <button
-      onClick={onClick}
-      style={{
-        background: "white",
-        border: "1px solid #cbd5e1",
-        padding: "8px 14px",
-        borderRadius: 8,
-        fontSize: 12,
-        fontWeight: 700,
-        color: "#475569",
-        cursor: "pointer"
-      }}
-    >
-      🔄 {label}
-    </button>
+    <button onClick={onClick} className={styles.retryBtn}>🔄 {label}</button>
   );
-
   if (inline) return btn;
+  return <div className={styles.retryWrap}>{btn}</div>;
+}
+
+
+// =====================================================================
+// CompactBar — one-line status pill used when GeofenceGate is mounted
+// with compact={true}. Same callbacks fire; only the UI is condensed
+// so it doesn't dominate the page like the full-card variant.
+// =====================================================================
+function CompactBar({ phase, coords, serverInfo, errorMsg, onSkip, onRetry }) {
+
+  // Map each phase to a single-line meta object: dot colour + label + sub
+  const meta = (() => {
+    const acc = coords?.accuracy ? Math.round(coords.accuracy) : null;
+    switch (phase) {
+      case "loading":
+        return { color: "#94a3b8", label: "Checking location…", sub: "Please allow GPS access if prompted." };
+      case "inside":
+        return { color: "#16a34a", label: "Verified — inside office",
+                 sub: serverInfo?.distance_meters != null
+                   ? `${Math.round(serverInfo.distance_meters)}m from centre` : null };
+      case "outside":
+        return { color: "#dc2626", label: "Outside office boundary",
+                 sub: serverInfo?.distance_meters != null
+                   ? `${Math.round(serverInfo.distance_meters)}m away` : null };
+      case "bypassed":
+      case "skipped":
+        return { color: "#7c3aed", label: "GPS skipped — manual override active", sub: null };
+      case "denied":
+        return { color: "#dc2626", label: "Location permission denied",
+                 sub: "Enable it in browser settings to verify presence." };
+      case "unavailable":
+        return { color: "#dc2626", label: "GPS unavailable",
+                 sub: "Windows Location may be turned off." };
+      case "low_accuracy":
+        return { color: "#d97706", label: `GPS imprecise${acc ? ` (±${acc.toLocaleString()}m)` : ""}`,
+                 sub: "Use phone, or click Skip to mark anyway." };
+      case "timeout":
+        return { color: "#d97706", label: "GPS timed out",
+                 sub: "Try Retry, or click Skip to mark anyway." };
+      case "error":
+        return { color: "#dc2626", label: "GPS error",
+                 sub: errorMsg || "Couldn't read location." };
+      default:
+        return { color: "#94a3b8", label: phase || "Pending", sub: null };
+    }
+  })();
+
+  const passed = phase === "inside" || phase === "bypassed" || phase === "skipped";
+  const canSkip = !passed;
+  const canRetry = phase !== "loading" && phase !== "inside";
 
   return (
-    <div style={{ marginTop: 12 }}>
-      {btn}
+    <div style={{
+      display: "flex", alignItems: "center", gap: 10,
+      background: "white", border: "1px solid #e2e8f0",
+      borderRadius: 10, padding: "10px 14px", margin: "10px 0 12px 0",
+      flexWrap: "wrap",
+    }}>
+      <span style={{
+        width: 10, height: 10, borderRadius: "50%",
+        background: meta.color, flexShrink: 0,
+        boxShadow: `0 0 0 3px ${meta.color}33`,
+      }} />
+      <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+        {meta.label}
+      </span>
+      {meta.sub && (
+        <span style={{ fontSize: 12, color: "#64748b" }}>
+          {meta.sub}
+        </span>
+      )}
+      <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+        {canRetry && (
+          <button onClick={onRetry} style={{
+            padding: "5px 10px", background: "white", color: "#475569",
+            border: "1px solid #cbd5e1", borderRadius: 6, fontSize: 11,
+            fontWeight: 700, cursor: "pointer",
+          }}>↻ Retry</button>
+        )}
+        {canSkip && (
+          <button onClick={onSkip} style={{
+            padding: "5px 10px", background: "#fef3c7", color: "#92400e",
+            border: "1px solid #fde68a", borderRadius: 6, fontSize: 11,
+            fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap",
+          }}>Skip GPS</button>
+        )}
+      </div>
     </div>
   );
 }
+

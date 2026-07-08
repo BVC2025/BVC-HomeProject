@@ -1,6 +1,7 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 
 import API from "../services/api";
+import styles from "./Reports.module.css";
 
 const MODULES = [
   {
@@ -187,76 +188,19 @@ function Reports() {
 
   return (
 
-    <div className="reports-page">
+    <div className={`reports-page ${styles.page}`}>
 
-      <div className="reports-hero">
-
-        <div className="reports-hero-left">
-
-          <img
-            src="/bharath-logo.png"
-            alt="Bharath Vending Corporation"
-            className="reports-hero-logo"
-          />
-
-          <div>
-
-            <div className="reports-hero-eyebrow">
-              Bharath Vending Corporation
-            </div>
-
-            <h1 className="reports-hero-title" style={{ color: "white" }}>
-              Reports Center
-            </h1>
-
-            <p className="reports-hero-sub">
-              Branded PDF & Excel exports for every
-              operational module — generated live from
-              your data.
-            </p>
-
-          </div>
-
+      <div className={styles.hero}>
+        <div className={styles.heroLeft}>
+          <div className={styles.eyebrow}>Analytics</div>
+          <h1 className={styles.heroTitle}>Reports</h1>
         </div>
 
-        <div className="reports-hero-stats">
-
-          <div className="reports-stat">
-
-            <span className="reports-stat-value">
-              {MODULES.length}
-            </span>
-
-            <span className="reports-stat-label">
-              Modules
-            </span>
-
-          </div>
-
-          <div className="reports-stat">
-
-            <span className="reports-stat-value">
-              {totalDownloads}
-            </span>
-
-            <span className="reports-stat-label">
-              Recent exports
-            </span>
-
-          </div>
-
-          <div className="reports-stat">
-
-            <span className="reports-stat-value">2</span>
-
-            <span className="reports-stat-label">
-              Formats
-            </span>
-
-          </div>
-
+        <div className={styles.heroStats}>
+          <HeroStat label="Modules"        value={MODULES.length} />
+          <HeroStat label="Recent Exports" value={totalDownloads} />
+          <HeroStat label="Formats"        value={2} />
         </div>
-
       </div>
 
       <div className="reports-grid">
@@ -271,13 +215,6 @@ function Reports() {
             >
 
               <div className="report-card-top">
-
-                <div
-                  className="report-icon"
-                  style={{ background: mod.accent }}
-                >
-                  {mod.icon}
-                </div>
 
                 <span className="report-category">
                   {mod.category}
@@ -308,7 +245,6 @@ function Reports() {
                     download(mod.key, "pdf")
                   }
                 >
-                  <span className="report-btn-icon">📄</span>
                   {
                     downloading === `${mod.key}-pdf`
                       ? "Generating…"
@@ -325,7 +261,6 @@ function Reports() {
                     download(mod.key, "xlsx")
                   }
                 >
-                  <span className="report-btn-icon">📊</span>
                   {
                     downloading === `${mod.key}-xlsx`
                       ? "Generating…"
@@ -350,5 +285,17 @@ function Reports() {
     </div>
   );
 }
+
+
+function HeroStat({ label, value }) {
+
+  return (
+    <div className={styles.stat}>
+      <div className={styles.statValue}>{value}</div>
+      <div className={styles.statLabel}>{label}</div>
+    </div>
+  );
+}
+
 
 export default Reports;

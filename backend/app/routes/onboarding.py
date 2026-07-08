@@ -25,7 +25,7 @@ import secrets
 from datetime import datetime, date
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, HTTPException, Header, Request
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
@@ -224,6 +224,7 @@ def _require_portal_user(
 @router.post("/onboarding/invite")
 def create_invite(
     data: OnboardingInviteCreate,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """Admin generates a new invitation link. Returns the token and
@@ -256,12 +257,13 @@ def create_invite(
 
     db.refresh(session)
 
-    # Public portal URL — frontend reads its own host
-    frontend_base = (
-        os.getenv("FRONTEND_BASE_URL")
-        or os.getenv("FRONTEND_URL")
-        or "http://localhost:5173"
-    ).rstrip("/")
+    # Public portal URL — see employee_onboarding._frontend_base_url for
+    # the resolution strategy. Falls back to the admin's current frontend
+    # host (Origin/Referer) when no env override is set, so links work
+    # automatically through whatever tunnel the admin is browsing through.
+    from app.routes.employee_onboarding import _frontend_base_url
+
+    frontend_base = _frontend_base_url(request)
 
     portal_url = f"{frontend_base}/portal/onboarding/{token}"
 

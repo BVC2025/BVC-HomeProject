@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 
 import API from "../services/api";
+import styles from "./GeofenceSettings.module.css";
 
 
 const DEFAULT_LAT = 11.04105;
@@ -178,7 +179,7 @@ export default function GeofenceSettings() {
   if (loading) {
 
     return (
-      <div style={{ padding: 40, color: "#64748b" }}>
+      <div className={styles.loadingText}>
         Loading geofence settings…
       </div>
     );
@@ -186,23 +187,19 @@ export default function GeofenceSettings() {
 
   return (
 
-    <div style={{ padding: 28, maxWidth: 980, margin: "0 auto" }}>
+    <div className={styles.page}>
 
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.4, color: "#64748b", textTransform: "uppercase" }}>
-          Attendance · Admin Settings
-        </div>
-        <h1 style={{ fontSize: 26, fontWeight: 800, color: "#0f172a", margin: "6px 0 6px" }}>
-          📍 Geofence Settings
-        </h1>
-        <div style={{ color: "#475569", fontSize: 14 }}>
+      <div className={styles.pageHeader}>
+        <div className={styles.pageEyebrow}>Attendance · Admin Settings</div>
+        <h1 className={styles.pageTitle}>📍 Geofence Settings</h1>
+        <div className={styles.pageDesc}>
           Set the office coordinates and an allowed radius. Employees must be
           inside this radius to mark attendance.
         </div>
       </div>
 
       {/* ============ Form card ============ */}
-      <div style={cardStyle()}>
+      <div className={styles.card}>
 
         <Row>
           <Field label="Office Name" span={2}>
@@ -211,18 +208,18 @@ export default function GeofenceSettings() {
               value={form.OFFICE_NAME}
               onChange={set("OFFICE_NAME")}
               placeholder="Head Office"
-              style={inputStyle()}
+              className={styles.input}
             />
           </Field>
 
           <Field label="Enforcement">
-            <label style={toggleLabel}>
+            <label className={styles.toggleRow}>
               <input
                 type="checkbox"
                 checked={form.IS_ACTIVE}
                 onChange={set("IS_ACTIVE")}
               />
-              <span style={{ fontWeight: 700, color: form.IS_ACTIVE ? "#10b981" : "#94a3b8" }}>
+              <span className={form.IS_ACTIVE ? `${styles.enforcementStatus} ${styles.enforcementStatusActive}` : styles.enforcementStatus}>
                 {form.IS_ACTIVE ? "✓ Active — block out-of-fence" : "Off — allow from anywhere"}
               </span>
             </label>
@@ -238,7 +235,7 @@ export default function GeofenceSettings() {
               max={90}
               value={form.LATITUDE}
               onChange={set("LATITUDE")}
-              style={inputStyle()}
+              className={styles.input}
             />
           </Field>
 
@@ -250,7 +247,7 @@ export default function GeofenceSettings() {
               max={180}
               value={form.LONGITUDE}
               onChange={set("LONGITUDE")}
-              style={inputStyle()}
+              className={styles.input}
             />
           </Field>
 
@@ -262,37 +259,37 @@ export default function GeofenceSettings() {
               step={10}
               value={form.RADIUS_METERS}
               onChange={set("RADIUS_METERS")}
-              style={inputStyle()}
+              className={styles.input}
             />
           </Field>
         </Row>
 
-        <div style={{ marginTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <button onClick={useCurrentLocation} style={btnGhost}>
+        <div className={styles.formActions}>
+          <button onClick={useCurrentLocation} className={styles.gpsBtn}>
             📍 Use my current GPS location
           </button>
           <a
             href={`https://www.google.com/maps?q=${form.LATITUDE},${form.LONGITUDE}`}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ ...btnGhost, textDecoration: "none", display: "inline-flex", alignItems: "center" }}
+            className={styles.gpsBtn}
           >
             🗺 Preview on Google Maps
           </a>
         </div>
 
         {error && (
-          <div style={errorBox}>{error}</div>
+          <div className={styles.errorBox}>{error}</div>
         )}
 
-        <div style={{ marginTop: 22, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div className={styles.formSaveRow}>
           {savedAt && (
-            <div style={{ fontSize: 12, color: "#10b981", fontWeight: 700 }}>
+            <div className={styles.savedConfirm}>
               ✓ Saved at {savedAt.toLocaleTimeString()}
             </div>
           )}
-          <div style={{ marginLeft: "auto" }}>
-            <button onClick={save} disabled={saving} style={{ ...btnPrimary, opacity: saving ? 0.6 : 1 }}>
+          <div className={styles.saveRowRight}>
+            <button onClick={save} disabled={saving} className={styles.saveBtn}>
               {saving ? "Saving…" : "💾 Save Settings"}
             </button>
           </div>
@@ -300,11 +297,9 @@ export default function GeofenceSettings() {
       </div>
 
       {/* ============ Help card ============ */}
-      <div style={{ ...cardStyle(), background: "#eff6ff", border: "1px solid #bfdbfe" }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: "#1e40af", marginBottom: 8 }}>
-          How geofencing works
-        </div>
-        <ul style={{ margin: 0, paddingLeft: 22, fontSize: 13, color: "#1e3a8a", lineHeight: 1.7 }}>
+      <div className={styles.infoCard}>
+        <div className={styles.infoCardTitle}>How geofencing works</div>
+        <ul className={styles.infoCardList}>
           <li>The Attendance page asks the employee's browser for their GPS location</li>
           <li>It calculates the distance from this office using the Haversine formula</li>
           <li>If within <b>{form.RADIUS_METERS}m</b>, the face / biometric scanner is enabled</li>
@@ -314,12 +309,10 @@ export default function GeofenceSettings() {
       </div>
 
       {/* ============ Recent security failures ============ */}
-      <div style={cardStyle()}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 10, flexWrap: "wrap" }}>
-          <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a", letterSpacing: 0.4 }}>
-            🚨 Recent Security Log (last 10)
-          </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <div className={styles.card}>
+        <div className={styles.secLogHeader}>
+          <div className={styles.secLogTitle}>🚨 Recent Security Log (last 10)</div>
+          <div className={styles.secLogHeaderRight}>
             {recent.length > 0 && (
               <button
                 onClick={async () => {
@@ -335,48 +328,43 @@ export default function GeofenceSettings() {
                     setError(e?.response?.data?.detail || "Bulk delete failed");
                   }
                 }}
-                style={btnDangerSm}
+                className={styles.clearBtn}
                 title="Delete all visible security log entries"
               >
                 🗑 Clear All
               </button>
             )}
-            <a href="/attendance" style={{ fontSize: 12, color: "#6366f1", textDecoration: "none" }}>
+            <a href="/attendance" className={styles.viewLink}>
               Full attendance →
             </a>
           </div>
         </div>
 
         {recent.length === 0 && (
-          <div style={{ padding: 24, color: "#94a3b8", fontSize: 13, textAlign: "center" }}>
-            No failed attempts logged yet.
-          </div>
+          <div className={styles.logEmpty}>No failed attempts logged yet.</div>
         )}
 
         {recent.length > 0 && (
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className={styles.logList}>
             {recent.map((r) => (
-              <div key={r.ID} style={logRow}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, color: "#0f172a", fontSize: 13 }}>
+              <div key={r.ID} className={styles.logRow}>
+                <div className={styles.logLeft}>
+                  <div className={styles.logName}>
                     {r.EMPLOYEE_NAME || r.EMPLOYEE_ID || "Anonymous"}
                     {r.EMPLOYEE_CODE && (
-                      <span style={{ color: "#94a3b8", fontWeight: 400, marginLeft: 6, fontSize: 11 }}>
-                        {r.EMPLOYEE_CODE}
-                      </span>
+                      <span className={styles.logCode}>{r.EMPLOYEE_CODE}</span>
                     )}
                   </div>
-                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+                  <div className={styles.logMeta}>
                     {fmtIST(r.CREATED_AT)}
                     {r.IP_ADDRESS && <span> · IP {r.IP_ADDRESS}</span>}
                   </div>
                 </div>
-                <div style={{ textAlign: "right", display: "flex", alignItems: "center", gap: 10 }}>
+                <div className={styles.logRight}>
                   <div>
                     <ReasonPill reason={r.REASON} />
                     {r.DISTANCE != null && (
-                      <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+                      <div className={styles.logDistance}>
                         {Math.round(r.DISTANCE)}m away
                       </div>
                     )}
@@ -395,7 +383,7 @@ export default function GeofenceSettings() {
                       }
                     }}
                     title="Delete this entry"
-                    style={iconBtnDanger}
+                    className={styles.iconDangerBtn}
                   >
                     🗑
                   </button>
@@ -415,12 +403,7 @@ export default function GeofenceSettings() {
 function Row({ children }) {
 
   return (
-    <div style={{
-      display: "grid",
-      gridTemplateColumns: "repeat(4, 1fr)",
-      gap: 14,
-      marginBottom: 14
-    }}>
+    <div className={styles.geofenceRow}>
       {children}
     </div>
   );
@@ -431,7 +414,7 @@ function Field({ label, span, children }) {
 
   return (
     <div style={{ gridColumn: span ? `span ${span}` : undefined }}>
-      <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: "#475569", marginBottom: 4, letterSpacing: 0.3, textTransform: "uppercase" }}>
+      <label className={styles.fieldLabel}>
         {label}
       </label>
       {children}
@@ -452,128 +435,8 @@ function ReasonPill({ reason }) {
   }[reason] || { bg: "#f1f5f9", fg: "#475569" };
 
   return (
-    <span style={{
-      display: "inline-block",
-      padding: "3px 10px",
-      borderRadius: 999,
-      fontSize: 10,
-      fontWeight: 800,
-      letterSpacing: 0.6,
-      background: theme.bg,
-      color: theme.fg
-    }}>
+    <span className={styles.reasonPill} style={{ background: theme.bg, color: theme.fg }}>
       {reason?.replace(/_/g, " ") || "—"}
     </span>
   );
 }
-
-
-// ---- Styles ---------------------------------------------------------
-
-function cardStyle() {
-  return {
-    background: "white",
-    border: "1px solid #e2e8f0",
-    borderRadius: 14,
-    padding: 22,
-    marginBottom: 18,
-    boxShadow: "0 4px 14px rgba(15,23,42,0.04)"
-  };
-}
-
-
-function inputStyle() {
-  return {
-    width: "100%",
-    padding: "10px 12px",
-    border: "1px solid #cbd5e1",
-    borderRadius: 8,
-    fontSize: 14,
-    fontFamily: "inherit",
-    outline: "none",
-    boxSizing: "border-box"
-  };
-}
-
-
-const toggleLabel = {
-  display: "flex",
-  alignItems: "center",
-  gap: 8,
-  padding: "8px 0",
-  cursor: "pointer",
-  fontSize: 13
-};
-
-
-const btnPrimary = {
-  background: "linear-gradient(135deg, #C8102E 0%, #8B0B1F 100%)",
-  color: "white",
-  border: "none",
-  padding: "10px 22px",
-  borderRadius: 10,
-  fontWeight: 800,
-  fontSize: 14,
-  cursor: "pointer",
-  letterSpacing: 0.3,
-  boxShadow: "0 6px 16px rgba(200,16,46,0.30)"
-};
-
-
-const btnGhost = {
-  background: "white",
-  color: "#475569",
-  border: "1px solid #cbd5e1",
-  padding: "8px 14px",
-  borderRadius: 8,
-  fontWeight: 700,
-  fontSize: 12,
-  cursor: "pointer"
-};
-
-
-const errorBox = {
-  marginTop: 14,
-  padding: "10px 14px",
-  background: "#fef2f2",
-  border: "1px solid #fecaca",
-  borderRadius: 8,
-  color: "#991b1b",
-  fontSize: 13
-};
-
-
-const btnDangerSm = {
-  background: "white",
-  color: "#dc2626",
-  border: "1px solid #fecaca",
-  padding: "5px 12px",
-  borderRadius: 6,
-  fontWeight: 700,
-  fontSize: 11,
-  cursor: "pointer",
-  letterSpacing: 0.3
-};
-
-const iconBtnDanger = {
-  background: "white",
-  color: "#dc2626",
-  border: "1px solid #fecaca",
-  width: 32, height: 32,
-  borderRadius: 6,
-  fontSize: 14,
-  cursor: "pointer",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center"
-};
-
-const logRow = {
-  display: "flex",
-  alignItems: "center",
-  padding: "10px 12px",
-  border: "1px solid #e2e8f0",
-  borderRadius: 8,
-  gap: 12,
-  background: "white"
-};

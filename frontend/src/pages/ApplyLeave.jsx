@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import API from "../services/api";
+import styles from "./ApplyLeave.module.css";
 
 
 // Standalone "Apply Leave" page for employees. Accessible at
@@ -39,14 +40,7 @@ function BalanceCard({ balance }) {
 
   return (
 
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gap: 14,
-        marginBottom: 22
-      }}
-    >
+    <div className={styles.balanceCardGrid}>
 
       {["CASUAL", "SICK", "EARNED"].map((t) => {
 
@@ -58,67 +52,29 @@ function BalanceCard({ balance }) {
 
           <div
             key={t}
-            style={{
-              background: "white",
-              padding: 16,
-              borderRadius: 12,
-              boxShadow: "0 4px 14px rgba(15,23,42,0.06)",
-              borderTop: `3px solid ${TYPE_THEMES[t]}`
-            }}
+            className={styles.balanceTileCard}
+            style={{ borderTop: `3px solid ${TYPE_THEMES[t]}` }}
           >
 
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                letterSpacing: 1,
-                color: "#64748b",
-                textTransform: "uppercase"
-              }}
-            >
+            <div className={styles.balanceTileLabel}>
               {t} Leave
             </div>
 
-            <div
-              style={{
-                fontSize: 26,
-                fontWeight: 700,
-                color: "#0f172a",
-                marginTop: 6
-              }}
-            >
+            <div className={styles.balanceTileValue}>
               {b.remaining}
-              <span style={{ fontSize: 13, color: "#94a3b8", fontWeight: 500 }}>
+              <span className={styles.balanceTileTotal}>
                 {" "}/ {b.total} days
               </span>
             </div>
 
-            <div
-              style={{
-                height: 6,
-                background: "#f1f5f9",
-                borderRadius: 999,
-                marginTop: 8,
-                overflow: "hidden"
-              }}
-            >
+            <div className={styles.balanceProgressTrack}>
               <div
-                style={{
-                  height: "100%",
-                  width: `${pct}%`,
-                  background: TYPE_THEMES[t],
-                  borderRadius: 999
-                }}
+                className={styles.balanceProgressFill}
+                style={{ width: `${pct}%`, background: TYPE_THEMES[t] }}
               />
             </div>
 
-            <div
-              style={{
-                fontSize: 11,
-                color: "#94a3b8",
-                marginTop: 4
-              }}
-            >
+            <div className={styles.balanceUsed}>
               {b.used} used
             </div>
           </div>
@@ -234,24 +190,9 @@ function ApplyLeaveForm({ employeeId, onApplied }) {
 
   return (
 
-    <div
-      style={{
-        background: "white",
-        padding: 24,
-        borderRadius: 12,
-        boxShadow: "0 4px 14px rgba(15,23,42,0.06)",
-        marginBottom: 20
-      }}
-    >
+    <div className={styles.sectionCard}>
 
-      <div
-        style={{
-          fontSize: 18,
-          fontWeight: 700,
-          color: "#0f172a",
-          marginBottom: 6
-        }}
-      >
+      <div className={styles.sectionCardTitle}>
         Apply for Leave
       </div>
 
@@ -259,39 +200,18 @@ function ApplyLeaveForm({ employeeId, onApplied }) {
 
       <form onSubmit={submit}>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 12,
-            marginBottom: 14
-          }}
-        >
+        <div className={styles.formGrid3}>
 
           <div>
 
-            <label
-              style={{
-                fontSize: 11,
-                color: "#64748b",
-                display: "block",
-                marginBottom: 4,
-                fontWeight: 600
-              }}
-            >
+            <label className={styles.fieldLabel}>
               Leave Type
             </label>
 
             <select
               value={leaveType}
               onChange={(e) => setLeaveType(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "9px 10px",
-                border: "1px solid #e2e8f0",
-                borderRadius: 6,
-                fontSize: 13
-              }}
+              className={styles.select}
             >
               <option value="CASUAL">Casual</option>
               <option value="SICK">Sick</option>
@@ -303,15 +223,7 @@ function ApplyLeaveForm({ employeeId, onApplied }) {
 
           <div>
 
-            <label
-              style={{
-                fontSize: 11,
-                color: "#64748b",
-                display: "block",
-                marginBottom: 4,
-                fontWeight: 600
-              }}
-            >
+            <label className={styles.fieldLabel}>
               From
             </label>
 
@@ -327,27 +239,13 @@ function ApplyLeaveForm({ employeeId, onApplied }) {
                   setEndDate(e.target.value);
                 }
               }}
-              style={{
-                width: "100%",
-                padding: "9px 10px",
-                border: "1px solid #e2e8f0",
-                borderRadius: 6,
-                fontSize: 13
-              }}
+              className={styles.input}
             />
           </div>
 
           <div>
 
-            <label
-              style={{
-                fontSize: 11,
-                color: "#64748b",
-                display: "block",
-                marginBottom: 4,
-                fontWeight: 600
-              }}
-            >
+            <label className={styles.fieldLabel}>
               To
             </label>
 
@@ -357,29 +255,13 @@ function ApplyLeaveForm({ employeeId, onApplied }) {
               min={startDate}
               onChange={(e) => setEndDate(e.target.value)}
               disabled={halfDay}
-              style={{
-                width: "100%",
-                padding: "9px 10px",
-                border: "1px solid #e2e8f0",
-                borderRadius: 6,
-                fontSize: 13,
-                background: halfDay ? "#f1f5f9" : "white"
-              }}
+              className={styles.input}
+              style={halfDay ? { background: "var(--surface)" } : undefined}
             />
           </div>
         </div>
 
-        <label
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            fontSize: 13,
-            color: "#475569",
-            marginBottom: 14,
-            cursor: "pointer"
-          }}
-        >
+        <label className={styles.halfDayLabel}>
           <input
             type="checkbox"
             checked={halfDay}
@@ -395,17 +277,9 @@ function ApplyLeaveForm({ employeeId, onApplied }) {
 
         <div>
 
-          <label
-            style={{
-              fontSize: 11,
-              color: "#64748b",
-              display: "block",
-              marginBottom: 4,
-              fontWeight: 600
-            }}
-          >
+          <label className={styles.fieldLabel}>
             Reason{" "}
-            <span style={{ color: "#b91c1c" }}>
+            <span className={styles.reasonRequired}>
               * REQUIRED — every leave needs manager approval
             </span>
           </label>
@@ -419,35 +293,17 @@ function ApplyLeaveForm({ employeeId, onApplied }) {
                 ? "Required — manager will read this before approving..."
                 : "Optional — write only if you want to add context"
             }
-            style={{
-              width: "100%",
-              padding: 10,
-              border: `1px solid ${
-                reasonRequired && !reason.trim() ? "#fca5a5" : "#e2e8f0"
-              }`,
-              borderRadius: 6,
-              fontSize: 13,
-              fontFamily: "inherit",
-              resize: "vertical",
-              background:
-                reasonRequired && !reason.trim() ? "#fef2f2" : "white"
-            }}
+            className={styles.textarea}
+            style={
+              reasonRequired && !reason.trim()
+                ? { borderColor: "#fca5a5", background: "#fef2f2" }
+                : undefined
+            }
           />
         </div>
 
         {error && (
-
-          <div
-            style={{
-              background: "#fef2f2",
-              border: "1px solid #fecaca",
-              color: "#b91c1c",
-              padding: 10,
-              borderRadius: 6,
-              fontSize: 13,
-              marginTop: 12
-            }}
-          >
+          <div className={styles.formError}>
             {error}
           </div>
         )}
@@ -498,8 +354,8 @@ function PolicyBanner({ days, needsApproval }) {
     <div
       style={{
         background: needsApproval
-          ? "linear-gradient(135deg, #fef9c3 0%, #fef3c7 100%)"
-          : "linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)",
+          ? "#fef9c3"
+          : "#ecfdf5",
         border: `1px solid ${needsApproval ? "#fde68a" : "#a7f3d0"}`,
         borderRadius: 10,
         padding: 14,
@@ -550,7 +406,7 @@ function PolicyBanner({ days, needsApproval }) {
         needs <strong>manager approval</strong>. A{" "}
         <strong>reason is required</strong> on every request. Your
         balance is deducted only after the manager approves; on
-        rejection you'll receive a notification.
+        rejection you&apos;ll receive a notification.
       </div>
     </div>
   );
@@ -587,7 +443,7 @@ function ResultStepper({ result }) {
       pending: !isAuto,
       desc: isAuto
         ? "Check your inbox"
-        : "Manager clicks Approve → you'll be notified"
+        : "Manager clicks Approve → you’ll be notified"
     },
     {
       label: "Leave balance updated",
@@ -601,40 +457,15 @@ function ResultStepper({ result }) {
 
   return (
 
-    <div
-      style={{
-        background: "white",
-        border: "1px solid #e2e8f0",
-        borderRadius: 12,
-        padding: 16,
-        marginTop: 16,
-        boxShadow: "0 4px 14px rgba(15,23,42,0.04)"
-      }}
-    >
+    <div className={styles.stepperCard}>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          marginBottom: 12,
-          paddingBottom: 10,
-          borderBottom: "1px solid #f1f5f9"
-        }}
-      >
+      <div className={styles.stepperHeader}>
 
         <span
+          className={styles.stepperIconWrap}
           style={{
-            fontSize: 22,
             background: isAuto ? "#dcfce7" : "#fef3c7",
-            color: isAuto ? "#166534" : "#854d0e",
-            width: 38,
-            height: 38,
-            borderRadius: "50%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontWeight: 700
+            color: isAuto ? "#166534" : "#854d0e"
           }}
         >
           {isAuto ? "✓" : "⏳"}
@@ -642,68 +473,37 @@ function ResultStepper({ result }) {
 
         <div>
 
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 700,
-              color: "#0f172a"
-            }}
-          >
+          <div className={styles.stepperTitle}>
             {isAuto ? "Leave Auto-Approved" : "Sent for Manager Approval"}
           </div>
 
-          <div style={{ fontSize: 12, color: "#64748b" }}>
+          <div className={styles.stepperMessage}>
             {result.message}
           </div>
         </div>
       </div>
 
       {/* Stepper */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 0
-        }}
-      >
+      <div className={styles.stepperList}>
 
         {steps.map((s, i) => (
 
           <div
             key={i}
-            style={{
-              display: "flex",
-              gap: 12,
-              padding: "8px 0",
-              opacity: s.done || s.pending ? 1 : 0.45
-            }}
+            className={styles.stepRow}
+            style={{ opacity: s.done || s.pending ? 1 : 0.45 }}
           >
 
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 0
-              }}
-            >
+            <div className={styles.stepIndicatorCol}>
 
               <div
+                className={styles.stepDot}
                 style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: "50%",
                   background: s.done
                     ? "#10b981"
                     : s.pending
                       ? "#f59e0b"
-                      : "#cbd5e1",
-                  color: "white",
-                  fontSize: 11,
-                  fontWeight: 700,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center"
+                      : "#cbd5e1"
                 }}
               >
                 {s.done ? "✓" : s.pending ? "…" : i + 1}
@@ -711,23 +511,17 @@ function ResultStepper({ result }) {
 
               {i < steps.length - 1 && (
                 <div
-                  style={{
-                    width: 2,
-                    flex: 1,
-                    background: s.done ? "#10b981" : "#cbd5e1",
-                    marginTop: 2,
-                    minHeight: 18
-                  }}
+                  className={styles.stepConnector}
+                  style={{ background: s.done ? "#10b981" : "#cbd5e1" }}
                 />
               )}
             </div>
 
-            <div style={{ flex: 1, paddingTop: 1 }}>
+            <div className={styles.stepContent}>
 
               <div
+                className={styles.stepLabel}
                 style={{
-                  fontSize: 13,
-                  fontWeight: 600,
                   color: s.done
                     ? "#166534"
                     : s.pending
@@ -738,13 +532,7 @@ function ResultStepper({ result }) {
                 {s.label}
               </div>
 
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "#64748b",
-                  marginTop: 1
-                }}
-              >
+              <div className={styles.stepDesc}>
                 {s.desc}
               </div>
             </div>
@@ -776,53 +564,24 @@ function MyRequestsTable({ rows, employeeId, onChanged }) {
 
   return (
 
-    <div
-      style={{
-        background: "white",
-        borderRadius: 12,
-        overflow: "hidden",
-        boxShadow: "0 4px 14px rgba(15,23,42,0.06)"
-      }}
-    >
+    <div className={styles.tableCard}>
 
-      <div
-        style={{
-          padding: "14px 18px",
-          borderBottom: "1px solid #f1f5f9",
-          fontSize: 14,
-          fontWeight: 700,
-          color: "#0f172a"
-        }}
-      >
+      <div className={styles.tableHeader}>
         My Leave Requests ({rows.length})
       </div>
 
-      <div style={{ overflow: "auto" }}>
+      <div className={styles.tableScroll}>
 
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            fontSize: 13
-          }}
-        >
+        <table className={styles.table}>
 
           <thead>
-            <tr
-              style={{
-                background: "#f8fafc",
-                color: "#475569",
-                fontSize: 11,
-                letterSpacing: 0.8,
-                textTransform: "uppercase"
-              }}
-            >
-              <th style={{ textAlign: "left", padding: 12 }}>Type</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Dates</th>
-              <th style={{ textAlign: "right", padding: 12 }}>Days</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Reason</th>
-              <th style={{ textAlign: "left", padding: 12 }}>Status</th>
-              <th style={{ textAlign: "right", padding: 12 }}>Action</th>
+            <tr className={styles.tableHeadRow}>
+              <th className={styles.th}>Type</th>
+              <th className={styles.th}>Dates</th>
+              <th className={styles.thRight}>Days</th>
+              <th className={styles.th}>Reason</th>
+              <th className={styles.th}>Status</th>
+              <th className={styles.thRight}>Action</th>
             </tr>
           </thead>
 
@@ -831,14 +590,7 @@ function MyRequestsTable({ rows, employeeId, onChanged }) {
             {rows.length === 0 && (
 
               <tr>
-                <td
-                  colSpan="6"
-                  style={{
-                    padding: 30,
-                    textAlign: "center",
-                    color: "#94a3b8"
-                  }}
-                >
+                <td colSpan="6" className={styles.tdEmpty}>
                   No leave requests yet.
                 </td>
               </tr>
@@ -853,20 +605,13 @@ function MyRequestsTable({ rows, employeeId, onChanged }) {
 
               return (
 
-                <tr
-                  key={r.ID}
-                  style={{ borderBottom: "1px solid #f1f5f9" }}
-                >
+                <tr key={r.ID} className={styles.tdRow}>
 
-                  <td style={{ padding: 12 }}>
+                  <td className={styles.td}>
 
                     <span
+                      className={styles.typeBadge}
                       style={{
-                        display: "inline-block",
-                        padding: "2px 10px",
-                        borderRadius: 999,
-                        fontSize: 11,
-                        fontWeight: 700,
                         background: `${TYPE_THEMES[r.LEAVE_TYPE] || "#94a3b8"}22`,
                         color: TYPE_THEMES[r.LEAVE_TYPE] || "#94a3b8"
                       }}
@@ -875,90 +620,55 @@ function MyRequestsTable({ rows, employeeId, onChanged }) {
                     </span>
                   </td>
 
-                  <td style={{ padding: 12, color: "#475569" }}>
+                  <td className={styles.tdMuted}>
 
                     <div>{r.START_DATE}</div>
 
                     {r.END_DATE !== r.START_DATE && (
 
-                      <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                      <div className={styles.endDate}>
                         → {r.END_DATE}
                       </div>
                     )}
                   </td>
 
-                  <td
-                    style={{
-                      padding: 12,
-                      textAlign: "right",
-                      fontWeight: 700
-                    }}
-                  >
+                  <td className={styles.tdBold}>
                     {r.DAYS}
                   </td>
 
-                  <td
-                    style={{
-                      padding: 12,
-                      color: "#475569",
-                      maxWidth: 240
-                    }}
-                  >
+                  <td className={styles.tdMaxW}>
                     {r.REASON}
 
                     {r.REJECTION_REASON && (
 
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: "#b91c1c",
-                          marginTop: 4,
-                          fontStyle: "italic"
-                        }}
-                      >
+                      <div className={styles.rejectionNote}>
                         {r.REJECTION_REASON}
                       </div>
                     )}
                   </td>
 
-                  <td style={{ padding: 12 }}>
+                  <td className={styles.td}>
 
                     <span
-                      style={{
-                        display: "inline-block",
-                        padding: "3px 10px",
-                        borderRadius: 999,
-                        fontSize: 11,
-                        fontWeight: 700,
-                        background: st.bg,
-                        color: st.fg
-                      }}
+                      className={styles.statusBadge}
+                      style={{ background: st.bg, color: st.fg }}
                     >
                       {st.label}
                     </span>
                   </td>
 
-                  <td style={{ padding: 12, textAlign: "right" }}>
+                  <td className={styles.tdRight}>
 
                     {canCancel ? (
 
                       <button
                         onClick={() => cancel(r.ID)}
-                        style={{
-                          border: "1px solid #fecaca",
-                          background: "white",
-                          color: "#b91c1c",
-                          padding: "4px 10px",
-                          borderRadius: 6,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          cursor: "pointer"
-                        }}
+                        className={styles.cancelBtn}
                       >
                         Cancel
                       </button>
                     ) : (
-                      <span style={{ color: "#94a3b8" }}>—</span>
+                      <span className={styles.emDash}>&mdash;</span>
                     )}
                   </td>
                 </tr>
@@ -1068,71 +778,31 @@ function ApplyLeave() {
 
   return (
 
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#f1f5f9",
-        padding: 32,
-        fontFamily: "'Segoe UI', sans-serif"
-      }}
-    >
+    <div className={styles.page}>
 
-      <div
-        style={{
-          maxWidth: 900,
-          margin: "0 auto"
-        }}
-      >
+      <div className={styles.card}>
 
-        <div style={{ marginBottom: 24 }}>
+        <div className={styles.headerBlock}>
 
-          <h1
-            style={{
-              fontSize: 28,
-              fontWeight: 700,
-              color: "#0f172a",
-              margin: 0
-            }}
-          >
+          <h1 className={styles.pageTitle}>
             My Leave
           </h1>
 
-          <div
-            style={{
-              fontSize: 13,
-              color: "#64748b",
-              marginTop: 4
-            }}
-          >
+          <div className={styles.pageDesc}>
             Apply, track, and cancel your leave requests. Every
             leave — including half-day and one-day requests —
-            needs your manager's approval before it takes effect.
+            needs your manager&apos;s approval before it takes effect.
           </div>
         </div>
 
         {/* Employee picker — only shown for kiosk/standalone use
             (not when logged in as employee, who must stay in their
-            own context and can't switch identity here) */}
+            own context and can’t switch identity here) */}
         {!isEmployeeAuth && !employeeId && (
 
-          <div
-            style={{
-              background: "white",
-              padding: 24,
-              borderRadius: 12,
-              boxShadow: "0 4px 14px rgba(15,23,42,0.06)",
-              marginBottom: 20
-            }}
-          >
+          <div className={styles.pickerCard}>
 
-            <div
-              style={{
-                fontSize: 14,
-                color: "#0f172a",
-                marginBottom: 10,
-                fontWeight: 600
-              }}
-            >
+            <div className={styles.pickerLabel}>
               Who are you?
             </div>
 
@@ -1143,13 +813,7 @@ function ApplyLeave() {
 
                 localStorage.setItem("employee_id", e.target.value);
               }}
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                border: "1px solid #e2e8f0",
-                borderRadius: 8,
-                fontSize: 14
-              }}
+              className={styles.select}
             >
               <option value="">— pick your name —</option>
               {employees.map((e) => (
@@ -1163,49 +827,18 @@ function ApplyLeave() {
 
         {employeeId && (selectedEmp || isEmployeeAuth) && (
 
-          <div
-            style={{
-              background: "white",
-              padding: "14px 18px",
-              borderRadius: 10,
-              boxShadow: "0 4px 14px rgba(15,23,42,0.06)",
-              marginBottom: 20,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between"
-            }}
-          >
+          <div className={styles.identityCard}>
 
             <div>
 
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "#64748b",
-                  letterSpacing: 1,
-                  textTransform: "uppercase",
-                  fontWeight: 600
-                }}
-              >
+              <div className={styles.identityLabel}>
                 Logged in as
               </div>
 
-              <div
-                style={{
-                  fontSize: 16,
-                  fontWeight: 700,
-                  color: "#0f172a"
-                }}
-              >
+              <div className={styles.identityName}>
                 {selectedEmp?.NAME || employeeNameFromAuth || "—"}
                 {" "}
-                <span
-                  style={{
-                    fontSize: 12,
-                    color: "#94a3b8",
-                    fontFamily: "ui-monospace, monospace"
-                  }}
-                >
+                <span className={styles.identityCode}>
                   ({selectedEmp?.EMPLOYEE_CODE || employeeCodeFromAuth})
                 </span>
               </div>
@@ -1233,18 +866,14 @@ function ApplyLeave() {
                   localStorage.removeItem("employee_id");
                 }
               }}
+              className={styles.logoutBtn}
               style={{
-                border: isEmployeeAuth ? "1px solid #fecaca" : "1px solid #e2e8f0",
-                background: isEmployeeAuth ? "#fef2f2" : "white",
-                color: isEmployeeAuth ? "#b91c1c" : "#475569",
-                padding: "6px 14px",
-                borderRadius: 6,
-                cursor: "pointer",
-                fontSize: 12,
-                fontWeight: 700
+                border: isEmployeeAuth ? "1px solid #fecaca" : "1px solid var(--border)",
+                background: isEmployeeAuth ? "#fef2f2" : "var(--card-bg)",
+                color: isEmployeeAuth ? "#b91c1c" : "var(--text-secondary)"
               }}
             >
-              {isEmployeeAuth ? "⏻ Logout" : "Switch user"}
+              {isEmployeeAuth ? "↻ Logout" : "Switch user"}
             </button>
           </div>
         )}

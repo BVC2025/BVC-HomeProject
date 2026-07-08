@@ -732,12 +732,79 @@ def _is_quota_error(exc: Exception) -> bool:
     )
 
 
-def call_gemini(prompt: str, history: List[dict]) -> str:
-    """Send `prompt` to Gemini using the model fallback chain.
+def _selected_backend() -> str:
+    """Read AI_ONBOARDING_BACKEND from env; default = ollama.
+    Values: ollama | gemini | auto."""
 
-    On total failure (no API key, every model throttled, network
-    error) returns an empty string — the caller should treat that
-    as 'use the rule-based acknowledge'. Never raises."""
+    val = (os.getenv("AI_ONBOARDING_BACKEND") or "").strip().lower()
+
+    if val in {"ollama", "gemini", "auto"}:
+
+        return val
+
+    return "ollama"
+
+
+def _history_to_transcript(history: List[dict]) -> str:
+    """Flatten the last few conversation turns into a plain transcript
+    Ollama can absorb through its `system` + `prompt` interface. Ollama's
+    /api/generate is stateless, so we inline the recent turns."""
+
+    lines: List[str] = []
+
+    for h in (history or [])[-10:]:
+
+        role = (h.get("ROLE") or h.get("role") or "").lower()
+
+        content = h.get("CONTENT") or h.get("content") or ""
+
+        if not content:
+
+            continue
+
+        if role == "user":
+
+            lines.append(f"USER: {content}")
+
+        elif role == "assistant":
+
+            lines.append(f"ASSISTANT: {content}")
+
+    return "\n".join(lines) if lines else "(no prior turns)"
+
+
+def _call_ollama(prompt: str, history: List[dict]) -> str:
+    """Ollama backend for the onboarding chat. Chat model, no JSON
+    grammar (this is free-form acknowledgment / question generation)."""
+
+    try:
+
+        from app.services import ollama_client
+
+    except Exception:
+
+        return ""
+
+    transcript = _history_to_transcript(history)
+
+    full_prompt = (
+        f"--- CONVERSATION HISTORY ---\n{transcript}\n\n"
+        f"--- CURRENT TURN ---\n{prompt}\n\n"
+        f"Reply naturally (1-2 sentences):"
+    )
+
+    text = ollama_client.generate(
+        prompt=full_prompt,
+        temperature=0.5,
+        max_tokens=300,
+    )
+
+    return (text or "").strip()
+
+
+def _call_gemini_legacy(prompt: str, history: List[dict]) -> str:
+    """Original Gemini implementation — kept for AI_ONBOARDING_BACKEND=gemini
+    rollback and for the `auto` fallback path."""
 
     if not is_gemini_configured():
 
@@ -775,8 +842,6 @@ def call_gemini(prompt: str, history: List[dict]) -> str:
 
             gemini_history.append({"role": "model", "parts": [content]})
 
-    last_exc: Optional[Exception] = None
-
     for model_name in GEMINI_MODEL_FALLBACKS:
 
         try:
@@ -809,17 +874,58 @@ def call_gemini(prompt: str, history: List[dict]) -> str:
 
         except Exception as exc:
 
-            last_exc = exc
-
             if _is_quota_error(exc):
 
                 continue
 
-            # Non-quota error — bail silently
             return ""
 
-    # Every model exhausted
     return ""
+
+
+def call_gemini(prompt: str, history: List[dict]) -> str:
+    """Onboarding chat LLM call. Name preserved for backward compat with
+    existing callers, but now dispatches to Ollama by default.
+
+    On total failure returns empty string — caller should use the
+    rule-based acknowledge. Never raises."""
+
+    import logging
+
+    log = logging.getLogger("uvicorn")
+
+    backend = _selected_backend()
+
+    if backend == "ollama":
+
+        out = _call_ollama(prompt, history)
+        log.info("employee_onboarding_ai: backend=ollama outcome=%s",
+                 "hit" if out else "miss")
+        return out
+
+    if backend == "gemini":
+
+        out = _call_gemini_legacy(prompt, history)
+        log.info("employee_onboarding_ai: backend=gemini outcome=%s",
+                 "hit" if out else "miss")
+        return out
+
+    # auto — Ollama first, Gemini fallback
+    out = _call_ollama(prompt, history)
+
+    if out:
+
+        log.info("employee_onboarding_ai: backend=auto resolved=ollama")
+        return out
+
+    log.info("employee_onboarding_ai: backend=auto ollama miss, trying gemini")
+
+    out = _call_gemini_legacy(prompt, history)
+
+    log.info("employee_onboarding_ai: backend=auto resolved=%s",
+             "gemini" if out else "none")
+
+    return out
 
 
 # ----------------------------------------------------------------

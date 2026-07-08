@@ -1,0 +1,318 @@
+/* ===================================================================
+   GRNPrint.module.css
+   A4-styled printable Goods Receipt Note view.
+   Global print/page rules stay in the JSX <style> tag.
+=================================================================== */
+
+/* Error / loading states */
+.stateError {
+  padding: 40px;
+  color: #b91c1c;
+  font-family: Arial, sans-serif;
+}
+
+.stateLoading {
+  padding: 40px;
+  color: #94a3b8;
+  font-family: Arial, sans-serif;
+}
+
+/* ── Page shell ── */
+.grnPage {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  background: white;
+  padding: 18mm;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+  font-family: Arial, sans-serif;
+  color: #1f2937;
+  font-size: 11.5pt;
+}
+
+/* ── Header ── */
+.grnHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 3px solid #0ea5e9;
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+}
+
+.vendorBlock h1 {
+  margin: 0;
+  font-size: 22pt;
+  color: #0f172a;
+}
+
+.vendorBlock .tag {
+  color: #0ea5e9;
+  font-weight: 800;
+  font-size: 9pt;
+  letter-spacing: 1.5px;
+  margin-top: 2px;
+}
+
+.vendorBlock .info {
+  font-size: 9pt;
+  color: #475569;
+  line-height: 1.4;
+  margin-top: 8px;
+}
+
+.grnTitle {
+  text-align: right;
+}
+
+.grnTitle h2 {
+  margin: 0;
+  font-size: 16pt;
+  letter-spacing: 3px;
+  color: #475569;
+}
+
+.grnTitle .num {
+  font-size: 13pt;
+  font-weight: 800;
+  color: #0f172a;
+  margin-top: 4px;
+}
+
+.grnTitle .meta {
+  font-size: 9pt;
+  color: #64748b;
+  margin-top: 8px;
+}
+
+/* ── Status stamp ── */
+.statusStamp {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 4px 14px;
+  border-radius: 6px;
+  font-weight: 800;
+  font-size: 11pt;
+  letter-spacing: 2px;
+}
+
+.statusFinal {
+  background: #dcfce7;
+  color: #166534;
+  border: 2px solid #166534;
+}
+
+.statusDraft {
+  background: #fef3c7;
+  color: #854d0e;
+  border: 2px dashed #854d0e;
+}
+
+/* ── Meta grid ── */
+.metaGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.metaCard {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: #f8fafc;
+}
+
+.metaCard .label {
+  font-size: 8pt;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+}
+
+.metaCard .value {
+  font-size: 11pt;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 2px;
+}
+
+.metaCard .sub {
+  font-size: 9pt;
+  color: #475569;
+}
+
+/* ── Lines table ── */
+.grnLines {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 14px;
+  font-size: 10.5pt;
+}
+
+.grnLines thead {
+  background: #ef4444;
+  color: white;
+}
+
+.grnLines th {
+  padding: 8px;
+  text-align: left;
+  font-size: 9.5pt;
+}
+
+.grnLines td {
+  padding: 8px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: top;
+}
+
+.grnLines tbody tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+/* Column widths */
+.colNum      { width: 5%; }
+.colOrdered  { width: 10%; text-align: right; }
+.colAccepted { width: 12%; text-align: right; }
+.colRejected { width: 12%; text-align: right; }
+.colUnit     { width: 10%; }
+
+/* Cell style helpers */
+.textRight        { text-align: right; }
+.cellOrdered      { text-align: right; color: #475569; }
+.cellAccepted     { text-align: right; font-weight: 700; color: #047857; }
+
+/* Rejection reason inline note */
+.rejectNote {
+  font-size: 9pt;
+  color: #b91c1c;
+  margin-top: 2px;
+  font-style: italic;
+}
+
+/* ── Totals tiles ── */
+.totalsBox {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 14px 0 18px;
+}
+
+.totalsTile {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 14px;
+  background: #f8fafc;
+}
+
+.totalsTileAccepted {
+  border-left: 4px solid #10b981;
+}
+
+.totalsTileRejected {
+  border-left: 4px solid #ef4444;
+}
+
+.totalsTileArrived {
+  border-left: 4px solid #0ea5e9;
+}
+
+.totalsTile .lbl {
+  font-size: 9pt;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+}
+
+.totalsTile .val {
+  font-size: 18pt;
+  font-weight: 800;
+  margin-top: 2px;
+  color: #0f172a;
+}
+
+.valAccepted {
+  color: #047857;
+}
+
+.valRejected {
+  color: #b91c1c;
+}
+
+.tileSubText {
+  font-size: 8.5pt;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+/* ── Notes block (amber variant) ── */
+.notesBlock {
+  background: #fffbeb;
+  border-left: 3px solid #f59e0b;
+  color: #78350f;
+  padding: 10px 14px;
+  border-radius: 4px;
+  font-size: 10pt;
+  margin-bottom: 14px;
+}
+
+/* ── Rejection block (red variant) ── */
+.rejectionBlock {
+  background: #fef2f2;
+  border-left: 3px solid #ef4444;
+  padding: 10px 14px;
+  border-radius: 4px;
+  font-size: 10pt;
+  color: #7f1d1d;
+  margin-bottom: 14px;
+}
+
+/* ── Signature ── */
+.sigBlock {
+  margin-top: 36px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
+  font-size: 10pt;
+}
+
+.sig {
+  text-align: center;
+  border-top: 1px solid #94a3b8;
+  padding-top: 6px;
+  color: #475569;
+}
+
+/* ── Footer ── */
+.footer {
+  margin-top: 28px;
+  padding-top: 14px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  font-size: 9pt;
+  color: #64748b;
+}
+
+/* ── Floating print button ── */
+.printButtonWrap {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.printButton {
+  border: none;
+  background: #ef4444;
+  color: white;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+}

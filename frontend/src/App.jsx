@@ -16,6 +16,7 @@ import SalesOrderPrint from "./pages/SalesOrderPrint";
 import OnboardingPortal from "./pages/OnboardingPortal";
 import OnboardingChat from "./pages/OnboardingChat";
 import EmployeeOnboardingChat from "./pages/EmployeeOnboardingChat";
+import EmployeeWelcome from "./pages/EmployeeWelcome";
 
 function isAuthenticated() {
 
@@ -159,6 +160,18 @@ function App() {
       <Route
         path="/login"
         element={<LoginGate />}
+      />
+
+      {/* Full-screen employee welcome — shown once after login before
+          the main dashboard. Route sits ABOVE the /* catch-all so it
+          isn't captured by RoleBasedLanding. */}
+      <Route
+        path="/welcome"
+        element={
+          <ProtectedRoute>
+            <EmployeeWelcome />
+          </ProtectedRoute>
+        }
       />
 
       <Route
