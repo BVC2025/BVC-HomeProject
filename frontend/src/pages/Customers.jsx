@@ -6,6 +6,8 @@ import API from "../services/api";
 
 import EntityDrawer from "../components/EntityDrawer";
 
+import ExcelJS from "exceljs";
+
 import styles from "./Customers.module.css";
 
 
@@ -50,6 +52,66 @@ const STATUS_THEMES = {
   LEAD: { bg: "#fef3c7", fg: "#854d0e", color: "#f59e0b" },
   INACTIVE: { bg: "#f1f5f9", fg: "#475569", color: "#94a3b8" }
 };
+
+
+// =================================================================
+// Bulk upload — Excel template columns.
+//
+// Each column HEADER is the exact /create-customer payload key, so a
+// filled-in sheet maps 1:1 onto the API with zero fuzzy matching. The
+// `example` value documents the expected format (shown both in the
+// downloaded template's "Format Guide" sheet and in the upload modal).
+// `required` marks the three fields the backend insists on.
+// =================================================================
+
+const BULK_UPLOAD_COLUMNS = [
+  { key: "CUSTOMER_NAME", required: true, example: "Chennai Metro Rail Ltd", note: "Company / customer name" },
+  { key: "CUSTOMER_TYPE", example: "PRIVATE_LTD", note: "INDIVIDUAL / DEALER / DISTRIBUTOR / OPC / PRIVATE_LTD / PUBLIC_LTD / …" },
+  { key: "CONTACT_PERSON", example: "Suresh Iyer", note: "Primary contact name" },
+  { key: "DESIGNATION", example: "Purchase Manager", note: "Contact's role" },
+  { key: "PHONE", required: true, example: "9876543210", note: "10-digit mobile" },
+  { key: "ALTERNATE_PHONE", example: "9876500000", note: "10-digit mobile (optional)" },
+  { key: "WHATSAPP_NUMBER", example: "9876543210", note: "10-digit mobile (optional)" },
+  { key: "EMAIL", required: true, example: "contact@example.com", note: "Contact email" },
+  { key: "WEBSITE", example: "https://www.example.com", note: "Company website" },
+  { key: "ADDRESS", example: "Plot 12, Industrial Estate", note: "Street address" },
+  { key: "BILLING_ADDRESS", example: "", note: "If different from street address" },
+  { key: "SHIPPING_ADDRESS", example: "", note: "Where the machine is installed" },
+  { key: "GOOGLE_MAP_LOCATION", example: "", note: "Maps URL (optional)" },
+  { key: "CITY", example: "Chennai", note: "City" },
+  { key: "STATE", example: "Tamil Nadu", note: "Defaults to Tamil Nadu if blank" },
+  { key: "PINCODE", example: "600001", note: "6-digit pincode" },
+  { key: "COUNTRY", example: "India", note: "Defaults to India if blank" },
+  { key: "GST_NUMBER", example: "33ABCDE1234F1Z5", note: "15-char GSTIN (optional)" },
+  { key: "PAN_NUMBER", example: "ABCDE1234F", note: "10-char PAN (optional)" },
+  { key: "INDUSTRY", example: "Metro / Transport", note: "Retail / Healthcare / Education / …" },
+  { key: "SOURCE", example: "Website", note: "Website / Exhibition / Referral / …" },
+  { key: "STATUS", example: "ACTIVE", note: "ACTIVE / PROSPECT / LEAD / INACTIVE" },
+  { key: "NOTES", example: "", note: "Free text" },
+  { key: "BUSINESS_TYPE", example: "B2B Retail Chain", note: "Free text" },
+  { key: "NUMBER_OF_BRANCHES", example: "12", note: "Whole number" },
+  { key: "EXPECTED_MONTHLY_ORDERS", example: "3", note: "Whole number" },
+  { key: "EXISTING_MACHINE_USAGE", example: "0", note: "1/Yes = already uses machines, else 0" },
+  { key: "CURRENT_VENDOR_NAME", example: "", note: "Existing supplier (optional)" },
+  { key: "LEAD_SOURCE", example: "WEBSITE", note: "WEBSITE / COLD_CALL / REFERENCE / WALK_IN / …" },
+  { key: "LEAD_STATUS", example: "NEW", note: "NEW / CONTACTED / QUALIFIED / QUOTED / …" },
+  { key: "LEAD_PRIORITY", example: "MEDIUM", note: "HIGH / MEDIUM / LOW" },
+  { key: "ASSIGNED_SALES_ID", example: "", note: "Salesperson employee ID (optional)" },
+  { key: "FOLLOW_UP_DATE", example: "2026-07-15", note: "YYYY-MM-DD (optional)" },
+  { key: "REQUIREMENT_NOTES", example: "", note: "What the customer asked for" },
+  { key: "REQUESTED_MACHINE_NAME", example: "Snack & Beverage Combo Machine", note: "Auto-creates in Products & BOM if new" },
+  { key: "REQUESTED_MACHINE_CATEGORY", example: "vending", note: "vending / snack-beverage / medicine / …" },
+  { key: "REQUESTED_QUANTITY", example: "1", note: "Whole number (defaults to 1)" }
+];
+
+// Header keys the parser recognizes — anything else in the sheet is ignored.
+const BULK_KNOWN_KEYS = new Set(BULK_UPLOAD_COLUMNS.map((c) => c.key));
+
+// Fields the backend stores as integers — coerce from the sheet's text.
+const BULK_INT_FIELDS = new Set([
+  "NUMBER_OF_BRANCHES",
+  "EXPECTED_MONTHLY_ORDERS"
+]);
 
 
 // Inline SVGs — keep them tiny so the cards stay light.
@@ -2035,6 +2097,8 @@ function Customers() {
 
   const [inviteOpen, setInviteOpen] = useState(false);
 
+  const [bulkOpen, setBulkOpen] = useState(false);
+
   const [generatingFor, setGeneratingFor] = useState(null);
 
   const fetchAll = async () => {
@@ -2127,6 +2191,15 @@ function Customers() {
             Invite via Self-Onboarding
           </button>
 
+
+          <button
+            onClick={() => setBulkOpen(true)}
+            title="Import multiple customers at once from an Excel file"
+            className={styles.heroBtnOutline}
+          >
+            Bulk Upload
+          </button>
+
           <button
             onClick={() => setEditing({})}
             className={styles.heroBtnSolid}
@@ -2138,6 +2211,13 @@ function Customers() {
 
       {inviteOpen && (
         <InviteCustomerModal onClose={() => setInviteOpen(false)} />
+      )}
+
+      {bulkOpen && (
+        <BulkUploadModal
+          onClose={() => setBulkOpen(false)}
+          onDone={fetchAll}
+        />
       )}
 
       {/* Summary tiles */}
@@ -2658,6 +2738,807 @@ function GenerateQuotationModal({ customer, onClose, onCreated, onOpenRequiremen
     </div>
   );
 }
+
+
+// ----------------------------------------------------------------
+// Bulk Upload Modal — import many customers from a single Excel file.
+//
+// Flow: download a template (headers + a "Format Guide" sheet) →
+// fill it → upload → we parse it client-side with ExcelJS, map each
+// row onto the /create-customer payload, POST them one by one, and
+// report per-row success / failure. No new backend endpoint needed.
+// ----------------------------------------------------------------
+
+// Coerce an ExcelJS cell value (which may be a string, number, Date,
+// rich-text object, hyperlink, or formula result) into a clean string.
+function bulkCellToString(v) {
+
+  if (v === null || v === undefined) return "";
+
+  if (v instanceof Date) {
+    // ExcelJS reads date cells as UTC Dates — render as YYYY-MM-DD.
+    const yyyy = v.getUTCFullYear();
+    const mm = String(v.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(v.getUTCDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  if (typeof v === "object") {
+    if (Array.isArray(v.richText)) return v.richText.map((t) => t.text).join("").trim();
+    if (v.text != null) return String(v.text).trim();
+    if (v.result != null) return String(v.result).trim();
+    if (v.hyperlink != null) return String(v.hyperlink).trim();
+    return "";
+  }
+
+  return String(v).trim();
+}
+
+
+// Identity key used to skip duplicate customers on (re-)upload. Email is
+// the strongest unique signal (phone is often shared across contacts of
+// the same company), so key on the lower-cased email; fall back to the
+// lower-cased name when a row has no email.
+function bulkCustomerKey(name, email) {
+
+  const e = (email || "").trim().toLowerCase();
+
+  if (e) return `e:${e}`;
+
+  return `n:${(name || "").trim().toLowerCase()}`;
+}
+
+
+function BulkUploadModal({ onClose, onDone }) {
+
+  const [rows, setRows] = useState([]);            // parsed data rows
+
+  const [fileName, setFileName] = useState("");
+
+  const [parseError, setParseError] = useState("");
+
+  const [uploading, setUploading] = useState(false);
+
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
+
+  const [results, setResults] = useState(null);    // { success: [], failed: [], skipped: [] }
+
+  // Existing customers, keyed by email/name — lets us skip rows that
+  // are already in the system so re-uploading a file (e.g. old rows +
+  // a new one) never creates duplicates. Best-effort: if this fails to
+  // load we simply don't skip anything.
+  const [existingKeys, setExistingKeys] = useState(() => new Set());
+
+  useEffect(() => {
+
+    API.get("/customers")
+      .then((r) => {
+        const s = new Set();
+        (r.data || []).forEach((c) => s.add(bulkCustomerKey(c.CUSTOMER_NAME, c.EMAIL)));
+        setExistingKeys(s);
+      })
+      .catch(() => { /* dedup is best-effort */ });
+
+  }, []);
+
+  // ---- Download the Excel template ------------------------------
+  const downloadTemplate = async () => {
+
+    const wb = new ExcelJS.Workbook();
+
+    // Sheet 1 — the one the admin fills in (and the one we parse).
+    const ws = wb.addWorksheet("Customers");
+
+    const headerRow = ws.addRow(BULK_UPLOAD_COLUMNS.map((c) => c.key));
+
+    headerRow.height = 24;
+
+    headerRow.eachCell((cell, col) => {
+      const def = BULK_UPLOAD_COLUMNS[col - 1];
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: def?.required ? "FFDC2626" : "FF334155" }
+      };
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
+      cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+    });
+
+    BULK_UPLOAD_COLUMNS.forEach((c, i) => {
+      ws.getColumn(i + 1).width = Math.max(c.key.length + 4, 16);
+    });
+
+    ws.views = [{ state: "frozen", ySplit: 1 }];
+
+    // Sheet 2 — a human-readable guide so the file documents itself.
+    const guide = wb.addWorksheet("Format Guide");
+
+    const guideHeader = guide.addRow(["Column", "Required?", "Example", "Notes"]);
+
+    guideHeader.height = 22;
+
+    guideHeader.eachCell((cell) => {
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF0F172A" } };
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
+      cell.alignment = { vertical: "middle", horizontal: "left" };
+    });
+
+    BULK_UPLOAD_COLUMNS.forEach((c) => {
+      const r = guide.addRow([c.key, c.required ? "YES" : "—", c.example || "", c.note || ""]);
+      if (c.required) {
+        r.getCell(1).font = { bold: true, color: { argb: "FFDC2626" } };
+        r.getCell(2).font = { bold: true, color: { argb: "FFDC2626" } };
+      }
+    });
+
+    guide.getColumn(1).width = 28;
+    guide.getColumn(2).width = 11;
+    guide.getColumn(3).width = 30;
+    guide.getColumn(4).width = 55;
+    guide.views = [{ state: "frozen", ySplit: 1 }];
+
+    const buf = await wb.xlsx.writeBuffer();
+
+    const blob = new Blob([buf], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
+
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+
+    a.href = url;
+
+    a.download = "Customers_Bulk_Upload_Template.xlsx";
+
+    document.body.appendChild(a);
+
+    a.click();
+
+    document.body.removeChild(a);
+
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  // ---- Parse a chosen Excel file --------------------------------
+  const handleFile = async (e) => {
+
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    setParseError("");
+
+    setResults(null);
+
+    setRows([]);
+
+    setFileName(file.name);
+
+    try {
+
+      const buf = await file.arrayBuffer();
+
+      const wb = new ExcelJS.Workbook();
+
+      await wb.xlsx.load(buf);
+
+      const ws = wb.getWorksheet("Customers") || wb.worksheets[0];
+
+      if (!ws) throw new Error("No sheet found in this file.");
+
+      // Map each spreadsheet column → a known payload key.
+      const colKey = {};
+
+      ws.getRow(1).eachCell((cell, col) => {
+        const h = bulkCellToString(cell.value).toUpperCase().replace(/\s+/g, "_");
+        if (BULK_KNOWN_KEYS.has(h)) colKey[col] = h;
+      });
+
+      if (Object.keys(colKey).length === 0) {
+        throw new Error(
+          "No recognizable column headers found. Download the template " +
+          "and keep its header row (CUSTOMER_NAME, PHONE, EMAIL, …) intact."
+        );
+      }
+
+      const parsed = [];
+
+      ws.eachRow((row, rowNumber) => {
+
+        if (rowNumber === 1) return;   // skip header
+
+        const obj = { __row: rowNumber };
+
+        let hasAny = false;
+
+        Object.entries(colKey).forEach(([col, key]) => {
+          const val = bulkCellToString(row.getCell(Number(col)).value);
+          obj[key] = val;
+          if (val !== "") hasAny = true;
+        });
+
+        if (hasAny) parsed.push(obj);
+      });
+
+      if (parsed.length === 0) {
+        throw new Error("No data rows found — fill in at least one customer below the header row.");
+      }
+
+      setRows(parsed);
+
+    } catch (err) {
+
+      setParseError(err?.message || "Could not read the Excel file.");
+
+    } finally {
+
+      // Reset the input so picking the same file again re-fires change.
+      e.target.value = "";
+    }
+  };
+
+  // ---- Build a /create-customer payload from one parsed row -----
+  const buildPayload = (r) => {
+
+    const p = {};
+
+    BULK_UPLOAD_COLUMNS.forEach(({ key }) => {
+      const v = (r[key] ?? "").toString().trim();
+      if (v !== "") p[key] = v;
+    });
+
+    // Digits-only, max 10 for the phone-like fields.
+    ["PHONE", "ALTERNATE_PHONE", "WHATSAPP_NUMBER"].forEach((k) => {
+      if (p[k]) p[k] = p[k].replace(/\D/g, "").slice(0, 10);
+    });
+
+    // Integer fields the backend schema expects as numbers.
+    BULK_INT_FIELDS.forEach((k) => {
+      if (p[k] != null) {
+        const n = parseInt(p[k], 10);
+        if (Number.isNaN(n)) delete p[k]; else p[k] = n;
+      }
+    });
+
+    if (p.EXISTING_MACHINE_USAGE != null) {
+      p.EXISTING_MACHINE_USAGE = /^(1|y|yes|true)$/i.test(p.EXISTING_MACHINE_USAGE) ? 1 : 0;
+    }
+
+    if (p.REQUESTED_QUANTITY != null) {
+      p.REQUESTED_QUANTITY = Math.max(1, parseInt(p.REQUESTED_QUANTITY, 10) || 1);
+    }
+
+    return {
+      ...p,
+      CUSTOMER_TYPE: p.CUSTOMER_TYPE || "PRIVATE_LTD",
+      STATE: p.STATE || "Tamil Nadu",
+      COUNTRY: p.COUNTRY || "India",
+      STATUS: p.STATUS || "ACTIVE",
+      ADDRESS: p.ADDRESS || p.CITY || "",
+      VENDOR_ID: 1
+    };
+  };
+
+  // ---- Upload all parsed rows -----------------------------------
+  const startUpload = async () => {
+
+    setUploading(true);
+
+    const success = [];
+
+    const failed = [];
+
+    const skipped = [];
+
+    // Local view of what already exists — seeded from the DB and grown
+    // as we create rows, so duplicates WITHIN this file are caught too.
+    const seen = new Set(existingKeys);
+
+    setProgress({ done: 0, total: rows.length });
+
+    for (let i = 0; i < rows.length; i++) {
+
+      const r = rows[i];
+
+      const missing = [];
+
+      if (!(r.CUSTOMER_NAME || "").trim()) missing.push("CUSTOMER_NAME");
+      if (!(r.PHONE || "").trim()) missing.push("PHONE");
+      if (!(r.EMAIL || "").trim()) missing.push("EMAIL");
+
+      if (missing.length) {
+        failed.push({
+          row: r.__row,
+          name: r.CUSTOMER_NAME || "(no name)",
+          error: `Missing required: ${missing.join(", ")}`
+        });
+        setProgress({ done: i + 1, total: rows.length });
+        continue;
+      }
+
+      // Skip anything that already exists (in the DB or earlier in this
+      // same file) so re-uploads don't create duplicate customers.
+      const key = bulkCustomerKey(r.CUSTOMER_NAME, r.EMAIL);
+
+      if (seen.has(key)) {
+        skipped.push({
+          row: r.__row,
+          name: r.CUSTOMER_NAME,
+          reason: r.EMAIL
+            ? `${r.EMAIL} already exists`
+            : `"${r.CUSTOMER_NAME}" already exists`
+        });
+        setProgress({ done: i + 1, total: rows.length });
+        continue;
+      }
+
+      try {
+
+        const res = await API.post("/create-customer", buildPayload(r));
+
+        success.push({
+          row: r.__row,
+          name: r.CUSTOMER_NAME,
+          code: res?.data?.customer_code
+        });
+
+        seen.add(key);   // don't re-create if the same row repeats below
+
+      } catch (err) {
+
+        failed.push({
+          row: r.__row,
+          name: r.CUSTOMER_NAME || "(no name)",
+          error: err?.response?.data?.detail || err?.message || "Failed to create"
+        });
+      }
+
+      setProgress({ done: i + 1, total: rows.length });
+    }
+
+    setResults({ success, failed, skipped });
+
+    // Fold newly-created customers into the known set so a second upload
+    // in the same session (without reopening the modal) also dedupes.
+    setExistingKeys(seen);
+
+    setUploading(false);
+
+    if (success.length > 0) onDone?.();   // refresh the customer grid behind the modal
+  };
+
+  const requiredCols = BULK_UPLOAD_COLUMNS.filter((c) => c.required).map((c) => c.key);
+
+  const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
+
+  // Classify each parsed row against existing customers (and rows above
+  // it) so the preview can flag duplicates before the user hits import.
+  const previewStatus = useMemo(() => {
+
+    const seen = new Set(existingKeys);
+
+    return rows.map((r) => {
+
+      const incomplete =
+        !(r.CUSTOMER_NAME || "").trim() ||
+        !(r.PHONE || "").trim() ||
+        !(r.EMAIL || "").trim();
+
+      if (incomplete) return "incomplete";
+
+      const key = bulkCustomerKey(r.CUSTOMER_NAME, r.EMAIL);
+
+      if (seen.has(key)) return "duplicate";
+
+      seen.add(key);
+
+      return "new";
+    });
+
+  }, [rows, existingKeys]);
+
+  const newCount = previewStatus.filter((s) => s === "new").length;
+
+  const dupCount = previewStatus.filter((s) => s === "duplicate").length;
+
+  return (
+    <div onClick={onClose} className={styles.fullModalOverlay}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className={styles.fullModalWide}
+      >
+
+        {/* Sticky header */}
+        <div className={styles.modalHeader}>
+          <div>
+            <div className={styles.modalHeaderLabel}>
+              BULK IMPORT
+            </div>
+            <h2 className={styles.modalHeaderTitle}>
+              Bulk Upload Customers from Excel
+            </h2>
+          </div>
+          <button onClick={onClose} className={styles.modalCloseBtn}>
+            ×
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className={styles.modalBody}>
+
+          {/* Step 1 — template */}
+          <div style={{
+            border: "1px solid #e2e8f0",
+            borderRadius: 12,
+            padding: "14px 16px",
+            marginBottom: 16,
+            background: "#f8fafc"
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: "#475569", marginBottom: 6 }}>
+              STEP 1 — DOWNLOAD THE TEMPLATE
+            </div>
+            <p style={{ fontSize: 13, color: "#475569", margin: "0 0 10px" }}>
+              The template has one column per field. Fill your customers in
+              the <b>Customers</b> sheet, one per row, and keep the header row
+              intact. A <b>Format Guide</b> sheet inside documents every column.
+            </p>
+            <button
+              type="button"
+              onClick={downloadTemplate}
+              style={{
+                padding: "9px 16px",
+                background: "#0f172a",
+                color: "white",
+                border: "none",
+                borderRadius: 8,
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: "pointer"
+              }}
+            >
+              ⬇ Download sample template (.xlsx)
+            </button>
+            <div style={{ fontSize: 11, color: "#64748b", marginTop: 8 }}>
+              Required columns:{" "}
+              {requiredCols.map((c, i) => (
+                <span key={c}>
+                  <b style={{ color: "#b91c1c" }}>{c}</b>
+                  {i < requiredCols.length - 1 ? ", " : ""}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Step 2 — upload */}
+          <div style={{
+            border: "1px solid #e2e8f0",
+            borderRadius: 12,
+            padding: "14px 16px",
+            marginBottom: 16
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1, color: "#475569", marginBottom: 8 }}>
+              STEP 2 — UPLOAD YOUR FILLED FILE
+            </div>
+
+            <label style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              padding: "22px 16px",
+              border: "2px dashed #cbd5e1",
+              borderRadius: 10,
+              cursor: uploading ? "wait" : "pointer",
+              background: "#f8fafc",
+              textAlign: "center"
+            }}>
+              <input
+                type="file"
+                accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                onChange={handleFile}
+                disabled={uploading}
+                style={{ display: "none" }}
+              />
+              <span style={{ fontSize: 26 }}>📄</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+                {fileName ? fileName : "Click to choose an Excel file"}
+              </span>
+              <span style={{ fontSize: 11, color: "#64748b" }}>
+                .xlsx or .xls
+              </span>
+            </label>
+
+            {parseError && (
+              <div style={{
+                marginTop: 10,
+                padding: "8px 12px",
+                background: "#fef2f2",
+                color: "#991b1b",
+                border: "1px solid #fecaca",
+                borderRadius: 8,
+                fontSize: 13
+              }}>
+                {parseError}
+              </div>
+            )}
+          </div>
+
+          {/* Preview + import */}
+          {rows.length > 0 && !results && (
+            <div style={{
+              border: "1px solid #e2e8f0",
+              borderRadius: 12,
+              padding: "14px 16px",
+              marginBottom: 16
+            }}>
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 10,
+                gap: 10,
+                flexWrap: "wrap"
+              }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#0f172a" }}>
+                    {rows.length} row{rows.length === 1 ? "" : "s"} in file
+                  </div>
+                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+                    {newCount} new
+                    {dupCount > 0 && (
+                      <span style={{ color: "#b45309", fontWeight: 700 }}>
+                        {" · "}{dupCount} already exist{dupCount === 1 ? "s" : ""} (will be skipped)
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={startUpload}
+                  disabled={uploading || newCount === 0}
+                  className={styles.modalSubmitBtn}
+                >
+                  {uploading
+                    ? `Importing… ${pct}%`
+                    : newCount === 0
+                      ? "Nothing new to import"
+                      : `Import ${newCount} new customer${newCount === 1 ? "" : "s"}`}
+                </button>
+              </div>
+
+              {uploading && (
+                <div style={{
+                  height: 8,
+                  background: "#e2e8f0",
+                  borderRadius: 999,
+                  overflow: "hidden",
+                  marginBottom: 12
+                }}>
+                  <div style={{
+                    width: `${pct}%`,
+                    height: "100%",
+                    background: "#dc2626",
+                    transition: "width 0.2s"
+                  }} />
+                </div>
+              )}
+
+              {/* Scrollable preview of the parsed rows */}
+              <div style={{
+                border: "1px solid #f1f5f9",
+                borderRadius: 8,
+                overflow: "auto",
+                maxHeight: 240
+              }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: "#f8fafc", color: "#94a3b8" }}>
+                      <th style={bulkThStyle}>#</th>
+                      <th style={bulkThStyle}>CUSTOMER_NAME</th>
+                      <th style={bulkThStyle}>PHONE</th>
+                      <th style={bulkThStyle}>EMAIL</th>
+                      <th style={bulkThStyle}>STATUS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.slice(0, 50).map((r, idx) => {
+                      const status = previewStatus[idx];
+                      const rowColor =
+                        status === "incomplete" ? "#b91c1c"
+                          : status === "duplicate" ? "#b45309"
+                            : "#1e293b";
+                      return (
+                        <tr key={r.__row} style={{ borderTop: "1px solid #f1f5f9", color: rowColor }}>
+                          <td style={bulkTdStyle}>{r.__row - 1}</td>
+                          <td style={bulkTdStyle}>{r.CUSTOMER_NAME || <i>— missing —</i>}</td>
+                          <td style={bulkTdStyle}>{r.PHONE || <i>—</i>}</td>
+                          <td style={bulkTdStyle}>{r.EMAIL || <i>—</i>}</td>
+                          <td style={bulkTdStyle}>
+                            {status === "duplicate" && <span style={{ fontWeight: 700, color: "#b45309" }}>Already exists</span>}
+                            {status === "incomplete" && <span style={{ fontWeight: 700, color: "#b91c1c" }}>Missing fields</span>}
+                            {status === "new" && <span style={{ fontWeight: 700, color: "#16a34a" }}>New</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {rows.length > 50 && (
+                <div style={{ fontSize: 11, color: "#64748b", marginTop: 6 }}>
+                  Showing first 50 of {rows.length} rows — all {rows.length} will be imported.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Results */}
+          {results && (
+            <div style={{
+              border: "1px solid #e2e8f0",
+              borderRadius: 12,
+              padding: "14px 16px",
+              marginBottom: 8
+            }}>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+                <div style={{
+                  flex: 1,
+                  minWidth: 120,
+                  background: "#f0fdf4",
+                  border: "1px solid #bbf7d0",
+                  borderRadius: 10,
+                  padding: "10px 14px"
+                }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: "#16a34a" }}>
+                    {results.success.length}
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#166534", letterSpacing: 0.5 }}>
+                    IMPORTED
+                  </div>
+                </div>
+                <div style={{
+                  flex: 1,
+                  minWidth: 110,
+                  background: (results.skipped?.length) ? "#fffbeb" : "#f8fafc",
+                  border: `1px solid ${(results.skipped?.length) ? "#fde68a" : "#e2e8f0"}`,
+                  borderRadius: 10,
+                  padding: "10px 14px"
+                }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: (results.skipped?.length) ? "#b45309" : "#94a3b8" }}>
+                    {results.skipped?.length || 0}
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: (results.skipped?.length) ? "#92400e" : "#94a3b8", letterSpacing: 0.5 }}>
+                    SKIPPED
+                  </div>
+                </div>
+                <div style={{
+                  flex: 1,
+                  minWidth: 110,
+                  background: results.failed.length ? "#fef2f2" : "#f8fafc",
+                  border: `1px solid ${results.failed.length ? "#fecaca" : "#e2e8f0"}`,
+                  borderRadius: 10,
+                  padding: "10px 14px"
+                }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: results.failed.length ? "#dc2626" : "#94a3b8" }}>
+                    {results.failed.length}
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: results.failed.length ? "#991b1b" : "#94a3b8", letterSpacing: 0.5 }}>
+                    FAILED
+                  </div>
+                </div>
+              </div>
+
+              {results.skipped?.length > 0 && (
+                <div style={{ marginBottom: results.failed.length ? 16 : 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "#92400e", letterSpacing: 0.8, marginBottom: 6 }}>
+                    SKIPPED — ALREADY EXIST (no duplicates created)
+                  </div>
+                  <div style={{
+                    border: "1px solid #fde68a",
+                    borderRadius: 8,
+                    overflow: "auto",
+                    maxHeight: 160
+                  }}>
+                    {results.skipped.map((s, i) => (
+                      <div key={i} style={{
+                        display: "flex",
+                        gap: 8,
+                        padding: "8px 12px",
+                        borderTop: i ? "1px solid #fef3c7" : "none",
+                        fontSize: 12
+                      }}>
+                        <span style={{ fontWeight: 700, color: "#b45309", whiteSpace: "nowrap" }}>
+                          Row {s.row}
+                        </span>
+                        <span style={{ color: "#0f172a", fontWeight: 600 }}>
+                          {s.name}
+                        </span>
+                        <span style={{ color: "#92400e", marginLeft: "auto", textAlign: "right" }}>
+                          {s.reason}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {results.failed.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: "#991b1b", letterSpacing: 0.8, marginBottom: 6 }}>
+                    ROWS THAT FAILED
+                  </div>
+                  <div style={{
+                    border: "1px solid #fecaca",
+                    borderRadius: 8,
+                    overflow: "auto",
+                    maxHeight: 200
+                  }}>
+                    {results.failed.map((f, i) => (
+                      <div key={i} style={{
+                        display: "flex",
+                        gap: 8,
+                        padding: "8px 12px",
+                        borderTop: i ? "1px solid #fee2e2" : "none",
+                        fontSize: 12
+                      }}>
+                        <span style={{ fontWeight: 700, color: "#b91c1c", whiteSpace: "nowrap" }}>
+                          Row {f.row}
+                        </span>
+                        <span style={{ color: "#0f172a", fontWeight: 600 }}>
+                          {f.name}
+                        </span>
+                        <span style={{ color: "#991b1b", marginLeft: "auto", textAlign: "right" }}>
+                          {f.error}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#64748b", marginTop: 8 }}>
+                    Fix these rows in your file and upload again — only the
+                    failed rows need re-importing.
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Footer actions */}
+          <div className={styles.modalFormActions}>
+            <button
+              type="button"
+              onClick={onClose}
+              className={styles.modalCancelBtn}
+            >
+              {results ? "Done" : "Cancel"}
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const bulkThStyle = {
+  textAlign: "left",
+  padding: "7px 10px",
+  fontSize: 10,
+  fontWeight: 800,
+  letterSpacing: 0.5,
+  position: "sticky",
+  top: 0,
+  background: "#f8fafc"
+};
+
+const bulkTdStyle = {
+  padding: "6px 10px",
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  maxWidth: 180
+};
 
 
 // ----------------------------------------------------------------

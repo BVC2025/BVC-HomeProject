@@ -16,7 +16,7 @@ print(f"[startup] APPROVER_EMAIL = {os.getenv('APPROVER_EMAIL', '(empty)')}")
 print(f"[startup] SMTP_HOST      = {os.getenv('SMTP_HOST', '(empty)')}")
 # ---------------------------------------------------------------
 
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 from fastapi.staticfiles import StaticFiles
 from app.routes import employee
 from app.database.database import engine
@@ -24,7 +24,12 @@ from app.models.models import Base
 from app.routes.users import router as users_router
 from app.routes.auth import router as auth_router
 from app.routes.vendor import router as vendor_router
-# project_router (customer projects) removed — ProjectCategory→Project hierarchy now owns the "project" table
+# project_router (customer projects) was retired — the ProjectCategory→Project
+# hierarchy in project_template now owns the "project" table + all /projects
+# routes. BUT the Customers CRM endpoints (/create-customer, /customers,
+# requirements, contacts, …) still live in this same module, so we import the
+# router here and re-mount ONLY its customer routes below.
+from app.routes.project import router as legacy_customer_router
 from app.routes.task import router as task_router
 from app.routes.inventory import router as inventory_router
 from app.routes.analytics import router as analytics_router
@@ -85,6 +90,8 @@ from app.routes.employee_status import router as employee_status_router  # Emplo
 from app.routes.employee_insights import router as employee_insights_router  # AI workforce analytics
 from app.routes.custom_fields import router as custom_fields_router  # Custom Fields System
 from fastapi.middleware.cors import CORSMiddleware
+from app.routes.tax_invoice_routes import tax_router_bp
+from app.routes.eway_bill_route import eway_bill_route_bp
 
 # Phase 3 — Audit log
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -1315,8 +1322,20 @@ app.include_router(employee.router, tags=["Employees (IAM)"])
 app.include_router(employee_task_router, tags=["Employee Workflow"])
 app.include_router(task_approval_router, tags=["Task Approval"])
 app.include_router(task_router, tags=["Project Tasks"])
-# app.include_router(project_router, tags=["Projects"])  # removed — customer projects replaced by Project template hierarchy
+# The legacy /projects routes were retired in favour of project_template's
+# ProjectCategory→Project hierarchy (included right below). We DO still need
+# the Customers CRM endpoints from that same module, so re-mount only the
+# routes whose path targets customers — the retired /projects routes stay off.
+# Mounted AFTER project_template so any overlapping path (e.g. GET /projects)
+# always resolves to the new hierarchy, never the legacy handler.
 app.include_router(project_template_router, tags=["Project Templates"])
+
+_customer_only_router = APIRouter()
+_customer_only_router.routes = [
+    r for r in legacy_customer_router.routes
+    if "customer" in getattr(r, "path", "").lower()
+]
+app.include_router(_customer_only_router, tags=["Customers"])
 app.include_router(users_router, tags=["Users"])
 app.include_router(vendor_router, tags=["Vendors"])
 app.include_router(inventory_router, tags=["Inventory"])
@@ -1372,6 +1391,8 @@ app.include_router(leave_decisions_router)
 app.include_router(monthly_reports_router)
 app.include_router(employee_status_router)
 app.include_router(employee_insights_router)
+app.include_router(tax_router_bp)
+app.include_router(eway_bill_route_bp)
 app.include_router(custom_fields_router, tags=["Custom Fields"])
 
 

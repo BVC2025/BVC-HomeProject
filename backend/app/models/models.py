@@ -4,7 +4,7 @@ from sqlalchemy import (
     Enum as SAEnum
 )
 from sqlalchemy.orm import relationship
-from app.database.database import Base
+from app.database.database import Base,engine
 from datetime import datetime, time
 import uuid
 
@@ -4890,3 +4890,86 @@ class TaskTemplate(Base):
     project    = relationship("Project", back_populates="task_templates")
     department = relationship("Department", foreign_keys=[DEPARTMENT_ID])
     role       = relationship("Role",       foreign_keys=[ROLE_ID])
+
+
+class TaxInvoiceTable(Base):
+    __tablename__ = "taxvoice_table"
+
+    ID = Column(String(100), primary_key=True,default=lambda:str(uuid.uuid4()))
+    CUSTOMER_ID=Column(String(50),nullable=False)
+    IRN = Column(String(50),nullable=False)
+    ACK_NO=Column(String(50),nullable=False)
+    ACK_DATE=Column(String(50),nullable=False)
+    INVOICE_NUMBER=Column(String(50),nullable=False)
+    EWAY_BILL_NO=Column(String(50),nullable=False)
+    DATED=Column(String(50),nullable=True)
+    DELIVERY_NOTE=Column(Text,nullable=True)
+    MODERN_TERMS_OF_PAYMENT=Column(Text,nullable=True)
+    REFERENCE_No_DATE=Column(String(50),nullable=True)
+    OTHER_REFERENCE=Column(String(50),nullable=True)
+    BUYER_ORDER_NUMBER=Column(String(50),nullable=True)
+    DATED=Column(String(20),nullable=True)
+    DISPATCH_DOC_NUMBER=Column(String(50),nullable=True)
+    DELIVERY_NOTE_DATE=Column(String(50),nullable=True)
+    DISPATCHED_THROUGH=Column(String(50),nullable=True)
+    DESTINATION=Column(String(50),nullable=True)
+    BILL_OF_LANDING=Column(String(50),nullable=True)
+    LR_RR_NO=Column(String(50),nullable=True)
+    MOTOR_VEHICLE_NUMBER=Column(String(50),nullable=True)
+    TERMS_OF_DELIVERY=Column(String(50),nullable=True)
+    HOME_ADDRESS=Column(Text,nullable=False)
+    SHIP_TO=Column(Text,nullable=False)
+    BILL_TO=Column(Text,nullable=False)
+    DESCRIPTION=Column(JSON,nullable=False)
+    HSN=Column(String(50),nullable=False)
+    TOTAL_QTY=Column(Integer,nullable=False)
+    TOTAL_AMOUNT=Column(Float,nullable=False)
+    TOTAL_AMOUNT_IN_WORDS=Column(String(1000),nullable=False)
+    TOTAL_GST_PERCENT=Column(String(10),nullable=False)
+    CGST=Column(String(10),nullable=False)
+    SGST=Column(String(10),nullable=False)
+    TAX_AMOUNT=Column(Float,nullable=False)
+    TAX_AMOUNT_IN_WORDS=Column(String(1000),nullable=False)
+    DECLARATION=Column(Text,nullable=True)
+
+class EwayBillTable(Base):
+
+    __tablename__ = "eway_bill_table"
+
+
+    ID=Column(String(100),primary_key=True,default=lambda:str(uuid.uuid4()))
+    TAX_ID=Column(String(100),nullable=False)
+    CUSTOMER_ID=Column(String(50),nullable=False)
+    DOC_NO=Column(String(50),nullable=False)
+    DATE=Column(String(50),nullable=False)
+    IRN = Column(String(50),nullable=False)
+    ACK_NO=Column(String(50),nullable=False)
+    ACK_DATE=Column(String(50),nullable=False)
+    EWAYBILLNO=Column(String(50),nullable=False)
+    GENERATD_BY=Column(String(50),nullable=False)
+    SUPPLYTYPE=Column(String(50),nullable=False)
+    GENERATED_DATE_TIME=Column(String(50),nullable=False)
+    VALID_UPTO=Column(String(50),nullable=False)
+    FROM=Column(Text,nullable=False)
+    TO=Column(Text,nullable=False)
+    DIPATCH_FROM=Column(Text,nullable=False)
+    SHIP_TO=Column(Text,nullable=False)
+    HSN_CODE=Column(Integer,nullable=False)
+    PRODUCTNAME_DESC=Column(JSON,nullable=False)
+    QUANTITY=Column(Integer,nullable=False)
+    TAXABLEAMT=Column(Float,nullable=False)
+    TAX_RATE_CS=Column(String(50),nullable=False)
+    TOTAL_TAX_AMOUNT=Column(String(50),nullable=False)
+    TOTAL_INV_AMT=Column(String(50),nullable=False)
+    TRANSPORTER_ID=Column(String(50),nullable=False)
+    NAME=Column(String(50),nullable=True)
+    VEHICLE_NUMBER=Column(String(50),nullable=True)
+    PINCODE=Column(String(50),nullable=True)
+    CEWB=Column(String(50),nullable=True)
+
+    
+
+
+
+Base.metadata.create_all(bind=engine)
+

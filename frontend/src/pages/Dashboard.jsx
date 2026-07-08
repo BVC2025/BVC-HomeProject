@@ -1567,12 +1567,8 @@ const NAV_GROUPS = [
     items: [
       { to: "/customers", icon: <SidebarIcon name="customers" />, label: "Customers" },
       { to: "/quotations", icon: <SidebarIcon name="quotations" />, label: "Quotations" },
-
-      { to: "/sales-orders", icon: <SidebarIcon name="salesorders" />, label: "Sales Orders" },
-
       { to: "/sales-orders", icon: <SidebarIcon name="salesorders" />, label: "Sales Orders" },
       { to: "/invoice-orders", icon: <SidebarIcon name="invoiceorders" />, label: "Invoice" }
-
     ]
   },
   // {
