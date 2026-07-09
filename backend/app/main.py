@@ -1465,3 +1465,76 @@ def debug_env():
         "BACKEND_URL": os.getenv("BACKEND_URL", "(empty)"),
         "SMS_PROVIDER": os.getenv("SMS_PROVIDER", "(empty)")
     }
+
+
+# =====================================================================
+# eSSL biometric bridge — background auto-sync
+# =====================================================================
+# Every N minutes, pulls the latest attendance events from the office
+# biometric device (eSSL X2008) into the `attendance` table.
+#
+# Enabled automatically whenever ESSL_DEVICE_IP is set in .env.
+# Interval: ESSL_SYNC_INTERVAL_MIN (default 2 minutes).
+# To disable, set ESSL_AUTOSYNC=0.
+#
+# Runs inside the FastAPI process — stops cleanly when uvicorn stops.
+# If the device is unreachable at tick time, the error is logged and
+# the next tick tries again. No retries within a tick.
+
+def _start_essl_autosync():
+
+    if not os.getenv("ESSL_DEVICE_IP"):
+        return   # Device not configured
+
+    if os.getenv("ESSL_AUTOSYNC", "1") == "0":
+        return   # Explicitly disabled
+
+    import logging
+    log = logging.getLogger("uvicorn")
+
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+    except ImportError:
+        log.warning(
+            "essl-autosync: apscheduler not installed. "
+            "Run: pip install apscheduler==3.10.4"
+        )
+        return
+
+    interval_min = int(os.getenv("ESSL_SYNC_INTERVAL_MIN", "2"))
+
+    def _tick():
+        try:
+            from app.services.essl_bridge import sync_once
+            result = sync_once()
+            if result.get("applied", 0) > 0 or result.get("error"):
+                log.info(
+                    "essl-autosync: applied=%s skipped_dup=%s "
+                    "skipped_unmap=%s error=%s",
+                    result.get("applied"),
+                    result.get("skipped_duplicate"),
+                    result.get("skipped_unmapped"),
+                    result.get("error"),
+                )
+        except Exception as exc:
+            log.exception("essl-autosync: tick failed: %s", exc)
+
+    scheduler = BackgroundScheduler(daemon=True)
+    scheduler.add_job(
+        _tick,
+        "interval",
+        minutes=interval_min,
+        id="essl_sync",
+        max_instances=1,           # ticks never overlap
+        coalesce=True,             # missed catch-ups collapse into one
+    )
+    scheduler.start()
+
+    log.info(
+        "essl-autosync: started (every %s min, device=%s)",
+        interval_min,
+        os.getenv("ESSL_DEVICE_IP"),
+    )
+
+
+_start_essl_autosync()

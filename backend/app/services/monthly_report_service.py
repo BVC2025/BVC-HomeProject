@@ -33,6 +33,7 @@ from sqlalchemy.orm import Session
 from app.models.models import (
     Employee, Attendance, LeaveRequest, LeaveBalance,
     HolidayCalendar, MonthlyAttendanceReport,
+    SalaryStructure,
 )
 
 
@@ -68,6 +69,34 @@ def count_sundays(start: date, end: date) -> int:
             n += 1
         d += timedelta(days=1)
     return n
+
+
+def _resolve_monthly_salary(db: Session, emp: Employee) -> float:
+    """Resolve an employee's monthly gross salary.
+
+    Preference:
+      1. salary_structure row  →  BASIC + HRA + DA + Conveyance +
+         Medical + Special + Other  (annual bonus / incentives are
+         yearly, so excluded from monthly).
+      2. Employee.SALARY (legacy denormalised field used before the
+         Payroll module was introduced).
+      3. 0.0 (no salary configured — the report still generates but
+         net payable shows 0).
+    """
+    struct = (db.query(SalaryStructure)
+              .filter(SalaryStructure.EMPLOYEE_ID == emp.ID)
+              .order_by(SalaryStructure.UPDATED_AT.desc())
+              .first())
+    if struct:
+        gross = sum(float(getattr(struct, col) or 0) for col in (
+            "BASIC", "HRA", "DA",
+            "CONVEYANCE_ALLOWANCE", "MEDICAL_ALLOWANCE",
+            "SPECIAL_ALLOWANCE", "OTHER_ALLOWANCES",
+        ))
+        if gross > 0:
+            return gross
+
+    return float(emp.SALARY or 0)
 
 
 # =====================================================================
@@ -299,10 +328,30 @@ class MonthlyReportService:
         credited = present + paid_total
         attendance_pct = round((credited / working_days) * 100, 1) if working_days else 0.0
 
-        # Salary
-        salary = float(emp.SALARY or 0)
+        # Salary — read the Payroll module's salary_structure if the
+        # employee has one; fall back to Employee.SALARY (legacy field)
+        # so employees added before payroll setup still work.
+        salary = _resolve_monthly_salary(self.db, emp)
         daily_wage = round(salary / working_days, 2) if working_days else 0.0
-        unpaid_days = absent + unpaid_total + excess
+
+        # ---------- IMPLICIT-ABSENT RECONCILIATION ----------
+        # Biometric-driven attendance: if an employee doesn't punch in,
+        # there is NO row for that day. So `absent` (STATUS='ABSENT')
+        # alone under-counts real absences. The definitive formula is:
+        #
+        #   payable_days = present + paid_leaves
+        #   unpaid_days  = working_days - payable_days
+        #
+        # Any manually-marked ABSENT rows are already inside
+        # (working_days - present) so we don't add them again.
+        payable_days = present + paid_total
+        implicit_unpaid = max(0.0, working_days - payable_days)
+
+        # unpaid_total (approved unpaid leaves) + excess are already
+        # counted inside implicit_unpaid (they're not "present" and
+        # they're not paid) — so use max() to avoid double-count.
+        unpaid_days = max(implicit_unpaid, unpaid_total + excess + absent)
+
         absence_ded = round(daily_wage * unpaid_days, 2)
         late_ded    = round(ReportPolicy.LATE_DEDUCTION_PER_DAY * late, 2)
         # OT pay: hourly rate × OT hours × multiplier
@@ -315,10 +364,16 @@ class MonthlyReportService:
             unpaid_days, cl
         )
 
+        # True absent = working_days - present - paid leaves. Take the
+        # max of the explicit ABSENT count and this computed value so
+        # HR sees the real payroll-impacting absence total, not just
+        # the explicitly-marked ones.
+        effective_absent = max(absent, implicit_unpaid)
+
         return {
             "total_days": total_days, "sundays": sundays,
             "holidays": extra_holidays, "working_days": working_days,
-            "present_days": present, "absent_days": absent,
+            "present_days": present, "absent_days": effective_absent,
             "half_days": half, "late_count": late, "early_exit_count": early,
             "cl_used": cl, "sick_used": sick, "earned_used": earned,
             "paid_leaves": paid_total, "unpaid_leaves": unpaid_total,

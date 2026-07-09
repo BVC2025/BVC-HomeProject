@@ -121,7 +121,7 @@ def _log_failure(
 # Source of truth is attendance_settings_service.get_office_hours(db)
 # — that reads from the `setting` table (configurable from the UI).
 WORK_START_HOUR = 9
-WORK_START_MINUTE = 0
+WORK_START_MINUTE = 15    # Shift starts 9:00 with 15-min grace — LATE after 9:15
 
 
 # =========================
