@@ -164,7 +164,12 @@ def _serialize_slip(slip: PayrollSlip, employee: Optional[Employee] = None) -> d
         "PAID_AT": slip.PAID_AT.isoformat() if slip.PAID_AT else None,
         "PERMISSION_HOURS": slip.PERMISSION_HOURS or 0.0,
         "PERFORMANCE_STARS": slip.PERFORMANCE_STARS or 0.0,
-        "STAR_BONUS": slip.STAR_BONUS or 0.0
+        "STAR_BONUS": slip.STAR_BONUS or 0.0,
+        # BVC Phase F — attendance-driven payroll fields
+        "HOURLY_RATE":             getattr(slip, "HOURLY_RATE", 0.0) or 0.0,
+        "PERMISSION_EXCESS_HOURS": getattr(slip, "PERMISSION_EXCESS_HOURS", 0.0) or 0.0,
+        "PERMISSION_DEDUCTION":    getattr(slip, "PERMISSION_DEDUCTION", 0.0) or 0.0,
+        "ABSENCE_DEDUCTION":       getattr(slip, "ABSENCE_DEDUCTION", 0.0) or 0.0,
     }
 
 
@@ -1135,26 +1140,41 @@ def payslip_pdf(
     # the payslip never disagrees with the page; we do not read slip.NET_PAY
     # here because legacy slips may have stored a value computed under a
     # different ruleset.
+    # ------------------------------------------------------------------
+    # BVC Phase F — attendance-driven payroll (9h/day, 4h free permission,
+    # no late deduction, explicit absence + permission deduction lines,
+    # OT added on top). Fall back to on-the-fly computation for legacy
+    # slips that don't yet have the new columns filled in.
+    # ------------------------------------------------------------------
+    HOURS_PER_DAY = 9
     working_days = int(slip.WORKING_DAYS or 26)
     base_salary  = float(slip.BASE_SALARY or 0.0)
-    per_day      = (base_salary / working_days) if working_days else 0.0
+    per_day      = float(slip.PER_DAY_RATE or ((base_salary / working_days) if working_days else 0.0))
+    hourly_rate  = float(getattr(slip, "HOURLY_RATE", 0.0) or 0.0)
+    if hourly_rate <= 0:
+        hourly_rate = (per_day / HOURS_PER_DAY) if per_day else 0.0
 
     days_present = int(slip.DAYS_PRESENT or 0)
     absent_days  = float(slip.ABSENT_DAYS or 0.0)
     cl_used      = float(slip.PAID_LEAVE_DAYS or 0.0)
     perm_hours   = float(slip.PERMISSION_HOURS or 0.0)
     late_count   = int(slip.DAYS_LATE or 0)
+    ot_hours     = float(slip.OT_HOURS or 0.0)
+    ot_pay       = float(slip.OT_PAY or (ot_hours * hourly_rate))
 
     cl_paid       = min(cl_used, 1.0)
     cl_unpaid     = max(0.0, cl_used - 1.0)
     perm_paid     = min(perm_hours, 4.0)
-    perm_unpaid_h = max(0.0, perm_hours - 4.0)
-    perm_unpaid_d = perm_unpaid_h / 8.0
+    perm_excess_h = float(getattr(slip, "PERMISSION_EXCESS_HOURS", 0.0) or max(0.0, perm_hours - 4.0))
 
-    unpaid_total_days = absent_days + cl_unpaid + perm_unpaid_d + float(slip.UNPAID_LEAVE_DAYS or 0.0)
-    deduction     = round(unpaid_total_days * per_day, 2)
+    absence_deduction = float(getattr(slip, "ABSENCE_DEDUCTION", 0.0) or round(absent_days * per_day, 2))
+    permission_deduction = float(getattr(slip, "PERMISSION_DEDUCTION", 0.0) or round(perm_excess_h * hourly_rate, 2))
+
     increment     = float(slip.INCENTIVES or 0.0)
-    total_salary  = max(0.0, base_salary - deduction + increment)
+    total_salary  = max(
+        0.0,
+        base_salary - absence_deduction - permission_deduction + increment + ot_pay,
+    )
 
     def _row2(label, val_html, muted=False, strong=False):
         color = "#64748b" if muted else "#0f172a"
@@ -1178,17 +1198,17 @@ def payslip_pdf(
     )
 
     warning_html = ""
-    if cl_unpaid > 0 or perm_unpaid_h > 0:
+    if cl_unpaid > 0 or perm_excess_h > 0:
         which = []
         if cl_unpaid > 0:    which.append("CL")
-        if perm_unpaid_h > 0: which.append("permission")
+        if perm_excess_h > 0: which.append(f"permission (excess {perm_excess_h:.1f} h)")
         warning_html = (
             '<table style="width:100%;border-collapse:collapse;margin-top:14px;">'
             '<tr><td style="background:#fef3c7;border:1px solid #fde68a;'
             'border-left:4px solid #f59e0b;padding:10px 14px;font-size:11px;'
             'color:#78350f;border-radius:4px;">'
             f'<b>Note:</b> Monthly cap exceeded on {" and ".join(which)}. '
-            'The excess was treated as unpaid leave and deducted from this payslip.'
+            'The excess was deducted at the hourly rate for this payslip.'
             '</td></tr></table>'
         )
 
@@ -1352,7 +1372,7 @@ def payslip_pdf(
             <div class="section-title">Attendance Summary</div>
             <table class="summary-tbl" style="width:100%;border-collapse:collapse;">
               <tr>
-                <td class="lbl" style="width:60%;">Working days <span class="muted-note">(monthly standard)</span></td>
+                <td class="lbl" style="width:60%;">Working days <span class="muted-note">({HOURS_PER_DAY} h / day)</span></td>
                 <td class="val-right">{working_days}</td>
               </tr>
               <tr>
@@ -1369,17 +1389,17 @@ def payslip_pdf(
                 <td class="val-right">{cl_used:g} <span class="muted-note">/ {cl_paid:g} paid</span></td>
               </tr>
               <tr>
-                <td class="lbl">Permission used &nbsp;<span class="muted-note">(paid up to 4 h)</span>
-                  {'<span class="pill-warn">Over cap</span>' if perm_unpaid_h > 0 else ''}</td>
-                <td class="val-right">{perm_hours:g} h <span class="muted-note">/ {perm_paid:g} h paid</span></td>
+                <td class="lbl">Permission used &nbsp;<span class="muted-note">(free up to 4 h)</span>
+                  {'<span class="pill-warn">Excess</span>' if perm_excess_h > 0 else ''}</td>
+                <td class="val-right">{perm_hours:g} h <span class="muted-note">(excess {perm_excess_h:.1f} h)</span></td>
               </tr>
               <tr>
-                <td class="lbl">Late check-ins &nbsp;<span class="muted-note">(after 09:15)</span></td>
+                <td class="lbl">Late check-ins &nbsp;<span class="muted-note">(no deduction)</span></td>
                 <td class="val-right">{late_count}</td>
               </tr>
-              <tr style="background:#f8fafc;">
-                <td class="lbl" style="font-weight:800;color:#0f172a;">Total unpaid days</td>
-                <td class="val-right" style="font-weight:900;font-size:15px;">{unpaid_total_days:.2f}</td>
+              <tr>
+                <td class="lbl">Overtime hours</td>
+                <td class="val-right" style="color:{'#7c3aed' if ot_hours > 0 else '#0f172a'};">{ot_hours:.1f} h</td>
               </tr>
             </table>
           </div>
@@ -1397,8 +1417,20 @@ def payslip_pdf(
                 <td class="val-right" style="color:#475569;">₹ {per_day:,.2f}</td>
               </tr>
               <tr>
-                <td class="lbl">Less: Deduction &nbsp;<span class="muted-note">(unpaid days × per-day)</span></td>
-                <td class="val-right" style="color:#b91c1c;">− ₹ {deduction:,.2f}</td>
+                <td class="lbl">Hourly rate &nbsp;<span class="muted-note">(per-day ÷ {HOURS_PER_DAY})</span></td>
+                <td class="val-right" style="color:#475569;">₹ {hourly_rate:,.2f}</td>
+              </tr>
+              <tr>
+                <td class="lbl">Less: Absence deduction &nbsp;<span class="muted-note">({absent_days:g} × per-day)</span></td>
+                <td class="val-right" style="color:{'#b91c1c' if absence_deduction > 0 else '#0f172a'};">− ₹ {absence_deduction:,.2f}</td>
+              </tr>
+              <tr>
+                <td class="lbl">Less: Permission excess &nbsp;<span class="muted-note">({perm_excess_h:.1f} h × hourly)</span></td>
+                <td class="val-right" style="color:{'#b91c1c' if permission_deduction > 0 else '#0f172a'};">− ₹ {permission_deduction:,.2f}</td>
+              </tr>
+              <tr>
+                <td class="lbl">Add: OT pay &nbsp;<span class="muted-note">({ot_hours:.1f} h × hourly)</span></td>
+                <td class="val-right" style="color:{'#7c3aed' if ot_pay > 0 else '#0f172a'};">+ ₹ {ot_pay:,.2f}</td>
               </tr>
               <tr>
                 <td class="lbl">Add: Increment &nbsp;<span class="muted-note">(HR approved)</span></td>
@@ -1415,7 +1447,7 @@ def payslip_pdf(
                   <tr>
                     <td>
                       <div class="total-label">Total Salary</div>
-                      <div class="total-help">Base − Deduction + Increment</div>
+                      <div class="total-help">Base − Absence − Permission + OT + Increment</div>
                     </td>
                     <td class="total-amt">₹ {total_salary:,.2f}</td>
                   </tr>
@@ -1438,7 +1470,7 @@ def payslip_pdf(
           <!-- ============ FOOTER ============ -->
           <div class="footnote">
             This is a computer-generated payslip — no signature is required for online records.<br/>
-            <b>Salary policy:</b> 26 working days per month &nbsp;·&nbsp; 1 CL paid &nbsp;·&nbsp; 4 hours permission paid &nbsp;·&nbsp; Late after 09:15.
+            <b>Salary policy:</b> {working_days} working days ({HOURS_PER_DAY} h / day) &nbsp;·&nbsp; 1 CL paid &nbsp;·&nbsp; 4 h permission free &nbsp;·&nbsp; Late shown but not deducted.
           </div>
 
         </div>

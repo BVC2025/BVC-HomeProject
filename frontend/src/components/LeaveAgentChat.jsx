@@ -42,8 +42,52 @@ export default function LeaveAgentChat({ employeeId, onLeaveSubmitted }) {
   const [listening, setListening] = useState(false);
   const [error, setError] = useState("");
 
+  // Voice output — TTS on by default (per BVC "voice-first" spec).
+  // Uses the browser's built-in SpeechSynthesis API — no cost, no
+  // network calls, prefers en-IN voice when available.
+  const [voiceOut, setVoiceOut] = useState(() => {
+    try {
+      const saved = localStorage.getItem("bvc_leave_voice_out");
+      return saved === null ? true : saved === "1";
+    } catch { return true; }
+  });
+  const [speaking, setSpeaking] = useState(false);
+
   const recRef = useRef(null);
   const scrollerRef = useRef(null);
+
+  const persistVoicePref = (on) => {
+    try { localStorage.setItem("bvc_leave_voice_out", on ? "1" : "0"); } catch {}
+  };
+
+  // Speak a message via browser TTS. Cancels any in-flight utterance
+  // so consecutive agent replies don't queue up and overlap.
+  const speak = (text) => {
+    if (!voiceOut || !text || typeof window === "undefined") return;
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    try {
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      // Prefer an English (India) voice when the browser has one loaded
+      const voices = synth.getVoices() || [];
+      const enIN = voices.find((v) => /en-IN|Indian/i.test(v.lang + v.name));
+      if (enIN) u.voice = enIN;
+      u.rate = 1.0;
+      u.pitch = 1.0;
+      u.onstart = () => setSpeaking(true);
+      u.onend   = () => setSpeaking(false);
+      u.onerror = () => setSpeaking(false);
+      synth.speak(u);
+    } catch {
+      /* browsers without full TTS support silently no-op */
+    }
+  };
+
+  const stopSpeaking = () => {
+    try { window.speechSynthesis?.cancel(); } catch {}
+    setSpeaking(false);
+  };
 
   // Auto-scroll on new message
   useEffect(() => {
@@ -70,13 +114,16 @@ export default function LeaveAgentChat({ employeeId, onLeaveSubmitted }) {
         SESSION_ID: sessionId,
       });
       const d = res.data || {};
+      const replyText = d.message || "(no reply)";
       setMessages((m) => [...m, {
         role: "agent",
-        text: d.message || "(no reply)",
+        text: replyText,
         state: d.state,
         intent: d.intent,
         leaveRequestId: d?.data?.leave_request_id,
       }]);
+      // Voice the agent's reply if TTS is enabled
+      speak(replyText);
       setSessionId(d.session_id || null);
       // The unified endpoint doesn't track collected fields the same way
       // — only the leave sub-flow does, via session_id.
@@ -184,23 +231,71 @@ export default function LeaveAgentChat({ employeeId, onLeaveSubmitted }) {
             Leave · Attendance · Payroll · Holidays · Policies · Profile
           </div>
         </div>
-        <button
-          type="button"
-          onClick={reset}
-          title="Start a fresh conversation"
-          style={{
-            background: "rgba(255,255,255,0.15)",
-            color: "white",
-            border: "none",
-            padding: "6px 12px",
-            borderRadius: 6,
-            cursor: "pointer",
-            fontSize: 11,
-            fontWeight: 700,
-          }}
-        >
-          New
-        </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {/* Voice-output toggle — speaker on / mute */}
+          <button
+            type="button"
+            onClick={() => {
+              const next = !voiceOut;
+              setVoiceOut(next);
+              persistVoicePref(next);
+              if (!next) stopSpeaking();
+            }}
+            title={voiceOut ? "Mute voice replies" : "Enable voice replies"}
+            style={{
+              background: voiceOut
+                ? "rgba(255,255,255,0.22)"
+                : "rgba(255,255,255,0.08)",
+              color: "white",
+              border: "none",
+              padding: "6px 10px",
+              borderRadius: 6,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              fontSize: 11,
+              fontWeight: 700,
+            }}
+          >
+            {voiceOut ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" strokeWidth="2"
+                   strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" strokeWidth="2"
+                   strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <line x1="23" y1="9" x2="17" y2="15" />
+                <line x1="17" y1="9" x2="23" y2="15" />
+              </svg>
+            )}
+            {speaking ? "Speaking" : voiceOut ? "Voice" : "Muted"}
+          </button>
+
+          <button
+            type="button"
+            onClick={reset}
+            title="Start a fresh conversation"
+            style={{
+              background: "rgba(255,255,255,0.15)",
+              color: "white",
+              border: "none",
+              padding: "6px 12px",
+              borderRadius: 6,
+              cursor: "pointer",
+              fontSize: 11,
+              fontWeight: 700,
+            }}
+          >
+            New
+          </button>
+        </div>
       </div>
 
       {/* Collected summary (when we have data) */}

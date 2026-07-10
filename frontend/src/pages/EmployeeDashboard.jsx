@@ -5,7 +5,6 @@ import API, { API_BASE_URL } from "../services/api";
 import ChatBot from "../components/ChatBot";
 import HRAssistant from "../components/HRAssistant";
 import LeaveChatbot from "../components/LeaveChatbot";
-import VoiceLeaveTest from "../components/VoiceLeaveTest";
 import LeaveAgentChat from "../components/LeaveAgentChat";
 import MyLeaveStatus from "../components/MyLeaveStatus";
 import MyAttendancePanel from "../components/MyAttendancePanel";
@@ -746,9 +745,6 @@ function EmployeeDashboardBody() {
                 employeeId={employeeId}
                 refreshSignal={leaveStatusRefresh}
               />
-              <div style={{ marginTop: 16 }}>
-                <VoiceLeaveTest />
-              </div>
             </>
           )}
 
@@ -768,13 +764,6 @@ function EmployeeDashboardBody() {
             <MyPayslipsPanel employeeId={employeeId} />
           )}
 
-          {mainTab === "performance" && (
-            <>
-              <PerformanceBreakdownCard productivity={productivity} />
-              <MonthlyProductivityChart data={monthlyChart} />
-              <RewardsCard productivity={productivity} />
-            </>
-          )}
 
         </div>
       </main>
@@ -1072,8 +1061,7 @@ const Z_TAB_TITLES = {
   permission:  "Permission",
   memos:       "Memos",
   allowance:   "Allowance",
-  payslips:    "Payslips",
-  performance: "Performance"
+  payslips:    "Payslips"
 };
 
 function ZSidebar({

@@ -54,7 +54,23 @@ DEFAULT_TASK_BONUS = 100.0   # ₹ per task COMPLETED in the month
 # At ₹500/star a 5★ employee earns +₹2,500/month on top of base.
 BONUS_PER_STAR = 500.0
 
-DEFAULT_LATE_PENALTY = 50.0  # ₹ per late check-in
+# BVC policy: late check-in is *tracked* but NOT deducted. Zero out
+# the historical ₹50/day penalty. HR can still override per-run via
+# late_penalty_per_day argument if a specific incident warrants it.
+DEFAULT_LATE_PENALTY = 0.0
+
+# BVC policy: 9-hour working day. Used to convert monthly salary
+# into an hourly rate → permission excess and OT are then valued
+# at that hourly rate.
+HOURS_PER_WORKING_DAY = 9
+
+# BVC policy: 4 free permission hours per month. Anything above
+# gets deducted from salary at the hourly rate.
+FREE_PERMISSION_HOURS_PER_MONTH = 4.0
+
+# OT multiplier — 1.0 = straight-time (BVC current policy); bump to
+# 1.5 for time-and-a-half if the company shifts to that model.
+OT_RATE_MULTIPLIER = 1.0
 
 # Same admin-role names used by the task allocator — admins don't
 # get task-based bonus etc, but payroll still runs for them since
@@ -141,6 +157,24 @@ def _is_admin(employee: Employee, role_cache: Dict[int, str]) -> bool:
     name = role_cache.get(employee.ROLE_ID, "")
 
     return name.lower() in ADMIN_ROLE_NAMES if name else False
+
+
+def _sum_permission_hours(db: Session, employee_id: str,
+                          first: date, last: date) -> float:
+    """Sum of DURATION_HOURS for approved / pending permission requests
+    inside the pay period. Both approved and pending count so an
+    unapproved permission still counts toward the 4-hour monthly quota."""
+
+    q = db.query(
+        func.coalesce(func.sum(LeaveRequest.DURATION_HOURS), 0.0)
+    ).filter(
+        LeaveRequest.EMPLOYEE_ID == employee_id,
+        LeaveRequest.LEAVE_TYPE == "PERMISSION",
+        LeaveRequest.STATUS.in_(("APPROVED", "PENDING_APPROVAL")),
+        LeaveRequest.START_DATE >= first,
+        LeaveRequest.START_DATE <= last,
+    )
+    return float(q.scalar() or 0.0)
 
 
 def calculate_employee_payroll(
@@ -283,11 +317,15 @@ def calculate_employee_payroll(
     paid_days = days_present + days_half * 0.5 + paid_leave
 
     # Reuse the salary structure fetched at the top of this function.
-    # The "earned" multiplier prorates every component by attendance —
-    # so a half-month employee earns half of every allowance.
     structure = _structure
 
-    earn_ratio = (paid_days / working_days) if working_days else 0.0
+    # BVC policy: gross earnings show the FULL monthly components
+    # (Basic + HRA + DA + …). Attendance-based reduction is expressed
+    # as an explicit ABSENCE_DEDUCTION line item in the deductions
+    # column so HR sees the exact amount removed for absent days.
+    # (The old proration-based method was double-counting when
+    # combined with the new ABSENCE_DEDUCTION.)
+    earn_ratio = 1.0
 
     if structure:
 
@@ -333,7 +371,27 @@ def calculate_employee_payroll(
 
     task_bonus = round(tasks_completed * task_bonus_per_task, 2)
 
-    ot_pay = 0.0  # OT rate not configured yet; reserved field
+    # ---- 6. BVC company rules — Phase F ----
+    # (a) Hourly rate — base_salary / (working_days × 9-hour day)
+    hourly_rate = (
+        base_salary / (working_days * HOURS_PER_WORKING_DAY)
+        if working_days > 0 else 0.0
+    )
+
+    # (b) Permission — 4h free per month; anything above is deducted
+    # at the hourly rate. permission_hours is looked up by the caller
+    # (generate_payroll_run) and passed via a mutable dict on `employee`;
+    # here we compute against a value fetched below.
+    permission_hours = _sum_permission_hours(db, employee.ID, first, last)
+    permission_excess_hours = max(0.0, permission_hours - FREE_PERMISSION_HOURS_PER_MONTH)
+    permission_deduction    = round(permission_excess_hours * hourly_rate, 2)
+
+    # (c) Absence — full-day rate per day (unauthorised absent only,
+    # not paid leaves).
+    absence_deduction = round(absent_days * per_day, 2)
+
+    # (d) OT — separate additional pay = ot_hours × hourly_rate × multiplier
+    ot_pay = round(ot_hours * hourly_rate * OT_RATE_MULTIPLIER, 2)
 
     gross_pay = round(
         earned_basic + earned_hra + earned_da +
@@ -353,10 +411,15 @@ def calculate_employee_payroll(
         esi_applicable=esi_applicable
     )
 
+    # Late is TRACKED but not deducted by default. HR can pass a
+    # non-zero late_penalty_per_day per run to override.
     late_penalty = round(days_late * late_penalty_per_day, 2)
 
     total_deductions = round(
-        late_penalty + stat["employee_total"],
+        late_penalty
+        + permission_deduction
+        + absence_deduction
+        + stat["employee_total"],
         2
     )
 
@@ -366,12 +429,17 @@ def calculate_employee_payroll(
         "base_salary": round(base_salary, 2),
         "working_days": working_days,
         "per_day_rate": round(per_day, 2),
+        "hourly_rate": round(hourly_rate, 2),
         "days_present": days_present,
         "days_late": days_late,
         "days_half": days_half,
         "paid_leave_days": round(paid_leave, 2),
         "unpaid_leave_days": round(unpaid_leave, 2),
         "absent_days": round(absent_days, 2),
+        "absence_deduction": absence_deduction,
+        "permission_hours": round(permission_hours, 2),
+        "permission_excess_hours": round(permission_excess_hours, 2),
+        "permission_deduction": permission_deduction,
         "tasks_completed": tasks_completed,
         "task_bonus_per_task": task_bonus_per_task,
         "earned_basic": earned_basic,
@@ -552,7 +620,11 @@ def generate_payroll_run(
             PAID_LEAVE_DAYS=breakdown["paid_leave_days"],
             UNPAID_LEAVE_DAYS=breakdown["unpaid_leave_days"],
             ABSENT_DAYS=breakdown["absent_days"],
+            ABSENCE_DEDUCTION=breakdown["absence_deduction"],
             PERMISSION_HOURS=permission_hours,
+            HOURLY_RATE=breakdown["hourly_rate"],
+            PERMISSION_EXCESS_HOURS=breakdown["permission_excess_hours"],
+            PERMISSION_DEDUCTION=breakdown["permission_deduction"],
             PERFORMANCE_STARS=stars,
             STAR_BONUS=star_bonus,
             STATUS="PENDING",

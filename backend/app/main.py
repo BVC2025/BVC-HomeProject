@@ -307,6 +307,16 @@ def _auto_migrate():
         # 0 when PRESENT / on time. Independent of the Permission module — a
         # late arrival is NOT a permission request.
         ("attendance",      "LATE_MINUTES",   "INT NULL DEFAULT 0"),
+        # ---- Payroll: BVC-specific fields ----
+        # Hourly rate derived from base_salary / (working_days × 9). Used
+        # to convert excess permission hours + OT hours into cash values.
+        ("payroll_slip",    "HOURLY_RATE",              "FLOAT NULL DEFAULT 0"),
+        # Permission hours above the 4-hour monthly quota (excess).
+        ("payroll_slip",    "PERMISSION_EXCESS_HOURS",  "FLOAT NULL DEFAULT 0"),
+        # Salary deducted for the excess permission = excess_hours × HOURLY_RATE.
+        ("payroll_slip",    "PERMISSION_DEDUCTION",     "FLOAT NULL DEFAULT 0"),
+        # Salary deducted for unauthorised absent days = absent_days × per_day_rate.
+        ("payroll_slip",    "ABSENCE_DEDUCTION",        "FLOAT NULL DEFAULT 0"),
         # ---- Unified Employee Dashboard (Permission support) ----
         # LEAVE_TYPE='PERMISSION' rows track sub-day time-off in hours
         ("leave_request",   "DURATION_HOURS", "FLOAT NULL"),
@@ -1538,3 +1548,72 @@ def _start_essl_autosync():
 
 
 _start_essl_autosync()
+
+
+# =====================================================================
+# Star Performance — nightly + on-startup recompute
+# =====================================================================
+# Every day at 01:15 IST, recomputes every employee's Star Performance
+# score for the CURRENT month using the latest attendance / task / leave
+# data. Prorated: only counts working days elapsed so far, so scores
+# reflect real behaviour without being penalised for future days.
+#
+# Also fires once at server startup so the first page load after a
+# restart shows fresh data immediately.
+
+def _start_star_performance_autosync():
+
+    if os.getenv("STAR_AUTOSYNC", "1") == "0":
+        return
+
+    import logging
+    log = logging.getLogger("uvicorn")
+
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from apscheduler.triggers.cron import CronTrigger
+    except ImportError:
+        return
+
+    def _tick():
+        try:
+            from datetime import date as _date
+            from app.database.database import SessionLocal
+            from app.services.star_performance_service import (
+                compute_performance_for_all,
+            )
+            today = _date.today()
+            db = SessionLocal()
+            try:
+                summary = compute_performance_for_all(
+                    db, vendor_id=1, year=today.year, month=today.month,
+                )
+                db.commit()
+                log.info(
+                    "star-autosync: scored %s employees for %s-%02d",
+                    summary.get("scored"), today.year, today.month,
+                )
+            finally:
+                db.close()
+        except Exception as exc:
+            log.exception("star-autosync: tick failed: %s", exc)
+
+    scheduler = BackgroundScheduler(daemon=True)
+    scheduler.add_job(
+        _tick,
+        CronTrigger(hour=1, minute=15),
+        id="star_daily_recompute",
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.start()
+
+    # Also compute once at startup (deferred 30 s so uvicorn is fully up
+    # before it hits the DB)
+    from threading import Timer
+    Timer(30, _tick).start()
+
+    log.info("star-autosync: started (nightly 01:15 + 30s after boot)")
+
+
+_start_star_performance_autosync()

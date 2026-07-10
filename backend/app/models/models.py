@@ -2534,6 +2534,17 @@ class PayrollSlip(Base):
     # column on the employee-list view; does not itself affect pay.
     PERMISSION_HOURS = Column(Float, default=0.0)
 
+    # ---- BVC company rules — Phase F ----
+    # Hourly wage derived from base_salary / (working_days × 9).
+    # Used to convert excess permission hours + OT hours into money.
+    HOURLY_RATE = Column(Float, default=0.0)
+    # Permission hours above the 4-hour monthly quota.
+    PERMISSION_EXCESS_HOURS = Column(Float, default=0.0)
+    # Permission excess × hourly_rate. Subtracted from base salary.
+    PERMISSION_DEDUCTION = Column(Float, default=0.0)
+    # Absent days × per_day_rate. Subtracted from base salary.
+    ABSENCE_DEDUCTION = Column(Float, default=0.0)
+
     # Snapshot of the employee's PerformanceScore.OVERALL_STARS for
     # this pay period (0.0–5.0). Drives STAR_BONUS below.
     PERFORMANCE_STARS = Column(Float, default=0.0)

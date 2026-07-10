@@ -160,11 +160,14 @@ def get_payslip_pdf(
         "Overtime":            float(slip.OT_PAY or 0),
     }
 
+    # BVC company policy — Late is displayed but never deducted, so the
+    # Late Penalty row is intentionally omitted from the payslip.
     deductions = {
+        "Absence":              float(getattr(slip, "ABSENCE_DEDUCTION", 0.0) or 0.0),
+        "Permission (excess)":  float(getattr(slip, "PERMISSION_DEDUCTION", 0.0) or 0.0),
         "Provident Fund (PF)":  float(slip.PF_EMPLOYEE or 0),
         "ESI":                  float(slip.ESI_EMPLOYEE or 0),
         "Professional Tax":     float(slip.PROFESSIONAL_TAX or 0),
-        "Late Penalty":         float(slip.LATE_PENALTY or 0),
         "Other Deductions":     float(slip.OTHER_DEDUCTIONS or 0),
     }
 
@@ -185,13 +188,15 @@ def get_payslip_pdf(
             "PAN":           getattr(emp, "PAN_NUMBER", None),
         },
         attendance={
-            "WORKING_DAYS":  slip.WORKING_DAYS,
-            "PRESENT":       slip.DAYS_PRESENT,
-            "LATE":          slip.DAYS_LATE,
-            "LEAVE":         float(slip.PAID_LEAVE_DAYS or 0),
-            "LOP":           float(slip.UNPAID_LEAVE_DAYS or 0),
-            "ABSENT":        float(slip.ABSENT_DAYS or 0),
-            "OT_HOURS":      float(slip.OT_HOURS or 0),
+            "WORKING_DAYS":     slip.WORKING_DAYS,
+            "PRESENT":          slip.DAYS_PRESENT,
+            "LATE":             slip.DAYS_LATE,
+            "LEAVE":            float(slip.PAID_LEAVE_DAYS or 0),
+            "LOP":              float(slip.UNPAID_LEAVE_DAYS or 0),
+            "ABSENT":           float(slip.ABSENT_DAYS or 0),
+            "OT_HOURS":         float(slip.OT_HOURS or 0),
+            "PERMISSION_HOURS": float(getattr(slip, "PERMISSION_HOURS", 0.0) or 0.0),
+            "HOURLY_RATE":      float(getattr(slip, "HOURLY_RATE", 0.0) or 0.0),
         },
         earnings=earnings,
         deductions=deductions,

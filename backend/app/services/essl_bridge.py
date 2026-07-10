@@ -306,7 +306,7 @@ def sync_once(cfg: Optional[DeviceConfig] = None) -> dict:
             "error": "pyzk not installed. Run: pip install pyzk==0.9",
         }
 
-    log.info("essl-bridge: connecting to %s:%s", cfg.ip, cfg.port)
+    log.debug("essl-bridge: connecting to %s:%s", cfg.ip, cfg.port)
 
     zk = ZK(cfg.ip, port=cfg.port, password=cfg.comm_key, timeout=15)
     conn = None
@@ -322,7 +322,7 @@ def sync_once(cfg: Optional[DeviceConfig] = None) -> dict:
         conn.disable_device()               # freeze punches during sync
 
         watermark = _last_watermark(db, cfg)
-        log.info("essl-bridge: watermark = %s", watermark)
+        log.debug("essl-bridge: watermark = %s", watermark)
 
         events = conn.get_attendance()
         events.sort(key=lambda e: e.timestamp)
