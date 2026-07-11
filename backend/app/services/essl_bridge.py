@@ -382,7 +382,18 @@ def sync_once(cfg: Optional[DeviceConfig] = None) -> dict:
 
     except Exception as e:
         db.rollback()
-        log.exception("essl-bridge: FAILED %s", e)
+        # Device-unreachable errors are noisy at INFO level (the autosync
+        # runs every 2 min). Log those as a single WARN line so an
+        # unplugged / powered-off device doesn't spam full tracebacks.
+        # Anything else (auth, protocol errors) still gets the full trace.
+        if e.__class__.__name__ == "ZKNetworkError":
+            log.warning(
+                "essl-bridge: device unreachable at %s:%s — %s "
+                "(check device power / Ethernet / IP)",
+                cfg.ip, cfg.port, e,
+            )
+        else:
+            log.exception("essl-bridge: FAILED %s", e)
         return {
             "applied": applied,
             "skipped_unmapped": skipped_unmapped,
