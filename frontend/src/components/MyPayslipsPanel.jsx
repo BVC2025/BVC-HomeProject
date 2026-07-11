@@ -11,17 +11,17 @@ import { useEffect, useMemo, useState } from "react";
 import API from "../services/api";
 
 
-const BVC_RED  = "#C8102E";
+const BVC_RED = "#C8102E";
 const BVC_DARK = "#7A1022";
 const BVC_GOLD = "#F4B324";
 
-const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8001";
+const BACKEND_URL = API.defaults.baseURL || "http://192.168.1.10:8001";
 
 
 const STATUS_THEME = {
-  DRAFT:     { bg: "#fef3c7", fg: "#854d0e" },
+  DRAFT: { bg: "#fef3c7", fg: "#854d0e" },
   FINALIZED: { bg: "#dbeafe", fg: "#1e40af" },
-  PAID:      { bg: "#dcfce7", fg: "#166534" },
+  PAID: { bg: "#dcfce7", fg: "#166534" },
 };
 
 
@@ -50,12 +50,12 @@ function inr(n) {
 
 export default function MyPayslipsPanel({ employeeId }) {
 
-  const [rows, setRows]         = useState([]);
-  const [summary, setSummary]   = useState(null);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState("");
-  const [year,  setYear]        = useState("");      // filter by year, empty = all
-  const [busyId, setBusyId]     = useState(null);    // slip id with in-flight download
+  const [rows, setRows] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [year, setYear] = useState("");      // filter by year, empty = all
+  const [busyId, setBusyId] = useState(null);    // slip id with in-flight download
 
   const load = async () => {
     if (!employeeId) return;
@@ -103,7 +103,7 @@ export default function MyPayslipsPanel({ employeeId }) {
         responseType: "blob",
       });
       const blob = new Blob([res.data], { type: "application/pdf" });
-      const url  = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = `Payslip-${slip.PAYSLIP_NUMBER}.pdf`;
@@ -160,10 +160,10 @@ export default function MyPayslipsPanel({ employeeId }) {
           gridTemplateColumns: "repeat(4, 1fr)",
           gap: 12,
         }}>
-          <Tile label="Total payslips" value={summary.total}            sub="all-time"                 color="#1d4ed8" />
-          <Tile label="Latest net pay" value={inr(summary.last_net)}     sub={summary.last_label}        color="#059669" />
-          <Tile label={`YTD ${summary.ytd_year}`} value={inr(summary.ytd_net)} sub="net pay this year"  color="#7A1022" />
-          <Tile label="Available years" value={years.length || 0}        sub={years.slice(0,3).join(", ") || "—"} color="#B47900" />
+          <Tile label="Total payslips" value={summary.total} sub="all-time" color="#1d4ed8" />
+          <Tile label="Latest net pay" value={inr(summary.last_net)} sub={summary.last_label} color="#059669" />
+          <Tile label={`YTD ${summary.ytd_year}`} value={inr(summary.ytd_net)} sub="net pay this year" color="#7A1022" />
+          <Tile label="Available years" value={years.length || 0} sub={years.slice(0, 3).join(", ") || "—"} color="#B47900" />
         </div>
       )}
 
@@ -173,8 +173,10 @@ export default function MyPayslipsPanel({ employeeId }) {
         boxShadow: "0 4px 14px rgba(15,23,42,0.05)",
         display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap",
       }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: "#475569",
-                       letterSpacing: 0.5 }}>
+        <span style={{
+          fontSize: 11, fontWeight: 700, color: "#475569",
+          letterSpacing: 0.5
+        }}>
           FILTER
         </span>
         <button
@@ -182,8 +184,8 @@ export default function MyPayslipsPanel({ employeeId }) {
           style={{
             ...chip,
             background: year === "" ? "#0f172a" : "white",
-            color:      year === "" ? "white"   : "#475569",
-            border:     year === "" ? "1px solid #0f172a" : "1px solid #e2e8f0",
+            color: year === "" ? "white" : "#475569",
+            border: year === "" ? "1px solid #0f172a" : "1px solid #e2e8f0",
           }}
         >
           All years
@@ -195,8 +197,8 @@ export default function MyPayslipsPanel({ employeeId }) {
             style={{
               ...chip,
               background: String(year) === String(y) ? "#0f172a" : "white",
-              color:      String(year) === String(y) ? "white"   : "#475569",
-              border:     String(year) === String(y) ? "1px solid #0f172a" : "1px solid #e2e8f0",
+              color: String(year) === String(y) ? "white" : "#475569",
+              border: String(year) === String(y) ? "1px solid #0f172a" : "1px solid #e2e8f0",
             }}
           >
             {y}
@@ -209,8 +211,10 @@ export default function MyPayslipsPanel({ employeeId }) {
 
       {/* List */}
       {loading && (
-        <div style={{ padding: 30, textAlign: "center", color: "#94a3b8",
-                      fontStyle: "italic" }}>
+        <div style={{
+          padding: 30, textAlign: "center", color: "#94a3b8",
+          fontStyle: "italic"
+        }}>
           Loading your payslips...
         </div>
       )}
@@ -238,8 +242,10 @@ export default function MyPayslipsPanel({ employeeId }) {
           boxShadow: "0 4px 14px rgba(15,23,42,0.05)",
         }}>
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse",
-                            fontSize: 13 }}>
+            <table style={{
+              width: "100%", borderCollapse: "collapse",
+              fontSize: 13
+            }}>
               <thead>
                 <tr style={{
                   background: "#f8fafc", fontSize: 10,
@@ -267,16 +273,20 @@ export default function MyPayslipsPanel({ employeeId }) {
                         {r.YEAR}
                       </div>
                     </td>
-                    <td style={{ ...td, fontFamily: "ui-monospace, monospace",
-                                 fontSize: 11, color: "#475569" }}>
+                    <td style={{
+                      ...td, fontFamily: "ui-monospace, monospace",
+                      fontSize: 11, color: "#475569"
+                    }}>
                       {r.PAYSLIP_NUMBER}
                     </td>
                     <td style={{ ...td, textAlign: "right" }}>{inr(r.GROSS_PAY)}</td>
                     <td style={{ ...td, textAlign: "right", color: "#b91c1c" }}>
                       −{inr(r.TOTAL_DEDUCTIONS)}
                     </td>
-                    <td style={{ ...td, textAlign: "right",
-                                 fontWeight: 800, color: "#166534" }}>
+                    <td style={{
+                      ...td, textAlign: "right",
+                      fontWeight: 800, color: "#166534"
+                    }}>
                       {inr(r.NET_PAY)}
                     </td>
                     <td style={td}>
@@ -285,7 +295,7 @@ export default function MyPayslipsPanel({ employeeId }) {
                       </div>
                       {(r.UNPAID_LEAVE_DAYS > 0 || r.DAYS_LATE > 0) && (
                         <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>
-                          {r.DAYS_LATE > 0     ? `${r.DAYS_LATE} late · ` : ""}
+                          {r.DAYS_LATE > 0 ? `${r.DAYS_LATE} late · ` : ""}
                           {r.UNPAID_LEAVE_DAYS > 0 ? `${r.UNPAID_LEAVE_DAYS} LOP` : ""}
                         </div>
                       )}
@@ -294,14 +304,14 @@ export default function MyPayslipsPanel({ employeeId }) {
                     <td style={td}>
                       <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                         <button onClick={() => onView(r.ID)}
-                                style={btnSecondary}>View</button>
+                          style={btnSecondary}>View</button>
                         <button onClick={() => onDownload(r)}
-                                disabled={busyId === r.ID}
-                                style={btnPrimary}>
+                          disabled={busyId === r.ID}
+                          style={btnPrimary}>
                           {busyId === r.ID ? "..." : "Download"}
                         </button>
                         <button onClick={() => onPrint(r.ID)}
-                                style={btnSecondary}>Print</button>
+                          style={btnSecondary}>Print</button>
                       </div>
                     </td>
                   </tr>
@@ -340,8 +350,10 @@ function Tile({ label, value, sub, color }) {
 }
 
 
-const th = { padding: "10px 12px", textAlign: "left",
-             fontWeight: 700, borderBottom: "1px solid #e2e8f0" };
+const th = {
+  padding: "10px 12px", textAlign: "left",
+  fontWeight: 700, borderBottom: "1px solid #e2e8f0"
+};
 
 const td = { padding: "10px 12px", verticalAlign: "top" };
 

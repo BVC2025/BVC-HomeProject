@@ -26,12 +26,12 @@ param(
 $ErrorActionPreference = "Stop"
 
 $DeployDir = $PSScriptRoot
-$RepoRoot  = Split-Path -Parent $DeployDir
+$RepoRoot = Split-Path -Parent $DeployDir
 
 # Verify elevation
 $isAdmin = ([Security.Principal.WindowsPrincipal] `
-    [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
-        [Security.Principal.WindowsBuiltInRole]::Administrator)
+        [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+    [Security.Principal.WindowsBuiltInRole]::Administrator)
 
 if (-not $isAdmin) {
     throw "This script requires an elevated PowerShell (Run as Administrator)."
@@ -46,15 +46,17 @@ Write-Host " Deploy:    $DeployDir"
 Write-Host " Mode:      " -NoNewline
 if ($Uninstall) {
     Write-Host "UNINSTALL" -ForegroundColor Red
-} elseif ($DryRun) {
+}
+elseif ($DryRun) {
     Write-Host "DRY-RUN" -ForegroundColor Yellow
-} else {
+}
+else {
     Write-Host "INSTALL" -ForegroundColor Green
 }
 Write-Host ""
 
 $extra = @()
-if ($DryRun)    { $extra += "-DryRun" }
+if ($DryRun) { $extra += "-DryRun" }
 
 if ($Uninstall) {
     # Tear down in REVERSE order — tunnel first so external traffic stops
@@ -98,7 +100,7 @@ Write-Host "=============================================================" -Fore
 Write-Host ""
 Write-Host "Verify:"
 Write-Host "  Locally:  http://127.0.0.1:4173      (frontend)"
-Write-Host "            http://127.0.0.1:8001/docs (backend OpenAPI)"
+Write-Host "            http:///127.0.0.1:8001/docs (backend OpenAPI)"
 Write-Host ""
 Write-Host "  Public:   https://erp.bvc24.com      (frontend)"
 Write-Host "            https://api.bvc24.com/docs (backend)"

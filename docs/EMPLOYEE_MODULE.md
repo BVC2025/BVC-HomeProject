@@ -270,7 +270,7 @@ After successful login, the frontend stamps `localStorage`:
 
 1. `VITE_API_URL` env var (production override)
 2. Same-host autodetection: `${proto}//${window.location.hostname}:8001`
-3. Hardcoded `http://127.0.0.1:8001` fallback
+3. Hardcoded `http://192.168.1.10:8001` fallback
 
 This means a phone on `192.168.1.20` hitting `http://192.168.1.56:5174` automatically targets `http://192.168.1.56:8001` — no code change needed.
 

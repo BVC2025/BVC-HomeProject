@@ -21,19 +21,19 @@ import { useEffect, useMemo, useState } from "react";
 import API from "../services/api";
 
 
-const BVC_RED  = "#C8102E";
+const BVC_RED = "#C8102E";
 const BVC_DARK = "#7A1022";
 const BVC_GOLD = "#F4B324";
 
-const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8001";
+const BACKEND_URL = API.defaults.baseURL || "http://192.168.1.10:8001";
 
 const MONTHS = [
-  { n: 1,  label: "January" },   { n: 2,  label: "February" },
-  { n: 3,  label: "March"   },   { n: 4,  label: "April"    },
-  { n: 5,  label: "May"     },   { n: 6,  label: "June"     },
-  { n: 7,  label: "July"    },   { n: 8,  label: "August"   },
-  { n: 9,  label: "September" }, { n: 10, label: "October"  },
-  { n: 11, label: "November"  }, { n: 12, label: "December" },
+  { n: 1, label: "January" }, { n: 2, label: "February" },
+  { n: 3, label: "March" }, { n: 4, label: "April" },
+  { n: 5, label: "May" }, { n: 6, label: "June" },
+  { n: 7, label: "July" }, { n: 8, label: "August" },
+  { n: 9, label: "September" }, { n: 10, label: "October" },
+  { n: 11, label: "November" }, { n: 12, label: "December" },
 ];
 
 
@@ -50,17 +50,17 @@ function inr(n) {
 function defaultBreakdown(monthlySalary) {
   const s = Number(monthlySalary || 0);
   // Standard Indian salary split — typical mid-size company
-  const basic       = Math.round(s * 0.50);
-  const hra         = Math.round(s * 0.20);
-  const conveyance  = Math.min(1600, Math.round(s * 0.05));
-  const medical     = Math.min(1250, Math.round(s * 0.04));
-  const special     = Math.max(0, s - basic - hra - conveyance - medical);
+  const basic = Math.round(s * 0.50);
+  const hra = Math.round(s * 0.20);
+  const conveyance = Math.min(1600, Math.round(s * 0.05));
+  const medical = Math.min(1250, Math.round(s * 0.04));
+  const special = Math.max(0, s - basic - hra - conveyance - medical);
 
   // Statutory deductions
-  const pf       = Math.round(Math.min(basic * 0.12, 1800));
-  const pt       = s > 0 ? 200 : 0;
-  const esiBase  = s + hra + conveyance + medical + special;
-  const esi      = esiBase <= 21000 ? Math.round(esiBase * 0.0075) : 0;
+  const pf = Math.round(Math.min(basic * 0.12, 1800));
+  const pt = s > 0 ? 200 : 0;
+  const esiBase = s + hra + conveyance + medical + special;
+  const esi = esiBase <= 21000 ? Math.round(esiBase * 0.0075) : 0;
 
   return {
     BASIC: basic,
@@ -89,18 +89,18 @@ export default function PayslipGenerator() {
 
   // ---- form state ----
   const [employees, setEmployees] = useState([]);
-  const [empId, setEmpId]   = useState("");
-  const [year,  setYear]    = useState(today.getFullYear());
-  const [month, setMonth]   = useState(today.getMonth() + 1);
+  const [empId, setEmpId] = useState("");
+  const [year, setYear] = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth() + 1);
 
   const [working, setWorking] = useState({
-    WORKING_DAYS:       26,
-    DAYS_PRESENT:       26,
-    DAYS_LATE:          0,
-    PAID_LEAVE_DAYS:    0,
-    UNPAID_LEAVE_DAYS:  0,
-    ABSENT_DAYS:        0,
-    OT_HOURS:           0,
+    WORKING_DAYS: 26,
+    DAYS_PRESENT: 26,
+    DAYS_LATE: 0,
+    PAID_LEAVE_DAYS: 0,
+    UNPAID_LEAVE_DAYS: 0,
+    ABSENT_DAYS: 0,
+    OT_HOURS: 0,
   });
 
   const [earnings, setEarnings] = useState({
@@ -117,14 +117,14 @@ export default function PayslipGenerator() {
   });
 
   const [result, setResult] = useState(null);
-  const [error,  setError]  = useState("");
-  const [busy,   setBusy]   = useState(false);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   // ---- load employees ----
   useEffect(() => {
     API.get("/employees?status=ACTIVE")
-       .then((r) => setEmployees(r.data || []))
-       .catch(() => setEmployees([]));
+      .then((r) => setEmployees(r.data || []))
+      .catch(() => setEmployees([]));
   }, []);
 
   // ---- selected employee ----
@@ -175,7 +175,7 @@ export default function PayslipGenerator() {
     try {
       const payload = {
         EMPLOYEE_ID: empId,
-        YEAR:  Number(year),
+        YEAR: Number(year),
         MONTH: Number(month),
         ...working,
         ...earnings,
@@ -190,8 +190,10 @@ export default function PayslipGenerator() {
 
   // ---- render ----
   return (
-    <div style={{ padding: 20, background: "#f1f5f9",
-                  minHeight: "calc(100vh - 80px)" }}>
+    <div style={{
+      padding: 20, background: "#f1f5f9",
+      minHeight: "calc(100vh - 80px)"
+    }}>
 
       {/* Hero */}
       <div style={{
@@ -221,7 +223,7 @@ export default function PayslipGenerator() {
         }}>
           <Field label="Employee">
             <select value={empId} onChange={(e) => setEmpId(e.target.value)}
-                    style={input}>
+              style={input}>
               <option value="">— pick an employee —</option>
               {employees.map((e) => (
                 <option key={e.ID} value={e.ID}>
@@ -232,11 +234,11 @@ export default function PayslipGenerator() {
           </Field>
           <Field label="Year">
             <input type="number" min="2020" max="2099" value={year}
-                   onChange={(e) => setYear(e.target.value)} style={input} />
+              onChange={(e) => setYear(e.target.value)} style={input} />
           </Field>
           <Field label="Month">
             <select value={month} onChange={(e) => setMonth(Number(e.target.value))}
-                    style={input}>
+              style={input}>
               {MONTHS.map((m) => (
                 <option key={m.n} value={m.n}>{m.label}</option>
               ))}
@@ -267,13 +269,13 @@ export default function PayslipGenerator() {
               gridTemplateColumns: "repeat(4, 1fr)",
               gap: 10,
             }}>
-              <NumField label="Working Days"     value={working.WORKING_DAYS}      onChange={(v) => setWorking({...working, WORKING_DAYS: v})} />
-              <NumField label="Present Days"     value={working.DAYS_PRESENT}      onChange={(v) => setWorking({...working, DAYS_PRESENT: v})} />
-              <NumField label="Late Marks"       value={working.DAYS_LATE}         onChange={(v) => setWorking({...working, DAYS_LATE: v})} />
-              <NumField label="Paid Leave Days"  value={working.PAID_LEAVE_DAYS}   onChange={(v) => setWorking({...working, PAID_LEAVE_DAYS: v})} />
-              <NumField label="LOP Days"         value={working.UNPAID_LEAVE_DAYS} onChange={(v) => setWorking({...working, UNPAID_LEAVE_DAYS: v})} />
-              <NumField label="Absent Days"      value={working.ABSENT_DAYS}       onChange={(v) => setWorking({...working, ABSENT_DAYS: v})} />
-              <NumField label="OT Hours"         value={working.OT_HOURS}          onChange={(v) => setWorking({...working, OT_HOURS: v})} />
+              <NumField label="Working Days" value={working.WORKING_DAYS} onChange={(v) => setWorking({ ...working, WORKING_DAYS: v })} />
+              <NumField label="Present Days" value={working.DAYS_PRESENT} onChange={(v) => setWorking({ ...working, DAYS_PRESENT: v })} />
+              <NumField label="Late Marks" value={working.DAYS_LATE} onChange={(v) => setWorking({ ...working, DAYS_LATE: v })} />
+              <NumField label="Paid Leave Days" value={working.PAID_LEAVE_DAYS} onChange={(v) => setWorking({ ...working, PAID_LEAVE_DAYS: v })} />
+              <NumField label="LOP Days" value={working.UNPAID_LEAVE_DAYS} onChange={(v) => setWorking({ ...working, UNPAID_LEAVE_DAYS: v })} />
+              <NumField label="Absent Days" value={working.ABSENT_DAYS} onChange={(v) => setWorking({ ...working, ABSENT_DAYS: v })} />
+              <NumField label="OT Hours" value={working.OT_HOURS} onChange={(v) => setWorking({ ...working, OT_HOURS: v })} />
             </div>
           </Card>
 
@@ -282,26 +284,26 @@ export default function PayslipGenerator() {
             marginBottom: 16,
           }}>
             <Card title="③ Earnings" headerColor="#166534">
-              <NumField label="Basic Salary"        value={earnings.BASIC}             onChange={(v) => setEarnings({...earnings, BASIC: v})}             rupees />
-              <NumField label="HRA"                 value={earnings.HRA}               onChange={(v) => setEarnings({...earnings, HRA: v})}               rupees />
-              <NumField label="DA"                  value={earnings.DA}                onChange={(v) => setEarnings({...earnings, DA: v})}                rupees />
-              <NumField label="Conveyance"          value={earnings.CONVEYANCE}        onChange={(v) => setEarnings({...earnings, CONVEYANCE: v})}        rupees />
-              <NumField label="Medical Allowance"   value={earnings.MEDICAL_ALLOWANCE} onChange={(v) => setEarnings({...earnings, MEDICAL_ALLOWANCE: v})} rupees />
-              <NumField label="Special Allowance"   value={earnings.SPECIAL_ALLOWANCE} onChange={(v) => setEarnings({...earnings, SPECIAL_ALLOWANCE: v})} rupees />
-              <NumField label="Other Allowances"    value={earnings.OTHER_ALLOWANCES}  onChange={(v) => setEarnings({...earnings, OTHER_ALLOWANCES: v})}  rupees />
-              <NumField label="Incentives"          value={earnings.INCENTIVES}        onChange={(v) => setEarnings({...earnings, INCENTIVES: v})}        rupees />
-              <NumField label="Bonus"               value={earnings.BONUS}             onChange={(v) => setEarnings({...earnings, BONUS: v})}             rupees />
-              <NumField label="Task Bonus"          value={earnings.TASK_BONUS}        onChange={(v) => setEarnings({...earnings, TASK_BONUS: v})}        rupees />
-              <NumField label="Overtime Pay"        value={earnings.OT_PAY}            onChange={(v) => setEarnings({...earnings, OT_PAY: v})}            rupees />
+              <NumField label="Basic Salary" value={earnings.BASIC} onChange={(v) => setEarnings({ ...earnings, BASIC: v })} rupees />
+              <NumField label="HRA" value={earnings.HRA} onChange={(v) => setEarnings({ ...earnings, HRA: v })} rupees />
+              <NumField label="DA" value={earnings.DA} onChange={(v) => setEarnings({ ...earnings, DA: v })} rupees />
+              <NumField label="Conveyance" value={earnings.CONVEYANCE} onChange={(v) => setEarnings({ ...earnings, CONVEYANCE: v })} rupees />
+              <NumField label="Medical Allowance" value={earnings.MEDICAL_ALLOWANCE} onChange={(v) => setEarnings({ ...earnings, MEDICAL_ALLOWANCE: v })} rupees />
+              <NumField label="Special Allowance" value={earnings.SPECIAL_ALLOWANCE} onChange={(v) => setEarnings({ ...earnings, SPECIAL_ALLOWANCE: v })} rupees />
+              <NumField label="Other Allowances" value={earnings.OTHER_ALLOWANCES} onChange={(v) => setEarnings({ ...earnings, OTHER_ALLOWANCES: v })} rupees />
+              <NumField label="Incentives" value={earnings.INCENTIVES} onChange={(v) => setEarnings({ ...earnings, INCENTIVES: v })} rupees />
+              <NumField label="Bonus" value={earnings.BONUS} onChange={(v) => setEarnings({ ...earnings, BONUS: v })} rupees />
+              <NumField label="Task Bonus" value={earnings.TASK_BONUS} onChange={(v) => setEarnings({ ...earnings, TASK_BONUS: v })} rupees />
+              <NumField label="Overtime Pay" value={earnings.OT_PAY} onChange={(v) => setEarnings({ ...earnings, OT_PAY: v })} rupees />
               <Total label="Gross Earnings" value={gross} color="#166534" />
             </Card>
 
             <Card title="④ Deductions" headerColor="#991b1b">
-              <NumField label="Provident Fund (PF)"  value={deductions.PF_EMPLOYEE}      onChange={(v) => setDeductions({...deductions, PF_EMPLOYEE: v})}      rupees />
-              <NumField label="ESI"                  value={deductions.ESI_EMPLOYEE}     onChange={(v) => setDeductions({...deductions, ESI_EMPLOYEE: v})}     rupees />
-              <NumField label="Professional Tax"     value={deductions.PROFESSIONAL_TAX} onChange={(v) => setDeductions({...deductions, PROFESSIONAL_TAX: v})} rupees />
-              <NumField label="Late Penalty"         value={deductions.LATE_PENALTY}     onChange={(v) => setDeductions({...deductions, LATE_PENALTY: v})}     rupees />
-              <NumField label="Other (TDS / Loan / Advances)" value={deductions.OTHER_DEDUCTIONS} onChange={(v) => setDeductions({...deductions, OTHER_DEDUCTIONS: v})} rupees />
+              <NumField label="Provident Fund (PF)" value={deductions.PF_EMPLOYEE} onChange={(v) => setDeductions({ ...deductions, PF_EMPLOYEE: v })} rupees />
+              <NumField label="ESI" value={deductions.ESI_EMPLOYEE} onChange={(v) => setDeductions({ ...deductions, ESI_EMPLOYEE: v })} rupees />
+              <NumField label="Professional Tax" value={deductions.PROFESSIONAL_TAX} onChange={(v) => setDeductions({ ...deductions, PROFESSIONAL_TAX: v })} rupees />
+              <NumField label="Late Penalty" value={deductions.LATE_PENALTY} onChange={(v) => setDeductions({ ...deductions, LATE_PENALTY: v })} rupees />
+              <NumField label="Other (TDS / Loan / Advances)" value={deductions.OTHER_DEDUCTIONS} onChange={(v) => setDeductions({ ...deductions, OTHER_DEDUCTIONS: v })} rupees />
               <Total label="Total Deductions" value={totalDed} color="#991b1b" />
             </Card>
           </div>
@@ -312,9 +314,9 @@ export default function PayslipGenerator() {
               display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
               gap: 14, padding: "6px 4px",
             }}>
-              <SummaryTile label="Gross Earnings"   value={inr(gross)}    color="#166534" />
+              <SummaryTile label="Gross Earnings" value={inr(gross)} color="#166534" />
               <SummaryTile label="Total Deductions" value={`− ${inr(totalDed)}`} color="#991b1b" />
-              <SummaryTile label="NET PAY"          value={inr(net)}      color={BVC_DARK} bold />
+              <SummaryTile label="NET PAY" value={inr(net)} color={BVC_DARK} bold />
             </div>
 
             {error && (
@@ -331,12 +333,16 @@ export default function PayslipGenerator() {
                 background: "#f0fdf4", border: "1px solid #bbf7d0",
                 borderRadius: 10,
               }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: "#14532d",
-                             letterSpacing: 1.4, textTransform: "uppercase" }}>
+                <div style={{
+                  fontSize: 11, fontWeight: 800, color: "#14532d",
+                  letterSpacing: 1.4, textTransform: "uppercase"
+                }}>
                   Payslip generated
                 </div>
-                <div style={{ fontSize: 16, fontWeight: 800, color: "#0f172a",
-                             marginTop: 4 }}>
+                <div style={{
+                  fontSize: 16, fontWeight: 800, color: "#0f172a",
+                  marginTop: 4
+                }}>
                   Slip #{result.slip_id} · Net {inr(result.net)}
                 </div>
                 <div style={{ fontSize: 12, color: "#166534", marginTop: 4 }}>
@@ -344,7 +350,7 @@ export default function PayslipGenerator() {
                 </div>
                 <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
                   <a href={`${BACKEND_URL}/my-payslips/${result.slip_id}/pdf`}
-                     target="_blank" rel="noreferrer" style={btnPrimaryLink}>
+                    target="_blank" rel="noreferrer" style={btnPrimaryLink}>
                     View PDF
                   </a>
                   <button onClick={() => setResult(null)} style={btnSecondary}>
@@ -355,14 +361,16 @@ export default function PayslipGenerator() {
             )}
 
             {!result && (
-              <div style={{ display: "flex", justifyContent: "flex-end",
-                            marginTop: 14 }}>
+              <div style={{
+                display: "flex", justifyContent: "flex-end",
+                marginTop: 14
+              }}>
                 <button onClick={onGenerate} disabled={busy || !empId}
-                        style={{
-                          ...btnPrimary,
-                          opacity: !empId ? 0.4 : 1,
-                          cursor: !empId ? "not-allowed" : "pointer",
-                        }}>
+                  style={{
+                    ...btnPrimary,
+                    opacity: !empId ? 0.4 : 1,
+                    cursor: !empId ? "not-allowed" : "pointer",
+                  }}>
                   {busy ? "Generating..." : "Generate Payslip"}
                 </button>
               </div>
@@ -405,7 +413,7 @@ function Card({ title, headerColor = BVC_DARK, children }) {
         fontSize: 12, fontWeight: 800, color: "#0f172a",
         letterSpacing: 0.5, textTransform: "uppercase",
       }}
-      dangerouslySetInnerHTML={{ __html: title }}
+        dangerouslySetInnerHTML={{ __html: title }}
       />
       <div style={{ padding: 16 }}>{children}</div>
     </div>

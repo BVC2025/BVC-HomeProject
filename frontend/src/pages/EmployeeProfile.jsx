@@ -22,7 +22,7 @@ const BVC_RED = "#C8102E";
 const BVC_DARK = "#8B0B1F";
 const BVC_GOLD = "#F4B324";
 
-const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8001";
+const BACKEND_URL = API.defaults.baseURL || "http://192.168.1.10:8001";
 
 
 const STATUS_THEME = {
@@ -255,7 +255,7 @@ export default function EmployeeProfile() {
               params: {
                 employee_id: e.ID,
                 start_date: `${y}-${m}-01`,
-                end_date:   `${y}-${m}-${String(last).padStart(2, "0")}`,
+                end_date: `${y}-${m}-${String(last).padStart(2, "0")}`,
                 limit: 500,
               },
             }).catch(() => ({ data: { rows: [] } }));
@@ -861,13 +861,13 @@ function PersonalInfoTab({ emp }) {
 // Required document types — must be uploaded for a complete profile.
 // Anything uploaded that isn't in this list is shown under "Other".
 const REQUIRED_DOC_TYPES = [
-  { key: "AADHAAR",       label: "Aadhaar",            group: "Identity" },
-  { key: "PAN",           label: "PAN",                group: "Identity" },
-  { key: "PHOTO",         label: "Photograph",         group: "Personal" },
-  { key: "RESUME",        label: "Resume / CV",        group: "Employment" },
-  { key: "OFFER_LETTER",  label: "Offer Letter",       group: "Employment" },
-  { key: "BANK_PASSBOOK", label: "Bank Passbook",      group: "Personal"   },
-  { key: "ADDRESS_PROOF", label: "Address Proof",      group: "Personal"   },
+  { key: "AADHAAR", label: "Aadhaar", group: "Identity" },
+  { key: "PAN", label: "PAN", group: "Identity" },
+  { key: "PHOTO", label: "Photograph", group: "Personal" },
+  { key: "RESUME", label: "Resume / CV", group: "Employment" },
+  { key: "OFFER_LETTER", label: "Offer Letter", group: "Employment" },
+  { key: "BANK_PASSBOOK", label: "Bank Passbook", group: "Personal" },
+  { key: "ADDRESS_PROOF", label: "Address Proof", group: "Personal" },
 ];
 
 const DOC_TYPE_LABELS = {
@@ -944,7 +944,7 @@ function DocumentsTab({ emp }) {
   const extraDocs = docs.filter((d) => !requiredKeys.has(d.DOC_TYPE));
 
   const uploadedRequired = REQUIRED_DOC_TYPES.filter((d) => docsByType[d.key]?.length > 0);
-  const pendingRequired  = REQUIRED_DOC_TYPES.filter((d) => !docsByType[d.key]?.length);
+  const pendingRequired = REQUIRED_DOC_TYPES.filter((d) => !docsByType[d.key]?.length);
 
   if (loading) {
     return <div style={{ color: "#94a3b8", fontStyle: "italic", fontSize: 13 }}>Loading documents...</div>;
@@ -996,11 +996,11 @@ function DocumentsTab({ emp }) {
         marginBottom: 14,
       }}>
         <SummaryChip label="Uploaded" value={uploadedRequired.length} total={REQUIRED_DOC_TYPES.length}
-                     bg="#dcfce7" border="#bbf7d0" fg="#166534" />
-        <SummaryChip label="Pending"  value={pendingRequired.length}   total={REQUIRED_DOC_TYPES.length}
-                     bg="#fef3c7" border="#fde68a" fg="#92400e" />
-        <SummaryChip label="Extra"    value={extraDocs.length}         total={extraDocs.length}
-                     bg="#e0e7ff" border="#c7d2fe" fg="#3730a3" />
+          bg="#dcfce7" border="#bbf7d0" fg="#166534" />
+        <SummaryChip label="Pending" value={pendingRequired.length} total={REQUIRED_DOC_TYPES.length}
+          bg="#fef3c7" border="#fde68a" fg="#92400e" />
+        <SummaryChip label="Extra" value={extraDocs.length} total={extraDocs.length}
+          bg="#e0e7ff" border="#c7d2fe" fg="#3730a3" />
       </div>
 
       {/* Uploaded required */}
@@ -1120,7 +1120,7 @@ function DocCard({ d }) {
       {isUploaded && d.file ? (
         <div style={{ marginTop: 10 }}>
           <div style={{ fontSize: 12, color: "#334155", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-               title={d.file.FILE_NAME}>
+            title={d.file.FILE_NAME}>
             {d.file.FILE_NAME}
           </div>
           <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
@@ -1188,15 +1188,15 @@ function PayrollTab({ emp, salaryStructure, effectiveSalary }) {
             marginTop: 8,
             marginBottom: 12,
           }}>
-            <PayCell label="Basic"           value={s.BASIC} />
-            <PayCell label="HRA"             value={s.HRA} />
-            <PayCell label="DA"              value={s.DA} />
-            <PayCell label="Conveyance"      value={s.CONVEYANCE_ALLOWANCE} />
-            <PayCell label="Medical"         value={s.MEDICAL_ALLOWANCE} />
-            <PayCell label="Special"         value={s.SPECIAL_ALLOWANCE} />
-            <PayCell label="Other"           value={s.OTHER_ALLOWANCES} />
-            <PayCell label="Annual bonus"    value={s.ANNUAL_BONUS} />
-            <PayCell label="Incentives"      value={s.INCENTIVES} />
+            <PayCell label="Basic" value={s.BASIC} />
+            <PayCell label="HRA" value={s.HRA} />
+            <PayCell label="DA" value={s.DA} />
+            <PayCell label="Conveyance" value={s.CONVEYANCE_ALLOWANCE} />
+            <PayCell label="Medical" value={s.MEDICAL_ALLOWANCE} />
+            <PayCell label="Special" value={s.SPECIAL_ALLOWANCE} />
+            <PayCell label="Other" value={s.OTHER_ALLOWANCES} />
+            <PayCell label="Annual bonus" value={s.ANNUAL_BONUS} />
+            <PayCell label="Incentives" value={s.INCENTIVES} />
           </div>
           <div style={{
             padding: 12,
@@ -1377,9 +1377,9 @@ function LeaveTab({ emp, leaveBalance }) {
   // MATERNITY } }. Each bucket is { total, used, carryover, remaining }.
   const balance = leaveBalance?.balance || null;
   const buckets = [
-    { key: "CASUAL",    label: "Casual",    fg: "#1e40af", bg: "#dbeafe" },
-    { key: "SICK",      label: "Sick",      fg: "#9a3412", bg: "#ffedd5" },
-    { key: "EARNED",    label: "Earned",    fg: "#166534", bg: "#dcfce7" },
+    { key: "CASUAL", label: "Casual", fg: "#1e40af", bg: "#dbeafe" },
+    { key: "SICK", label: "Sick", fg: "#9a3412", bg: "#ffedd5" },
+    { key: "EARNED", label: "Earned", fg: "#166534", bg: "#dcfce7" },
     { key: "MATERNITY", label: "Maternity", fg: "#86198f", bg: "#fae8ff" },
   ];
 

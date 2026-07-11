@@ -42,7 +42,7 @@ ingress:
 
   # ---- Backend API (FastAPI / uvicorn) -------------------------------
   - hostname: api.bvc24.com
-    service: http://localhost:8001
+    service: http://192.168.1.10:8001:8001
     originRequest:
       connectTimeout: 10s
       noTLSVerify: true

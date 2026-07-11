@@ -388,7 +388,7 @@ server {
     }
 
     location /static/ {
-        proxy_pass http://127.0.0.1:8001/static/;
+        proxy_pass http://127.0.0.1/static/;
     }
 }
 ```

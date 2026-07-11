@@ -11,33 +11,33 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import API from "../services/api";
 
 
-const BVC_RED  = "#C8102E";
+const BVC_RED = "#C8102E";
 const BVC_DARK = "#7A1022";
 const BVC_GOLD = "#F4B324";
 
-const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8001";
+const BACKEND_URL = API.defaults.baseURL || "http://192.168.1.10:8001";
 
 
 const STATUS_THEME = {
-  OPEN:      { bg: "#dcfce7", fg: "#166534" },
-  ON_HOLD:   { bg: "#fef3c7", fg: "#854d0e" },
-  FILLED:    { bg: "#dbeafe", fg: "#1e40af" },
+  OPEN: { bg: "#dcfce7", fg: "#166534" },
+  ON_HOLD: { bg: "#fef3c7", fg: "#854d0e" },
+  FILLED: { bg: "#dbeafe", fg: "#1e40af" },
   CANCELLED: { bg: "#fee2e2", fg: "#991b1b" },
 
-  NEW:           { bg: "#dbeafe", fg: "#1e40af" },
-  SCREENED:      { bg: "#e0e7ff", fg: "#3730a3" },
-  SHORTLISTED:   { bg: "#fef3c7", fg: "#854d0e" },
-  INTERVIEWING:  { bg: "#fef3c7", fg: "#854d0e" },
-  OFFERED:       { bg: "#fce7f3", fg: "#9d174d" },
-  HIRED:         { bg: "#dcfce7", fg: "#166534" },
-  REJECTED:      { bg: "#fee2e2", fg: "#991b1b" },
-  ON_HOLD2:      { bg: "#f1f5f9", fg: "#475569" },
+  NEW: { bg: "#dbeafe", fg: "#1e40af" },
+  SCREENED: { bg: "#e0e7ff", fg: "#3730a3" },
+  SHORTLISTED: { bg: "#fef3c7", fg: "#854d0e" },
+  INTERVIEWING: { bg: "#fef3c7", fg: "#854d0e" },
+  OFFERED: { bg: "#fce7f3", fg: "#9d174d" },
+  HIRED: { bg: "#dcfce7", fg: "#166534" },
+  REJECTED: { bg: "#fee2e2", fg: "#991b1b" },
+  ON_HOLD2: { bg: "#f1f5f9", fg: "#475569" },
 
-  HIGHLY_SUITABLE:     { bg: "#dcfce7", fg: "#166534" },
-  SUITABLE:            { bg: "#dbeafe", fg: "#1e40af" },
-  PARTIALLY_SUITABLE:  { bg: "#fef3c7", fg: "#854d0e" },
-  NOT_SUITABLE:        { bg: "#fee2e2", fg: "#991b1b" },
-  PENDING:             { bg: "#f1f5f9", fg: "#475569" },
+  HIGHLY_SUITABLE: { bg: "#dcfce7", fg: "#166534" },
+  SUITABLE: { bg: "#dbeafe", fg: "#1e40af" },
+  PARTIALLY_SUITABLE: { bg: "#fef3c7", fg: "#854d0e" },
+  NOT_SUITABLE: { bg: "#fee2e2", fg: "#991b1b" },
+  PENDING: { bg: "#f1f5f9", fg: "#475569" },
 };
 
 
@@ -89,11 +89,11 @@ export default function Recruitment() {
       }}>
         {[
           { key: "requisitions", label: "Requisitions" },
-          { key: "jobs",         label: "Jobs" },
-          { key: "candidates",   label: "Candidates" },
-          { key: "pipeline",     label: "Pipeline" },
-          { key: "interviews",   label: "Interviews" },
-          { key: "offers",       label: "Offers" },
+          { key: "jobs", label: "Jobs" },
+          { key: "candidates", label: "Candidates" },
+          { key: "pipeline", label: "Pipeline" },
+          { key: "interviews", label: "Interviews" },
+          { key: "offers", label: "Offers" },
         ].map((t) => (
           <button
             key={t.key}
@@ -113,11 +113,11 @@ export default function Recruitment() {
       </div>
 
       {tab === "requisitions" && <RequisitionsTab onConverted={() => setTab("jobs")} />}
-      {tab === "jobs"         && <JobsTab />}
-      {tab === "candidates"   && <CandidatesTab />}
-      {tab === "pipeline"     && <PipelineTab />}
-      {tab === "interviews"   && <InterviewsTab />}
-      {tab === "offers"       && <OffersTab />}
+      {tab === "jobs" && <JobsTab />}
+      {tab === "candidates" && <CandidatesTab />}
+      {tab === "pipeline" && <PipelineTab />}
+      {tab === "interviews" && <InterviewsTab />}
+      {tab === "offers" && <OffersTab />}
     </div>
   );
 }
@@ -128,17 +128,17 @@ export default function Recruitment() {
 // =====================================================================
 
 const REQ_URGENCIES = [
-  { key: "LOW",      label: "Low",      color: "#64748b" },
-  { key: "NORMAL",   label: "Normal",   color: "#2563eb" },
-  { key: "HIGH",     label: "High",     color: "#d97706" },
+  { key: "LOW", label: "Low", color: "#64748b" },
+  { key: "NORMAL", label: "Normal", color: "#2563eb" },
+  { key: "HIGH", label: "High", color: "#d97706" },
   { key: "CRITICAL", label: "Critical", color: "#dc2626" },
 ];
 
 const REQ_STATUS_THEME = {
-  PENDING:   { bg: "#fef3c7", fg: "#854d0e" },
-  APPROVED:  { bg: "#dcfce7", fg: "#166534" },
-  REJECTED:  { bg: "#fee2e2", fg: "#991b1b" },
-  ON_HOLD:   { bg: "#e0e7ff", fg: "#3730a3" },
+  PENDING: { bg: "#fef3c7", fg: "#854d0e" },
+  APPROVED: { bg: "#dcfce7", fg: "#166534" },
+  REJECTED: { bg: "#fee2e2", fg: "#991b1b" },
+  ON_HOLD: { bg: "#e0e7ff", fg: "#3730a3" },
   CANCELLED: { bg: "#f1f5f9", fg: "#475569" },
   CONVERTED: { bg: "#dbeafe", fg: "#1e40af" },
 };
@@ -283,11 +283,11 @@ function RequisitionsTab({ onConverted }) {
         justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap",
       }}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <ReqStatChip label="Total"     value={stats.total} />
-          <ReqStatChip label="Pending"   value={stats.pending}   tone="#d97706" />
-          <ReqStatChip label="Approved"  value={stats.approved}  tone="#16a34a" />
+          <ReqStatChip label="Total" value={stats.total} />
+          <ReqStatChip label="Pending" value={stats.pending} tone="#d97706" />
+          <ReqStatChip label="Approved" value={stats.approved} tone="#16a34a" />
           <ReqStatChip label="Converted" value={stats.converted} tone="#2563eb" />
-          <ReqStatChip label="Rejected"  value={stats.rejected}  tone="#dc2626" />
+          <ReqStatChip label="Rejected" value={stats.rejected} tone="#dc2626" />
         </div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -408,10 +408,10 @@ function ReqStatChip({ label, value, tone }) {
 
 function RequisitionRow({ req, busy, onOpen, onApprove, onReject, onConvert, onDelete }) {
 
-  const isPending   = req.STATUS === "PENDING";
-  const isApproved  = req.STATUS === "APPROVED";
+  const isPending = req.STATUS === "PENDING";
+  const isApproved = req.STATUS === "APPROVED";
   const isConverted = req.STATUS === "CONVERTED";
-  const isTerminal  = ["REJECTED", "CANCELLED"].includes(req.STATUS);
+  const isTerminal = ["REJECTED", "CANCELLED"].includes(req.STATUS);
 
   return (
     <div
@@ -515,9 +515,9 @@ function RequisitionRow({ req, busy, onOpen, onApprove, onReject, onConvert, onD
 function MiniBtn({ label, onClick, disabled, tone = "slate" }) {
   const themes = {
     green: { bg: "#16a34a", fg: "white" },
-    red:   { bg: "#dc2626", fg: "white" },
-    blue:  { bg: "#2563eb", fg: "white" },
-    slate: { bg: "white",   fg: "#475569", border: "#e2e8f0" },
+    red: { bg: "#dc2626", fg: "white" },
+    blue: { bg: "#2563eb", fg: "white" },
+    slate: { bg: "white", fg: "#475569", border: "#e2e8f0" },
   };
   const t = themes[tone] || themes.slate;
   return (
@@ -579,22 +579,22 @@ function CreateRequisitionModal({ onClose, onSaved }) {
     setSaving(true);
     try {
       const payload = {
-        POSITION_TITLE:       form.POSITION_TITLE.trim(),
-        DEPARTMENT:           form.DEPARTMENT.trim() || null,
-        LOCATION:             form.LOCATION.trim() || null,
-        EMPLOYMENT_TYPE:      form.EMPLOYMENT_TYPE || "FULL_TIME",
-        HEADCOUNT:            Number(form.HEADCOUNT) || 1,
+        POSITION_TITLE: form.POSITION_TITLE.trim(),
+        DEPARTMENT: form.DEPARTMENT.trim() || null,
+        LOCATION: form.LOCATION.trim() || null,
+        EMPLOYMENT_TYPE: form.EMPLOYMENT_TYPE || "FULL_TIME",
+        HEADCOUNT: Number(form.HEADCOUNT) || 1,
         EXPERIENCE_MIN_YEARS: Number(form.EXPERIENCE_MIN_YEARS) || 0,
         EXPERIENCE_MAX_YEARS: form.EXPERIENCE_MAX_YEARS === "" ? null : Number(form.EXPERIENCE_MAX_YEARS),
-        BUDGET_CTC_MIN:       form.BUDGET_CTC_MIN === "" ? null : Number(form.BUDGET_CTC_MIN),
-        BUDGET_CTC_MAX:       form.BUDGET_CTC_MAX === "" ? null : Number(form.BUDGET_CTC_MAX),
-        REQUIRED_SKILLS:      form.REQUIRED_SKILLS.trim() || null,
-        PREFERRED_SKILLS:     form.PREFERRED_SKILLS.trim() || null,
-        REQUIRED_EDUCATION:   form.REQUIRED_EDUCATION.trim() || null,
-        JUSTIFICATION:        form.JUSTIFICATION.trim() || null,
-        URGENCY:              form.URGENCY || "NORMAL",
-        NEEDED_BY_DATE:       form.NEEDED_BY_DATE || null,
-        REQUESTED_BY_ID:      form.REQUESTED_BY_ID || null,
+        BUDGET_CTC_MIN: form.BUDGET_CTC_MIN === "" ? null : Number(form.BUDGET_CTC_MIN),
+        BUDGET_CTC_MAX: form.BUDGET_CTC_MAX === "" ? null : Number(form.BUDGET_CTC_MAX),
+        REQUIRED_SKILLS: form.REQUIRED_SKILLS.trim() || null,
+        PREFERRED_SKILLS: form.PREFERRED_SKILLS.trim() || null,
+        REQUIRED_EDUCATION: form.REQUIRED_EDUCATION.trim() || null,
+        JUSTIFICATION: form.JUSTIFICATION.trim() || null,
+        URGENCY: form.URGENCY || "NORMAL",
+        NEEDED_BY_DATE: form.NEEDED_BY_DATE || null,
+        REQUESTED_BY_ID: form.REQUESTED_BY_ID || null,
       };
       await API.post("/recruitment/requisitions", payload);
       onSaved?.();
@@ -926,13 +926,13 @@ function RequisitionDetailDrawer({ req, onClose }) {
             ? `₹${req.BUDGET_CTC_MIN || "?"} – ₹${req.BUDGET_CTC_MAX || "?"}`
             : "—"
         } />
-        <FieldRow label="Required skills"  value={req.REQUIRED_SKILLS  || "—"} />
+        <FieldRow label="Required skills" value={req.REQUIRED_SKILLS || "—"} />
         <FieldRow label="Preferred skills" value={req.PREFERRED_SKILLS || "—"} />
-        <FieldRow label="Education"        value={req.REQUIRED_EDUCATION || "—"} />
-        <FieldRow label="Needed by"        value={req.NEEDED_BY_DATE || "—"} />
-        <FieldRow label="Requested by"     value={req.REQUESTED_BY_NAME || "—"} />
-        <FieldRow label="Approved by"      value={req.APPROVED_BY_NAME || "—"} />
-        <FieldRow label="Approved at"      value={req.APPROVED_AT || "—"} />
+        <FieldRow label="Education" value={req.REQUIRED_EDUCATION || "—"} />
+        <FieldRow label="Needed by" value={req.NEEDED_BY_DATE || "—"} />
+        <FieldRow label="Requested by" value={req.REQUESTED_BY_NAME || "—"} />
+        <FieldRow label="Approved by" value={req.APPROVED_BY_NAME || "—"} />
+        <FieldRow label="Approved at" value={req.APPROVED_AT || "—"} />
 
         {req.JUSTIFICATION && (
           <div style={{ marginTop: 14 }}>
@@ -1103,9 +1103,9 @@ function JobDetailDrawer({ job, onClose, onChange }) {
       </div>
 
       <SectionTitle>Requirements</SectionTitle>
-      <FieldRow label="Experience"  value={`${job.EXPERIENCE_MIN_YEARS || 0}${job.EXPERIENCE_MAX_YEARS ? `–${job.EXPERIENCE_MAX_YEARS}` : "+"} year(s)`} />
-      <FieldRow label="Education"   value={job.REQUIRED_EDUCATION} />
-      <FieldRow label="Skills"      value={job.REQUIRED_SKILLS} />
+      <FieldRow label="Experience" value={`${job.EXPERIENCE_MIN_YEARS || 0}${job.EXPERIENCE_MAX_YEARS ? `–${job.EXPERIENCE_MAX_YEARS}` : "+"} year(s)`} />
+      <FieldRow label="Education" value={job.REQUIRED_EDUCATION} />
+      <FieldRow label="Skills" value={job.REQUIRED_SKILLS} />
       <FieldRow label="Nice-to-have" value={job.PREFERRED_SKILLS} />
       <FieldRow label="Salary range" value={
         job.SALARY_MIN || job.SALARY_MAX
@@ -1172,7 +1172,7 @@ function JobForm({ onClose, onSaved }) {
     DESCRIPTION: "", OPENINGS: 1,
   });
   const [saving, setSaving] = useState(false);
-  const [error, setError]   = useState("");
+  const [error, setError] = useState("");
 
   const submit = async () => {
     if (!form.TITLE.trim()) { setError("Title is required"); return; }
@@ -1302,9 +1302,9 @@ function CandidatesTab() {
         });
         parsed.push({
           filename: f.name,
-          resume_url:    res.data?.resume_url,
-          parsed:        res.data?.parsed || {},
-          existing_id:   res.data?.existing_id,
+          resume_url: res.data?.resume_url,
+          parsed: res.data?.parsed || {},
+          existing_id: res.data?.existing_id,
           existing_name: res.data?.existing_name,
         });
       } catch (e) {
@@ -1340,21 +1340,21 @@ function CandidatesTab() {
     const item = reviewQueue[reviewIdx];
     if (!item) return;
     await API.post("/recruitment/candidates", {
-      resume_url:       item.resume_url,
-      resume_text:      edited.raw_text || item.parsed?.raw_text || "",
-      full_name:        edited.full_name || "",
-      email:            edited.email || null,
-      phone:            edited.phone || null,
-      location:         edited.location || null,
-      linkedin:         edited.linkedin || null,
-      skills:           edited.skills || [],
-      languages:        edited.languages || [],
-      certifications:   edited.certifications || [],
-      education:        edited.education || [],
-      work_experience:  edited.work_experience || [],
-      projects:         edited.projects || [],
+      resume_url: item.resume_url,
+      resume_text: edited.raw_text || item.parsed?.raw_text || "",
+      full_name: edited.full_name || "",
+      email: edited.email || null,
+      phone: edited.phone || null,
+      location: edited.location || null,
+      linkedin: edited.linkedin || null,
+      skills: edited.skills || [],
+      languages: edited.languages || [],
+      certifications: edited.certifications || [],
+      education: edited.education || [],
+      work_experience: edited.work_experience || [],
+      projects: edited.projects || [],
       total_experience_years: edited.total_experience_years ?? null,
-      highest_qualification:  edited.highest_qualification || null,
+      highest_qualification: edited.highest_qualification || null,
       source: "WEBSITE",
     });
     nextReview();
@@ -1449,16 +1449,16 @@ function ResumeReviewModal({ item, position, total, onSave, onSkip, onCancelAll 
   const p = item?.parsed || {};
 
   const [form, setForm] = useState({
-    full_name:              p.full_name || "",
-    email:                  p.email || "",
-    phone:                  p.phone || "",
-    location:               p.location || "",
-    linkedin:               p.linkedin || "",
+    full_name: p.full_name || "",
+    email: p.email || "",
+    phone: p.phone || "",
+    location: p.location || "",
+    linkedin: p.linkedin || "",
     total_experience_years: p.total_experience_years ?? "",
-    highest_qualification:  p.highest_qualification || "",
-    skills:                 (p.skills || []).join(", "),
-    languages:              (p.languages || []).join(", "),
-    certifications:         (p.certifications || []).join(", "),
+    highest_qualification: p.highest_qualification || "",
+    skills: (p.skills || []).join(", "),
+    languages: (p.languages || []).join(", "),
+    certifications: (p.certifications || []).join(", "),
   });
 
   const [saving, setSaving] = useState(false);
@@ -1479,22 +1479,22 @@ function ResumeReviewModal({ item, position, total, onSave, onSkip, onCancelAll 
     setError("");
     try {
       await onSave({
-        raw_text:               p.raw_text || "",
-        full_name:              form.full_name.trim(),
-        email:                  form.email.trim() || null,
-        phone:                  form.phone.trim() || null,
-        location:               form.location.trim() || null,
-        linkedin:               form.linkedin.trim() || null,
+        raw_text: p.raw_text || "",
+        full_name: form.full_name.trim(),
+        email: form.email.trim() || null,
+        phone: form.phone.trim() || null,
+        location: form.location.trim() || null,
+        linkedin: form.linkedin.trim() || null,
         total_experience_years: form.total_experience_years === ""
           ? null
           : Number(form.total_experience_years),
-        highest_qualification:  form.highest_qualification.trim() || null,
-        skills:                 toList(form.skills),
-        languages:              toList(form.languages),
-        certifications:         toList(form.certifications),
-        education:              p.education || [],
-        work_experience:        p.work_experience || [],
-        projects:               p.projects || [],
+        highest_qualification: form.highest_qualification.trim() || null,
+        skills: toList(form.skills),
+        languages: toList(form.languages),
+        certifications: toList(form.certifications),
+        education: p.education || [],
+        work_experience: p.work_experience || [],
+        projects: p.projects || [],
       });
     } catch (err) {
       setError(err?.response?.data?.detail || "Save failed.");
@@ -1519,8 +1519,10 @@ function ResumeReviewModal({ item, position, total, onSave, onSkip, onCancelAll 
           color: "white", padding: "16px 22px",
           borderRadius: "12px 12px 0 0",
         }}>
-          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2,
-                        color: "#F4B324", textTransform: "uppercase" }}>
+          <div style={{
+            fontSize: 10, fontWeight: 800, letterSpacing: 2,
+            color: "#F4B324", textTransform: "uppercase"
+          }}>
             Review Parsed Resume · {position} of {total}
           </div>
           <div style={{ fontSize: 17, fontWeight: 900, marginTop: 3 }}>
@@ -1600,8 +1602,10 @@ function ResumeReviewModal({ item, position, total, onSave, onSkip, onCancelAll 
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 8, justifyContent: "space-between",
-                        marginTop: 16, flexWrap: "wrap" }}>
+          <div style={{
+            display: "flex", gap: 8, justifyContent: "space-between",
+            marginTop: 16, flexWrap: "wrap"
+          }}>
             <button type="button" onClick={onCancelAll} style={{
               background: "white", color: "#64748b",
               border: "1px solid #e2e8f0", padding: "8px 15px",
@@ -1633,8 +1637,10 @@ function ResumeReviewModal({ item, position, total, onSave, onSkip, onCancelAll 
 function RvRow({ children }) {
   const count = Array.isArray(children) ? children.length : 1;
   return (
-    <div style={{ display: "grid", gap: 10, marginBottom: 10,
-                  gridTemplateColumns: `repeat(${count}, 1fr)` }}>
+    <div style={{
+      display: "grid", gap: 10, marginBottom: 10,
+      gridTemplateColumns: `repeat(${count}, 1fr)`
+    }}>
       {children}
     </div>
   );
@@ -1752,7 +1758,7 @@ function CandidateDrawer({ candidate, onClose, onChange }) {
       {c.RESUME_URL && (
         <div style={{ marginTop: 10 }}>
           <a href={`${BACKEND_URL}${c.RESUME_URL}`} target="_blank" rel="noreferrer"
-             style={{ fontSize: 12, color: BVC_DARK, fontWeight: 700 }}>
+            style={{ fontSize: 12, color: BVC_DARK, fontWeight: 700 }}>
             ↗ Open original resume
           </a>
         </div>
@@ -1840,7 +1846,7 @@ function PipelineTab() {
   const [loading, setLoading] = useState(true);
   const [schedFor, setSchedFor] = useState(null);   // application row for "Schedule"
   const [offerFor, setOfferFor] = useState(null);   // application row for "Generate offer"
-  const [summary,  setSummary]  = useState(null);   // application row for "View summary"
+  const [summary, setSummary] = useState(null);   // application row for "View summary"
 
   const load = () => {
     setLoading(true);
@@ -1860,8 +1866,10 @@ function PipelineTab() {
     return <EmptyState text="No applications yet. Pick a candidate in the Candidates tab and apply them to a job." />;
 
   return (
-    <div style={{ background: "white", borderRadius: 12, overflow: "hidden",
-                  boxShadow: "0 4px 14px rgba(15,23,42,0.05)" }}>
+    <div style={{
+      background: "white", borderRadius: 12, overflow: "hidden",
+      boxShadow: "0 4px 14px rgba(15,23,42,0.05)"
+    }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
         <thead>
           <tr style={th}>
@@ -1899,10 +1907,10 @@ function PipelineTab() {
               <td style={cell}><Pill status={a.STATUS} /></td>
               <td style={cell}>
                 <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                  <button onClick={() => setSummary(a)}   style={btnSecondary}>View</button>
-                  <button onClick={() => setSchedFor(a)}  style={btnSecondary}>Schedule</button>
-                  <button onClick={() => setOfferFor(a)}  style={btnSecondary}>Offer</button>
-                  <button onClick={() => rescreen(a.ID)}  style={btnSecondary}>Re-screen</button>
+                  <button onClick={() => setSummary(a)} style={btnSecondary}>View</button>
+                  <button onClick={() => setSchedFor(a)} style={btnSecondary}>Schedule</button>
+                  <button onClick={() => setOfferFor(a)} style={btnSecondary}>Offer</button>
+                  <button onClick={() => rescreen(a.ID)} style={btnSecondary}>Re-screen</button>
                 </div>
               </td>
             </tr>
@@ -1956,7 +1964,7 @@ function ScheduleInterviewModal({ application, onClose, onSaved }) {
     INTERVIEWER_EMAIL: "",
   });
   const [saving, setSaving] = useState(false);
-  const [error, setError]   = useState("");
+  const [error, setError] = useState("");
   const [questions, setQuestions] = useState([]);
 
   const submit = async () => {
@@ -1980,7 +1988,7 @@ function ScheduleInterviewModal({ application, onClose, onSaved }) {
       try {
         const qs = await API.post(`/recruitment/interviews/${res.data.ID}/suggest-questions`);
         setQuestions(qs.data?.questions || []);
-      } catch {/* non-fatal */}
+      } catch {/* non-fatal */ }
       onSaved?.();
     } catch (e) {
       setError(e?.response?.data?.detail || "Could not schedule interview");
@@ -1996,8 +2004,8 @@ function ScheduleInterviewModal({ application, onClose, onSaved }) {
       <Row>
         <Field label="Round #">
           <input type="number" min="1" max="10" value={form.ROUND}
-                 onChange={(e) => setForm({ ...form, ROUND: e.target.value })}
-                 style={input} />
+            onChange={(e) => setForm({ ...form, ROUND: e.target.value })}
+            style={input} />
         </Field>
         <Field label="Round type">
           <select value={form.ROUND_TYPE} onChange={(e) => setForm({ ...form, ROUND_TYPE: e.target.value })} style={input}>
@@ -2013,13 +2021,13 @@ function ScheduleInterviewModal({ application, onClose, onSaved }) {
       <Row>
         <Field label="Date & time">
           <input type="datetime-local" value={form.SCHEDULED_AT}
-                 onChange={(e) => setForm({ ...form, SCHEDULED_AT: e.target.value })}
-                 style={input} />
+            onChange={(e) => setForm({ ...form, SCHEDULED_AT: e.target.value })}
+            style={input} />
         </Field>
         <Field label="Duration (min)">
           <input type="number" min="15" step="15" value={form.DURATION_MINUTES}
-                 onChange={(e) => setForm({ ...form, DURATION_MINUTES: e.target.value })}
-                 style={input} />
+            onChange={(e) => setForm({ ...form, DURATION_MINUTES: e.target.value })}
+            style={input} />
         </Field>
       </Row>
 
@@ -2034,31 +2042,31 @@ function ScheduleInterviewModal({ application, onClose, onSaved }) {
       {form.MODE === "ONLINE" && (
         <Field label="Meeting link">
           <input value={form.MEETING_LINK}
-                 onChange={(e) => setForm({ ...form, MEETING_LINK: e.target.value })}
-                 placeholder="https://meet.google.com/abc-defg-hij"
-                 style={input} />
+            onChange={(e) => setForm({ ...form, MEETING_LINK: e.target.value })}
+            placeholder="https://meet.google.com/abc-defg-hij"
+            style={input} />
         </Field>
       )}
 
       {form.MODE === "IN_PERSON" && (
         <Field label="Location">
           <input value={form.LOCATION}
-                 onChange={(e) => setForm({ ...form, LOCATION: e.target.value })}
-                 placeholder="BVC24 office, Coimbatore — Conference Room 1"
-                 style={input} />
+            onChange={(e) => setForm({ ...form, LOCATION: e.target.value })}
+            placeholder="BVC24 office, Coimbatore — Conference Room 1"
+            style={input} />
         </Field>
       )}
 
       <Row>
         <Field label="Interviewer name">
           <input value={form.INTERVIEWER_NAME}
-                 onChange={(e) => setForm({ ...form, INTERVIEWER_NAME: e.target.value })}
-                 style={input} />
+            onChange={(e) => setForm({ ...form, INTERVIEWER_NAME: e.target.value })}
+            style={input} />
         </Field>
         <Field label="Interviewer email">
           <input type="email" value={form.INTERVIEWER_EMAIL}
-                 onChange={(e) => setForm({ ...form, INTERVIEWER_EMAIL: e.target.value })}
-                 style={input} />
+            onChange={(e) => setForm({ ...form, INTERVIEWER_EMAIL: e.target.value })}
+            style={input} />
         </Field>
       </Row>
 
@@ -2107,7 +2115,7 @@ function GenerateOfferModal({ application, onClose, onSaved }) {
   });
   const [saving, setSaving] = useState(false);
   const [created, setCreated] = useState(null);
-  const [error, setError]   = useState("");
+  const [error, setError] = useState("");
 
   const submit = async () => {
     if (!form.COMPENSATION_CTC || Number(form.COMPENSATION_CTC) <= 0) {
@@ -2131,7 +2139,7 @@ function GenerateOfferModal({ application, onClose, onSaved }) {
         PROBATION_MONTHS: Number(form.PROBATION_MONTHS) || 6,
         NOTICE_PERIOD_DAYS: Number(form.NOTICE_PERIOD_DAYS) || 30,
         EMPLOYMENT_TERMS: form.EMPLOYMENT_TERMS || null,
-        SPECIAL_CLAUSES:  form.SPECIAL_CLAUSES  || null,
+        SPECIAL_CLAUSES: form.SPECIAL_CLAUSES || null,
       };
       const res = await API.post("/recruitment/offers", payload);
       setCreated(res.data);
@@ -2143,25 +2151,25 @@ function GenerateOfferModal({ application, onClose, onSaved }) {
 
   return (
     <Drawer onClose={onClose} width={620}
-            title={`Generate Offer · ${application.CANDIDATE_NAME}`}>
+      title={`Generate Offer · ${application.CANDIDATE_NAME}`}>
 
       {!created ? (
         <>
           <Field label="Job title *">
             <input value={form.JOB_TITLE}
-                   onChange={(e) => setForm({ ...form, JOB_TITLE: e.target.value })}
-                   style={input} />
+              onChange={(e) => setForm({ ...form, JOB_TITLE: e.target.value })}
+              style={input} />
           </Field>
           <Field label="Department">
             <input value={form.DEPARTMENT}
-                   onChange={(e) => setForm({ ...form, DEPARTMENT: e.target.value })}
-                   style={input} placeholder="e.g. Engineering" />
+              onChange={(e) => setForm({ ...form, DEPARTMENT: e.target.value })}
+              style={input} placeholder="e.g. Engineering" />
           </Field>
 
           <Field label="Annual CTC (₹) *">
             <input type="number" min="0" value={form.COMPENSATION_CTC}
-                   onChange={(e) => setForm({ ...form, COMPENSATION_CTC: e.target.value })}
-                   style={input} placeholder="e.g. 600000" />
+              onChange={(e) => setForm({ ...form, COMPENSATION_CTC: e.target.value })}
+              style={input} placeholder="e.g. 600000" />
           </Field>
 
           <div style={{ fontSize: 10, fontWeight: 800, color: "#64748b", letterSpacing: 1, textTransform: "uppercase", margin: "10px 0 4px" }}>
@@ -2170,64 +2178,64 @@ function GenerateOfferModal({ application, onClose, onSaved }) {
           <Row>
             <Field label="Basic (₹/yr)">
               <input type="number" min="0" value={form.BASIC}
-                     onChange={(e) => setForm({ ...form, BASIC: e.target.value })}
-                     style={input} />
+                onChange={(e) => setForm({ ...form, BASIC: e.target.value })}
+                style={input} />
             </Field>
             <Field label="HRA (₹/yr)">
               <input type="number" min="0" value={form.HRA}
-                     onChange={(e) => setForm({ ...form, HRA: e.target.value })}
-                     style={input} />
+                onChange={(e) => setForm({ ...form, HRA: e.target.value })}
+                style={input} />
             </Field>
           </Row>
           <Row>
             <Field label="Allowances (₹/yr)">
               <input type="number" min="0" value={form.ALLOWANCES}
-                     onChange={(e) => setForm({ ...form, ALLOWANCES: e.target.value })}
-                     style={input} />
+                onChange={(e) => setForm({ ...form, ALLOWANCES: e.target.value })}
+                style={input} />
             </Field>
             <Field label="Bonus (₹/yr)">
               <input type="number" min="0" value={form.BONUS}
-                     onChange={(e) => setForm({ ...form, BONUS: e.target.value })}
-                     style={input} />
+                onChange={(e) => setForm({ ...form, BONUS: e.target.value })}
+                style={input} />
             </Field>
           </Row>
 
           <Row>
             <Field label="Joining date">
               <input type="date" value={form.JOINING_DATE}
-                     onChange={(e) => setForm({ ...form, JOINING_DATE: e.target.value })}
-                     style={input} />
+                onChange={(e) => setForm({ ...form, JOINING_DATE: e.target.value })}
+                style={input} />
             </Field>
             <Field label="Probation (months)">
               <input type="number" min="0" max="24" value={form.PROBATION_MONTHS}
-                     onChange={(e) => setForm({ ...form, PROBATION_MONTHS: e.target.value })}
-                     style={input} />
+                onChange={(e) => setForm({ ...form, PROBATION_MONTHS: e.target.value })}
+                style={input} />
             </Field>
           </Row>
 
           <Field label="Notice period (days)">
             <input type="number" min="0" max="180" value={form.NOTICE_PERIOD_DAYS}
-                   onChange={(e) => setForm({ ...form, NOTICE_PERIOD_DAYS: e.target.value })}
-                   style={input} />
+              onChange={(e) => setForm({ ...form, NOTICE_PERIOD_DAYS: e.target.value })}
+              style={input} />
           </Field>
 
           <Field label="Benefits">
             <textarea rows={2} value={form.BENEFITS}
-                      onChange={(e) => setForm({ ...form, BENEFITS: e.target.value })}
-                      style={{ ...input, resize: "vertical" }} />
+              onChange={(e) => setForm({ ...form, BENEFITS: e.target.value })}
+              style={{ ...input, resize: "vertical" }} />
           </Field>
 
           <Field label="Employment terms (optional)">
             <textarea rows={2} value={form.EMPLOYMENT_TERMS}
-                      onChange={(e) => setForm({ ...form, EMPLOYMENT_TERMS: e.target.value })}
-                      style={{ ...input, resize: "vertical" }} />
+              onChange={(e) => setForm({ ...form, EMPLOYMENT_TERMS: e.target.value })}
+              style={{ ...input, resize: "vertical" }} />
           </Field>
 
           <Field label="Special clauses (optional)">
             <textarea rows={2} value={form.SPECIAL_CLAUSES}
-                      onChange={(e) => setForm({ ...form, SPECIAL_CLAUSES: e.target.value })}
-                      style={{ ...input, resize: "vertical" }}
-                      placeholder="e.g. 90-day relocation allowance, sign-on bonus..." />
+              onChange={(e) => setForm({ ...form, SPECIAL_CLAUSES: e.target.value })}
+              style={{ ...input, resize: "vertical" }}
+              placeholder="e.g. 90-day relocation allowance, sign-on bonus..." />
           </Field>
 
           {error && <div style={errBox}>{error}</div>}
@@ -2255,14 +2263,14 @@ function GenerateOfferModal({ application, onClose, onSaved }) {
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
             <a href={`${BACKEND_URL}/recruitment/offers/${created.ID}/pdf`}
-               target="_blank" rel="noreferrer"
-               style={{
-                 padding: "9px 16px",
-                 background: BVC_RED, color: "white",
-                 border: "none", borderRadius: 8,
-                 fontWeight: 800, fontSize: 12,
-                 textDecoration: "none",
-               }}>
+              target="_blank" rel="noreferrer"
+              style={{
+                padding: "9px 16px",
+                background: BVC_RED, color: "white",
+                border: "none", borderRadius: 8,
+                fontWeight: 800, fontSize: 12,
+                textDecoration: "none",
+              }}>
               View PDF
             </a>
             <button onClick={onClose} style={btnSecondary}>Close</button>
@@ -2280,15 +2288,15 @@ function GenerateOfferModal({ application, onClose, onSaved }) {
 function ApplicationSummaryDrawer({ application, onClose }) {
   return (
     <Drawer onClose={onClose} width={620}
-            title={`${application.CANDIDATE_NAME} → ${application.JOB_TITLE}`}>
+      title={`${application.CANDIDATE_NAME} → ${application.JOB_TITLE}`}>
       <SectionTitle>Screening</SectionTitle>
-      <FieldRow label="Verdict"          value={application.SCREENING_STATUS?.replace(/_/g, " ")} />
-      <FieldRow label="Overall score"    value={application.OVERALL_SCORE} />
-      <FieldRow label="Skill match %"    value={application.SKILL_MATCH_PCT} />
-      <FieldRow label="Experience %"     value={application.EXPERIENCE_MATCH_PCT} />
-      <FieldRow label="Education %"      value={application.EDUCATION_MATCH_PCT} />
-      <FieldRow label="Matching skills"  value={application.MATCHING_SKILLS} />
-      <FieldRow label="Missing skills"   value={application.MISSING_SKILLS} />
+      <FieldRow label="Verdict" value={application.SCREENING_STATUS?.replace(/_/g, " ")} />
+      <FieldRow label="Overall score" value={application.OVERALL_SCORE} />
+      <FieldRow label="Skill match %" value={application.SKILL_MATCH_PCT} />
+      <FieldRow label="Experience %" value={application.EXPERIENCE_MATCH_PCT} />
+      <FieldRow label="Education %" value={application.EDUCATION_MATCH_PCT} />
+      <FieldRow label="Matching skills" value={application.MATCHING_SKILLS} />
+      <FieldRow label="Missing skills" value={application.MISSING_SKILLS} />
 
       {application.SCREENING_SUMMARY && (
         <>
@@ -2305,10 +2313,10 @@ function ApplicationSummaryDrawer({ application, onClose }) {
       )}
 
       <SectionTitle>Pipeline</SectionTitle>
-      <FieldRow label="Current status"  value={application.STATUS?.replace(/_/g, " ")} />
-      <FieldRow label="Application ID"  value={`#${application.ID}`} />
-      <FieldRow label="Applied"         value={application.CREATED_AT?.slice(0, 10)} />
-      <FieldRow label="Last screened"   value={application.SCREENED_AT?.slice(0, 16)?.replace("T", " ")} />
+      <FieldRow label="Current status" value={application.STATUS?.replace(/_/g, " ")} />
+      <FieldRow label="Application ID" value={`#${application.ID}`} />
+      <FieldRow label="Applied" value={application.CREATED_AT?.slice(0, 10)} />
+      <FieldRow label="Last screened" value={application.SCREENED_AT?.slice(0, 16)?.replace("T", " ")} />
     </Drawer>
   );
 }
@@ -2340,8 +2348,10 @@ function InterviewsTab() {
     return <EmptyState text="No interviews scheduled yet. Go to Pipeline → pick an application → schedule an interview." />;
 
   return (
-    <div style={{ background: "white", borderRadius: 12, overflow: "hidden",
-                  boxShadow: "0 4px 14px rgba(15,23,42,0.05)" }}>
+    <div style={{
+      background: "white", borderRadius: 12, overflow: "hidden",
+      boxShadow: "0 4px 14px rgba(15,23,42,0.05)"
+    }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
         <thead>
           <tr style={th}>
@@ -2426,8 +2436,10 @@ function OffersTab() {
 
   return (
     <>
-      <div style={{ background: "white", borderRadius: 12, overflow: "hidden",
-                    boxShadow: "0 4px 14px rgba(15,23,42,0.05)" }}>
+      <div style={{
+        background: "white", borderRadius: 12, overflow: "hidden",
+        boxShadow: "0 4px 14px rgba(15,23,42,0.05)"
+      }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={th}>
@@ -2590,7 +2602,7 @@ function SendOfferModal({ offer, onClose, onSent }) {
 
   return (
     <Drawer onClose={onClose} width={560}
-            title={`Send offer · ${offer.OFFER_NUMBER}`}>
+      title={`Send offer · ${offer.OFFER_NUMBER}`}>
       <div style={{
         padding: 12, background: "#f8fafc",
         border: "1px solid #e2e8f0", borderRadius: 10,
@@ -2602,19 +2614,19 @@ function SendOfferModal({ offer, onClose, onSent }) {
 
       <Field label="To (candidate email) *">
         <input value={to} onChange={(e) => setTo(e.target.value)}
-               type="email" style={input}
-               placeholder="candidate@example.com" />
+          type="email" style={input}
+          placeholder="candidate@example.com" />
       </Field>
 
       <Field label="CC (comma-separated, optional)">
         <input value={cc} onChange={(e) => setCc(e.target.value)}
-               style={input}
-               placeholder="(leave empty while in Resend sandbox mode)" />
+          style={input}
+          placeholder="(leave empty while in Resend sandbox mode)" />
       </Field>
 
       <Field label="Subject">
         <input value={subject} onChange={(e) => setSubject(e.target.value)}
-               style={input} />
+          style={input} />
       </Field>
 
       <div style={{

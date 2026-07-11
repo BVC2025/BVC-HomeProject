@@ -21,14 +21,14 @@ import axios from "axios";
 
 // Permanent production hostnames — see deploy/cloudflared-config.example.yml
 const PROD_FRONTEND_HOST = "erp.bvc24.com";
-const PROD_BACKEND_URL = "http://127.0.0.1:8001";
+const PROD_BACKEND_URL = "http://192.168.1.10:8001";
 
 // Legacy quick-tunnel URL — only consulted when the frontend is served
 // from a .trycloudflare.com host. Once the named tunnel is live this
 // branch never fires.
 
 const LEGACY_QUICK_TUNNEL_BACKEND_URL =
-  "http://127.0.0.1:8001";
+  "http://192.168.1.10:8001";
 
 function resolveApiBase() {
 
@@ -55,7 +55,7 @@ function resolveApiBase() {
     return `${proto}//${host}:8001`;
   }
 
-  return "http://127.0.0.1:8001";
+  return "http://192.168.1.10:8001";
 }
 
 export const API_BASE_URL = resolveApiBase();

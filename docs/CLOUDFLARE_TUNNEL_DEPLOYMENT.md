@@ -55,7 +55,7 @@ Before starting, confirm you have:
 |---|---|---|
 | Admin access to **bvc24.com** in Cloudflare DNS | Adding CNAME records for the two subdomains | dash.cloudflare.com → bvc24.com is listed |
 | Office PC reaches the internet | Tunnel is outbound only, but it does need to reach Cloudflare | `Test-NetConnection api.cloudflare.com -Port 443` |
-| Python venv at `backend/venv` is set up and the backend boots locally | `uvicorn` will run from this venv | `.\venv\Scripts\python.exe -m uvicorn app.main:app --port 8001` then visit `http://localhost:8001/docs` |
+| Python venv at `backend/venv` is set up and the backend boots locally | `uvicorn` will run from this venv | `.\venv\Scripts\python.exe -m uvicorn app.main:app --port 8001` then visit `http://192.168.1.10:8001/docs` |
 | `node` and `npm` on PATH, Node 18+ | Required for `npm run build` and `vite preview` | `node --version` |
 | Latest code pulled from main | Frontend `api.js` must contain the `erp.bvc24.com` mapping | `git status` should be clean |
 
