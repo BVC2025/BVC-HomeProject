@@ -290,14 +290,17 @@ def render_payslip_pdf(
         ["Bank A/C",      employee.get("BANK_ACCOUNT") or "—"],
         ["PAN",           employee.get("PAN") or "—"],
     ]
+    _hourly = float(attendance.get("HOURLY_RATE") or 0)
+    _perm_h = float(attendance.get("PERMISSION_HOURS") or 0)
     att_right = [
-        ["Working Days", str(attendance.get("WORKING_DAYS") or "—")],
-        ["Present Days", str(attendance.get("PRESENT") or 0)],
-        ["Leave Days",   str(attendance.get("LEAVE")   or 0)],
-        ["LOP Days",     str(attendance.get("LOP")     or 0)],
-        ["Absent Days",  str(attendance.get("ABSENT")  or 0)],
-        ["Late Marks",   str(attendance.get("LATE")    or 0)],
-        ["OT Hours",     str(attendance.get("OT_HOURS") or 0)],
+        ["Working Days",     str(attendance.get("WORKING_DAYS") or "—")],
+        ["Hourly Rate",      _inr(_hourly) if _hourly else "—"],
+        ["Present Days",     str(attendance.get("PRESENT") or 0)],
+        ["Absent Days",      str(attendance.get("ABSENT") or 0)],
+        ["Leave Days",       str(attendance.get("LEAVE") or 0)],
+        ["Permission Hours", f"{_perm_h:.1f} h"],
+        ["Late Marks",       f"{attendance.get('LATE') or 0} (no deduction)"],
+        ["OT Hours",         str(attendance.get("OT_HOURS") or 0)],
     ]
 
     detail_rows = [

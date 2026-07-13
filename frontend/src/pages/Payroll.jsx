@@ -1,15 +1,18 @@
 // =====================================================================
 // Payroll — unified page (combines old Payroll list + PayslipGenerator).
 //
-// Calculation rules (per HR spec):
-//   • Monthly working days = 26 (fixed)
-//   • Per-day rate = base_salary / 26
+// Calculation rules (BVC company policy):
+//   • Working days per month = actual calendar (backend computed) — 26 fallback
+//   • A working day = 9 hours (used to derive hourly rate)
+//   • Per-day rate  = base_salary / working_days
+//   • Hourly rate   = per_day / 9
 //   • Up to 1 CASUAL leave/month is paid; extra CL is unpaid
-//   • Up to 4 hrs of PERMISSION/month is paid; extra is unpaid (4h = 1 day)
-//   • Check-in after 09:15 is counted as Late (informational, no deduction)
+//   • Up to 4 hrs of PERMISSION/month is paid; excess deducted at hourly rate
+//   • Late check-in is displayed but NEVER deducted (BVC policy)
 //   • Absent days deduct at per-day rate
+//   • OT = extra hours × hourly rate (added on top)
 //   • Increment: HR manually picks ₹500/₹1000/₹1500/₹2000 per employee
-//   • Net Salary = Base − Deduction + Increment
+//   • Net Salary = Base − Absence − Permission excess + Increment + OT
 //
 // Data sources (all server-driven, nothing static):
 //   GET  /employees?status=ACTIVE
@@ -34,10 +37,10 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December"
 ];
 
-const WORKING_DAYS  = 26;   // fixed per HR rule
+const DEFAULT_WORKING_DAYS = 26;  // preview fallback if no payroll run yet
 const MAX_PAID_CL   = 1;    // CL paid up to 1/month
-const MAX_PAID_PERM = 4;    // permission paid up to 4 hours/month
-const HOURS_PER_DAY = 8;    // for converting permission hours to days
+const MAX_PAID_PERM = 4;    // permission paid up to 4 hours/month (BVC rule)
+const HOURS_PER_DAY = 9;    // BVC: a working day is 9 hours
 
 // Inline increment choices for HR
 const INCREMENT_OPTIONS = [0, 500, 1000, 1500, 2000];
@@ -302,8 +305,11 @@ export default function Payroll() {
       const ctcBase   = Number(salaryStructMap[e.ID] || 0);
       const flatBase  = Number(e.SALARY || 0);
       const base = slipBase > 0 ? slipBase : (ctcBase > 0 ? ctcBase : flatBase);
-      const perDay = base / WORKING_DAYS;
-      const hourly = perDay / HOURS_PER_DAY;
+      // Prefer working days from the generated slip (actual month calendar)
+      // over the preview fallback so per-day / hourly match the backend.
+      const wd     = Number(slip?.WORKING_DAYS) || DEFAULT_WORKING_DAYS;
+      const perDay = Number(slip?.PER_DAY_RATE) || (base / wd);
+      const hourly = Number(slip?.HOURLY_RATE)  || (perDay / HOURS_PER_DAY);
 
       // CL: up to 1 paid, extra is unpaid
       const clTotal       = lv.clDays;
@@ -332,6 +338,7 @@ export default function Payroll() {
         emp: e,
         slip,
         base,
+        wd,
         perDay,
         hourly,
         present: att.present,
@@ -410,12 +417,12 @@ export default function Payroll() {
     setGenerating(true);
     try {
       // Send the HR-chosen increments so they land in the saved slips.
-      // WORKING_DAYS=26 is fixed per HR rule (not derived from holidays).
+      // WORKING_DAYS omitted → backend derives it from the actual month
+      // calendar (excluding Sundays / holidays).
       await API.post("/payroll/generate", {
         YEAR: year,
         MONTH: month,
         OVERWRITE: true,
-        WORKING_DAYS: WORKING_DAYS,
         INCREMENTS_BY_EMPLOYEE: increments,   // backend additive
       });
       await loadRun();
@@ -586,10 +593,11 @@ export default function Payroll() {
 
       {/* Rule helper bar (always visible) */}
       <div className={styles.rulesStrip}>
-        <span>Working Days: <strong>{WORKING_DAYS}</strong></span>
+        <span>Working Days: <strong>{Number(run?.WORKING_DAYS) || DEFAULT_WORKING_DAYS}</strong></span>
+        <span>Day = <strong>{HOURS_PER_DAY} hrs</strong></span>
         <span>Paid CL: <strong>{MAX_PAID_CL}/month</strong></span>
         <span>Paid Permission: <strong>{MAX_PAID_PERM} hrs/month</strong></span>
-        <span>Late cut-off: <strong>09:15</strong></span>
+        <span>Late: <strong>displayed only</strong></span>
         <span>OT: <strong>hourly rate × hours</strong></span>
         <span>Period: <strong>{MONTH_NAMES[month - 1]} {year}</strong></span>
       </div>
@@ -788,7 +796,7 @@ function SalarySummaryModal({ row, period, onClose }) {
 
         <div className={styles.modalBody}>
           <div className={styles.summaryGrid}>
-            <SummaryRow label="Working days (fixed)"        value={WORKING_DAYS} />
+            <SummaryRow label="Working days (this month)"   value={r.wd} />
             <SummaryRow label="Present days"                value={r.present} />
             <SummaryRow label="Absent days"                 value={r.absent}        warn={r.absent > 0} />
             <SummaryRow label={`CL used (paid up to ${MAX_PAID_CL})`} value={`${r.clTotal} / ${r.clPaid} paid`}

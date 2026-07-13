@@ -5,8 +5,8 @@ Office start/end times are stored as configurable values in the
 without a code deploy. Defaults are 10:00 - 17:30 IST.
 
 Keys used:
-  attendance.office_start_time   "HH:MM"   default "10:00"
-  attendance.office_end_time     "HH:MM"   default "17:30"
+  attendance.office_start_time   "HH:MM"   default "09:15" (LATE cutoff)
+  attendance.office_end_time     "HH:MM"   default "18:00"
 """
 
 from datetime import time, datetime
@@ -26,9 +26,10 @@ KEY_END   = "attendance.office_end_time"
 KEY_LATE_GRACE  = "attendance.late_grace_minutes"
 KEY_EARLY_GRACE = "attendance.early_exit_grace_minutes"
 
-DEFAULT_START = time(9, 0)     # 9:00 AM — anyone clocking in later is LATE
+DEFAULT_START = time(9, 15)    # Shift starts at 9:00 with a 15-min grace —
+                               # anyone clocking in after 9:15 is LATE.
 DEFAULT_END   = time(18, 0)    # 6:00 PM — work past this is overtime
-DEFAULT_LATE_GRACE_MIN  = 0    # No grace period — after 9:00 sharp = late
+DEFAULT_LATE_GRACE_MIN  = 0    # Grace is already baked into DEFAULT_START
 DEFAULT_EARLY_GRACE_MIN = 15
 
 

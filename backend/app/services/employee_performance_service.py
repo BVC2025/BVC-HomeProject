@@ -497,17 +497,67 @@ def compute_monthly_productivity_report(
         if classified > 0:
             on_time_pct = round((on_time / classified) * 100.0, 2)
         else:
-            on_time_pct = 100.0 if completed == 0 else 0.0
+            # No tasks classified this month → on-time metric is
+            # undefined. Use 0 (not 100) so the score doesn't inherit
+            # phantom points when the employee has done nothing.
+            on_time_pct = 0.0
 
         completion_rate = _safe_div(completed, max(1, total))
-        score_raw = completion_rate * 60.0 + (on_time_pct / 100.0) * 30.0
-        productivity_score = round(max(0.0, min(100.0, score_raw)), 2)
+
+        # Attendance component — Mon-Sat present ratio for the month.
+        # Prorated for the CURRENT month (only count up to today) so
+        # employees don't get penalised for future days that haven't
+        # happened yet. Same logic used by Star Performance so both
+        # dashboards agree on the number.
+        window_end = min(m_end, date.fromordinal(today.toordinal() + 1))
+        attn_rows = (
+            db.query(Attendance)
+            .filter(
+                Attendance.EMPLOYEE_ID == employee_id,
+                Attendance.DATE >= m_start,
+                Attendance.DATE < window_end,
+            ).all()
+        )
+        wd_elapsed = 0
+        cur = m_start
+        while cur < window_end:
+            if cur.weekday() != 6:      # Mon-Sat only
+                wd_elapsed += 1
+            cur = date.fromordinal(cur.toordinal() + 1)
+
+        present_days = sum(
+            1 for r in attn_rows
+            if (r.STATUS or "").upper() in ("PRESENT", "LATE")
+        )
+        attendance_pct = (
+            round((present_days / wd_elapsed) * 100.0, 2)
+            if wd_elapsed > 0 else 0.0
+        )
+
+        # Weighting depends on whether the employee had tasks this month:
+        #
+        #   • No tasks (total = 0)  → score = attendance_pct
+        #     Attendance is the only signal; give it the full 100.
+        #   • Has tasks             → 40 attendance + 40 completion + 20 on-time
+        #     Attendance is the biggest lever, then completion, then punctuality.
+        if total == 0:
+            productivity_score = round(attendance_pct, 2)
+        else:
+            score_raw = (
+                (attendance_pct / 100.0) * 40.0
+                + completion_rate * 40.0
+                + (on_time_pct / 100.0) * 20.0
+            )
+            productivity_score = round(max(0.0, min(100.0, score_raw)), 2)
 
         results.append(
             {
                 "month_label": f"{_MONTH_LABELS[month - 1]} {year}",
                 "tasks_completed": int(completed),
                 "on_time_pct": float(on_time_pct),
+                "attendance_pct": float(attendance_pct),
+                "present_days": int(present_days),
+                "working_days": int(wd_elapsed),
                 "productivity_score": float(productivity_score),
             }
         )

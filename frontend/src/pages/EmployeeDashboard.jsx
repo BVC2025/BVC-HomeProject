@@ -5,13 +5,15 @@ import API, { API_BASE_URL } from "../services/api";
 import ChatBot from "../components/ChatBot";
 import HRAssistant from "../components/HRAssistant";
 import LeaveChatbot from "../components/LeaveChatbot";
-import VoiceLeaveTest from "../components/VoiceLeaveTest";
 import LeaveAgentChat from "../components/LeaveAgentChat";
 import MyLeaveStatus from "../components/MyLeaveStatus";
 import MyAttendancePanel from "../components/MyAttendancePanel";
 import MyAllowanceSection from "../components/MyAllowanceSection";
 import MyPayslipsPanel from "../components/MyPayslipsPanel";
 import MyPermissionSection from "../components/MyPermissionSection";
+import EmployeeSidebar from "../components/EmployeeSidebar";
+import EmployeeHomeDashboard from "../components/EmployeeHomeDashboard";
+import ComingSoonPanel from "../components/ComingSoonPanel";
 import EmployeeProfileForm from "./EmployeeProfileForm";
 
 import styles from "./EmployeeDashboard.module.css";
@@ -257,10 +259,10 @@ function EmployeeDashboardBody() {
   const [tab, setTab] = useState("pending");
 
   // Which section is currently shown. Deep-linked from the welcome
-  // screen via location.state.tab; falls back to "attendance" so an
-  // unadorned visit to "/" still shows something useful.
+  // screen via location.state.tab; falls back to "home" so an
+  // unadorned visit to "/" lands on the new ESS dashboard.
   const [mainTab, setMainTab] = useState(
-    () => location.state?.tab || "attendance"
+    () => location.state?.tab || "home"
   );
 
   // Re-sync when the user comes back through the welcome tiles.
@@ -677,6 +679,14 @@ function EmployeeDashboardBody() {
 
     <div className={styles.zShell}>
 
+      {/* ---------- Left rail — Employee Self-Service navigation ---------- */}
+      <EmployeeSidebar
+        activeTab={mainTab}
+        onSelect={(key) => setMainTab(key)}
+        onLogout={handleLogout}
+        unreadCount={unreadCount}
+      />
+
       <main className={styles.zMain}>
 
         <ZMainHeader
@@ -689,7 +699,7 @@ function EmployeeDashboardBody() {
           voiceSupported={isVoiceSupported()}
           overdueCount={overdueCount}
           onBellClick={showOverdueToast}
-          onGoHome={() => navigate("/welcome")}
+          onGoHome={() => setMainTab("home")}
           onLogout={handleLogout}
         />
 
@@ -746,9 +756,6 @@ function EmployeeDashboardBody() {
                 employeeId={employeeId}
                 refreshSignal={leaveStatusRefresh}
               />
-              <div style={{ marginTop: 16 }}>
-                <VoiceLeaveTest />
-              </div>
             </>
           )}
 
@@ -768,12 +775,153 @@ function EmployeeDashboardBody() {
             <MyPayslipsPanel employeeId={employeeId} />
           )}
 
+          {/* ---------- New ESS home dashboard ---------- */}
+          {mainTab === "home" && (
+            <EmployeeHomeDashboard
+              portal={portal}
+              attendanceStatus={attendanceStatus}
+              loginTime={loginTime}
+              productivity={productivity}
+              leaveBalance={leaveBalance}
+              unreadCount={unreadCount}
+              overdueCount={overdueCount}
+              onNavigate={(key) => setMainTab(key)}
+            />
+          )}
+
+          {/* ---------- Coming-soon placeholders for modules whose
+                        backend is on the roadmap ---------- */}
+          {mainTab === "documents" && (
+            <ComingSoonPanel
+              title="Documents"
+              iconKey="docs"
+              description="A single place to view and download every document HR has on file for you."
+              bullets={[
+                "Aadhaar, PAN and other IDs",
+                "Offer letter, appointment letter, salary slips",
+                "Education, experience and training certificates",
+              ]}
+            />
+          )}
+          {mainTab === "holidays" && (
+            <ComingSoonPanel
+              title="Holiday Calendar"
+              iconKey="calendar"
+              description="Monthly calendar with public, company and restricted holidays clearly marked."
+              bullets={[
+                "Public and company holidays for the year",
+                "Restricted / optional holiday tags",
+                "Filter by month, search by name",
+              ]}
+            />
+          )}
+          {mainTab === "notifications" && (
+            <ComingSoonPanel
+              title="Notifications"
+              iconKey="bell"
+              description="Every alert in one inbox — salary credited, leave approved, HR announcements, birthdays."
+              bullets={[
+                "Filter by read / unread",
+                "Search across HR, payroll and policy events",
+                "Mark all read in a single tap",
+              ]}
+            />
+          )}
+          {mainTab === "announcements" && (
+            <ComingSoonPanel
+              title="Company Announcements"
+              iconKey="megaphone"
+              description="Notice board for HR announcements, company policy updates and event invites."
+              bullets={[
+                "Banner + attachments per announcement",
+                "Category tags — HR notice, policy, events, emergency",
+                "Read-only, always sorted by date",
+              ]}
+            />
+          )}
+          {mainTab === "assets" && (
+            <ComingSoonPanel
+              title="My Assets"
+              iconKey="laptop"
+              description="Every asset assigned to you — laptop, monitor, SIM, ID card — in one card grid."
+              bullets={[
+                "Asset ID, assigned date, return date",
+                "Condition and status tags",
+                "Read-only; return requests go through HR",
+              ]}
+            />
+          )}
+          {mainTab === "training" && (
+            <ComingSoonPanel
+              title="Training"
+              iconKey="book"
+              description="Assigned courses, completion progress and certificates you can download."
+              bullets={[
+                "Course thumbnail, trainer and duration",
+                "Per-course progress bar",
+                "Certificate download once complete",
+              ]}
+            />
+          )}
+          {mainTab === "helpdesk" && (
+            <ComingSoonPanel
+              title="Help Desk"
+              iconKey="ticket"
+              description="Raise a ticket to HR, IT, Finance or Admin and track it through to closure."
+              bullets={[
+                "Category, priority and attachment",
+                "Status timeline — Open → In Progress → Resolved",
+                "See every response in one thread",
+              ]}
+            />
+          )}
           {mainTab === "performance" && (
-            <>
-              <PerformanceBreakdownCard productivity={productivity} />
-              <MonthlyProductivityChart data={monthlyChart} />
-              <RewardsCard productivity={productivity} />
-            </>
+            <ComingSoonPanel
+              title="Performance"
+              iconKey="chart"
+              description="Your appraisal history, KPI score, goals and manager feedback."
+              bullets={[
+                "Overall rating and star performance",
+                "KPI, attendance and task score",
+                "Manager feedback timeline",
+              ]}
+            />
+          )}
+          {mainTab === "orgchart" && (
+            <ComingSoonPanel
+              title="Organization Chart"
+              iconKey="tree"
+              description="See the reporting hierarchy from CEO down to your seat."
+              bullets={[
+                "Interactive drill-down by department",
+                "Photos, names and designations",
+                "Your position highlighted",
+              ]}
+            />
+          )}
+          {mainTab === "myteam" && (
+            <ComingSoonPanel
+              title="My Team"
+              iconKey="users"
+              description="For team leads and managers — team attendance, pending approvals and birthdays."
+              bullets={[
+                "Approve or reject leave requests",
+                "See attendance at a glance",
+                "Only visible to Managers and Team Leads",
+              ]}
+            />
+          )}
+          {mainTab === "settings" && (
+            <ComingSoonPanel
+              title="Settings"
+              iconKey="gear"
+              description="Change your password, notification preferences, language and theme."
+              bullets={[
+                "Password + two-factor auth",
+                "Light / Dark theme toggle",
+                "Notification and privacy controls",
+              ]}
+            />
           )}
 
         </div>
@@ -1066,14 +1214,25 @@ function ZTabStrip({ active, onChange, badges = {} }) {
 // =================================================================
 
 const Z_TAB_TITLES = {
-  attendance:  "Attendance",
-  tasks:       "Tasks",
-  leave:       "Leave",
-  permission:  "Permission",
-  memos:       "Memos",
-  allowance:   "Allowance",
-  payslips:    "Payslips",
-  performance: "Performance"
+  home:          "Dashboard",
+  attendance:    "Attendance",
+  tasks:         "Tasks",
+  leave:         "Leave",
+  permission:    "Permission",
+  memos:         "Memos",
+  allowance:     "Allowance",
+  payslips:      "Payslips",
+  documents:     "Documents",
+  holidays:      "Holiday Calendar",
+  notifications: "Notifications",
+  announcements: "Announcements",
+  assets:        "My Assets",
+  training:      "Training",
+  helpdesk:      "Help Desk",
+  performance:   "Performance",
+  orgchart:      "Organization Chart",
+  myteam:        "My Team",
+  settings:      "Settings",
 };
 
 function ZSidebar({

@@ -197,10 +197,9 @@ function Login() {
         localStorage.removeItem("pending_yesterday");
       }
 
-      // Employee landing: send them through the welcome screen first.
-      // The welcome page's "Continue to Dashboard" button then routes
-      // to "/" which resolves via RoleBasedLanding → EmployeeDashboard.
-      navigate("/welcome", { replace: true });
+      // Employee landing: go straight to the sidebar-driven ESS
+      // dashboard (RoleBasedLanding → EmployeeDashboard, mainTab="home").
+      navigate("/", { replace: true });
 
     } catch (err) {
 
