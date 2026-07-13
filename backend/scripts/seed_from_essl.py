@@ -98,7 +98,7 @@ def main() -> int:
         Employee, Attendance, BiometricEvent,
     )
 
-    ip   = os.getenv("ESSL_DEVICE_IP",   "192.168.1.201")
+    ip   = os.getenv("ESSL_DEVICE_IP",   "192.168.1.5")
     port = int(os.getenv("ESSL_DEVICE_PORT", "4370"))
     key  = int(os.getenv("ESSL_COMM_KEY", "0"))
 

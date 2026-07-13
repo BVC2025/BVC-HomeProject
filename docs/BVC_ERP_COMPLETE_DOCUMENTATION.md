@@ -453,7 +453,7 @@ JWT_SECRET_KEY=<long-random>
 SMTP_HOST=smtp.gmail.com
 SMTP_USER=support@bvc24.com
 RESEND_API_KEY=<optional>
-ESSL_DEVICE_IP=192.168.1.201
+ESSL_DEVICE_IP=192.168.1.5
 ESSL_COMM_KEY=123456
 ```
 

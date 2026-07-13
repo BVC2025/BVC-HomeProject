@@ -22,7 +22,7 @@ Usage:
        sync_once()
 
 Env vars (default in parens):
-  ESSL_DEVICE_IP        (192.168.0.201)
+  ESSL_DEVICE_IP        (192.168.1.5)
   ESSL_DEVICE_PORT      (4370)
   ESSL_COMM_KEY         (0)
   ESSL_DEVICE_ID        (X2008-01)   — cosmetic tag saved on each event
@@ -65,7 +65,7 @@ class DeviceConfig:
     @classmethod
     def from_env(cls) -> "DeviceConfig":
         return cls(
-            ip=os.getenv("ESSL_DEVICE_IP", "192.168.0.201"),
+            ip=os.getenv("ESSL_DEVICE_IP", "192.168.1.5"),
             port=int(os.getenv("ESSL_DEVICE_PORT", "4370")),
             comm_key=int(os.getenv("ESSL_COMM_KEY", "0")),
             device_id=os.getenv("ESSL_DEVICE_ID", "X2008-01"),

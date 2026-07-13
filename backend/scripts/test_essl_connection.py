@@ -11,7 +11,7 @@ Reads config from environment (or .env). Defaults match the X2008 on
 192.168.0.201.
 
 Env vars:
-    ESSL_DEVICE_IP     default 192.168.0.201
+    ESSL_DEVICE_IP     default 192.168.1.5
     ESSL_DEVICE_PORT   default 4370
     ESSL_COMM_KEY      default 0 (numeric — 0 for "no password" or
                        the numeric COMM KEY from the device's Comm menu)
@@ -46,7 +46,7 @@ def main() -> int:
     except Exception:
         pass
 
-    ip   = os.getenv("ESSL_DEVICE_IP",   "192.168.0.201")
+    ip   = os.getenv("ESSL_DEVICE_IP",   "192.168.1.5")
     port = int(os.getenv("ESSL_DEVICE_PORT", "4370"))
     key  = int(os.getenv("ESSL_COMM_KEY", "0"))
 
