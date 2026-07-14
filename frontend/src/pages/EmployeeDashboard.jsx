@@ -265,6 +265,11 @@ function EmployeeDashboardBody() {
     () => location.state?.tab || "home"
   );
 
+  // Mobile sidebar drawer state — hamburger button in the header
+  // toggles this; the sidebar itself calls onClose when a nav item
+  // is picked, so navigation on a phone acts like a real drawer.
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   // Re-sync when the user comes back through the welcome tiles.
   useEffect(() => {
     const t = location.state?.tab;
@@ -685,6 +690,8 @@ function EmployeeDashboardBody() {
         onSelect={(key) => setMainTab(key)}
         onLogout={handleLogout}
         unreadCount={unreadCount}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
       <main className={styles.zMain}>
@@ -701,6 +708,7 @@ function EmployeeDashboardBody() {
           onBellClick={showOverdueToast}
           onGoHome={() => setMainTab("home")}
           onLogout={handleLogout}
+          onMenuToggle={() => setSidebarOpen((v) => !v)}
         />
 
         <div className={styles.zMainContent}>
@@ -1346,7 +1354,8 @@ function ZMainHeader({
   productivity,
   voiceOn, onToggleVoice, voiceSupported,
   overdueCount, onBellClick,
-  onGoHome, onLogout
+  onGoHome, onLogout,
+  onMenuToggle,
 }) {
 
   const isLate = attendanceStatus === "LATE";
@@ -1355,18 +1364,21 @@ function ZMainHeader({
   return (
     <header className={styles.zMainHeader}>
       <div className={styles.zMainHeaderLeft}>
+        {/* Mobile only: hamburger opens the sidebar drawer. Hidden on
+            desktop where the sidebar is always visible. */}
         <button
           type="button"
           className={styles.zHamburger}
-          onClick={onGoHome}
-          aria-label="Back to home"
-          title="Back to home"
+          onClick={onMenuToggle}
+          aria-label="Open menu"
+          title="Menu"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" strokeWidth="2.2"
                strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 11l9-8 9 8" />
-            <path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10" />
+            <path d="M4 6h16" />
+            <path d="M4 12h16" />
+            <path d="M4 18h16" />
           </svg>
         </button>
         <h1 className={styles.zMainTitle}>{title}</h1>

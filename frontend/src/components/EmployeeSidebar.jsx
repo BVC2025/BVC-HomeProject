@@ -109,7 +109,10 @@ const NAV_GROUPS = [
 // -----------------------------------------------------------------
 // Component
 // -----------------------------------------------------------------
-export default function EmployeeSidebar({ activeTab, onSelect, onLogout, unreadCount = 0 }) {
+export default function EmployeeSidebar({
+  activeTab, onSelect, onLogout, unreadCount = 0,
+  open = false, onClose,
+}) {
 
   const navigate = useNavigate();
 
@@ -135,13 +138,30 @@ export default function EmployeeSidebar({ activeTab, onSelect, onLogout, unreadC
     if (item.key === "profile") {
       // Profile has its own route already
       navigate("/employee-profile");
+      onClose?.();
       return;
     }
     onSelect?.(item.key, { soon: !!item.soon });
+    // On mobile the sidebar is a drawer — close it after picking a tab
+    onClose?.();
   };
 
   return (
-    <aside className={styles.zSidebar}>
+    <>
+      {/* Backdrop — only visible on mobile when drawer is open */}
+      {open && (
+        <div
+          className={styles.zSidebarOverlay}
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside className={
+        open
+          ? `${styles.zSidebar} ${styles.zSidebarOpen}`
+          : styles.zSidebar
+      }>
 
       {/* ---------- Brand ---------- */}
       <div className={styles.zSidebarBrand}>
@@ -217,5 +237,6 @@ export default function EmployeeSidebar({ activeTab, onSelect, onLogout, unreadC
         </button>
       </div>
     </aside>
+    </>
   );
 }

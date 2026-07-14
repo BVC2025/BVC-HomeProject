@@ -372,3 +372,93 @@
 .eventTitle { font-size: 12px; font-weight: 700; color: var(--text-primary); }
 .eventKind  { font-size: 10px; color: var(--text-muted); font-weight: 600;
               text-transform: uppercase; letter-spacing: 0.6px; margin-top: 2px; }
+
+
+/* =================================================================
+   MOBILE RESPONSIVE STYLES
+   Two breakpoints:
+     • ≤ 720px  — tablet / large phone: hero stacks, cards go 2-col
+     • ≤ 480px  — phone: hero rearranges vertically, cards 1-col
+   ================================================================= */
+
+@media (max-width: 720px) {
+  .home {
+    gap: 14px;
+    padding: 2px 0 16px;
+  }
+
+  /* --- HERO --- */
+  .hero {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "avatar text"
+      "status status";
+    row-gap: 10px;
+    padding: 16px 18px;
+    border-radius: 14px;
+  }
+  .heroAvatar { grid-area: avatar; width: 52px; height: 52px; font-size: 18px; }
+  .heroText   { grid-area: text; }
+  .heroStatus {
+    grid-area: status;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    text-align: left;
+  }
+  .heroTitle    { font-size: 18px; }
+  .heroEyebrow  { font-size: 10px; }
+  .heroMeta     { font-size: 11px; }
+  .heroStatusPill { font-size: 10px; padding: 5px 10px; }
+
+  /* --- KPI CARDS --- */
+  .kpiValue { font-size: 18px; }
+  .kpiLabel { font-size: 9px; letter-spacing: 0.8px; }
+  .kpiSub   { font-size: 10px; }
+  .kpiIcon  { width: 26px; height: 26px; border-radius: 6px; }
+  .kpi      { padding: 10px 12px; border-radius: 10px; }
+
+  /* --- QUICK ACTIONS --- */
+  .quick { padding: 12px 14px; border-radius: 10px; }
+  .quickIcon  { width: 30px; height: 30px; border-radius: 8px; }
+  .quickLabel { font-size: 12px; }
+
+  /* --- SECTION TITLES --- */
+  .sectionTitle { font-size: 14px; }
+  .sectionSub   { font-size: 10px; }
+
+  /* --- PANELS --- */
+  .panel     { border-radius: 10px; }
+  .panelHead { padding: 12px 14px; }
+  .panelTitle { font-size: 13px; }
+  .panelSub   { font-size: 10px; }
+}
+
+@media (max-width: 480px) {
+  /* --- HERO on small phones --- */
+  .hero {
+    padding: 14px 14px;
+  }
+  .heroTitle   { font-size: 16px; }
+  .heroAvatar  { width: 44px; height: 44px; font-size: 16px; }
+
+  /* --- KPI: force single column --- */
+  .kpis { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .kpiValue { font-size: 17px; }
+  .kpiTop { gap: 6px; }
+
+  /* --- Timeline text tighter --- */
+  .timelineRow {
+    grid-template-columns: 10px 1fr auto;
+    gap: 8px;
+    padding: 6px 2px;
+  }
+  .timelineWhen { font-size: 9px; }
+
+  /* --- Event cards tighter --- */
+  .eventRow { grid-template-columns: 40px 1fr; gap: 10px; padding: 6px; }
+  .eventDate { width: 40px; padding: 4px 2px; }
+  .eventDay  { font-size: 16px; }
+  .eventMon  { font-size: 8px; }
+}

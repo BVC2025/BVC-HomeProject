@@ -2809,3 +2809,204 @@ body {
     font-size: 22px !important;
   }
 }
+
+/* =====================================================================
+   ULTRA-WIDE MOBILE CATCH-ALL — targets CSS-Module classes by substring
+   ---------------------------------------------------------------------
+   CSS Modules append a hash to class names ("Employees_filterCard__ab12"),
+   but preserve the original identifier as a substring. Attribute
+   selectors like [class*="filterCard"] therefore reach EVERY page that
+   uses a class called "filterCard" without touching each module.css.
+   Rules are grouped by common pattern; each block is intentionally
+   defensive (uses `!important` sparingly, only where module rules
+   otherwise win).
+   ===================================================================== */
+
+
+/* ---------- 900 px : tablet portrait & below ---------- */
+@media (max-width: 900px) {
+
+  /* Prevent horizontal page scroll under any circumstance */
+  html, body, #root { overflow-x: hidden; max-width: 100vw; }
+
+  /* Every <table> that isn't already wrapped in an overflow container
+     gets one auto — its parent's overflow is forced to horizontal-scroll.
+     Safe because we only touch parents that directly hold a table. */
+  [class*="tableCard"],
+  [class*="tableWrap"],
+  [class*="tblWrap"],
+  [class*="table-container"],
+  [class*="tableContainer"] {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Fallback: any bare table not inside an overflow parent */
+  main table,
+  form table,
+  section table {
+    max-width: 100%;
+  }
+
+  /* --- Filter rows (search + dropdowns + button) --- */
+  [class*="filterCard"],
+  [class*="filterRow"],
+  [class*="filterBar"],
+  [class*="filters"]:not([class*="Filtered"]) {
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+  [class*="filterField"],
+  [class*="filterSelect"],
+  [class*="searchInput"],
+  [class*="searchWrap"] {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100%;
+  }
+
+  /* --- KPI / stat rows go 3-col at 900px --- */
+  [class*="kpiRow"],
+  [class*="statRow"],
+  [class*="statsGrid"] {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  /* --- Two-column layouts (form/detail panels) stack --- */
+  [class*="twoCol"],
+  [class*="splitPanel"],
+  [class*="detailGrid"],
+  [class*="formGrid"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* --- Action rows (row of buttons) go wrap --- */
+  [class*="actionRow"],
+  [class*="btnRow"],
+  [class*="formActions"] {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* --- Modals on mobile: full width with side gutters --- */
+  [class*="modalPanel"],
+  [class*="modalContent"] {
+    max-width: calc(100vw - 24px) !important;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+  }
+
+  /* --- Toolbar / action button rows tighten --- */
+  [class*="pageHeader"],
+  [class*="pageTitle"] {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  /* --- Modal / drawer close spacing --- */
+  [class*="pager"],
+  [class*="Pagination"] {
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+  }
+}
+
+
+/* ---------- 640 px : phone landscape ---------- */
+@media (max-width: 640px) {
+
+  /* KPI/stat rows go 2-col */
+  [class*="kpiRow"],
+  [class*="statRow"],
+  [class*="statsGrid"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Any 3+ column grid drops to 2 */
+  [class*="cardGrid"],
+  [class*="cardsGrid"],
+  [class*="tileGrid"],
+  [class*="Grid3"],
+  [class*="Grid4"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  /* Page padding tighter */
+  [class*="page"]:not([class*="pageHead"]):not([class*="Pagination"]):not([class*="pager"]) {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  /* Headings compress */
+  h1 { font-size: 20px; }
+  h2 { font-size: 17px; }
+  h3 { font-size: 15px; }
+
+  /* Table cells + font */
+  table th, table td {
+    padding: 8px 10px !important;
+    font-size: 12.5px !important;
+  }
+
+  /* Buttons stay tappable but don't blow up */
+  button, .btn, [class*="btnPrimary"], [class*="btnSecondary"] {
+    min-height: 36px;
+  }
+}
+
+
+/* ---------- 480 px : phone portrait ---------- */
+@media (max-width: 480px) {
+
+  /* Single column for stats/KPIs */
+  [class*="kpiRow"],
+  [class*="statRow"],
+  [class*="statsGrid"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Card grids single column */
+  [class*="cardGrid"],
+  [class*="cardsGrid"],
+  [class*="tileGrid"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Page container padding minimal */
+  [class*="page"]:not([class*="pageHead"]):not([class*="Pagination"]):not([class*="pager"]) {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  /* Modals full screen */
+  [class*="modalPanel"],
+  [class*="modalContent"] {
+    max-width: 100vw !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    max-height: 100vh !important;
+  }
+
+  /* Modal overlay padding removed */
+  [class*="modalOverlay"] {
+    padding: 0 !important;
+  }
+
+  /* Form inputs default to full width */
+  form input:not([type="checkbox"]):not([type="radio"]),
+  form select,
+  form textarea {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Number values in stat tiles smaller */
+  [class*="kpiValue"],
+  [class*="statValue"],
+  [class*="TileValue"] {
+    font-size: 20px !important;
+  }
+}

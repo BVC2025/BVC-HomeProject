@@ -2582,7 +2582,10 @@
 }
 
 .zHamburger {
-  display: inline-flex;
+  /* Hidden on desktop (sidebar always visible); the mobile media query
+     below flips this to inline-flex so the drawer toggle appears only
+     when the sidebar collapses off-screen. */
+  display: none;
   width: 34px;
   height: 34px;
   align-items: center;
@@ -2638,9 +2641,16 @@
     position: fixed;
     top: 0;
     left: 0;
+    /* Width in flex-basis is ignored once we're position:fixed —
+       set an explicit width so the drawer has consistent size. */
+    width: 260px;
+    max-width: 82vw;
     transform: translateX(-100%);
     transition: transform 0.22s ease;
-    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.08);
+    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.15);
+    /* Must be above .zSidebarOverlay (z-index:50) so the drawer
+       stays interactive when the backdrop is up. */
+    z-index: 60;
   }
 
   .zSidebarOpen {

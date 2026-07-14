@@ -40,6 +40,7 @@ from app.routes.task_approval import router as task_approval_router
 from app.routes.chatbot import router as chatbot_router
 from app.routes.biometric import router as biometric_router
 from app.routes.essl_ingest import router as essl_ingest_router
+from app.routes.attendance_csv_import import router as attendance_csv_import_router
 from app.routes.bvc24_seed import router as bvc24_seed_router
 from app.routes.performance import router as performance_router
 from app.routes.production import router as production_router
@@ -1388,6 +1389,7 @@ app.include_router(settings_router, tags=["Settings"])
 app.include_router(chatbot_router, tags=["Chatbot"])
 app.include_router(biometric_router)
 app.include_router(essl_ingest_router)
+app.include_router(attendance_csv_import_router)
 app.include_router(bvc24_seed_router)
 app.include_router(performance_router)
 app.include_router(production_router)
