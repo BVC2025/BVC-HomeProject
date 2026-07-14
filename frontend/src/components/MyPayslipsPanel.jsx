@@ -295,14 +295,11 @@ export default function MyPayslipsPanel({ employeeId }) {
                       </div>
                       {(r.ABSENT_DAYS > 0 || r.DAYS_LATE > 0) && (
                         <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 2 }}>
-<<<<<<< HEAD
                           {r.DAYS_LATE > 0 ? `${r.DAYS_LATE} late · ` : ""}
                           {r.UNPAID_LEAVE_DAYS > 0 ? `${r.UNPAID_LEAVE_DAYS} LOP` : ""}
-=======
                           {r.ABSENT_DAYS > 0 ? `${r.ABSENT_DAYS} absent` : ""}
                           {r.ABSENT_DAYS > 0 && r.DAYS_LATE > 0 ? " · " : ""}
-                          {r.DAYS_LATE > 0   ? `${r.DAYS_LATE} late` : ""}
->>>>>>> puvi-development
+                          {r.DAYS_LATE > 0 ? `${r.DAYS_LATE} late` : ""}
                         </div>
                       )}
                     </td>
