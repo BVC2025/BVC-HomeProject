@@ -113,3 +113,11 @@ __pycache__/
 .env.development.local
 .env.test.local
 .env.production.local
+
+# =========================
+# bvc-sync (Windows-side biometric bridge)
+# secrets + log stay local, only source is committed
+# =========================
+bvc-sync/bvc-sync.env
+bvc-sync/bvc-sync.log
+bvc-sync/bvc-sync.log.*
