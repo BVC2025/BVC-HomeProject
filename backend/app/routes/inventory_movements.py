@@ -27,7 +27,7 @@ def list_movements(
     from_date: Optional[str] = Query(None),
     to_date: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=5000),
     db: Session = Depends(get_db),
 ):
     q = db.query(InventoryMovement).filter(InventoryMovement.VENDOR_ID == vendor_id)
@@ -62,7 +62,7 @@ def get_item_history(
     item_id: str,
     vendor_id: int = Query(1),
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=5000),
     db: Session = Depends(get_db),
 ):
     """All movements for a single inventory item, most recent first."""

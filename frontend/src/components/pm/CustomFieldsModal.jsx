@@ -5,6 +5,7 @@ import PMButton from "./PMButton";
 import PMSelect from "./PMSelect";
 import WarningIcon from "../../assets/Icons/warningIcon.webp";
 import styles from "./CustomFieldsModal.module.css";
+import SwapConfirmPortal from "./SwapConfirmPortal";
 import { customFieldService } from "../../services/customFieldService";
 import { useToast } from "../../hooks/useToast";
 
@@ -47,29 +48,6 @@ function DeleteConfirmPortal({ open, onClose, onConfirm, fieldName }) {
         <div className={styles.swapFooter}>
           <PMButton variant="outline" onClick={onClose}>Cancel</PMButton>
           <PMButton variant="danger" onClick={() => { onConfirm(); onClose(); }}>Delete</PMButton>
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-}
-
-function SwapConfirmPortal({ open, onClose, onConfirm, existingFieldName, sortOrder }) {
-  if (!open) return null;
-  return createPortal(
-    <div className={styles.swapOverlay} onClick={onClose}>
-      <div className={styles.swapModal} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.swapIcon}>
-          <img src={WarningIcon} alt="Warning" />
-        </div>
-        <div className={styles.swapTitle}>Sort Order Conflict</div>
-        <div className={styles.swapDesc}>
-          Sort order <strong>{sortOrder}</strong> is already used by <strong>"{existingFieldName}"</strong>.
-          Do you want to swap the sort orders?
-        </div>
-        <div className={styles.swapFooter}>
-          <PMButton variant="outline" onClick={onClose}>Cancel</PMButton>
-          <PMButton variant="primary" onClick={() => { onConfirm(); onClose(); }}>Swap</PMButton>
         </div>
       </div>
     </div>,

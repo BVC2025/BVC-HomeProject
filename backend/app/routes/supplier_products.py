@@ -14,7 +14,10 @@ from typing import Optional, List
 
 import openpyxl
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Response
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+
+from app.utils.db_error_handler import raise_db_error
 
 from app.database.database import get_db
 from app.models.models import Supplier, CustomField, CustomFieldTableValue
@@ -29,6 +32,7 @@ from app.schemas.supplier_product_schema import (
     ProductCreate, ProductUpdate,
     CategoryCreate, CategoryUpdate,
     SupplierProductCreate, SupplierProductPriceUpdate,
+    SupplierProductEditPayload, SupplierProductAddPayload,
 )
 
 router = APIRouter(tags=["Supplier Products"])
@@ -109,11 +113,14 @@ def _cell(record: dict, *keys) -> str:
 def list_categories(
     vendor_id: int = Query(1),
     search: Optional[str] = Query(None),
+    is_active: Optional[bool] = Query(None),
     db: Session = Depends(get_db),
 ):
     q = db.query(InventoryCategory).filter(InventoryCategory.VENDOR_ID == vendor_id)
     if search:
         q = q.filter(InventoryCategory.NAME.ilike(f"%{search}%"))
+    if is_active is not None:
+        q = q.filter(InventoryCategory.IS_ACTIVE == is_active)
     rows = q.order_by(InventoryCategory.SORT_ORDER, InventoryCategory.NAME).all()
     return [
         {
@@ -136,9 +143,16 @@ def create_category(payload: CategoryCreate, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=400, detail=f"Category '{payload.NAME}' already exists")
     cat = InventoryCategory(**payload.dict())
-    db.add(cat)
-    db.commit()
-    db.refresh(cat)
+    try:
+        db.add(cat)
+        db.commit()
+        db.refresh(cat)
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "create inventory category")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "create inventory category")
     return {"message": "Category created", "ID": cat.ID}
 
 
@@ -163,7 +177,14 @@ def update_category(cat_id: str, payload: CategoryUpdate, db: Session = Depends(
         raise HTTPException(status_code=404, detail="Category not found")
     for k, v in payload.dict(exclude_none=True).items():
         setattr(cat, k, v)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "update inventory category")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "update inventory category")
     return {"message": "Category updated"}
 
 
@@ -177,8 +198,15 @@ def delete_category(cat_id: str, db: Session = Depends(get_db)):
             status_code=400,
             detail=f"Cannot delete category '{cat.NAME}' — it has {len(cat.products)} product(s)"
         )
-    db.delete(cat)
-    db.commit()
+    try:
+        db.delete(cat)
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "delete inventory category")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "delete inventory category")
     return {"message": "Category deleted"}
 
 
@@ -379,7 +407,7 @@ def list_products(
     search: Optional[str] = Query(None),
     sort_by: Optional[str] = Query("PRODUCT_NAME"),
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=5000),
     db: Session = Depends(get_db),
 ):
     q = db.query(ProductMaster).filter(ProductMaster.VENDOR_ID == vendor_id)
@@ -414,9 +442,16 @@ def create_product(payload: ProductCreate, db: Session = Depends(get_db)):
             detail=f"Product code '{payload.PRODUCT_CODE}' already exists"
         )
     product = ProductMaster(**payload.dict())
-    db.add(product)
-    db.commit()
-    db.refresh(product)
+    try:
+        db.add(product)
+        db.commit()
+        db.refresh(product)
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "create product")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "create product")
     return {"message": "Product created", "ID": product.ID}
 
 
@@ -457,7 +492,14 @@ def update_product(product_id: str, payload: ProductUpdate, db: Session = Depend
             raise HTTPException(status_code=400, detail="Product code already in use")
     for k, v in payload.dict(exclude_none=True).items():
         setattr(p, k, v)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "update product")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "update product")
     return {"message": "Product updated"}
 
 
@@ -476,9 +518,16 @@ def delete_product(product_id: str, db: Session = Depends(get_db)):
             detail=f"Cannot delete product — {active_sp} active supplier(s) supply it. "
                    "Deactivate all supplier links first."
         )
-    p.STATUS = "INACTIVE"
-    db.commit()
-    return {"message": "Product deactivated"}
+    db.delete(p)
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "delete product")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "delete product")
+    return {"message": "Product deleted"}
 
 
 @router.get("/products/{product_id}/suppliers")
@@ -834,3 +883,130 @@ def export_products(vendor_id: int = Query(1), db: Session = Depends(get_db)):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=products_export.xlsx"},
     )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# Supplier-Product management: edit existing / add new
+# ─────────────────────────────────────────────────────────────────────
+
+@router.patch("/supplier-products/{sp_id}")
+def update_supplier_product(
+    sp_id: str,
+    payload: SupplierProductEditPayload,
+    vendor_id: int = Query(1),
+    db: Session = Depends(get_db),
+):
+    """Edit pricing / status fields of an existing supplier-product link.
+    Only UNIT_PRICE, MOQ, LEAD_TIME_DAYS, STATUS, IS_PREFERRED are writable.
+    A price change appends a row to SupplierProductPriceHistory automatically.
+    """
+    sp = db.query(SupplierProduct).filter(
+        SupplierProduct.ID == sp_id,
+        SupplierProduct.VENDOR_ID == vendor_id,
+    ).first()
+    if not sp:
+        raise HTTPException(status_code=404, detail="Supplier-product record not found")
+
+    price_changed = (
+        payload.UNIT_PRICE is not None
+        and float(sp.UNIT_PRICE or 0) != payload.UNIT_PRICE
+    )
+    if price_changed:
+        db.add(SupplierProductPriceHistory(
+            VENDOR_ID=vendor_id,
+            SUPPLIER_PRODUCT_ID=sp.ID,
+            OLD_PRICE=sp.UNIT_PRICE or 0,
+            NEW_PRICE=payload.UNIT_PRICE,
+            CHANGED_BY_ROLE="EMPLOYEE",
+            CHANGE_REASON=payload.CHANGE_REASON,
+            EFFECTIVE_DATE=date.today(),
+        ))
+        sp.UNIT_PRICE = payload.UNIT_PRICE
+        sp.LAST_PRICE_UPDATED_AT = datetime.utcnow()
+
+    if payload.MOQ is not None:
+        sp.MOQ = payload.MOQ
+    if payload.LEAD_TIME_DAYS is not None:
+        sp.LEAD_TIME_DAYS = payload.LEAD_TIME_DAYS
+    if payload.STATUS is not None:
+        sp.STATUS = payload.STATUS
+    if payload.IS_PREFERRED is not None:
+        sp.IS_PREFERRED = payload.IS_PREFERRED
+
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "update supplier product")
+
+    try:
+        from app.services.supplier_ranking_service import recalculate_ranking_for_product
+        recalculate_ranking_for_product(db, vendor_id, sp.PRODUCT_ID)
+    except Exception as exc:
+        print(f"[supplier-products] ranking recalc failed (non-fatal): {exc}")
+
+    return {"message": "Supplier product updated", "ID": sp.ID}
+
+
+@router.post("/supplier-products")
+def add_supplier_product(
+    payload: SupplierProductAddPayload,
+    db: Session = Depends(get_db),
+):
+    """Add a new product to an existing supplier.
+    Returns 409 if the (VENDOR_ID, SUPPLIER_ID, PRODUCT_ID) triple already exists.
+    """
+    existing = db.query(SupplierProduct).filter(
+        SupplierProduct.VENDOR_ID == payload.VENDOR_ID,
+        SupplierProduct.SUPPLIER_ID == payload.SUPPLIER_ID,
+        SupplierProduct.PRODUCT_ID == payload.PRODUCT_ID,
+    ).first()
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail="This product is already registered for this supplier.",
+        )
+
+    supplier = db.query(Supplier).filter(
+        Supplier.ID == payload.SUPPLIER_ID,
+        Supplier.VENDOR_ID == payload.VENDOR_ID,
+    ).first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+
+    product = db.query(ProductMaster).filter(
+        ProductMaster.ID == payload.PRODUCT_ID,
+    ).first()
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    sp = SupplierProduct(
+        VENDOR_ID=payload.VENDOR_ID,
+        SUPPLIER_ID=payload.SUPPLIER_ID,
+        PRODUCT_ID=payload.PRODUCT_ID,
+        CATEGORY_ID=product.CATEGORY_ID,
+        UNIT_PRICE=payload.UNIT_PRICE,
+        MOQ=payload.MOQ if payload.MOQ is not None else 1.0,
+        LEAD_TIME_DAYS=payload.LEAD_TIME_DAYS if payload.LEAD_TIME_DAYS is not None else 7,
+        STATUS=payload.STATUS or "ACTIVE",
+        IS_PREFERRED=payload.IS_PREFERRED or False,
+        LAST_PRICE_UPDATED_AT=datetime.utcnow(),
+    )
+    db.add(sp)
+    try:
+        db.commit()
+        db.refresh(sp)
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "add supplier product")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "add supplier product")
+
+    try:
+        from app.services.supplier_ranking_service import recalculate_ranking_for_product
+        recalculate_ranking_for_product(db, payload.VENDOR_ID, payload.PRODUCT_ID)
+    except Exception as exc:
+        print(f"[supplier-products] ranking recalc failed (non-fatal): {exc}")
+
+    return {"message": "Supplier product added", "ID": sp.ID}

@@ -70,3 +70,26 @@ class SupplierProductPriceUpdate(BaseModel):
     CHANGE_REASON: Optional[str] = None
     CHANGED_BY_ID: Optional[str] = None
     CHANGED_BY_ROLE: Optional[str] = "EMPLOYEE"  # "EMPLOYEE" or "SUPPLIER"
+
+
+# ── Supplier Product management (edit existing / add new) ───────────
+class SupplierProductEditPayload(BaseModel):
+    """PATCH /supplier-products/{sp_id} — update editable pricing fields."""
+    UNIT_PRICE: Optional[float] = None
+    MOQ: Optional[float] = None
+    LEAD_TIME_DAYS: Optional[int] = None
+    STATUS: Optional[str] = None          # "ACTIVE" | "INACTIVE"
+    IS_PREFERRED: Optional[bool] = None
+    CHANGE_REASON: Optional[str] = None
+
+
+class SupplierProductAddPayload(BaseModel):
+    """POST /supplier-products — add a new supplier-product link."""
+    VENDOR_ID: int = 1
+    SUPPLIER_ID: int
+    PRODUCT_ID: str
+    UNIT_PRICE: float
+    MOQ: Optional[float] = 1.0
+    LEAD_TIME_DAYS: Optional[int] = 7
+    STATUS: Optional[str] = "ACTIVE"
+    IS_PREFERRED: Optional[bool] = False

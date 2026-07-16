@@ -13,6 +13,7 @@ import { roleService } from "../services/roleService";
 import { useToast } from "../hooks/useToast";
 import { useCustomFields, useTableCfValues } from "../hooks/useCustomFields";
 import { exportToExcel, downloadTemplate as dlTemplate } from "../utils/exportExcel";
+import { formatDateTime } from "../utils/formatDateTime";
 import TaskIcon from "../assets/Icons/taskIcon.webp";
 import EditIcon from "../assets/Icons/editIcon.webp";
 import DeleteIcon from "../assets/Icons/deleteIcon.webp";
@@ -45,6 +46,8 @@ export default function TaskTemplatePage() {
   const [dragIdx, setDragIdx] = useState(null);
   const [reordering, setReordering] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null);
+  const [filterFrom, setFilterFrom] = useState("");
+  const [filterTo, setFilterTo] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [cfOpen, setCfOpen] = useState(false);
@@ -115,10 +118,24 @@ export default function TaskTemplatePage() {
   );
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return tasks;
-    const t = search.toLowerCase();
-    return tasks.filter((task) => task.NAME?.toLowerCase().includes(t));
-  }, [tasks, search]);
+    let data = tasks;
+    if (search.trim()) {
+      const t = search.toLowerCase();
+      data = data.filter((task) => task.NAME?.toLowerCase().includes(t));
+    }
+    if (filterFrom || filterTo) {
+      const from = filterFrom ? new Date(filterFrom) : null;
+      const to = filterTo ? new Date(filterTo) : null;
+      data = data.filter((task) => {
+        if (!task.CREATED_AT) return false;
+        const d = new Date(task.CREATED_AT);
+        if (from && d < from) return false;
+        if (to && d > to) return false;
+        return true;
+      });
+    }
+    return data;
+  }, [tasks, search, filterFrom, filterTo]);
 
   const paginated = useMemo(
     () => pageSize === 0 ? filtered : filtered.slice((page - 1) * pageSize, page * pageSize),
@@ -245,7 +262,7 @@ export default function TaskTemplatePage() {
   );
 
   const gridCols = useMemo(
-    () => `28px 40px minmax(0,1fr) 140px 150px 150px ${cfFields.map(() => "130px").join(" ")} 130px`.trim(),
+    () => `28px 40px minmax(0,1fr) 140px 150px 150px 150px ${cfFields.map(() => "130px").join(" ")} 130px`.trim(),
     [cfFields]
   );
 
@@ -361,6 +378,13 @@ export default function TaskTemplatePage() {
                 onChange={(v) => { setSearch(v); setPage(1); }}
                 placeholder="Search tasks…"
               />
+              <div className={styles.dateFilters}>
+                <label className={styles.dateLabel}>From</label>
+                <input type="datetime-local" className={styles.dateInput} value={filterFrom} onChange={(e) => { setFilterFrom(e.target.value); setPage(1); }} />
+                <label className={styles.dateLabel}>To</label>
+                <input type="datetime-local" className={styles.dateInput} value={filterTo} onChange={(e) => { setFilterTo(e.target.value); setPage(1); }} />
+                {(filterFrom || filterTo) && <button className={styles.clearFilter} onClick={() => { setFilterFrom(""); setFilterTo(""); }}>✕</button>}
+              </div>
               <span className={styles.count}>{filtered.length} task{filtered.length !== 1 ? "s" : ""}</span>
             </div>
 
@@ -387,50 +411,52 @@ export default function TaskTemplatePage() {
                   <span className={styles.thDur}>Duration</span>
                   <span className={styles.thDept}>Department</span>
                   <span className={styles.thRole}>Role</span>
+                  <span>Created Date</span>
                   {cfFields.map((f) => <span key={f.ID}>{f.FIELD_NAME}</span>)}
                   <span className={styles.thAct}>Actions</span>
                 </div>
                 {paginated.map((t) => {
                   const taskIdx = tasks.findIndex((x) => (x._key || x.ID) === (t._key || t.ID));
                   return (
-                  <div
-                    key={t.ID || t._key}
-                    className={`${styles.taskCard} ${dragIdx === taskIdx ? styles.dragging : ""}`}
-                    style={{ gridTemplateColumns: gridCols }}
-                    draggable
-                    onDragStart={() => onDragStart(taskIdx)}
-                    onDragOver={(e) => onDragOver(e, taskIdx)}
-                    onDragEnd={onDragEnd}
-                  >
-                    <span className={styles.dragHandle}>⠿</span>
-                    <span className={styles.seqNum}>{t.SEQUENCE_NUMBER + 1}</span>
-                    <span className={styles.taskName}>{t.NAME}</span>
-                    <span className={styles.durBadge}>
-                      {t.DURATION_VALUE} {t.DURATION_UNIT}
-                    </span>
-                    <span className={styles.deptText}>
-                      {t.DEPARTMENT_NAME || deptMap[t.DEPARTMENT_ID] || <span className={styles.muted}>—</span>}
-                    </span>
-                    <span className={styles.roleText}>
-                      {t.ROLE_NAME || roleMap[t.ROLE_ID] || <span className={styles.muted}>—</span>}
-                    </span>
-                    {cfFields.map((f) => {
-                      const val = cfValuesMap[String(t.ID)]?.[f.ID];
-                      return (
-                        <span key={f.ID} className={styles.cfText}>
-                          {val == null || val === "" ? <span className={styles.muted}>—</span> : Array.isArray(val) ? val.join(", ") : String(val)}
-                        </span>
-                      );
-                    })}
-                    <div className={styles.taskActions}>
-                      <button className={styles.iconBtn} onClick={() => openEdit(t)} title="Edit">
-                        <img src={EditIcon} alt="Edit" />
-                      </button>
-                      <button className={styles.iconBtnDanger} onClick={() => handleDelete(t)} title="Delete">
-                        <img src={DeleteIcon} alt="Delete" />
-                      </button>
+                    <div
+                      key={t.ID || t._key}
+                      className={`${styles.taskCard} ${dragIdx === taskIdx ? styles.dragging : ""}`}
+                      style={{ gridTemplateColumns: gridCols }}
+                      draggable
+                      onDragStart={() => onDragStart(taskIdx)}
+                      onDragOver={(e) => onDragOver(e, taskIdx)}
+                      onDragEnd={onDragEnd}
+                    >
+                      <span className={styles.dragHandle}>⠿</span>
+                      <span className={styles.seqNum}>{t.SEQUENCE_NUMBER + 1}</span>
+                      <span className={styles.taskName}>{t.NAME}</span>
+                      <span className={styles.durBadge}>
+                        {t.DURATION_VALUE} {t.DURATION_UNIT}
+                      </span>
+                      <span className={styles.deptText}>
+                        {t.DEPARTMENT_NAME || deptMap[t.DEPARTMENT_ID] || <span className={styles.muted}>—</span>}
+                      </span>
+                      <span className={styles.roleText}>
+                        {t.ROLE_NAME || roleMap[t.ROLE_ID] || <span className={styles.muted}>—</span>}
+                      </span>
+                      <span className={styles.cfText}>{formatDateTime(t.CREATED_AT)}</span>
+                      {cfFields.map((f) => {
+                        const val = cfValuesMap[String(t.ID)]?.[f.ID];
+                        return (
+                          <span key={f.ID} className={styles.cfText}>
+                            {val == null || val === "" ? <span className={styles.muted}>—</span> : Array.isArray(val) ? val.join(", ") : String(val)}
+                          </span>
+                        );
+                      })}
+                      <div className={styles.taskActions}>
+                        <button className={styles.iconBtn} onClick={() => openEdit(t)} title="Edit">
+                          <img src={EditIcon} alt="Edit" />
+                        </button>
+                        <button className={styles.iconBtnDanger} onClick={() => handleDelete(t)} title="Delete">
+                          <img src={DeleteIcon} alt="Delete" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
                   );
                 })}
               </div>
@@ -617,7 +643,7 @@ export default function TaskTemplatePage() {
       <PMConfirmModal
         open={!!confirmModal}
         onClose={() => setConfirmModal(null)}
-        onConfirm={confirmModal?.onConfirm ?? (() => {})}
+        onConfirm={confirmModal?.onConfirm ?? (() => { })}
         title={confirmModal?.title}
         description={confirmModal?.description}
         confirmLabel="Delete"

@@ -1,4 +1,4 @@
-.page {
+﻿.page {
   display: flex;
   flex-direction: column;
   min-height: 100%;
@@ -274,4 +274,73 @@
 @media (max-width: 600px) {
   .formGrid { grid-template-columns: 1fr; }
   .toolbar { flex-direction: column; align-items: flex-start; }
+}
+.dateFilters { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.dateLabel { font-size: var(--font-sm); font-weight: var(--fw-medium); color: var(--text-secondary); white-space: nowrap; }
+.dateInput { padding: 5px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-xs); background: var(--surface); color: var(--text-primary); cursor: pointer; accent-color: var(--clr-primary); color-scheme: light; }
+.dateInput:focus { outline: none; border-color: var(--clr-primary); box-shadow: 0 0 0 3px var(--clr-primary-muted, rgba(220,38,38,0.15)); }
+.dateInput::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.7; filter: invert(27%) sepia(90%) saturate(5000%) hue-rotate(338deg) brightness(90%); }
+.dateInput::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+.clearFilter { padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-muted); font-size: var(--font-xs); cursor: pointer; }
+.clearFilter:hover { background: var(--danger-bg); color: var(--danger); }
+
+/* ── Form validation ─────────────────────────────────────────────── */
+.fieldError { color: var(--danger, #dc2626); font-size: var(--font-xs); margin-top: 3px; display: block; line-height: 1.4; }
+.inputError { border-color: var(--danger, #dc2626) !important; box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12) !important; }
+
+/* ── Read-only sort order (Add modal) ────────────────────────────── */
+.readOnlyField {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.readOnlyValue {
+  height: 36px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-weight: var(--fw-semi);
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+.autoTag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  background: var(--clr-primary-light);
+  color: var(--clr-primary);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-semi);
+  border: 1px solid var(--clr-primary-border);
+  white-space: nowrap;
+}
+.fieldHint {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* ── Select (Edit modal — Status field) ──────────────────────────── */
+.select {
+  height: 36px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  outline: none;
+  width: 100%;
+  box-shadow: var(--shadow-xs);
+  transition: border-color var(--ease), box-shadow var(--ease);
+  cursor: pointer;
+}
+.select:focus {
+  border-color: var(--clr-primary);
+  box-shadow: var(--shadow-xs), 0 0 0 3px var(--clr-primary-muted);
 }

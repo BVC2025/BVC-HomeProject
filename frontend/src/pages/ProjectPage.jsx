@@ -14,6 +14,7 @@ import { roleService } from "../services/roleService";
 import { useToast } from "../hooks/useToast";
 import { useCustomFields, useTableCfValues } from "../hooks/useCustomFields";
 import { exportToExcel, downloadTemplate as dlTemplate } from "../utils/exportExcel";
+import { formatDateTime } from "../utils/formatDateTime";
 import ProjectIcon from "../assets/Icons/projectIcon.webp";
 import EditIcon from "../assets/Icons/editIcon.webp";
 import DeleteIcon from "../assets/Icons/deleteIcon.webp";
@@ -45,6 +46,8 @@ export default function ProjectPage() {
   const [pageSize, setPageSize] = useState(25);
   const [cfOpen, setCfOpen] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null);
+  const [filterFrom, setFilterFrom] = useState("");
+  const [filterTo, setFilterTo] = useState("");
 
   // Wizard
   const [wizard, setWizard] = useState(null);
@@ -119,8 +122,19 @@ export default function ProjectPage() {
       const t = search.toLowerCase();
       r = r.filter((x) => x.NAME?.toLowerCase().includes(t));
     }
+    if (filterFrom || filterTo) {
+      const from = filterFrom ? new Date(filterFrom) : null;
+      const to = filterTo ? new Date(filterTo) : null;
+      r = r.filter((x) => {
+        if (!x.CREATED_AT) return false;
+        const d = new Date(x.CREATED_AT);
+        if (from && d < from) return false;
+        if (to && d > to) return false;
+        return true;
+      });
+    }
     return r;
-  }, [rows, search, filterCat]);
+  }, [rows, search, filterCat, filterFrom, filterTo]);
 
   const paginated = useMemo(
     () => pageSize === 0 ? filtered : filtered.slice((page - 1) * pageSize, page * pageSize),
@@ -401,6 +415,13 @@ export default function ProjectPage() {
               clearLabel="All Categories"
             />
           </div>
+          <div className={styles.dateFilters}>
+            <label className={styles.dateLabel}>From</label>
+            <input type="datetime-local" className={styles.dateInput} value={filterFrom} onChange={(e) => { setFilterFrom(e.target.value); setPage(1); }} />
+            <label className={styles.dateLabel}>To</label>
+            <input type="datetime-local" className={styles.dateInput} value={filterTo} onChange={(e) => { setFilterTo(e.target.value); setPage(1); }} />
+            {(filterFrom || filterTo) && <button className={styles.clearFilter} onClick={() => { setFilterFrom(""); setFilterTo(""); }}>✕</button>}
+          </div>
           <span className={styles.count}>{filtered.length} project{filtered.length !== 1 ? "s" : ""}</span>
         </div>
 
@@ -414,16 +435,17 @@ export default function ProjectPage() {
                 <th>Mode</th>
                 <th>Tasks</th>
                 <th>Est. Days</th>
+                <th>Created Date</th>
                 {cfFields.map((f) => <th key={f.ID}>{f.FIELD_NAME}</th>)}
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7 + cfFields.length}><Loader /></td></tr>
+                <tr><td colSpan={8 + cfFields.length}><Loader /></td></tr>
               ) : paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={7 + cfFields.length}>
+                  <td colSpan={8 + cfFields.length}>
                     <EmptyState
                       icon={ProjectIcon}
                       iconAlt="Projects"
@@ -449,6 +471,7 @@ export default function ProjectPage() {
                     </td>
                     <td className={styles.numCell}>{r.TASK_COUNT ?? "—"}</td>
                     <td className={styles.numCell}>{fmtDays(r.ESTIMATED_TOTAL_DAYS)}</td>
+                    <td>{formatDateTime(r.CREATED_AT)}</td>
                     {cfFields.map((f) => {
                       const val = cfValuesMap[String(r.ID)]?.[f.ID];
                       return <td key={f.ID} className={styles.descCell}>{val == null || val === "" ? <span className={styles.muted}>—</span> : Array.isArray(val) ? val.join(", ") : String(val)}</td>;

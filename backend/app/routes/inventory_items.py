@@ -13,7 +13,10 @@ from typing import Optional, List
 
 import openpyxl
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Response
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+
+from app.utils.db_error_handler import raise_db_error
 
 from app.database.database import get_db
 from app.models.models import CustomField, CustomFieldTableValue
@@ -115,7 +118,7 @@ def list_items(
     status: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=5000),
     db: Session = Depends(get_db),
 ):
     q = (
@@ -164,20 +167,27 @@ def create_item(payload: InventoryItemCreate, db: Session = Depends(get_db)):
         )
 
     item = InventoryItem(**payload.dict())
-    db.add(item)
-    db.flush()
+    try:
+        db.add(item)
+        db.flush()
 
-    # Auto-create stock row
-    stock = InventoryStock(
-        VENDOR_ID=payload.VENDOR_ID,
-        INVENTORY_ITEM_ID=item.ID,
-        CURRENT_QTY=0.0,
-        AVAILABLE_QTY=0.0,
-        STATUS="OUT_OF_STOCK",
-    )
-    db.add(stock)
-    db.commit()
-    db.refresh(item)
+        # Auto-create stock row
+        stock = InventoryStock(
+            VENDOR_ID=payload.VENDOR_ID,
+            INVENTORY_ITEM_ID=item.ID,
+            CURRENT_QTY=0.0,
+            AVAILABLE_QTY=0.0,
+            STATUS="OUT_OF_STOCK",
+        )
+        db.add(stock)
+        db.commit()
+        db.refresh(item)
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "create inventory item")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "create inventory item")
     return {"message": "Inventory item created", "ID": item.ID}
 
 
@@ -237,7 +247,14 @@ def update_item(item_id: str, payload: InventoryItemUpdate, db: Session = Depend
         raise HTTPException(status_code=404, detail="Inventory item not found")
     for k, v in payload.dict(exclude_none=True).items():
         setattr(item, k, v)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "update inventory item")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "update inventory item")
     # Recalculate status if thresholds changed
     from app.services.inventory_automation_service import recalculate_stock_status
     recalculate_stock_status(db, item.VENDOR_ID, item_id)
@@ -255,8 +272,15 @@ def delete_item(item_id: str, db: Session = Depends(get_db)):
             detail=f"Cannot delete item with stock ({item.stock.CURRENT_QTY} units remaining). "
                    "Adjust stock to zero first."
         )
-    db.delete(item)
-    db.commit()
+    try:
+        db.delete(item)
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "delete inventory item")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "delete inventory item")
     return {"message": "Inventory item deleted"}
 
 

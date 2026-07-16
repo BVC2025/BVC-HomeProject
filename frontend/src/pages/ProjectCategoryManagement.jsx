@@ -9,6 +9,7 @@ import { categoryService } from "../services/categoryService";
 import { useToast } from "../hooks/useToast";
 import { useCustomFields, useTableCfValues } from "../hooks/useCustomFields";
 import { exportToExcel, downloadTemplate as dlTemplate } from "../utils/exportExcel";
+import { formatDateTime } from "../utils/formatDateTime";
 import CategoryIcon from "../assets/Icons/categoriesIcon.webp";
 import EditIcon from "../assets/Icons/editIcon.webp";
 import DeleteIcon from "../assets/Icons/deleteIcon.webp";
@@ -30,6 +31,8 @@ export default function ProjectCategoryManagement() {
   const [pageSize, setPageSize] = useState(25);
   const [cfOpen, setCfOpen] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null);
+  const [filterFrom, setFilterFrom] = useState("");
+  const [filterTo, setFilterTo] = useState("");
 
   // Bulk upload
   const [bulkModal, setBulkModal] = useState(false);
@@ -68,14 +71,28 @@ export default function ProjectCategoryManagement() {
   const handleRefresh = useCallback(() => load(true), [load]);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return cats;
-    const t = search.toLowerCase();
-    return cats.filter(
-      (c) =>
-        c.NAME?.toLowerCase().includes(t) ||
-        (c.DESCRIPTION || "").toLowerCase().includes(t)
-    );
-  }, [cats, search]);
+    let data = cats;
+    if (search.trim()) {
+      const t = search.toLowerCase();
+      data = data.filter(
+        (c) =>
+          c.NAME?.toLowerCase().includes(t) ||
+          (c.DESCRIPTION || "").toLowerCase().includes(t)
+      );
+    }
+    if (filterFrom || filterTo) {
+      const from = filterFrom ? new Date(filterFrom) : null;
+      const to = filterTo ? new Date(filterTo) : null;
+      data = data.filter((c) => {
+        if (!c.CREATED_AT) return false;
+        const d = new Date(c.CREATED_AT);
+        if (from && d < from) return false;
+        if (to && d > to) return false;
+        return true;
+      });
+    }
+    return data;
+  }, [cats, search, filterFrom, filterTo]);
 
   const paginated = useMemo(
     () => pageSize === 0 ? filtered : filtered.slice((page - 1) * pageSize, page * pageSize),
@@ -239,6 +256,13 @@ export default function ProjectCategoryManagement() {
             onChange={handleSearchChange}
             placeholder="Search categories…"
           />
+          <div className={styles.dateFilters}>
+            <label className={styles.dateLabel}>From</label>
+            <input type="datetime-local" className={styles.dateInput} value={filterFrom} onChange={(e) => { setFilterFrom(e.target.value); setPage(1); }} />
+            <label className={styles.dateLabel}>To</label>
+            <input type="datetime-local" className={styles.dateInput} value={filterTo} onChange={(e) => { setFilterTo(e.target.value); setPage(1); }} />
+            {(filterFrom || filterTo) && <button className={styles.clearFilter} onClick={() => { setFilterFrom(""); setFilterTo(""); }}>✕</button>}
+          </div>
           <span className={styles.count}>{filtered.length} categor{filtered.length !== 1 ? "ies" : "y"}</span>
         </div>
 
@@ -249,16 +273,17 @@ export default function ProjectCategoryManagement() {
                 <th>#</th>
                 <th>Name</th>
                 <th>Description</th>
+                <th>Created Date</th>
                 {cfFields.map((f) => <th key={f.ID}>{f.FIELD_NAME}</th>)}
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={4 + cfFields.length}><Loader /></td></tr>
+                <tr><td colSpan={5 + cfFields.length}><Loader /></td></tr>
               ) : paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={4 + cfFields.length}>
+                  <td colSpan={5 + cfFields.length}>
                     <EmptyState
                       icon={CategoryIcon}
                       iconAlt="Categories"
@@ -273,6 +298,7 @@ export default function ProjectCategoryManagement() {
                     <td className={styles.idx}>{(page - 1) * pageSize + i + 1}</td>
                     <td className={styles.nameCell}>{c.NAME}</td>
                     <td className={styles.descCell}>{c.DESCRIPTION || <span className={styles.muted}>—</span>}</td>
+                    <td className={styles.dateCell}>{formatDateTime(c.CREATED_AT)}</td>
                     {cfFields.map((f) => {
                       const val = cfValuesMap[String(c.ID)]?.[f.ID];
                       return <td key={f.ID} className={styles.descCell}>{val == null || val === "" ? <span className={styles.muted}>—</span> : Array.isArray(val) ? val.join(", ") : String(val)}</td>;
@@ -417,7 +443,7 @@ export default function ProjectCategoryManagement() {
       <PMConfirmModal
         open={!!confirmModal}
         onClose={() => setConfirmModal(null)}
-        onConfirm={confirmModal?.onConfirm ?? (() => {})}
+        onConfirm={confirmModal?.onConfirm ?? (() => { })}
         title={confirmModal?.title}
         description={confirmModal?.description}
         confirmLabel="Delete"
