@@ -2813,45 +2813,58 @@ body {
 /* =====================================================================
    MOBILE SIDEBAR — logout button visibility fix
    ---------------------------------------------------------------------
-   On Chrome Android, `100vh` = the LARGEST viewport (URL bar hidden),
-   so when the address bar is visible, `.sidebar` (height:100vh) is
-   taller than what the user actually sees — the bottom footer with
-   the Log out button falls off-screen.  `100dvh` respects the visible
-   viewport, and stays correct even as the browser chrome slides.
+   Root cause on the phone screenshot: the User + Logout footer was
+   floating inside the nav list because we had made the outer sidebar
+   itself scrollable — that broke the flex "footer sticks to bottom"
+   contract (margin-top:auto only pins to bottom when the parent is
+   NOT itself the scroll container).
 
-   We also make the whole sidebar itself scrollable as a fallback:
-   flex+overflow:auto so even if the footer would be below the fold,
-   the user can scroll to it — and touch-scrolling is momentum-enabled
-   for iOS.
+   Correct pattern (matches the desktop layout that already works):
+     .sidebar        → flex column, 100dvh, overflow: hidden
+     .sidebar-nav    → flex: 1, overflow-y: auto (only this scrolls)
+     .sidebar-footer → flex-shrink: 0 (always visible at bottom)
+
+   `100dvh` (instead of `100vh`) handles the Chrome Android URL-bar
+   issue: `100vh` is the LARGEST possible viewport, so the sidebar
+   would be taller than what the user sees and the footer would fall
+   off-screen. `100dvh` is the CURRENT visible viewport, so the
+   footer always lands at the bottom of what the user can actually see.
    ===================================================================== */
 
 @media (max-width: 900px) {
   .sidebar {
-    /* Prefer dynamic viewport height when the browser supports it */
-    height: 100vh;                 /* legacy fallback */
-    height: 100dvh;                /* modern: excludes URL bar */
+    /* Legacy fallback, then override with the dynamic value on
+       browsers that support it (Chrome 108+, Safari 15.4+). */
+    height: 100vh;
+    height: 100dvh;
     max-height: 100dvh;
 
-    /* If the combined content still overflows (very small phones,
-       many nav items), let the sidebar itself scroll — footer becomes
-       reachable via a swipe up. */
+    /* CRITICAL: outer sidebar must stay hidden — do NOT scroll here.
+       Scrolling belongs to .sidebar-nav so the footer stays pinned. */
+    overflow: hidden;
+
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Nav takes all the remaining vertical space and is the ONLY
+     scrollable region. min-height:0 lets it actually shrink inside
+     the flex column so overflow triggers properly. */
+  .sidebar .sidebar-nav {
+    flex: 1 1 0;
+    min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
   }
 
-  /* Now that .sidebar scrolls, .sidebar-nav does NOT need its own
-     scroll — otherwise we get a nested scroll trap. Let content flow
-     naturally into the sidebar's scroll instead. */
-  .sidebar .sidebar-nav {
-    overflow: visible;
-    flex: 0 1 auto;
-  }
-
-  /* Keep footer at the bottom of the content, always visible after
-     scrolling. Adds a bit of bottom padding so the logout button has
-     breathing room above the browser's home-indicator area on iOS. */
+  /* Footer never scrolls, never shrinks — always visible at bottom.
+     Extra bottom padding to clear iOS home-indicator area on newer
+     iPhones. */
   .sidebar .sidebar-footer {
+    flex-shrink: 0;
     padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
+    background: var(--sidebar-bg);
   }
 }
