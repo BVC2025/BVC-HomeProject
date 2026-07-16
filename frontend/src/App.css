@@ -2809,3 +2809,49 @@ body {
     font-size: 22px !important;
   }
 }
+
+/* =====================================================================
+   MOBILE SIDEBAR — logout button visibility fix
+   ---------------------------------------------------------------------
+   On Chrome Android, `100vh` = the LARGEST viewport (URL bar hidden),
+   so when the address bar is visible, `.sidebar` (height:100vh) is
+   taller than what the user actually sees — the bottom footer with
+   the Log out button falls off-screen.  `100dvh` respects the visible
+   viewport, and stays correct even as the browser chrome slides.
+
+   We also make the whole sidebar itself scrollable as a fallback:
+   flex+overflow:auto so even if the footer would be below the fold,
+   the user can scroll to it — and touch-scrolling is momentum-enabled
+   for iOS.
+   ===================================================================== */
+
+@media (max-width: 900px) {
+  .sidebar {
+    /* Prefer dynamic viewport height when the browser supports it */
+    height: 100vh;                 /* legacy fallback */
+    height: 100dvh;                /* modern: excludes URL bar */
+    max-height: 100dvh;
+
+    /* If the combined content still overflows (very small phones,
+       many nav items), let the sidebar itself scroll — footer becomes
+       reachable via a swipe up. */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* Now that .sidebar scrolls, .sidebar-nav does NOT need its own
+     scroll — otherwise we get a nested scroll trap. Let content flow
+     naturally into the sidebar's scroll instead. */
+  .sidebar .sidebar-nav {
+    overflow: visible;
+    flex: 0 1 auto;
+  }
+
+  /* Keep footer at the bottom of the content, always visible after
+     scrolling. Adds a bit of bottom padding so the logout button has
+     breathing room above the browser's home-indicator area on iOS. */
+  .sidebar .sidebar-footer {
+    padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
+  }
+}
