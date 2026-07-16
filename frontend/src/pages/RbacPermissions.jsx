@@ -31,6 +31,12 @@ export default function RbacPermissions() {
   const [notice, setNotice]             = useState(null);
   const [search, setSearch]             = useState("");
 
+  // Mobile-only tap-to-navigate state. "roles" = show the roles list,
+  // "perms" = show the permissions panel with a back button. CSS
+  // media query below suppresses this on tablets/desktops where both
+  // panels are always visible side-by-side.
+  const [mobilePane, setMobilePane] = useState("roles");
+
   void loading;
 
   // ---- Initial fetch ------------------------------------------------
@@ -196,10 +202,10 @@ export default function RbacPermissions() {
         </div>
       )}
 
-      <div className={styles.layout}>
+      <div className={`${styles.layout} ${styles["mobile_" + mobilePane]}`}>
 
         {/* LEFT: ROLES */}
-        <div className={styles.card}>
+        <div className={`${styles.card} ${styles.rolesCard}`}>
           <div className={styles.cardHeader}>Roles</div>
           {roles.length === 0 ? (
             <div className={styles.empty}>Loading…</div>
@@ -210,7 +216,12 @@ export default function RbacPermissions() {
                 return (
                   <button
                     key={r.ID}
-                    onClick={() => setSelectedRoleId(r.ID)}
+                    onClick={() => {
+                      setSelectedRoleId(r.ID);
+                      // On mobile, switch to the permissions pane.
+                      // On desktop the class is inert, harmless to set.
+                      setMobilePane("perms");
+                    }}
                     className={`${styles.roleBtn}${active ? ` ${styles.roleBtnActive}` : ""}`}
                   >
                     <div className={styles.roleName}>{r.ROLE_NAME}</div>
@@ -228,7 +239,22 @@ export default function RbacPermissions() {
         </div>
 
         {/* RIGHT: PERMISSIONS */}
-        <div className={styles.card}>
+        <div className={`${styles.card} ${styles.permsCard}`}>
+
+          {/* Mobile-only "back to roles" button — CSS shows this only ≤ 768px */}
+          <button
+            type="button"
+            className={styles.mobileBackBtn}
+            onClick={() => setMobilePane("roles")}
+            aria-label="Back to roles"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" strokeWidth="2.2"
+                 strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+            <span>Back to roles</span>
+          </button>
 
           <div className={styles.permPanelTop}>
             <div>
