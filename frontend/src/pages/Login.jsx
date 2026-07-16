@@ -11,8 +11,6 @@ function Login() {
 
   const navigate = useNavigate();
 
-  const [mode, setMode] = useState("admin");
-
   const [username, setUsername] = useState("");
 
   const [password, setPassword] = useState("");
@@ -25,9 +23,6 @@ function Login() {
 
   const [onboardingToken, setOnboardingToken] = useState(null);
 
-  // On mount, check whether the onboarding page stashed a token.
-  // If so, force the Employee tab and lock the tab switcher — we
-  // are completing an onboarding registration, not a normal login.
   useEffect(() => {
 
     const tok = sessionStorage.getItem("pending_onboarding_token");
@@ -35,25 +30,8 @@ function Login() {
     if (tok) {
 
       setOnboardingToken(tok);
-
-      setMode("employee");
     }
   }, []);
-
-  const switchMode = (next) => {
-
-    // While an onboarding is in progress, the tab is locked to
-    // "employee" — silently ignore attempts to switch to admin.
-    if (onboardingToken) return;
-
-    setMode(next);
-
-    setUsername("");
-
-    setPassword("");
-
-    setError("");
-  };
 
   const cancelOnboarding = () => {
 
@@ -97,127 +75,100 @@ function Login() {
     }
   };
 
-  const handleAdminLogin = async () => {
+  const handleUnifiedLogin = async () => {
 
     try {
 
-      const res = await API.post("/admin-login", {
+      const res = await API.post("/login", {
         EMPLOYEE_CODE: username.trim().toUpperCase(),
         PASSWORD: password
       });
 
       const d = res.data;
 
+      const isAdmin = !!d.is_admin;
+
+      // Common state — shared by both admin and employee portals.
       localStorage.setItem("auth", "true");
-
-      localStorage.setItem("role", "admin");
-
+      localStorage.setItem("role", isAdmin ? "admin" : "employee");
       localStorage.setItem("token", d.access_token || "");
-
-      localStorage.setItem("employee_id", d.employee_id);
-
-      localStorage.setItem("employee_code", d.code || "");
-
       localStorage.setItem("backend_role", d.role || "");
-
       localStorage.setItem(
         "permissions",
         JSON.stringify(d.permissions || [])
       );
-
-      localStorage.setItem("username", d.name || username);
-
       localStorage.setItem(
-        "loginTime",
-        new Date().toISOString()
+        "username",
+        d.EMPLOYEE_NAME || d.name || username
       );
 
-      // Admin lands directly on the dashboard.
-      navigate("/");
+      if (isAdmin) {
 
-    } catch (err) {
-
-      const detail =
-        err?.response?.data?.detail ||
-        "Invalid admin credentials";
-
-      setError(detail);
-    }
-  };
-
-  const handleEmployeeLogin = async () => {
-
-    try {
-
-      const res = await API.post("/employee-login", {
-        EMPLOYEE_ID: username.trim().toUpperCase(),
-        PASSWORD: password
-      });
-
-      const d = res.data;
-
-      localStorage.setItem("auth", "true");
-
-      localStorage.setItem("role", "employee");
-
-      localStorage.setItem("token", d.access_token || "");
-
-      localStorage.setItem("employee_id", d.EMPLOYEE_ID);
-
-      // Store the internal UUID separately — photo/documents/profile
-      // endpoints take the UUID, not the CODE. `employee_id` above is
-      // the code (BVC008); `employee_uuid` here is the primary key.
-      localStorage.setItem("employee_uuid", d.employee_id || "");
-
-      localStorage.setItem("employee_name", d.EMPLOYEE_NAME);
-
-      localStorage.setItem("department", d.DEPARTMENT);
-
-      localStorage.setItem("employee_role", d.ROLE || "");
-
-      // RBAC — store the permission codes the sidebar/dashboard use
-      // to hide modules this employee isn't authorised to see.
-      localStorage.setItem(
-        "permissions",
-        JSON.stringify(d.permissions || [])
-      );
-
-      localStorage.setItem("username", d.EMPLOYEE_NAME);
-
-      localStorage.setItem(
-        "loginTime",
-        d.LOGIN_TIME || new Date().toISOString()
-      );
-
-      localStorage.setItem(
-        "attendance_status",
-        d.ATTENDANCE_STATUS || "PRESENT"
-      );
-
-      // Stash pending-yesterday flag so dashboard can show
-      // the "You still have pending tasks from yesterday."
-      // notification immediately on first render.
-      if (d.HAS_PENDING_FROM_YESTERDAY) {
-
+        // Admin uses the UUID as employee_id (legacy contract) and
+        // stores employee_code separately for display.
+        localStorage.setItem("employee_id", d.employee_id);
+        localStorage.setItem("employee_code", d.code || "");
         localStorage.setItem(
-          "pending_yesterday",
-          JSON.stringify(d.PENDING_FROM_YESTERDAY || [])
+          "loginTime",
+          new Date().toISOString()
         );
+
+        // Clean up any employee-only leftovers from a prior session.
+        localStorage.removeItem("employee_uuid");
+        localStorage.removeItem("employee_name");
+        localStorage.removeItem("department");
+        localStorage.removeItem("employee_role");
+        localStorage.removeItem("attendance_status");
+        localStorage.removeItem("pending_yesterday");
 
       } else {
 
-        localStorage.removeItem("pending_yesterday");
+        // Employee side keeps CODE in employee_id (BVC008) and the
+        // internal UUID in employee_uuid — photo/document endpoints
+        // take the UUID, not the code.
+        localStorage.setItem(
+          "employee_id",
+          d.EMPLOYEE_ID || d.code || ""
+        );
+        localStorage.setItem("employee_uuid", d.employee_id || "");
+        localStorage.setItem(
+          "employee_name",
+          d.EMPLOYEE_NAME || d.name || ""
+        );
+        localStorage.setItem("department", d.DEPARTMENT || "");
+        localStorage.setItem("employee_role", d.role || "");
+        localStorage.setItem(
+          "loginTime",
+          d.LOGIN_TIME || new Date().toISOString()
+        );
+        localStorage.setItem(
+          "attendance_status",
+          d.ATTENDANCE_STATUS || "PRESENT"
+        );
+
+        if (d.HAS_PENDING_FROM_YESTERDAY) {
+
+          localStorage.setItem(
+            "pending_yesterday",
+            JSON.stringify(d.PENDING_FROM_YESTERDAY || [])
+          );
+
+        } else {
+
+          localStorage.removeItem("pending_yesterday");
+        }
       }
 
-      // Employee landing: go straight to the sidebar-driven ESS
-      // dashboard (RoleBasedLanding → EmployeeDashboard, mainTab="home").
+      // RoleBasedLanding routes to the correct portal based on
+      // localStorage.role — admin → admin dashboard, employee →
+      // EmployeeDashboard (mainTab="home").
       navigate("/", { replace: true });
 
     } catch (err) {
 
       const detail =
         err?.response?.data?.detail ||
-        "Login failed";
+        "Invalid credentials";
 
       setError(detail);
     }
@@ -246,13 +197,9 @@ function Login() {
         // and forwards to /employee-onboarding/<token> on success.
         await handleOnboardingLogin();
 
-      } else if (mode === "admin") {
-
-        await handleAdminLogin();
-
       } else {
 
-        await handleEmployeeLogin();
+        await handleUnifiedLogin();
       }
 
     } finally {
@@ -302,41 +249,6 @@ function Login() {
           <p className={styles.formSubheading}>
             Sign in to your Bharath Vending Corporation account.
           </p>
-
-          {/* Tabs only appear for normal login. During onboarding,
-              the user is completing their own registration — they
-              don't need to pick a role. */}
-          {!onboardingToken && (
-            <div className={styles.tabs}>
-
-              <button
-                type="button"
-                className={
-                  styles.tab +
-                  (mode === "admin"
-                    ? " " + styles.tabActive
-                    : "")
-                }
-                onClick={() => switchMode("admin")}
-              >
-                Admin
-              </button>
-
-              <button
-                type="button"
-                className={
-                  styles.tab +
-                  (mode === "employee"
-                    ? " " + styles.tabActive
-                    : "")
-                }
-                onClick={() => switchMode("employee")}
-              >
-                Employee
-              </button>
-
-            </div>
-          )}
 
           {
             error && (
