@@ -43,26 +43,49 @@ function Section({ icon, title, children }) {
 function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
 
   const [form, setForm] = useState({
+    // Personal
     NAME: employee.NAME || "",
-    EMAIL: employee.EMAIL || "",
-    PHONE: employee.PHONE || "",
     DOB: employee.DOB || "",
-    GENDER: employee.GENDER || "",
     FATHER_NAME: employee.FATHER_NAME || "",
     MOTHER_NAME: employee.MOTHER_NAME || "",
+    GENDER: employee.GENDER || "",
     MARITAL_STATUS: employee.MARITAL_STATUS || "",
     OCCUPATION: employee.OCCUPATION || "",
+    BLOOD_GROUP: employee.BLOOD_GROUP || "",
+    NATIONALITY: employee.NATIONALITY || "Indian",
+    EMERGENCY_CONTACT_NAME: employee.EMERGENCY_CONTACT_NAME || "",
+    EMERGENCY_CONTACT_PHONE: employee.EMERGENCY_CONTACT_PHONE || "",
+    EMERGENCY_CONTACT_RELATION: employee.EMERGENCY_CONTACT_RELATION || "",
+    // Contact & address
+    EMAIL: employee.EMAIL || "",
+    PHONE: employee.PHONE || "",
     ADDRESS: employee.ADDRESS || "",
     CITY: employee.CITY || "",
     STATE: employee.STATE || "Tamil Nadu",
     PINCODE: employee.PINCODE || "",
+    // Education
     QUALIFICATION: employee.QUALIFICATION || "",
     YEAR_OF_PASSING: employee.YEAR_OF_PASSING || "",
+    COLLEGE: employee.COLLEGE || "",
+    UNIVERSITY: employee.UNIVERSITY || "",
+    PERCENTAGE: employee.PERCENTAGE ?? "",
+    // Professional
     EMPLOYMENT_TYPE: employee.EMPLOYMENT_TYPE || "FRESHER",
     EXPERIENCE_YEARS: employee.EXPERIENCE_YEARS || 0,
+    PREVIOUS_COMPANY: employee.PREVIOUS_COMPANY || "",
     SKILLS: employee.SKILLS || "",
     EXPERIENCE_DETAILS: employee.EXPERIENCE_DETAILS || "",
     PAST_PROJECTS: employee.PAST_PROJECTS || "",
+    // Work details
+    CONFIRMATION_DATE: employee.CONFIRMATION_DATE || "",
+    WORK_LOCATION: employee.WORK_LOCATION || "",
+    // Bank & identity (payroll)
+    BANK_ACCOUNT_NUMBER: employee.BANK_ACCOUNT_NUMBER || "",
+    BANK_NAME: employee.BANK_NAME || "",
+    IFSC_CODE: employee.IFSC_CODE || "",
+    PAN_NUMBER: employee.PAN_NUMBER || "",
+    AADHAAR_NUMBER: employee.AADHAAR_NUMBER || "",
+    // Additional
     NOTES: employee.NOTES || ""
   });
 
@@ -96,9 +119,18 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
     try {
       const payload = {
         ...form,
+        // Dates → null if empty (backend expects date or null, not "")
         DOB: form.DOB || null,
+        CONFIRMATION_DATE: form.CONFIRMATION_DATE || null,
+        // Numeric coercions
         YEAR_OF_PASSING: form.YEAR_OF_PASSING ? Number(form.YEAR_OF_PASSING) : null,
-        EXPERIENCE_YEARS: Number(form.EXPERIENCE_YEARS) || 0
+        EXPERIENCE_YEARS: Number(form.EXPERIENCE_YEARS) || 0,
+        PERCENTAGE: form.PERCENTAGE === "" || form.PERCENTAGE == null
+          ? null
+          : Number(form.PERCENTAGE),
+        // Uppercase codes so IFSC / PAN / Aadhaar match validation
+        IFSC_CODE: (form.IFSC_CODE || "").trim().toUpperCase(),
+        PAN_NUMBER: (form.PAN_NUMBER || "").trim().toUpperCase()
       };
 
       const code = employee.EMPLOYEE_CODE;
@@ -228,6 +260,37 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
               <Field label="Occupation">
                 <input type="text" value={form.OCCUPATION} onChange={set("OCCUPATION")} className={styles.input} placeholder="e.g. Mechanical Technician" />
               </Field>
+              <Field label="Blood Group">
+                <select value={form.BLOOD_GROUP} onChange={set("BLOOD_GROUP")} className={styles.input}>
+                  <option value="">— pick —</option>
+                  {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Nationality">
+                <input type="text" value={form.NATIONALITY} onChange={set("NATIONALITY")} className={styles.input} placeholder="Indian" />
+              </Field>
+              <Field label="Emergency Contact Name">
+                <input type="text" value={form.EMERGENCY_CONTACT_NAME} onChange={set("EMERGENCY_CONTACT_NAME")} className={styles.input} placeholder="Spouse / Parent / Sibling" />
+              </Field>
+              <Field label="Emergency Contact Phone">
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
+                  value={form.EMERGENCY_CONTACT_PHONE}
+                  onChange={(e) => setForm((f) => ({
+                    ...f,
+                    EMERGENCY_CONTACT_PHONE: e.target.value.replace(/\D/g, "").slice(0, 10)
+                  }))}
+                  className={styles.input}
+                  placeholder="9876543210"
+                />
+              </Field>
+              <Field label="Emergency Contact Relationship">
+                <input type="text" value={form.EMERGENCY_CONTACT_RELATION} onChange={set("EMERGENCY_CONTACT_RELATION")} className={styles.input} placeholder="Father / Mother / Spouse / Sibling" />
+              </Field>
             </div>
           </Section>
 
@@ -265,6 +328,18 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
                 <input type="number" min="1950" max="2099" value={form.YEAR_OF_PASSING} onChange={set("YEAR_OF_PASSING")} className={styles.input} />
               </Field>
             </div>
+            <div className={styles.spacer} />
+            <div className={styles.grid2}>
+              <Field label="College">
+                <input type="text" value={form.COLLEGE} onChange={set("COLLEGE")} className={styles.input} placeholder="e.g. PSG College of Technology" />
+              </Field>
+              <Field label="University">
+                <input type="text" value={form.UNIVERSITY} onChange={set("UNIVERSITY")} className={styles.input} placeholder="e.g. Anna University" />
+              </Field>
+              <Field label="Percentage / CGPA">
+                <input type="number" min="0" max="100" step="0.01" value={form.PERCENTAGE} onChange={set("PERCENTAGE")} className={styles.input} placeholder="e.g. 85.5" />
+              </Field>
+            </div>
           </Section>
 
           {/* Professional */}
@@ -283,6 +358,12 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
               </Field>
             </div>
 
+            <Field label="Previous Company">
+              <input type="text" value={form.PREVIOUS_COMPANY} onChange={set("PREVIOUS_COMPANY")} className={styles.input} placeholder="e.g. ABC Manufacturing Pvt Ltd" />
+            </Field>
+
+            <div className={styles.spacer} />
+
             <Field label="Skills" hint="Comma-separated (e.g. welding, assembly, electrical wiring)">
               <input type="text" value={form.SKILLS} onChange={set("SKILLS")} className={styles.input} />
             </Field>
@@ -298,6 +379,79 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
             <Field label="Past Projects">
               <textarea rows={3} value={form.PAST_PROJECTS} onChange={set("PAST_PROJECTS")} className={`${styles.input} ${styles.textarea}`} placeholder="Major projects you've worked on..." />
             </Field>
+          </Section>
+
+          {/* Work Details — matches admin's Organization Assignment
+              minus Role/Department/Designation which are admin-only. */}
+          <Section icon="🏢" title="Work Details">
+            <div className={styles.grid2}>
+              <Field label="Confirmation Date (probation end)">
+                <input type="date" value={form.CONFIRMATION_DATE} onChange={set("CONFIRMATION_DATE")} className={styles.input} />
+              </Field>
+              <Field label="Work Location">
+                <input type="text" value={form.WORK_LOCATION} onChange={set("WORK_LOCATION")} className={styles.input} placeholder="Coimbatore HQ / Chennai Site / Remote" />
+              </Field>
+            </div>
+          </Section>
+
+          {/* Bank & Identity (payroll) — required for salary transfer
+              and statutory records. Aadhaar/PAN are stored securely. */}
+          <Section icon="🏦" title="Bank & Identity (Payroll)">
+            <div className={styles.grid2}>
+              <Field label="Bank Account Number">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.BANK_ACCOUNT_NUMBER}
+                  onChange={(e) => setForm((f) => ({
+                    ...f,
+                    BANK_ACCOUNT_NUMBER: e.target.value.replace(/\D/g, "").slice(0, 20)
+                  }))}
+                  className={styles.input}
+                  placeholder="e.g. 50100123456789"
+                />
+              </Field>
+              <Field label="Bank Name">
+                <input type="text" value={form.BANK_NAME} onChange={set("BANK_NAME")} className={styles.input} placeholder="e.g. HDFC Bank" />
+              </Field>
+              <Field label="IFSC Code" hint="Format: 4 letters + 0 + 6 alphanumeric (e.g. HDFC0001234)">
+                <input
+                  type="text"
+                  value={form.IFSC_CODE}
+                  onChange={(e) => setForm((f) => ({
+                    ...f,
+                    IFSC_CODE: e.target.value.toUpperCase().slice(0, 11)
+                  }))}
+                  className={styles.input}
+                  placeholder="HDFC0001234"
+                />
+              </Field>
+              <Field label="PAN Number" hint="Format: 5 letters + 4 digits + 1 letter">
+                <input
+                  type="text"
+                  value={form.PAN_NUMBER}
+                  onChange={(e) => setForm((f) => ({
+                    ...f,
+                    PAN_NUMBER: e.target.value.toUpperCase().slice(0, 10)
+                  }))}
+                  className={styles.input}
+                  placeholder="ABCDE1234F"
+                />
+              </Field>
+              <Field label="Aadhaar Number" hint="12 digits">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.AADHAAR_NUMBER}
+                  onChange={(e) => setForm((f) => ({
+                    ...f,
+                    AADHAAR_NUMBER: e.target.value.replace(/\D/g, "").slice(0, 12)
+                  }))}
+                  className={styles.input}
+                  placeholder="123456789012"
+                />
+              </Field>
+            </div>
           </Section>
 
           {/* Additional */}
