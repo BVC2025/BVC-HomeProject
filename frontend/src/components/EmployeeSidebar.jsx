@@ -52,6 +52,21 @@ const ICONS = {
 // Nav items — the group headings mirror the spec's ordering.
 // A `soon: true` flag routes to the "Coming soon" placeholder tab.
 // -----------------------------------------------------------------
+// ────────────────────────────────────────────────────────────────
+// RBAC gating — Option B (baseline + role additions)
+// ────────────────────────────────────────────────────────────────
+// Items without a `permission` field are BASELINE — every logged-in
+// employee sees them (viewing own attendance / own payslip / own leave
+// is a right, not a permission).
+//
+// Items with a `permission` field are GATED — they only render when
+// the employee's role grants that code (checked against the array
+// stored in localStorage.permissions on login).
+//
+// Admin-side RBAC UI (Manage Jenkins → RBAC page) is where these
+// codes get granted to specific roles.
+// ────────────────────────────────────────────────────────────────
+
 const NAV_GROUPS = [
   {
     label: "Overview",
@@ -92,7 +107,9 @@ const NAV_GROUPS = [
       { key: "performance", label: "Performance",  icon: ICONS.chart,     soon: true },
       { key: "training",    label: "Training",     icon: ICONS.book,      soon: true },
       { key: "orgchart",    label: "Org Chart",    icon: ICONS.tree,      soon: true },
-      { key: "myteam",      label: "My Team",      icon: ICONS.users,     soon: true },
+      // My Team is manager-only — needs `team.view` or `team.manage`
+      { key: "myteam",      label: "My Team",      icon: ICONS.users,     soon: true,
+        permission: ["team.view", "team.manage"] },
     ],
   },
   {
@@ -104,6 +121,36 @@ const NAV_GROUPS = [
     ],
   },
 ];
+
+
+// -----------------------------------------------------------------
+// RBAC helper — read permissions from localStorage safely.
+// Returns a Set for O(1) lookups. Handles empty/malformed data.
+// -----------------------------------------------------------------
+function getPermissionSet() {
+  try {
+    const raw = localStorage.getItem("permissions") || "[]";
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return new Set();
+    return new Set(arr.map((p) => String(p).toLowerCase()));
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * Decide whether an item should render for the current user.
+ * - No `permission` field → baseline, always visible
+ * - `permission: "code"` → visible if the code is in the user's set
+ * - `permission: ["a","b"]` → visible if ANY code matches (OR-logic)
+ */
+function hasAccess(item, permSet) {
+  if (!item.permission) return true;         // baseline
+  const needed = Array.isArray(item.permission)
+    ? item.permission
+    : [item.permission];
+  return needed.some((code) => permSet.has(String(code).toLowerCase()));
+}
 
 
 // -----------------------------------------------------------------
@@ -124,6 +171,11 @@ export default function EmployeeSidebar({ activeTab, onSelect, onLogout, unreadC
       .join("");
     return { name, code, role, photo, initials };
   }, []);
+
+  // RBAC — read the permission codes stored on login and use them
+  // to hide sidebar items this employee isn't authorised to see.
+  // Memoised so we don't hit localStorage on every render.
+  const permSet = useMemo(() => getPermissionSet(), []);
 
   const photoUrl = identity.photo
     ? (identity.photo.startsWith("http")
@@ -159,35 +211,42 @@ export default function EmployeeSidebar({ activeTab, onSelect, onLogout, unreadC
         </div>
       </div>
 
-      {/* ---------- Nav ---------- */}
+      {/* ---------- Nav (RBAC-filtered) ---------- */}
       <nav className={styles.zSidebarNav}>
-        {NAV_GROUPS.map((group) => (
-          <div key={group.label}>
-            <div className={styles.zSidebarGroupLabel}>{group.label}</div>
-            {group.items.map((item) => {
-              const active = activeTab === item.key;
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => handleClick(item)}
-                  className={
-                    active
-                      ? `${styles.zSidebarItem} ${styles.zSidebarItemActive}`
-                      : styles.zSidebarItem
-                  }
-                  aria-current={active ? "page" : undefined}
-                >
-                  <span className={styles.zSidebarItemIcon}>{item.icon}</span>
-                  <span className={styles.zSidebarItemLabel}>{item.label}</span>
-                  {item.key === "notifications" && unreadCount > 0 && (
-                    <span className={styles.zSidebarItemBadge}>{unreadCount}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        ))}
+        {NAV_GROUPS.map((group) => {
+          // Filter items the current user is allowed to see.
+          const visibleItems = group.items.filter((item) => hasAccess(item, permSet));
+          // Hide the whole group if RBAC removed every item in it.
+          if (visibleItems.length === 0) return null;
+
+          return (
+            <div key={group.label}>
+              <div className={styles.zSidebarGroupLabel}>{group.label}</div>
+              {visibleItems.map((item) => {
+                const active = activeTab === item.key;
+                return (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => handleClick(item)}
+                    className={
+                      active
+                        ? `${styles.zSidebarItem} ${styles.zSidebarItemActive}`
+                        : styles.zSidebarItem
+                    }
+                    aria-current={active ? "page" : undefined}
+                  >
+                    <span className={styles.zSidebarItemIcon}>{item.icon}</span>
+                    <span className={styles.zSidebarItemLabel}>{item.label}</span>
+                    {item.key === "notifications" && unreadCount > 0 && (
+                      <span className={styles.zSidebarItemBadge}>{unreadCount}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })}
       </nav>
 
       {/* ---------- Footer: user card + logout ---------- */}

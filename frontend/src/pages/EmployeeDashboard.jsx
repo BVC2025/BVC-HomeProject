@@ -250,6 +250,26 @@ function EmployeeDashboardBody() {
   const loginTime = localStorage.getItem("loginTime") || "";
   const attendanceStatus = localStorage.getItem("attendance_status") || "PRESENT";
 
+  // RBAC — permissions this employee's role grants. Used to gate the
+  // content of tabs that are otherwise hidden from the sidebar — this
+  // is the SECOND layer of defence in case someone forces a mainTab
+  // via localStorage tampering or a stale bookmark.
+  const permSet = useMemo(() => {
+    try {
+      const arr = JSON.parse(localStorage.getItem("permissions") || "[]");
+      return new Set(
+        (Array.isArray(arr) ? arr : []).map((p) => String(p).toLowerCase())
+      );
+    } catch {
+      return new Set();
+    }
+  }, []);
+
+  const hasPerm = (codes) => {
+    const list = Array.isArray(codes) ? codes : [codes];
+    return list.some((c) => permSet.has(String(c).toLowerCase()));
+  };
+
   // ----- portal-dashboard state -----
   const [portal, setPortal] = useState(null);
   const [portalErr, setPortalErr] = useState("");
@@ -900,16 +920,24 @@ function EmployeeDashboardBody() {
             />
           )}
           {mainTab === "myteam" && (
-            <ComingSoonPanel
-              title="My Team"
-              iconKey="users"
-              description="For team leads and managers — team attendance, pending approvals and birthdays."
-              bullets={[
-                "Approve or reject leave requests",
-                "See attendance at a glance",
-                "Only visible to Managers and Team Leads",
-              ]}
-            />
+            hasPerm(["team.view", "team.manage"]) ? (
+              <ComingSoonPanel
+                title="My Team"
+                iconKey="users"
+                description="For team leads and managers — team attendance, pending approvals and birthdays."
+                bullets={[
+                  "Approve or reject leave requests",
+                  "See attendance at a glance",
+                  "Only visible to Managers and Team Leads",
+                ]}
+              />
+            ) : (
+              <ComingSoonPanel
+                title="Not authorised"
+                iconKey="gear"
+                description="Your role does not have access to the Team module. Contact HR if you believe this is wrong."
+              />
+            )
           )}
           {mainTab === "settings" && (
             <ComingSoonPanel

@@ -170,6 +170,13 @@ function Login() {
 
       localStorage.setItem("employee_role", d.ROLE || "");
 
+      // RBAC — store the permission codes the sidebar/dashboard use
+      // to hide modules this employee isn't authorised to see.
+      localStorage.setItem(
+        "permissions",
+        JSON.stringify(d.permissions || [])
+      );
+
       localStorage.setItem("username", d.EMPLOYEE_NAME);
 
       localStorage.setItem(
