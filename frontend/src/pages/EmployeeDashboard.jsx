@@ -14,6 +14,7 @@ import MyPermissionSection from "../components/MyPermissionSection";
 import EmployeeSidebar from "../components/EmployeeSidebar";
 import EmployeeHomeDashboard from "../components/EmployeeHomeDashboard";
 import ComingSoonPanel from "../components/ComingSoonPanel";
+import MyProfilePanel from "../components/MyProfilePanel";
 import EmployeeProfileForm from "./EmployeeProfileForm";
 
 import styles from "./EmployeeDashboard.module.css";
@@ -793,6 +794,15 @@ function EmployeeDashboardBody() {
 
           {mainTab === "payslips" && (
             <MyPayslipsPanel employeeId={employeeId} />
+          )}
+
+          {/* ---------- My Profile (photo + documents) ----------
+              MyProfilePanel reads localStorage.employee_uuid itself
+              (set by Login.jsx). It does not need employeeId — that's
+              the CODE (BVC008), while photo/docs endpoints need the
+              internal UUID. */}
+          {mainTab === "profile" && (
+            <MyProfilePanel />
           )}
 
           {/* ---------- New ESS home dashboard ---------- */}

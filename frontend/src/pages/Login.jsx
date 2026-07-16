@@ -164,6 +164,11 @@ function Login() {
 
       localStorage.setItem("employee_id", d.EMPLOYEE_ID);
 
+      // Store the internal UUID separately — photo/documents/profile
+      // endpoints take the UUID, not the CODE. `employee_id` above is
+      // the code (BVC008); `employee_uuid` here is the primary key.
+      localStorage.setItem("employee_uuid", d.employee_id || "");
+
       localStorage.setItem("employee_name", d.EMPLOYEE_NAME);
 
       localStorage.setItem("department", d.DEPARTMENT);

@@ -1,0 +1,423 @@
+/* ==================================================================
+   MyProfilePanel — Employee Self-Service → My Profile tab.
+   BVC red + white + gold palette (via CSS vars).
+   ================================================================== */
+
+.wrap {
+  display: grid;
+  gap: 16px;
+  padding: 4px 2px 24px;
+}
+
+
+/* ---------- HERO ---------- */
+.hero {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 16px;
+  align-items: center;
+  padding: 18px 20px;
+  background: linear-gradient(135deg,
+              var(--clr-primary) 0%,
+              var(--clr-primary-darker, #b91c1c) 100%);
+  color: #fff;
+  border-radius: 14px;
+  box-shadow: var(--shadow-md, 0 4px 14px rgba(0,0,0,0.09));
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  right: -60px; top: -60px;
+  width: 180px; height: 180px;
+  background: radial-gradient(circle, rgba(244,179,36,0.35), transparent 70%);
+  pointer-events: none;
+}
+
+.heroAvatar {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.18);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 26px;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.35);
+  flex-shrink: 0;
+}
+
+.heroAvatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.heroText { min-width: 0; z-index: 1; }
+
+.heroEyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #F4B324;
+  opacity: 0.95;
+}
+
+.heroName {
+  font-size: 20px;
+  font-weight: 800;
+  margin: 3px 0 3px;
+  letter-spacing: -0.3px;
+}
+
+.heroMeta {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+
+/* ---------- CARD (photo + docs) ---------- */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.cardHead {
+  padding: 14px 18px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cardHead h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
+}
+
+.cardHead p {
+  margin: 3px 0 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+
+/* ---------- PHOTO SECTION ---------- */
+.photoBody {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 18px 18px;
+  flex-wrap: wrap;
+}
+
+.photoPreview {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  background: var(--clr-primary-light);
+  color: var(--clr-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  font-weight: 800;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 1px var(--border);
+}
+
+.photoPreview img { width: 100%; height: 100%; object-fit: cover; }
+
+.photoActions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+
+/* ---------- UPLOAD ROW (documents) ---------- */
+.uploadRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 12px 18px 14px;
+  border-bottom: 1px dashed var(--border);
+  background: var(--layout-bg);
+}
+
+.uploadField { display: grid; gap: 4px; }
+
+.uploadFieldWide {
+  grid-column: span 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.uploadLabel {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.input, .select {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  min-height: 40px;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.input:focus, .select:focus {
+  outline: none;
+  border-color: var(--clr-primary);
+  box-shadow: 0 0 0 3px var(--clr-primary-muted, rgba(239, 68, 68, 0.08));
+}
+
+
+/* ---------- DOC LIST ---------- */
+.docList { padding: 6px 8px 8px; }
+
+.emptyLine {
+  padding: 22px 14px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.docRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  margin: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card-bg);
+  transition: box-shadow var(--ease, 0.18s ease);
+}
+
+.docRow:hover { box-shadow: var(--shadow-sm); }
+
+.docIcon {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  background: var(--clr-primary-light);
+  color: var(--clr-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.docBody { min-width: 0; }
+
+.docTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docMeta {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  flex-wrap: wrap;
+}
+
+.docPill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--clr-primary-light);
+  color: var(--clr-primary);
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.docFile {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.docActions {
+  display: inline-flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+
+/* ---------- BUTTONS ---------- */
+.btnPrimary {
+  padding: 10px 16px;
+  background: var(--clr-primary);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: filter var(--ease, 0.18s ease);
+  font-family: inherit;
+  min-height: 40px;
+}
+
+.btnPrimary:hover:not(:disabled) { filter: brightness(0.95); }
+.btnPrimary:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.btnGhost {
+  padding: 8px 12px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  transition: border-color var(--ease, 0.18s ease);
+  font-family: inherit;
+}
+
+.btnGhost:hover {
+  border-color: var(--clr-primary-border);
+  color: var(--clr-primary);
+}
+
+.btnDanger {
+  padding: 8px 12px;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background var(--ease, 0.18s ease);
+  font-family: inherit;
+}
+
+.btnDanger:hover { background: #fee2e2; }
+
+
+/* ---------- ERROR LINE ---------- */
+.errorLine {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+
+/* ---------- DELETE MODAL ---------- */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: grid;
+  place-items: center;
+  z-index: 200;
+  padding: 16px;
+}
+
+.modal {
+  background: var(--card-bg);
+  border-radius: 14px;
+  padding: 22px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal h3 {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.modal p {
+  margin: 0 0 18px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.modalActions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+
+/* ==================================================================
+   MOBILE (≤ 768 px)
+   ================================================================== */
+
+@media (max-width: 768px) {
+  .wrap { padding: 2px 0 24px; gap: 12px; }
+
+  .hero {
+    padding: 16px 16px;
+    border-radius: 12px;
+  }
+  .heroAvatar { width: 56px; height: 56px; font-size: 20px; }
+  .heroName { font-size: 17px; }
+  .heroMeta { font-size: 11.5px; }
+
+  .cardHead { padding: 12px 14px 6px; }
+  .cardHead h2 { font-size: 14px; }
+  .cardHead p  { font-size: 11.5px; }
+
+  .photoBody { padding: 14px; gap: 14px; }
+  .photoPreview { width: 76px; height: 76px; font-size: 28px; }
+
+  /* Upload form → 1 column */
+  .uploadRow { grid-template-columns: 1fr; padding: 12px 14px; }
+  .uploadFieldWide { grid-column: span 1; }
+  .btnPrimary { width: 100%; }
+
+  /* Doc rows → stack actions below body */
+  .docRow {
+    grid-template-columns: auto 1fr;
+    grid-template-areas: "icon body" "actions actions";
+    row-gap: 8px;
+    padding: 10px;
+  }
+  .docIcon    { grid-area: icon; }
+  .docBody    { grid-area: body; }
+  .docActions { grid-area: actions; justify-content: flex-end; }
+  .docFile    { max-width: 100%; }
+
+  .modal { padding: 18px; border-radius: 12px; }
+}

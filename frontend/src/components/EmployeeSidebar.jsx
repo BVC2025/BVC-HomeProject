@@ -8,7 +8,6 @@
 // =====================================================================
 
 import { useMemo } from "react";
-import { useNavigate } from "react-router-dom";
 import styles from "../pages/EmployeeDashboard.module.css";
 import { API_BASE_URL } from "../services/api";
 
@@ -72,7 +71,7 @@ const NAV_GROUPS = [
     label: "Overview",
     items: [
       { key: "home",       label: "Dashboard",     icon: ICONS.home },
-      { key: "profile",    label: "My Profile",    icon: ICONS.profile,   soon: true },
+      { key: "profile",    label: "My Profile",    icon: ICONS.profile },
     ],
   },
   {
@@ -158,8 +157,6 @@ function hasAccess(item, permSet) {
 // -----------------------------------------------------------------
 export default function EmployeeSidebar({ activeTab, onSelect, onLogout, unreadCount = 0 }) {
 
-  const navigate = useNavigate();
-
   // Employee identity for the footer card.
   const identity = useMemo(() => {
     const name  = (localStorage.getItem("employee_name") || "").trim() || "Employee";
@@ -184,11 +181,10 @@ export default function EmployeeSidebar({ activeTab, onSelect, onLogout, unreadC
     : null;
 
   const handleClick = (item) => {
-    if (item.key === "profile") {
-      // Profile has its own route already
-      navigate("/employee-profile");
-      return;
-    }
+    // Profile now renders inline on the dashboard as its own tab —
+    // we no longer navigate away. (The one-time registration form
+    // still lives at /employee-profile and is only shown by the
+    // parent EmployeeDashboard when PROFILE_SUBMITTED is 0.)
     onSelect?.(item.key, { soon: !!item.soon });
   };
 
