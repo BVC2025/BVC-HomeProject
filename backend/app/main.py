@@ -54,7 +54,6 @@ from app.routes.connect import router as connect_router
 from app.routes.payroll import router as payroll_router
 from app.routes.quotation import router as quotation_router
 from app.routes.purchase_order import router as purchase_order_router
-from app.routes.procurement_seed import router as procurement_seed_router
 from app.routes.hr_assistant import router as hr_assistant_router
 from app.routes.sales_order import router as sales_order_router
 from app.routes.whatsapp import router as whatsapp_router
@@ -1337,7 +1336,6 @@ app.include_router(connect_router)
 app.include_router(payroll_router)
 app.include_router(quotation_router, tags=["Quotations"])
 app.include_router(purchase_order_router, tags=["Purchase Orders"])
-app.include_router(procurement_seed_router, tags=["Procurement Seed"])
 app.include_router(hr_assistant_router, tags=["HR Assistant"])
 app.include_router(sales_order_router, tags=["Sales Orders"])
 app.include_router(whatsapp_router, tags=["WhatsApp Alerts"])

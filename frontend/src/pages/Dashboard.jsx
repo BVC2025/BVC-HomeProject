@@ -40,7 +40,6 @@ import EmployeeOnboardingReview from "./EmployeeOnboardingReview";
 import Customers from "./Customers";
 import Quotations from "./Quotations";
 import SalesOrders from "./SalesOrders";
-import PurchaseOrders from "./PurchaseOrders";
 import Inventory from "./Inventory";
 import Attendance from "./Attendance";
 import Machines from "./Machines";
@@ -50,8 +49,6 @@ import Organization from "./Organization";
 // MDReview removed Phase 2 — superseded by Star Performance
 import Production from "./Production";
 import Quality from "./Quality";
-import Suppliers from "./Suppliers";
-import Purchase from "./Purchase";
 import LeaveManagement from "./LeaveManagement";
 import DashboardHome from "./DashboardHome";
 import AdminDashboard from "./AdminDashboard";
@@ -1355,21 +1352,6 @@ function SidebarIcon({ name }) {
           <circle cx="17" cy="18.5" r="1.8" />
         </svg>
       );
-    case "purchase":
-      return (
-        <svg {...props}>
-          <path d="M3 5h2l2.5 11h10l2-7H6.5" />
-          <circle cx="9" cy="20" r="1.5" />
-          <circle cx="17" cy="20" r="1.5" />
-        </svg>
-      );
-    case "purchaseorders":
-      return (
-        <svg {...props}>
-          <rect x="5" y="4" width="14" height="17" rx="2" />
-          <path d="M9 9h6M9 13h6M9 17h4" />
-        </svg>
-      );
     case "inventory":
       return (
         <svg {...props}>
@@ -1550,9 +1532,6 @@ const NAV_GROUPS = [
     key: "purchase",
     label: "Purchase & Inventory",
     items: [
-      { to: "/suppliers", icon: <SidebarIcon name="suppliers" />, label: "Suppliers" },
-      { to: "/purchase", icon: <SidebarIcon name="purchase" />, label: "BOM-Supplier Map" },
-      { to: "/purchase-orders", icon: <SidebarIcon name="purchaseorders" />, label: "Purchase Orders" },
       { to: "/inventory", icon: <SidebarIcon name="inventory" />, label: "Inventory" },
       { to: "/supplier-management", icon: <SidebarIcon name="suppliers" />, label: "Supplier Management" },
       { to: "/inventory-categories", icon: <SidebarIcon name="inventory" />, label: "Inv. Categories" },
@@ -1892,21 +1871,6 @@ function Dashboard() {
           <Route
             path="/quality"
             element={<Quality />}
-          />
-
-          <Route
-            path="/suppliers"
-            element={<Suppliers />}
-          />
-
-          <Route
-            path="/purchase"
-            element={<Purchase />}
-          />
-
-          <Route
-            path="/purchase-orders"
-            element={<PurchaseOrders />}
           />
 
           <Route

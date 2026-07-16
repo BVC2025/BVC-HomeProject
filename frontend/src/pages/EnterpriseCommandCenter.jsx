@@ -820,8 +820,7 @@ function ApprovalCenter({ buckets }) {
   const items = [
     { key: "leaves", label: "Leaves", marker: "01", count: buckets?.leaves?.count || 0, to: "/approvals" },
     { key: "quotations", label: "Quotations", marker: "02", count: buckets?.quotations?.count || 0, to: "/quotations" },
-    { key: "pos", label: "Purchase Orders", marker: "03", count: buckets?.purchase_orders?.count || 0, to: "/purchase-orders" },
-    { key: "payroll", label: "Payroll", marker: "04", count: buckets?.payroll?.count || 0, to: "/payroll" },
+    { key: "payroll", label: "Payroll", marker: "03", count: buckets?.payroll?.count || 0, to: "/payroll" },
     { key: "customers", label: "Customer Approvals", marker: "05", count: buckets?.customers?.count || 0, to: "/customers" }
   ];
 
@@ -1351,7 +1350,6 @@ function QuickActionsFAB() {
     { label: "Quotation", icon: "📄", to: "/quotations" },
     { label: "Sales Order", icon: "📑", to: "/sales-orders" },
     { label: "Work Order", icon: "🏭", to: "/production" },
-    { label: "Purchase Order", icon: "🛒", to: "/purchase-orders" },
     { label: "Payroll Run", icon: "💰", to: "/payroll" },
     { label: "Inventory Item", icon: "📦", to: "/inventory" }
   ];
