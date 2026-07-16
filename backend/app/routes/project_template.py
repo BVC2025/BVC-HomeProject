@@ -1,5 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+
+from app.utils.db_error_handler import raise_db_error
 from typing import Optional, List
 from pydantic import BaseModel
 import io
@@ -217,9 +220,16 @@ def create_category(data: CategoryCreate, db: Session = Depends(get_db)):
         DESCRIPTION=data.DESCRIPTION,
         VENDOR_ID=data.VENDOR_ID
     )
-    db.add(cat)
-    db.commit()
-    db.refresh(cat)
+    try:
+        db.add(cat)
+        db.commit()
+        db.refresh(cat)
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "create project category")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "create project category")
     return {"message": "Category created", "ID": cat.ID}
 
 
@@ -232,7 +242,14 @@ def update_category(category_id: str, data: CategoryUpdate, db: Session = Depend
         cat.NAME = data.NAME
     if data.DESCRIPTION is not None:
         cat.DESCRIPTION = data.DESCRIPTION
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "update project category")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "update project category")
     return {"message": "Category updated"}
 
 
@@ -250,8 +267,15 @@ def delete_category(category_id: str, db: Session = Depends(get_db)):
         CustomFieldTableValue.TABLE_NAME == "project_category",
         CustomFieldTableValue.TABLE_ROW_ID == str(category_id),
     ).delete(synchronize_session=False)
-    db.delete(cat)
-    db.commit()
+    try:
+        db.delete(cat)
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "delete project category")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "delete project category")
     return {"message": "Category deleted"}
 
 
@@ -365,8 +389,15 @@ def create_project(data: ProjectCreate, db: Session = Depends(get_db)):
         db.flush()
         _recalc_project_duration(project, db)
 
-    db.commit()
-    db.refresh(project)
+    try:
+        db.commit()
+        db.refresh(project)
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "create project")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "create project")
     return {"message": "Project created", "ID": project.ID}
 
 
@@ -403,7 +434,14 @@ def update_project(project_id: str, data: ProjectUpdate, db: Session = Depends(g
             db.add(task)
         db.flush()
         _recalc_project_duration(project, db)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "update project")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "update project")
     return {"message": "Project updated"}
 
 
@@ -423,8 +461,15 @@ def delete_project(project_id: str, db: Session = Depends(get_db)):
         CustomFieldTableValue.TABLE_NAME == "project",
         CustomFieldTableValue.TABLE_ROW_ID == str(project_id),
     ).delete(synchronize_session=False)
-    db.delete(project)
-    db.commit()
+    try:
+        db.delete(project)
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "delete project")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "delete project")
     return {"message": "Project deleted"}
 
 
@@ -523,8 +568,15 @@ def create_task_template(data: TaskTemplateCreate, db: Session = Depends(get_db)
     db.add(task)
     db.flush()
     _recalc_project_duration(project, db)
-    db.commit()
-    db.refresh(task)
+    try:
+        db.commit()
+        db.refresh(task)
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "create task template")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "create task template")
     return {"message": "Task created", "ID": task.ID}
 
 
@@ -556,7 +608,14 @@ def update_task_template(task_id: str, data: TaskTemplateUpdate, db: Session = D
     project = db.query(Project).filter(Project.ID == task.PROJECT_ID).first()
     if project:
         _recalc_project_duration(project, db)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "update task template")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "update task template")
     return {"message": "Task updated"}
 
 
@@ -575,7 +634,14 @@ def delete_task_template(task_id: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.ID == project_id).first()
     if project:
         _recalc_project_duration(project, db)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "delete task template")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "delete task template")
     return {"message": "Task deleted"}
 
 

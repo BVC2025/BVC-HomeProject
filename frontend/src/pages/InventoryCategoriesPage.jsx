@@ -3,19 +3,21 @@ import TablePagination from "../components/TablePagination";
 import {
   PageHeader, StatsRow, PMModal, CustomFieldsModal, CustomFieldsSection,
   SearchBar, EmptyState, ExportButton, Loader,
-  PMButton, PMConfirmModal,
+  PMButton, PMConfirmModal, SwapConfirmPortal,
 } from "../components/pm";
 import { inventoryCategoryService } from "../services/inventoryCategoryService";
 import { useToast } from "../hooks/useToast";
 import { useCustomFields, useTableCfValues } from "../hooks/useCustomFields";
 import { exportToExcel, downloadTemplate as dlTemplate } from "../utils/exportExcel";
+import { formatDateTime } from "../utils/formatDateTime";
 import CategoryIcon from "../assets/Icons/inventoryCategorizationIcon.webp";
 import EditIcon from "../assets/Icons/editIcon.webp";
 import DeleteIcon from "../assets/Icons/deleteIcon.webp";
 import UploadIcon from "../assets/Icons/uploadIcon.webp";
 import styles from "./InventoryCategoriesPage.module.css";
+import { validateForm, clearFieldError, CATEGORY_RULES } from "../utils/formValidation";
 
-const EMPTY_FORM = { NAME: "", CODE: "", DESCRIPTION: "", SORT_ORDER: 0 };
+const EMPTY_FORM = { NAME: "", CODE: "", DESCRIPTION: "", SORT_ORDER: 0, IS_ACTIVE: true };
 
 export default function InventoryCategoriesPage() {
   const [rows, setRows] = useState([]);
@@ -25,17 +27,22 @@ export default function InventoryCategoriesPage() {
   const [modal, setModal] = useState(null);
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [cfOpen, setCfOpen] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null);
+  const [filterFrom, setFilterFrom] = useState("");
+  const [filterTo, setFilterTo] = useState("");
+  const [swapTarget, setSwapTarget] = useState(null);
 
   // Bulk upload
   const [bulkModal, setBulkModal] = useState(false);
   const [bulkFile, setBulkFile] = useState(null);
   const [bulkUploading, setBulkUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
+  const pendingSaveRef = useRef(null);
   const fileRef = useRef();
 
   const toast = useToast();
@@ -72,15 +79,29 @@ export default function InventoryCategoriesPage() {
   const handleRefresh = useCallback(() => load(true), [load]);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return rows;
-    const t = search.toLowerCase();
-    return rows.filter(
-      (r) =>
-        r.NAME?.toLowerCase().includes(t) ||
-        (r.CODE || "").toLowerCase().includes(t) ||
-        (r.DESCRIPTION || "").toLowerCase().includes(t)
-    );
-  }, [rows, search]);
+    let data = rows;
+    if (search.trim()) {
+      const t = search.toLowerCase();
+      data = data.filter(
+        (r) =>
+          r.NAME?.toLowerCase().includes(t) ||
+          (r.CODE || "").toLowerCase().includes(t) ||
+          (r.DESCRIPTION || "").toLowerCase().includes(t)
+      );
+    }
+    if (filterFrom || filterTo) {
+      const from = filterFrom ? new Date(filterFrom) : null;
+      const to = filterTo ? new Date(filterTo) : null;
+      data = data.filter((r) => {
+        if (!r.CREATED_AT) return false;
+        const d = new Date(r.CREATED_AT);
+        if (from && d < from) return false;
+        if (to && d > to) return false;
+        return true;
+      });
+    }
+    return data;
+  }, [rows, search, filterFrom, filterTo]);
 
   const paginated = useMemo(
     () => pageSize === 0 ? filtered : filtered.slice((page - 1) * pageSize, page * pageSize),
@@ -94,11 +115,14 @@ export default function InventoryCategoriesPage() {
   ], [rows, filtered.length]);
 
   const openAdd = useCallback(() => {
-    setForm(EMPTY_FORM);
+    const nextSortOrder = rows.length
+      ? Math.max(...rows.map((r) => r.SORT_ORDER ?? 0)) + 1
+      : 1;
+    setForm({ ...EMPTY_FORM, SORT_ORDER: nextSortOrder });
     setSelected(null);
     setModal("add");
     resetCfValues();
-  }, [resetCfValues]);
+  }, [rows, resetCfValues]);
 
   const openEdit = useCallback((row) => {
     setForm({
@@ -106,6 +130,7 @@ export default function InventoryCategoriesPage() {
       CODE: row.CODE || "",
       DESCRIPTION: row.DESCRIPTION || "",
       SORT_ORDER: row.SORT_ORDER ?? 0,
+      IS_ACTIVE: row.IS_ACTIVE ?? true,
     });
     setSelected(row);
     setModal("edit");
@@ -115,19 +140,38 @@ export default function InventoryCategoriesPage() {
   const closeModal = useCallback(() => {
     setModal(null);
     setSelected(null);
+    setErrors({});
+    setSwapTarget(null);
+    pendingSaveRef.current = null;
   }, []);
 
   const handleFormChange = useCallback((field, val) => {
     setForm((prev) => ({ ...prev, [field]: val }));
+    clearFieldError(setErrors, field);
   }, []);
 
   const handleSave = useCallback(async () => {
-    if (!form.NAME.trim()) {
-      toast.showWarning("Category name is required");
-      return;
-    }
+    const { isValid, errors: validErrors } = validateForm(CATEGORY_RULES, form);
+    if (!isValid) { setErrors(validErrors); return; }
     const cfError = validateCf();
     if (cfError) { toast.showWarning(cfError); return; }
+
+    if (modal === "edit") {
+      const newSortOrder = Number(form.SORT_ORDER) || 0;
+      const conflict = rows.find(
+        (r) => Number(r.SORT_ORDER) === newSortOrder && r.ID !== selected?.ID
+      );
+      if (conflict) {
+        pendingSaveRef.current = {
+          payload: { ...form },
+          conflictId: conflict.ID,
+          conflictOrder: selected?.SORT_ORDER ?? 0,
+        };
+        setSwapTarget({ name: conflict.NAME, sortOrder: newSortOrder });
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       if (modal === "add") {
@@ -147,7 +191,26 @@ export default function InventoryCategoriesPage() {
     } finally {
       setSaving(false);
     }
-  }, [form, modal, selected, closeModal, load, toast, validateCf, saveCfValues]);
+  }, [form, modal, selected, rows, closeModal, load, toast, validateCf, saveCfValues]);
+
+  const handleSwapConfirm = useCallback(async () => {
+    const { payload, conflictId, conflictOrder } = pendingSaveRef.current || {};
+    if (!payload || !conflictId) return;
+    setSaving(true);
+    try {
+      await inventoryCategoryService.update(conflictId, { SORT_ORDER: conflictOrder });
+      await inventoryCategoryService.update(selected.ID, payload);
+      await saveCfValues(selected.ID);
+      toast.showSuccess("Category updated — sort orders swapped");
+      closeModal();
+      load();
+    } catch (e) {
+      toast.showError(e?.response?.data?.detail || "Swap failed");
+    } finally {
+      setSaving(false);
+      pendingSaveRef.current = null;
+    }
+  }, [selected, closeModal, load, toast, saveCfValues]);
 
   const handleDelete = useCallback((row) => {
     setConfirmModal({
@@ -255,6 +318,13 @@ export default function InventoryCategoriesPage() {
             onChange={handleSearchChange}
             placeholder="Search by name, code, or description…"
           />
+          <div className={styles.dateFilters}>
+            <label className={styles.dateLabel}>From</label>
+            <input type="datetime-local" className={styles.dateInput} value={filterFrom} onChange={(e) => { setFilterFrom(e.target.value); setPage(1); }} />
+            <label className={styles.dateLabel}>To</label>
+            <input type="datetime-local" className={styles.dateInput} value={filterTo} onChange={(e) => { setFilterTo(e.target.value); setPage(1); }} />
+            {(filterFrom || filterTo) && <button className={styles.clearFilter} onClick={() => { setFilterFrom(""); setFilterTo(""); }}>✕</button>}
+          </div>
           <span className={styles.count}>{filtered.length} categor{filtered.length !== 1 ? "ies" : "y"}</span>
         </div>
 
@@ -269,16 +339,17 @@ export default function InventoryCategoriesPage() {
                 <th>Sort Order</th>
                 <th>Products</th>
                 <th>Status</th>
+                <th>Created Date</th>
                 {cfFields.map((f) => <th key={f.ID}>{f.FIELD_NAME}</th>)}
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8 + cfFields.length}><Loader /></td></tr>
+                <tr><td colSpan={9 + cfFields.length}><Loader /></td></tr>
               ) : paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={8 + cfFields.length}>
+                  <td colSpan={9 + cfFields.length}>
                     <EmptyState
                       icon={CategoryIcon}
                       iconAlt="Inventory Categories"
@@ -305,6 +376,7 @@ export default function InventoryCategoriesPage() {
                         {r.IS_ACTIVE ? "Active" : "Inactive"}
                       </span>
                     </td>
+                    <td>{formatDateTime(r.CREATED_AT)}</td>
                     {cfFields.map((f) => {
                       const val = cfValuesMap[String(r.ID)]?.[f.ID];
                       return (
@@ -360,21 +432,23 @@ export default function InventoryCategoriesPage() {
           <div className={styles.formGroup}>
             <label>Category Name <span className={styles.req}>*</span></label>
             <input
-              className={styles.input}
+              className={`${styles.input}${errors.NAME ? " " + styles.inputError : ""}`}
               value={form.NAME}
               onChange={(e) => handleFormChange("NAME", e.target.value)}
               placeholder="e.g. Raw Materials"
             />
+            {errors.NAME && <span className={styles.fieldError}>{errors.NAME}</span>}
           </div>
           <div className={styles.formGroup}>
             <label>Category Code</label>
             <input
-              className={styles.input}
+              className={`${styles.input}${errors.CODE ? " " + styles.inputError : ""}`}
               value={form.CODE}
               onChange={(e) => handleFormChange("CODE", e.target.value.toUpperCase())}
               placeholder="e.g. RAW-MAT"
               maxLength={30}
             />
+            {errors.CODE && <span className={styles.fieldError}>{errors.CODE}</span>}
           </div>
           <div className={`${styles.formGroup} ${styles.fullWidth}`}>
             <label>Description</label>
@@ -388,15 +462,41 @@ export default function InventoryCategoriesPage() {
           </div>
           <div className={styles.formGroup}>
             <label>Sort Order</label>
-            <input
-              className={styles.input}
-              type="number"
-              min={0}
-              value={form.SORT_ORDER}
-              onChange={(e) => handleFormChange("SORT_ORDER", parseInt(e.target.value, 10) || 0)}
-              placeholder="0"
-            />
+            {modal === "add" ? (
+              <>
+                <div className={styles.readOnlyField}>
+                  <span className={styles.readOnlyValue}>{form.SORT_ORDER}</span>
+                  <span className={styles.autoTag}>Auto</span>
+                </div>
+                <span className={styles.fieldHint}>Automatically assigned — cannot be changed during creation</span>
+              </>
+            ) : (
+              <>
+                <input
+                  className={`${styles.input}${errors.SORT_ORDER ? " " + styles.inputError : ""}`}
+                  type="number"
+                  min={0}
+                  value={form.SORT_ORDER}
+                  onChange={(e) => handleFormChange("SORT_ORDER", parseInt(e.target.value, 10) || 0)}
+                  placeholder="0"
+                />
+                {errors.SORT_ORDER && <span className={styles.fieldError}>{errors.SORT_ORDER}</span>}
+              </>
+            )}
           </div>
+          {modal === "edit" && (
+            <div className={styles.formGroup}>
+              <label>Status</label>
+              <select
+                className={styles.select}
+                value={form.IS_ACTIVE ? "true" : "false"}
+                onChange={(e) => handleFormChange("IS_ACTIVE", e.target.value === "true")}
+              >
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
+            </div>
+          )}
         </div>
         <CustomFieldsSection
           fields={cfFields}
@@ -469,6 +569,15 @@ export default function InventoryCategoriesPage() {
         open={cfOpen}
         onClose={() => setCfOpen(false)}
         tableName="inventory_category"
+      />
+
+      {/* Sort Order Swap Confirmation */}
+      <SwapConfirmPortal
+        open={!!swapTarget}
+        onClose={() => { setSwapTarget(null); pendingSaveRef.current = null; }}
+        onConfirm={handleSwapConfirm}
+        existingFieldName={swapTarget?.name}
+        sortOrder={swapTarget?.sortOrder}
       />
 
       {/* Delete Confirmation */}

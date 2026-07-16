@@ -5,7 +5,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from app.database.database import Base
-from datetime import datetime
+from app.utils.datetime_utils import now_ist
 import uuid
 
 # ──────────────────────────────────────────────
@@ -104,12 +104,27 @@ class Supplier(Base):
         index=True
     )
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    REGISTRATION_NO     = Column(String(50),    nullable=True)
+    COMPANY_TYPE        = Column(String(50),    nullable=True)
+    WEBSITE             = Column(String(200),   nullable=True)
+    ALTERNATE_EMAIL     = Column(String(120),   nullable=True)
+    ALTERNATE_PHONE     = Column(String(30),    nullable=True)
+    YEARS_IN_BUSINESS   = Column(Integer,       nullable=True)
+    ANNUAL_TURNOVER     = Column(Numeric(18, 2), nullable=True)
+    EMPLOYEE_COUNT      = Column(Integer,       nullable=True)
+    CERTIFICATIONS      = Column(JSON,          nullable=True)
+    ADVANCE_PERCENT     = Column(Numeric(5, 2), nullable=True)
+    CREDIT_DAYS         = Column(Integer,       nullable=True)
+    MINIMUM_ORDER_VALUE = Column(Numeric(14, 2), nullable=True)
+    LEAD_TIME_DAYS      = Column(Integer,       nullable=True)
+    DELIVERY_MODES      = Column(JSON,          nullable=True)
+
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
 
@@ -172,8 +187,8 @@ class SupplierInvitation(Base):
     EMAIL_SENT_AT = Column(DateTime, nullable=True)
     NOTES = Column(Text, nullable=True)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
+    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
 
     # Relationships
     draft = relationship(
@@ -223,8 +238,8 @@ class SupplierRegistrationDraft(Base):
     ENTRY_MODE = Column(String(20), default="MANUAL")
     VOICE_TRANSCRIPT = Column(Text, nullable=True)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
+    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
 
     # Relationship
     invitation = relationship("SupplierInvitation", back_populates="draft")
@@ -265,6 +280,13 @@ class SupplierProduct(Base):
         nullable=False, index=True
     )
 
+    CATEGORY_ID = Column(
+        String(36),
+        ForeignKey("inventory_category.ID", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     PRODUCT_ID = Column(
         String(36),
         ForeignKey("product_master.ID", ondelete="CASCADE"),
@@ -280,15 +302,17 @@ class SupplierProduct(Base):
 
     LAST_PRICE_UPDATED_AT = Column(DateTime, nullable=True)
     IS_PREFERRED = Column(Boolean, default=False)
+    
 
     # ACTIVE / INACTIVE
     STATUS = Column(String(20), default="ACTIVE", index=True)
     NOTES = Column(Text, nullable=True)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
+    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
 
     # Relationships
+    category = relationship("InventoryCategory", back_populates="supplier_products")
     product = relationship("ProductMaster", back_populates="supplier_products")
     price_history = relationship(
         "SupplierProductPriceHistory", back_populates="supplier_product",
@@ -341,7 +365,7 @@ class SupplierProductPriceHistory(Base):
     CHANGE_REASON = Column(String(500), nullable=True)
     EFFECTIVE_DATE = Column(Date, nullable=False)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow, index=True)
+    CREATED_AT = Column(DateTime, default=now_ist, index=True)
 
     # Relationship
     supplier_product = relationship(
@@ -404,7 +428,7 @@ class SupplierRanking(Base):
 
     UNIT_PRICE_AT_RANK = Column(Numeric(14, 4), nullable=False)   # snapshot
 
-    RECALCULATED_AT = Column(DateTime, default=datetime.utcnow)
+    RECALCULATED_AT = Column(DateTime, default=now_ist)
 
     # Relationships
     product = relationship("ProductMaster", back_populates="ranking_entries")
@@ -462,7 +486,7 @@ class PurchaseRecommendation(Base):
     ALTERNATIVE_SUPPLIER_IDS = Column(JSON, nullable=True)
 
     IS_ACTIVE = Column(Boolean, default=True)
-    LAST_RECALCULATED_AT = Column(DateTime, default=datetime.utcnow)
+    LAST_RECALCULATED_AT = Column(DateTime, default=now_ist)
 
     # Relationships
     product = relationship("ProductMaster", back_populates="recommendation")
@@ -516,8 +540,8 @@ class SupplierPerformanceMetrics(Base):
     ON_TIME_RATE = Column(Float, default=0.0)                # percentage
     OVERALL_SCORE = Column(Float, default=0.0)               # 0-100
 
-    LAST_RECALCULATED_AT = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    LAST_RECALCULATED_AT = Column(DateTime, default=now_ist)
+    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -554,11 +578,11 @@ class SupplierApprovalLog(Base):
         nullable=True
     )
 
-    REVIEWED_AT = Column(DateTime, default=datetime.utcnow)
+    REVIEWED_AT = Column(DateTime, default=now_ist)
     REJECTION_REASON = Column(Text, nullable=True)
     COMMENTS = Column(Text, nullable=True)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     # Relationship
     invitation = relationship("SupplierInvitation", back_populates="approval_logs")

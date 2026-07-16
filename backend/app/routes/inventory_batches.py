@@ -48,7 +48,7 @@ def list_batches(
     supplier_id: Optional[int] = Query(None),
     status: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=5000),
     db: Session = Depends(get_db),
 ):
     q = db.query(InventoryBatch).filter(InventoryBatch.VENDOR_ID == vendor_id)

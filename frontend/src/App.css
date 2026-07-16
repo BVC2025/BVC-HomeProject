@@ -1573,8 +1573,8 @@ body {
 
 .topbar {
   position: absolute;
-  top: 38px;
-  right: 38px;
+  top: 10px;
+  right: 10px;
   display: flex;
   align-items: center;
   margin: 0;

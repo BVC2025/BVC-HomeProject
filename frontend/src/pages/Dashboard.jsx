@@ -61,7 +61,6 @@ import RoleManagement from "./RoleManagement";
 import RbacPermissions from "./RbacPermissions";
 import HolidayCalendar from "./HolidayCalendar";
 import WorkCenters from "./WorkCenters";
-import CompanySettings from "./CompanySettings";
 import GeofenceSettings from "./GeofenceSettings";
 import EmployeeMemos from "./EmployeeMemos";
 import ApprovalCenter from "./ApprovalCenter";
@@ -78,6 +77,9 @@ const InventoryCategoriesPage = lazy(() => import("./InventoryCategoriesPage"));
 const ProductMasterPage = lazy(() => import("./ProductMasterPage"));
 const SupplierManagementPage = lazy(() => import("./SupplierManagementPage"));
 const InventoryItemsPage = lazy(() => import("./InventoryItemsPage"));
+const CompanyProfilePage = lazy(() => import("./CompanyProfilePage"));
+const EmailConfigManagement = lazy(() => import("./EmailConfigManagement"));
+const EmailTemplatePage     = lazy(() => import("./EmailTemplatePage"));
 
 import styles from "./Dashboard.module.css";
 import {
@@ -1469,6 +1471,13 @@ function SidebarIcon({ name }) {
           <path d="M14 2v6h6M8 13h8M8 17h5" />
         </svg>
       );
+    case "mail":
+      return (
+        <svg {...props}>
+          <rect x="3" y="5" width="18" height="14" rx="2" />
+          <path d="M3 7l9 7 9-7" />
+        </svg>
+      );
     default:
       return (
         <svg {...props}>
@@ -1562,7 +1571,9 @@ const NAV_GROUPS = [
     key: "system",
     label: "System",
     items: [
-      { to: "/company-settings", icon: <SidebarIcon name="company" />, label: "Company Settings" },
+      { to: "/company-profile", icon: <SidebarIcon name="company" />, label: "Company Profile" },
+      { to: "/email-config", icon: <SidebarIcon name="settings" />, label: "Email Config" },
+      { to: "/email-templates", icon: <SidebarIcon name="mail" />, label: "Email Templates" },
       { to: "/holidays", icon: <SidebarIcon name="holidays" />, label: "Holiday Calendar" },
       { to: "/geofence", icon: <SidebarIcon name="geofence" />, label: "Geofence Settings" },
       { to: "/settings", icon: <SidebarIcon name="settings" />, label: "Settings" }
@@ -1809,7 +1820,6 @@ function Dashboard() {
           <Route path="/roles" element={<RoleManagement />} />
           <Route path="/rbac" element={<RbacPermissions />} />
 
-          <Route path="/company-settings" element={<CompanySettings />} />
           <Route path="/holidays" element={<HolidayCalendar />} />
           <Route path="/geofence" element={<GeofenceSettings />} />
           <Route path="/memos" element={<EmployeeMemos />} />
@@ -1929,6 +1939,15 @@ function Dashboard() {
           <Route path="/org-roles" element={<Suspense fallback={null}><OrgRoleManagement /></Suspense>} />
           <Route path="/project-categories" element={<Suspense fallback={null}><ProjectCategoryManagement /></Suspense>} />
           <Route path="/task-templates" element={<Suspense fallback={null}><TaskTemplatePage /></Suspense>} />
+
+          {/* Company Profile */}
+          <Route path="/company-profile" element={<Suspense fallback={null}><CompanyProfilePage /></Suspense>} />
+
+          {/* Email Configuration Management */}
+          <Route path="/email-config" element={<Suspense fallback={null}><EmailConfigManagement /></Suspense>} />
+
+          {/* Email Template Editor */}
+          <Route path="/email-templates" element={<Suspense fallback={null}><EmailTemplatePage /></Suspense>} />
 
           {/* Supplier & Inventory Management module */}
           <Route path="/inventory-categories" element={<Suspense fallback={null}><InventoryCategoriesPage /></Suspense>} />

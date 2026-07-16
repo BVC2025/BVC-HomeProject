@@ -20,7 +20,9 @@ from app.models.models import Supplier, Vendor, BOMItem
 from app.models.supplier_models import (
     SupplierPerformanceMetrics,
     SupplierRanking,
+    SupplierProduct as SupplierProductModel,
 )
+from app.models.inventory_models import ProductMaster, InventoryCategory
 from app.schemas.supplier_schema import (
     SupplierCreate,
     SupplierUpdate
@@ -84,7 +86,21 @@ def _serialize_supplier(s: Supplier) -> dict:
         "VENDOR_ID": s.VENDOR_ID,
         "CREATED_AT": (
             s.CREATED_AT.isoformat() if s.CREATED_AT else None
-        )
+        ),
+        "REGISTRATION_NO": s.REGISTRATION_NO,
+        "COMPANY_TYPE": s.COMPANY_TYPE,
+        "WEBSITE": s.WEBSITE,
+        "ALTERNATE_EMAIL": s.ALTERNATE_EMAIL,
+        "ALTERNATE_PHONE": s.ALTERNATE_PHONE,
+        "YEARS_IN_BUSINESS": s.YEARS_IN_BUSINESS,
+        "ANNUAL_TURNOVER": float(s.ANNUAL_TURNOVER) if s.ANNUAL_TURNOVER is not None else None,
+        "EMPLOYEE_COUNT": s.EMPLOYEE_COUNT,
+        "CERTIFICATIONS": s.CERTIFICATIONS,
+        "ADVANCE_PERCENT": float(s.ADVANCE_PERCENT) if s.ADVANCE_PERCENT is not None else None,
+        "CREDIT_DAYS": s.CREDIT_DAYS,
+        "MINIMUM_ORDER_VALUE": float(s.MINIMUM_ORDER_VALUE) if s.MINIMUM_ORDER_VALUE is not None else None,
+        "LEAD_TIME_DAYS": s.LEAD_TIME_DAYS,
+        "DELIVERY_MODES": s.DELIVERY_MODES,
     }
 
 
@@ -304,22 +320,54 @@ def delete_supplier(
     supplier_id: int,
     db: Session = Depends(get_db)
 ):
-    """Soft delete — set STATUS to INACTIVE so existing BOM
-    links keep resolving."""
+    """Permanently delete a BLACKLISTED supplier.
+
+    Only suppliers with STATUS == BLACKLISTED may be deleted.
+    BOMItem.PREFERRED_SUPPLIER_ID references are nulled before deletion;
+    all other child records (SupplierProduct, rankings, metrics,
+    price history, purchase recommendations) cascade via DB-level ON DELETE CASCADE.
+    """
+    from sqlalchemy.exc import IntegrityError as _IntegrityError
 
     supplier = db.query(Supplier).filter(
         Supplier.ID == supplier_id
     ).first()
 
     if not supplier:
-
         raise HTTPException(status_code=404, detail="Supplier not found")
 
-    supplier.STATUS = "INACTIVE"
+    if supplier.STATUS != "BLACKLISTED":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Supplier can only be permanently deleted when status is BLACKLISTED. "
+                "Change the supplier status to BLACKLISTED first."
+            ),
+        )
 
-    db.commit()
+    # BOMItem has no ON DELETE CASCADE/SET NULL on PREFERRED_SUPPLIER_ID — null it manually
+    db.query(BOMItem).filter(
+        BOMItem.PREFERRED_SUPPLIER_ID == supplier_id
+    ).update({"PREFERRED_SUPPLIER_ID": None}, synchronize_session=False)
 
-    return {"message": "Supplier deactivated"}
+    db.delete(supplier)
+
+    try:
+        db.commit()
+    except _IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Cannot delete supplier — it is still referenced by other records "
+                "(e.g. purchase orders or GRN entries). Remove those references first."
+            ),
+        )
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Delete failed: {exc}")
+
+    return {"message": "Supplier permanently deleted"}
 
 
 # ── Supplier extended profile & bulk operations ────────────────────────────
@@ -433,6 +481,74 @@ def get_supplier_ranking(
         "supplier_id": supplier_id,
         "rankings": [_serialize_ranking(r) for r in rows],
     }
+
+
+@router.get("/{supplier_id}/products")
+def get_supplier_products(
+    supplier_id: int,
+    search: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(2000, ge=1, le=5000),
+    db: Session = Depends(get_db),
+):
+    """Return all products registered for a supplier, with optional search and status filter."""
+    supplier = db.query(Supplier).filter(Supplier.ID == supplier_id).first()
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+
+    q = (
+        db.query(SupplierProductModel, ProductMaster, InventoryCategory)
+        .join(ProductMaster, SupplierProductModel.PRODUCT_ID == ProductMaster.ID)
+        .outerjoin(InventoryCategory, ProductMaster.CATEGORY_ID == InventoryCategory.ID)
+        .filter(SupplierProductModel.SUPPLIER_ID == supplier_id)
+    )
+
+    if search:
+        term = f"%{search.strip()}%"
+        q = q.filter(
+            or_(
+                ProductMaster.PRODUCT_NAME.ilike(term),
+                ProductMaster.PRODUCT_CODE.ilike(term),
+            )
+        )
+    if status:
+        q = q.filter(SupplierProductModel.STATUS == status.upper())
+
+    total = q.count()
+    rows = (
+        q.order_by(ProductMaster.PRODUCT_NAME)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+
+    items = [
+        {
+            "ID": sp.ID,
+            "PRODUCT_ID": sp.PRODUCT_ID,
+            "PRODUCT_CODE": pm.PRODUCT_CODE,
+            "PRODUCT_NAME": pm.PRODUCT_NAME,
+            # Use the direct CATEGORY_ID on SupplierProduct when set;
+            # fall back to the category derived via ProductMaster.
+            "CATEGORY_NAME": cat.NAME if cat else None,
+            "CATEGORY_ID": sp.CATEGORY_ID or (pm.CATEGORY_ID if pm else None),
+            "UNIT": pm.UNIT,
+            "UNIT_PRICE": float(sp.UNIT_PRICE) if sp.UNIT_PRICE is not None else 0.0,
+            "CURRENCY": sp.CURRENCY or "INR",
+            "MOQ": sp.MOQ,
+            "LEAD_TIME_DAYS": sp.LEAD_TIME_DAYS,
+            "AVAILABLE_QTY": sp.AVAILABLE_QTY,
+            "IS_PREFERRED": sp.IS_PREFERRED,
+            "STATUS": sp.STATUS,
+            "NOTES": sp.NOTES,
+            "LAST_PRICE_UPDATED_AT": sp.LAST_PRICE_UPDATED_AT.isoformat() if sp.LAST_PRICE_UPDATED_AT else None,
+            "CREATED_AT": sp.CREATED_AT.isoformat() if sp.CREATED_AT else None,
+        }
+        for sp, pm, cat in rows
+    ]
+
+    return {"total": total, "page": page, "page_size": page_size, "items": items}
 
 
 

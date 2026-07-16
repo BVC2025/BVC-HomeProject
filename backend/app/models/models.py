@@ -1,16 +1,18 @@
 from sqlalchemy import (
     Column, String, Integer, ForeignKey, Float, Date, Time,
-    Text, UniqueConstraint, DateTime, Boolean, Numeric, JSON,
+    Text, UniqueConstraint, DateTime, Boolean, JSON, Numeric,
     Enum as SAEnum
 )
 from sqlalchemy.orm import relationship
 from app.database.database import Base
-from datetime import datetime, time
+from datetime import time
 import uuid
+from app.utils.datetime_utils import now_ist
 
 from app.models.project_models import ProjectCategory, Project, TaskTemplate  # noqa: F401
 from app.models.supplier_models import Supplier  # noqa: F401
-__all__ = ["ProjectCategory", "Project", "TaskTemplate", "Supplier"]  # re-exported from dedicated model files
+from app.models.email_models import VendorEmailConfig, EmailTemplate  # noqa: F401
+__all__ = ["ProjectCategory", "Project", "TaskTemplate", "Supplier", "VendorEmailConfig", "EmailTemplate"]  # re-exported from dedicated model files
 
 # ──────────────────────────────────────────────
 # Shared SQLAlchemy Enum types
@@ -45,6 +47,17 @@ class Vendor(Base):
     VENDOR_NAME = Column(String(100))
 
     root_users = relationship("RootUser", back_populates="vendor")
+    email_configurations = relationship(
+        "VendorEmailConfig",
+        back_populates="vendor",
+        cascade="all, delete-orphan",
+    )
+    email_templates = relationship(
+        "EmailTemplate",
+        back_populates="vendor",
+        cascade="all, delete-orphan",
+    )
+
 class RootUser(Base):
     __tablename__ = "root_user"
 
@@ -118,7 +131,7 @@ class Employee(Base):
         nullable=True
     )
 
-    JOINING_DATE = Column(Date, default=datetime.utcnow)
+    JOINING_DATE = Column(Date, default=now_ist)
 
     SALARY = Column(Float, default=0.0)
 
@@ -245,12 +258,12 @@ class Employee(Base):
         index=True
     )
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
 class Role(Base):
@@ -271,8 +284,8 @@ class Role(Base):
 
     DESCRIPTION = Column(String(500), nullable=True)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
+    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
 
 
 class Department(Base):
@@ -293,8 +306,8 @@ class Department(Base):
 
     DESCRIPTION = Column(String(500), nullable=True)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
+    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
 
 
 class Designation(Base):
@@ -326,7 +339,7 @@ class Designation(Base):
         index=True
     )
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
 
 class Permission(Base):
@@ -516,12 +529,12 @@ class Customer(Base):
     REQUIREMENT_NOTES = Column(String(2000), nullable=True)
     # First-call notes — what the customer is looking for
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
 
@@ -567,7 +580,7 @@ class CustomerContact(Base):
 
     NOTES = Column(String(500), nullable=True)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     VENDOR_ID = Column(
         Integer,
@@ -647,12 +660,12 @@ class CustomerRequirement(Base):
     SPECIAL_NOTES = Column(String(2000), nullable=True)
     # Custom features, branding, refrigeration, etc.
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
     VENDOR_ID = Column(
@@ -841,12 +854,12 @@ class WorkCenter(Base):
         index=True
     )
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
 
@@ -873,7 +886,7 @@ class Machine(Base):
 
     LAST_UPDATED = Column(
         DateTime,
-        default=datetime.utcnow
+        default=now_ist
     )
 
     VENDOR_ID = Column(
@@ -926,7 +939,7 @@ class MachineLog(Base):
 
     TIMESTAMP = Column(
         DateTime,
-        default=datetime.utcnow
+        default=now_ist
     )
 
 
@@ -940,7 +953,7 @@ class Setting(Base):
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow
+        default=now_ist
     )
 
 
@@ -1014,7 +1027,7 @@ class TaskAssignment(Base):
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow
+        default=now_ist
     )
 
 
@@ -1048,7 +1061,7 @@ class Notification(Base):
 
     CREATED_AT = Column(
         DateTime,
-        default=datetime.utcnow
+        default=now_ist
     )
 
     VENDOR_ID = Column(
@@ -1089,7 +1102,7 @@ class Attendance(Base):
 
     DATE = Column(
         Date,
-        default=datetime.utcnow,
+        default=now_ist,
         index=True
     )
 
@@ -1151,8 +1164,8 @@ class GeofenceSettings(Base):
     RADIUS_METERS = Column(Integer, nullable=False, default=50)
     IS_ACTIVE     = Column(Integer, default=1)
     # 1 = enforce geofencing, 0 = allow attendance from anywhere (kill-switch)
-    CREATED_AT    = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT    = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    CREATED_AT    = Column(DateTime, default=now_ist)
+    UPDATED_AT    = Column(DateTime, default=now_ist, onupdate=now_ist)
 
 
 # =====================================================================
@@ -1177,7 +1190,7 @@ class AttendanceSecurityLog(Base):
     DEVICE_INFO = Column(String(255), nullable=True)
     IP_ADDRESS  = Column(String(60), nullable=True)
     VENDOR_ID   = Column(Integer, ForeignKey("vendor.ID"), nullable=True)
-    CREATED_AT  = Column(DateTime, default=datetime.utcnow, index=True)
+    CREATED_AT  = Column(DateTime, default=now_ist, index=True)
 
 
 class ProductModel(Base):
@@ -1230,12 +1243,12 @@ class ProductModel(Base):
         index=True
     )
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
 
@@ -1383,12 +1396,12 @@ class WorkOrder(Base):
         index=True
     )
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
 
@@ -1493,8 +1506,8 @@ class WorkOrderStageProgress(Base):
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
 
@@ -1572,7 +1585,7 @@ class QCInspection(Base):
         nullable=True
     )
 
-    INSPECTION_DATE = Column(Date, default=datetime.utcnow)
+    INSPECTION_DATE = Column(Date, default=now_ist)
 
     STATUS = Column(
         String(20),
@@ -1595,12 +1608,12 @@ class QCInspection(Base):
         index=True
     )
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
 
@@ -1643,7 +1656,7 @@ class QCInspectionResult(Base):
 
     NOTES = Column(String(500), nullable=True)
 
-    RECORDED_AT = Column(DateTime, default=datetime.utcnow)
+    RECORDED_AT = Column(DateTime, default=now_ist)
 
 
 class NCR(Base):
@@ -1723,7 +1736,7 @@ class NCR(Base):
         nullable=True
     )
 
-    OPENED_AT = Column(DateTime, default=datetime.utcnow)
+    OPENED_AT = Column(DateTime, default=now_ist)
 
     CLOSED_AT = Column(DateTime, nullable=True)
 
@@ -1823,12 +1836,12 @@ class LeaveRequest(Base):
         nullable=True
     )
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
 
@@ -1903,8 +1916,8 @@ class LeaveBalance(Base):
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
 
@@ -1955,12 +1968,12 @@ class LeaveQuotaPolicy(Base):
         index=True
     )
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
 
@@ -2005,7 +2018,7 @@ class BiometricEvent(Base):
 
     EVENT_TIME = Column(
         DateTime,
-        default=datetime.utcnow,
+        default=now_ist,
         index=True
     )
 
@@ -2072,7 +2085,7 @@ class DailyAllocation(Base):
     REASON = Column(String(255), nullable=True)
     # human-readable explanation surfaced in the UI.
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     VENDOR_ID = Column(
         Integer,
@@ -2148,7 +2161,7 @@ class PayrollRun(Base):
     GENERATED_BY = Column(String(120), nullable=True)
     # employee code / name of whoever pressed Generate
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     FINALIZED_AT = Column(DateTime, nullable=True)
 
@@ -2285,7 +2298,7 @@ class PayrollSlip(Base):
     # GROSS_PAY and NET_PAY.
     STAR_BONUS = Column(Float, default=0.0)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
 
 # ====================================================================
@@ -2348,12 +2361,12 @@ class SalaryStructure(Base):
 
     EFFECTIVE_FROM = Column(Date, nullable=True)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
 
@@ -2457,12 +2470,12 @@ class PerformanceScore(Base):
 
     NOTES = Column(String(500), nullable=True)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
 
@@ -2506,7 +2519,7 @@ class Quotation(Base):
         index=True
     )
 
-    QUOTATION_DATE = Column(Date, default=datetime.utcnow)
+    QUOTATION_DATE = Column(Date, default=now_ist)
 
     VALIDITY_DAYS = Column(Integer, default=30)
 
@@ -2573,12 +2586,12 @@ class Quotation(Base):
         nullable=True
     )
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
 
@@ -2618,7 +2631,7 @@ class QuotationActivity(Base):
     ACTOR_NAME = Column(String(150), nullable=True)
     # Salesperson name or "customer" or "system"
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow, index=True)
+    CREATED_AT = Column(DateTime, default=now_ist, index=True)
 
 
 class QuotationNegotiation(Base):
@@ -2661,7 +2674,7 @@ class QuotationNegotiation(Base):
     DISCOUNT_PERCENT = Column(Float, nullable=True)
     # The discount the bot offered on this turn (if any).
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow, index=True)
+    CREATED_AT = Column(DateTime, default=now_ist, index=True)
 
 
 class QuotationLine(Base):
@@ -2754,7 +2767,7 @@ class PurchaseOrder(Base):
         index=True
     )
 
-    PO_DATE = Column(Date, default=datetime.utcnow)
+    PO_DATE = Column(Date, default=now_ist)
 
     EXPECTED_DELIVERY_DATE = Column(Date, nullable=True)
 
@@ -2816,12 +2829,12 @@ class PurchaseOrder(Base):
         nullable=True
     )
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
 
@@ -2911,7 +2924,7 @@ class GoodsReceiptNote(Base):
         index=True
     )
 
-    RECEIVED_DATE = Column(Date, default=datetime.utcnow)
+    RECEIVED_DATE = Column(Date, default=now_ist)
 
     RECEIVED_BY = Column(
         String(36),
@@ -2934,7 +2947,7 @@ class GoodsReceiptNote(Base):
         nullable=True
     )
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     FINALIZED_AT = Column(DateTime, nullable=True)
 
@@ -3000,7 +3013,7 @@ class PurchaseOrderActivity(Base):
 
     ACTOR_NAME = Column(String(150), nullable=True)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow, index=True)
+    CREATED_AT = Column(DateTime, default=now_ist, index=True)
 
 
 # ====================================================================
@@ -3053,7 +3066,7 @@ class SalesOrder(Base):
     # Optional source quotation — auto-set when created via
     # /sales-orders/from-quotation
 
-    SO_DATE = Column(Date, default=datetime.utcnow)
+    SO_DATE = Column(Date, default=now_ist)
 
     EXPECTED_DELIVERY_DATE = Column(Date, nullable=True)
 
@@ -3131,12 +3144,12 @@ class SalesOrder(Base):
         nullable=True
     )
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
 
@@ -3230,7 +3243,7 @@ class SalesOrderActivity(Base):
 
     ACTOR_NAME = Column(String(150), nullable=True)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow, index=True)
+    CREATED_AT = Column(DateTime, default=now_ist, index=True)
 
 # =================================================================
 # Customer Self-Onboarding Portal (Phase: portal MVP)
@@ -3312,7 +3325,7 @@ class CustomerOnboardingSession(Base):
         default=1
     )
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow, index=True)
+    CREATED_AT = Column(DateTime, default=now_ist, index=True)
 
     REGISTERED_AT = Column(DateTime, nullable=True)
 
@@ -3351,7 +3364,7 @@ class CustomerPortalUser(Base):
     # rotated on each login; sent back to the portal client and
     # validated on every API call (lightweight bearer token, no JWT)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     LAST_LOGIN_AT = Column(DateTime, nullable=True)
 
@@ -3386,7 +3399,7 @@ class CustomerChatMessage(Base):
     EXTRACTED_FIELDS = Column(Text, nullable=True)
     # JSON: fields the AI extracted from this user message
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow, index=True)
+    CREATED_AT = Column(DateTime, default=now_ist, index=True)
 
 
 # =================================================================
@@ -3488,12 +3501,12 @@ class EmployeeOnboardingSession(Base):
 
     SUBMITTED_AT = Column(DateTime, nullable=True)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
 
@@ -3553,7 +3566,7 @@ class EmployeeDocument(Base):
         nullable=True
     )
 
-    UPLOADED_AT = Column(DateTime, default=datetime.utcnow)
+    UPLOADED_AT = Column(DateTime, default=now_ist)
 
 
 # ====================================================================
@@ -3626,12 +3639,12 @@ class EmployeeMemo(Base):
         nullable=True
     )
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
     DELETED_AT = Column(DateTime, nullable=True, index=True)
@@ -3691,12 +3704,12 @@ class HolidayCalendar(Base):
 
     NOTES = Column(String(500), nullable=True)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
 
@@ -3773,12 +3786,12 @@ class SupplierPayment(Base):
         index=True
     )
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
 
@@ -3833,12 +3846,12 @@ class DiscountRequest(Base):
         index=True
     )
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
 
@@ -3898,14 +3911,18 @@ class CompanyMaster(Base):
     LOGO_URL = Column(String(255), nullable=True)
     # e.g. /static/company/<uuid>.png — written by the upload endpoint
 
+    # ---- Domain & operations ----
+    DOMAIN = Column(String(100), nullable=True, unique=True)
+    WORK_HOURS = Column(Numeric(5, 2), nullable=True, default=0.0)
+
     NOTES = Column(String(1000), nullable=True)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
 
     UPDATED_AT = Column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
+        default=now_ist,
+        onupdate=now_ist
     )
 
 
@@ -3947,7 +3964,7 @@ class AuditLog(Base):
     IP_ADDRESS  = Column(String(45),  nullable=True)
     USER_AGENT  = Column(String(500), nullable=True)
 
-    CREATED_AT  = Column(DateTime, default=datetime.utcnow, index=True)
+    CREATED_AT  = Column(DateTime, default=now_ist, index=True)
 
 
 # ──────────────────────────────────────────────
@@ -3965,8 +3982,8 @@ class CustomField(Base):
     IS_REQUIRED = Column(Boolean, default=False, nullable=False)
     SORT_ORDER  = Column(Integer, nullable=False, default=0)
     VENDOR_ID   = Column(Integer, ForeignKey("vendor.ID"), nullable=True, index=True)
-    CREATED_AT  = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT  = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    CREATED_AT  = Column(DateTime, default=now_ist)
+    UPDATED_AT  = Column(DateTime, default=now_ist, onupdate=now_ist)
 
     values = relationship("CustomFieldTableValue", back_populates="field", cascade="all, delete-orphan")
 
@@ -3979,8 +3996,8 @@ class CustomFieldTableValue(Base):
     TABLE_ROW_ID       = Column(String(36),  nullable=False, index=True)
     CUSTOM_FIELD_ID    = Column(String(36), ForeignKey("custom_fields.ID", ondelete="CASCADE"), nullable=False)
     CUSTOM_FIELD_VALUE = Column(JSON, nullable=True)
-    CREATED_AT         = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT         = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    CREATED_AT         = Column(DateTime, default=now_ist)
+    UPDATED_AT         = Column(DateTime, default=now_ist, onupdate=now_ist)
 
     field = relationship("CustomField", back_populates="values")
 

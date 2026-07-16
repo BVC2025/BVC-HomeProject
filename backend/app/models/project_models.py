@@ -11,7 +11,7 @@ in the shared Base.metadata.
 """
 
 import uuid
-from datetime import datetime
+from app.utils.datetime_utils import now_ist
 
 from sqlalchemy import (
     Column, String, Integer, ForeignKey, Text, DateTime, Numeric,
@@ -45,8 +45,8 @@ class ProjectCategory(Base):
 
     DESCRIPTION = Column(String(500), nullable=True)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
+    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
 
     projects = relationship("Project", back_populates="category", cascade="all, delete-orphan")
 
@@ -78,8 +78,8 @@ class Project(Base):
 
     ESTIMATED_TOTAL_DAYS = Column(Numeric(10, 2), default=0.0, nullable=False)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
+    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
 
     category       = relationship("ProjectCategory", back_populates="projects")
     task_templates = relationship(
@@ -102,8 +102,8 @@ class TaskTemplate(Base):
     SEQUENCE_NUMBER = Column(Integer, nullable=False, default=0)
     DEPARTMENT_ID   = Column(Integer, ForeignKey("department.ID", ondelete="SET NULL"), nullable=True, index=True)
     ROLE_ID         = Column(Integer, ForeignKey("role.ID",       ondelete="SET NULL"), nullable=True, index=True)
-    CREATED_AT      = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    CREATED_AT      = Column(DateTime, default=now_ist)
+    UPDATED_AT      = Column(DateTime, default=now_ist, onupdate=now_ist)
 
     project    = relationship("Project", back_populates="task_templates")
     department = relationship("Department", foreign_keys=[DEPARTMENT_ID])

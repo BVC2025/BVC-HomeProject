@@ -5,7 +5,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 from app.database.database import Base
-from datetime import datetime
+from app.utils.datetime_utils import now_ist
 import uuid
 
 # ──────────────────────────────────────────────
@@ -63,11 +63,12 @@ class InventoryCategory(Base):
     SORT_ORDER = Column(Integer, default=0)
     IS_ACTIVE = Column(Boolean, default=True)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
+    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
 
     # Relationships
     products = relationship("ProductMaster", back_populates="category")
+    supplier_products = relationship("SupplierProduct", back_populates="category")
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -119,8 +120,8 @@ class ProductMaster(Base):
     SPECIFICATIONS = Column(JSON, nullable=True)
     STATUS = Column(PRODUCT_STATUS_ENUM, default="ACTIVE")
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
+    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
 
     # Relationships
     category = relationship("InventoryCategory", back_populates="products")
@@ -174,8 +175,8 @@ class InventoryItem(Base):
     SAFETY_STOCK = Column(Float, default=0.0)
     MAX_STOCK = Column(Float, default=0.0)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
+    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
 
     # Relationships
     product = relationship("ProductMaster", back_populates="inventory_items")
@@ -233,7 +234,7 @@ class InventoryStock(Base):
     STATUS = Column(INV_STATUS_ENUM, default="OUT_OF_STOCK")
 
     LAST_MOVEMENT_AT = Column(DateTime, nullable=True)
-    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
 
     # Relationship
     inventory_item = relationship("InventoryItem", back_populates="stock")
@@ -295,7 +296,7 @@ class InventoryMovement(Base):
         nullable=True, index=True
     )
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow, index=True)
+    CREATED_AT = Column(DateTime, default=now_ist, index=True)
 
     # Relationships
     inventory_item = relationship("InventoryItem", back_populates="movements")
@@ -368,8 +369,8 @@ class InventoryBatch(Base):
 
     NOTES = Column(Text, nullable=True)
 
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    CREATED_AT = Column(DateTime, default=now_ist)
+    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
 
     # Relationships
     inventory_item = relationship("InventoryItem", back_populates="batches")

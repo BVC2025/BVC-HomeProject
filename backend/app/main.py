@@ -24,6 +24,7 @@ from app.models.models import Base
 # Register new module models into Base.metadata BEFORE create_all()
 import app.models.inventory_models   # noqa: F401 — registers inventory tables
 import app.models.supplier_models    # noqa: F401 — registers supplier/procurement tables
+import app.models.email_models       # noqa: F401 — registers vendor_email_config table
 from app.routes.users import router as users_router
 from app.routes.auth import router as auth_router
 from app.routes.vendor import router as vendor_router
@@ -83,6 +84,8 @@ from app.routes.supplier_ranking import router as supplier_ranking_router
 from app.routes.inventory_items import router as inventory_items_router
 from app.routes.inventory_movements import router as inventory_movements_router
 from app.routes.inventory_batches import router as inventory_batches_router
+from app.routes.email_config import router as email_config_router
+from app.routes.email_templates import router as email_templates_router
 from fastapi.middleware.cors import CORSMiddleware
 
 # Phase 3 — Audit log
@@ -1357,6 +1360,8 @@ app.include_router(holiday_router)
 app.include_router(chatbot_ai_router)
 app.include_router(work_center_router)
 app.include_router(custom_fields_router, tags=["Custom Fields"])
+app.include_router(email_config_router, tags=["Email Configuration"])
+app.include_router(email_templates_router, tags=["Email Templates"])
 
 # ── Inventory & Supplier Procurement Module ───────────────────────────────
 app.include_router(supplier_onboarding_router, prefix="/api")

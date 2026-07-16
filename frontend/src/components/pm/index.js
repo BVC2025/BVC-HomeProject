@@ -11,3 +11,4 @@ export { default as ExportButton } from "./ExportButton";
 export { default as PMButton } from "./PMButton";
 export { default as PMSelect } from "./PMSelect";
 export { default as PMConfirmModal } from "./PMConfirmModal";
+export { default as SwapConfirmPortal } from "./SwapConfirmPortal";

@@ -1,4 +1,4 @@
-.page {
+﻿.page {
   display: flex;
   flex-direction: column;
   min-height: 100%;
@@ -543,3 +543,13 @@
 }
 
 .errorMsg { color: var(--text-secondary); flex: 1; }
+
+/* ── Date Filters ─────────────────────────────────────────────── */
+.dateFilters { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.dateLabel { font-size: var(--font-sm); font-weight: var(--fw-medium); color: var(--text-secondary); white-space: nowrap; }
+.dateInput { padding: 5px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-xs); background: var(--surface); color: var(--text-primary); cursor: pointer; accent-color: var(--clr-primary); color-scheme: light; }
+.dateInput:focus { outline: none; border-color: var(--clr-primary); box-shadow: 0 0 0 3px var(--clr-primary-muted, rgba(220,38,38,0.15)); }
+.dateInput::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.7; filter: invert(27%) sepia(90%) saturate(5000%) hue-rotate(338deg) brightness(90%); }
+.dateInput::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+.clearFilter { padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-muted); font-size: var(--font-xs); cursor: pointer; }
+.clearFilter:hover { background: var(--danger-bg); color: var(--danger); }
