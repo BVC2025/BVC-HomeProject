@@ -21,7 +21,7 @@ const TILES = [
   { key: "total_quotations",        label: "Total Quotations",         icon: "📋", gradient: "#3b82f6", accent: "#eff6ff", format: "int",        href: "/quotations"     },
   { key: "total_sales_orders",      label: "Total Sales Orders",       icon: "🛒", gradient: "#10b981", accent: "#f0fdf4", format: "int",        href: "/sales-orders"   },
   { key: "active_projects",         label: "Active Projects",          icon: "🏗️", gradient: "#f59e0b", accent: "#fffbeb", format: "int",        href: "/projects"       },
-  { key: "purchase_orders",         label: "Purchase Orders",          icon: "📦", gradient: "#6366f1", accent: "#f5f3ff", format: "int",        href: "/purchase-orders"},
+  { key: "purchase_orders",         label: "Purchase Orders",          icon: "📦", gradient: "#6366f1", accent: "#f5f3ff", format: "int"        },
   { key: "inventory_value",         label: "Inventory Value",          icon: "🏷️", gradient: "#0ea5e9", accent: "#f0f9ff", format: "money",      href: "/inventory"      },
   { key: "employees_present_today", label: "Employees Present Today",  icon: "🟢", gradient: "#22c55e", accent: "#f0fdf4", format: "int",        href: "/attendance"     },
   { key: "leave_requests_pending",  label: "Leave Requests Pending",   icon: "📅", gradient: "#f97316", accent: "#fff7ed", format: "int",        href: "/leave"          },

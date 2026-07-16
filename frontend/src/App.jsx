@@ -10,8 +10,6 @@ import ApplyLeave from "./pages/ApplyLeave";
 import QuotationPrint from "./pages/QuotationPrint";
 import PublicQuotation from "./pages/PublicQuotation";
 import PublicEnquiry from "./pages/PublicEnquiry";
-import PurchaseOrderPrint from "./pages/PurchaseOrderPrint";
-import GRNPrint from "./pages/GRNPrint";
 import SalesOrderPrint from "./pages/SalesOrderPrint";
 import OnboardingPortal from "./pages/OnboardingPortal";
 import OnboardingChat from "./pages/OnboardingChat";
@@ -133,24 +131,6 @@ function App() {
       <Route
         path="/supplier-register/:token"
         element={<SupplierRegistrationPortal />}
-      />
-
-      <Route
-        path="/po-print/:id"
-        element={
-          <ProtectedRoute>
-            <PurchaseOrderPrint />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/grn-print/:id"
-        element={
-          <ProtectedRoute>
-            <GRNPrint />
-          </ProtectedRoute>
-        }
       />
 
       <Route
