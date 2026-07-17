@@ -1,34 +1,29 @@
 // =====================================================================
 // EmployeeHomeDashboard
 // ---------------------------------------------------------------------
-// A deliberately quiet landing page. All modules already have their
-// own homes in the side menu, so this page is a welcome band + a
-// friendly nudge pointing at the menu instead of a wall of KPIs the
-// employee doesn't need at 9am.
+// A deliberately quiet landing page. Every module lives in the side
+// menu, so the home is a welcome band + a friendly animated mascot
+// that peeks in from the left, jumps into view, and hands the user
+// the "Open Menu" button.
 //
-// Reads:
-//   • employee_name / employee_photo / employee_code / department
-//     from localStorage (populated at login)
-//   • loginTime (raw ISO from the login response) + attendanceStatus
-//     as props from EmployeeDashboard
-//   • optional portal.employee.PHOTO_URL as fallback if the photo
-//     wasn't cached in localStorage yet
-//
-// Emits:
-//   • onOpenMenu() when the "Open menu" CTA is tapped on mobile —
-//     wired to setSidebarOpen(true) by the parent so the drawer opens.
+// Motion: framer-motion (already in package.json). All animation is
+// declarative — no useEffect timers, so it can't leak. A
+// prefers-reduced-motion guard collapses everything to a static pose.
 // =====================================================================
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 
 import { API_BASE_URL } from "../services/api";
 import styles from "./EmployeeHomeDashboard.module.css";
 
 
 // ------------------------------------------------------------------
-// Time formatting — the login response gives us an ISO string like
-// "2026-07-17T10:03:25.040Z". Show it as "10:03 AM" instead.
+// Utilities
 // ------------------------------------------------------------------
+
+// The login response gives us an ISO string like
+// "2026-07-17T10:03:25.040Z". Show it as "10:03 AM" instead.
 function formatCheckIn(value) {
   if (!value) return "";
   try {
@@ -44,20 +39,22 @@ function formatCheckIn(value) {
   }
 }
 
+// localStorage.setItem(...) coerces `null` to the STRING "null", so a
+// naive filter(Boolean) would leave it in and the subtitle reads
+// "null · BVC008". Strip those two literal strings here.
+function clean(v) {
+  const s = (v || "").trim();
+  if (!s || s === "null" || s === "undefined") return "";
+  return s;
+}
 
-// ------------------------------------------------------------------
-// Attendance status → visual tone. `PRESENT` is green, `LATE` amber,
-// `ABSENT` red, `ON_LEAVE` blue, empty = neutral grey.
-// ------------------------------------------------------------------
 function statusInfo(raw) {
   const s = (raw || "").toUpperCase();
-  if (s === "PRESENT" || s === "CHECKED_IN") {
-    return { tone: "success", label: "Present" };
-  }
-  if (s === "LATE") return { tone: "warning", label: "Late" };
-  if (s === "ABSENT") return { tone: "danger", label: "Absent" };
-  if (s === "ON_LEAVE" || s === "LEAVE") return { tone: "info", label: "On leave" };
-  if (!s) return { tone: "muted", label: "Not checked in" };
+  if (s === "PRESENT" || s === "CHECKED_IN") return { tone: "success", label: "Present" };
+  if (s === "LATE")                           return { tone: "warning", label: "Late" };
+  if (s === "ABSENT")                         return { tone: "danger",  label: "Absent" };
+  if (s === "ON_LEAVE" || s === "LEAVE")      return { tone: "info",    label: "On leave" };
+  if (!s)                                     return { tone: "muted",   label: "Not checked in" };
   return {
     tone: "muted",
     label: s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
@@ -65,6 +62,79 @@ function statusInfo(raw) {
 }
 
 
+// ------------------------------------------------------------------
+// Mascot — an original friendly character. Round head, red suit,
+// tie, two little arms; one arm extends toward the "Open Menu"
+// button so the character reads as pointing at it. Pure SVG so it
+// scales cleanly and inherits currentColor.
+// ------------------------------------------------------------------
+function Mascot({ waving, wavingArm }) {
+  return (
+    <svg viewBox="0 0 240 260" width="220" height="240" role="img"
+         aria-label="BVC helper mascot">
+      {/* Ground shadow */}
+      <ellipse cx="120" cy="242" rx="66" ry="9"
+               fill="#0f172a" opacity="0.10" />
+
+      {/* Body — rounded shield shape */}
+      <path d="M62 148
+               Q62 118 90 108
+               Q120 100 150 108
+               Q178 118 178 148
+               L178 220
+               Q178 236 162 236
+               L78 236
+               Q62 236 62 220 Z"
+            fill="#ef4444" />
+
+      {/* Tie — subtle formal touch */}
+      <path d="M114 108 L126 108 L130 128 L122 148 L118 148 L110 128 Z"
+            fill="#facc15" />
+      <rect x="116" y="102" width="8" height="10" rx="2" fill="#dc2626" />
+
+      {/* Left arm — resting */}
+      <path d="M62 152 Q40 158 42 190 Q44 208 60 200 L74 178 Z"
+            fill="#ef4444" />
+      <circle cx="46" cy="200" r="12" fill="#fecaca" stroke="#dc2626" strokeWidth="2" />
+
+      {/* Right arm — this is the one that waves / points. We wrap
+          the group in a motion.g at render time so it can be
+          animated independently of the body. */}
+      {wavingArm}
+
+      {/* Head */}
+      <g>
+        {/* Hair / cap band */}
+        <path d="M76 74 Q76 40 120 40 Q164 40 164 74 L164 82 L76 82 Z"
+              fill="#7f1d1d" />
+        {/* Face */}
+        <circle cx="120" cy="76" r="38" fill="#fee2e2"
+                stroke="#dc2626" strokeWidth="2" />
+        {/* Cheek blush */}
+        <circle cx="94"  cy="90" r="4" fill="#fca5a5" opacity="0.75" />
+        <circle cx="146" cy="90" r="4" fill="#fca5a5" opacity="0.75" />
+        {/* Eyes — round with tiny highlights, blink via CSS */}
+        <g className={styles.eyes}>
+          <circle cx="106" cy="76" r="4" fill="#0f172a" />
+          <circle cx="134" cy="76" r="4" fill="#0f172a" />
+          <circle cx="107" cy="75" r="1.2" fill="#ffffff" />
+          <circle cx="135" cy="75" r="1.2" fill="#ffffff" />
+        </g>
+        {/* Smile — bigger when waving */}
+        <path d={waving
+                 ? "M104 92 Q120 108 136 92"
+                 : "M106 92 Q120 102 134 92"}
+              stroke="#0f172a" strokeWidth="2.6"
+              fill="none" strokeLinecap="round" />
+      </g>
+    </svg>
+  );
+}
+
+
+// ------------------------------------------------------------------
+// Component
+// ------------------------------------------------------------------
 export default function EmployeeHomeDashboard({
   portal,
   attendanceStatus,
@@ -72,22 +142,23 @@ export default function EmployeeHomeDashboard({
   onOpenMenu,
 }) {
 
+  const reduce = useReducedMotion();
+  const [clicked, setClicked] = useState(false);
+
   // ---- Identity ----
   const identity = useMemo(() => {
-    const name = (localStorage.getItem("employee_name") || "there").trim();
+    const name  = clean(localStorage.getItem("employee_name")) || "there";
     const first = name.split(/\s+/)[0];
-    // Photo cached at profile upload; fall back to portal payload
-    // in case the upload happened in a different browser session.
-    const cachedPhoto = localStorage.getItem("employee_photo") || "";
+    const cachedPhoto = clean(localStorage.getItem("employee_photo"));
     const portalPhoto = portal?.employee?.PHOTO_URL
                      || portal?.PHOTO_URL
                      || "";
     const photo = cachedPhoto || portalPhoto;
-    const dept  = localStorage.getItem("employee_department")
-               || localStorage.getItem("department") || "";
-    const desig = localStorage.getItem("employee_designation") || "";
-    const code  = localStorage.getItem("employee_code")
-               || localStorage.getItem("employee_id") || "";
+    const dept  = clean(localStorage.getItem("employee_department"))
+               || clean(localStorage.getItem("department"));
+    const desig = clean(localStorage.getItem("employee_designation"));
+    const code  = clean(localStorage.getItem("employee_code"))
+               || clean(localStorage.getItem("employee_id"));
     return { name, first, photo, dept, desig, code };
   }, [portal]);
 
@@ -97,7 +168,6 @@ export default function EmployeeHomeDashboard({
         : `${API_BASE_URL}${identity.photo}`)
     : null;
 
-  // ---- Today's date, status, check-in ----
   const dateLabel = new Date().toLocaleDateString("en-IN", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
@@ -108,6 +178,61 @@ export default function EmployeeHomeDashboard({
   const subtitle = [identity.desig, identity.dept, identity.code]
     .filter(Boolean)
     .join(" · ") || "Employee";
+
+  // ---- Menu-open sequence ----
+  // Character does a happy jump, then we open the drawer. If the
+  // user has reduced-motion enabled, skip the delay and open at once.
+  const handleOpen = () => {
+    if (reduce) {
+      onOpenMenu?.();
+      return;
+    }
+    setClicked(true);
+    window.setTimeout(() => {
+      setClicked(false);
+      onOpenMenu?.();
+    }, 380);
+  };
+
+  // ---- Motion variants ----
+  // Character enters from the left edge (peek → jump-in) then holds
+  // an idle bob. `happy` fires on button click.
+  const bodyVariants = {
+    hidden:  { x: -220, y: 20, rotate: -14, opacity: 0 },
+    peek:    { x: -110, y: 10, rotate:  -6, opacity: 1,
+               transition: { duration: 0.5, ease: "easeOut" } },
+    enter:   { x: 0,    y: 0,  rotate:   0, opacity: 1,
+               transition: { type: "spring", stiffness: 140, damping: 11, delay: 0.5 } },
+    idle:    { y: [0, -6, 0],
+               transition: { duration: 3.2, repeat: Infinity, ease: "easeInOut", delay: 1.2 } },
+    happy:   { y: -22, rotate: 4,
+               transition: { type: "spring", stiffness: 300, damping: 10 } },
+  };
+
+  // Right arm waves during idle, then reaches up during the click
+  // reaction. transform-origin set on the g so it pivots at shoulder.
+  const armVariants = {
+    idle: reduce
+      ? { rotate: 0 }
+      : { rotate: [0, -18, -4, -14, 0],
+          transition: { duration: 1.8, repeat: Infinity, ease: "easeInOut", delay: 1.4 } },
+    happy: { rotate: -40,
+             transition: { type: "spring", stiffness: 260, damping: 12 } },
+  };
+
+  // The "Open Menu" button pops in AFTER the character lands, and
+  // gently pulses to invite the click.
+  const buttonVariants = {
+    hidden: { scale: 0.6, opacity: 0, y: 10 },
+    show:   { scale: 1,   opacity: 1, y: 0,
+              transition: { delay: 1.15, type: "spring", stiffness: 220, damping: 14 } },
+    pulse:  { boxShadow: [
+                "0 6px 18px rgba(220,38,38,0.30)",
+                "0 12px 28px rgba(220,38,38,0.50)",
+                "0 6px 18px rgba(220,38,38,0.30)",
+              ],
+              transition: { duration: 2.2, repeat: Infinity, ease: "easeInOut", delay: 1.6 } },
+  };
 
   return (
     <div className={styles.home}>
@@ -122,9 +247,7 @@ export default function EmployeeHomeDashboard({
 
         <div className={styles.heroText}>
           <div className={styles.heroDate}>{dateLabel}</div>
-          <h1 className={styles.heroTitle}>
-            Welcome back, {identity.first}
-          </h1>
+          <h1 className={styles.heroTitle}>Welcome back, {identity.first}</h1>
           <div className={styles.heroSubtitle}>{subtitle}</div>
 
           <div className={styles.heroFooter}>
@@ -148,58 +271,55 @@ export default function EmployeeHomeDashboard({
         </div>
       </section>
 
-      {/* ============ MENU NUDGE ============ */}
-      {/* All modules live in the side menu; this card tells first-time
-          employees where to go instead of dumping a KPI grid on them. */}
+      {/* ============ MASCOT + MENU NUDGE ============ */}
       <section className={styles.callout}>
 
-        <div className={styles.calloutArt} aria-hidden="true">
-          {/* Soft red halo */}
-          <span className={styles.halo} />
+        <div className={styles.stage} aria-hidden="true">
+          {/* Soft red halo behind the character */}
+          <motion.span
+            className={styles.halo}
+            initial={{ scale: 0.4, opacity: 0 }}
+            animate={{ scale: [1, 1.08, 1], opacity: [0.9, 1, 0.9] }}
+            transition={reduce
+              ? { duration: 0 }
+              : { duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+          />
 
-          {/* Friendly mascot — round face + waving hand, pure SVG.
-              The whole group is styled to gently wave. */}
-          <svg
-            className={styles.mascot}
-            viewBox="0 0 200 200"
-            width="200" height="200"
-            role="img"
-          >
-            {/* Body */}
-            <ellipse cx="100" cy="170" rx="60" ry="16" fill="#fecaca" opacity="0.5" />
-            <path d="M60 150 Q60 110 100 110 Q140 110 140 150 L140 170 L60 170 Z"
-                  fill="#ef4444" />
-            {/* Head */}
-            <circle cx="100" cy="80" r="34" fill="#fca5a5" stroke="#ef4444" strokeWidth="2" />
-            {/* Eyes */}
-            <circle cx="88"  cy="78" r="3" fill="#0f172a" />
-            <circle cx="112" cy="78" r="3" fill="#0f172a" />
-            {/* Smile */}
-            <path d="M87 92 Q100 102 113 92" stroke="#0f172a" strokeWidth="2.4"
-                  fill="none" strokeLinecap="round" />
-            {/* Cheek blush */}
-            <circle cx="82"  cy="90" r="3" fill="#f87171" opacity="0.6" />
-            <circle cx="118" cy="90" r="3" fill="#f87171" opacity="0.6" />
-            {/* Waving arm (this group animates) */}
-            <g className={styles.wavingArm}>
-              <path d="M138 130 L168 100 L172 108 L146 138 Z" fill="#ef4444" />
-              <circle cx="170" cy="102" r="10" fill="#fca5a5" stroke="#ef4444" strokeWidth="2" />
-            </g>
-          </svg>
+          {/* Ground puff cloud — reveal after the jump-in landing */}
+          <motion.span
+            className={styles.dust}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: [0, 1.15, 0], opacity: [0, 0.6, 0] }}
+            transition={reduce
+              ? { duration: 0 }
+              : { duration: 0.65, delay: 0.9, ease: "easeOut" }}
+          />
 
-          {/* Animated left-pointing arrow — draws the eye toward the
-              hamburger / sidebar. */}
-          <svg
-            className={styles.pointer}
-            viewBox="0 0 80 40"
-            width="80" height="40"
-            aria-hidden="true"
+          {/* Character body — peek, jump-in, idle. `clicked` swaps to happy. */}
+          <motion.div
+            className={styles.mascotWrap}
+            variants={bodyVariants}
+            initial="hidden"
+            animate={reduce
+              ? "enter"
+              : (clicked ? "happy" : ["peek", "enter", "idle"])}
           >
-            <path d="M75 20 H12" stroke="currentColor" strokeWidth="3"
-                  strokeLinecap="round" fill="none" />
-            <path d="M20 10 L8 20 L20 30" stroke="currentColor" strokeWidth="3"
-                  strokeLinecap="round" strokeLinejoin="round" fill="none" />
-          </svg>
+            <Mascot
+              waving={!clicked}
+              wavingArm={
+                <motion.g
+                  style={{ transformOrigin: "178px 152px", transformBox: "fill-box" }}
+                  variants={armVariants}
+                  animate={clicked ? "happy" : "idle"}
+                >
+                  <path d="M178 150 Q206 152 208 128 Q210 108 194 108 L182 138 Z"
+                        fill="#ef4444" />
+                  <circle cx="200" cy="118" r="12"
+                          fill="#fecaca" stroke="#dc2626" strokeWidth="2" />
+                </motion.g>
+              }
+            />
+          </motion.div>
         </div>
 
         <div className={styles.calloutText}>
@@ -212,10 +332,15 @@ export default function EmployeeHomeDashboard({
           </p>
 
           {onOpenMenu && (
-            <button
+            <motion.button
               type="button"
               className={styles.calloutBtn}
-              onClick={onOpenMenu}
+              variants={buttonVariants}
+              initial="hidden"
+              animate={reduce ? "show" : ["show", "pulse"]}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={handleOpen}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
                    stroke="currentColor" strokeWidth="2"
@@ -224,7 +349,7 @@ export default function EmployeeHomeDashboard({
                 <path d="M3 6h18M3 12h18M3 18h18" />
               </svg>
               Open Menu
-            </button>
+            </motion.button>
           )}
         </div>
       </section>

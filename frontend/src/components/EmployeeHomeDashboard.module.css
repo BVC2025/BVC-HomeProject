@@ -163,84 +163,80 @@
 
 .callout {
   display: grid;
-  grid-template-columns: 220px 1fr;
-  gap: 26px;
+  grid-template-columns: 260px 1fr;
+  gap: 28px;
   align-items: center;
   background: var(--card-bg, #ffffff);
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 20px;
-  padding: 28px 32px;
+  padding: 32px 36px 28px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  overflow: hidden;                 /* mascot's off-screen start */
+  position: relative;
 }
 
 
-/* ---- Illustration column ---- */
+/* ---- Illustration stage ----
+   The mascot slides in from the LEFT edge of the callout card, so
+   we need overflow:hidden on the parent AND a stage tall enough
+   for the character. framer-motion drives all the transforms —
+   no CSS keyframes needed here. */
 
-.calloutArt {
+.stage {
   position: relative;
-  height: 200px;
+  height: 240px;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
 }
 
-/* Soft red halo behind the mascot */
 .halo {
   position: absolute;
-  inset: 0;
+  inset: auto 0 24px 0;
   margin: auto;
-  width: 180px;
-  height: 180px;
+  width: 200px;
+  height: 200px;
   border-radius: 50%;
   background: radial-gradient(circle,
-              rgba(239, 68, 68, 0.14) 0%,
-              transparent 65%);
-  animation: haloPulse 3.5s ease-in-out infinite;
+              rgba(239, 68, 68, 0.16) 0%,
+              transparent 68%);
   z-index: 0;
+  pointer-events: none;
 }
 
-@keyframes haloPulse {
-  0%, 100% { transform: scale(1);    opacity: 0.9; }
-  50%      { transform: scale(1.08); opacity: 1;   }
+/* Small dust puff that fires once when the character lands. */
+.dust {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse,
+              rgba(148, 163, 184, 0.55) 0%,
+              transparent 70%);
+  z-index: 0;
+  pointer-events: none;
 }
 
-.mascot {
+.mascotWrap {
   position: relative;
   z-index: 1;
-  animation: mascotBob 3.2s ease-in-out infinite;
+  transform-origin: 50% 100%;       /* nice squash-stretch pivot */
+  will-change: transform;
 }
 
-@keyframes mascotBob {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-6px); }
+/* Eye blink — CSS driven so it runs even when framer-motion is
+   busy with body transforms. Every 4s the eyes squash vertically. */
+.eyes {
+  transform-origin: 120px 76px;
+  animation: blink 4.2s ease-in-out infinite;
 }
 
-/* The waving arm — pivots around the shoulder for a natural wave */
-.wavingArm {
-  transform-origin: 138px 130px;
-  animation: wave 1.8s ease-in-out infinite;
-}
-
-@keyframes wave {
-  0%, 100% { transform: rotate(0deg); }
-  25%      { transform: rotate(-14deg); }
-  75%      { transform: rotate(-6deg); }
-}
-
-/* Left-pointing arrow — sits at the bottom-left of the illustration
-   column, gently drifting left to "point" toward the sidebar. */
-.pointer {
-  position: absolute;
-  left: 4px;
-  bottom: 8px;
-  color: var(--clr-primary, #dc2626);
-  z-index: 2;
-  animation: pointNudge 1.6s ease-in-out infinite;
-}
-
-@keyframes pointNudge {
-  0%, 100% { transform: translateX(0);   opacity: 0.85; }
-  50%      { transform: translateX(-8px); opacity: 1;    }
+@keyframes blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95%           { transform: scaleY(0.15); }
 }
 
 
@@ -331,26 +327,13 @@
     gap: 14px;
   }
 
-  .calloutArt { height: 160px; }
-  .halo       { width: 140px; height: 140px; }
-  .mascot     { width: 160px; height: 160px; }
+  .stage           { height: 200px; }
+  .halo            { width: 160px; height: 160px; bottom: 16px; }
+  .mascotWrap svg  { width: 180px; height: 200px; }
+  .dust            { width: 100px; bottom: 8px; }
 
-  /* Arrow rotates to point UP on mobile — the sidebar is a drawer
-     opened by the hamburger at the top-left, not a persistent rail. */
-  .pointer {
-    left: auto;
-    right: auto;
-    bottom: 6px;
-    animation: pointNudgeMobile 1.6s ease-in-out infinite;
-  }
-
-  @keyframes pointNudgeMobile {
-    0%, 100% { transform: rotate(90deg) translateX(0);    opacity: 0.85; }
-    50%      { transform: rotate(90deg) translateX(-8px); opacity: 1;    }
-  }
-
-  .calloutTitle { font-size: 18px; }
-  .calloutBody  { font-size: 13px; max-width: none; }
+  .calloutTitle    { font-size: 18px; }
+  .calloutBody     { font-size: 13px; max-width: none; }
 
   .calloutBtn {
     width: 100%;
@@ -361,21 +344,19 @@
 
 
 @media (max-width: 380px) {
-  .heroTitle  { font-size: 17px; }
-  .heroAvatar { width: 50px; height: 50px; font-size: 18px; }
-  .calloutArt { height: 140px; }
-  .mascot     { width: 140px; height: 140px; }
-  .halo       { width: 120px; height: 120px; }
+  .heroTitle       { font-size: 17px; }
+  .heroAvatar      { width: 50px; height: 50px; font-size: 18px; }
+  .stage           { height: 180px; }
+  .mascotWrap svg  { width: 160px; height: 180px; }
+  .halo            { width: 140px; height: 140px; }
 }
 
 
-/* Respect users who prefer reduced motion — kill pulse/wave/bob
-   but keep the illustration visible. */
+/* Respect users who prefer reduced motion — CSS-driven animations
+   (eye blink) are killed here. Framer-motion tweens are already
+   gated in the JSX by useReducedMotion(). */
 @media (prefers-reduced-motion: reduce) {
-  .halo,
-  .mascot,
-  .wavingArm,
-  .pointer {
+  .eyes {
     animation: none !important;
   }
 }
