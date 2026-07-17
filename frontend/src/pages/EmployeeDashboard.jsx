@@ -14,6 +14,7 @@ import MyPermissionSection from "../components/MyPermissionSection";
 import EmployeeSidebar from "../components/EmployeeSidebar";
 import EmployeeHomeDashboard from "../components/EmployeeHomeDashboard";
 import ComingSoonPanel from "../components/ComingSoonPanel";
+import ConfirmDialog from "../components/ConfirmDialog";
 import EmployeeProfileForm from "./EmployeeProfileForm";
 
 import styles from "./EmployeeDashboard.module.css";
@@ -174,6 +175,10 @@ function EmployeeDashboard() {
     submitted: false
   });
 
+  // Confirm modal gate for the onboarding-form logout button. The
+  // main dashboard has its own confirm inside EmployeeDashboardBody.
+  const [logoutOpen, setLogoutOpen] = useState(false);
+
   const reloadProfileGate = () => {
     if (!employeeId) {
       setProfileGate({ loading: false, employee: null, submitted: true });
@@ -208,14 +213,26 @@ function EmployeeDashboard() {
 
   if (profileGate.employee && !profileGate.submitted) {
     return (
-      <EmployeeProfileForm
-        employee={profileGate.employee}
-        onSubmitted={() => reloadProfileGate()}
-        onLogout={() => {
-          localStorage.clear();
-          navigate("/login", { replace: true });
-        }}
-      />
+      <>
+        <EmployeeProfileForm
+          employee={profileGate.employee}
+          onSubmitted={() => reloadProfileGate()}
+          onLogout={() => setLogoutOpen(true)}
+        />
+        <ConfirmDialog
+          open={logoutOpen}
+          title="Are you sure you want to log out?"
+          confirmLabel="Log Out"
+          cancelLabel="Continue"
+          danger
+          onCancel={() => setLogoutOpen(false)}
+          onConfirm={() => {
+            setLogoutOpen(false);
+            localStorage.clear();
+            navigate("/login", { replace: true });
+          }}
+        />
+      </>
     );
   }
 
@@ -269,6 +286,7 @@ function EmployeeDashboardBody() {
   // toggles this; the sidebar itself calls onClose when a nav item
   // is picked, so navigation on a phone acts like a real drawer.
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   // Re-sync when the user comes back through the welcome tiles.
   useEffect(() => {
@@ -535,11 +553,15 @@ function EmployeeDashboardBody() {
     if (!next) stopSpeaking();
   };
 
-  const handleLogout = async () => {
-    if (!window.confirm("Log out now?")) return;
+  // Open the branded confirm modal; the actual logout happens in
+  // performLogout below, called on Confirm.
+  const handleLogout = () => setLogoutOpen(true);
+
+  const performLogout = async () => {
+    setLogoutOpen(false);
     try {
       await API.post("/employee-logout", { EMPLOYEE_ID: employeeId });
-    } catch { /* ignore */ }
+    } catch { /* server-side logout is best-effort */ }
     localStorage.clear();
     navigate("/login", { replace: true });
   };
@@ -937,6 +959,16 @@ function EmployeeDashboardBody() {
 
       <Toast toast={toast} onClose={() => setToast(null)} />
       <ChatBot />
+
+      <ConfirmDialog
+        open={logoutOpen}
+        title="Are you sure you want to log out?"
+        confirmLabel="Log Out"
+        cancelLabel="Continue"
+        danger
+        onCancel={() => setLogoutOpen(false)}
+        onConfirm={performLogout}
+      />
     </div>
   );
 }

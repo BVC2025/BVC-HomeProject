@@ -36,6 +36,7 @@ import {
   setLastSeenId
 } from "../services/voiceAlerts";
 
+import ConfirmDialog from "../components/ConfirmDialog";
 import Employees from "./Employees";
 import EmployeeOnboardingReview from "./EmployeeOnboardingReview";
 import Customers from "./Customers";
@@ -1669,6 +1670,7 @@ function Dashboard() {
   const navigate = useNavigate();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   const closeSidebar = () => setSidebarOpen(false);
 
@@ -1693,19 +1695,15 @@ function Dashboard() {
   const username =
     localStorage.getItem("username") || "User";
 
-  const handleLogout = () => {
+  // Open the branded confirm modal; the actual logout runs in
+  // performLogout on Confirm.
+  const handleLogout = () => setLogoutOpen(true);
 
-    // if (!window.confirm("Log out of Vending ERP?")) {
-
-    //   return;
-    // }
-
+  const performLogout = () => {
+    setLogoutOpen(false);
     localStorage.removeItem("auth");
-
     localStorage.removeItem("username");
-
     localStorage.removeItem("loginTime");
-
     navigate("/login", { replace: true });
   };
 
@@ -1952,6 +1950,16 @@ function Dashboard() {
       </div>
 
       <ChatBot />
+
+      <ConfirmDialog
+        open={logoutOpen}
+        title="Are you sure you want to log out?"
+        confirmLabel="Log Out"
+        cancelLabel="Continue"
+        danger
+        onCancel={() => setLogoutOpen(false)}
+        onConfirm={performLogout}
+      />
 
     </div>
   );
