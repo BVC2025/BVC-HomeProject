@@ -210,6 +210,69 @@
   margin-top: 6px;
 }
 
+/* ─── Documents section ──────────────────────────────────────── */
+
+.docHint {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.docUploadRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+  align-items: end;
+}
+
+.docList {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+  border-top: 1px dashed var(--border);
+}
+
+.docItem {
+  display: grid;
+  grid-template-columns: 150px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.docType {
+  font-weight: 700;
+  color: var(--clr-primary);
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.docTitle {
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.docRemove {
+  padding: 6px 12px;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.docRemove:hover { background: #fee2e2; }
+
+
 /* ─── Submit bar ─────────────────────────────────────────────── */
 
 .submitBar {
@@ -339,10 +402,24 @@
   .grid3,
   .grid2,
   .gridEdu,
-  .grid21 {
+  .grid21,
+  .docUploadRow {
     grid-template-columns: 1fr !important;
     gap: 10px;
   }
+
+  /* Doc list rows stack on mobile — type + title, remove button below */
+  .docItem {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "type   remove"
+      "title  title";
+    padding: 12px 4px;
+    row-gap: 4px;
+  }
+  .docType   { grid-area: type; }
+  .docTitle  { grid-area: title; }
+  .docRemove { grid-area: remove; }
 
   .grid21 {
     margin-bottom: 10px;
