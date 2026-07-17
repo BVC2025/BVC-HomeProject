@@ -226,10 +226,7 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
             Welcome, {employee.NAME || employee.EMPLOYEE_CODE}!
           </h1>
           <div className={styles.heroDesc}>
-            Please fill in your personal and work details below.
-            This is a <b>one-time submission</b> — after you save,
-            only admin can change these details.
-            Verify everything carefully before submitting.
+            Complete your profile to unlock the ERP.
           </div>
           <button onClick={onLogout} className={styles.logoutBtn}>
             ⏻ Logout

@@ -63,10 +63,13 @@
 }
 
 .heroDesc {
-  font-size: var(--font-sm);
-  opacity: 0.9;
+  font-size: var(--font-md, 15px);
+  font-weight: var(--fw-bold, 700);
+  color: #ffffff;
+  opacity: 1;
   margin-top: 10px;
   max-width: 700px;
+  letter-spacing: 0.2px;
 }
 
 .logoutBtn {
