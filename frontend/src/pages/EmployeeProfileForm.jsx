@@ -1,7 +1,25 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import API from "../services/api";
 import styles from "./EmployeeProfileForm.module.css";
+
+
+// Small set surfaced during onboarding. Anything else can still be
+// uploaded later from Profile → Documents in the ESS panel.
+const DOC_TYPES = [
+  { value: "RESUME",            label: "Resume / CV" },
+  { value: "AADHAAR",           label: "Aadhaar" },
+  { value: "PAN",               label: "PAN card" },
+  { value: "DEGREE",            label: "Degree certificate" },
+  { value: "TENTH_MARKSHEET",   label: "10th marksheet" },
+  { value: "TWELFTH_MARKSHEET", label: "12th marksheet" },
+  { value: "OFFER_LETTER",      label: "Offer letter" },
+  { value: "BANK_PASSBOOK",     label: "Bank passbook / cheque" },
+  { value: "ADDRESS_PROOF",     label: "Address proof" },
+  { value: "OTHER",             label: "Other" },
+];
+
+const MAX_DOC_MB = 10;
 
 
 // ===================================================================
@@ -71,7 +89,79 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
 
+  // ---- Documents ----
+  // Uploaded IMMEDIATELY (not deferred to submit). If the employee
+  // closes the browser mid-form, their IDs are already saved on
+  // the server via the /employees/{id}/documents endpoint.
+  const [docType, setDocType] = useState(DOC_TYPES[0].value);
+  const [docTitle, setDocTitle] = useState("");
+  const [docBusy, setDocBusy] = useState(false);
+  const [docError, setDocError] = useState("");
+  const [docs, setDocs] = useState([]);
+  const docInputRef = useRef(null);
+
+  // Rehydrate any docs already uploaded (e.g. employee re-opened the
+  // form after uploading a file earlier).
+  useEffect(() => {
+    if (!employee?.ID) return;
+    let cancelled = false;
+    API.get(`/employees/${encodeURIComponent(employee.ID)}/documents`)
+      .then((r) => {
+        if (cancelled) return;
+        const list = Array.isArray(r.data) ? r.data : r.data?.documents || [];
+        setDocs(list);
+      })
+      .catch(() => { /* first-time load — no docs yet, silent */ });
+    return () => { cancelled = true; };
+  }, [employee?.ID]);
+
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const handleDocPick = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_DOC_MB * 1024 * 1024) {
+      setDocError(`File must be under ${MAX_DOC_MB} MB.`);
+      if (docInputRef.current) docInputRef.current.value = "";
+      return;
+    }
+    setDocBusy(true);
+    setDocError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("doc_type", docType);
+      fd.append("title", docTitle || file.name);
+      const res = await API.post(
+        `/employees/${encodeURIComponent(employee.ID)}/documents`,
+        fd,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+      const newDoc = res.data?.document || res.data;
+      if (newDoc) setDocs((prev) => [newDoc, ...prev]);
+      setDocTitle("");
+    } catch (err) {
+      setDocError(
+        err?.response?.data?.detail ||
+        err?.message ||
+        "Upload failed."
+      );
+    } finally {
+      setDocBusy(false);
+      if (docInputRef.current) docInputRef.current.value = "";
+    }
+  };
+
+  const removeDoc = async (docId) => {
+    try {
+      await API.delete(
+        `/employees/${encodeURIComponent(employee.ID)}/documents/${docId}`
+      );
+      setDocs((prev) => prev.filter((d) => (d.ID || d.id) !== docId));
+    } catch (err) {
+      alert(err?.response?.data?.detail || "Delete failed");
+    }
+  };
 
   const handlePhoto = (e) => {
     const file = e.target.files?.[0];
@@ -298,6 +388,83 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
             <Field label="Past Projects">
               <textarea rows={3} value={form.PAST_PROJECTS} onChange={set("PAST_PROJECTS")} className={`${styles.input} ${styles.textarea}`} placeholder="Major projects you've worked on..." />
             </Field>
+          </Section>
+
+          {/* Documents */}
+          <Section icon="📎" title="Documents">
+            <div className={styles.docHint}>
+              Upload your Resume, Aadhaar, PAN and any other required ID
+              proofs. PDF or image (JPG / PNG). Max {MAX_DOC_MB} MB per file.
+            </div>
+
+            <div className={styles.docUploadRow}>
+              <Field label="Document Type">
+                <select
+                  value={docType}
+                  onChange={(e) => setDocType(e.target.value)}
+                  className={styles.input}
+                >
+                  {DOC_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Title (optional)">
+                <input
+                  type="text"
+                  value={docTitle}
+                  onChange={(e) => setDocTitle(e.target.value)}
+                  className={styles.input}
+                  placeholder="e.g. Aadhaar front side"
+                />
+              </Field>
+
+              <Field label="File">
+                <input
+                  ref={docInputRef}
+                  type="file"
+                  accept=".pdf,image/*"
+                  onChange={handleDocPick}
+                  disabled={docBusy}
+                  className={styles.input}
+                />
+              </Field>
+            </div>
+
+            {docError && (
+              <div className={styles.errorBanner}>⚠ {docError}</div>
+            )}
+            {docBusy && (
+              <div className={styles.fieldHint}>Uploading…</div>
+            )}
+
+            {docs.length > 0 && (
+              <ul className={styles.docList}>
+                {docs.map((d) => {
+                  const id = d.ID || d.id;
+                  const typeLbl =
+                    DOC_TYPES.find((t) => t.value === d.DOC_TYPE)?.label
+                    || d.DOC_TYPE
+                    || "Other";
+                  return (
+                    <li key={id} className={styles.docItem}>
+                      <span className={styles.docType}>{typeLbl}</span>
+                      <span className={styles.docTitle}>
+                        {d.TITLE || d.FILE_NAME || "Untitled"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeDoc(id)}
+                        className={styles.docRemove}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </Section>
 
           {/* Additional */}
