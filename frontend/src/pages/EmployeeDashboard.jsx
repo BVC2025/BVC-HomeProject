@@ -811,11 +811,7 @@ function EmployeeDashboardBody() {
               portal={portal}
               attendanceStatus={attendanceStatus}
               loginTime={loginTime}
-              productivity={productivity}
-              leaveBalance={leaveBalance}
-              unreadCount={unreadCount}
-              overdueCount={overdueCount}
-              onNavigate={(key) => setMainTab(key)}
+              onOpenMenu={() => setSidebarOpen(true)}
             />
           )}
 
