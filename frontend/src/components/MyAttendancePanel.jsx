@@ -50,9 +50,11 @@ const I = {
   clockOut:  icon(<><circle cx="12" cy="12" r="9" /><path d="M12 12l3 -3M12 12v5" /></>),
   overtime:  icon(<><path d="M12 3v3" /><path d="M12 21v-3" /><path d="M3 12h3" /><path d="M21 12h-3" /><circle cx="12" cy="12" r="5" /></>),
   finger:    icon(<>
-    <path d="M12 22c-3 0-3-4-3-8s-1-6 3-6 3 2 3 6 0 8-3 8z" />
-    <path d="M8 16c0 3 8 3 8 0" />
-    <path d="M9 5a4 4 0 0 1 6 0" />
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 3a7 7 0 0 0-7 9c1 3 3 5 7 8" />
+    <path d="M12 3a7 7 0 0 1 7 9c-1 3-3 5-7 8" />
+    <path d="M12 8c-1.8 0-3 1.4-3 3v1c0 2 1 3.5 3 5" />
+    <path d="M12 8c1.8 0 3 1.4 3 3v1c0 2-1 3.5-3 5" />
   </>),
   info:      icon(<><circle cx="12" cy="12" r="9" /><path d="M12 8v.01" /><path d="M11 12h1v4h1" /></>),
 };
