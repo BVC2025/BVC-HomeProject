@@ -3,20 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import API from "../services/api";
 import styles from "./EmployeeProfileForm.module.css";
 
-// Small set surfaced during onboarding. Order matters — the first
-// item is the default. Everything else can still be uploaded later
-// from Profile → Documents (that panel supports 21 doc types).
-const DOC_TYPES = [
-  { value: "RESUME",          label: "Resume / CV" },
-  { value: "AADHAAR",         label: "Aadhaar" },
-  { value: "PAN",             label: "PAN card" },
-  { value: "DEGREE",          label: "Degree certificate" },
-  { value: "TENTH_MARKSHEET", label: "10th marksheet" },
-  { value: "TWELFTH_MARKSHEET", label: "12th marksheet" },
-  { value: "OFFER_LETTER",    label: "Offer letter" },
-  { value: "BANK_PASSBOOK",   label: "Bank passbook / cheque" },
-  { value: "ADDRESS_PROOF",   label: "Address proof" },
-  { value: "OTHER",           label: "Other" },]
 // Small set surfaced during onboarding. Anything else can still be
 // uploaded later from Profile → Documents in the ESS panel.
 const DOC_TYPES = [
