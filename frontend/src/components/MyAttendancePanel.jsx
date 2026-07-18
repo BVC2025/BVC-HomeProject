@@ -498,8 +498,7 @@ export default function MyAttendancePanel({ employeeId }) {
           <span className={styles.bioHintIcon}>{I.finger}</span>
           <span>
             Fingerprint attendance will be automatic once the biometric
-            device is on the office network — the same buttons will
-            keep working from your phone as a backup.
+            device is on the office network.
           </span>
         </div>
       </section>
