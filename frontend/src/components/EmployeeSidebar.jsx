@@ -117,15 +117,20 @@ export default function EmployeeSidebar({
   const navigate = useNavigate();
 
   // Employee identity for the footer card.
+  // NOTE: Login.jsx on this branch only writes `employee_id` (the
+  // CODE), not `employee_code`, so we fall back to it. We also
+  // deliberately don't surface the RBAC role name (ADMIN / HR /
+  // MANAGER) here — this is the ESS sidebar, everyone using it is
+  // acting as an employee.
   const identity = useMemo(() => {
     const name  = (localStorage.getItem("employee_name") || "").trim() || "Employee";
-    const code  = (localStorage.getItem("employee_code") || "").trim();
-    const role  = (localStorage.getItem("role") || "employee").toUpperCase();
+    const code  = (localStorage.getItem("employee_code") || "").trim()
+               || (localStorage.getItem("employee_id")   || "").trim();
     const photo = localStorage.getItem("employee_photo") || "";
     const initials = name.split(/\s+/).slice(0, 2)
       .map((s) => s.charAt(0).toUpperCase())
       .join("");
-    return { name, code, role, photo, initials };
+    return { name, code, photo, initials };
   }, []);
 
   const photoUrl = identity.photo
@@ -223,7 +228,9 @@ export default function EmployeeSidebar({
           <div className={styles.zSidebarUserInfo}>
             <div className={styles.zSidebarUserName}>{identity.name}</div>
             <div className={styles.zSidebarUserMeta}>
-              {identity.code || identity.role}
+              {identity.code
+                ? `Employee · ${identity.code}`
+                : "Employee"}
             </div>
           </div>
         </div>
