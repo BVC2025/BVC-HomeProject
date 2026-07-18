@@ -112,13 +112,33 @@ GREETING_WORDS = {
 
 
 def _has_any(text_norm: str, words) -> bool:
-    """Match any of the given words/phrases as whole tokens or substrings."""
+    """Match any of the given words / phrases against `text_norm`.
+
+    Multi-word phrases (`"good morning"`) still use plain substring
+    matching. Single tokens use WORD-BOUNDARY matching so `"no"`
+    doesn't match inside `"know"`, `"cannot"`, `"nothing"` — a bug
+    that used to cancel the leave-apply flow whenever the user asked
+    an innocent side-question like "may I know my balance?".
+    """
 
     for w in words:
 
-        if w in text_norm:
+        if not w:
 
-            return True
+            continue
+
+        # Multi-token phrase → substring is fine.
+        if " " in w:
+
+            if w in text_norm:
+
+                return True
+
+        else:
+
+            if re.search(rf"\b{re.escape(w)}\b", text_norm):
+
+                return True
 
     return False
 
@@ -287,6 +307,69 @@ def _parse_days(text_norm: str) -> Optional[float]:
     if m:
 
         return float(m.group(1))
+
+    return None
+
+
+def _detect_side_intent(text_norm: str) -> Optional[str]:
+    """Detect side-questions the user might slip in mid-flow.
+
+    Deliberately narrower than `_detect_intent` — we only want to
+    hijack slot-filling for CLEAR side queries (balance, policy,
+    history, help). Anything ambiguous (bare "sick", "3 days",
+    "tomorrow") stays with the slot handler where it belongs.
+    """
+
+    if _has_any(text_norm, {
+        "balance", "remaining", "leaves left", "days left",
+        "how many leaves", "how many days left", "how much leave",
+    }):
+
+        return "balance"
+
+    if _has_any(text_norm, {"policy", "rules", "leave rule", "leave rules"}):
+
+        return "policy"
+
+    if _has_any(text_norm, {
+        "history", "my leaves", "past leave", "past leaves",
+        "my requests", "previous leave", "previous leaves",
+    }):
+
+        return "history"
+
+    if _has_any(text_norm, {"help", "what can you do", "commands"}):
+
+        return "help"
+
+    return None
+
+
+def _handle_side_intent(
+    db: Session, emp: Employee, intent: str, ctx: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
+    """Answer a side-question with a COPY of ctx so the caller's
+    slot-state can't leak into the side handler's response ctx."""
+
+    # Copy so the handler's ctx["state"] = "idle" doesn't clobber
+    # our real slot state when we merge back.
+    side_ctx = dict(ctx)
+
+    if intent == "balance":
+
+        return _handle_balance(db, emp, side_ctx)
+
+    if intent == "policy":
+
+        return _handle_policy(side_ctx)
+
+    if intent == "history":
+
+        return _handle_history(db, emp, side_ctx)
+
+    if intent == "help":
+
+        return _handle_help(side_ctx)
 
     return None
 
@@ -794,6 +877,38 @@ def _process_message(
     text_norm = _norm(user_text)
 
     state = ctx.get("state", "idle")
+
+    # ---- Mid-flow side-questions --------------------------------------
+    # If the user is mid-way through applying leave and asks something
+    # orthogonal ("what's my balance?", "show me the policy"), answer
+    # the side question BUT keep the slot state intact so the leave
+    # request survives. Only clear side queries hijack the flow —
+    # ambiguous slot-value words ("sick", "3 days") stay with the
+    # slot handler.
+    if state != "idle":
+
+        side = _detect_side_intent(text_norm)
+
+        if side:
+
+            side_reply = _handle_side_intent(db, emp, side, ctx)
+
+            # `ctx` was NOT mutated — _handle_side_intent takes a copy.
+            # Re-prompt the current slot so the user knows we haven't
+            # forgotten what they were doing.
+            reprompt = _try_advance_to_next_step(ctx)
+
+            combined = (
+                f"{side_reply['reply']}\n\n"
+                f"---\n"
+                f"Back to your leave request — {reprompt['reply']}"
+            )
+
+            return _reply(
+                combined,
+                reprompt["context"],
+                suggestions=reprompt.get("suggestions", []),
+            )
 
     # ---- Stateful conversation continuation ---------------------------
     if state == "awaiting_leave_type":
