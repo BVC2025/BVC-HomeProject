@@ -1,26 +1,31 @@
 /*
- * MyAttendancePanel — Employee attendance widget (redesigned).
+ * MyAttendancePanel — Employee attendance widget (v3)
  *
- * Deliberately minimal: shows only what the employee needs to see:
- *   • Today's check-in / check-out / working hours / status
- *   • A single primary action (Check In or Check Out)
- *   • Recent attendance history (last 30 days)
+ * Design goals
+ * ------------
+ *   1. Nothing about today's attendance appears until the employee
+ *      has actually recorded a check-in. No auto-check-in on mount,
+ *      no pre-emptive "Late" pill just because they logged in past
+ *      9 AM. Login is not attendance.
+ *   2. When they check in, we surface: the time, the status pill,
+ *      and — if past 9 AM — a plain-English "Late by X minutes"
+ *      line so they know the number, not just a colour.
+ *   3. Four-stage attendance day: check-in → check-out → OT in →
+ *      OT out. Each stage is a full-width action tile that shows
+ *      when it's actionable, when it's already done, and when it's
+ *      locked waiting on the prior stage.
+ *   4. Overtime hours are computed server-side (Attendance.OVERTIME_HOURS)
+ *      and shown in their own row once OT is done.
+ *   5. Biometric-ready: a small footer hint tells employees this UI
+ *      will accept fingerprint check-in when the device is wired in.
+ *      The DOM shape stays the same either way — the biometric ADMS
+ *      endpoint already writes to the same Attendance row.
  *
- * Employees do NOT see:
- *   • GPS coordinates
- *   • Distance from office
- *   • Geofence radius / office coords
+ * What employees do NOT see (deliberately)
+ *   • GPS coordinates / distance from office
+ *   • Geofence radius / office coordinates
  *   • Failed-attempt logs
- *   • Any admin-facing tracking metadata
- *
- * The GPS layer still runs (silently) so auto-check-in can succeed
- * when the employee is within 50 m of the office. Failures — GPS
- * denied, outside radius, timeout — surface as a gentle
- * "Check-in unavailable — try again later" and NEVER expose why.
- *
- * All admin tracking still happens server-side via the existing
- * attendance_security_logs and geofence status columns. This
- * component just doesn't render them.
+ * Admin still sees all of this via attendance_security_logs.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -30,30 +35,32 @@ import { formatISTTime } from "../utils/time";
 import styles from "./MyAttendancePanel.module.css";
 
 
-// ---------- Small helpers ----------
+// ------------------------------------------------------------------
+// Icons — small stroke SVGs, inherit currentColor
+// ------------------------------------------------------------------
+const icon = (children, size = 18) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+       stroke="currentColor" strokeWidth="1.9"
+       strokeLinecap="round" strokeLinejoin="round"
+       aria-hidden="true">{children}</svg>
+);
 
-const STATUS_THEME = {
-  PRESENT:    { bg: "#dcfce7", fg: "#166534", label: "Present" },
-  LATE:       { bg: "#fef3c7", fg: "#92400e", label: "Late" },
-  ABSENT:     { bg: "#fee2e2", fg: "#991b1b", label: "Absent" },
-  EARLY_EXIT: { bg: "#fed7aa", fg: "#9a3412", label: "Early exit" },
-  ON_TIME:    { bg: "#dcfce7", fg: "#166534", label: "On time" },
+const I = {
+  clockIn:   icon(<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>),
+  clockOut:  icon(<><circle cx="12" cy="12" r="9" /><path d="M12 12l3 -3M12 12v5" /></>),
+  overtime:  icon(<><path d="M12 3v3" /><path d="M12 21v-3" /><path d="M3 12h3" /><path d="M21 12h-3" /><circle cx="12" cy="12" r="5" /></>),
+  finger:    icon(<>
+    <path d="M12 22c-3 0-3-4-3-8s-1-6 3-6 3 2 3 6 0 8-3 8z" />
+    <path d="M8 16c0 3 8 3 8 0" />
+    <path d="M9 5a4 4 0 0 1 6 0" />
+  </>),
+  info:      icon(<><circle cx="12" cy="12" r="9" /><path d="M12 8v.01" /><path d="M11 12h1v4h1" /></>),
 };
 
-function Badge({ status }) {
-  const theme = STATUS_THEME[(status || "").toUpperCase()] || {
-    bg: "#f1f5f9", fg: "#475569", label: status || "Not marked",
-  };
-  return (
-    <span
-      className={styles.badge}
-      style={{ background: theme.bg, color: theme.fg }}
-    >
-      <span className={styles.badgeDot} style={{ background: theme.fg }} />
-      {theme.label}
-    </span>
-  );
-}
+
+// ------------------------------------------------------------------
+// Small utilities
+// ------------------------------------------------------------------
 
 function fmtWorkedHours(h) {
   const val = Number(h || 0);
@@ -65,13 +72,20 @@ function fmtWorkedHours(h) {
   return `${hours}h ${mins}m`;
 }
 
-// ---------- Silent GPS one-shot ----------
-//
-// Wraps navigator.geolocation in a promise. Always resolves — never
-// rejects — so the caller can decide what to do on failure without
-// try/catch noise. On denial / timeout / no support, resolves with
-// { coords: null }.
+function fmtLateBy(minutes) {
+  const m = Math.max(0, Math.round(Number(minutes || 0)));
+  if (m === 0) return "";
+  if (m < 60)  return `Late by ${m} minute${m === 1 ? "" : "s"}`;
+  const h = Math.floor(m / 60);
+  const rem = m % 60;
+  if (rem === 0) return `Late by ${h} hour${h === 1 ? "" : "s"}`;
+  return `Late by ${h}h ${rem}m`;
+}
 
+
+// ------------------------------------------------------------------
+// Silent GPS one-shot — never rejects, always resolves.
+// ------------------------------------------------------------------
 function getPositionSilent(options = {}) {
   return new Promise((resolve) => {
     if (!navigator.geolocation) {
@@ -88,105 +102,72 @@ function getPositionSilent(options = {}) {
         reason: null,
       }),
       (err) => resolve({ coords: null, reason: err.code || "error" }),
-      {
-        enableHighAccuracy: true,
-        timeout: 8000,
-        maximumAge: 60_000,
-        ...options,
-      }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60_000, ...options }
     );
   });
 }
 
 
-// =====================================================================
-// ActionButton — one of the four attendance-lifecycle buttons.
-// Three visual states: enabled (accent), done (green pill), locked (grey).
-// =====================================================================
-
-function ActionButton({
-  label,
+// ==================================================================
+// ActionTile — one of the four lifecycle buttons. State-driven look:
+//   ready   → primary colour, tap to record
+//   done    → soft green pill with the recorded time
+//   locked  → dashed grey, hint tells why
+// ==================================================================
+function ActionTile({
+  icon,
+  title,
+  ready,
   done,
   doneAt,
-  enabled,
   lockedHint,
   busy,
+  variant = "primary",
   onClick,
-  variant = "primary",     // "primary" (check-in/out) or "ot" (purple accent)
 }) {
+  const mode = done ? "done" : ready ? "ready" : "locked";
+  const isDisabled = mode !== "ready" || busy;
 
-  let mode = "locked";
-
-  if (done)   mode = "done";
-  else if (enabled) mode = "enabled";
-
-  const isOt = variant === "ot";
-
-  const styleFor = {
-    enabled: {
-      background: isOt ? "#7c3aed" : "var(--clr-primary)",
-      color:      "#fff",
-      cursor:     busy ? "wait" : "pointer",
-      opacity:    busy ? 0.7 : 1,
-    },
-    done: {
-      background: "var(--success-bg)",
-      color:      "var(--success-dark)",
-      border:     "1px solid var(--success-border)",
-      cursor:     "default",
-    },
-    locked: {
-      background: "var(--surface)",
-      color:      "var(--text-muted)",
-      border:     "1px dashed var(--border)",
-      cursor:     "not-allowed",
-      opacity:    0.75,
-    },
-  }[mode];
-
-  const isDisabled = mode !== "enabled" || busy;
+  const cls = [
+    styles.action,
+    styles[`action_${mode}`],
+    variant === "ot" ? styles.action_ot : "",
+  ].filter(Boolean).join(" ");
 
   return (
     <button
       type="button"
-      className={styles.actionBtn}
-      style={styleFor}
+      className={cls}
       disabled={isDisabled}
       onClick={isDisabled ? undefined : onClick}
     >
-      <span className={styles.actionBtnLabel}>{label}</span>
-      <span className={styles.actionBtnHint}>
-        {done && doneAt
-          ? `Done · ${formatISTTime(doneAt)}`
-          : mode === "enabled"
-            ? (busy ? "Working…" : "Tap to record")
-            : (lockedHint || "Locked")}
+      <span className={styles.actionIcon}>{icon}</span>
+      <span className={styles.actionBody}>
+        <span className={styles.actionTitle}>{title}</span>
+        <span className={styles.actionHint}>
+          {mode === "done" && doneAt
+            ? `Recorded · ${formatISTTime(doneAt)}`
+            : mode === "ready"
+              ? (busy ? "Working…" : "Tap to record")
+              : (lockedHint || "Locked")}
+        </span>
       </span>
     </button>
   );
 }
 
 
-// =====================================================================
+// ==================================================================
 // Main component
-// =====================================================================
-
+// ==================================================================
 export default function MyAttendancePanel({ employeeId }) {
 
-  const [today, setToday]     = useState(null);       // today's Attendance row (or null)
-  const [busy, setBusy]       = useState(false);
-  const [toast, setToast]     = useState("");
-  const [autoTried, setAutoTried] = useState(false);
-  const [tick, setTick]       = useState(0);
+  const [today, setToday] = useState(null);   // today's Attendance row or null
+  const [busy, setBusy]   = useState(false);
+  const [toast, setToast] = useState("");
+  const [tick, setTick]   = useState(0);      // triggers hourly re-render
 
-  // Keep a ref so the initial-mount auto check-in doesn't race the
-  // history-load effect.
-  const autoRef = useRef(false);
-
-  // -------------------------------------------------------------
-  // Data loaders
-  // -------------------------------------------------------------
-
+  // ---- Refresh today's row ----
   const refreshToday = useCallback(async () => {
     if (!employeeId) return;
     try {
@@ -199,45 +180,35 @@ export default function MyAttendancePanel({ employeeId }) {
         return okEmp && okDay;
       });
       setToday(mine || null);
-    } catch {
-      /* silent — the employee doesn't need to see fetch errors */
-    }
+    } catch { /* silent — employees don't need to see fetch errors */ }
   }, [employeeId]);
 
-  // Initial load
-  useEffect(() => {
-    refreshToday();
-  }, [refreshToday]);
+  useEffect(() => { refreshToday(); }, [refreshToday]);
 
-  // 60-second tick so the "worked hours" counter climbs while
-  // the employee is checked in but not yet checked out.
+  // Force a re-render every minute so the live "worked hours"
+  // counter climbs while the employee is checked in.
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 60_000);
     return () => clearInterval(id);
   }, []);
 
-  // Auto-clear toast after a few seconds
   useEffect(() => {
     if (!toast) return undefined;
     const id = setTimeout(() => setToast(""), 3200);
     return () => clearTimeout(id);
   }, [toast]);
-  void tick; // keeps the linter quiet — used to force re-render
+
 
   // -------------------------------------------------------------
   // Actions
   // -------------------------------------------------------------
-
-  const doCheckIn = useCallback(async ({ silent } = {}) => {
-    if (!employeeId || busy) return false;
-
+  const doCheckIn = useCallback(async () => {
+    if (!employeeId || busy) return;
     const { coords } = await getPositionSilent();
-
     if (!coords) {
-      if (!silent) setToast("Location required to check in — enable it and try again.");
-      return false;
+      setToast("Location required to check in — enable it and try again.");
+      return;
     }
-
     setBusy(true);
     try {
       await API.post("/check-in", {
@@ -247,87 +218,26 @@ export default function MyAttendancePanel({ employeeId }) {
         ACCURACY:  coords.accuracy,
         VENDOR_ID: 1,
       });
-      if (!silent) setToast("Checked in");
-      await refreshToday();
-      return true;
-    } catch (err) {
-      // Actionable messages, but never leak distance, coords, or
-      // office details. Admin still sees full context in the
-      // attendance_security_logs.
-      if (!silent) {
-        const status = err?.response?.status;
-        const detail = (err?.response?.data?.detail || "").toLowerCase();
-
-        if (status === 400 && detail.includes("already")) {
-          setToast("You're already checked in today.");
-        } else if (status === 403 || detail.includes("geofence") || detail.includes("outside")) {
-          setToast("You need to be at the office location to check in.");
-        } else if (status === 401) {
-          setToast("Your session has expired. Please log in again.");
-        } else if (status === 404) {
-          setToast("Your employee record isn't set up yet. Contact HR.");
-        } else if (!err?.response) {
-          // Network error / backend down
-          setToast("Can't reach the server. Check your connection.");
-        } else {
-          setToast("Check-in unavailable — try again in a moment.");
-        }
-      }
-      return false;
-    } finally {
-      setBusy(false);
-    }
-  }, [employeeId, busy, refreshToday]);
-
-  // Generic action runner used by the OT buttons — same error-mapping
-  // as check-in but with action-specific verbs so the toast reads well.
-  const runAction = useCallback(async ({ url, payload, successMsg, actionLabel }) => {
-    if (!employeeId || busy) return;
-    setBusy(true);
-    try {
-      await API.post(url, payload);
-      setToast(successMsg);
+      setToast("Checked in");
       await refreshToday();
     } catch (err) {
       const status = err?.response?.status;
       const detail = (err?.response?.data?.detail || "").toLowerCase();
-      if (status === 400 && (detail.includes("already") || detail.includes("closed"))) {
-        setToast(`${actionLabel} — already recorded.`);
-      } else if (status === 400 && detail.includes("check-out")) {
-        setToast("Finish your regular check-out before starting OT.");
-      } else if (status === 400 && detail.includes("check-in")) {
-        setToast("You need to check in first.");
-      } else if (status === 400 && detail.includes("no ot session")) {
-        setToast("Start OT before ending it.");
-      } else if (status === 404) {
-        setToast("Check in first — no attendance record for today yet.");
+      if (status === 400 && detail.includes("already")) {
+        setToast("You're already checked in today.");
+      } else if (status === 403 || detail.includes("geofence") || detail.includes("outside")) {
+        setToast("You need to be at the office to check in.");
+      } else if (status === 401) {
+        setToast("Your session has expired. Please log in again.");
       } else if (!err?.response) {
         setToast("Can't reach the server. Check your connection.");
       } else {
-        setToast(`${actionLabel} unavailable — try again in a moment.`);
+        setToast("Check-in unavailable — try again in a moment.");
       }
     } finally {
       setBusy(false);
     }
   }, [employeeId, busy, refreshToday]);
-
-  const doOtCheckIn = useCallback(async () => {
-    await runAction({
-      url: "/ot-check-in",
-      payload: { EMPLOYEE_ID: employeeId },
-      successMsg: "OT session started",
-      actionLabel: "OT check-in",
-    });
-  }, [employeeId, runAction]);
-
-  const doOtCheckOut = useCallback(async () => {
-    await runAction({
-      url: "/ot-check-out",
-      payload: { EMPLOYEE_ID: employeeId },
-      successMsg: "OT session ended",
-      actionLabel: "OT check-out",
-    });
-  }, [employeeId, runAction]);
 
   const doCheckOut = useCallback(async () => {
     if (!employeeId || busy) return;
@@ -350,9 +260,8 @@ export default function MyAttendancePanel({ employeeId }) {
     } catch (err) {
       const status = err?.response?.status;
       const detail = (err?.response?.data?.detail || "").toLowerCase();
-
       if (status === 403 || detail.includes("geofence") || detail.includes("outside")) {
-        setToast("You need to be at the office location to check out.");
+        setToast("You need to be at the office to check out.");
       } else if (status === 400 && detail.includes("already")) {
         setToast("You've already checked out today.");
       } else if (status === 400 && detail.includes("has not checked in")) {
@@ -367,147 +276,215 @@ export default function MyAttendancePanel({ employeeId }) {
     }
   }, [employeeId, busy, refreshToday]);
 
-  // Silent auto check-in on mount — only if not already checked in.
-  useEffect(() => {
-    if (autoRef.current) return;
-    if (!employeeId) return;
-    // Wait one tick so `today` has loaded from the initial refresh.
-    const t = setTimeout(async () => {
-      if (autoRef.current) return;
-      autoRef.current = true;
-      // Skip if already checked in today
-      if (today && today.CHECK_IN) return;
-      await doCheckIn({ silent: true });
-      setAutoTried(true);
-    }, 900);
-    return () => clearTimeout(t);
-  }, [employeeId, today, doCheckIn]);
+  const runAction = useCallback(async ({ url, successMsg, actionLabel }) => {
+    if (!employeeId || busy) return;
+    setBusy(true);
+    try {
+      await API.post(url, { EMPLOYEE_ID: employeeId });
+      setToast(successMsg);
+      await refreshToday();
+    } catch (err) {
+      const status = err?.response?.status;
+      const detail = (err?.response?.data?.detail || "").toLowerCase();
+      if (status === 400 && (detail.includes("already") || detail.includes("closed"))) {
+        setToast(`${actionLabel} — already recorded.`);
+      } else if (status === 400 && detail.includes("check-out")) {
+        setToast("Finish your regular check-out before starting OT.");
+      } else if (status === 400 && detail.includes("check-in")) {
+        setToast("You need to check in first.");
+      } else if (status === 404) {
+        setToast("Check in first — no attendance record for today yet.");
+      } else if (!err?.response) {
+        setToast("Can't reach the server. Check your connection.");
+      } else {
+        setToast(`${actionLabel} unavailable — try again in a moment.`);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }, [employeeId, busy, refreshToday]);
+
+  const doOtCheckIn  = useCallback(() => runAction({
+    url: "/ot-check-in",  successMsg: "OT session started", actionLabel: "OT check-in",
+  }), [runAction]);
+  const doOtCheckOut = useCallback(() => runAction({
+    url: "/ot-check-out", successMsg: "OT session ended",   actionLabel: "OT check-out",
+  }), [runAction]);
+
 
   // -------------------------------------------------------------
   // Derived state
   // -------------------------------------------------------------
-
   const hasCheckedIn  = !!(today && today.CHECK_IN);
   const hasCheckedOut = !!(today && today.CHECK_OUT);
+  const hasOtIn       = !!(today && today.OT_CHECK_IN);
+  const hasOtOut      = !!(today && today.OT_CHECK_OUT);
 
-  // Live worked hours (climbs while checked in but not out)
+  // Live worked hours (climbs while checked-in-not-out)
   const liveWorkedHours = useMemo(() => {
     if (!today) return 0;
     if (today.WORKED_HOURS && today.CHECK_OUT) return today.WORKED_HOURS;
     if (today.CHECK_IN && !today.CHECK_OUT) {
       const start = new Date(today.CHECK_IN);
-      const now = new Date();
-      return Math.max(0, (now - start) / 3_600_000);
+      return Math.max(0, (new Date() - start) / 3_600_000);
     }
     return 0;
   }, [today, tick]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const overtimeHours = Number(today?.OVERTIME_HOURS || 0);
+  const isLate = hasCheckedIn && (today?.STATUS || "").toUpperCase() === "LATE";
+  const lateText = isLate ? fmtLateBy(today?.LATE_MINUTES || 0) : "";
 
+  const dateLabel = new Date().toLocaleDateString("en-IN", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  });
+
+
+  // -------------------------------------------------------------
+  // Render
+  // -------------------------------------------------------------
   return (
     <div className={styles.wrap}>
 
-      {/* ---------- Today's card ---------- */}
-      <section className={styles.todayCard}>
-        <div className={styles.todayHeader}>
-          <div className={styles.todayHeadLeft}>
-            <div className={styles.todayEyebrow}>Today</div>
-            <div className={styles.todayDate}>
-              {new Date().toLocaleDateString("en-IN", {
-                weekday: "long", day: "numeric", month: "long", year: "numeric",
-              })}
-            </div>
+      {/* ================ 1. TODAY HEADER ================ */}
+      <section className={styles.card}>
+        <div className={styles.head}>
+          <div className={styles.headLeft}>
+            <div className={styles.eyebrow}>Today</div>
+            <div className={styles.date}>{dateLabel}</div>
           </div>
-          <Badge status={today?.STATUS || (hasCheckedIn ? "PRESENT" : null)} />
-        </div>
 
-        <div className={styles.todayStats}>
-          <div className={styles.statCell}>
-            <div className={styles.statLabel}>Check-in</div>
-            <div className={styles.statValue}>
-              {today?.CHECK_IN ? formatISTTime(today.CHECK_IN) : "—"}
-            </div>
-          </div>
-          <div className={styles.statCell}>
-            <div className={styles.statLabel}>Check-out</div>
-            <div className={styles.statValue}>
-              {today?.CHECK_OUT ? formatISTTime(today.CHECK_OUT) : "—"}
-            </div>
-          </div>
-          <div className={styles.statCell}>
-            <div className={styles.statLabel}>Working hours</div>
-            <div className={styles.statValue}>
-              {fmtWorkedHours(liveWorkedHours)}
-            </div>
-          </div>
-          {overtimeHours > 0 && (
-            <div className={styles.statCell}>
-              <div className={styles.statLabel}>Overtime</div>
-              <div className={styles.statValue} style={{ color: "#7c3aed" }}>
-                {fmtWorkedHours(overtimeHours)}
-              </div>
-            </div>
+          {/* Status chip appears ONLY after check-in has been recorded.
+              Merely being logged in doesn't imply attendance. */}
+          {hasCheckedIn && (
+            isLate
+              ? <span className={`${styles.chip} ${styles.chip_late}`}>Late</span>
+              : <span className={`${styles.chip} ${styles.chip_present}`}>Present</span>
           )}
         </div>
 
-        {/* Four buttons showing the full attendance lifecycle. Each
-            button knows whether it's the next available action, an
-            already-recorded milestone, or a locked prerequisite. */}
+
+        {/* ================ 2. TIME STATS ================ */}
+        <div className={styles.stats}>
+          <div className={styles.stat}>
+            <div className={styles.statLabel}>Check-in</div>
+            <div className={styles.statValue}>
+              {hasCheckedIn ? formatISTTime(today.CHECK_IN) : "—"}
+            </div>
+            {lateText && (
+              <div className={styles.statNote}>{lateText}</div>
+            )}
+          </div>
+
+          <div className={styles.stat}>
+            <div className={styles.statLabel}>Check-out</div>
+            <div className={styles.statValue}>
+              {hasCheckedOut ? formatISTTime(today.CHECK_OUT) : "—"}
+            </div>
+          </div>
+
+          <div className={styles.stat}>
+            <div className={styles.statLabel}>Working hours</div>
+            <div className={styles.statValue}>
+              {hasCheckedIn ? fmtWorkedHours(liveWorkedHours) : "—"}
+            </div>
+          </div>
+        </div>
+
+
+        {/* ================ 3. OT SUMMARY (conditional) ================ */}
+        {(hasOtIn || hasOtOut || overtimeHours > 0) && (
+          <div className={styles.otBlock}>
+            <div className={styles.otHead}>
+              <span className={styles.otEyebrow}>Overtime</span>
+              {hasOtOut && overtimeHours > 0 && (
+                <span className={styles.otTotalPill}>
+                  {fmtWorkedHours(overtimeHours)} total
+                </span>
+              )}
+            </div>
+            <div className={styles.otStats}>
+              <div className={styles.stat}>
+                <div className={styles.statLabel}>OT check-in</div>
+                <div className={styles.statValue}>
+                  {hasOtIn ? formatISTTime(today.OT_CHECK_IN) : "—"}
+                </div>
+              </div>
+              <div className={styles.stat}>
+                <div className={styles.statLabel}>OT check-out</div>
+                <div className={styles.statValue}>
+                  {hasOtOut ? formatISTTime(today.OT_CHECK_OUT) : "—"}
+                </div>
+              </div>
+              <div className={styles.stat}>
+                <div className={styles.statLabel}>Overtime hours</div>
+                <div className={`${styles.statValue} ${styles.statValueOt}`}>
+                  {overtimeHours > 0 ? fmtWorkedHours(overtimeHours) : "—"}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+
+        {/* ================ 4. LIFECYCLE ACTIONS ================ */}
         <div className={styles.actionGrid}>
-          <ActionButton
-            label="Check in"
+          <ActionTile
+            icon={I.clockIn}
+            title="Check In"
+            ready={!hasCheckedIn}
             done={hasCheckedIn}
             doneAt={today?.CHECK_IN}
-            enabled={!hasCheckedIn}
             busy={busy}
-            onClick={() => doCheckIn({ silent: false })}
+            onClick={doCheckIn}
           />
-          <ActionButton
-            label="Check out"
+          <ActionTile
+            icon={I.clockOut}
+            title="Check Out"
+            ready={hasCheckedIn && !hasCheckedOut}
             done={hasCheckedOut}
             doneAt={today?.CHECK_OUT}
-            enabled={hasCheckedIn && !hasCheckedOut}
-            lockedHint={!hasCheckedIn ? "After check-in" : null}
+            lockedHint={!hasCheckedIn ? "After Check In" : null}
             busy={busy}
             onClick={doCheckOut}
           />
-          <ActionButton
-            label="OT check in"
-            done={!!today?.OT_CHECK_IN}
+          <ActionTile
+            icon={I.overtime}
+            title="OT Check In"
+            ready={hasCheckedOut && !hasOtIn}
+            done={hasOtIn}
             doneAt={today?.OT_CHECK_IN}
-            enabled={hasCheckedOut && !today?.OT_CHECK_IN}
-            lockedHint={!hasCheckedOut ? "After check-out" : null}
+            lockedHint={!hasCheckedOut ? "After Check Out" : null}
             busy={busy}
+            variant="ot"
             onClick={doOtCheckIn}
-            variant="ot"
           />
-          <ActionButton
-            label="OT check out"
-            done={!!today?.OT_CHECK_OUT}
+          <ActionTile
+            icon={I.overtime}
+            title="OT Check Out"
+            ready={hasOtIn && !hasOtOut}
+            done={hasOtOut}
             doneAt={today?.OT_CHECK_OUT}
-            enabled={!!today?.OT_CHECK_IN && !today?.OT_CHECK_OUT}
-            lockedHint={!today?.OT_CHECK_IN ? "After OT check-in" : null}
+            lockedHint={!hasOtIn ? "After OT Check In" : null}
             busy={busy}
-            onClick={doOtCheckOut}
             variant="ot"
+            onClick={doOtCheckOut}
           />
         </div>
 
-        {hasCheckedIn && hasCheckedOut && !today?.OT_CHECK_IN && (
-          <div className={styles.doneRow}>
-            Attendance recorded for today.
-            {overtimeHours > 0 && (
-              <span style={{ color: "#7c3aed", fontWeight: 700, marginLeft: 6 }}>
-                Including {fmtWorkedHours(overtimeHours)} OT.
-              </span>
-            )}
-          </div>
-        )}
+
+        {/* ================ 5. BIOMETRIC HINT ================ */}
+        <div className={styles.bioHint}>
+          <span className={styles.bioHintIcon}>{I.finger}</span>
+          <span>
+            Fingerprint attendance will be automatic once the biometric
+            device is on the office network — the same buttons will
+            keep working from your phone as a backup.
+          </span>
+        </div>
       </section>
 
-      {toast && (
-        <div className={styles.toast}>{toast}</div>
-      )}
+      {toast && <div className={styles.toast}>{toast}</div>}
     </div>
   );
 }
