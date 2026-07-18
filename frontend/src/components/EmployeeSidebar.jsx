@@ -70,8 +70,12 @@ const NAV_GROUPS = [
   {
     label: "Overview",
     items: [
+
       { key: "home",       label: "Dashboard",     icon: ICONS.home },
       { key: "profile",    label: "My Profile",    icon: ICONS.profile },
+
+      { key: "home", label: "Dashboard", icon: ICONS.home },
+
     ],
   },
   {
@@ -93,11 +97,13 @@ const NAV_GROUPS = [
   {
     label: "Company",
     items: [
-      { key: "memos",      label: "Memos",         icon: ICONS.memo },
-      { key: "announcements", label: "Announcements", icon: ICONS.megaphone, soon: true },
-      { key: "holidays",   label: "Holidays",      icon: ICONS.calendar,  soon: true },
-      { key: "documents",  label: "Documents",     icon: ICONS.docs,      soon: true },
-      { key: "notifications", label: "Notifications", icon: ICONS.bell,   soon: true },
+      // Announcements covers both directive memos and general HR
+      // notices — we don't need two rows for the same idea.
+      { key: "announcements", label: "Announcements", icon: ICONS.megaphone },
+      { key: "holidays",   label: "Holidays",  icon: ICONS.calendar, soon: true },
+      { key: "documents",  label: "Documents", icon: ICONS.docs,     soon: true },
+      // "Notifications" removed — the topbar bell already opens
+      // this list and shows the unread count.
     ],
   },
   {
@@ -155,18 +161,26 @@ function hasAccess(item, permSet) {
 // -----------------------------------------------------------------
 // Component
 // -----------------------------------------------------------------
-export default function EmployeeSidebar({ activeTab, onSelect, onLogout, unreadCount = 0 }) {
+export default function EmployeeSidebar({
+  activeTab, onSelect, onLogout, unreadCount = 0,
+  open = false, onClose,
+}) {
 
   // Employee identity for the footer card.
+  // NOTE: Login.jsx on this branch only writes `employee_id` (the
+  // CODE), not `employee_code`, so we fall back to it. We also
+  // deliberately don't surface the RBAC role name (ADMIN / HR /
+  // MANAGER) here — this is the ESS sidebar, everyone using it is
+  // acting as an employee.
   const identity = useMemo(() => {
     const name  = (localStorage.getItem("employee_name") || "").trim() || "Employee";
-    const code  = (localStorage.getItem("employee_code") || "").trim();
-    const role  = (localStorage.getItem("role") || "employee").toUpperCase();
+    const code  = (localStorage.getItem("employee_code") || "").trim()
+               || (localStorage.getItem("employee_id")   || "").trim();
     const photo = localStorage.getItem("employee_photo") || "";
     const initials = name.split(/\s+/).slice(0, 2)
       .map((s) => s.charAt(0).toUpperCase())
       .join("");
-    return { name, code, role, photo, initials };
+    return { name, code, photo, initials };
   }, []);
 
   // RBAC — read the permission codes stored on login and use them
@@ -181,15 +195,39 @@ export default function EmployeeSidebar({ activeTab, onSelect, onLogout, unreadC
     : null;
 
   const handleClick = (item) => {
+
     // Profile now renders inline on the dashboard as its own tab —
     // we no longer navigate away. (The one-time registration form
     // still lives at /employee-profile and is only shown by the
     // parent EmployeeDashboard when PROFILE_SUBMITTED is 0.)
+    if (item.key === "profile") {
+      // Profile has its own route already
+      navigate("/employee-profile");
+      onClose?.();
+      return;
+    }
+
     onSelect?.(item.key, { soon: !!item.soon });
+    // On mobile the sidebar is a drawer — close it after picking a tab
+    onClose?.();
   };
 
   return (
-    <aside className={styles.zSidebar}>
+    <>
+      {/* Backdrop — only visible on mobile when drawer is open */}
+      {open && (
+        <div
+          className={styles.zSidebarOverlay}
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside className={
+        open
+          ? `${styles.zSidebar} ${styles.zSidebarOpen}`
+          : styles.zSidebar
+      }>
 
       {/* ---------- Brand ---------- */}
       <div className={styles.zSidebarBrand}>
@@ -258,7 +296,9 @@ export default function EmployeeSidebar({ activeTab, onSelect, onLogout, unreadC
           <div className={styles.zSidebarUserInfo}>
             <div className={styles.zSidebarUserName}>{identity.name}</div>
             <div className={styles.zSidebarUserMeta}>
-              {identity.code || identity.role}
+              {identity.code
+                ? `Employee · ${identity.code}`
+                : "Employee"}
             </div>
           </div>
         </div>
@@ -272,5 +312,6 @@ export default function EmployeeSidebar({ activeTab, onSelect, onLogout, unreadC
         </button>
       </div>
     </aside>
+    </>
   );
 }

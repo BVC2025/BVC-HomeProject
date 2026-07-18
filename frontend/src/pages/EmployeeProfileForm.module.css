@@ -3,10 +3,18 @@
 /* ─── Page wrapper ───────────────────────────────────────────── */
 
 .page {
+
   /* Standalone page (not inside the ADMIN/EMPLOYEE shell), so it
      needs to be its own scroll region — the global `body { overflow:
      hidden }` in App.css otherwise traps content when the form is
      taller than the viewport. */
+
+  /* Standalone page (not inside the ADMIN/EMPLOYEE shell). The global
+     `body { overflow: hidden }` in App.css otherwise traps this form
+     when it's taller than the viewport — desktop couldn't scroll.
+     Make this page its own scroll region. `100dvh` handles the mobile
+     URL-bar reflow better than `100vh`. */
+
   height: 100vh;
   height: 100dvh;
   overflow-y: auto;
@@ -62,10 +70,13 @@
 }
 
 .heroDesc {
-  font-size: var(--font-sm);
-  opacity: 0.9;
+  font-size: var(--font-md, 15px);
+  font-weight: var(--fw-bold, 700);
+  color: #ffffff;
+  opacity: 1;
   margin-top: 10px;
   max-width: 700px;
+  letter-spacing: 0.2px;
 }
 
 .logoutBtn {
@@ -81,6 +92,9 @@
   font-weight: var(--fw-bold);
   font-family: var(--font);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* ─── Error banner ───────────────────────────────────────────── */
@@ -93,6 +107,9 @@
   border-radius: var(--radius-lg);
   margin-bottom: 16px;
   font-weight: var(--fw-bold);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* ─── Section card ───────────────────────────────────────────── */
@@ -108,12 +125,21 @@
 .sectionHeader {
   font-size: 12px;
   font-weight: var(--fw-black);
-  color: #4338ca;
+  color: var(--clr-primary);
   letter-spacing: 1.6px;
   text-transform: uppercase;
   margin-bottom: 16px;
   padding-bottom: 10px;
   border-bottom: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sectionIcon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--clr-primary);
 }
 
 /* ─── Grid layouts ───────────────────────────────────────────── */
@@ -192,7 +218,7 @@
   width: 100px;
   height: 100px;
   border-radius: 50%;
-  background: #818cf8;
+  background: var(--clr-primary);
   color: var(--text-inverse);
   display: flex;
   align-items: center;
@@ -200,7 +226,7 @@
   font-size: 28px;
   font-weight: var(--fw-black);
   flex-shrink: 0;
-  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.3);
   overflow: hidden;
 }
 
@@ -214,7 +240,11 @@
 
 .docHint {
   font-size: 12.5px;
+
   color: var(--text-muted);
+
+  color: var(--text-muted, var(--text-secondary));
+
   margin-bottom: 12px;
   line-height: 1.5;
 }
@@ -292,6 +322,15 @@
   color: var(--text-secondary);
   flex: 1;
   min-width: 220px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.submitWarning svg {
+  color: #f59e0b;              /* amber-500 — warning yellow, icon only */
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 
 .submitBtn {
@@ -307,6 +346,9 @@
   letter-spacing: 0.5px;
   box-shadow: 0 8px 22px rgba(239, 68, 68, 0.35);
   transition: background var(--ease);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .submitBtn:disabled {
@@ -314,6 +356,7 @@
   cursor: not-allowed;
   box-shadow: none;
 }
+
 
 
 /* ═════════════════════════════════════════════════════════════════
@@ -409,17 +452,28 @@
   }
 
   /* Doc list rows stack on mobile — type + title, remove button below */
+
+/* ==================================================================
+   MOBILE responsive additions
+   ================================================================== */
+@media (max-width: 900px) {
+  .page, .container, .wrapper { padding: 14px; }
+  .docUploadRow { grid-template-columns: 1fr; gap: 10px; }
+
   .docItem {
     grid-template-columns: 1fr auto;
     grid-template-areas:
       "type   remove"
       "title  title";
+
     padding: 12px 4px;
+
     row-gap: 4px;
   }
   .docType   { grid-area: type; }
   .docTitle  { grid-area: title; }
   .docRemove { grid-area: remove; }
+
 
   .grid21 {
     margin-bottom: 10px;
@@ -512,7 +566,7 @@
   }
 }
 
-
+}
 /* Very small phones (≤ 380 px) — extra squeeze on the hero */
 @media (max-width: 380px) {
   .heroTitle { font-size: 18px; }
@@ -527,4 +581,28 @@
     padding: 4px 8px;
     font-size: 10.5px;
   }
+
+  .pageHead, .header, .toolbar {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .filterCard, .filterRow, .filters {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .searchInput, .filterSelect, .searchWrap, input, select { width: 100%; }
+  .kpiRow, .statRow, .statsGrid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .cardGrid, .cardsGrid, .tileGrid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .twoCol, .splitPanel, .detailGrid { grid-template-columns: 1fr; }
+  .tableCard, .tableWrap, .tblWrap { overflow-x: auto; }
+}
+@media (max-width: 640px) {
+  .page, .container, .wrapper { padding: 10px; }
+  .kpiRow, .statRow, .statsGrid { grid-template-columns: repeat(2, 1fr); }
+  .cardGrid, .cardsGrid, .tileGrid { grid-template-columns: 1fr; }
+  .kpiValue, .statValue { font-size: 20px; }
+  h1 { font-size: 20px; }
+  h2 { font-size: 17px; }
+
 }

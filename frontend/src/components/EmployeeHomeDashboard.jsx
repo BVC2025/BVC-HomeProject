@@ -1,86 +1,127 @@
 // =====================================================================
 // EmployeeHomeDashboard
 // ---------------------------------------------------------------------
-// New landing content for the Employee Self-Service portal — replaces
-// the "attendance panel" default landing with a proper overview:
-//   • Welcome band with today's date + attendance status
-//   • Summary cards (attendance / leave balance / salary / tasks)
-//   • Quick actions (Apply Leave / Payslip / Attendance / Profile)
-//   • Activity timeline (from portal-dashboard payload)
-// Reads data already fetched by EmployeeDashboard — no new endpoints.
+// A modern, at-a-glance employee landing page — deliberately different
+// from the KPI-grid feel of every corporate ERP. All navigation lives
+// in the sidebar, so this page shows only what an employee needs to
+// know the instant they log in:
+//
+//   1. Personal welcome band (photo + name + today's date)
+//   2. Three quick-glance cards: Attendance / Leaves / Tasks
+//   3. Today's tasks list (60%) + Upcoming events (40%)
+//   4. Recent announcements
+//   5. Productivity progress (subtle, one line — not a chart wall)
+//
+// Design language:
+//   - Cream/off-white page background so cards read as elevated white.
+//   - Cards: rounded 14px, 1px slate-200 border, no drop shadow by
+//     default; a subtle shadow appears on hover for actionable cards.
+//   - Typography: Inter with a system fallback.
+//   - Colour: BVC red is used ONLY for the employee's name, the
+//     Late chip, and the small progress fill. Everything else is
+//     slate/neutral so the accent lands.
+//   - Framer-motion: 350ms fade+rise per section on mount; no idle
+//     loops, no character animation.
 // =====================================================================
 
 import { useMemo } from "react";
-import styles from "./EmployeeHomeDashboard.module.css";
+import { motion } from "framer-motion";
+
 import { API_BASE_URL } from "../services/api";
+import styles from "./EmployeeHomeDashboard.module.css";
 
 
-// -----------------------------------------------------------------
-// SVG icons (kept inline to avoid an external icon dependency)
-// -----------------------------------------------------------------
-const svg = (children, size = 20) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="none"
-       stroke="currentColor" strokeWidth="1.8"
-       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    {children}
-  </svg>
+// ------------------------------------------------------------------
+// Formatting utilities
+// ------------------------------------------------------------------
+
+function formatCheckIn(value) {
+  if (!value) return "";
+  try {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return String(value);
+    return d.toLocaleTimeString("en-IN", {
+      hour: "2-digit", minute: "2-digit", hour12: true,
+    });
+  } catch {
+    return String(value);
+  }
+}
+
+// localStorage.setItem coerces `null` to the STRING "null", so a
+// naive filter(Boolean) leaves it in. Drop those literal strings.
+function clean(v) {
+  const s = (v || "").trim();
+  if (!s || s === "null" || s === "undefined") return "";
+  return s;
+}
+
+const ROLE_NAMES = new Set([
+  "ADMIN", "SUPER_ADMIN", "HR", "MANAGER", "PRODUCTION_HEAD",
+  "EMPLOYEE",
+  "MANAGING_DIRECTOR", "HR_MANAGER", "SALES_MANAGER",
+  "PURCHASE_MANAGER", "PRODUCTION_MANAGER", "INVENTORY_MANAGER",
+  "ACCOUNTS_MANAGER",
+]);
+
+function notARole(v) {
+  const s = (v || "").trim();
+  if (!s) return "";
+  return ROLE_NAMES.has(s.toUpperCase()) ? "" : s;
+}
+
+function statusInfo(raw) {
+  const s = (raw || "").toUpperCase();
+  if (s === "PRESENT" || s === "CHECKED_IN") return { tone: "success", label: "Present" };
+  if (s === "LATE")                           return { tone: "warning", label: "Late" };
+  if (s === "ABSENT")                         return { tone: "danger",  label: "Absent" };
+  if (s === "ON_LEAVE" || s === "LEAVE")      return { tone: "info",    label: "On leave" };
+  if (!s)                                     return { tone: "muted",   label: "Not checked in" };
+  return {
+    tone: "muted",
+    label: s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+  };
+}
+
+function formatEventDate(e) {
+  // Accept a variety of shapes: {day, month}, {date: ISO}, {when: str}
+  if (e.day && e.month) return { day: String(e.day), month: String(e.month) };
+  const raw = e.date || e.when || e.event_date || e.starts_at;
+  if (!raw) return { day: "—", month: "" };
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return { day: String(raw).slice(0, 3), month: "" };
+  return {
+    day: String(d.getDate()),
+    month: d.toLocaleString("en-IN", { month: "short" }).toUpperCase(),
+  };
+}
+
+
+// ------------------------------------------------------------------
+// Icon inventory — small stroke SVGs, inherit currentColor
+// ------------------------------------------------------------------
+const icon = (children, size = 18) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+       stroke="currentColor" strokeWidth="1.9"
+       strokeLinecap="round" strokeLinejoin="round"
+       aria-hidden="true">{children}</svg>
 );
 
 const I = {
-  clock:    svg(<><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>),
-  leave:    svg(<><path d="M12 2C8 2 5 5 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-4-3-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></>),
-  rupee:    svg(<><path d="M6 3h12"/><path d="M6 8h12"/><path d="M6 13l8.5 8"/><path d="M6 13h3a5 5 0 0 0 0-10"/></>),
-  tasks:    svg(<><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></>),
-  arrow:    svg(<><path d="M5 12h14"/><path d="M13 5l7 7-7 7"/></>, 16),
-  spark:    svg(<><path d="M12 2l2.4 6.9L22 10l-6 4.7L18 22l-6-4-6 4 2-7.3L2 10l7.6-1.1z"/></>),
-  bell:     svg(<><path d="M18 16v-5a6 6 0 1 0-12 0v5l-2 2h16z"/><path d="M10 21h4"/></>),
-  calendar: svg(<><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18"/><path d="M8 2v4M16 2v4"/></>),
-  play:     svg(<><path d="M9 5l10 7-10 7V5z"/></>, 14),
-  megaphone: svg(<><path d="M3 11v2l14 6V5L3 11z"/><path d="M17 8v8"/><path d="M6 13v4a3 3 0 0 0 6 0v-1"/></>),
-  users:    svg(<><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></>),
+  clock:      icon(<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>),
+  calendar:   icon(<><rect x="3" y="4" width="18" height="17" rx="3" /><path d="M3 9h18M8 2v4M16 2v4" /></>),
+  check:      icon(<><path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></>),
+  bell:       icon(<><path d="M18 16v-5a6 6 0 1 0-12 0v5l-2 2h16z" /><path d="M10 21h4" /></>),
+  chart:      icon(<><path d="M3 3v18h18" /><path d="M8 14l4-4 3 3 5-6" /></>),
+  chevron:    icon(<path d="M9 6l6 6-6 6" />, 14),
+  dot:        icon(<circle cx="12" cy="12" r="3" fill="currentColor" />, 8),
 };
 
 
-function inr(n) {
-  const v = Number(n || 0);
-  return "₹ " + v.toLocaleString("en-IN", { maximumFractionDigits: 0 });
-}
-
-
-// -----------------------------------------------------------------
-// Card primitives
-// -----------------------------------------------------------------
-function KpiCard({ label, value, sub, tone = "primary", icon }) {
-  const toneClass = styles[`kpi_${tone}`] || "";
-  return (
-    <div className={`${styles.kpi} ${toneClass}`}>
-      <div className={styles.kpiTop}>
-        <span className={styles.kpiIcon}>{icon}</span>
-        <span className={styles.kpiLabel}>{label}</span>
-      </div>
-      <div className={styles.kpiValue}>{value}</div>
-      {sub && <div className={styles.kpiSub}>{sub}</div>}
-    </div>
-  );
-}
-
-function QuickAction({ icon, label, onClick, tone = "primary" }) {
-  return (
-    <button type="button"
-      className={`${styles.quick} ${styles[`quick_${tone}`] || ""}`}
-      onClick={onClick}
-    >
-      <span className={styles.quickIcon}>{icon}</span>
-      <span className={styles.quickLabel}>{label}</span>
-      <span className={styles.quickArrow}>{I.arrow}</span>
-    </button>
-  );
-}
-
-
-// -----------------------------------------------------------------
+// ==================================================================
 // Component
-// -----------------------------------------------------------------
+// ==================================================================
+
 export default function EmployeeHomeDashboard({
   portal,
   attendanceStatus,
@@ -94,14 +135,18 @@ export default function EmployeeHomeDashboard({
 
   // ---- Identity ----
   const identity = useMemo(() => {
-    const name = (localStorage.getItem("employee_name") || "there").trim();
+    const name  = clean(localStorage.getItem("employee_name")) || "there";
     const first = name.split(/\s+/)[0];
-    const photo = localStorage.getItem("employee_photo") || "";
-    const dept  = localStorage.getItem("employee_department") || "";
-    const desig = localStorage.getItem("employee_designation") || "";
-    const code  = localStorage.getItem("employee_code") || "";
+    const cachedPhoto = clean(localStorage.getItem("employee_photo"));
+    const portalPhoto = portal?.employee?.PHOTO_URL || portal?.PHOTO_URL || "";
+    const photo = cachedPhoto || portalPhoto;
+    const dept  = clean(localStorage.getItem("employee_department"))
+               || clean(localStorage.getItem("department"));
+    const desig = clean(localStorage.getItem("employee_designation"));
+    const code  = clean(localStorage.getItem("employee_code"))
+               || clean(localStorage.getItem("employee_id"));
     return { name, first, photo, dept, desig, code };
-  }, []);
+  }, [portal]);
 
   const photoUrl = identity.photo
     ? (identity.photo.startsWith("http")
@@ -109,199 +154,351 @@ export default function EmployeeHomeDashboard({
         : `${API_BASE_URL}${identity.photo}`)
     : null;
 
-  const today = new Date();
-  const dateLabel = today.toLocaleDateString("en-IN", {
+  // ---- Today / status / check-in ----
+  const dateLabel = new Date().toLocaleDateString("en-IN", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
 
-  // ---- Derived data (from portal payload) ----
+  const status = statusInfo(attendanceStatus);
+  const checkInText = formatCheckIn(loginTime);
+
+  // Subtitle — strip role names, always prefix with Employee
+  const subtitleParts = ["Employee"];
+  const realDesig = notARole(identity.desig);
+  const realDept  = notARole(identity.dept);
+  if (realDesig)     subtitleParts.push(realDesig);
+  if (realDept)      subtitleParts.push(realDept);
+  if (identity.code) subtitleParts.push(identity.code);
+  const subtitle = subtitleParts.join(" · ");
+
+
+  // ------------------------------------------------------------------
+  // Derived portal data — every field is optional. Empty states are
+  // handled below so the page never looks broken on a fresh account.
+  // ------------------------------------------------------------------
   const p = portal || {};
+
   const workingHoursToday = p.working_hours_today ?? p.hours_today ?? null;
-  const monthPresent = p.month_present ?? p.attendance?.present ?? null;
-  const monthWorking = p.month_working_days ?? p.attendance?.working_days ?? null;
+  const monthPresent      = p.month_present ?? p.attendance?.present ?? null;
+  const monthWorking      = p.month_working_days ?? p.attendance?.working_days ?? null;
   const attendancePct = (monthPresent != null && monthWorking)
     ? Math.round((monthPresent / monthWorking) * 100)
     : null;
 
-  const clBalance = leaveBalance?.CL ?? leaveBalance?.cl ?? null;
-  const totalLeaveAvail = leaveBalance
+  const totalLeave = leaveBalance
     ? Object.values(leaveBalance).reduce((s, v) => s + (Number(v) || 0), 0)
     : null;
+  const clBalance = leaveBalance?.CL ?? leaveBalance?.cl ?? null;
 
-  const lastSalary = p.last_salary_net ?? p.last_net_pay ?? p.last_salary ?? null;
-  const lastSalaryPeriod = p.last_salary_period || p.last_pay_period || "Latest";
+  const pendingTasksCount = p.pending_task_count ?? p.pending_tasks ?? 0;
 
-  const pendingTasks = p.pending_task_count ?? p.pending_tasks ?? null;
+  // Task list — accept multiple back-end shapes
+  const todayTasks = Array.isArray(p.today_tasks)
+    ? p.today_tasks
+    : Array.isArray(p.pending_tasks_list)
+      ? p.pending_tasks_list
+      : Array.isArray(p.tasks)
+        ? p.tasks
+        : [];
 
+  // Events — birthdays, holidays, approved leaves
+  const events = Array.isArray(p.upcoming_events) ? p.upcoming_events : [];
+
+  // Announcements / memos — fall back to filtering recent_activity
   const activity = Array.isArray(p.recent_activity) ? p.recent_activity : [];
-  const events   = Array.isArray(p.upcoming_events) ? p.upcoming_events : [];
+  const announcements = Array.isArray(p.announcements)
+    ? p.announcements
+    : activity.filter((a) => {
+        const k = (a.type || a.kind || "").toLowerCase();
+        return k.includes("memo") || k.includes("announce") || k.includes("notice");
+      });
 
-  // ---- Attendance status colour ----
-  const statusTone = useMemo(() => {
-    const s = (attendanceStatus || "").toUpperCase();
-    if (s === "PRESENT" || s === "CHECKED_IN")  return "success";
-    if (s === "LATE")                            return "warning";
-    if (s === "ABSENT")                          return "danger";
-    if (s === "ON_LEAVE" || s === "LEAVE")       return "info";
-    return "muted";
-  }, [attendanceStatus]);
+  const prodScore =
+    typeof productivity === "number"    ? productivity :
+    productivity?.score    != null      ? productivity.score :
+    productivity?.percent  != null      ? productivity.percent :
+    null;
 
-  const statusLabel = useMemo(() => {
-    const s = (attendanceStatus || "").toUpperCase();
-    if (!s) return "Not checked in";
-    return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-  }, [attendanceStatus]);
+  // Section entrance — one function, staggered delays
+  const rise = (delay = 0) => ({
+    initial: { opacity: 0, y: 8 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.35, ease: "easeOut", delay },
+  });
 
-  // ---- Render ----
+
+  // ------------------------------------------------------------------
+  // Render
+  // ------------------------------------------------------------------
   return (
     <div className={styles.home}>
 
-      {/* ============ WELCOME BAND ============ */}
-      <section className={styles.hero}>
-        <div className={styles.heroAvatar}>
-          {photoUrl
-            ? <img src={photoUrl} alt="" />
-            : <span>{(identity.first || "?").charAt(0)}</span>}
-        </div>
-        <div className={styles.heroText}>
-          <div className={styles.heroEyebrow}>{dateLabel}</div>
-          <h1 className={styles.heroTitle}>Welcome back, {identity.first}</h1>
-          <div className={styles.heroMeta}>
-            {[identity.desig, identity.dept, identity.code].filter(Boolean).join("  ·  ") || "Employee"}
+      {/* ==================== 1. WELCOME ==================== */}
+      <motion.section className={styles.welcome} {...rise(0)}>
+
+        <div className={styles.welcomeMain}>
+          <div className={styles.avatar}>
+            {photoUrl
+              ? <img src={photoUrl} alt="" />
+              : <span>{(identity.first || "?").charAt(0).toUpperCase()}</span>}
+          </div>
+
+          <div className={styles.welcomeText}>
+            <div className={styles.welcomeDate}>{dateLabel}</div>
+            <h1 className={styles.welcomeTitle}>
+              Welcome back, <span>{identity.first}</span>
+            </h1>
+            <div className={styles.welcomeSubtitle}>{subtitle}</div>
           </div>
         </div>
-        <div className={styles.heroStatus}>
-          <div className={`${styles.heroStatusPill} ${styles[`status_${statusTone}`]}`}>
-            <span className={styles.heroStatusDot} />
-            {statusLabel}
+
+        <div className={styles.welcomeMeta}>
+          <div className={styles.metaItem}>
+            <span className={styles.metaLabel}>Status</span>
+            <span className={`${styles.chip} ${styles[`chip_${status.tone}`]}`}>
+              <span className={styles.chipDot} />
+              {status.label}
+            </span>
           </div>
-          {loginTime && (
-            <div className={styles.heroStatusMeta}>Check-in {loginTime}</div>
+          {checkInText && (
+            <div className={styles.metaItem}>
+              <span className={styles.metaLabel}>Check-in</span>
+              <span className={styles.metaValue}>{checkInText}</span>
+            </div>
           )}
         </div>
-      </section>
+      </motion.section>
 
-      {/* ============ SUMMARY CARDS ============ */}
-      <section className={styles.kpis}>
-        <KpiCard
-          label="Today"
-          value={workingHoursToday != null ? `${workingHoursToday.toFixed?.(1) ?? workingHoursToday} h` : "—"}
-          sub={loginTime ? `Since ${loginTime}` : "Not checked in"}
-          tone="primary"
-          icon={I.clock}
-        />
-        <KpiCard
-          label="Attendance"
-          value={attendancePct != null ? `${attendancePct}%` : "—"}
-          sub={monthPresent != null ? `${monthPresent} / ${monthWorking} days` : "This month"}
-          tone="success"
-          icon={I.spark}
-        />
-        <KpiCard
-          label="Leave balance"
-          value={totalLeaveAvail != null ? `${totalLeaveAvail}` : "—"}
-          sub={clBalance != null ? `${clBalance} CL available` : "days available"}
-          tone="info"
-          icon={I.leave}
-        />
-        <KpiCard
-          label="Last salary"
-          value={lastSalary != null ? inr(lastSalary) : "—"}
-          sub={lastSalaryPeriod}
-          tone="gold"
-          icon={I.rupee}
-        />
-        <KpiCard
-          label="Pending tasks"
-          value={pendingTasks != null ? pendingTasks : "—"}
-          sub={overdueCount > 0 ? `${overdueCount} overdue` : "on track"}
-          tone={overdueCount > 0 ? "warning" : "muted"}
-          icon={I.tasks}
-        />
-        <KpiCard
-          label="Notifications"
-          value={unreadCount}
-          sub={unreadCount > 0 ? "unread" : "all caught up"}
-          tone={unreadCount > 0 ? "warning" : "muted"}
-          icon={I.bell}
-        />
-      </section>
 
-      {/* ============ QUICK ACTIONS ============ */}
-      <section className={styles.section}>
-        <div className={styles.sectionHead}>
-          <div className={styles.sectionTitle}>Quick actions</div>
-          <div className={styles.sectionSub}>Frequent tasks, one click away</div>
-        </div>
-        <div className={styles.quickGrid}>
-          <QuickAction tone="primary" icon={I.leave}    label="Apply Leave"      onClick={() => onNavigate?.("leave")} />
-          <QuickAction tone="success" icon={I.rupee}    label="Download Payslip" onClick={() => onNavigate?.("payslips")} />
-          <QuickAction tone="info"    icon={I.clock}    label="View Attendance"  onClick={() => onNavigate?.("attendance")} />
-          <QuickAction tone="warning" icon={I.tasks}    label="Open Tasks"       onClick={() => onNavigate?.("tasks")} />
-          <QuickAction tone="muted"   icon={I.megaphone} label="Company Memos"    onClick={() => onNavigate?.("memos")} />
-          <QuickAction tone="muted"   icon={I.calendar} label="Permission"       onClick={() => onNavigate?.("permission")} />
-        </div>
-      </section>
+      {/* ==================== 2. STAT CARDS ==================== */}
+      <motion.section className={styles.statRow} {...rise(0.06)}>
 
-      {/* ============ ACTIVITY + EVENTS ============ */}
-      <section className={styles.twoCol}>
+        {/* Attendance */}
+        <button
+          type="button"
+          className={styles.statCard}
+          onClick={() => onNavigate?.("attendance")}
+        >
+          <div className={styles.statHead}>
+            <span className={`${styles.statIcon} ${styles.tint_green}`}>
+              {I.clock}
+            </span>
+            <span className={styles.statLabel}>Attendance</span>
+          </div>
+          <div className={styles.statValue}>
+            {workingHoursToday != null
+              ? `${Number(workingHoursToday).toFixed(1)} h`
+              : "—"}
+          </div>
+          <div className={styles.statMeta}>
+            {attendancePct != null
+              ? `${attendancePct}% this month`
+              : "Today's working hours"}
+          </div>
+        </button>
 
-        {/* -- Recent activity -- */}
+        {/* Leave */}
+        <button
+          type="button"
+          className={styles.statCard}
+          onClick={() => onNavigate?.("leave")}
+        >
+          <div className={styles.statHead}>
+            <span className={`${styles.statIcon} ${styles.tint_blue}`}>
+              {I.calendar}
+            </span>
+            <span className={styles.statLabel}>Leave balance</span>
+          </div>
+          <div className={styles.statValue}>
+            {totalLeave != null ? totalLeave : "—"}
+            <span className={styles.statUnit}>days</span>
+          </div>
+          <div className={styles.statMeta}>
+            {clBalance != null ? `${clBalance} CL available` : "Available to book"}
+          </div>
+        </button>
+
+        {/* Tasks */}
+        <button
+          type="button"
+          className={styles.statCard}
+          onClick={() => onNavigate?.("tasks")}
+        >
+          <div className={styles.statHead}>
+            <span className={`${styles.statIcon} ${styles.tint_amber}`}>
+              {I.check}
+            </span>
+            <span className={styles.statLabel}>Tasks</span>
+          </div>
+          <div className={styles.statValue}>
+            {pendingTasksCount}
+            <span className={styles.statUnit}>pending</span>
+          </div>
+          <div className={styles.statMeta}>
+            {overdueCount > 0
+              ? <span className={styles.statOverdue}>{overdueCount} overdue</span>
+              : "All on track"}
+          </div>
+        </button>
+      </motion.section>
+
+
+      {/* ==================== 3. TASKS + UPCOMING ==================== */}
+      <motion.section className={styles.split} {...rise(0.12)}>
+
+        {/* Today's tasks — left, wider */}
         <div className={styles.panel}>
           <div className={styles.panelHead}>
-            <div className={styles.panelTitle}>Recent activity</div>
-            <div className={styles.panelSub}>Last 5 events</div>
+            <h2 className={styles.panelTitle}>Today's tasks</h2>
+            <button type="button"
+                    className={styles.panelLink}
+                    onClick={() => onNavigate?.("tasks")}>
+              View all {I.chevron}
+            </button>
           </div>
-          <div className={styles.panelBody}>
-            {activity.length === 0 ? (
-              <div className={styles.empty}>Nothing here yet — your check-ins, leave, and payslips will appear here.</div>
-            ) : (
-              <ul className={styles.timeline}>
-                {activity.slice(0, 5).map((a, i) => (
-                  <li key={i} className={styles.timelineRow}>
-                    <span className={styles.timelineDot} />
-                    <div className={styles.timelineBody}>
-                      <div className={styles.timelineTitle}>{a.title || a.type || "Update"}</div>
-                      {a.detail && <div className={styles.timelineDetail}>{a.detail}</div>}
+
+          {todayTasks.length === 0 ? (
+            <div className={styles.empty}>
+              {I.check}
+              <div>
+                <div className={styles.emptyTitle}>Nothing on your plate</div>
+                <div className={styles.emptyBody}>New tasks assigned to you will show up here.</div>
+              </div>
+            </div>
+          ) : (
+            <ul className={styles.taskList}>
+              {todayTasks.slice(0, 5).map((t, i) => {
+                const overdue = t.overdue || t.is_overdue;
+                return (
+                  <li key={t.id || t.ID || i} className={styles.taskRow}>
+                    <span className={`${styles.taskDot} ${overdue ? styles.taskDot_overdue : ""}`} />
+                    <div className={styles.taskBody}>
+                      <div className={styles.taskTitle}>
+                        {t.title || t.name || t.description || "Untitled task"}
+                      </div>
+                      {(t.project || t.due) && (
+                        <div className={styles.taskMeta}>
+                          {t.project && <span>{t.project}</span>}
+                          {t.project && t.due && <span>·</span>}
+                          {t.due && (
+                            <span className={overdue ? styles.dueOverdue : ""}>
+                              {overdue ? "Overdue" : `Due ${t.due}`}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <div className={styles.timelineWhen}>{a.when || a.date || ""}</div>
                   </li>
-                ))}
-              </ul>
-            )}
-          </div>
+                );
+              })}
+            </ul>
+          )}
         </div>
 
-        {/* -- Upcoming events -- */}
+        {/* Upcoming — right, narrower */}
         <div className={styles.panel}>
           <div className={styles.panelHead}>
-            <div className={styles.panelTitle}>Upcoming</div>
-            <div className={styles.panelSub}>Birthdays · Anniversaries · Holidays</div>
+            <h2 className={styles.panelTitle}>Upcoming</h2>
+            <span className={styles.panelSubtle}>
+              Holidays · Birthdays · Approved leave
+            </span>
           </div>
-          <div className={styles.panelBody}>
-            {events.length === 0 ? (
-              <div className={styles.empty}>No upcoming events in the next 14 days.</div>
-            ) : (
-              <ul className={styles.eventList}>
-                {events.slice(0, 6).map((e, i) => (
-                  <li key={i} className={styles.eventRow}>
+
+          {events.length === 0 ? (
+            <div className={styles.empty}>
+              {I.calendar}
+              <div>
+                <div className={styles.emptyTitle}>No upcoming events</div>
+                <div className={styles.emptyBody}>Your next 14 days are clear.</div>
+              </div>
+            </div>
+          ) : (
+            <ul className={styles.eventList}>
+              {events.slice(0, 5).map((e, i) => {
+                const d = formatEventDate(e);
+                return (
+                  <li key={e.id || e.ID || i} className={styles.eventRow}>
                     <div className={styles.eventDate}>
-                      <div className={styles.eventDay}>{e.day || "—"}</div>
-                      <div className={styles.eventMon}>{e.month || ""}</div>
+                      <div className={styles.eventDay}>{d.day}</div>
+                      <div className={styles.eventMonth}>{d.month}</div>
                     </div>
                     <div className={styles.eventBody}>
-                      <div className={styles.eventTitle}>{e.title || "—"}</div>
-                      <div className={styles.eventKind}>{e.kind || e.type || ""}</div>
+                      <div className={styles.eventTitle}>{e.title || e.name || "Event"}</div>
+                      <div className={styles.eventKind}>
+                        {e.kind || e.type || "Event"}
+                      </div>
                     </div>
                   </li>
-                ))}
-              </ul>
-            )}
-          </div>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </motion.section>
+
+
+      {/* ==================== 4. ANNOUNCEMENTS ==================== */}
+      <motion.section className={styles.panel} {...rise(0.18)}>
+        <div className={styles.panelHead}>
+          <h2 className={styles.panelTitle}>Announcements</h2>
+          <span className={styles.panelSubtle}>
+            {unreadCount > 0
+              ? `${unreadCount} unread`
+              : "You're all caught up"}
+          </span>
         </div>
 
-      </section>
+        {announcements.length === 0 ? (
+          <div className={styles.empty}>
+            {I.bell}
+            <div>
+              <div className={styles.emptyTitle}>No new announcements</div>
+              <div className={styles.emptyBody}>Company memos and HR notices will appear here.</div>
+            </div>
+          </div>
+        ) : (
+          <ul className={styles.announceList}>
+            {announcements.slice(0, 4).map((a, i) => (
+              <li key={a.id || a.ID || i} className={styles.announceRow}>
+                <span className={styles.announceDot} />
+                <div className={styles.announceBody}>
+                  <div className={styles.announceTitle}>
+                    {a.title || a.subject || "Update"}
+                  </div>
+                  {a.detail && (
+                    <div className={styles.announceDetail}>{a.detail}</div>
+                  )}
+                </div>
+                {(a.when || a.date) && (
+                  <div className={styles.announceWhen}>{a.when || a.date}</div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </motion.section>
 
+
+      {/* ==================== 5. PRODUCTIVITY ==================== */}
+      {/* One quiet line — no chart, just a progress bar so the page
+          keeps some at-a-glance signal without becoming a KPI wall. */}
+      {prodScore != null && (
+        <motion.section className={styles.productivity} {...rise(0.24)}>
+          <div className={styles.productivityHead}>
+            <span className={styles.productivityLabel}>Productivity</span>
+            <span className={styles.productivityScore}>
+              {Math.round(prodScore)}
+              <span className={styles.productivityOutOf}> / 100</span>
+            </span>
+          </div>
+          <div className={styles.productivityTrack}>
+            <div
+              className={styles.productivityFill}
+              style={{ width: `${Math.min(100, Math.max(0, prodScore))}%` }}
+            />
+          </div>
+        </motion.section>
+      )}
     </div>
   );
 }

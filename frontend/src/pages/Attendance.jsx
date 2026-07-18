@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 
 import API from "../services/api";
 
@@ -37,6 +37,46 @@ function Attendance() {
   // ---- Geofencing: gate the check-in/out buttons until inside ----
   const [gpsCtx, setGpsCtx] = useState(null);
   // gpsCtx = { lat, lng, distance, accuracy, deviceInfo } | null
+
+  // ---- Biometric CSV import (manual upload from USB dump) ----
+  const csvFileRef = useRef(null);
+  const [csvBusy, setCsvBusy] = useState(false);
+  const [csvResult, setCsvResult] = useState(null);
+
+  const handleCsvChosen = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!/\.(csv|txt|dat)$/i.test(file.name)) {
+      alert(
+        "Please pick the .csv / .txt / .dat file downloaded from the biometric device."
+      );
+      event.target.value = "";
+      return;
+    }
+    setCsvBusy(true);
+    setCsvResult(null);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await API.post("/api/attendance/import-csv", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setCsvResult(res.data);
+      // Refresh attendance so the newly-applied punches show up.
+      fetchTodayAttendance();
+      fetchAllAttendance();
+    } catch (err) {
+      setCsvResult({
+        error:
+          err?.response?.data?.detail ||
+          err?.message ||
+          "Import failed. Check the file format.",
+      });
+    } finally {
+      setCsvBusy(false);
+      if (csvFileRef.current) csvFileRef.current.value = "";
+    }
+  };
 
   const browserInfo = useMemo(
     () => (typeof navigator !== "undefined"
@@ -443,6 +483,62 @@ function Attendance() {
             {new Date().toLocaleDateString("en-IN", {
               weekday: "short", day: "numeric", month: "long", year: "numeric",
             })}
+          </div>
+
+          {/* ---- Biometric CSV import — offline USB export path ---- */}
+          <div style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <input
+              ref={csvFileRef}
+              type="file"
+              accept=".csv,.txt,.dat"
+              onChange={handleCsvChosen}
+              style={{ display: "none" }}
+            />
+            <button
+              type="button"
+              onClick={() => csvFileRef.current?.click()}
+              disabled={csvBusy}
+              title="Upload the attendance file you downloaded from the biometric device via USB"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 8,
+                padding: "8px 14px", borderRadius: 8,
+                background: csvBusy ? "#94a3b8" : "#C8102E",
+                color: "#fff", border: "none", fontWeight: 700, fontSize: 13,
+                cursor: csvBusy ? "wait" : "pointer",
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" strokeWidth="2"
+                   strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              {csvBusy ? "Importing..." : "Import Biometric CSV"}
+            </button>
+
+            {csvResult && (
+              <div style={{
+                fontSize: 12, padding: "6px 10px", borderRadius: 6,
+                background: csvResult.error ? "#fef2f2" : "#dcfce7",
+                color:      csvResult.error ? "#b91c1c" : "#166534",
+                border:     csvResult.error ? "1px solid #fecaca" : "1px solid #86efac",
+                maxWidth: 420,
+              }}>
+                {csvResult.error ? (
+                  <span>❌ {csvResult.error}</span>
+                ) : (
+                  <span>
+                    ✓ Applied <b>{csvResult.applied}</b> / {csvResult.total_rows}
+                    {csvResult.skipped_duplicate > 0 && ` · ${csvResult.skipped_duplicate} dup`}
+                    {csvResult.skipped_unmapped  > 0 && ` · ${csvResult.skipped_unmapped} unmapped`}
+                    {csvResult.skipped_invalid   > 0 && ` · ${csvResult.skipped_invalid} invalid`}
+                    {csvResult.sample_unmapped_ids?.length > 0 &&
+                      ` (unknown IDs: ${csvResult.sample_unmapped_ids.slice(0,5).join(", ")})`}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

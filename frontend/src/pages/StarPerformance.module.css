@@ -569,3 +569,33 @@
   justify-content: center;
   margin-bottom: 14px;
 }
+
+
+/* ==================================================================
+   MOBILE responsive additions
+   ================================================================== */
+@media (max-width: 900px) {
+  .page, .container, .wrapper { padding: 14px; }
+  .pageHead, .header, .toolbar {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .filterCard, .filterRow, .filters {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .searchInput, .filterSelect, .searchWrap, input, select { width: 100%; }
+  .kpiRow, .statRow, .statsGrid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .cardGrid, .cardsGrid, .tileGrid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .twoCol, .splitPanel, .detailGrid { grid-template-columns: 1fr; }
+  .tableCard, .tableWrap, .tblWrap { overflow-x: auto; }
+}
+@media (max-width: 640px) {
+  .page, .container, .wrapper { padding: 10px; }
+  .kpiRow, .statRow, .statsGrid { grid-template-columns: repeat(2, 1fr); }
+  .cardGrid, .cardsGrid, .tileGrid { grid-template-columns: 1fr; }
+  .kpiValue, .statValue { font-size: 20px; }
+  h1 { font-size: 20px; }
+  h2 { font-size: 17px; }
+}

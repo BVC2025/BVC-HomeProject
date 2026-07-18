@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import API from "../services/api";
 import styles from "./EmployeeProfileForm.module.css";
 
-
 // Small set surfaced during onboarding. Order matters — the first
 // item is the default. Everything else can still be uploaded later
 // from Profile → Documents (that panel supports 21 doc types).
@@ -17,10 +16,86 @@ const DOC_TYPES = [
   { value: "OFFER_LETTER",    label: "Offer letter" },
   { value: "BANK_PASSBOOK",   label: "Bank passbook / cheque" },
   { value: "ADDRESS_PROOF",   label: "Address proof" },
-  { value: "OTHER",           label: "Other" },
+  { value: "OTHER",           label: "Other" },]
+// Small set surfaced during onboarding. Anything else can still be
+// uploaded later from Profile → Documents in the ESS panel.
+const DOC_TYPES = [
+  { value: "RESUME",            label: "Resume / CV" },
+  { value: "AADHAAR",           label: "Aadhaar" },
+  { value: "PAN",               label: "PAN card" },
+  { value: "DEGREE",            label: "Degree certificate" },
+  { value: "TENTH_MARKSHEET",   label: "10th marksheet" },
+  { value: "TWELFTH_MARKSHEET", label: "12th marksheet" },
+  { value: "OFFER_LETTER",      label: "Offer letter" },
+  { value: "BANK_PASSBOOK",     label: "Bank passbook / cheque" },
+  { value: "ADDRESS_PROOF",     label: "Address proof" },
+  { value: "OTHER",             label: "Other" },
+
 ];
 
 const MAX_DOC_MB = 10;
+
+// ---- Icons ----
+// Small stroke SVGs replace the emoji glyphs we used to have. Same
+// visual weight everywhere so the page reads as one thing, and
+// icons render identically across OS emoji fonts.
+const svg = (path) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+       stroke="currentColor" strokeWidth="1.8"
+       strokeLinecap="round" strokeLinejoin="round"
+       aria-hidden="true">
+    {path}
+  </svg>
+);
+
+const Icons = {
+  identity: svg(<>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <circle cx="9" cy="12" r="2.5" />
+    <path d="M14 10h4M14 14h4M6.5 16.5c0-1.4 1.1-2.5 2.5-2.5s2.5 1.1 2.5 2.5" />
+  </>),
+  camera: svg(<>
+    <path d="M4 8h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" />
+    <circle cx="12" cy="13" r="3.5" />
+  </>),
+  user: svg(<>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+  </>),
+  phone: svg(<>
+    <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8 9.6a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z" />
+  </>),
+  graduation: svg(<>
+    <path d="M22 10L12 5 2 10l10 5 10-5z" />
+    <path d="M6 12v5c3 2 9 2 12 0v-5" />
+  </>),
+  briefcase: svg(<>
+    <rect x="2" y="7" width="20" height="14" rx="2" />
+    <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <path d="M2 13h20" />
+  </>),
+  paperclip: svg(
+    <path d="M21 12.5L12.5 21a5.5 5.5 0 0 1-7.8-7.8l9-9a3.7 3.7 0 0 1 5.2 5.2l-9 9a1.8 1.8 0 0 1-2.6-2.6l7.4-7.4" />
+  ),
+  note: svg(<>
+    <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+    <path d="M14 3v6h6" />
+    <path d="M9 13h6M9 17h4" />
+  </>),
+  logout: svg(<>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <path d="M16 17l5-5-5-5" />
+    <path d="M21 12H9" />
+  </>),
+  alert: svg(<>
+    <path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+    <path d="M12 9v4M12 17h.01" />
+  </>),
+  check: svg(<>
+    <path d="M22 11.1V12a10 10 0 1 1-5.9-9.1" />
+    <path d="M22 4L12 14.01l-3-3" />
+  </>),
+};
 
 
 // ===================================================================
@@ -52,7 +127,10 @@ function Field({ label, children, hint }) {
 function Section({ icon, title, children }) {
   return (
     <div className={styles.section}>
-      <div className={styles.sectionHeader}>{icon} {title}</div>
+      <div className={styles.sectionHeader}>
+        <span className={styles.sectionIcon}>{icon}</span>
+        <span>{title}</span>
+      </div>
       {children}
     </div>
   );
@@ -117,6 +195,11 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
   // Docs are uploaded IMMEDIATELY (not deferred to submit) using the
   // same endpoint MyProfilePanel uses. That way if the employee closes
   // the browser mid-form, at least their IDs are saved.
+
+  // Uploaded IMMEDIATELY (not deferred to submit). If the employee
+  // closes the browser mid-form, their IDs are already saved on
+  // the server via the /employees/{id}/documents endpoint.
+
   const [docType, setDocType] = useState(DOC_TYPES[0].value);
   const [docTitle, setDocTitle] = useState("");
   const [docBusy, setDocBusy] = useState(false);
@@ -126,6 +209,10 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
 
   // Load any docs already uploaded (e.g. employee re-opened the form
   // after uploading one file yesterday).
+
+  // Rehydrate any docs already uploaded (e.g. employee re-opened the
+  // form after uploading a file earlier).
+
   useEffect(() => {
     if (!employee?.ID) return;
     let cancelled = false;
@@ -259,24 +346,21 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
             Welcome, {employee.NAME || employee.EMPLOYEE_CODE}!
           </h1>
           <div className={styles.heroDesc}>
-            Please fill in your personal and work details below.
-            This is a <b>one-time submission</b> — after you save,
-            only admin can change these details.
-            Verify everything carefully before submitting.
+            Complete your profile to unlock the ERP.
           </div>
           <button onClick={onLogout} className={styles.logoutBtn}>
-            ⏻ Logout
+            {Icons.logout} <span>Logout</span>
           </button>
         </div>
 
         {error && (
-          <div className={styles.errorBanner}>⚠ {error}</div>
+          <div className={styles.errorBanner}>{Icons.alert}<span>{error}</span></div>
         )}
 
         <form onSubmit={submit}>
 
           {/* Admin-set basics (locked) */}
-          <Section icon="🪪" title="Identity (set by Admin)">
+          <Section icon={Icons.identity} title="Identity (set by Admin)">
             <div className={styles.grid3}>
               <Field label="Employee Code">
                 <input type="text" value={employee.EMPLOYEE_CODE || ""} readOnly
@@ -298,7 +382,7 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
           </Section>
 
           {/* Photo */}
-          <Section icon="📷" title="Profile Photo">
+          <Section icon={Icons.camera} title="Profile Photo">
             <div className={styles.photoRow}>
               <div
                 className={styles.avatar}
@@ -316,7 +400,7 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
           </Section>
 
           {/* Personal Information */}
-          <Section icon="👤" title="Personal Information">
+          <Section icon={Icons.user} title="Personal Information">
             <div className={styles.grid2}>
               <Field label="Full Name *">
                 <input type="text" value={form.NAME} onChange={set("NAME")} className={styles.input} required />
@@ -386,7 +470,7 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
           </Section>
 
           {/* Contact + Address */}
-          <Section icon="📞" title="Contact & Address">
+          <Section icon={Icons.phone} title="Contact & Address">
             <div className={styles.grid2}>
               <Field label="Phone *">
                 <input type="text" value={form.PHONE} onChange={set("PHONE")} className={styles.input} required />
@@ -410,7 +494,7 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
           </Section>
 
           {/* Education */}
-          <Section icon="🎓" title="Educational Background">
+          <Section icon={Icons.graduation} title="Educational Background">
             <div className={styles.gridEdu}>
               <Field label="Qualification">
                 <input type="text" value={form.QUALIFICATION} onChange={set("QUALIFICATION")} className={styles.input} placeholder="e.g. BE Mechanical, Diploma in EEE" />
@@ -434,7 +518,7 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
           </Section>
 
           {/* Professional */}
-          <Section icon="💼" title="Professional / Experience">
+          <Section icon={Icons.briefcase} title="Professional / Experience">
             <div className={styles.grid21}>
               <Field label="Employment Type">
                 <select value={form.EMPLOYMENT_TYPE} onChange={set("EMPLOYMENT_TYPE")} className={styles.input}>
@@ -546,7 +630,10 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
           </Section>
 
           {/* Documents */}
-          <Section icon="📎" title="Documents">
+          <Section icon="📎" title="Documents"/>
+          {/* Documents */}
+          <Section icon={Icons.paperclip} title="Documents">
+
             <div className={styles.docHint}>
               Upload your Resume, Aadhaar, PAN and any other required ID
               proofs. PDF or image (JPG / PNG). Max {MAX_DOC_MB} MB per file.
@@ -588,7 +675,10 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
             </div>
 
             {docError && (
-              <div className={styles.errorBanner}>⚠ {docError}</div>
+              <div className={styles.errorBanner}>
+                {Icons.alert}
+                <span>{docError}</span>
+              </div>
             )}
             {docBusy && (
               <div className={styles.fieldHint}>Uploading…</div>
@@ -623,7 +713,7 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
           </Section>
 
           {/* Additional */}
-          <Section icon="📝" title="Additional Information">
+          <Section icon={Icons.note} title="Additional Information">
             <Field label="Notes / Anything else we should know">
               <textarea rows={3} value={form.NOTES} onChange={set("NOTES")} className={`${styles.input} ${styles.textarea}`} />
             </Field>
@@ -632,11 +722,16 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
           {/* Submit */}
           <div className={styles.submitBar}>
             <div className={styles.submitWarning}>
-              ⚠ Once you submit, you <b>cannot</b> edit this form again.
-              Only admin can change your details after submission.
+              {Icons.alert}
+              <span>
+                Once you submit, you <b>cannot</b> edit this form again.
+                Only admin can change your details after submission.
+              </span>
             </div>
             <button type="submit" disabled={saving} className={styles.submitBtn}>
-              {saving ? "Submitting…" : "✓ Submit My Profile"}
+              {saving
+                ? "Submitting…"
+                : (<>{Icons.check}<span>Submit My Profile</span></>)}
             </button>
           </div>
 

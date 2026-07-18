@@ -145,9 +145,15 @@ def upload_document(
       uploaded_by_id — optional; admin's employee_id for audit
     """
 
+
     # Same guard the photo-upload endpoint uses. Lets an employee
     # upload their own docs from the ESS portal without needing the
     # admin-only `document.upload` permission.
+
+    # Lets an employee upload their own docs from the onboarding form
+    # / ESS portal without needing the admin-only `document.upload`
+    # permission. Admins still pass by virtue of their role.
+
     assert_self_or_admin(employee_id, payload)
 
     emp = db.query(Employee).filter(Employee.ID == employee_id).first()
@@ -294,7 +300,14 @@ def delete_document(
 ):
     """Permanently remove a document row + its file on disk.
 
+
     Access: same rule as upload — the employee themselves OR an admin.
+
+    Access mirrors the upload endpoint — the employee themselves or
+    any admin. Prevents an admin-only `document.delete` gate from
+    blocking employees who want to replace a mis-uploaded file
+    during their own onboarding.
+
     """
 
     assert_self_or_admin(employee_id, payload)

@@ -990,3 +990,30 @@
   background: #7c3aed;
   border-color: #7c3aed;
 }
+
+
+/* ==================================================================
+   MOBILE — Attendance page
+   ================================================================== */
+
+@media (max-width: 900px) {
+  .page { padding: 14px; }
+  .kpiRow { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .filterCard { flex-direction: column; align-items: stretch; gap: 10px; }
+  .filterCard input, .filterCard select { width: 100%; }
+  .clockCell { padding: 8px 10px; }
+  .tableCard { overflow-x: auto; }
+}
+
+@media (max-width: 640px) {
+  .page { padding: 10px; }
+  .kpiRow { grid-template-columns: repeat(2, 1fr); }
+  .kpiValue { font-size: 20px; }
+  .clockCell { min-width: 0; }
+  .tableCard table { min-width: 640px; }  /* horizontal scroll trigger */
+}
+
+@media (max-width: 480px) {
+  .kpiRow { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .kpiValue { font-size: 18px; }
+}

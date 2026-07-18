@@ -2,19 +2,24 @@
 import { useLocation, useNavigate } from "react-router-dom";
 
 import API, { API_BASE_URL } from "../services/api";
-import ChatBot from "../components/ChatBot";
-import HRAssistant from "../components/HRAssistant";
+import EmployeeAIAssistant from "../components/EmployeeAIAssistant";
+// HRAssistant replaced by EmployeeAIAssistant (voice + chat).
 import LeaveChatbot from "../components/LeaveChatbot";
 import LeaveAgentChat from "../components/LeaveAgentChat";
 import MyLeaveStatus from "../components/MyLeaveStatus";
 import MyAttendancePanel from "../components/MyAttendancePanel";
+import MyTasksPanel from "../components/MyTasksPanel";
 import MyAllowanceSection from "../components/MyAllowanceSection";
 import MyPayslipsPanel from "../components/MyPayslipsPanel";
 import MyPermissionSection from "../components/MyPermissionSection";
 import EmployeeSidebar from "../components/EmployeeSidebar";
 import EmployeeHomeDashboard from "../components/EmployeeHomeDashboard";
 import ComingSoonPanel from "../components/ComingSoonPanel";
+
 import MyProfilePanel from "../components/MyProfilePanel";
+
+import ConfirmDialog from "../components/ConfirmDialog";
+
 import EmployeeProfileForm from "./EmployeeProfileForm";
 
 import styles from "./EmployeeDashboard.module.css";
@@ -175,6 +180,10 @@ function EmployeeDashboard() {
     submitted: false
   });
 
+  // Confirm modal gate for the onboarding-form logout button. The
+  // main dashboard has its own confirm inside EmployeeDashboardBody.
+  const [logoutOpen, setLogoutOpen] = useState(false);
+
   const reloadProfileGate = () => {
     if (!employeeId) {
       setProfileGate({ loading: false, employee: null, submitted: true });
@@ -209,26 +218,30 @@ function EmployeeDashboard() {
 
   if (profileGate.employee && !profileGate.submitted) {
     return (
-      <EmployeeProfileForm
-        employee={profileGate.employee}
-        onSubmitted={() => reloadProfileGate()}
-        onLogout={() => {
-          localStorage.clear();
-          navigate("/login", { replace: true });
-        }}
-      />
+      <>
+        <EmployeeProfileForm
+          employee={profileGate.employee}
+          onSubmitted={() => reloadProfileGate()}
+          onLogout={() => setLogoutOpen(true)}
+        />
+        <ConfirmDialog
+          open={logoutOpen}
+          title="Are you sure you want to log out?"
+          confirmLabel="Log Out"
+          cancelLabel="Continue"
+          danger
+          onCancel={() => setLogoutOpen(false)}
+          onConfirm={() => {
+            setLogoutOpen(false);
+            localStorage.clear();
+            navigate("/login", { replace: true });
+          }}
+        />
+      </>
     );
   }
 
-  return (
-    <>
-      <EmployeeDashboardBody />
-      <HRAssistant
-        employeeId={profileGate.employee?.EMPLOYEE_CODE || employeeId}
-        employeeName={profileGate.employee?.NAME || ""}
-      />
-    </>
-  );
+  return <EmployeeDashboardBody />;
 }
 
 
@@ -285,6 +298,12 @@ function EmployeeDashboardBody() {
   const [mainTab, setMainTab] = useState(
     () => location.state?.tab || "home"
   );
+
+  // Mobile sidebar drawer state — hamburger button in the header
+  // toggles this; the sidebar itself calls onClose when a nav item
+  // is picked, so navigation on a phone acts like a real drawer.
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   // Re-sync when the user comes back through the welcome tiles.
   useEffect(() => {
@@ -551,11 +570,15 @@ function EmployeeDashboardBody() {
     if (!next) stopSpeaking();
   };
 
-  const handleLogout = async () => {
-    if (!window.confirm("Log out now?")) return;
+  // Open the branded confirm modal; the actual logout happens in
+  // performLogout below, called on Confirm.
+  const handleLogout = () => setLogoutOpen(true);
+
+  const performLogout = async () => {
+    setLogoutOpen(false);
     try {
       await API.post("/employee-logout", { EMPLOYEE_ID: employeeId });
-    } catch { /* ignore */ }
+    } catch { /* server-side logout is best-effort */ }
     localStorage.clear();
     navigate("/login", { replace: true });
   };
@@ -706,6 +729,8 @@ function EmployeeDashboardBody() {
         onSelect={(key) => setMainTab(key)}
         onLogout={handleLogout}
         unreadCount={unreadCount}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
       <main className={styles.zMain}>
@@ -722,6 +747,7 @@ function EmployeeDashboardBody() {
           onBellClick={showOverdueToast}
           onGoHome={() => setMainTab("home")}
           onLogout={handleLogout}
+          onMenuToggle={() => setSidebarOpen((v) => !v)}
         />
 
         <div className={styles.zMainContent}>
@@ -747,7 +773,10 @@ function EmployeeDashboardBody() {
 
           {mainTab === "tasks" && (
             <>
-              <ZTasksPage
+              {/* Modern card-based tasks view; the old ZTasksPage
+                  table remains defined below for admin-side reuse
+                  but is no longer surfaced in the ESS. */}
+              <MyTasksPanel
                 buckets={taskBuckets}
                 busyMap={actionBusy}
                 onUpdate={updateAssignmentStatus}
@@ -784,7 +813,10 @@ function EmployeeDashboardBody() {
             <MyPermissionSection employeeId={employeeId} />
           )}
 
-          {mainTab === "memos" && (
+          {/* Announcements and the legacy "memos" tab both render the
+              same MyMemosCard — we merged the two sidebar entries into
+              a single "Announcements" item. */}
+          {(mainTab === "memos" || mainTab === "announcements") && (
             <MyMemosCard employeeId={employeeId} />
           )}
 
@@ -857,18 +889,7 @@ function EmployeeDashboardBody() {
               ]}
             />
           )}
-          {mainTab === "announcements" && (
-            <ComingSoonPanel
-              title="Company Announcements"
-              iconKey="megaphone"
-              description="Notice board for HR announcements, company policy updates and event invites."
-              bullets={[
-                "Banner + attachments per announcement",
-                "Category tags — HR notice, policy, events, emergency",
-                "Read-only, always sorted by date",
-              ]}
-            />
-          )}
+          {/* announcements handled above alongside memos */}
           {mainTab === "assets" && (
             <ComingSoonPanel
               title="My Assets"
@@ -966,7 +987,17 @@ function EmployeeDashboardBody() {
       </main>
 
       <Toast toast={toast} onClose={() => setToast(null)} />
-      <ChatBot />
+      <EmployeeAIAssistant />
+
+      <ConfirmDialog
+        open={logoutOpen}
+        title="Are you sure you want to log out?"
+        confirmLabel="Log Out"
+        cancelLabel="Continue"
+        danger
+        onCancel={() => setLogoutOpen(false)}
+        onConfirm={performLogout}
+      />
     </div>
   );
 }
@@ -1384,7 +1415,8 @@ function ZMainHeader({
   productivity,
   voiceOn, onToggleVoice, voiceSupported,
   overdueCount, onBellClick,
-  onGoHome, onLogout
+  onGoHome, onLogout,
+  onMenuToggle,
 }) {
 
   const isLate = attendanceStatus === "LATE";
@@ -1393,18 +1425,21 @@ function ZMainHeader({
   return (
     <header className={styles.zMainHeader}>
       <div className={styles.zMainHeaderLeft}>
+        {/* Mobile only: hamburger opens the sidebar drawer. Hidden on
+            desktop where the sidebar is always visible. */}
         <button
           type="button"
           className={styles.zHamburger}
-          onClick={onGoHome}
-          aria-label="Back to home"
-          title="Back to home"
+          onClick={onMenuToggle}
+          aria-label="Open menu"
+          title="Menu"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
                stroke="currentColor" strokeWidth="2.2"
                strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 11l9-8 9 8" />
-            <path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10" />
+            <path d="M4 6h16" />
+            <path d="M4 12h16" />
+            <path d="M4 18h16" />
           </svg>
         </button>
         <h1 className={styles.zMainTitle}>{title}</h1>

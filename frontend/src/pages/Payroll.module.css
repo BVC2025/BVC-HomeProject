@@ -777,3 +777,18 @@
 .modalDoneBtn:hover {
   background: #1d4ed8;
 }
+
+
+/* Additional mobile polish for Payroll — action row + increment select */
+@media (max-width: 900px) {
+  .actionRow { flex-direction: column; align-items: stretch; gap: 8px; }
+  .actionBtn { justify-content: center; }
+  .incrementSelect { width: 100%; min-width: 0; }
+  .rulesStrip { flex-wrap: wrap; gap: 8px; font-size: 11px; }
+}
+@media (max-width: 480px) {
+  .runBtn { width: 100%; }
+  .tbl th, .tbl td { padding: 8px 8px; font-size: 11.5px; }
+  .empName { font-size: 13px; }
+  .empCode { font-size: 10px; }
+}
