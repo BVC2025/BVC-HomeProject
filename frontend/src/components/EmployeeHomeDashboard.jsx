@@ -41,6 +41,25 @@ function clean(v) {
   return s;
 }
 
+// Values that live in the "department" or "designation" slot but
+// are actually RBAC role names. They shouldn't be shown as an
+// employee's job identity on the ESS portal — swap for "Employee".
+// Kept in sync with backend/app/auth/auth_bearer.py::ADMIN_ROLES.
+const ROLE_NAMES = new Set([
+  "ADMIN", "SUPER_ADMIN", "HR", "MANAGER", "PRODUCTION_HEAD",
+  "EMPLOYEE",
+  "MANAGING_DIRECTOR", "HR_MANAGER", "SALES_MANAGER",
+  "PURCHASE_MANAGER", "PRODUCTION_MANAGER", "INVENTORY_MANAGER",
+  "ACCOUNTS_MANAGER",
+]);
+
+function notARole(v) {
+  const s = (v || "").trim();
+  if (!s) return "";
+  return ROLE_NAMES.has(s.toUpperCase()) ? "" : s;
+}
+
+
 function statusInfo(raw) {
   const s = (raw || "").toUpperCase();
   if (s === "PRESENT" || s === "CHECKED_IN") return { tone: "success", label: "Present" };
@@ -95,9 +114,18 @@ export default function EmployeeHomeDashboard({
   const status = statusInfo(attendanceStatus);
   const checkInText = formatCheckIn(loginTime);
 
-  const subtitle = [identity.desig, identity.dept, identity.code]
-    .filter(Boolean)
-    .join(" · ") || "Employee";
+  // Build the subtitle from real job info only. If the "department"
+  // or "designation" slot actually holds a role name (e.g. "ADMIN"
+  // from a mis-tagged Department row in the DB), it gets dropped
+  // here — this page is the employee portal and role labels
+  // shouldn't be shown as identity.
+  const subtitleParts = ["Employee"];
+  const realDesig = notARole(identity.desig);
+  const realDept  = notARole(identity.dept);
+  if (realDesig)      subtitleParts.push(realDesig);
+  if (realDept)       subtitleParts.push(realDept);
+  if (identity.code)  subtitleParts.push(identity.code);
+  const subtitle = subtitleParts.join(" · ");
 
   // Subtle rise-and-fade on mount, nothing more.
   const rise = {
