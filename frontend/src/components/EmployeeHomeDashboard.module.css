@@ -155,82 +155,6 @@
 
 
 /* ==================================================================
-   GUIDANCE CARD
-   ================================================================== */
-
-.guidance {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 22px 24px;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 18px;
-  align-items: center;
-}
-
-.guidanceIcon {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  background: #fef2f2;
-  color: #dc2626;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.guidanceText {
-  min-width: 0;
-}
-
-.guidanceTitle {
-  margin: 0 0 4px;
-  font-size: 15px;
-  font-weight: 600;
-  color: #0f172a;
-  letter-spacing: -0.1px;
-}
-
-.guidanceBody {
-  margin: 0;
-  font-size: 13px;
-  color: #64748b;
-  line-height: 1.55;
-  max-width: 620px;
-}
-
-.guidanceBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 16px;
-  background: #dc2626;
-  color: #ffffff;
-  border: 1px solid #dc2626;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 13px;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.guidanceBtn:hover {
-  background: #b91c1c;
-  border-color: #b91c1c;
-  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.20);
-}
-
-.guidanceBtn:active {
-  transform: translateY(1px);
-}
-
-
-/* ==================================================================
    MOBILE
    ================================================================== */
 
@@ -263,19 +187,6 @@
     padding-top: 14px;
     border-top: 1px solid #f1f5f9;
   }
-
-  /* Guidance — stack icon+text over the button */
-  .guidance {
-    grid-template-columns: auto 1fr;
-    grid-template-areas:
-      "icon text"
-      "btn  btn";
-    padding: 18px 18px;
-    gap: 14px;
-  }
-  .guidanceIcon { grid-area: icon; }
-  .guidanceText { grid-area: text; }
-  .guidanceBtn  { grid-area: btn; width: 100%; justify-content: center; padding: 11px 16px; }
 }
 
 

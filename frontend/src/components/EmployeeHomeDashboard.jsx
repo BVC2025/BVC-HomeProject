@@ -63,7 +63,6 @@ export default function EmployeeHomeDashboard({
   portal,
   attendanceStatus,
   loginTime,
-  onOpenMenu,
 }) {
 
   // ---- Identity ----
@@ -145,48 +144,6 @@ export default function EmployeeHomeDashboard({
             </div>
           )}
         </div>
-      </motion.section>
-
-      {/* ============ GUIDANCE CARD ============ */}
-      {/* One-liner reminding the employee that all the modules live
-          in the side menu. No mascot, no illustrations — just
-          clean copy, an icon, and a button. */}
-      <motion.section
-        className={styles.guidance}
-        {...rise}
-        transition={{ ...rise.transition, delay: 0.1 }}
-      >
-        <div className={styles.guidanceIcon} aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" strokeWidth="2"
-               strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 6h18M3 12h18M3 18h18" />
-          </svg>
-        </div>
-
-        <div className={styles.guidanceText}>
-          <h2 className={styles.guidanceTitle}>Your workspace</h2>
-          <p className={styles.guidanceBody}>
-            Attendance, leave, payslips, tasks, allowances and memos
-            are all in the side menu. Open it to pick a module.
-          </p>
-        </div>
-
-        {onOpenMenu && (
-          <button
-            type="button"
-            className={styles.guidanceBtn}
-            onClick={onOpenMenu}
-          >
-            Open Menu
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" strokeWidth="2.2"
-                 strokeLinecap="round" strokeLinejoin="round"
-                 aria-hidden="true">
-              <path d="M5 12h14M13 5l7 7-7 7" />
-            </svg>
-          </button>
-        )}
       </motion.section>
 
     </div>
