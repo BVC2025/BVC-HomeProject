@@ -128,6 +128,9 @@ export default function EmployeeAIAssistant() {
 
   const scrollRef = useRef(null);
   const recognitionRef = useRef(null);
+  // Slot-state for the multi-turn HR bot conversation. Sent with
+  // every /hr-bot/message request; updated from each response.
+  const contextRef = useRef({ state: "idle" });
 
   const ttsSupported = isTtsSupported();
   const sttSupported = !!getSpeechRecognition();
@@ -186,22 +189,31 @@ export default function EmployeeAIAssistant() {
     setDraft("");
     setPending(true);
 
+    // Slot-based context state the /hr-bot/message endpoint keeps
+     // between turns (idle → collecting leave dates → confirm → …).
+     // We ask the server to keep it stateless — send back whatever
+     // it gave us last time, or `idle` on the first turn.
     try {
-      const history = messages
-        .slice(-8)
-        .map((m) => ({ role: m.role, content: m.content }));
-
       const res = await API.post("/hr-bot/message", {
-        EMPLOYEE_ID: employeeCode,
+        employee_id: employeeCode,
         message: trimmed,
-        history,
+        context: contextRef.current || { state: "idle" },
       });
 
+      const data = res.data || {};
+
+      // The endpoint returns { reply | message, context, ... } —
+      // accept whichever key it settled on and stash the new context
+      // for the next turn.
       const reply =
-           res.data?.reply
-        || res.data?.answer
-        || res.data?.message
+           (typeof data.reply   === "string" && data.reply)
+        || (typeof data.answer  === "string" && data.answer)
+        || (typeof data.message === "string" && data.message)
         || "Sorry, I couldn't come up with an answer for that.";
+
+      if (data.context && typeof data.context === "object") {
+        contextRef.current = data.context;
+      }
 
       addMessage("assistant", reply);
 
@@ -210,17 +222,31 @@ export default function EmployeeAIAssistant() {
       }
 
     } catch (err) {
-      const detail =
-           err?.response?.data?.detail
-        || (err?.response?.status === 404
-            ? "The assistant service isn't reachable right now."
-            : "I'm having trouble reaching the server — try again in a moment.");
+      // FastAPI 422 returns `detail` as an ARRAY of validation
+      // errors, not a string — passing that to React kills the
+      // tree. Normalise every shape to a plain string here.
+      const raw = err?.response?.data?.detail;
+      let detail;
+      if (typeof raw === "string" && raw.trim()) {
+        detail = raw;
+      } else if (Array.isArray(raw) && raw.length) {
+        detail = raw
+          .map((e) => e?.msg || e?.message || "")
+          .filter(Boolean)
+          .join(" · ") || "The request was rejected by the server.";
+      } else if (err?.response?.status === 404) {
+        detail = "The assistant service isn't reachable right now.";
+      } else if (!err?.response) {
+        detail = "I can't reach the server — check your connection and try again.";
+      } else {
+        detail = "I'm having trouble responding right now — try again in a moment.";
+      }
       addMessage("assistant", detail);
     } finally {
       setPending(false);
     }
   }, [
-    pending, addMessage, messages, employeeCode,
+    pending, addMessage, employeeCode,
     voiceOn, ttsSupported,
   ]);
 
@@ -385,7 +411,11 @@ export default function EmployeeAIAssistant() {
             {m.role === "assistant" && (
               <span className={styles.msgAvatar}>{I.bot}</span>
             )}
-            <div className={styles.msgBubble}>{m.content}</div>
+            <div className={styles.msgBubble}>
+              {typeof m.content === "string"
+                ? m.content
+                : JSON.stringify(m.content)}
+            </div>
           </div>
         ))}
 
