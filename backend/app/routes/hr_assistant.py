@@ -311,6 +311,41 @@ def _parse_days(text_norm: str) -> Optional[float]:
     return None
 
 
+def _looks_like_balance_query(text_norm: str) -> bool:
+    """Detect the many natural phrasings employees use to ask for
+    their leave balance. Covers 'how much leave do I have left',
+    'my remaining leaves', 'leaves available', 'balance?', etc.
+
+    Deliberately excludes leave-APPLY phrasings — you can ask for a
+    balance with 'how many' but you'd say 'apply', 'take', 'need',
+    'want' for an application.
+    """
+
+    # Direct balance keywords
+    if _has_any(text_norm, {
+        "balance", "remaining",
+        "leaves left", "leave left", "days left",
+        "leaves available", "leave available",
+    }):
+        return True
+
+    # "how much / many … leave / leaves / days"
+    if re.search(
+        r"\bhow\s+(?:much|many)\b.*\b(?:leave|leaves|days)\b",
+        text_norm,
+    ):
+        return True
+
+    # "leave/leaves … left / remaining / available"
+    if re.search(
+        r"\b(?:leave|leaves)\b.*\b(?:left|remaining|available)\b",
+        text_norm,
+    ):
+        return True
+
+    return False
+
+
 def _detect_side_intent(text_norm: str) -> Optional[str]:
     """Detect side-questions the user might slip in mid-flow.
 
@@ -320,10 +355,7 @@ def _detect_side_intent(text_norm: str) -> Optional[str]:
     "tomorrow") stays with the slot handler where it belongs.
     """
 
-    if _has_any(text_norm, {
-        "balance", "remaining", "leaves left", "days left",
-        "how many leaves", "how many days left", "how much leave",
-    }):
+    if _looks_like_balance_query(text_norm):
 
         return "balance"
 
@@ -377,7 +409,10 @@ def _handle_side_intent(
 def _detect_intent(text_norm: str) -> str:
     """Top-level user intent."""
 
-    if _has_any(text_norm, {"balance", "remaining", "how many leaves", "how many days left"}):
+    # Balance-style questions come in many phrasings; share the
+    # matcher with _detect_side_intent so 'how much leave do I have
+    # left' works both mid-flow and from idle.
+    if _looks_like_balance_query(text_norm):
 
         return "balance"
 

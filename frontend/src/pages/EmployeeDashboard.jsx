@@ -8,6 +8,7 @@ import LeaveChatbot from "../components/LeaveChatbot";
 import LeaveAgentChat from "../components/LeaveAgentChat";
 import MyLeaveStatus from "../components/MyLeaveStatus";
 import MyAttendancePanel from "../components/MyAttendancePanel";
+import MyTasksPanel from "../components/MyTasksPanel";
 import MyAllowanceSection from "../components/MyAllowanceSection";
 import MyPayslipsPanel from "../components/MyPayslipsPanel";
 import MyPermissionSection from "../components/MyPermissionSection";
@@ -748,7 +749,10 @@ function EmployeeDashboardBody() {
 
           {mainTab === "tasks" && (
             <>
-              <ZTasksPage
+              {/* Modern card-based tasks view; the old ZTasksPage
+                  table remains defined below for admin-side reuse
+                  but is no longer surfaced in the ESS. */}
+              <MyTasksPanel
                 buckets={taskBuckets}
                 busyMap={actionBusy}
                 onUpdate={updateAssignmentStatus}
