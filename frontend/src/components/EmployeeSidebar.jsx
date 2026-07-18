@@ -79,11 +79,13 @@ const NAV_GROUPS = [
   {
     label: "Company",
     items: [
-      { key: "memos",      label: "Memos",         icon: ICONS.memo },
-      { key: "announcements", label: "Announcements", icon: ICONS.megaphone, soon: true },
-      { key: "holidays",   label: "Holidays",      icon: ICONS.calendar,  soon: true },
-      { key: "documents",  label: "Documents",     icon: ICONS.docs,      soon: true },
-      { key: "notifications", label: "Notifications", icon: ICONS.bell,   soon: true },
+      // Announcements covers both directive memos and general HR
+      // notices — we don't need two rows for the same idea.
+      { key: "announcements", label: "Announcements", icon: ICONS.megaphone },
+      { key: "holidays",   label: "Holidays",  icon: ICONS.calendar, soon: true },
+      { key: "documents",  label: "Documents", icon: ICONS.docs,     soon: true },
+      // "Notifications" removed — the topbar bell already opens
+      // this list and shows the unread count.
     ],
   },
   {

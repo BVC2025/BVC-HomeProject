@@ -793,7 +793,10 @@ function EmployeeDashboardBody() {
             <MyPermissionSection employeeId={employeeId} />
           )}
 
-          {mainTab === "memos" && (
+          {/* Announcements and the legacy "memos" tab both render the
+              same MyMemosCard — we merged the two sidebar entries into
+              a single "Announcements" item. */}
+          {(mainTab === "memos" || mainTab === "announcements") && (
             <MyMemosCard employeeId={employeeId} />
           )}
 
@@ -857,18 +860,7 @@ function EmployeeDashboardBody() {
               ]}
             />
           )}
-          {mainTab === "announcements" && (
-            <ComingSoonPanel
-              title="Company Announcements"
-              iconKey="megaphone"
-              description="Notice board for HR announcements, company policy updates and event invites."
-              bullets={[
-                "Banner + attachments per announcement",
-                "Category tags — HR notice, policy, events, emergency",
-                "Read-only, always sorted by date",
-              ]}
-            />
-          )}
+          {/* announcements handled above alongside memos */}
           {mainTab === "assets" && (
             <ComingSoonPanel
               title="My Assets"
