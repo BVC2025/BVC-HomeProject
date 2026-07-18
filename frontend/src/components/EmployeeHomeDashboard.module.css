@@ -1,364 +1,286 @@
 /* ==================================================================
-   EmployeeHomeDashboard — minimal welcome page
-   Hero band (photo + name + status + check-in) followed by a
-   friendly nudge pointing at the side menu. All modules live in
-   the sidebar; this page is deliberately quiet.
+   EmployeeHomeDashboard — Zoho People-inspired clean layout.
+   Neutral surfaces, muted text, brand red only as an accent.
+   No illustrations, no mascots — content only.
    ================================================================== */
 
 .home {
   display: grid;
-  gap: 22px;
+  gap: 16px;
   padding: 4px 2px 32px;
   max-width: 900px;
   margin: 0 auto;
   width: 100%;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #1e293b;
 }
 
 
-/* ==============================================================
-   WELCOME BAND
-   ============================================================== */
+/* ==================================================================
+   WELCOME CARD
+   ================================================================== */
 
-.hero {
+.welcome {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 22px 24px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: center;
+}
+
+.welcomeMain {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 20px;
+  gap: 16px;
   align-items: center;
-  padding: 22px 26px;
-  background: linear-gradient(135deg,
-              var(--clr-primary, #dc2626) 0%,
-              #b91c1c 100%);
-  color: #ffffff;
-  border-radius: 18px;
-  box-shadow: 0 12px 32px rgba(220, 38, 38, 0.25);
-  position: relative;
-  overflow: hidden;
+  min-width: 0;
 }
 
-/* Soft glow blob in the corner — subtle, not shouty */
-.hero::before {
-  content: "";
-  position: absolute;
-  right: -60px;
-  top: -60px;
-  width: 220px;
-  height: 220px;
-  background: radial-gradient(circle,
-              rgba(244, 179, 36, 0.28) 0%,
-              transparent 70%);
-  pointer-events: none;
-}
-
-.heroAvatar {
-  width: 72px;
-  height: 72px;
+/* ---- Avatar ---- */
+.avatar {
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.18);
-  border: 3px solid rgba(255, 255, 255, 0.35);
+  background: #f1f5f9;
+  color: #475569;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
-  font-size: 26px;
-  color: #ffffff;
+  font-weight: 700;
+  font-size: 22px;
   overflow: hidden;
   flex-shrink: 0;
-  position: relative;
-  z-index: 1;
+  border: 1px solid #e2e8f0;
 }
 
-.heroAvatar img {
+.avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.heroText {
+/* ---- Welcome text ---- */
+.welcomeText {
   min-width: 0;
-  position: relative;
-  z-index: 1;
 }
 
-.heroDate {
+.welcomeDate {
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1.6px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: #fde68a;
-  opacity: 0.95;
+  color: #94a3b8;
   margin-bottom: 4px;
 }
 
-.heroTitle {
-  margin: 0 0 3px;
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.4px;
-  line-height: 1.15;
+.welcomeTitle {
+  margin: 0 0 2px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #0f172a;
+  letter-spacing: -0.2px;
+  line-height: 1.25;
 }
 
-.heroSubtitle {
+.welcomeTitle span {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.welcomeSubtitle {
   font-size: 13px;
-  font-weight: 500;
-  opacity: 0.9;
-  margin-bottom: 12px;
+  font-weight: 400;
+  color: #64748b;
 }
 
-.heroFooter {
+/* ---- Meta strip (Status + Check-in) ---- */
+.welcomeMeta {
   display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-  margin-top: 4px;
+  gap: 24px;
+  flex-shrink: 0;
 }
 
+.metaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
 
-/* ---- Status pill ---- */
+.metaLabel {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
 
-.pill {
+.metaValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Status chip ---- */
+.chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 12px;
+  padding: 3px 10px;
   border-radius: 999px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  background: rgba(255, 255, 255, 0.18);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.28);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  border: 1px solid transparent;
+  width: fit-content;
 }
 
-.pillDot {
+.chipDot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: currentColor;
 }
 
-.pill_success { background: rgba(34, 197, 94, 0.9);  border-color: transparent; }
-.pill_warning { background: rgba(245, 158, 11, 0.95); border-color: transparent; color: #78350f; }
-.pill_danger  { background: rgba(239, 68, 68, 0.95);  border-color: transparent; }
-.pill_info    { background: rgba(59, 130, 246, 0.9);  border-color: transparent; }
-.pill_muted   { background: rgba(255, 255, 255, 0.15); }
+.chip_success { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+.chip_warning { background: #fffbeb; color: #b45309; border-color: #fcd34d; }
+.chip_danger  { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.chip_info    { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.chip_muted   { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
 
 
-/* ---- Check-in time ---- */
+/* ==================================================================
+   GUIDANCE CARD
+   ================================================================== */
 
-.checkin {
+.guidance {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 22px 24px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 18px;
+  align-items: center;
+}
+
+.guidanceIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #dc2626;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: #ffffff;
-  opacity: 0.92;
-}
-
-
-/* ==============================================================
-   MENU NUDGE — the whole point of this page
-   ============================================================== */
-
-.callout {
-  display: grid;
-  grid-template-columns: 300px 1fr;
-  gap: 30px;
-  align-items: center;
-  background: var(--card-bg, #ffffff);
-  border: 1px solid var(--border, #e2e8f0);
-  border-radius: 20px;
-  padding: 36px 40px 32px;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-  position: relative;
-  overflow: hidden;                 /* clips the walking-in mascot */
-}
-
-
-/* ---- Illustration stage ----
-   The mascot walks in from the LEFT edge of the callout card. The
-   parent's overflow:hidden clips her while she's off-screen.
-   framer-motion drives every transform — no CSS keyframes in the
-   walk cycle. */
-
-.stage {
-  position: relative;
-  height: 300px;
-  display: flex;
-  align-items: flex-end;
   justify-content: center;
+  flex-shrink: 0;
 }
 
-.halo {
-  position: absolute;
-  inset: auto 0 24px 0;
-  margin: auto;
-  width: 200px;
-  height: 200px;
-  border-radius: 50%;
-  background: radial-gradient(circle,
-              rgba(239, 68, 68, 0.16) 0%,
-              transparent 68%);
-  z-index: 0;
-  pointer-events: none;
-}
-
-/* Small dust puff that fires once when the character lands. */
-.dust {
-  position: absolute;
-  left: 50%;
-  bottom: 14px;
-  transform: translateX(-50%);
-  width: 120px;
-  height: 22px;
-  border-radius: 50%;
-  background: radial-gradient(ellipse,
-              rgba(148, 163, 184, 0.55) 0%,
-              transparent 70%);
-  z-index: 0;
-  pointer-events: none;
-}
-
-.mascotWrap {
-  position: relative;
-  z-index: 1;
-  transform-origin: 50% 100%;       /* nice squash-stretch pivot */
-  will-change: transform;
-}
-
-/* Eye blink — CSS driven so it runs while framer-motion is busy
-   with body transforms. Every ~4s the eyes squash vertically.
-   The new mascot has eyes centered around (130, 104) in the SVG. */
-.eyes {
-  transform-origin: 130px 104px;
-  transform-box: fill-box;
-  animation: blink 4.4s ease-in-out infinite;
-}
-
-@keyframes blink {
-  0%, 90%, 100% { transform: scaleY(1); }
-  94%           { transform: scaleY(0.12); }
-}
-
-
-/* ---- Text column ---- */
-
-.calloutText {
+.guidanceText {
   min-width: 0;
 }
 
-.calloutTitle {
-  margin: 0 0 10px;
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--text-primary, #0f172a);
-  letter-spacing: -0.4px;
-  line-height: 1.25;
+.guidanceTitle {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+  letter-spacing: -0.1px;
 }
 
-.calloutBody {
-  margin: 0 0 18px;
-  font-size: 14px;
-  color: var(--text-secondary, #475569);
-  line-height: 1.6;
-  max-width: 480px;
+.guidanceBody {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.55;
+  max-width: 620px;
 }
 
-.calloutBtn {
+.guidanceBtn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 11px 18px;
-  background: var(--clr-primary, #dc2626);
+  padding: 9px 16px;
+  background: #dc2626;
   color: #ffffff;
-  border: none;
-  border-radius: 10px;
-  font-weight: 700;
-  font-size: 13.5px;
+  border: 1px solid #dc2626;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
   font-family: inherit;
   cursor: pointer;
-  box-shadow: 0 6px 18px rgba(220, 38, 38, 0.28);
-  transition: filter 0.15s ease, transform 0.15s ease;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
-.calloutBtn:hover  { filter: brightness(0.95); }
-.calloutBtn:active { transform: translateY(1px); }
+.guidanceBtn:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.20);
+}
+
+.guidanceBtn:active {
+  transform: translateY(1px);
+}
 
 
-/* ==============================================================
+/* ==================================================================
    MOBILE
-   ============================================================== */
+   ================================================================== */
 
 @media (max-width: 768px) {
 
-  .home { gap: 16px; padding: 2px 0 32px; }
-
-  /* Hero — tighter padding; avatar shrinks; everything wraps */
-  .hero {
-    padding: 18px 18px;
-    border-radius: 16px;
-    grid-template-columns: auto 1fr;
-    gap: 14px;
+  .home {
+    gap: 12px;
+    padding: 4px 0 32px;
   }
 
-  .heroAvatar {
-    width: 56px;
-    height: 56px;
-    font-size: 20px;
-    border-width: 2px;
-  }
-
-  .heroDate     { font-size: 10px; letter-spacing: 1.4px; }
-  .heroTitle    { font-size: 18px; }
-  .heroSubtitle { font-size: 12px; }
-
-  .heroFooter {
-    gap: 8px;
-    row-gap: 6px;
-  }
-
-  .checkin { font-size: 12px; }
-
-  /* Callout — stack illustration above text; centered */
-  .callout {
+  /* Welcome — stack meta below the main row on narrow screens */
+  .welcome {
     grid-template-columns: 1fr;
-    text-align: center;
-    padding: 22px 20px 26px;
-    border-radius: 16px;
+    padding: 18px 18px;
+    gap: 16px;
+  }
+
+  .avatar {
+    width: 48px;
+    height: 48px;
+    font-size: 19px;
+  }
+
+  .welcomeDate     { font-size: 10px; }
+  .welcomeTitle    { font-size: 18px; }
+  .welcomeSubtitle { font-size: 12px; }
+
+  .welcomeMeta {
+    gap: 20px;
+    padding-top: 14px;
+    border-top: 1px solid #f1f5f9;
+  }
+
+  /* Guidance — stack icon+text over the button */
+  .guidance {
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "icon text"
+      "btn  btn";
+    padding: 18px 18px;
     gap: 14px;
   }
-
-  .stage           { height: 260px; }
-  .halo            { width: 180px; height: 180px; bottom: 16px; }
-  .mascotWrap svg  { width: 200px; height: 260px; }
-  .dust            { width: 110px; bottom: 8px; }
-
-  .calloutTitle    { font-size: 18px; }
-  .calloutBody     { font-size: 13px; max-width: none; }
-
-  .calloutBtn {
-    width: 100%;
-    justify-content: center;
-    padding: 12px 18px;
-  }
+  .guidanceIcon { grid-area: icon; }
+  .guidanceText { grid-area: text; }
+  .guidanceBtn  { grid-area: btn; width: 100%; justify-content: center; padding: 11px 16px; }
 }
 
 
 @media (max-width: 380px) {
-  .heroTitle       { font-size: 17px; }
-  .heroAvatar      { width: 50px; height: 50px; font-size: 18px; }
-  .stage           { height: 220px; }
-  .mascotWrap svg  { width: 170px; height: 220px; }
-  .halo            { width: 150px; height: 150px; }
-}
-
-
-/* Respect users who prefer reduced motion — CSS-driven animations
-   (eye blink) are killed here. Framer-motion tweens are already
-   gated in the JSX by useReducedMotion(). */
-@media (prefers-reduced-motion: reduce) {
-  .eyes {
-    animation: none !important;
-  }
+  .welcomeTitle { font-size: 17px; }
+  .avatar       { width: 44px; height: 44px; font-size: 18px; }
+  .welcomeMeta  { gap: 16px; }
 }
