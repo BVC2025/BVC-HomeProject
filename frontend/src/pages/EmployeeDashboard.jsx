@@ -2,8 +2,8 @@
 import { useLocation, useNavigate } from "react-router-dom";
 
 import API, { API_BASE_URL } from "../services/api";
-import ChatBot from "../components/ChatBot";
-import HRAssistant from "../components/HRAssistant";
+import EmployeeAIAssistant from "../components/EmployeeAIAssistant";
+// HRAssistant replaced by EmployeeAIAssistant (voice + chat).
 import LeaveChatbot from "../components/LeaveChatbot";
 import LeaveAgentChat from "../components/LeaveAgentChat";
 import MyLeaveStatus from "../components/MyLeaveStatus";
@@ -236,15 +236,7 @@ function EmployeeDashboard() {
     );
   }
 
-  return (
-    <>
-      <EmployeeDashboardBody />
-      <HRAssistant
-        employeeId={profileGate.employee?.EMPLOYEE_CODE || employeeId}
-        employeeName={profileGate.employee?.NAME || ""}
-      />
-    </>
-  );
+  return <EmployeeDashboardBody />;
 }
 
 
@@ -950,7 +942,7 @@ function EmployeeDashboardBody() {
       </main>
 
       <Toast toast={toast} onClose={() => setToast(null)} />
-      <ChatBot />
+      <EmployeeAIAssistant />
 
       <ConfirmDialog
         open={logoutOpen}
