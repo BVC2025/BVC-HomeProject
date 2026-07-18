@@ -1,17 +1,22 @@
 // =====================================================================
 // EmployeeHomeDashboard
 // ---------------------------------------------------------------------
-// A deliberately quiet landing page. Every module lives in the side
-// menu, so the home is a welcome band + a friendly animated mascot
-// that peeks in from the left, jumps into view, and hands the user
-// the "Open Menu" button.
+// A quiet welcome page — every module lives in the side menu, so the
+// home is just a welcome band + an animated original mascot that
+// walks in from the left, stops in a "ta-da" pose, and presents the
+// "Open Menu" button.
 //
-// Motion: framer-motion (already in package.json). All animation is
-// declarative — no useEffect timers, so it can't leak. A
-// prefers-reduced-motion guard collapses everything to a static pose.
+// The mascot is an ORIGINAL character — kerchief-hooded folk-style
+// girl in BVC red + gold + white. Deliberately not modeled on any
+// existing character; safe for commercial use.
+//
+// Motion: framer-motion. All animation is variant-driven, so the
+// phase state ("walking" → "posing" → "idle" → "happy") propagates
+// through the SVG tree without prop-drilling. A reduced-motion guard
+// collapses the entire walk-in and starts at the idle pose.
 // =====================================================================
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
 import { API_BASE_URL } from "../services/api";
@@ -22,26 +27,21 @@ import styles from "./EmployeeHomeDashboard.module.css";
 // Utilities
 // ------------------------------------------------------------------
 
-// The login response gives us an ISO string like
-// "2026-07-17T10:03:25.040Z". Show it as "10:03 AM" instead.
 function formatCheckIn(value) {
   if (!value) return "";
   try {
     const d = new Date(value);
     if (isNaN(d.getTime())) return String(value);
     return d.toLocaleTimeString("en-IN", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
+      hour: "2-digit", minute: "2-digit", hour12: true,
     });
   } catch {
     return String(value);
   }
 }
 
-// localStorage.setItem(...) coerces `null` to the STRING "null", so a
-// naive filter(Boolean) would leave it in and the subtitle reads
-// "null · BVC008". Strip those two literal strings here.
+// localStorage.setItem coerces `null` to the STRING "null", so a naive
+// filter(Boolean) leaves that in. Strip literal null/undefined here.
 function clean(v) {
   const s = (v || "").trim();
   if (!s || s === "null" || s === "undefined") return "";
@@ -62,79 +62,214 @@ function statusInfo(raw) {
 }
 
 
-// ------------------------------------------------------------------
-// Mascot — an original friendly character. Round head, red suit,
-// tie, two little arms; one arm extends toward the "Open Menu"
-// button so the character reads as pointing at it. Pure SVG so it
-// scales cleanly and inherits currentColor.
-// ------------------------------------------------------------------
-function Mascot({ waving, wavingArm }) {
+// ==================================================================
+// MASCOT — original kerchief-hooded folk girl. Colors follow BVC's
+// red + white + gold brand so she reads as "our mascot", not "a
+// generic cartoon". Layered bottom-to-top so the head paints over
+// the collar cleanly.
+// ==================================================================
+
+function Mascot({ armLeftV, armRightV, legLeftV, legRightV }) {
   return (
-    <svg viewBox="0 0 240 260" width="220" height="240" role="img"
+    <svg viewBox="0 0 260 340" width="240" height="300" role="img"
          aria-label="BVC helper mascot">
+
       {/* Ground shadow */}
-      <ellipse cx="120" cy="242" rx="66" ry="9"
-               fill="#0f172a" opacity="0.10" />
+      <ellipse cx="130" cy="328" rx="60" ry="7"
+               fill="#0f172a" opacity="0.14" />
 
-      {/* Body — rounded shield shape */}
-      <path d="M62 148
-               Q62 118 90 108
-               Q120 100 150 108
-               Q178 118 178 148
-               L178 220
-               Q178 236 162 236
-               L78 236
-               Q62 236 62 220 Z"
-            fill="#ef4444" />
+      {/* ---------- LEGS ---------- */}
+      {/* Each leg pivots at the hip; walk cycle swings them
+          opposite to each other. Boots in BVC red. */}
+      <motion.g
+        variants={legLeftV}
+        style={{ transformOrigin: "108px 232px", transformBox: "fill-box" }}
+      >
+        {/* leg (skin tone) */}
+        <path d="M104 232 Q102 270 100 300"
+              stroke="#fbcfe8" strokeWidth="16"
+              strokeLinecap="round" fill="none" />
+        {/* boot */}
+        <path d="M88 300 L112 300 L116 320 L86 320 Z" fill="#7f1d1d" />
+        <ellipse cx="101" cy="320" rx="16" ry="4" fill="#450a0a" />
+      </motion.g>
 
-      {/* Tie — subtle formal touch */}
-      <path d="M114 108 L126 108 L130 128 L122 148 L118 148 L110 128 Z"
-            fill="#facc15" />
-      <rect x="116" y="102" width="8" height="10" rx="2" fill="#dc2626" />
+      <motion.g
+        variants={legRightV}
+        style={{ transformOrigin: "152px 232px", transformBox: "fill-box" }}
+      >
+        <path d="M156 232 Q158 270 160 300"
+              stroke="#fbcfe8" strokeWidth="16"
+              strokeLinecap="round" fill="none" />
+        <path d="M148 300 L172 300 L174 320 L144 320 Z" fill="#7f1d1d" />
+        <ellipse cx="159" cy="320" rx="16" ry="4" fill="#450a0a" />
+      </motion.g>
 
-      {/* Left arm — resting */}
-      <path d="M62 152 Q40 158 42 190 Q44 208 60 200 L74 178 Z"
-            fill="#ef4444" />
-      <circle cx="46" cy="200" r="12" fill="#fecaca" stroke="#dc2626" strokeWidth="2" />
 
-      {/* Right arm — this is the one that waves / points. We wrap
-          the group in a motion.g at render time so it can be
-          animated independently of the body. */}
-      {wavingArm}
+      {/* ---------- DRESS ---------- */}
+      {/* Bell-shaped skirt in BVC red with white polka dots and a
+          gold border trim at the hem — folk-style, not Masha-style. */}
+      <path d="M78 195
+               Q64 258 96 268
+               L164 268
+               Q196 258 182 195
+               Q168 178 130 178
+               Q92 178 78 195 Z"
+            fill="#dc2626" />
 
-      {/* Head */}
-      <g>
-        {/* Hair / cap band */}
-        <path d="M76 74 Q76 40 120 40 Q164 40 164 74 L164 82 L76 82 Z"
-              fill="#7f1d1d" />
-        {/* Face */}
-        <circle cx="120" cy="76" r="38" fill="#fee2e2"
-                stroke="#dc2626" strokeWidth="2" />
-        {/* Cheek blush */}
-        <circle cx="94"  cy="90" r="4" fill="#fca5a5" opacity="0.75" />
-        <circle cx="146" cy="90" r="4" fill="#fca5a5" opacity="0.75" />
-        {/* Eyes — round with tiny highlights, blink via CSS */}
-        <g className={styles.eyes}>
-          <circle cx="106" cy="76" r="4" fill="#0f172a" />
-          <circle cx="134" cy="76" r="4" fill="#0f172a" />
-          <circle cx="107" cy="75" r="1.2" fill="#ffffff" />
-          <circle cx="135" cy="75" r="1.2" fill="#ffffff" />
-        </g>
-        {/* Smile — bigger when waving */}
-        <path d={waving
-                 ? "M104 92 Q120 108 136 92"
-                 : "M106 92 Q120 102 134 92"}
-              stroke="#0f172a" strokeWidth="2.6"
-              fill="none" strokeLinecap="round" />
+      {/* Gold hem trim */}
+      <path d="M96 268 L164 268"
+            stroke="#facc15" strokeWidth="6"
+            fill="none" strokeLinecap="round" />
+      {/* Little diamond pattern in the gold trim — differentiates
+          from Masha's plain gold band */}
+      <g fill="#dc2626" opacity="0.55">
+        <path d="M108 268 l4 -3 l4 3 l-4 3 z" />
+        <path d="M128 268 l4 -3 l4 3 l-4 3 z" />
+        <path d="M148 268 l4 -3 l4 3 l-4 3 z" />
       </g>
+
+      {/* Polka dots on the dress */}
+      <g fill="#ffffff">
+        <circle cx="102" cy="212" r="6" />
+        <circle cx="146" cy="204" r="6" />
+        <circle cx="122" cy="236" r="6" />
+        <circle cx="164" cy="230" r="5" />
+        <circle cx="88"  cy="248" r="5" />
+        <circle cx="140" cy="256" r="5" />
+      </g>
+
+
+      {/* ---------- LEFT ARM ---------- */}
+      {/* Swings during walk, drops during pose, waves during idle. */}
+      <motion.g
+        variants={armLeftV}
+        style={{ transformOrigin: "84px 188px", transformBox: "fill-box" }}
+      >
+        <path d="M84 188 Q60 210 52 232"
+              stroke="#fbcfe8" strokeWidth="14"
+              strokeLinecap="round" fill="none" />
+        <circle cx="52" cy="236" r="10"
+                fill="#fbcfe8" stroke="#be185d" strokeWidth="1.6" />
+      </motion.g>
+
+
+      {/* ---------- RIGHT ARM ---------- */}
+      {/* Opposite swing during walk. In pose, extends outward toward
+          the button — the "here it is!" gesture. */}
+      <motion.g
+        variants={armRightV}
+        style={{ transformOrigin: "176px 188px", transformBox: "fill-box" }}
+      >
+        <path d="M176 188 Q200 210 208 232"
+              stroke="#fbcfe8" strokeWidth="14"
+              strokeLinecap="round" fill="none" />
+        <circle cx="208" cy="236" r="10"
+                fill="#fbcfe8" stroke="#be185d" strokeWidth="1.6" />
+      </motion.g>
+
+
+      {/* ---------- HEAD ---------- */}
+
+      {/* Face — round, warm skin tone with a soft outline */}
+      <circle cx="130" cy="108" r="54"
+              fill="#ffe4e6" stroke="#f9a8d4" strokeWidth="2" />
+
+      {/* Hair — golden bangs peeking from under the kerchief. Kept
+          asymmetric and choppy so it doesn't read as Masha's neat
+          center-parted bob. */}
+      <path d="M84 92
+               Q90 74 108 74
+               L108 96
+               Q98 96 84 92 Z"
+            fill="#f59e0b" />
+      <path d="M108 74 Q118 66 126 76 L118 96 Q112 96 108 96 Z"
+            fill="#facc15" />
+      <path d="M126 76 Q136 68 148 78 L142 96 Q132 96 126 96 Z"
+            fill="#f59e0b" />
+      <path d="M148 78 Q160 74 170 88 L166 100 Q156 100 148 100 Z"
+            fill="#facc15" />
+
+      {/* Freckles across the nose */}
+      <g fill="#c2410c" opacity="0.6">
+        <circle cx="118" cy="118" r="1.4" />
+        <circle cx="124" cy="121" r="1.2" />
+        <circle cx="130" cy="118" r="1.4" />
+        <circle cx="136" cy="121" r="1.2" />
+        <circle cx="142" cy="118" r="1.4" />
+      </g>
+
+      {/* Cheek blush */}
+      <ellipse cx="98"  cy="120" rx="9" ry="5" fill="#fda4af" opacity="0.7" />
+      <ellipse cx="162" cy="120" rx="9" ry="5" fill="#fda4af" opacity="0.7" />
+
+      {/* Eyes — tall ovals, green iris with a highlight sparkle */}
+      <g className={styles.eyes}>
+        <ellipse cx="112" cy="104" rx="9"  ry="12" fill="#ffffff" />
+        <ellipse cx="148" cy="104" rx="9"  ry="12" fill="#ffffff" />
+        <circle  cx="112" cy="106" r="7"   fill="#065f46" />
+        <circle  cx="148" cy="106" r="7"   fill="#065f46" />
+        <circle  cx="112" cy="107" r="3.5" fill="#0f172a" />
+        <circle  cx="148" cy="107" r="3.5" fill="#0f172a" />
+        <circle  cx="114" cy="103" r="2"   fill="#ffffff" />
+        <circle  cx="150" cy="103" r="2"   fill="#ffffff" />
+      </g>
+
+      {/* Nose — tiny curve */}
+      <path d="M128 128 Q130 132 132 128"
+            stroke="#be185d" strokeWidth="1.6"
+            fill="none" strokeLinecap="round" />
+
+      {/* Smile */}
+      <path d="M114 138 Q130 152 146 138"
+            stroke="#be185d" strokeWidth="2.6"
+            fill="#f9a8d4" strokeLinecap="round" />
+
+
+      {/* ---------- KERCHIEF ---------- */}
+      {/* Sits high on the head, wraps around, tied on TOP with two
+          bunny-ear tips — different from Masha's chin-tie. Red with
+          white polka dots + a gold hem line matching the dress. */}
+      <path d="M76 116
+               Q66 44 130 42
+               Q194 44 184 116
+               Q182 132 172 138
+               L88 138
+               Q78 132 76 116 Z"
+            fill="#dc2626" />
+
+      {/* Kerchief top-knot ears */}
+      <path d="M108 48 Q100 26 88 30 Q92 44 108 52 Z"  fill="#dc2626" />
+      <path d="M152 48 Q160 26 172 30 Q168 44 152 52 Z" fill="#dc2626" />
+
+      {/* Polka dots on the kerchief */}
+      <g fill="#ffffff">
+        <circle cx="92"  cy="76"  r="5" />
+        <circle cx="118" cy="60"  r="5" />
+        <circle cx="146" cy="60"  r="5" />
+        <circle cx="170" cy="76"  r="5" />
+        <circle cx="80"  cy="106" r="4" />
+        <circle cx="180" cy="106" r="4" />
+        <circle cx="102" cy="130" r="4" />
+        <circle cx="158" cy="130" r="4" />
+        {/* Dots on the ears */}
+        <circle cx="96"  cy="42"  r="3" />
+        <circle cx="164" cy="42"  r="3" />
+      </g>
+
+      {/* Gold rim along the front edge of the kerchief */}
+      <path d="M78 130 Q130 148 182 130"
+            stroke="#facc15" strokeWidth="3"
+            fill="none" strokeLinecap="round" />
     </svg>
   );
 }
 
 
-// ------------------------------------------------------------------
+// ==================================================================
 // Component
-// ------------------------------------------------------------------
+// ==================================================================
+
 export default function EmployeeHomeDashboard({
   portal,
   attendanceStatus,
@@ -143,7 +278,21 @@ export default function EmployeeHomeDashboard({
 }) {
 
   const reduce = useReducedMotion();
-  const [clicked, setClicked] = useState(false);
+
+  // ---- Phase state ----
+  //   "walking" → mascot strides in from off-screen left
+  //   "posing"  → mascot lands center, arms out (ta-da)
+  //   "idle"    → gentle bob + subtle arm sway
+  //   "happy"   → click reaction: hop with arms up
+  const initialPhase = reduce ? "idle" : "walking";
+  const [phase, setPhase] = useState(initialPhase);
+
+  useEffect(() => {
+    if (reduce) return;
+    const t1 = window.setTimeout(() => setPhase("posing"), 1650);
+    const t2 = window.setTimeout(() => setPhase("idle"),   2050);
+    return () => { window.clearTimeout(t1); window.clearTimeout(t2); };
+  }, [reduce]);
 
   // ---- Identity ----
   const identity = useMemo(() => {
@@ -179,59 +328,92 @@ export default function EmployeeHomeDashboard({
     .filter(Boolean)
     .join(" · ") || "Employee";
 
-  // ---- Menu-open sequence ----
-  // Character does a happy jump, then we open the drawer. If the
-  // user has reduced-motion enabled, skip the delay and open at once.
   const handleOpen = () => {
     if (reduce) {
       onOpenMenu?.();
       return;
     }
-    setClicked(true);
+    setPhase("happy");
     window.setTimeout(() => {
-      setClicked(false);
+      setPhase("idle");
       onOpenMenu?.();
-    }, 380);
+    }, 420);
   };
 
-  // ---- Motion variants ----
-  // Character enters from the left edge (peek → jump-in) then holds
-  // an idle bob. `happy` fires on button click.
-  const bodyVariants = {
-    hidden:  { x: -220, y: 20, rotate: -14, opacity: 0 },
-    peek:    { x: -110, y: 10, rotate:  -6, opacity: 1,
-               transition: { duration: 0.5, ease: "easeOut" } },
-    enter:   { x: 0,    y: 0,  rotate:   0, opacity: 1,
-               transition: { type: "spring", stiffness: 140, damping: 11, delay: 0.5 } },
-    idle:    { y: [0, -6, 0],
-               transition: { duration: 3.2, repeat: Infinity, ease: "easeInOut", delay: 1.2 } },
-    happy:   { y: -22, rotate: 4,
-               transition: { type: "spring", stiffness: 300, damping: 10 } },
+
+  // ---- Variants ----
+  // Container translates x during walk-in, then bobs during idle,
+  // hops during happy. Children (arms, legs) declare their own
+  // matching variants so a single `animate={phase}` on the parent
+  // propagates through the entire mascot.
+  const containerV = {
+    walking: {
+      x: [-320, 0],
+      transition: { duration: 1.6, ease: "linear" },
+    },
+    posing: {
+      x: 0,
+      transition: { duration: 0.3 },
+    },
+    idle: {
+      x: 0,
+      y: [0, -4, 0],
+      transition: { y: { duration: 3.2, repeat: Infinity, ease: "easeInOut" } },
+    },
+    happy: {
+      x: 0,
+      y: -28,
+      transition: { type: "spring", stiffness: 400, damping: 10 },
+    },
   };
 
-  // Right arm waves during idle, then reaches up during the click
-  // reaction. transform-origin set on the g so it pivots at shoulder.
-  const armVariants = {
-    idle: reduce
-      ? { rotate: 0 }
-      : { rotate: [0, -18, -4, -14, 0],
-          transition: { duration: 1.8, repeat: Infinity, ease: "easeInOut", delay: 1.4 } },
-    happy: { rotate: -40,
-             transition: { type: "spring", stiffness: 260, damping: 12 } },
+  // Legs swing opposite to each other during walk. Frozen at 0 in
+  // pose/idle. Splayed slightly during happy hop for a landing feel.
+  const legLeftV = {
+    walking: { rotate: [15, -15, 15],
+               transition: { duration: 0.5, repeat: Infinity, ease: "easeInOut" } },
+    posing:  { rotate: 0, transition: { duration: 0.25 } },
+    idle:    { rotate: 0 },
+    happy:   { rotate: 18, transition: { type: "spring", stiffness: 260, damping: 10 } },
+  };
+  const legRightV = {
+    walking: { rotate: [-15, 15, -15],
+               transition: { duration: 0.5, repeat: Infinity, ease: "easeInOut" } },
+    posing:  { rotate: 0, transition: { duration: 0.25 } },
+    idle:    { rotate: 0 },
+    happy:   { rotate: -18, transition: { type: "spring", stiffness: 260, damping: 10 } },
   };
 
-  // The "Open Menu" button pops in AFTER the character lands, and
-  // gently pulses to invite the click.
-  const buttonVariants = {
-    hidden: { scale: 0.6, opacity: 0, y: 10 },
-    show:   { scale: 1,   opacity: 1, y: 0,
-              transition: { delay: 1.15, type: "spring", stiffness: 220, damping: 14 } },
-    pulse:  { boxShadow: [
-                "0 6px 18px rgba(220,38,38,0.30)",
-                "0 12px 28px rgba(220,38,38,0.50)",
-                "0 6px 18px rgba(220,38,38,0.30)",
-              ],
-              transition: { duration: 2.2, repeat: Infinity, ease: "easeInOut", delay: 1.6 } },
+  // Arms swing while walking (opposite phase to same-side leg), then
+  // raise into a "ta-da" pose. Small sway during idle. Full raise on
+  // happy hop.
+  const armLeftV = {
+    walking: { rotate: [-15, 15, -15],
+               transition: { duration: 0.5, repeat: Infinity, ease: "easeInOut" } },
+    posing:  { rotate: -40,
+               transition: { type: "spring", stiffness: 220, damping: 12 } },
+    idle:    { rotate: [-40, -32, -40],
+               transition: { duration: 3, repeat: Infinity, ease: "easeInOut" } },
+    happy:   { rotate: -75,
+               transition: { type: "spring", stiffness: 260, damping: 10 } },
+  };
+  const armRightV = {
+    walking: { rotate: [15, -15, 15],
+               transition: { duration: 0.5, repeat: Infinity, ease: "easeInOut" } },
+    posing:  { rotate: 40,
+               transition: { type: "spring", stiffness: 220, damping: 12 } },
+    idle:    { rotate: [40, 32, 40],
+               transition: { duration: 3, repeat: Infinity, ease: "easeInOut" } },
+    happy:   { rotate: 75,
+               transition: { type: "spring", stiffness: 260, damping: 10 } },
+  };
+
+  // Button pops into view AFTER the character finishes posing.
+  const buttonV = {
+    hidden: { scale: 0.5, opacity: 0, y: 12 },
+    show:   { scale: 1, opacity: 1, y: 0,
+              transition: { delay: reduce ? 0 : 2.15,
+                            type: "spring", stiffness: 240, damping: 14 } },
   };
 
   return (
@@ -275,49 +457,40 @@ export default function EmployeeHomeDashboard({
       <section className={styles.callout}>
 
         <div className={styles.stage} aria-hidden="true">
-          {/* Soft red halo behind the character */}
+          {/* Soft red halo */}
           <motion.span
             className={styles.halo}
             initial={{ scale: 0.4, opacity: 0 }}
-            animate={{ scale: [1, 1.08, 1], opacity: [0.9, 1, 0.9] }}
+            animate={reduce
+              ? { scale: 1, opacity: 1 }
+              : { scale: [1, 1.06, 1], opacity: [0.85, 1, 0.85] }}
             transition={reduce
               ? { duration: 0 }
-              : { duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+              : { duration: 3.5, repeat: Infinity, ease: "easeInOut", delay: 1.8 }}
           />
 
-          {/* Ground puff cloud — reveal after the jump-in landing */}
+          {/* Landing dust puff — fires once when she stops */}
           <motion.span
             className={styles.dust}
             initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: [0, 1.15, 0], opacity: [0, 0.6, 0] }}
+            animate={{ scale: [0, 1.2, 0], opacity: [0, 0.55, 0] }}
             transition={reduce
               ? { duration: 0 }
-              : { duration: 0.65, delay: 0.9, ease: "easeOut" }}
+              : { duration: 0.7, delay: 1.55, ease: "easeOut" }}
           />
 
-          {/* Character body — peek, jump-in, idle. `clicked` swaps to happy. */}
+          {/* Character */}
           <motion.div
             className={styles.mascotWrap}
-            variants={bodyVariants}
-            initial="hidden"
-            animate={reduce
-              ? "enter"
-              : (clicked ? "happy" : ["peek", "enter", "idle"])}
+            variants={containerV}
+            initial={reduce ? "idle" : "walking"}
+            animate={phase}
           >
             <Mascot
-              waving={!clicked}
-              wavingArm={
-                <motion.g
-                  style={{ transformOrigin: "178px 152px", transformBox: "fill-box" }}
-                  variants={armVariants}
-                  animate={clicked ? "happy" : "idle"}
-                >
-                  <path d="M178 150 Q206 152 208 128 Q210 108 194 108 L182 138 Z"
-                        fill="#ef4444" />
-                  <circle cx="200" cy="118" r="12"
-                          fill="#fecaca" stroke="#dc2626" strokeWidth="2" />
-                </motion.g>
-              }
+              armLeftV={armLeftV}
+              armRightV={armRightV}
+              legLeftV={legLeftV}
+              legRightV={legRightV}
             />
           </motion.div>
         </div>
@@ -335,9 +508,9 @@ export default function EmployeeHomeDashboard({
             <motion.button
               type="button"
               className={styles.calloutBtn}
-              variants={buttonVariants}
+              variants={buttonV}
               initial="hidden"
-              animate={reduce ? "show" : ["show", "pulse"]}
+              animate="show"
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               onClick={handleOpen}

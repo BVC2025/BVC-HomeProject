@@ -163,28 +163,28 @@
 
 .callout {
   display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 28px;
+  grid-template-columns: 300px 1fr;
+  gap: 30px;
   align-items: center;
   background: var(--card-bg, #ffffff);
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 20px;
-  padding: 32px 36px 28px;
+  padding: 36px 40px 32px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
-  overflow: hidden;                 /* mascot's off-screen start */
   position: relative;
+  overflow: hidden;                 /* clips the walking-in mascot */
 }
 
 
 /* ---- Illustration stage ----
-   The mascot slides in from the LEFT edge of the callout card, so
-   we need overflow:hidden on the parent AND a stage tall enough
-   for the character. framer-motion drives all the transforms —
-   no CSS keyframes needed here. */
+   The mascot walks in from the LEFT edge of the callout card. The
+   parent's overflow:hidden clips her while she's off-screen.
+   framer-motion drives every transform — no CSS keyframes in the
+   walk cycle. */
 
 .stage {
   position: relative;
-  height: 240px;
+  height: 300px;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -227,16 +227,18 @@
   will-change: transform;
 }
 
-/* Eye blink — CSS driven so it runs even when framer-motion is
-   busy with body transforms. Every 4s the eyes squash vertically. */
+/* Eye blink — CSS driven so it runs while framer-motion is busy
+   with body transforms. Every ~4s the eyes squash vertically.
+   The new mascot has eyes centered around (130, 104) in the SVG. */
 .eyes {
-  transform-origin: 120px 76px;
-  animation: blink 4.2s ease-in-out infinite;
+  transform-origin: 130px 104px;
+  transform-box: fill-box;
+  animation: blink 4.4s ease-in-out infinite;
 }
 
 @keyframes blink {
-  0%, 92%, 100% { transform: scaleY(1); }
-  95%           { transform: scaleY(0.15); }
+  0%, 90%, 100% { transform: scaleY(1); }
+  94%           { transform: scaleY(0.12); }
 }
 
 
@@ -327,10 +329,10 @@
     gap: 14px;
   }
 
-  .stage           { height: 200px; }
-  .halo            { width: 160px; height: 160px; bottom: 16px; }
-  .mascotWrap svg  { width: 180px; height: 200px; }
-  .dust            { width: 100px; bottom: 8px; }
+  .stage           { height: 260px; }
+  .halo            { width: 180px; height: 180px; bottom: 16px; }
+  .mascotWrap svg  { width: 200px; height: 260px; }
+  .dust            { width: 110px; bottom: 8px; }
 
   .calloutTitle    { font-size: 18px; }
   .calloutBody     { font-size: 13px; max-width: none; }
@@ -346,9 +348,9 @@
 @media (max-width: 380px) {
   .heroTitle       { font-size: 17px; }
   .heroAvatar      { width: 50px; height: 50px; font-size: 18px; }
-  .stage           { height: 180px; }
-  .mascotWrap svg  { width: 160px; height: 180px; }
-  .halo            { width: 140px; height: 140px; }
+  .stage           { height: 220px; }
+  .mascotWrap svg  { width: 170px; height: 220px; }
+  .halo            { width: 150px; height: 150px; }
 }
 
 
