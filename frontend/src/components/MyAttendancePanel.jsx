@@ -332,6 +332,19 @@ export default function MyAttendancePanel({ employeeId }) {
   }, [today, tick]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const overtimeHours = Number(today?.OVERTIME_HOURS || 0);
+
+  // Live OT hours (climbs while OT is active but not closed). Once
+  // OT_CHECK_OUT lands, the server writes OVERTIME_HOURS and we use
+  // that as the source of truth.
+  const liveOvertimeHours = useMemo(() => {
+    if (!today) return 0;
+    if (today.OVERTIME_HOURS && today.OT_CHECK_OUT) return today.OVERTIME_HOURS;
+    if (today.OT_CHECK_IN && !today.OT_CHECK_OUT) {
+      const start = new Date(today.OT_CHECK_IN);
+      return Math.max(0, (new Date() - start) / 3_600_000);
+    }
+    return 0;
+  }, [today, tick]);   // eslint-disable-line react-hooks/exhaustive-deps
   const isLate = hasCheckedIn && (today?.STATUS || "").toUpperCase() === "LATE";
   const lateText = isLate ? fmtLateBy(today?.LATE_MINUTES || 0) : "";
 
@@ -387,6 +400,13 @@ export default function MyAttendancePanel({ employeeId }) {
             <div className={styles.statLabel}>Working hours</div>
             <div className={styles.statValue}>
               {hasCheckedIn ? fmtWorkedHours(liveWorkedHours) : "—"}
+            </div>
+          </div>
+
+          <div className={styles.stat}>
+            <div className={styles.statLabel}>OT working hours</div>
+            <div className={`${styles.statValue} ${styles.statValueOt}`}>
+              {hasOtIn ? fmtWorkedHours(liveOvertimeHours) : "—"}
             </div>
           </div>
         </div>

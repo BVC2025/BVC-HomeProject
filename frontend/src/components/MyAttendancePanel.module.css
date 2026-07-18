@@ -89,13 +89,14 @@
 
 
 /* ==================================================================
-   Time stats — three columns (Check-in / Check-out / Working hours)
+   Time stats — four columns:
+     Check-in · Check-out · Working hours · OT working hours
    ================================================================== */
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
 }
 
 .stat {
