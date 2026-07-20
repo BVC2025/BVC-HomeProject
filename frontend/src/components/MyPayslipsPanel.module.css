@@ -559,3 +559,109 @@
   .slipStats .slipStat:nth-child(3) { grid-column: span 2; }
   .slipMonth { font-size: 18px; }
 }
+
+
+/* ==================================================================
+   DARK MODE — module-scoped overrides (bulletproof: uses the module's
+   actual class names, not substring guesses).
+   ================================================================== */
+
+:global(html[data-theme="dark"]) .wrap { color: #e2e8f0; }
+
+/* Hero — keep the red gradient but darken the inner content bar */
+:global(html[data-theme="dark"]) .hero {
+  box-shadow: 0 8px 24px rgba(220, 38, 38, 0.30);
+}
+:global(html[data-theme="dark"]) .heroBigLabel { color: rgba(255, 255, 255, 0.75); }
+:global(html[data-theme="dark"]) .heroBigValue { color: #ffffff; }
+:global(html[data-theme="dark"]) .heroBigSub   { color: rgba(255, 255, 255, 0.75); }
+
+/* Stat tiles — Latest / PF / ESI / Bonus */
+:global(html[data-theme="dark"]) .stat {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .statLabel { color: #94a3b8; }
+:global(html[data-theme="dark"]) .statValue { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .statSub   { color: #94a3b8; }
+:global(html[data-theme="dark"]) .statIcon.tint_red   { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
+:global(html[data-theme="dark"]) .statIcon.tint_green { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+:global(html[data-theme="dark"]) .statIcon.tint_blue  { background: rgba(59, 130, 246, 0.18); color: #93c5fd; }
+
+/* Filter row — the FILTER · All years · 2026 · 1 of 1 strip */
+:global(html[data-theme="dark"]) .filterRow {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .filterLabel { color: #94a3b8; }
+:global(html[data-theme="dark"]) .chipBtn {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: #cbd5e1;
+}
+:global(html[data-theme="dark"]) .chipBtn:hover:not(.chipBtn_active) {
+  background: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .chipBtn_active {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #ffffff;
+}
+:global(html[data-theme="dark"]) .filterCount { color: #94a3b8; }
+
+/* Slip row card */
+:global(html[data-theme="dark"]) .slip {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .slip:hover {
+  border-color: rgba(255, 255, 255, 0.20);
+}
+:global(html[data-theme="dark"]) .slipMonth   { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .slipYear    { color: #94a3b8; }
+:global(html[data-theme="dark"]) .slipNumber  { color: #64748b; }
+
+/* Net-pay block — keep emerald tint */
+:global(html[data-theme="dark"]) .slipNetBlock {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.32);
+}
+:global(html[data-theme="dark"]) .slipNetLabel { color: #6ee7b7; }
+:global(html[data-theme="dark"]) .slipNetValue { color: #6ee7b7; }
+
+/* Slip stats block (Gross / Deductions / OT / PF / ESI / Tax etc.) */
+:global(html[data-theme="dark"]) .slipStat {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .slipStatLabel { color: #94a3b8; }
+:global(html[data-theme="dark"]) .slipStatValue { color: #e2e8f0; }
+:global(html[data-theme="dark"]) .slipStatValue small { color: #94a3b8; }
+:global(html[data-theme="dark"]) .slipStatHint  { color: #94a3b8; }
+:global(html[data-theme="dark"]) .deduction     { color: #fca5a5; }
+
+/* Chip variants next to the slip */
+:global(html[data-theme="dark"]) .chip_success { background: rgba(16, 185, 129, 0.14); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.32); }
+:global(html[data-theme="dark"]) .chip_warn    { background: rgba(251, 191, 36, 0.14); color: #fbbf24; border-color: rgba(251, 191, 36, 0.34); }
+:global(html[data-theme="dark"]) .chip_info    { background: rgba(59, 130, 246, 0.14); color: #93c5fd; border-color: rgba(59, 130, 246, 0.32); }
+:global(html[data-theme="dark"]) .chip_muted   { background: rgba(148, 163, 184, 0.14); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.28); }
+
+/* Action buttons */
+:global(html[data-theme="dark"]) .actionGhost {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+}
+:global(html[data-theme="dark"]) .actionGhost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.20);
+}
+:global(html[data-theme="dark"]) .actionPrimary {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+:global(html[data-theme="dark"]) .actionPrimary:hover:not(:disabled) {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}

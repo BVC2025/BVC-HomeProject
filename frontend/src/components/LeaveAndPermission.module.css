@@ -372,11 +372,15 @@
 .submitBtn:hover:not(:disabled) { background: #b91c1c; }
 .submitBtn:active:not(:disabled) { transform: translateY(1px); }
 .submitBtn:disabled {
-  background: #e2e8f0;
+  background: #ffffff;
   color: #94a3b8;
-  border-color: #e2e8f0;
+  border-color: #dc2626;
   box-shadow: none;
   cursor: not-allowed;
+}
+.submitBtn:disabled svg {
+  color: #dc2626;
+  stroke: #dc2626;
 }
 
 
@@ -539,3 +543,153 @@
   .historyBadge { display: none; }
   .historyRight { align-items: flex-start; flex-direction: row; }
 }
+
+
+/* ==================================================================
+   DARK MODE — module-scoped overrides. Using `:global(html[data-theme])`
+   so these compile against the *actual* CSS-Modules-hashed class
+   names, no substring matching, no case-sensitivity traps.
+   ================================================================== */
+
+:global(html[data-theme="dark"]) .wrap { color: #e2e8f0; }
+
+:global(html[data-theme="dark"]) .card,
+:global(html[data-theme="dark"]) .cardWide {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Balance strip (Permission page top card + Leave top card) */
+:global(html[data-theme="dark"]) .balance {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .balanceIcon {
+  background: rgba(220, 38, 38, 0.20);
+  color: #fca5a5;
+  border-color: rgba(220, 38, 38, 0.30);
+}
+:global(html[data-theme="dark"]) .balanceTitle { color: #94a3b8; }
+:global(html[data-theme="dark"]) .balanceValue { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .balanceValue small { color: #94a3b8; }
+
+/* Breakdown pills (Used / Free cap / Casual / Sick / Earned / Unpaid) */
+:global(html[data-theme="dark"]) .breakdownPill {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: #cbd5e1;
+}
+:global(html[data-theme="dark"]) .breakdownPill_casual b  { color: #fca5a5; }
+:global(html[data-theme="dark"]) .breakdownPill_sick   b  { color: #fbbf24; }
+:global(html[data-theme="dark"]) .breakdownPill_earned b  { color: #6ee7b7; }
+:global(html[data-theme="dark"]) .breakdownPill_unpaid b  { color: #94a3b8; }
+
+/* Section heading (Apply for leave / Apply for permission) */
+:global(html[data-theme="dark"]) .sectionHead {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .sectionTitle { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .sectionSub   { color: #94a3b8; }
+
+/* Field labels + hints */
+:global(html[data-theme="dark"]) .label { color: #94a3b8; }
+:global(html[data-theme="dark"]) .hint  { color: #94a3b8; }
+
+/* Inputs / selects / textareas */
+:global(html[data-theme="dark"]) .input,
+:global(html[data-theme="dark"]) .select,
+:global(html[data-theme="dark"]) .textarea {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  color-scheme: dark;
+}
+:global(html[data-theme="dark"]) .input::placeholder,
+:global(html[data-theme="dark"]) .textarea::placeholder {
+  color: #64748b;
+}
+
+/* Preset chips (Duration presets on Permission page) */
+:global(html[data-theme="dark"]) .presetChip {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: #cbd5e1;
+}
+:global(html[data-theme="dark"]) .presetChip:hover:not(.presetChip_active) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+:global(html[data-theme="dark"]) .presetChip_active {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+:global(html[data-theme="dark"]) .presetChip_hint { color: rgba(255,255,255,0.75); }
+
+/* Sub-choice — Full day / Half day */
+:global(html[data-theme="dark"]) .subChoice {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+:global(html[data-theme="dark"]) .subChoiceBtn { color: #94a3b8; }
+:global(html[data-theme="dark"]) .subChoiceBtn_active {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+/* Computed stripe */
+:global(html[data-theme="dark"]) .computed {
+  background: rgba(59, 130, 246, 0.10);
+  border-color: rgba(59, 130, 246, 0.28);
+  color: #93c5fd;
+}
+:global(html[data-theme="dark"]) .computed b { color: #dbeafe; }
+
+/* Submit row */
+:global(html[data-theme="dark"]) .submitNote { color: #94a3b8; }
+
+/* Submit button — enabled stays vivid BVC red; disabled uses a
+   dark-toned muted surface so it doesn't look broken on dark navy. */
+:global(html[data-theme="dark"]) .submitBtn {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.35);
+}
+:global(html[data-theme="dark"]) .submitBtn:hover:not(:disabled) {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+:global(html[data-theme="dark"]) .submitBtn:disabled {
+  background: transparent;
+  color: #94a3b8;
+  border-color: #dc2626;
+  box-shadow: none;
+}
+:global(html[data-theme="dark"]) .submitBtn:disabled svg {
+  color: #dc2626;
+  stroke: #dc2626;
+}
+
+/* Alert states */
+:global(html[data-theme="dark"]) .error {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.32);
+  color: #fca5a5;
+}
+:global(html[data-theme="dark"]) .success {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.32);
+  color: #6ee7b7;
+}
+
+/* History list rows */
+:global(html[data-theme="dark"]) .historyRow {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .historyRow:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+:global(html[data-theme="dark"]) .historyTitle { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .historyMeta  { color: #94a3b8; }

@@ -816,3 +816,157 @@
   .headTitle { font-size: 18px; }
   .cardTitle { font-size: 14px; }
 }
+
+
+/* ==================================================================
+   DARK MODE
+   ================================================================== */
+
+:global(html[data-theme="dark"]) .wrap { color: #e2e8f0; }
+
+:global(html[data-theme="dark"]) .head {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .headEyebrow { color: #94a3b8; }
+:global(html[data-theme="dark"]) .headTitle   { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .headSub     { color: #cbd5e1; }
+:global(html[data-theme="dark"]) .headCount {
+  background: rgba(255, 255, 255, 0.10);
+  color: #cbd5e1;
+}
+:global(html[data-theme="dark"]) .newBtn { background: #dc2626; color: #ffffff; }
+:global(html[data-theme="dark"]) .newBtn:hover { background: #b91c1c; }
+
+/* Status + category chips */
+:global(html[data-theme="dark"]) .chipBtn,
+:global(html[data-theme="dark"]) .catBtn {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: #cbd5e1;
+}
+:global(html[data-theme="dark"]) .chipBtn:hover:not(.chipBtn_active),
+:global(html[data-theme="dark"]) .catBtn:hover:not(.catBtn_active) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.20);
+}
+:global(html[data-theme="dark"]) .chipBtn_active,
+:global(html[data-theme="dark"]) .catBtn_active {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+:global(html[data-theme="dark"]) .chipCount {
+  background: rgba(255, 255, 255, 0.10);
+  color: #cbd5e1;
+}
+:global(html[data-theme="dark"]) .chipBtn_active .chipCount,
+:global(html[data-theme="dark"]) .catBtn_active .chipCount {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+/* Category chip icon accent — keep the accent tint even on inactive */
+:global(html[data-theme="dark"]) .catBtnIcon { color: #cbd5e1; }
+:global(html[data-theme="dark"]) .catBtn_red:not(.catBtn_active)   .catBtnIcon { color: #fca5a5; }
+:global(html[data-theme="dark"]) .catBtn_blue:not(.catBtn_active)  .catBtnIcon { color: #93c5fd; }
+:global(html[data-theme="dark"]) .catBtn_amber:not(.catBtn_active) .catBtnIcon { color: #fbbf24; }
+:global(html[data-theme="dark"]) .catBtn_green:not(.catBtn_active) .catBtnIcon { color: #6ee7b7; }
+:global(html[data-theme="dark"]) .catBtn_muted:not(.catBtn_active) .catBtnIcon { color: #cbd5e1; }
+
+/* Ticket card */
+:global(html[data-theme="dark"]) .card {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .card:hover {
+  border-color: rgba(255, 255, 255, 0.20);
+}
+
+/* Meta grid inside detail view */
+:global(html[data-theme="dark"]) .metaGrid {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .metaLabel { color: #94a3b8; }
+:global(html[data-theme="dark"]) .metaValue { color: #e2e8f0; }
+
+/* Stepper */
+:global(html[data-theme="dark"]) .stepDot {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #94a3b8;
+}
+:global(html[data-theme="dark"]) .stepDot_active { background: #dc2626; border-color: #dc2626; color: #ffffff; }
+:global(html[data-theme="dark"]) .stepLabel { color: #94a3b8; }
+:global(html[data-theme="dark"]) .stepLabel_active { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .stepLine { background: rgba(255, 255, 255, 0.10); }
+:global(html[data-theme="dark"]) .stepLine_active { background: #dc2626; }
+:global(html[data-theme="dark"]) .stepperNote { color: #94a3b8; }
+
+/* Description + resolution blocks */
+:global(html[data-theme="dark"]) .descBlock {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .resolutionBlock {
+  background: rgba(16, 185, 129, 0.10);
+  border-color: rgba(16, 185, 129, 0.28);
+}
+:global(html[data-theme="dark"]) .blockLabel { color: #94a3b8; }
+:global(html[data-theme="dark"]) .resolutionBlock .blockLabel { color: #6ee7b7; }
+:global(html[data-theme="dark"]) .descText { color: #e2e8f0; }
+:global(html[data-theme="dark"]) .resolutionBlock .descText { color: #a7f3d0; }
+
+/* Textarea (raise-ticket modal) */
+:global(html[data-theme="dark"]) .textarea {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+}
+:global(html[data-theme="dark"]) .textarea::placeholder { color: #64748b; }
+
+/* Category picker inside modal */
+:global(html[data-theme="dark"]) .catPick {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: #cbd5e1;
+}
+:global(html[data-theme="dark"]) .catPick:hover:not(.catPick_active) {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.20);
+}
+:global(html[data-theme="dark"]) .catPick_active {
+  background: rgba(220, 38, 38, 0.15);
+  border-color: #dc2626;
+  color: #f1f5f9;
+}
+:global(html[data-theme="dark"]) .catPick_red   .catPickIcon { background: rgba(239, 68, 68, 0.18);  color: #fca5a5; }
+:global(html[data-theme="dark"]) .catPick_blue  .catPickIcon { background: rgba(59, 130, 246, 0.18); color: #93c5fd; }
+:global(html[data-theme="dark"]) .catPick_amber .catPickIcon { background: rgba(251, 191, 36, 0.18); color: #fbbf24; }
+:global(html[data-theme="dark"]) .catPick_green .catPickIcon { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+:global(html[data-theme="dark"]) .catPick_active .catPickIcon { background: rgba(220, 38, 38, 0.25); color: #fca5a5; }
+
+/* Priority buttons — inactive */
+:global(html[data-theme="dark"]) .priBtn {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: #cbd5e1;
+}
+:global(html[data-theme="dark"]) .priBtn:hover:not(.priBtn_active) {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+/* Empty state */
+:global(html[data-theme="dark"]) .empty {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: #94a3b8;
+}
+:global(html[data-theme="dark"]) .emptyIcon {
+  background: rgba(255, 255, 255, 0.05);
+  color: #94a3b8;
+}
+:global(html[data-theme="dark"]) .emptyTitle { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .emptyBody  { color: #94a3b8; }

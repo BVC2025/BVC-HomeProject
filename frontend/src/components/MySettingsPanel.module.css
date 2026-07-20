@@ -664,3 +664,148 @@
   }
   .deviceInfo { max-width: 200px; }
 }
+
+
+/* ==================================================================
+   DARK MODE
+   ================================================================== */
+
+:global(html[data-theme="dark"]) .wrap { color: #e2e8f0; }
+
+:global(html[data-theme="dark"]) .head {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .headEyebrow { color: #94a3b8; }
+:global(html[data-theme="dark"]) .headTitle   { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .headSub     { color: #cbd5e1; }
+
+/* Section (Appearance / Language / Notifications / Login History) */
+:global(html[data-theme="dark"]) .section {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .sectionHead {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .sectionTitle { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .sectionSub   { color: #cbd5e1; }
+
+/* Section icon tint variants */
+:global(html[data-theme="dark"]) .tint_red    { background: rgba(239, 68, 68, 0.18);  color: #fca5a5; }
+:global(html[data-theme="dark"]) .tint_blue   { background: rgba(59, 130, 246, 0.18); color: #93c5fd; }
+:global(html[data-theme="dark"]) .tint_green  { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+:global(html[data-theme="dark"]) .tint_amber  { background: rgba(251, 191, 36, 0.18); color: #fbbf24; }
+:global(html[data-theme="dark"]) .tint_muted  { background: rgba(148, 163, 184, 0.14); color: #cbd5e1; }
+:global(html[data-theme="dark"]) .tint_phone  { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+:global(html[data-theme="dark"]) .tint_device { background: rgba(124, 58, 237, 0.20); color: #c4b5fd; }
+:global(html[data-theme="dark"]) .tint_laptop { background: rgba(59, 130, 246, 0.18); color: #93c5fd; }
+
+/* Form labels + hints */
+:global(html[data-theme="dark"]) .label    { color: #94a3b8; }
+:global(html[data-theme="dark"]) .hint     { color: #94a3b8; }
+:global(html[data-theme="dark"]) .hintFoot { color: #94a3b8; }
+:global(html[data-theme="dark"]) .input {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+}
+:global(html[data-theme="dark"]) .input:focus {
+  border-color: #dc2626;
+}
+
+/* Theme picker cards (Light / Dark) */
+:global(html[data-theme="dark"]) .themeCard {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+}
+:global(html[data-theme="dark"]) .themeCard:hover:not(.themeCard_active) {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+:global(html[data-theme="dark"]) .themeCard_active {
+  background: rgba(220, 38, 38, 0.15);
+  border-color: #dc2626;
+  color: #f1f5f9;
+}
+:global(html[data-theme="dark"]) .themeCardIcon {
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+}
+:global(html[data-theme="dark"]) .themeCard_active .themeCardIcon {
+  background: rgba(220, 38, 38, 0.25);
+  color: #fca5a5;
+}
+:global(html[data-theme="dark"]) .themeCardLabel { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .themeCardHint  { color: #94a3b8; }
+:global(html[data-theme="dark"]) .themeCardCheck { color: #6ee7b7; }
+
+/* Language rows */
+:global(html[data-theme="dark"]) .langRow {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: #cbd5e1;
+}
+:global(html[data-theme="dark"]) .langRow:hover:not(.langRow_active) {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.20);
+}
+:global(html[data-theme="dark"]) .langRow_active {
+  background: rgba(220, 38, 38, 0.15);
+  border-color: #dc2626;
+}
+:global(html[data-theme="dark"]) .langLabel { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .langBadge {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #cbd5e1;
+}
+:global(html[data-theme="dark"]) .langBadge_ok {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #6ee7b7;
+}
+:global(html[data-theme="dark"]) .langCheck { color: #fca5a5; }
+
+/* Notification toggle rows */
+:global(html[data-theme="dark"]) .toggleRow {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+:global(html[data-theme="dark"]) .toggleTitle { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .toggleHint  { color: #94a3b8; }
+:global(html[data-theme="dark"]) .toggle {
+  background: rgba(255, 255, 255, 0.15);
+}
+:global(html[data-theme="dark"]) .toggle_on { background: #dc2626; }
+:global(html[data-theme="dark"]) .toggleThumb { background: #f1f5f9; }
+
+/* Login history rows */
+:global(html[data-theme="dark"]) .historyRow {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+:global(html[data-theme="dark"]) .deviceIcon {
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+}
+:global(html[data-theme="dark"]) .historyTitle { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .historyTime  { color: #94a3b8; }
+:global(html[data-theme="dark"]) .historyMeta  { color: #94a3b8; }
+:global(html[data-theme="dark"]) .deviceLabel  { color: #cbd5e1; }
+:global(html[data-theme="dark"]) .deviceInfo   { color: #94a3b8; }
+:global(html[data-theme="dark"]) .dot          { color: #475569; }
+:global(html[data-theme="dark"]) .lateNote     { color: #fbbf24; }
+
+/* Chip variants inside login history */
+:global(html[data-theme="dark"]) .chip_success { background: rgba(16, 185, 129, 0.14); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.32); }
+:global(html[data-theme="dark"]) .chip_warn    { background: rgba(251, 191, 36, 0.14); color: #fbbf24; border-color: rgba(251, 191, 36, 0.34); }
+:global(html[data-theme="dark"]) .chip_danger  { background: rgba(239, 68, 68, 0.14); color: #fca5a5; border-color: rgba(239, 68, 68, 0.32); }
+:global(html[data-theme="dark"]) .chip_muted   { background: rgba(148, 163, 184, 0.14); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.28); }
+
+/* Empty / loading */
+:global(html[data-theme="dark"]) .empty,
+:global(html[data-theme="dark"]) .loading {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: #94a3b8;
+}

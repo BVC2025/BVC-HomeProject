@@ -548,3 +548,104 @@
   .eventDate { width: 40px; height: 40px; }
   .eventDay { font-size: 14px; }
 }
+
+
+/* ==================================================================
+   DARK MODE — module-scoped overrides for the home dashboard.
+   ================================================================== */
+
+/* Welcome hero card */
+:global(html[data-theme="dark"]) .welcome {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .avatar {
+  background: rgba(220, 38, 38, 0.20);
+  color: #fca5a5;
+  border-color: rgba(220, 38, 38, 0.30);
+}
+:global(html[data-theme="dark"]) .welcomeDate      { color: #94a3b8; }
+:global(html[data-theme="dark"]) .welcomeTitle     { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .welcomeSubtitle  { color: #94a3b8; }
+:global(html[data-theme="dark"]) .welcomeMeta {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .metaLabel { color: #94a3b8; }
+:global(html[data-theme="dark"]) .metaValue { color: #f1f5f9; }
+
+/* Chip variants used by welcome-meta status */
+:global(html[data-theme="dark"]) .chip_success { background: rgba(16, 185, 129, 0.14); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.32); }
+:global(html[data-theme="dark"]) .chip_warning { background: rgba(251, 191, 36, 0.14); color: #fbbf24; border-color: rgba(251, 191, 36, 0.34); }
+:global(html[data-theme="dark"]) .chip_danger  { background: rgba(239, 68, 68, 0.14); color: #fca5a5; border-color: rgba(239, 68, 68, 0.32); }
+:global(html[data-theme="dark"]) .chip_info    { background: rgba(59, 130, 246, 0.14); color: #93c5fd; border-color: rgba(59, 130, 246, 0.32); }
+:global(html[data-theme="dark"]) .chip_muted   { background: rgba(148, 163, 184, 0.14); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.28); }
+
+/* Stat cards (Attendance / Leave Balance / Tasks) */
+:global(html[data-theme="dark"]) .statCard {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .statCard:hover {
+  border-color: rgba(255, 255, 255, 0.20);
+}
+:global(html[data-theme="dark"]) .statLabel   { color: #94a3b8; }
+:global(html[data-theme="dark"]) .statValue   { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .statUnit    { color: #94a3b8; }
+:global(html[data-theme="dark"]) .statMeta    { color: #94a3b8; }
+:global(html[data-theme="dark"]) .statOverdue { color: #fca5a5; }
+
+/* Stat-card icon tints */
+:global(html[data-theme="dark"]) .tint_green { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+:global(html[data-theme="dark"]) .tint_blue  { background: rgba(59, 130, 246, 0.18); color: #93c5fd; }
+:global(html[data-theme="dark"]) .tint_amber { background: rgba(251, 191, 36, 0.18); color: #fbbf24; }
+:global(html[data-theme="dark"]) .tint_red   { background: rgba(239, 68, 68, 0.18);  color: #fca5a5; }
+
+/* Panels (Today's tasks / Upcoming) */
+:global(html[data-theme="dark"]) .panel {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .panelTitle  { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .panelSubtle { color: #94a3b8; }
+:global(html[data-theme="dark"]) .panelLink {
+  color: #fca5a5;
+}
+:global(html[data-theme="dark"]) .panelLink:hover {
+  background: rgba(220, 38, 38, 0.15);
+  color: #fecaca;
+}
+
+/* Empty state inside panels */
+:global(html[data-theme="dark"]) .empty > svg { color: #475569; }
+:global(html[data-theme="dark"]) .emptyTitle  { color: #e2e8f0; }
+:global(html[data-theme="dark"]) .emptyBody   { color: #94a3b8; }
+
+/* Task list rows */
+:global(html[data-theme="dark"]) .taskRow {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+:global(html[data-theme="dark"]) .taskTitle  { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .taskMeta   { color: #94a3b8; }
+:global(html[data-theme="dark"]) .dueOverdue { color: #fca5a5; }
+
+/* Event / upcoming rows */
+:global(html[data-theme="dark"]) .eventRow {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+:global(html[data-theme="dark"]) .eventDate {
+  background: rgba(239, 68, 68, 0.14);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.28);
+}
+
+/* Productivity card (bottom of dashboard) */
+:global(html[data-theme="dark"]) .productivity {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .productivityLabel { color: #94a3b8; }
+:global(html[data-theme="dark"]) .productivityScore { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .productivityOutOf { color: #94a3b8; }
+:global(html[data-theme="dark"]) .productivityTrack {
+  background: rgba(255, 255, 255, 0.08);
+}
