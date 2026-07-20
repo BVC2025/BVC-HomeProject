@@ -69,14 +69,20 @@ const DepartmentManagement = lazy(() => import("./DepartmentManagement"));
 const OrgRoleManagement = lazy(() => import("./OrgRoleManagement"));
 const ProjectCategoryManagement = lazy(() => import("./ProjectCategoryManagement"));
 const ProjectPage = lazy(() => import("./ProjectPage"));
+const LeadManagementConfig = lazy(() => import("./LeadManagementConfig"));
+const LiveLeadViewer = lazy(() => import("./LiveLeadViewer"));
+const ManualLeadManagement = lazy(() => import("./ManualLeadManagement"));
+const PollingActivityLog = lazy(() => import("./PollingActivityLog"));
 const TaskTemplatePage = lazy(() => import("./TaskTemplatePage"));
+const ProjectQuotationManagement = lazy(() => import("./ProjectQuotationManagement"));
+const ProjectPricingPage = lazy(() => import("./ProjectPricingPage"));
 const InventoryCategoriesPage = lazy(() => import("./InventoryCategoriesPage"));
 const ProductMasterPage = lazy(() => import("./ProductMasterPage"));
 const SupplierManagementPage = lazy(() => import("./SupplierManagementPage"));
 const InventoryItemsPage = lazy(() => import("./InventoryItemsPage"));
 const CompanyProfilePage = lazy(() => import("./CompanyProfilePage"));
 const EmailConfigManagement = lazy(() => import("./EmailConfigManagement"));
-const EmailTemplatePage     = lazy(() => import("./EmailTemplatePage"));
+const EmailTemplatePage = lazy(() => import("./EmailTemplatePage"));
 
 import styles from "./Dashboard.module.css";
 import {
@@ -1431,6 +1437,35 @@ function SidebarIcon({ name }) {
           <path d="M19 13v3l2 1" />
         </svg>
       );
+    case "lead-config":
+      return (
+        <svg {...props}>
+          <path d="M4 5h16l-6 7v6l-4 2v-8L4 5z" />
+        </svg>
+      );
+    case "live-leads":
+      return (
+        <svg {...props}>
+          <rect x="3" y="4" width="18" height="14" rx="2" />
+          <path d="M3 9h18M9 4v14" />
+        </svg>
+      );
+    case "lead-records":
+      return (
+        <svg {...props}>
+          <circle cx="9" cy="8" r="3" />
+          <path d="M4 20v-1a5 5 0 0 1 5-5h0a5 5 0 0 1 5 5v1" />
+          <path d="M16 4.5a3 3 0 0 1 0 6" />
+          <path d="M19 20v-1a5 5 0 0 0-3-4.6" />
+        </svg>
+      );
+    case "polling-activity":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+      );
     case "sub-template":
       return (
         <svg {...props}>
@@ -1444,6 +1479,21 @@ function SidebarIcon({ name }) {
           <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
           <rect x="9" y="3" width="6" height="4" rx="1" />
           <path d="M9 12l2 2 4-4" />
+        </svg>
+      );
+    case "proj-quotation":
+      return (
+        <svg {...props}>
+          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+          <path d="M14 3v5h5" />
+          <path d="M9 13h6M9 16.5h6M9 9.5h2" />
+        </svg>
+      );
+    case "proj-pricing":
+      return (
+        <svg {...props}>
+          <path d="M12 2v20" />
+          <path d="M17 6.5c0-1.9-2.2-3.5-5-3.5s-5 1.4-5 3.2 2.2 2.9 5 3.3 5 1.5 5 3.3-2.2 3.2-5 3.2-5-1.6-5-3.5" />
         </svg>
       );
     case "custom-fields":
@@ -1501,6 +1551,16 @@ const NAV_GROUPS = [
       { to: "/sales-orders", icon: <SidebarIcon name="salesorders" />, label: "Sales Orders" }
     ]
   },
+  {
+    key: "lead-mgmt",
+    label: "Lead Management",
+    items: [
+      { to: "/lead-management/configuration", icon: <SidebarIcon name="lead-config" />, label: "Configuration" },
+      { to: "/lead-management/live-leads", icon: <SidebarIcon name="live-leads" />, label: "Live Lead Viewer" },
+      { to: "/lead-management/leads", icon: <SidebarIcon name="lead-records" />, label: "Lead Records" },
+      { to: "/lead-management/polling-activity", icon: <SidebarIcon name="polling-activity" />, label: "Polling Activity" }
+    ]
+  },
   // {
   //   key: "organization",
   //   label: "Org Structure",
@@ -1515,7 +1575,9 @@ const NAV_GROUPS = [
     items: [
       { to: "/project-categories", icon: <SidebarIcon name="proj-cat" />, label: "Project Categories" },
       { to: "/projects", icon: <SidebarIcon name="sub-template" />, label: "Projects" },
-      { to: "/task-templates", icon: <SidebarIcon name="task-tmpl" />, label: "Task Templates" }
+      { to: "/task-templates", icon: <SidebarIcon name="task-tmpl" />, label: "Task Templates" },
+      { to: "/project-pricing", icon: <SidebarIcon name="proj-pricing" />, label: "Project Pricing" },
+      { to: "/project-quotations", icon: <SidebarIcon name="proj-quotation" />, label: "Quotation Templates" },
     ]
   },
   {
@@ -1903,6 +1965,14 @@ function Dashboard() {
           <Route path="/org-roles" element={<Suspense fallback={null}><OrgRoleManagement /></Suspense>} />
           <Route path="/project-categories" element={<Suspense fallback={null}><ProjectCategoryManagement /></Suspense>} />
           <Route path="/task-templates" element={<Suspense fallback={null}><TaskTemplatePage /></Suspense>} />
+          <Route path="/project-quotations" element={<Suspense fallback={null}><ProjectQuotationManagement /></Suspense>} />
+          <Route path="/project-pricing" element={<Suspense fallback={null}><ProjectPricingPage /></Suspense>} />
+
+          {/* Lead Management module (multi-source lead pipeline) */}
+          <Route path="/lead-management/configuration" element={<Suspense fallback={null}><LeadManagementConfig /></Suspense>} />
+          <Route path="/lead-management/live-leads" element={<Suspense fallback={null}><LiveLeadViewer /></Suspense>} />
+          <Route path="/lead-management/leads" element={<Suspense fallback={null}><ManualLeadManagement /></Suspense>} />
+          <Route path="/lead-management/polling-activity" element={<Suspense fallback={null}><PollingActivityLog /></Suspense>} />
 
           {/* Company Profile */}
           <Route path="/company-profile" element={<Suspense fallback={null}><CompanyProfilePage /></Suspense>} />
