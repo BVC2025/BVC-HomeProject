@@ -3010,3 +3010,371 @@ body {
     font-size: 20px !important;
   }
 }
+
+
+/* ====================================================================
+   DARK MODE
+   Activated by <html data-theme="dark"> — main.jsx applies this before
+   the app renders (using localStorage.theme) and MySettingsPanel's
+   toggle updates it live.
+
+   Strategy
+   --------
+   1. Flip the token variables that App.css already reads (--layout-bg,
+      --card-bg, --border, --text-primary, --sidebar-*, etc.). Anything
+      that consumes the token gets dark automatically.
+   2. Set html + body backgrounds directly — some pages have hard-coded
+      backgrounds; this at least gives them a dark canvas underneath.
+   3. Attribute-selector overrides for the newer CSS-Modules that hard-
+      code #ffffff / #e2e8f0. Vite hashes class names as
+      `<Module>_<class>__<hash>`, so `[class*="_card"]` catches them
+      broadly. We keep the overrides scoped under [data-theme="dark"]
+      so light mode is untouched.
+   ==================================================================== */
+
+html[data-theme="dark"] {
+
+  color-scheme: dark;
+
+  /* ---- Brand / Primary (softened for dark surfaces) ---- */
+  --clr-primary-light:  rgba(220, 38, 38, 0.14);
+  --clr-primary-muted:  rgba(220, 38, 38, 0.14);
+  --clr-primary-border: rgba(220, 38, 38, 0.35);
+
+  /* ---- Layout ---- */
+  --layout-bg: #0b1220;
+  --surface:   #111827;
+  --card-bg:   #1e293b;
+
+  /* ---- Text ---- */
+  --text-primary:   #e2e8f0;
+  --text-secondary: #cbd5e1;
+  --text-muted:     #94a3b8;
+
+  /* ---- Border ---- */
+  --border:        #334155;
+  --border-light:  #1f2937;
+  --border-strong: #475569;
+
+  /* ---- Sidebar ---- */
+  --sidebar-bg:          #0f172a;
+  --sidebar-bg-deep:     #0b1220;
+  --sidebar-border:      #1f2937;
+  --sidebar-shadow:      1px 0 0 #1f2937;
+  --sidebar-text:        #cbd5e1;
+  --sidebar-text-dim:    #64748b;
+  --sidebar-active-bg:   rgba(220, 38, 38, 0.14);
+  --sidebar-active-text: #f87171;
+  --sidebar-hover-bg:    #1e293b;
+  --sidebar-hover-text:  #f1f5f9;
+  --sidebar-icon-color:  #94a3b8;
+  --sidebar-icon-active: #f87171;
+}
+
+
+html[data-theme="dark"],
+html[data-theme="dark"] body {
+  background: #0b1220;
+  color: #e2e8f0;
+}
+
+
+/* Native form controls — pick up dark scheme for the browser's own
+   dropdown chrome, date pickers, scroll bars. */
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select {
+  color-scheme: dark;
+}
+
+
+/* --------------------------------------------------------------------
+   CSS-Modules overrides.
+   These hit the redesigned employee panels (Attendance, Leave,
+   Permission, Tasks, Home, Memos, Documents, Announcements, Assets,
+   HelpDesk, Settings, Payslips, Preview) whose class names include
+   the substring `_wrap`, `_card`, `_head`, `_section` etc. after
+   Vite's CSS-Modules hashing.
+   -------------------------------------------------------------------- */
+
+/* Any white card-like surface → dark surface */
+html[data-theme="dark"] [class*="_card"],
+html[data-theme="dark"] [class*="_head"],
+html[data-theme="dark"] [class*="_panel"],
+html[data-theme="dark"] [class*="_section"],
+html[data-theme="dark"] [class*="_hero"],
+html[data-theme="dark"] [class*="_row"]:not([class*="_headRow"]),
+html[data-theme="dark"] [class*="_stat"]:not([class*="_statLabel"]):not([class*="_statValue"]):not([class*="_statSub"]),
+html[data-theme="dark"] [class*="_slip"]:not([class*="_slipNet"]):not([class*="_slipStat"]) {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+/* Table + list wrappers */
+html[data-theme="dark"] [class*="_list"] {
+  color: #e2e8f0 !important;
+}
+
+/* Search + text inputs inside module cards */
+html[data-theme="dark"] [class*="_searchBox"],
+html[data-theme="dark"] [class*="_input"],
+html[data-theme="dark"] [class*="_select"],
+html[data-theme="dark"] [class*="_textarea"] {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] [class*="_input"]::placeholder,
+html[data-theme="dark"] [class*="_searchBox"] input::placeholder,
+html[data-theme="dark"] [class*="_textarea"]::placeholder {
+  color: #64748b !important;
+}
+
+/* Muted / subtitle text — flip the hardcoded slate-400 / slate-500 */
+html[data-theme="dark"] [class*="_sub"],
+html[data-theme="dark"] [class*="_meta"],
+html[data-theme="dark"] [class*="_hint"],
+html[data-theme="dark"] [class*="_label"]:not([class*="_labelReq"]) {
+  color: #94a3b8 !important;
+}
+
+/* Title-like text stays high-contrast white in dark mode */
+html[data-theme="dark"] [class*="_title"],
+html[data-theme="dark"] [class*="_Title"],
+html[data-theme="dark"] [class*="_value"],
+html[data-theme="dark"] [class*="_Value"] {
+  color: #f1f5f9 !important;
+}
+
+/* Ghost / secondary buttons — inherit dark surface */
+html[data-theme="dark"] [class*="btnGhost"],
+html[data-theme="dark"] [class*="_actionGhost"],
+html[data-theme="dark"] [class*="_chipBtn"]:not([class*="_active"]) {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+html[data-theme="dark"] [class*="btnGhost"]:hover,
+html[data-theme="dark"] [class*="_actionGhost"]:hover {
+  background: #0f172a !important;
+}
+
+/* Cream / soft-slate panels (f8fafc, f1f5f9) inside cards */
+html[data-theme="dark"] [class*="_metaGrid"],
+html[data-theme="dark"] [class*="_dates"],
+html[data-theme="dark"] [class*="_stepper"]:not([class*="_stepper_rejected"]),
+html[data-theme="dark"] [class*="_descBlock"] {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+/* Empty / loading dashed cards */
+html[data-theme="dark"] [class*="_empty"],
+html[data-theme="dark"] [class*="_loading"] {
+  background: #111827 !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+/* Keep coloured chips readable — bring background alpha down so the
+   dark surface shows through and the coloured text still pops. */
+html[data-theme="dark"] [class*="_chip_success"],
+html[data-theme="dark"] [class*="_chip_issued"],
+html[data-theme="dark"] [class*="_chip_resolved"] {
+  background: rgba(16, 185, 129, 0.18) !important;
+  color: #a7f3d0 !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+html[data-theme="dark"] [class*="_chip_warning"],
+html[data-theme="dark"] [class*="_chip_warn"],
+html[data-theme="dark"] [class*="_chip_progress"],
+html[data-theme="dark"] [class*="_chip_pending"] {
+  background: rgba(245, 158, 11, 0.18) !important;
+  color: #fcd34d !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+html[data-theme="dark"] [class*="_chip_danger"],
+html[data-theme="dark"] [class*="_chip_late"],
+html[data-theme="dark"] [class*="_chip_rejected"] {
+  background: rgba(239, 68, 68, 0.18) !important;
+  color: #fecaca !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+html[data-theme="dark"] [class*="_chip_info"] {
+  background: rgba(59, 130, 246, 0.18) !important;
+  color: #bfdbfe !important;
+  border-color: rgba(59, 130, 246, 0.35) !important;
+}
+html[data-theme="dark"] [class*="_chip_muted"],
+html[data-theme="dark"] [class*="_chip_closed"] {
+  background: rgba(148, 163, 184, 0.18) !important;
+  color: #cbd5e1 !important;
+  border-color: rgba(148, 163, 184, 0.35) !important;
+}
+
+/* Primary red buttons stay red — no override needed */
+
+
+/* --------------------------------------------------------------------
+   Broad text-colour flip.
+   The module CSS often hard-codes dark-slate text (#0f172a / #1e293b
+   / #334155) directly on class names our substring selectors above
+   don't match — e.g. `.cardName`, `.slipMonth`, `.historyTitle`,
+   `.rowMain`. Rather than enumerate every one, force every basic
+   text element inside a module wrap/card/panel/section/hero to the
+   dark-mode text colour. `:where()` doesn't add specificity, so a
+   chip/pill/button `!important` rule set earlier still wins.
+   -------------------------------------------------------------------- */
+html[data-theme="dark"] [class*="_wrap"] :where(
+  div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em
+),
+html[data-theme="dark"] [class*="_card"] :where(
+  div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em
+),
+html[data-theme="dark"] [class*="_panel"] :where(
+  div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em
+),
+html[data-theme="dark"] [class*="_section"] :where(
+  div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em
+),
+html[data-theme="dark"] [class*="_hero"] :where(
+  div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em
+),
+html[data-theme="dark"] [class*="_row"] :where(
+  div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em
+),
+html[data-theme="dark"] [class*="_head"] :where(
+  div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em
+),
+html[data-theme="dark"] [class*="_body"] :where(
+  div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em
+) {
+  color: #e2e8f0;
+}
+
+/* Root titles inside the same wrappers also lift to off-white */
+html[data-theme="dark"] [class*="_wrap"],
+html[data-theme="dark"] [class*="_card"],
+html[data-theme="dark"] [class*="_panel"],
+html[data-theme="dark"] [class*="_section"],
+html[data-theme="dark"] [class*="_hero"],
+html[data-theme="dark"] [class*="_head"],
+html[data-theme="dark"] [class*="_body"],
+html[data-theme="dark"] [class*="_row"] {
+  color: #e2e8f0;
+}
+
+/* Restore muted secondary text after the broad flip. Anything with
+   `_sub`, `_meta`, `_hint`, `_note`, `_desc` / `Description`,
+   `_label` (except required-marker), or `_num` sub-text falls to
+   slate-400 so the hierarchy is preserved. */
+html[data-theme="dark"] [class*="_sub"],
+html[data-theme="dark"] [class*="_meta"],
+html[data-theme="dark"] [class*="_hint"],
+html[data-theme="dark"] [class*="_note"],
+html[data-theme="dark"] [class*="_desc"],
+html[data-theme="dark"] [class*="_muted"],
+html[data-theme="dark"] [class*="_helpText"],
+html[data-theme="dark"] [class*="_placeholder"],
+html[data-theme="dark"] [class*="_dot"] {
+  color: #94a3b8 !important;
+}
+
+/* Titles / values / high-contrast text stay off-white */
+html[data-theme="dark"] [class*="_title"],
+html[data-theme="dark"] [class*="Title"],
+html[data-theme="dark"] [class*="_value"],
+html[data-theme="dark"] [class*="Value"],
+html[data-theme="dark"] [class*="_name"],
+html[data-theme="dark"] [class*="Name"],
+html[data-theme="dark"] [class*="_num"]:not([class*="_number"]):not([class*="Number"]),
+html[data-theme="dark"] [class*="_month"],
+html[data-theme="dark"] [class*="_year"],
+html[data-theme="dark"] [class*="_date"]:not([class*="_dateLabel"]),
+html[data-theme="dark"] [class*="_day"] {
+  color: #f1f5f9 !important;
+}
+
+/* Monospace ticket / payslip numbers — soft slate, not bright white */
+html[data-theme="dark"] [class*="ticketNumber"],
+html[data-theme="dark"] [class*="_number"],
+html[data-theme="dark"] [class*="Number"],
+html[data-theme="dark"] [class*="_serial"],
+html[data-theme="dark"] [class*="_filename"] {
+  color: #94a3b8 !important;
+}
+
+/* Coloured status badges that live outside the chip block —
+   overdue / late / danger / urgent text should stay red-ish, not
+   flip to white. */
+html[data-theme="dark"] [class*="_overdue"],
+html[data-theme="dark"] [class*="_dueOverdue"],
+html[data-theme="dark"] [class*="_lateNote"],
+html[data-theme="dark"] [class*="_notReturned"] {
+  color: #fca5a5 !important;
+}
+html[data-theme="dark"] [class*="_deduction"] {
+  color: #f87171 !important;
+}
+html[data-theme="dark"] [class*="_slipNetValue"],
+html[data-theme="dark"] [class*="_slipNetLabel"] {
+  color: #6ee7b7 !important;
+}
+
+/* Native form controls text */
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select {
+  color: #e2e8f0 !important;
+}
+
+
+/* --------------------------------------------------------------------
+   Catch-all overrides for anything the substring selectors above
+   missed. The `welcomeTitle` / `welcomeDate` / `welcomeSubtitle`
+   classes on the home hero, for example, don't contain the anchor
+   strings I used (`_wrap`, `_hero`, `_card`), so nothing flipped
+   their hardcoded #0f172a text.
+
+   Two rules that catch the rest:
+     1. Every heading tag goes light. Non-negotiable.
+     2. Every text-carrying tag that has a CSS-Modules-hashed class
+        (they all contain `__` before the hash) inherits light text.
+   -------------------------------------------------------------------- */
+
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] h4,
+html[data-theme="dark"] h5,
+html[data-theme="dark"] h6 {
+  color: #f1f5f9 !important;
+}
+
+/* Every CSS-module-hashed text tag inside body inherits light in
+   dark mode. Uses `[class*="__"]` because Vite's module class
+   names all look like `<Module>_<class>__<hash>`. Chips, pills and
+   accent colours still win via their own `!important` rules. */
+html[data-theme="dark"] body
+  :is(div, span, p, li, td, th, dd, dt, a, small, strong, b, em, label)[class*="__"] {
+  color: #e2e8f0;
+}
+
+/* Subtitles / meta / hint / caption text stays muted so hierarchy
+   is preserved. Case-insensitive so `welcomeSubtitle`,
+   `heroSubtitle`, `cardMeta`, `dateLabel` etc. all catch. */
+html[data-theme="dark"] [class*="subtitle" i],
+html[data-theme="dark"] [class*="caption" i],
+html[data-theme="dark"] [class*="eyebrow" i] {
+  color: #94a3b8 !important;
+}

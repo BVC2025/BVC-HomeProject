@@ -71,7 +71,7 @@ const NAV_GROUPS = [
   {
     label: "Compensation",
     items: [
-      { key: "payslips",   label: "Payroll",       icon: ICONS.payroll },
+      { key: "payslips",   label: "Salary",        icon: ICONS.payroll },
       { key: "allowance",  label: "Allowance",     icon: ICONS.payroll },
     ],
   },
@@ -80,9 +80,11 @@ const NAV_GROUPS = [
     items: [
       // Announcements covers both directive memos and general HR
       // notices — we don't need two rows for the same idea.
+      // Per-employee memos — warning letters, appreciations, notices.
+      { key: "memos",         label: "Memo",          icon: ICONS.memo },
+      // Company-wide announcements — holiday, notice, meeting, event, birthday.
       { key: "announcements", label: "Announcements", icon: ICONS.megaphone },
-      { key: "holidays",   label: "Holidays",  icon: ICONS.calendar, soon: true },
-      { key: "documents",  label: "Documents", icon: ICONS.docs,     soon: true },
+      { key: "documents",     label: "Documents",     icon: ICONS.docs },
       // "Notifications" removed — the topbar bell already opens
       // this list and shows the unread count.
     ],
@@ -90,7 +92,7 @@ const NAV_GROUPS = [
   {
     label: "Growth",
     items: [
-      { key: "performance", label: "Performance",  icon: ICONS.chart,     soon: true },
+      { key: "performance", label: "Performance",  icon: ICONS.chart },
       { key: "training",    label: "Training",     icon: ICONS.book,      soon: true },
       { key: "orgchart",    label: "Org Chart",    icon: ICONS.tree,      soon: true },
       { key: "myteam",      label: "My Team",      icon: ICONS.users,     soon: true },
@@ -99,9 +101,9 @@ const NAV_GROUPS = [
   {
     label: "Support",
     items: [
-      { key: "assets",      label: "My Assets",    icon: ICONS.laptop,    soon: true },
-      { key: "helpdesk",    label: "Help Desk",    icon: ICONS.ticket,    soon: true },
-      { key: "settings",    label: "Settings",     icon: ICONS.gear,      soon: true },
+      { key: "assets",      label: "My Assets",    icon: ICONS.laptop },
+      { key: "helpdesk",    label: "Help Desk",    icon: ICONS.ticket },
+      { key: "settings",    label: "Settings",     icon: ICONS.gear },
     ],
   },
 ];

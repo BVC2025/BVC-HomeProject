@@ -185,10 +185,17 @@ export default function EmployeeHomeDashboard({
     ? Math.round((monthPresent / monthWorking) * 100)
     : null;
 
-  const totalLeave = leaveBalance
-    ? Object.values(leaveBalance).reduce((s, v) => s + (Number(v) || 0), 0)
-    : null;
-  const clBalance = leaveBalance?.CL ?? leaveBalance?.cl ?? null;
+  // Show the leave-balance YEAR as the big number on the card
+  // (matches what you asked for — 2026). The old Object.values sum
+  // returned nonsense because leaveBalance mixes YEAR with nested
+  // leave-type buckets. Sub-line still shows the CL remaining.
+  const totalLeave = leaveBalance?.YEAR
+                  ?? new Date().getFullYear();
+
+  const clBalance = leaveBalance?.CASUAL?.remaining
+                 ?? leaveBalance?.CL
+                 ?? leaveBalance?.cl
+                 ?? null;
 
   const pendingTasksCount = p.pending_task_count ?? p.pending_tasks ?? 0;
 

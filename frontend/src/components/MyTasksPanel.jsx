@@ -36,6 +36,10 @@ const I = {
   play:   icon(<path d="M6 4l14 8-14 8V4z" />),
   pause:  icon(<><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></>),
   check:  icon(<path d="M4 12l6 6L20 6" />),
+  alert:  icon(<>
+    <path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+    <path d="M12 9v4M12 17h.01" />
+  </>, 18),
   empty:  icon(<>
     <path d="M9 11l3 3L20 6" />
     <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
@@ -187,21 +191,46 @@ export default function MyTasksPanel({ buckets = {}, busyMap = {}, onUpdate }) {
   const [filter, setFilter] = useState("pending");
   const [query, setQuery]   = useState("");
 
+  // Build an ad-hoc "Delay" bucket by scanning all live tasks for
+  // overdue flags. Pending / In-progress / On-hold rows with a due
+  // date in the past qualify. Completed rows never delay.
+  const delayList = useMemo(() => {
+    const out = [];
+    const pools = ["pending", "in_progress", "on_hold"];
+    for (const k of pools) {
+      for (const t of (buckets[k] || [])) {
+        const overdue = t.overdue
+                     || t.is_overdue
+                     || (typeof t.remaining_days === "number" && t.remaining_days < 0);
+        if (overdue) out.push(t);
+      }
+    }
+    return out;
+  }, [buckets]);
+
   const filters = useMemo(() => ([
     { key: "today",       label: "Today",       count: buckets.today?.length       || 0 },
-    { key: "pending",     label: "Pending",     count: buckets.pending?.length     || 0 },
+    { key: "pending",     label: "Assigned",    count: buckets.pending?.length     || 0 },
     { key: "in_progress", label: "In progress", count: buckets.in_progress?.length || 0 },
     { key: "on_hold",     label: "On hold",     count: buckets.on_hold?.length     || 0 },
     { key: "upcoming",    label: "Upcoming",    count: buckets.upcoming?.length    || 0 },
     { key: "completed",   label: "Completed",   count: buckets.completed?.length   || 0 },
-  ]), [buckets]);
+    { key: "delay",       label: "Delay",       count: delayList.length,           tone: "danger" },
+  ]), [buckets, delayList]);
 
   const total = useMemo(
-    () => filters.reduce((s, f) => s + f.count, 0),
-    [filters]
+    () => (buckets.today?.length || 0)
+        + (buckets.pending?.length || 0)
+        + (buckets.in_progress?.length || 0)
+        + (buckets.on_hold?.length || 0)
+        + (buckets.upcoming?.length || 0)
+        + (buckets.completed?.length || 0),
+    [buckets]
   );
 
-  const activeList = buckets[filter] || [];
+  const activeList = filter === "delay"
+    ? delayList
+    : (buckets[filter] || []);
   const qNorm = query.trim().toLowerCase();
   const rows = qNorm
     ? activeList.filter((t) =>
@@ -218,9 +247,16 @@ export default function MyTasksPanel({ buckets = {}, busyMap = {}, onUpdate }) {
       case "on_hold":     return "Nothing on hold.";
       case "upcoming":    return "No upcoming tasks in the next few days.";
       case "completed":   return "No completed tasks yet.";
+      case "delay":       return "No delayed tasks — everything's on schedule.";
       default:            return "Nothing here.";
     }
   })();
+
+  // Reminder banner state — allow dismissal per session
+  const [reminderDismissed, setReminderDismissed] = useState(false);
+  const showReminder = delayList.length > 0
+    && !reminderDismissed
+    && filter !== "delay";
 
   return (
     <div className={styles.wrap}>
@@ -244,6 +280,41 @@ export default function MyTasksPanel({ buckets = {}, busyMap = {}, onUpdate }) {
         </label>
       </header>
 
+      {/* ---- Auto reminder banner ----
+           Fires whenever the employee has delayed tasks and the
+           banner hasn't been dismissed this session. Clicking
+           "Show delayed" jumps to the Delay filter. */}
+      {showReminder && (
+        <div className={styles.reminder}>
+          <span className={styles.reminderIcon}>{I.alert}</span>
+          <div className={styles.reminderBody}>
+            <div className={styles.reminderTitle}>
+              {delayList.length === 1
+                ? "1 task is overdue"
+                : `${delayList.length} tasks are overdue`}
+            </div>
+            <div className={styles.reminderSub}>
+              Update the status or move the due date to clear this reminder.
+            </div>
+          </div>
+          <button
+            type="button"
+            className={styles.reminderBtn}
+            onClick={() => setFilter("delay")}
+          >
+            Show delayed
+          </button>
+          <button
+            type="button"
+            className={styles.reminderClose}
+            onClick={() => setReminderDismissed(true)}
+            aria-label="Dismiss reminder"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* ---- Filter chips ---- */}
       <div className={styles.filters} role="tablist">
         {filters.map((f) => (
@@ -253,7 +324,11 @@ export default function MyTasksPanel({ buckets = {}, busyMap = {}, onUpdate }) {
             role="tab"
             aria-selected={filter === f.key}
             onClick={() => setFilter(f.key)}
-            className={`${styles.filterChip} ${filter === f.key ? styles.filterChip_active : ""}`}
+            className={
+              `${styles.filterChip}` +
+              (filter === f.key ? ` ${styles.filterChip_active}` : "") +
+              (f.tone === "danger" && f.count > 0 ? ` ${styles.filterChip_danger}` : "")
+            }
           >
             <span>{f.label}</span>
             <span className={styles.filterCount}>{f.count}</span>

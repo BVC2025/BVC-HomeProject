@@ -11,7 +11,15 @@ import MyAttendancePanel from "../components/MyAttendancePanel";
 import MyTasksPanel from "../components/MyTasksPanel";
 import MyAllowanceSection from "../components/MyAllowanceSection";
 import MyPayslipsPanel from "../components/MyPayslipsPanel";
-import MyPermissionSection from "../components/MyPermissionSection";
+import MyLeaveRequest from "../components/MyLeaveRequest";
+import MyPermissionRequest from "../components/MyPermissionRequest";
+import MyMemosPanel from "../components/MyMemosPanel";
+import MyPerformancePanel from "../components/MyPerformancePanel";
+import MyAssetsPanel from "../components/MyAssetsPanel";
+import MyAnnouncementsPanel from "../components/MyAnnouncementsPanel";
+import MyHelpDeskPanel from "../components/MyHelpDeskPanel";
+import MyDocumentsPanel from "../components/MyDocumentsPanel";
+import MySettingsPanel from "../components/MySettingsPanel";
 import EmployeeSidebar from "../components/EmployeeSidebar";
 import EmployeeHomeDashboard from "../components/EmployeeHomeDashboard";
 import ComingSoonPanel from "../components/ComingSoonPanel";
@@ -773,27 +781,32 @@ function EmployeeDashboardBody() {
           )}
 
           {mainTab === "leave" && (
-            <>
-              <LeaveAgentChat
-                employeeId={employeeId}
-                onLeaveSubmitted={() => setLeaveStatusRefresh((n) => n + 1)}
-              />
-              <MyLeaveStatus
-                employeeId={employeeId}
-                refreshSignal={leaveStatusRefresh}
-              />
-            </>
+            <MyLeaveRequest
+              employeeId={employeeId}
+              onSubmitted={() => setLeaveStatusRefresh((n) => n + 1)}
+            />
           )}
 
           {mainTab === "permission" && (
-            <MyPermissionSection employeeId={employeeId} />
+            <MyPermissionRequest employeeId={employeeId} />
           )}
 
-          {/* Announcements and the legacy "memos" tab both render the
-              same MyMemosCard — we merged the two sidebar entries into
-              a single "Announcements" item. */}
-          {(mainTab === "memos" || mainTab === "announcements") && (
-            <MyMemosCard employeeId={employeeId} />
+          {/* Personal memos — warnings, appreciations, notices issued
+              to this employee. */}
+          {mainTab === "memos" && (
+            <MyMemosPanel employeeId={employeeId} />
+          )}
+
+          {/* Company-wide announcements — holidays, notices, meetings,
+              events, birthdays. Tab-based. */}
+          {mainTab === "announcements" && (
+            <MyAnnouncementsPanel employeeId={employeeId} />
+          )}
+
+          {/* Performance dashboard — pulls from the star-performance
+              history endpoint and computes an AI overall score client-side. */}
+          {mainTab === "performance" && (
+            <MyPerformancePanel employeeId={employeeId} />
           )}
 
           {mainTab === "allowance" && (
@@ -821,16 +834,7 @@ function EmployeeDashboardBody() {
           {/* ---------- Coming-soon placeholders for modules whose
                         backend is on the roadmap ---------- */}
           {mainTab === "documents" && (
-            <ComingSoonPanel
-              title="Documents"
-              iconKey="docs"
-              description="A single place to view and download every document HR has on file for you."
-              bullets={[
-                "Aadhaar, PAN and other IDs",
-                "Offer letter, appointment letter, salary slips",
-                "Education, experience and training certificates",
-              ]}
-            />
+            <MyDocumentsPanel employeeId={employeeId} />
           )}
           {mainTab === "holidays" && (
             <ComingSoonPanel
@@ -858,16 +862,7 @@ function EmployeeDashboardBody() {
           )}
           {/* announcements handled above alongside memos */}
           {mainTab === "assets" && (
-            <ComingSoonPanel
-              title="My Assets"
-              iconKey="laptop"
-              description="Every asset assigned to you — laptop, monitor, SIM, ID card — in one card grid."
-              bullets={[
-                "Asset ID, assigned date, return date",
-                "Condition and status tags",
-                "Read-only; return requests go through HR",
-              ]}
-            />
+            <MyAssetsPanel employeeId={employeeId} />
           )}
           {mainTab === "training" && (
             <ComingSoonPanel
@@ -882,29 +877,9 @@ function EmployeeDashboardBody() {
             />
           )}
           {mainTab === "helpdesk" && (
-            <ComingSoonPanel
-              title="Help Desk"
-              iconKey="ticket"
-              description="Raise a ticket to HR, IT, Finance or Admin and track it through to closure."
-              bullets={[
-                "Category, priority and attachment",
-                "Status timeline — Open → In Progress → Resolved",
-                "See every response in one thread",
-              ]}
-            />
+            <MyHelpDeskPanel employeeId={employeeId} />
           )}
-          {mainTab === "performance" && (
-            <ComingSoonPanel
-              title="Performance"
-              iconKey="chart"
-              description="Your appraisal history, KPI score, goals and manager feedback."
-              bullets={[
-                "Overall rating and star performance",
-                "KPI, attendance and task score",
-                "Manager feedback timeline",
-              ]}
-            />
-          )}
+          {/* Performance now handled above by MyPerformancePanel. */}
           {mainTab === "orgchart" && (
             <ComingSoonPanel
               title="Organization Chart"
@@ -930,16 +905,7 @@ function EmployeeDashboardBody() {
             />
           )}
           {mainTab === "settings" && (
-            <ComingSoonPanel
-              title="Settings"
-              iconKey="gear"
-              description="Change your password, notification preferences, language and theme."
-              bullets={[
-                "Password + two-factor auth",
-                "Light / Dark theme toggle",
-                "Notification and privacy controls",
-              ]}
-            />
+            <MySettingsPanel />
           )}
 
         </div>
