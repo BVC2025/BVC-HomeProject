@@ -15,7 +15,7 @@ from app.utils.datetime_utils import now_ist
 
 from sqlalchemy import (
     Column, String, Integer, ForeignKey, Text, DateTime, Numeric,
-    UniqueConstraint,
+    UniqueConstraint, Boolean, Index,
 )
 from sqlalchemy.orm import relationship
 
@@ -87,6 +87,52 @@ class Project(Base):
         order_by="TaskTemplate.SEQUENCE_NUMBER",
         cascade="all, delete-orphan"
     )
+    quotation_template = relationship(
+        "ProjectQuotationTemplate", back_populates="project",
+        uselist=False, cascade="all, delete-orphan"
+    )
+    pricing = relationship(
+        "ProjectPricing", back_populates="project",
+        uselist=False, cascade="all, delete-orphan"
+    )
+
+
+class ProjectPricing(Base):
+
+    __tablename__ = "project_pricing"
+
+    __table_args__ = (
+        UniqueConstraint("PROJECT_ID", name="uq_project_pricing_project"),
+        Index("ix_project_pricing_vendor", "VENDOR_ID"),
+    )
+
+    ID = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    PROJECT_ID = Column(String(36), ForeignKey("project.ID", ondelete="CASCADE"), nullable=False, index=True)
+    VENDOR_ID  = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
+
+    # Plain string, no ENUM — matches supplier_models.py's Supplier.CURRENCY convention.
+    CURRENCY = Column(String(5), nullable=False, default="INR")
+
+    ORIGINAL_PRICE            = Column(Numeric(14, 2), nullable=False, default=0)
+    MINIMUM_NEGOTIATION_PRICE = Column(Numeric(14, 2), nullable=True)
+    NEGOTIATION_PERCENT       = Column(Numeric(5, 2), nullable=True)
+    PACKING_CHARGE            = Column(Numeric(14, 2), nullable=False, default=0)
+    TRANSPORTATION_CHARGE     = Column(Numeric(14, 2), nullable=False, default=0)
+    INSTALLATION_CHARGE       = Column(Numeric(14, 2), nullable=False, default=0)
+    SERVICE_CHARGE            = Column(Numeric(14, 2), nullable=False, default=0)
+    ADDITIONAL_CHARGES        = Column(Numeric(14, 2), nullable=False, default=0)
+    TAX_AMOUNT                = Column(Numeric(14, 2), nullable=False, default=0)
+    DISCOUNT_AMOUNT           = Column(Numeric(14, 2), nullable=False, default=0)
+    FINAL_PRICE               = Column(Numeric(14, 2), nullable=False, default=0)  # server-computed only
+
+    REMARKS   = Column(Text, nullable=True)
+    IS_ACTIVE = Column(Boolean, nullable=False, default=True)
+
+    CREATED_AT = Column(DateTime, default=now_ist)
+    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
+
+    project = relationship("Project", back_populates="pricing")
 
 
 class TaskTemplate(Base):
