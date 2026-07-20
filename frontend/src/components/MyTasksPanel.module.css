@@ -153,6 +153,116 @@
   color: #ffffff;
 }
 
+/* Delay chip when overdue > 0 — amber-outlined so it stands out
+   from the neutral chips without competing with the red active chip. */
+.filterChip_danger:not(.filterChip_active) {
+  border-color: #fcd34d;
+  background: #fffbeb;
+  color: #b45309;
+}
+.filterChip_danger:not(.filterChip_active) .filterCount {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+
+/* ==================================================================
+   Auto reminder banner — shown when any tasks are overdue
+   ================================================================== */
+
+.reminder {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 18px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-left: 4px solid #b45309;
+  border-radius: 12px;
+  color: #78350f;
+}
+
+.reminderIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #fef3c7;
+  color: #b45309;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.reminderBody { min-width: 0; }
+
+.reminderTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: #78350f;
+  letter-spacing: -0.1px;
+  margin-bottom: 2px;
+}
+
+.reminderSub {
+  font-size: 12px;
+  color: #92400e;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.reminderBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  background: #b45309;
+  color: #ffffff;
+  border: 1px solid #b45309;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+}
+.reminderBtn:hover { background: #92400e; }
+
+.reminderClose {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #b45309;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.reminderClose:hover { background: #fef3c7; }
+
+
+@media (max-width: 640px) {
+  .reminder {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "icon body close"
+      "btn  btn  btn";
+    gap: 10px 12px;
+  }
+  .reminderIcon  { grid-area: icon; }
+  .reminderBody  { grid-area: body; }
+  .reminderClose { grid-area: close; }
+  .reminderBtn {
+    grid-area: btn;
+    justify-content: center;
+    padding: 10px 14px;
+  }
+}
+
 
 /* ==================================================================
    TASK LIST

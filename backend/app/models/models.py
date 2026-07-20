@@ -3970,6 +3970,69 @@ class HolidayCalendar(Base):
 
 
 # ====================================================================
+# Help Desk — employee-submitted tickets
+# ====================================================================
+# Category-based tickets for employee complaints, IT / HR requests
+# and facility maintenance. Employees can create + view their own;
+# admins / assignees can update status. Kept intentionally lean so
+# the schema can absorb new categories without migration.
+
+class HelpDeskTicket(Base):
+    """One employee-submitted ticket for the help desk queue."""
+
+    __tablename__ = "helpdesk_ticket"
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    TICKET_NUMBER = Column(String(30), unique=True, index=True)
+    # Human-readable — format: HD-2026-07-0001 (generated on create).
+
+    EMPLOYEE_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=False,
+        index=True,
+    )
+
+    CATEGORY = Column(String(30), nullable=False, index=True)
+    # COMPLAINT / IT_REQUEST / HR_REQUEST / MAINTENANCE / OTHER
+
+    SUBJECT = Column(String(200), nullable=False)
+
+    DESCRIPTION = Column(Text, nullable=True)
+
+    PRIORITY = Column(String(20), default="MEDIUM")
+    # LOW / MEDIUM / HIGH / URGENT
+
+    STATUS = Column(String(30), default="OPEN", index=True)
+    # OPEN / IN_PROGRESS / RESOLVED / CLOSED / REJECTED
+
+    ASSIGNED_TO_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=True,
+    )
+    ASSIGNED_TO_NAME = Column(String(120), nullable=True)
+    # Denormalised so the employee UI doesn't need a second lookup.
+
+    RESOLUTION_NOTES = Column(Text, nullable=True)
+    # Set by whoever closes / resolves the ticket. Shown to the
+    # employee on the detail modal so they know what was done.
+
+    RESOLVED_AT = Column(DateTime, nullable=True)
+
+    VENDOR_ID = Column(Integer, default=1)
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+
+    UPDATED_AT = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+
+# ====================================================================
 # Admin Module 3 — Company Master Settings (2026-06-02)
 # ====================================================================
 # One row per vendor. Single source of truth for company branding used

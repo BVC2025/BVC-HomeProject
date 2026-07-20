@@ -40,9 +40,7 @@ from app.routes.task_approval import router as task_approval_router
 from app.routes.chatbot import router as chatbot_router
 from app.routes.biometric import router as biometric_router
 from app.routes.essl_ingest import router as essl_ingest_router
-
 from app.routes.adms_push import router as adms_push_router
-
 from app.routes.attendance_csv_import import router as attendance_csv_import_router
 
 from app.routes.bvc24_seed import router as bvc24_seed_router
@@ -71,6 +69,8 @@ from app.routes.ai import router as ai_router
 from app.routes.public_enquiry import router as public_enquiry_router
 from app.routes.geofence import router as geofence_router
 from app.routes.employee_memos import router as employee_memos_router
+from app.routes.helpdesk import router as helpdesk_router
+from app.routes.me import router as me_router
 from app.routes.leave_chatbot import router as leave_chatbot_router
 from app.routes.employee_portal import router as employee_portal_router
 from app.routes.audit import router as audit_router  # Phase 3 security
@@ -1393,9 +1393,9 @@ app.include_router(settings_router, tags=["Settings"])
 app.include_router(chatbot_router, tags=["Chatbot"])
 app.include_router(biometric_router)
 app.include_router(essl_ingest_router)
-
-# ADMS Cloud Push — MUST be mounted at the ROOT path with no prefix,
-# because the eSSL device firmware hardcodes the URL `/iclock/cdata`.
+# ADMS push endpoints are mounted at ROOT (no prefix) because eSSL
+# device firmware hardcodes `/iclock/cdata`, `/iclock/getrequest`,
+# `/iclock/devicecmd` — see backend/app/routes/adms_push.py header.
 app.include_router(adms_push_router)
 app.include_router(attendance_csv_import_router)
 app.include_router(bvc24_seed_router)
@@ -1424,6 +1424,8 @@ app.include_router(ai_router)
 app.include_router(public_enquiry_router)
 app.include_router(geofence_router)
 app.include_router(employee_memos_router)
+app.include_router(helpdesk_router)
+app.include_router(me_router)
 app.include_router(leave_chatbot_router)
 app.include_router(employee_portal_router, tags=["Employee Portal"])
 app.include_router(audit_router)

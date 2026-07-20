@@ -50,7 +50,10 @@ DOC_TYPES = {
     # ---- Employment ----
     "RESUME",
     "OFFER_LETTER",
-    "JOINING_LETTER",
+    "APPOINTMENT_LETTER",      # Formal appointment order after offer
+    "JOINING_LETTER",          # Kept for back-compat (some HRMS call it this)
+    "INCREMENT_LETTER",        # Annual salary revision letter
+    "PROMOTION_LETTER",        # Designation change letter
     "EXPERIENCE_LETTER",
     "RELIEVING_LETTER",
     "SALARY_SLIP",             # Previous employer payslip

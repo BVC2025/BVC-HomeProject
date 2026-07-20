@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import API from "../services/api";
+import ConfirmDialog from "../components/ConfirmDialog";
 import styles from "./EmployeeProfileForm.module.css";
 
 // Small set surfaced during onboarding. Anything else can still be
@@ -176,6 +177,7 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
   const [error, setError] = useState("");
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   // ---- Documents ----
   // Docs are uploaded IMMEDIATELY (not deferred to submit) using the
@@ -269,7 +271,10 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
     reader.readAsDataURL(file);
   };
 
-  const submit = async (e) => {
+  // Form submit is a two-step gate: the button opens a confirmation
+  // dialog; only clicking "Yes, submit" in the dialog actually POSTs.
+  // Cancel keeps the form editable.
+  const submit = (e) => {
     e?.preventDefault?.();
     setError("");
 
@@ -279,6 +284,11 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
       return;
     }
 
+    setConfirmOpen(true);
+  };
+
+  const confirmSubmit = async () => {
+    setConfirmOpen(false);
     setSaving(true);
     try {
       const payload = {
@@ -724,6 +734,16 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
         </form>
 
       </div>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Submit your profile?"
+        message="Are you sure you want to submit the form? Once submitted you cannot edit it again — only admin can change your details."
+        confirmLabel="Yes, submit"
+        cancelLabel="Keep editing"
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={confirmSubmit}
+      />
     </div>
   );
 }
