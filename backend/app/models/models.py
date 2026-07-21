@@ -8,7 +8,7 @@ from app.database.database import Base
 from datetime import time
 import uuid
 from app.utils.datetime_utils import now_ist
-
+from datetime import datetime
 from app.models.project_models import ProjectCategory, Project, TaskTemplate, ProjectPricing  # noqa: F401
 from app.models.supplier_models import Supplier  # noqa: F401
 from app.models.email_models import VendorEmailConfig, EmailTemplate  # noqa: F401
@@ -5060,7 +5060,7 @@ class ShiftChangeRequest(Base):
     UPDATED_AT = Column(DateTime, default=datetime.utcnow,
                         onupdate=datetime.utcnow)
 
-    CREATED_AT  = Column(DateTime, default=now_ist, index=True)
+ 
 
 
 # ──────────────────────────────────────────────
