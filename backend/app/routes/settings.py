@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
-from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from datetime import datetime
 from pathlib import Path
@@ -329,6 +328,8 @@ class CompanySettingsBody(BaseModel):
     BANK_IFSC:           Optional[str] = None
     BANK_BRANCH:         Optional[str] = None
     UPI_ID:              Optional[str] = None
+    DOMAIN:              Optional[str] = None
+    WORK_HOURS:          Optional[float] = None
     NOTES:               Optional[str] = None
 
 
@@ -356,9 +357,38 @@ def update_company_settings(
     """Update any subset of fields. Empty strings are coerced to NULL
     so HR can clear a value by submitting an empty string."""
 
+    import re
+
+    updates = body.model_dump(exclude_unset=True)
+
+    # Validate and normalize DOMAIN
+    if "DOMAIN" in updates and updates["DOMAIN"]:
+        domain = updates["DOMAIN"].strip().lower()
+        if not re.match(r'^[a-z0-9][a-z0-9\-]{1,48}[a-z0-9]$', domain):
+            raise HTTPException(
+                status_code=422,
+                detail="DOMAIN must be 3–50 characters: lowercase letters, numbers, and hyphens only. No leading/trailing hyphen."
+            )
+        conflict = db.query(CompanyMaster).filter(
+            CompanyMaster.DOMAIN == domain,
+            CompanyMaster.VENDOR_ID != vendor_id
+        ).first()
+        if conflict:
+            raise HTTPException(status_code=409, detail="This domain is already taken. Please choose another.")
+        updates["DOMAIN"] = domain
+
+    # Validate WORK_HOURS range
+    if "WORK_HOURS" in updates and updates["WORK_HOURS"] is not None:
+        try:
+            wh = float(updates["WORK_HOURS"])
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=422, detail="WORK_HOURS must be a number.")
+        if not (0 <= wh <= 24):
+            raise HTTPException(status_code=422, detail="WORK_HOURS must be between 0 and 24.")
+
     row = get_company_settings(db, vendor_id)
 
-    for k, v in body.model_dump(exclude_unset=True).items():
+    for k, v in updates.items():
 
         # Coerce empty strings to None so the column becomes NULL
         if isinstance(v, str) and v.strip() == "":
@@ -448,79 +478,25 @@ def upload_company_logo(
     }
 
 
-@router.delete("/settings/company/logo")
-def remove_company_logo(
-    vendor_id: int = 1,
-    db: Session = Depends(get_db)
-):
-    """Clear the logo (delete the file + null the column)."""
-
-    company = get_company_settings(db, vendor_id)
-
-    if company.LOGO_URL:
-
-        try:
-
-            old_name = company.LOGO_URL.rsplit("/", 1)[-1]
-
-            old_path = _LOGO_DIR / old_name
-
-            if old_path.exists() and old_path.is_file():
-
-                old_path.unlink()
-
-        except Exception:
-
-            pass
-
-    company.LOGO_URL = None
-
-    db.commit()
-
-    return {"message": "Logo removed.", "company": serialize_company(company)}
-
-
-@router.get("/settings/company/preview-pdf")
-def preview_company_pdf(
+@router.get("/settings/company/domain/check")
+def check_domain_availability(
+    domain: str,
     vendor_id: int = 1,
     db: Session = Depends(get_db),
 ):
-    """Render a sample PDF using the current CompanyMaster values so
-    the admin can see how the header (logo + legal name + tagline +
-    title bar) will appear on real reports BEFORE generating one for
-    a customer. Returned with `inline` disposition so the browser
-    opens it in a tab instead of downloading."""
+    """Check whether a subdomain string is available across all vendors.
+    Returns ``{"available": true/false}``."""
 
-    # Touch the row so an auto-seeded vendor still works
-    get_company_settings(db, vendor_id)
+    import re
 
-    from app.routes.reports import build_pdf
+    d = domain.strip().lower()
 
-    sample_headers = [
-        "Sr. No.", "Item Description", "HSN",
-        "Qty", "Rate (Rs.)", "Amount (Rs.)",
-    ]
+    if not d or not re.match(r'^[a-z0-9][a-z0-9\-]{1,48}[a-z0-9]$', d):
+        return {"available": False, "reason": "Invalid format"}
 
-    sample_rows = [
-        [1, "Sample Item A - 500ml Bottle", "2202", 100, "12.50",  "1,250.00"],
-        [2, "Sample Item B - 1L Carton",    "2202",  50, "45.00",  "2,250.00"],
-        [3, "Sample Item C - Premium Mix",  "2106",  25, "180.00", "4,500.00"],
-        [4, "Sample Item D - Bulk Pack",    "2202",  10, "320.00", "3,200.00"],
-    ]
+    conflict = db.query(CompanyMaster).filter(
+        CompanyMaster.DOMAIN == d,
+        CompanyMaster.VENDOR_ID != vendor_id,
+    ).first()
 
-    buffer = build_pdf(
-        "Branding Preview",
-        sample_headers,
-        sample_rows,
-    )
-
-    return StreamingResponse(
-        buffer,
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": (
-                'inline; filename="company-branding-preview.pdf"'
-            ),
-            "Cache-Control": "no-store",
-        },
-    )
+    return {"available": conflict is None}

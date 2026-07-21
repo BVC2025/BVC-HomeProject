@@ -1,7 +1,10 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 
 import API from "../services/api";
+
 import Pagination from "../components/Pagination";
+
+
 import styles from "./SalesOrders.module.css";
 
 
@@ -13,14 +16,14 @@ import styles from "./SalesOrders.module.css";
 
 
 const STATUS_THEME = {
-  DRAFT:             { bg: "#f1f5f9", fg: "#475569", icon: "📝" },
-  AWAITING_ADVANCE:  { bg: "#fef3c7", fg: "#a16207", icon: "⏳" },
-  CONFIRMED:         { bg: "#dbeafe", fg: "#1d4ed8", icon: "✅" },
-  IN_PRODUCTION:     { bg: "#fde68a", fg: "#854d0e", icon: "🏭" },
-  SHIPPED:           { bg: "#e0e7ff", fg: "#4338ca", icon: "🚚" },
-  DELIVERED:         { bg: "#dcfce7", fg: "#166534", icon: "📦" },
-  CLOSED:            { bg: "#cffafe", fg: "#155e75", icon: "🎉" },
-  CANCELLED:         { bg: "#fee2e2", fg: "#991b1b", icon: "❌" }
+  DRAFT: { bg: "#f1f5f9", fg: "#475569", icon: "📝" },
+  AWAITING_ADVANCE: { bg: "#fef3c7", fg: "#a16207", icon: "⏳" },
+  CONFIRMED: { bg: "#dbeafe", fg: "#1d4ed8", icon: "✅" },
+  IN_PRODUCTION: { bg: "#fde68a", fg: "#854d0e", icon: "🏭" },
+  SHIPPED: { bg: "#e0e7ff", fg: "#4338ca", icon: "🚚" },
+  DELIVERED: { bg: "#dcfce7", fg: "#166534", icon: "📦" },
+  CLOSED: { bg: "#cffafe", fg: "#155e75", icon: "🎉" },
+  CANCELLED: { bg: "#fee2e2", fg: "#991b1b", icon: "❌" }
 };
 
 
@@ -152,7 +155,7 @@ function SOEditor({ soId, onClose, onSaved }) {
 
     const subtotal = draft.LINES.reduce(
       (s, l) => s + (Number(l.QUANTITY) || 0) * (Number(l.UNIT_PRICE) || 0)
-                  * (1 - (Number(l.DISCOUNT_PERCENT) || 0) / 100),
+        * (1 - (Number(l.DISCOUNT_PERCENT) || 0) / 100),
       0
     );
 
@@ -165,8 +168,8 @@ function SOEditor({ soId, onClose, onSaved }) {
     const grandTotal = taxable + taxAmount;
 
     const payTotal = (Number(draft.ADVANCE_PERCENT) || 0)
-                   + (Number(draft.DISPATCH_PERCENT) || 0)
-                   + (Number(draft.INSTALLATION_PERCENT) || 0);
+      + (Number(draft.DISPATCH_PERCENT) || 0)
+      + (Number(draft.INSTALLATION_PERCENT) || 0);
 
     const save = async () => {
 
@@ -961,6 +964,7 @@ function SalesOrders() {
 
       {!loading && filtered.length > 0 && (
         <div className={styles.soList}>
+
           {pagedRows.map((r) => (
             <div key={r.ID} onClick={() => { setEditingId(r.ID); setEditorOpen(true); }} className={styles.soCard}>
               <div>
@@ -989,6 +993,7 @@ function SalesOrders() {
               </div>
             </div>
           ))}
+
         </div>
       )}
 
@@ -1013,7 +1018,6 @@ function SalesOrders() {
     </div>
   );
 }
-
 
 function StatTile({ label, value, color, isText }) {
   return (

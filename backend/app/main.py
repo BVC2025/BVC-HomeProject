@@ -21,10 +21,16 @@ from fastapi.staticfiles import StaticFiles
 from app.routes import employee
 from app.database.database import engine
 from app.models.models import Base
+# Register new module models into Base.metadata BEFORE create_all()
+import app.models.inventory_models   # noqa: F401 — registers inventory tables
+import app.models.supplier_models    # noqa: F401 — registers supplier/procurement tables
+import app.models.email_models       # noqa: F401 — registers vendor_email_config table
+import app.models.lead_models        # noqa: F401 — registers lead_polling_config, lead, lead_polling_log tables
+import app.models.project_quotation_models  # noqa: F401 — registers project_quotation_template table
 from app.routes.users import router as users_router
 from app.routes.auth import router as auth_router
 from app.routes.vendor import router as vendor_router
-from app.routes.project import router as project_router
+# project_router (customer projects) removed — ProjectCategory→Project hierarchy now owns the "project" table
 from app.routes.task import router as task_router
 from app.routes.inventory import router as inventory_router
 from app.routes.analytics import router as analytics_router
@@ -35,6 +41,7 @@ from app.routes.reports import router as reports_router
 from app.routes.settings import router as settings_router
 from app.routes.employee_task import router as employee_task_router
 from app.routes.project_template import router as project_template_router
+from app.routes.project_quotation import router as project_quotation_router
 from app.routes.organization import router as organization_router
 from app.routes.task_approval import router as task_approval_router
 from app.routes.chatbot import router as chatbot_router
@@ -53,7 +60,6 @@ from app.routes.connect import router as connect_router
 from app.routes.payroll import router as payroll_router
 from app.routes.quotation import router as quotation_router
 from app.routes.purchase_order import router as purchase_order_router
-from app.routes.procurement_seed import router as procurement_seed_router
 from app.routes.hr_assistant import router as hr_assistant_router
 from app.routes.sales_order import router as sales_order_router
 from app.routes.whatsapp import router as whatsapp_router
@@ -90,6 +96,17 @@ from app.routes.leave_decisions import router as leave_decisions_router  # Leave
 from app.routes.monthly_reports import router as monthly_reports_router  # Auto monthly attendance + payroll reports
 from app.routes.employee_status import router as employee_status_router  # Employee lifecycle status tracking
 from app.routes.employee_insights import router as employee_insights_router  # AI workforce analytics
+from app.routes.custom_fields import router as custom_fields_router  # Custom Fields System
+# ── New Inventory & Supplier Procurement Module ──────────────────────
+from app.routes.supplier_onboarding import router as supplier_onboarding_router
+from app.routes.supplier_products import router as supplier_products_router
+from app.routes.supplier_ranking import router as supplier_ranking_router
+from app.routes.inventory_items import router as inventory_items_router
+from app.routes.inventory_movements import router as inventory_movements_router
+from app.routes.inventory_batches import router as inventory_batches_router
+from app.routes.email_config import router as email_config_router
+from app.routes.email_templates import router as email_templates_router
+from app.routes.lead_management import router as lead_management_router
 from fastapi.middleware.cors import CORSMiddleware
 
 # Phase 3 — Audit log
@@ -228,7 +245,76 @@ _STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 (_STATIC_DIR / "company").mkdir(parents=True, exist_ok=True)
 
+(_STATIC_DIR / "quotation").mkdir(parents=True, exist_ok=True)
+
 app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+
+
+def _rename_legacy_project_table():
+    """Archive legacy tables that have been superseded by new ORM models.
+
+    - old 'project'           (customer-facing projects, INTEGER PK)  → 'project_legacy'
+    - old 'sub_project_template' (old template model, INTEGER PK)     → 'sub_project_template_legacy'
+
+    Both renames are idempotent: they are skipped when the source table is
+    absent or when the target already exists.  Errors are caught per-table
+    so one failure never blocks the other rename or startup.
+    """
+    from sqlalchemy import text, inspect
+    insp = inspect(engine)
+    existing = set(insp.get_table_names())
+
+    # ── 1. Rename old customer-project table ──────────────────────────────────
+    if "project" in existing and "project_legacy" not in existing:
+        try:
+            cols = {c["name"] for c in insp.get_columns("project")}
+            if "PROJECT_NAME" in cols:          # old customer-project signature
+                with engine.connect() as conn:
+                    conn.execute(text("RENAME TABLE `project` TO `project_legacy`"))
+                    conn.commit()
+                print("[startup] Renamed legacy 'project' → 'project_legacy'")
+        except Exception as exc:
+            print(f"[startup] project rename skipped: {exc}")
+
+    # ── 2. Archive old sub_project_template table ─────────────────────────────
+    if "sub_project_template" in existing and "sub_project_template_legacy" not in existing:
+        try:
+            with engine.connect() as conn:
+                conn.execute(
+                    text("RENAME TABLE `sub_project_template` TO `sub_project_template_legacy`")
+                )
+                conn.commit()
+            print("[startup] Renamed legacy 'sub_project_template' → 'sub_project_template_legacy'")
+        except Exception as exc:
+            print(f"[startup] sub_project_template rename skipped: {exc}")
+
+
+def _drop_legacy_lead_tables():
+    """One-time cleanup: the Lead Management module was renamed/restructured
+    (IndiamartConfig/IndiamartLead -> LeadPollingConfig/Lead/LeadPollingLog,
+    with a changed schema — CONFIG_ID removed from the lead table, columns
+    renamed, unique constraints changed). The old tables held no production
+    data (pre-launch scaffolding only), so they're dropped here rather than
+    migrated in place; create_all() below then creates the new tables fresh.
+    Guarded and idempotent — a no-op once the old tables are gone.
+    """
+    from sqlalchemy import text, inspect
+    insp = inspect(engine)
+    existing = set(insp.get_table_names())
+    try:
+        with engine.begin() as conn:
+            if "indiamart_lead" in existing:
+                conn.execute(text("DROP TABLE IF EXISTS `indiamart_lead`"))
+                print("[startup] Dropped legacy 'indiamart_lead' table")
+            if "indiamart_config" in existing:
+                conn.execute(text("DROP TABLE IF EXISTS `indiamart_config`"))
+                print("[startup] Dropped legacy 'indiamart_config' table")
+    except Exception as exc:
+        print(f"[startup] legacy lead table cleanup skipped: {exc}")
+
+
+_rename_legacy_project_table()
+_drop_legacy_lead_tables()
 
 Base.metadata.create_all(bind=engine)
 
@@ -415,6 +501,21 @@ def _auto_migrate():
         # separate check-in/check-out, never auto-derived from regular hours)
         ("attendance", "OT_CHECK_IN",        "DATETIME NULL"),
         ("attendance", "OT_CHECK_OUT",       "DATETIME NULL"),
+
+        # ---- Project Management Module (2026-06) ----
+        ("department", "UPDATED_AT",         "DATETIME NULL"),
+        ("role",       "DEPARTMENT_ID",      "INT NULL"),
+        ("role",       "CREATED_AT",         "DATETIME NULL"),
+        ("role",       "UPDATED_AT",         "DATETIME NULL"),
+    ]
+
+    # Columns to rename. Old names from legacy schema that the model has
+    # since replaced. Each entry: (table, old_col, new_col, new_ddl).
+    # Idempotent: if old_col is absent (already renamed) we skip.
+    rename_columns = [
+        ("department", "CODE",      "DEPARTMENT_CODE", "VARCHAR(20) NULL"),
+        ("role",       "ROLE_NAME", "NAME",            "VARCHAR(100) NOT NULL DEFAULT ''"),
+
     ]
 
     # Indexes / unique constraints that earlier model versions
@@ -434,8 +535,11 @@ def _auto_migrate():
     # Each entry: (table, column, new_ddl). The DDL is whatever you'd
     # put in `ADD COLUMN`, e.g. "VARCHAR(2000) NULL".
     widened_columns = [
-        ("project", "DESCRIPTION",  "VARCHAR(2000) NULL"),
-        ("project", "PROJECT_NAME", "VARCHAR(200) NULL"),
+        # Extend FIELD_TYPE enum to include PHONE (idempotent MODIFY)
+        (
+            "custom_fields", "FIELD_TYPE",
+            "ENUM('TEXT','NUMBER','DATE','DATETIME','CHECKBOX','RADIO','SELECT','TEXTAREA','EMAIL','PHONE') NOT NULL",
+        ),
     ]
 
     # New tables that older deployments may not have yet. create_all()
@@ -857,6 +961,41 @@ def _auto_migrate():
                         table, column, exc_inner
                     )
 
+            # ---- 3b. Rename legacy columns whose Python attribute changed ----
+            for table, old_col, new_col, new_ddl in rename_columns:
+
+                if not insp.has_table(table):
+
+                    continue
+
+                existing_cols = {
+                    c["name"].lower()
+                    for c in insp.get_columns(table)
+                }
+
+                if old_col.lower() not in existing_cols:
+
+                    continue  # already renamed or never existed
+
+                try:
+
+                    conn.execute(text(
+                        f"ALTER TABLE `{table}` "
+                        f"CHANGE COLUMN `{old_col}` `{new_col}` {new_ddl}"
+                    ))
+
+                    log.info(
+                        "auto-migrate: renamed %s.%s → %s",
+                        table, old_col, new_col
+                    )
+
+                except Exception as exc_inner:
+
+                    log.warning(
+                        "auto-migrate: could not rename %s.%s → %s: %s",
+                        table, old_col, new_col, exc_inner
+                    )
+
             # ---- 4. Backfill NULL VENDOR_ID on customers (Phase 1) ----
             # New tenant-scope column — existing rows need a default.
             if insp.has_table("customer"):
@@ -1050,128 +1189,6 @@ def _auto_seed_holidays():
 _auto_seed_holidays()
 
 
-# Canonical department + designation lists for a manufacturing company.
-# Inserted ADDITIVELY — existing custom entries are kept, missing ones
-# are added. Order doesn't matter; we de-dupe by (VENDOR_ID, NAME).
-_MFG_DEPARTMENTS = [
-    ("Software Development",          "SW"),
-    ("Accounts & Finance",            "FIN"),
-    ("Sales",                         "SAL"),
-    ("Purchase / Procurement",        "PUR"),
-    ("Design & Engineering",          "DSN"),
-    ("Electrical",                    "ELE"),
-    ("Welding",                       "WLD"),
-    ("Fitting",                       "FIT"),
-    ("Assembly",                      "ASM"),
-    ("Production",                    "PRD"),
-    ("Quality Control",               "QC"),
-    ("Quality Assurance",             "QA"),
-    ("Maintenance",                   "MNT"),
-    ("Manufacturing",                 "MFG"),
-    ("Operations",                    "OPS"),
-    ("Stores / Inventory",            "INV"),
-    ("Logistics",                     "LOG"),
-    ("Supply Chain Management",       "SCM"),
-    ("Research & Development",        "RND"),
-    ("Human Resources",               "HR"),
-    ("Administration",                "ADM"),
-    ("Safety (EHS)",                  "EHS"),
-    ("Planning",                      "PLN"),
-    ("Project Management",            "PM"),
-    ("Tool Room",                     "TR"),
-    ("Machine Shop",                  "MS"),
-    ("Fabrication",                   "FAB"),
-    ("Inspection",                    "INSP"),
-    ("Packaging",                     "PKG"),
-    ("Dispatch",                      "DSP"),
-    ("Customer Support / Service",    "CS"),
-    ("Information Technology",        "IT"),
-]
-
-_MFG_DESIGNATIONS = [
-    "Trainee", "Apprentice", "Operator", "Technician", "Fitter",
-    "Welder", "Electrician", "Supervisor", "Senior Supervisor",
-    "Engineer", "Senior Engineer", "Design Engineer", "Production Engineer",
-    "Quality Engineer", "Maintenance Engineer", "Team Leader",
-    "Shift In-Charge", "Assistant Manager", "Deputy Manager", "Manager",
-    "Senior Manager", "General Manager", "Department Head", "Executive",
-    "Senior Executive", "Accountant", "Purchase Executive",
-    "Sales Executive", "HR Executive", "HR Manager", "IT Administrator",
-    "Project Engineer", "Project Manager", "Plant Head", "Factory Manager",
-    "Director",
-]
-
-
-def _auto_seed_org_catalog():
-    """Top up Department + Designation tables with the canonical
-    manufacturing-industry list. Existing entries are NEVER modified;
-    only missing names get inserted. Safe to re-run on every boot."""
-
-    from sqlalchemy.orm import sessionmaker
-    from app.models.models import Department, Designation
-
-    Session = sessionmaker(bind=engine)
-    db = Session()
-
-    try:
-
-        # ---- Departments ------------------------------------------
-        existing_dept_names = {
-            (d.NAME or "").strip().lower()
-            for d in db.query(Department).filter(Department.VENDOR_ID == 1).all()
-        }
-
-        dept_added = 0
-        for name, code in _MFG_DEPARTMENTS:
-            if name.strip().lower() in existing_dept_names:
-                continue
-            db.add(Department(NAME=name, CODE=code, VENDOR_ID=1))
-            dept_added += 1
-
-        if dept_added:
-            db.commit()
-
-        # ---- Designations -----------------------------------------
-        # Designation is keyed by TITLE alone (no vendor scope on the
-        # model — it's company-agnostic). Use a case-insensitive set.
-        existing_des_titles = {
-            (d.TITLE or "").strip().lower()
-            for d in db.query(Designation).all()
-        }
-
-        des_added = 0
-        for title in _MFG_DESIGNATIONS:
-            if title.strip().lower() in existing_des_titles:
-                continue
-            db.add(Designation(TITLE=title))
-            des_added += 1
-
-        if des_added:
-            db.commit()
-
-        if dept_added or des_added:
-
-            import logging
-            logging.getLogger("uvicorn").info(
-                "auto-seed-org-catalog: +%d departments, +%d designations",
-                dept_added, des_added,
-            )
-
-    except Exception as exc:
-
-        db.rollback()
-
-        import logging
-        logging.getLogger("uvicorn").warning(
-            "auto-seed-org-catalog skipped: %s", exc
-        )
-
-    finally:
-
-        db.close()
-
-
-_auto_seed_org_catalog()
 
 
 # Canonical Work Center catalog for a manufacturing shop. Inserted
@@ -1243,8 +1260,6 @@ def _auto_seed_work_centers():
 
 
 _auto_seed_work_centers()
-
-
 def _auto_seed_org():
     """If Department / Role / Designation are empty for vendor 1,
     seed the MANUFACTURING preset. Idempotent — only runs when the
@@ -1304,6 +1319,8 @@ def _auto_seed_org():
 
 
 _auto_seed_org()
+
+
 
 
 def _auto_seed_quotation_settings():
@@ -1372,14 +1389,135 @@ def _auto_seed_sales_order_settings():
 _auto_seed_sales_order_settings()
 
 
+def _auto_seed_defaults():
+    """Seed the single default Vendor → Department → Role → Employee
+    chain on first boot.  Each step is guarded by a name/code lookup:
+    if the record already exists it is reused so a partial seed can be
+    completed without creating duplicates."""
+
+    import logging
+    import uuid
+    from datetime import date, time as dtime
+    from sqlalchemy.orm import sessionmaker
+    from app.models.models import Vendor, Department, Role, Employee
+    from app.services.auth_service import hash_password
+
+    log = logging.getLogger("uvicorn")
+    Session = sessionmaker(bind=engine)
+    db = Session()
+
+    try:
+        # ── 1. Vendor ─────────────────────────────────────────────────
+        vendor = (
+            db.query(Vendor)
+              .filter(Vendor.VENDOR_NAME == "Bharath Vending Corporation")
+              .first()
+        )
+        if vendor is None:
+            vendor = Vendor(VENDOR_NAME="Bharath Vending Corporation")
+            db.add(vendor)
+            db.flush()
+            log.info("auto-seed-defaults: vendor created (ID=%s)", vendor.ID)
+
+        # ── 2. Department ─────────────────────────────────────────────
+        dept = (
+            db.query(Department)
+              .filter(
+                  Department.VENDOR_ID == vendor.ID,
+                  Department.DEPARTMENT_CODE == "HRD",
+              )
+              .first()
+        )
+        if dept is None:
+            dept = Department(
+                VENDOR_ID=vendor.ID,
+                DEPARTMENT_CODE="HRD",
+                NAME="HR",
+                DESCRIPTION=(
+                    "Human Resources department responsible for employee "
+                    "recruitment, onboarding, payroll, and compliance."
+                ),
+            )
+            db.add(dept)
+            db.flush()
+            log.info("auto-seed-defaults: department created (ID=%s)", dept.ID)
+
+        # ── 3. Role ───────────────────────────────────────────────────
+        role = (
+            db.query(Role)
+              .filter(
+                  Role.VENDOR_ID == vendor.ID,
+                  Role.NAME == "SUPER_ADMIN",
+              )
+              .first()
+        )
+        if role is None:
+            role = Role(
+                VENDOR_ID=vendor.ID,
+                DEPARTMENT_ID=dept.ID,
+                NAME="SUPER_ADMIN",
+                DESCRIPTION=(
+                    "Super Administrator role with full access to all modules, "
+                    "settings, and system configuration."
+                ),
+            )
+            db.add(role)
+            db.flush()
+            log.info("auto-seed-defaults: role created (ID=%s)", role.ID)
+
+        # ── 4. Employee ───────────────────────────────────────────────
+        emp = (
+            db.query(Employee)
+              .filter(
+                  Employee.VENDOR_ID == vendor.ID,
+                  Employee.EMPLOYEE_CODE == "SA001",
+              )
+              .first()
+        )
+        if emp is None:
+            emp = Employee(
+                ID=str(uuid.uuid4()),
+                EMPLOYEE_CODE="SA001",
+                NAME="SUPERADMIN",
+                PASSWORD=hash_password("SuperAdmin@123"),
+                DEPARTMENT_ID=dept.ID,
+                ROLE_ID=role.ID,
+                VENDOR_ID=vendor.ID,
+                JOINING_DATE=date.today(),
+                SALARY=0.0,
+                SHIFT_START=dtime(10, 0),
+                SHIFT_END=dtime(18, 0),
+                STATUS="ACTIVE",
+                PROFILE_SUBMITTED=0,
+            )
+            db.add(emp)
+            log.info("auto-seed-defaults: employee created (CODE=SA001)")
+
+        db.commit()
+
+    except Exception as exc:
+        db.rollback()
+        log.warning("auto-seed-defaults skipped: %s", exc)
+
+    finally:
+        db.close()
+
+
+_auto_seed_defaults()
+
+from app.scheduler import start_scheduler  # noqa: E402 — started after seeding, before routers
+start_scheduler()
+
+
 app.include_router(auth_router, tags=["Auth"])
 app.include_router(organization_router, tags=["Organization"])
 app.include_router(employee.router, tags=["Employees (IAM)"])
 app.include_router(employee_task_router, tags=["Employee Workflow"])
 app.include_router(task_approval_router, tags=["Task Approval"])
 app.include_router(task_router, tags=["Project Tasks"])
-app.include_router(project_router, tags=["Projects"])
+# app.include_router(project_router, tags=["Projects"])  # removed — customer projects replaced by Project template hierarchy
 app.include_router(project_template_router, tags=["Project Templates"])
+app.include_router(project_quotation_router, tags=["Project Quotation Templates"])
 app.include_router(users_router, tags=["Users"])
 app.include_router(vendor_router, tags=["Vendors"])
 app.include_router(inventory_router, tags=["Inventory"])
@@ -1408,7 +1546,6 @@ app.include_router(connect_router)
 app.include_router(payroll_router)
 app.include_router(quotation_router, tags=["Quotations"])
 app.include_router(purchase_order_router, tags=["Purchase Orders"])
-app.include_router(procurement_seed_router, tags=["Procurement Seed"])
 app.include_router(hr_assistant_router, tags=["HR Assistant"])
 app.include_router(sales_order_router, tags=["Sales Orders"])
 app.include_router(whatsapp_router, tags=["WhatsApp Alerts"])
@@ -1445,6 +1582,19 @@ app.include_router(leave_decisions_router)
 app.include_router(monthly_reports_router)
 app.include_router(employee_status_router)
 app.include_router(employee_insights_router)
+app.include_router(custom_fields_router, tags=["Custom Fields"])
+app.include_router(email_config_router, tags=["Email Configuration"])
+app.include_router(email_templates_router, tags=["Email Templates"])
+app.include_router(lead_management_router, tags=["Lead Management"])
+
+# ── Inventory & Supplier Procurement Module ───────────────────────────────
+app.include_router(supplier_onboarding_router, prefix="/api")
+app.include_router(supplier_products_router, prefix="/api")
+app.include_router(supplier_ranking_router, prefix="/api")
+app.include_router(inventory_items_router, prefix="/api")
+app.include_router(inventory_movements_router, prefix="/api")
+app.include_router(inventory_batches_router, prefix="/api")
+
 
 
 @app.get("/", tags=["Health"])

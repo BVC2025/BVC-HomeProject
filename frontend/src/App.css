@@ -64,6 +64,10 @@
   --radius-2xl: 18px;
   --radius-full: 9999px;
 
+
+  --radius-round: 50%;
+
+
   /* ── Status ───────────────────────────────────────────────────── */
   --success: #16a34a;
   --success-dark: #15803d;
@@ -144,10 +148,12 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+
 }
 
 html {
   height: 100%;
+
 }
 
 body {
@@ -160,12 +166,15 @@ body {
   /* Lock the body so the page itself never scrolls. Only inner
      content regions (.main-content, .zMainContent) scroll. */
   overflow: hidden;
+  min-height: 100vh;
   line-height: var(--lh);
 }
 
 #root {
   width: 100%;
   height: 100%;
+  min-height: 100vh;
+
 }
 
 
@@ -797,6 +806,8 @@ body {
   width: 100%;
   height: 100vh;
   overflow: hidden;
+  min-height: 100vh;
+
 }
 
 .menu-toggle {
@@ -1584,6 +1595,8 @@ body {
   position: absolute;
   top: 38px;
   right: 38px;
+  top: 10px;
+  right: 10px;
   display: flex;
   align-items: center;
   margin: 0;
@@ -2577,6 +2590,8 @@ body {
     width: 85%;
     max-width: 280px;
   }
+
+
 }
 
 
@@ -2637,9 +2652,19 @@ body {
   }
 
   /* Headings scale down */
-  .main-content h1 { font-size: 22px; line-height: 1.25; }
-  .main-content h2 { font-size: 18px; line-height: 1.3; }
-  .main-content h3 { font-size: 16px; }
+  .main-content h1 {
+    font-size: 22px;
+    line-height: 1.25;
+  }
+
+  .main-content h2 {
+    font-size: 18px;
+    line-height: 1.3;
+  }
+
+  .main-content h3 {
+    font-size: 16px;
+  }
 
   /* ---- 3. Generic grid collapsers ---- */
   /* Any class containing "Grid" with grid-template-columns set
@@ -2670,9 +2695,9 @@ body {
      `flex: x x BASIS` shorthand gets re-interpreted with BASIS as
      height, so a 240px-basis select becomes 240px TALL. Reset every
      direct child to natural height + full width to stop that. */
-  [class*="formRow"]:not([class*="formRowKeep"]) > *,
-  [class*="filterBar"] > *,
-  [class*="FilterBar"] > * {
+  [class*="formRow"]:not([class*="formRowKeep"])>*,
+  [class*="filterBar"]>*,
+  [class*="FilterBar"]>* {
     flex: none !important;
     width: 100% !important;
     max-width: 100% !important;
@@ -2790,8 +2815,8 @@ body {
     flex-direction: column !important;
   }
 
-  [class*="formActions"] > button,
-  [class*="FormActions"] > button {
+  [class*="formActions"]>button,
+  [class*="FormActions"]>button {
     width: 100% !important;
   }
 
@@ -2827,7 +2852,12 @@ body {
 @media (max-width: 900px) {
 
   /* Prevent horizontal page scroll under any circumstance */
-  html, body, #root { overflow-x: hidden; max-width: 100vw; }
+  html,
+  body,
+  #root {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
 
   /* Every <table> that isn't already wrapped in an overflow container
      gets one auto — its parent's overflow is forced to horizontal-scroll.
@@ -2856,6 +2886,7 @@ body {
     flex-wrap: wrap !important;
     gap: 10px !important;
   }
+
   [class*="filterField"],
   [class*="filterSelect"],
   [class*="searchInput"],
@@ -2941,18 +2972,30 @@ body {
   }
 
   /* Headings compress */
-  h1 { font-size: 20px; }
-  h2 { font-size: 17px; }
-  h3 { font-size: 15px; }
+  h1 {
+    font-size: 20px;
+  }
+
+  h2 {
+    font-size: 17px;
+  }
+
+  h3 {
+    font-size: 15px;
+  }
 
   /* Table cells + font */
-  table th, table td {
+  table th,
+  table td {
     padding: 8px 10px !important;
     font-size: 12.5px !important;
   }
 
   /* Buttons stay tappable but don't blow up */
-  button, .btn, [class*="btnPrimary"], [class*="btnSecondary"] {
+  button,
+  .btn,
+  [class*="btnPrimary"],
+  [class*="btnSecondary"] {
     min-height: 36px;
   }
 }
@@ -3037,48 +3080,48 @@ html[data-theme="dark"] {
   color-scheme: dark;
 
   /* ---- Brand / Primary (softened for dark surfaces) ---- */
-  --clr-primary-light:  rgba(220, 38, 38, 0.14);
-  --clr-primary-muted:  rgba(220, 38, 38, 0.14);
+  --clr-primary-light: rgba(220, 38, 38, 0.14);
+  --clr-primary-muted: rgba(220, 38, 38, 0.14);
   --clr-primary-border: rgba(220, 38, 38, 0.35);
 
   /* ---- Layout ---- */
   --layout-bg: #0b1220;
-  --surface:   #111827;
-  --card-bg:   #1e293b;
+  --surface: #111827;
+  --card-bg: #1e293b;
 
   /* ---- Text ---- */
-  --text-primary:   #e2e8f0;
+  --text-primary: #e2e8f0;
   --text-secondary: #cbd5e1;
-  --text-muted:     #94a3b8;
+  --text-muted: #94a3b8;
 
   /* ---- Border ---- */
-  --border:        #334155;
-  --border-light:  #1f2937;
+  --border: #334155;
+  --border-light: #1f2937;
   --border-strong: #475569;
 
   /* ---- Sidebar ---- */
-  --sidebar-bg:          #0f172a;
-  --sidebar-bg-deep:     #0b1220;
-  --sidebar-border:      #1f2937;
-  --sidebar-shadow:      1px 0 0 #1f2937;
-  --sidebar-text:        #cbd5e1;
-  --sidebar-text-dim:    #64748b;
-  --sidebar-active-bg:   rgba(220, 38, 38, 0.14);
+  --sidebar-bg: #0f172a;
+  --sidebar-bg-deep: #0b1220;
+  --sidebar-border: #1f2937;
+  --sidebar-shadow: 1px 0 0 #1f2937;
+  --sidebar-text: #cbd5e1;
+  --sidebar-text-dim: #64748b;
+  --sidebar-active-bg: rgba(220, 38, 38, 0.14);
   --sidebar-active-text: #f87171;
-  --sidebar-hover-bg:    #1e293b;
-  --sidebar-hover-text:  #f1f5f9;
-  --sidebar-icon-color:  #94a3b8;
+  --sidebar-hover-bg: #1e293b;
+  --sidebar-hover-text: #f1f5f9;
+  --sidebar-icon-color: #94a3b8;
   --sidebar-icon-active: #f87171;
 
   /* ---- Neutral surface (pale pill / user card in light mode) ---- */
-  --neutral-bg:          #1e293b;
-  --neutral-border:      #334155;
-  --neutral:             #94a3b8;
+  --neutral-bg: #1e293b;
+  --neutral-border: #334155;
+  --neutral: #94a3b8;
 
   /* ---- Danger tokens (softened for dark) ---- */
-  --danger-bg:           rgba(220, 38, 38, 0.14);
-  --danger-border:       rgba(220, 38, 38, 0.32);
-  --danger:              #fca5a5;
+  --danger-bg: rgba(220, 38, 38, 0.14);
+  --danger-border: rgba(220, 38, 38, 0.32);
+  --danger: #fca5a5;
 }
 
 
@@ -3135,6 +3178,7 @@ html[data-theme="dark"] [class*="_textarea"] {
   border-color: #334155 !important;
   color: #e2e8f0 !important;
 }
+
 html[data-theme="dark"] [class*="_input"]::placeholder,
 html[data-theme="dark"] [class*="_searchBox"] input::placeholder,
 html[data-theme="dark"] [class*="_textarea"]::placeholder {
@@ -3165,6 +3209,7 @@ html[data-theme="dark"] [class*="_chipBtn"]:not([class*="_active"]) {
   border-color: #334155 !important;
   color: #e2e8f0 !important;
 }
+
 html[data-theme="dark"] [class*="btnGhost"]:hover,
 html[data-theme="dark"] [class*="_actionGhost"]:hover {
   background: #0f172a !important;
@@ -3197,6 +3242,7 @@ html[data-theme="dark"] [class*="_chip_resolved"] {
   color: #a7f3d0 !important;
   border-color: rgba(16, 185, 129, 0.35) !important;
 }
+
 html[data-theme="dark"] [class*="_chip_warning"],
 html[data-theme="dark"] [class*="_chip_warn"],
 html[data-theme="dark"] [class*="_chip_progress"],
@@ -3205,6 +3251,7 @@ html[data-theme="dark"] [class*="_chip_pending"] {
   color: #fcd34d !important;
   border-color: rgba(245, 158, 11, 0.35) !important;
 }
+
 html[data-theme="dark"] [class*="_chip_danger"],
 html[data-theme="dark"] [class*="_chip_late"],
 html[data-theme="dark"] [class*="_chip_rejected"] {
@@ -3212,11 +3259,13 @@ html[data-theme="dark"] [class*="_chip_rejected"] {
   color: #fecaca !important;
   border-color: rgba(239, 68, 68, 0.35) !important;
 }
+
 html[data-theme="dark"] [class*="_chip_info"] {
   background: rgba(59, 130, 246, 0.18) !important;
   color: #bfdbfe !important;
   border-color: rgba(59, 130, 246, 0.35) !important;
 }
+
 html[data-theme="dark"] [class*="_chip_muted"],
 html[data-theme="dark"] [class*="_chip_closed"] {
   background: rgba(148, 163, 184, 0.18) !important;
@@ -3237,38 +3286,22 @@ html[data-theme="dark"] [class*="_chip_closed"] {
    dark-mode text colour. `:where()` doesn't add specificity, so a
    chip/pill/button `!important` rule set earlier still wins.
    -------------------------------------------------------------------- */
-html[data-theme="dark"] [class*="_wrap"] :where(
-  div, span, p, li, ul, ol, a, td, th, dt, dd,
-  h1, h2, h3, h4, h5, h6, label, small, strong, b, em
-),
-html[data-theme="dark"] [class*="_card"] :where(
-  div, span, p, li, ul, ol, a, td, th, dt, dd,
-  h1, h2, h3, h4, h5, h6, label, small, strong, b, em
-),
-html[data-theme="dark"] [class*="_panel"] :where(
-  div, span, p, li, ul, ol, a, td, th, dt, dd,
-  h1, h2, h3, h4, h5, h6, label, small, strong, b, em
-),
-html[data-theme="dark"] [class*="_section"] :where(
-  div, span, p, li, ul, ol, a, td, th, dt, dd,
-  h1, h2, h3, h4, h5, h6, label, small, strong, b, em
-),
-html[data-theme="dark"] [class*="_hero"] :where(
-  div, span, p, li, ul, ol, a, td, th, dt, dd,
-  h1, h2, h3, h4, h5, h6, label, small, strong, b, em
-),
-html[data-theme="dark"] [class*="_row"] :where(
-  div, span, p, li, ul, ol, a, td, th, dt, dd,
-  h1, h2, h3, h4, h5, h6, label, small, strong, b, em
-),
-html[data-theme="dark"] [class*="_head"] :where(
-  div, span, p, li, ul, ol, a, td, th, dt, dd,
-  h1, h2, h3, h4, h5, h6, label, small, strong, b, em
-),
-html[data-theme="dark"] [class*="_body"] :where(
-  div, span, p, li, ul, ol, a, td, th, dt, dd,
-  h1, h2, h3, h4, h5, h6, label, small, strong, b, em
-) {
+html[data-theme="dark"] [class*="_wrap"] :where(div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em),
+html[data-theme="dark"] [class*="_card"] :where(div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em),
+html[data-theme="dark"] [class*="_panel"] :where(div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em),
+html[data-theme="dark"] [class*="_section"] :where(div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em),
+html[data-theme="dark"] [class*="_hero"] :where(div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em),
+html[data-theme="dark"] [class*="_row"] :where(div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em),
+html[data-theme="dark"] [class*="_head"] :where(div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em),
+html[data-theme="dark"] [class*="_body"] :where(div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em) {
   color: #e2e8f0;
 }
 
@@ -3333,9 +3366,11 @@ html[data-theme="dark"] [class*="_lateNote"],
 html[data-theme="dark"] [class*="_notReturned"] {
   color: #fca5a5 !important;
 }
+
 html[data-theme="dark"] [class*="_deduction"] {
   color: #f87171 !important;
 }
+
 html[data-theme="dark"] [class*="_slipNetValue"],
 html[data-theme="dark"] [class*="_slipNetLabel"] {
   color: #6ee7b7 !important;
@@ -3374,8 +3409,7 @@ html[data-theme="dark"] h6 {
 /* 2. Every text-carrying tag whose class contains an underscore
    (i.e. any CSS-Modules-hashed class) inherits light text. Buttons,
    chips and accent colours still win via their own `!important`. */
-html[data-theme="dark"] body
-  :is(div, span, p, li, td, th, dd, dt, a, small, strong, b, em, label, button)[class*="_"] {
+html[data-theme="dark"] body :is(div, span, p, li, td, th, dd, dt, a, small, strong, b, em, label, button)[class*="_"] {
   color: #e2e8f0;
 }
 
@@ -3407,6 +3441,7 @@ html[data-theme="dark"] [class*="_tab"]:not([class*="_active"]):not([class*="_ta
   border-color: rgba(255, 255, 255, 0.10) !important;
   color: #cbd5e1 !important;
 }
+
 html[data-theme="dark"] [class*="_tabCount"] {
   background: rgba(255, 255, 255, 0.08) !important;
   color: #94a3b8 !important;
@@ -3418,6 +3453,7 @@ html[data-theme="dark"] [class*="_dateTile"]:not([class*="_dateTileDay"]):not([c
   background: rgba(220, 38, 38, 0.14) !important;
   border-color: rgba(220, 38, 38, 0.28) !important;
 }
+
 html[data-theme="dark"] [class*="_dateTileDay"],
 html[data-theme="dark"] [class*="_dateTileMon"] {
   color: #fca5a5 !important;
@@ -3457,6 +3493,7 @@ html[data-theme="dark"] [class*="_tinyPill_slate"] {
   border-color: rgba(148, 163, 184, 0.30) !important;
   color: #cbd5e1 !important;
 }
+
 html[data-theme="dark"] [class*="_tinyPill_amber"] {
   background: rgba(251, 191, 36, 0.14) !important;
   border-color: rgba(251, 191, 36, 0.35) !important;
@@ -3475,6 +3512,7 @@ html[data-theme="dark"] [class*="_noticeRow"] {
 html[data-theme="dark"] [class*="_welcomeTitle"] {
   color: #f1f5f9 !important;
 }
+
 html[data-theme="dark"] [class*="_welcomeSubtitle"],
 html[data-theme="dark"] [class*="_welcomeDate"] {
   color: #94a3b8 !important;
@@ -3522,10 +3560,12 @@ html[data-theme="dark"] [class*="_row"]:not([class*="_rowTitle"]):not([class*="_
   border-top-color: rgba(255, 255, 255, 0.06) !important;
   border-bottom-color: rgba(255, 255, 255, 0.06) !important;
 }
+
 html[data-theme="dark"] [class*="_tile"]:not([class*="_tileDay"]):not([class*="_tileMon"]):not([class*="_tileLabel"]):not([class*="_tileValue"]) {
   background-color: rgba(255, 255, 255, 0.04) !important;
   border-color: rgba(255, 255, 255, 0.10) !important;
 }
+
 html[data-theme="dark"] [class*="_item"]:not([class*="_itemTitle"]):not([class*="_itemMeta"]):not([class*="_itemLabel"]):not([class*="_itemValue"]) {
   background-color: transparent !important;
   border-color: rgba(255, 255, 255, 0.06) !important;
@@ -3549,6 +3589,7 @@ html[data-theme="dark"] [class*="_btnOutline"]:not([class*="_active"]) {
   border-color: rgba(255, 255, 255, 0.15) !important;
   color: #e2e8f0 !important;
 }
+
 html[data-theme="dark"] [class*="_btnGhost"]:hover,
 html[data-theme="dark"] [class*="_actionGhost"]:hover,
 html[data-theme="dark"] [class*="_btnSecondary"]:hover,
@@ -3561,7 +3602,7 @@ html[data-theme="dark"] [class*="_title" i],
 html[data-theme="dark"] [class*="_value" i],
 html[data-theme="dark"] [class*="_amount" i],
 html[data-theme="dark"] [class*="_subject" i],
-html[data-theme="dark"] [class*="_heading" i]  {
+html[data-theme="dark"] [class*="_heading" i] {
   color: #f1f5f9 !important;
 }
 
@@ -3592,6 +3633,7 @@ html[data-theme="dark"] [class*="_stepCircle"]:not([class*="_stepCircle_active"]
   border-color: rgba(255, 255, 255, 0.15) !important;
   color: #94a3b8 !important;
 }
+
 html[data-theme="dark"] [class*="_stepConnector"]:not([class*="_stepConnector_done"]) {
   background-color: rgba(255, 255, 255, 0.10) !important;
 }
@@ -3600,6 +3642,7 @@ html[data-theme="dark"] [class*="_stepConnector"]:not([class*="_stepConnector_do
 html[data-theme="dark"] [class*="_toggleTrack"]:not([class*="_toggleTrack_on"]) {
   background-color: rgba(255, 255, 255, 0.15) !important;
 }
+
 html[data-theme="dark"] [class*="_toggleThumb"] {
   background-color: #f1f5f9 !important;
 }
@@ -3618,6 +3661,7 @@ html[data-theme="dark"] [class*="_empty"]:not([class*="_emptyTitle"]):not([class
   border-color: rgba(255, 255, 255, 0.12) !important;
   color: #94a3b8 !important;
 }
+
 html[data-theme="dark"] [class*="_emptyIcon"] {
   background-color: rgba(255, 255, 255, 0.05) !important;
   color: #94a3b8 !important;
@@ -3658,12 +3702,15 @@ html[data-theme="dark"] [class*="_action_locked"] {
   border-color: rgba(255, 255, 255, 0.12) !important;
   color: #64748b !important;
 }
+
 html[data-theme="dark"] [class*="_action_locked"] [class*="_actionTitle"] {
   color: #94a3b8 !important;
 }
+
 html[data-theme="dark"] [class*="_action_locked"] [class*="_actionHint"] {
   color: #64748b !important;
 }
+
 html[data-theme="dark"] [class*="_action_locked"] [class*="_actionIcon"] {
   background-color: rgba(255, 255, 255, 0.06) !important;
   color: #94a3b8 !important;
@@ -3675,10 +3722,12 @@ html[data-theme="dark"] [class*="_action_done"]:not([class*="_action_ot"]) {
   border-color: rgba(16, 185, 129, 0.32) !important;
   color: #6ee7b7 !important;
 }
+
 html[data-theme="dark"] [class*="_action_done"]:not([class*="_action_ot"]) [class*="_actionTitle"],
 html[data-theme="dark"] [class*="_action_done"]:not([class*="_action_ot"]) [class*="_actionHint"] {
   color: #6ee7b7 !important;
 }
+
 html[data-theme="dark"] [class*="_action_done"]:not([class*="_action_ot"]) [class*="_actionIcon"] {
   background-color: rgba(16, 185, 129, 0.20) !important;
   color: #34d399 !important;
@@ -3690,10 +3739,12 @@ html[data-theme="dark"] [class*="_action_ot"][class*="_action_done"] {
   border-color: rgba(124, 58, 237, 0.35) !important;
   color: #c4b5fd !important;
 }
+
 html[data-theme="dark"] [class*="_action_ot"][class*="_action_done"] [class*="_actionTitle"],
 html[data-theme="dark"] [class*="_action_ot"][class*="_action_done"] [class*="_actionHint"] {
   color: #c4b5fd !important;
 }
+
 html[data-theme="dark"] [class*="_action_ot"][class*="_action_done"] [class*="_actionIcon"] {
   background-color: rgba(124, 58, 237, 0.25) !important;
   color: #ddd6fe !important;
@@ -3712,6 +3763,7 @@ html[data-theme="dark"] [class*="_bioHint"]:not([class*="_bioHintIcon"]) {
   border-color: rgba(255, 255, 255, 0.10) !important;
   color: #94a3b8 !important;
 }
+
 html[data-theme="dark"] [class*="_bioHintIcon"] {
   background-color: rgba(255, 255, 255, 0.06) !important;
   border-color: rgba(255, 255, 255, 0.12) !important;
@@ -3726,16 +3778,19 @@ html[data-theme="dark"] [class*="_chip_present"] {
   border-color: rgba(16, 185, 129, 0.32) !important;
   color: #6ee7b7 !important;
 }
+
 html[data-theme="dark"] [class*="_chip_late"] {
   background-color: rgba(251, 191, 36, 0.14) !important;
   border-color: rgba(251, 191, 36, 0.35) !important;
   color: #fbbf24 !important;
 }
+
 html[data-theme="dark"] [class*="_chip_absent"] {
   background-color: rgba(239, 68, 68, 0.14) !important;
   border-color: rgba(239, 68, 68, 0.35) !important;
   color: #fca5a5 !important;
 }
+
 html[data-theme="dark"] [class*="_statValueOt"] {
   color: #c4b5fd !important;
 }
@@ -3745,11 +3800,13 @@ html[data-theme="dark"] [class*="_otBlock"] {
   background-color: rgba(124, 58, 237, 0.10) !important;
   border-color: rgba(124, 58, 237, 0.28) !important;
 }
+
 html[data-theme="dark"] [class*="_otTotalPill"] {
   background-color: rgba(124, 58, 237, 0.22) !important;
   border-color: rgba(124, 58, 237, 0.40) !important;
   color: #ddd6fe !important;
 }
+
 html[data-theme="dark"] [class*="_otEyebrow"] {
   color: #c4b5fd !important;
 }
@@ -3817,12 +3874,15 @@ html[data-theme="dark"] [class*="_balance"]:not([class*="_balanceHead"]):not([cl
   background-color: #131c2c !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
+
 html[data-theme="dark"] [class*="_balanceTitle"] {
   color: #94a3b8 !important;
 }
+
 html[data-theme="dark"] [class*="_balanceValue"] {
   color: #f1f5f9 !important;
 }
+
 html[data-theme="dark"] [class*="_balanceIcon"] {
   background-color: rgba(220, 38, 38, 0.20) !important;
   color: #fca5a5 !important;
@@ -3835,11 +3895,13 @@ html[data-theme="dark"] [class*="_subChoice"]:not([class*="_subChoiceBtn"]) {
   background-color: rgba(255, 255, 255, 0.04) !important;
   border-color: rgba(255, 255, 255, 0.10) !important;
 }
+
 html[data-theme="dark"] [class*="_subChoiceBtn"]:not([class*="_active"]) {
   background-color: transparent !important;
   color: #94a3b8 !important;
   border-color: transparent !important;
 }
+
 html[data-theme="dark"] [class*="_subChoiceBtn_active"] {
   background-color: #dc2626 !important;
   color: #ffffff !important;
@@ -3852,6 +3914,7 @@ html[data-theme="dark"] [class*="_computed"] {
   border-color: rgba(59, 130, 246, 0.28) !important;
   color: #93c5fd !important;
 }
+
 html[data-theme="dark"] [class*="_computed"] b,
 html[data-theme="dark"] [class*="_computed"] strong {
   color: #dbeafe !important;
@@ -3861,9 +3924,11 @@ html[data-theme="dark"] [class*="_computed"] strong {
 html[data-theme="dark"] [class*="_sectionHead"] {
   border-bottom-color: rgba(255, 255, 255, 0.08) !important;
 }
+
 html[data-theme="dark"] [class*="_sectionTitle"] {
   color: #f1f5f9 !important;
 }
+
 html[data-theme="dark"] [class*="_sectionSub"] {
   color: #94a3b8 !important;
 }
@@ -3879,12 +3944,15 @@ html[data-theme="dark"] [class*="_reminder"]:not([class*="_reminderTitle"]):not(
   background-color: rgba(251, 191, 36, 0.10) !important;
   border-color: rgba(251, 191, 36, 0.30) !important;
 }
+
 html[data-theme="dark"] [class*="_reminderTitle"] {
   color: #fbbf24 !important;
 }
+
 html[data-theme="dark"] [class*="_reminderSub"] {
   color: #fcd34d !important;
 }
+
 html[data-theme="dark"] [class*="_reminderIcon"] {
   background-color: rgba(251, 191, 36, 0.20) !important;
   color: #fbbf24 !important;
@@ -3895,9 +3963,11 @@ html[data-theme="dark"] [class*="_historyRow"]:not([class*="_historyTitle"]):not
   background-color: rgba(255, 255, 255, 0.02) !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
+
 html[data-theme="dark"] [class*="_historyTitle"] {
   color: #f1f5f9 !important;
 }
+
 html[data-theme="dark"] [class*="_historyMeta"] {
   color: #94a3b8 !important;
 }

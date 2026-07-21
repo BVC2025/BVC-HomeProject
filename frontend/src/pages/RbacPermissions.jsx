@@ -21,15 +21,15 @@ import styles from "./RbacPermissions.module.css";
 
 export default function RbacPermissions() {
 
-  const [roles, setRoles]               = useState([]);
+  const [roles, setRoles] = useState([]);
   const [groupedPerms, setGroupedPerms] = useState([]);
   const [selectedRoleId, setSelectedRoleId] = useState(null);
-  const [grantedSet, setGrantedSet]     = useState(new Set());
-  const [originalSet, setOriginalSet]   = useState(new Set());
-  const [loading, setLoading]           = useState(false);
-  const [saving, setSaving]             = useState(false);
-  const [notice, setNotice]             = useState(null);
-  const [search, setSearch]             = useState("");
+  const [grantedSet, setGrantedSet] = useState(new Set());
+  const [originalSet, setOriginalSet] = useState(new Set());
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState(null);
+  const [search, setSearch] = useState("");
 
   void loading;
 
@@ -154,7 +154,7 @@ export default function RbacPermissions() {
       setNotice({
         type: "ok",
         text: `Saved. +${res.data?.added || 0} added, -${res.data?.removed || 0} removed. ` +
-              `Members must re-login to pick up the change.`
+          `Members must re-login to pick up the change.`
       });
     } catch (err) {
       const detail = err?.response?.data?.detail || err?.message || "Save failed";

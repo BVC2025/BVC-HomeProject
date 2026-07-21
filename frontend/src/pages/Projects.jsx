@@ -29,23 +29,23 @@ import styles from "./Projects.module.css";
 // -------------------------------------------------------------------
 
 const SVG_PATHS = {
-  plus:        "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z",
-  search:      "M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19 15.5 14zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z",
-  clock:       "M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z",
-  star:        "M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z",
-  user:        "M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-3 0-9 1.5-9 4.5V20h18v-1.5c0-3-6-4.5-9-4.5z",
-  more:        "M12 8a2 2 0 1 0-2-2 2 2 0 0 0 2 2zm0 2a2 2 0 1 0 2 2 2 2 0 0 0-2-2zm0 6a2 2 0 1 0 2 2 2 2 0 0 0-2-2z",
-  check:       "M9 16.17 4.83 12l-1.41 1.41L9 19 21 7l-1.41-1.41L9 16.17z",
-  x:           "M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z",
-  alert:       "M12 2 1 21h22zm0 4.5L19.5 19h-15zM11 16h2v2h-2zm0-6h2v5h-2z",
-  circle:      "M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z",
+  plus: "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z",
+  search: "M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19 15.5 14zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z",
+  clock: "M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z",
+  star: "M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z",
+  user: "M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-3 0-9 1.5-9 4.5V20h18v-1.5c0-3-6-4.5-9-4.5z",
+  more: "M12 8a2 2 0 1 0-2-2 2 2 0 0 0 2 2zm0 2a2 2 0 1 0 2 2 2 2 0 0 0-2-2zm0 6a2 2 0 1 0 2 2 2 2 0 0 0-2-2z",
+  check: "M9 16.17 4.83 12l-1.41 1.41L9 19 21 7l-1.41-1.41L9 16.17z",
+  x: "M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z",
+  alert: "M12 2 1 21h22zm0 4.5L19.5 19h-15zM11 16h2v2h-2zm0-6h2v5h-2z",
+  circle: "M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z",
   filledCheck: "M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8z",
-  chevDown:    "M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z",
-  copy:        "M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z",
-  archive:     "M3 3h18v4H3zm1 5h16v13H4zm5 4v2h6v-2z",
-  trash:       "M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z",
-  template:    "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM7 12h10v2H7zm0 4h7v2H7zm0-8h7v2H7z",
-  share:       "M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"
+  chevDown: "M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z",
+  copy: "M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z",
+  archive: "M3 3h18v4H3zm1 5h16v13H4zm5 4v2h6v-2z",
+  trash: "M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z",
+  template: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM7 12h10v2H7zm0 4h7v2H7zm0-8h7v2H7z",
+  share: "M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"
 };
 
 function Ico({ name, size = 14, style }) {
@@ -71,11 +71,11 @@ function Ico({ name, size = 14, style }) {
 // -------------------------------------------------------------------
 
 const KANBAN_STATUSES = [
-  { key: "IN_PROGRESS",       label: "In Progress",       color: "#9ca3af", icon: "circle"      },
-  { key: "CHANGES_REQUESTED", label: "Changes Requested", color: "#f59e0b", icon: "alert"       },
-  { key: "APPROVED",          label: "Approved",          color: "#10b981", icon: "check"       },
-  { key: "CANCELLED",         label: "Cancelled",         color: "#ef4444", icon: "x"           },
-  { key: "DONE",              label: "Done",              color: "#16a34a", icon: "filledCheck" }
+  { key: "IN_PROGRESS", label: "In Progress", color: "#9ca3af", icon: "circle" },
+  { key: "CHANGES_REQUESTED", label: "Changes Requested", color: "#f59e0b", icon: "alert" },
+  { key: "APPROVED", label: "Approved", color: "#10b981", icon: "check" },
+  { key: "CANCELLED", label: "Cancelled", color: "#ef4444", icon: "x" },
+  { key: "DONE", label: "Done", color: "#16a34a", icon: "filledCheck" }
 ];
 
 const STATUS_BY_KEY = Object.fromEntries(KANBAN_STATUSES.map((s) => [s.key, s]));
@@ -84,9 +84,9 @@ const STATUS_BY_KEY = Object.fromEntries(KANBAN_STATUSES.map((s) => [s.key, s]))
 // tasks that were created by the existing workflow before the kanban
 // was rolled out.
 const LEGACY_STATUS_MAP = {
-  PENDING:    { color: "#cbd5e1", icon: "circle", label: "Pending"     },
-  ON_HOLD:    { color: "#f59e0b", icon: "alert",  label: "On Hold"     },
-  COMPLETED:  { color: "#16a34a", icon: "filledCheck", label: "Completed" }
+  PENDING: { color: "#cbd5e1", icon: "circle", label: "Pending" },
+  ON_HOLD: { color: "#f59e0b", icon: "alert", label: "On Hold" },
+  COMPLETED: { color: "#16a34a", icon: "filledCheck", label: "Completed" }
 };
 
 function statusMeta(key) {
@@ -591,12 +591,12 @@ function DeleteConfirmModal({ project, busy, onConfirm, onCancel }) {
 // -------------------------------------------------------------------
 
 const CHART_BUCKETS = [
-  { key: "not_assigned",      label: "Not Assigned", color: "#9ca3af" },
-  { key: "pending",           label: "Pending",      color: "#cbd5e1" },
-  { key: "in_progress",       label: "In Progress",  color: "#3b82f6" },
-  { key: "on_hold",           label: "On Hold",      color: "#f59e0b" },
-  { key: "completed",         label: "Completed",    color: "#10b981" },
-  { key: "cancelled",         label: "Cancelled",    color: "#ef4444" }
+  { key: "not_assigned", label: "Not Assigned", color: "#9ca3af" },
+  { key: "pending", label: "Pending", color: "#cbd5e1" },
+  { key: "in_progress", label: "In Progress", color: "#3b82f6" },
+  { key: "on_hold", label: "On Hold", color: "#f59e0b" },
+  { key: "completed", label: "Completed", color: "#10b981" },
+  { key: "cancelled", label: "Cancelled", color: "#ef4444" }
 ];
 
 function classifyTask(t) {
