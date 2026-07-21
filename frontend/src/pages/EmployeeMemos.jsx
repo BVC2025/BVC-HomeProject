@@ -13,7 +13,10 @@
 import { useEffect, useMemo, useState } from "react";
 
 import API, { API_BASE_URL } from "../services/api";
+
 import Pagination from "../components/Pagination";
+
+
 import styles from "./EmployeeMemos.module.css";
 
 
@@ -107,6 +110,7 @@ function EmployeeMemos({ employeeIdLocked = null } = {}) {
   const [showCreate, setShowCreate] = useState(false);
   const [viewing, setViewing] = useState(null);
 
+
   // pagination
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -119,6 +123,8 @@ function EmployeeMemos({ employeeIdLocked = null } = {}) {
     const start = (page - 1) * pageSize;
     return (rows || []).slice(start, start + pageSize);
   }, [rows, page, pageSize]);
+
+
 
   // -- Data loading --------------------------------------------------
   const buildParams = () => {

@@ -2585,6 +2585,7 @@ function WOGanttDrawer({ wo, onClose }) {
                     >
                       Next ›
                     </button>
+
                   </div>
                 )}
 
@@ -2619,6 +2620,7 @@ function WOGanttDrawer({ wo, onClose }) {
 
         </div>
         {/* ---- end scrollable body ---- */}
+
       </div>
     </div>
   );

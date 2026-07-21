@@ -798,6 +798,7 @@
 
 .btnDone:hover {
   opacity: 0.9;
+
 }
 
 /* ================================================================
@@ -1038,9 +1039,17 @@
   border-color: var(--border-strong);
 }
 
-.kTaskCardHigh   { border-left-color: var(--danger); }
-.kTaskCardMedium { border-left-color: var(--warning); }
-.kTaskCardLow    { border-left-color: var(--info); }
+.kTaskCardHigh {
+  border-left-color: var(--danger);
+}
+
+.kTaskCardMedium {
+  border-left-color: var(--warning);
+}
+
+.kTaskCardLow {
+  border-left-color: var(--info);
+}
 
 .kTaskTitle {
   font-size: 12px;
@@ -1423,8 +1432,13 @@
 }
 
 @keyframes kFadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .kConfirmModal {
@@ -1439,8 +1453,15 @@
 }
 
 @keyframes kPop {
-  from { transform: scale(0.96); opacity: 0; }
-  to   { transform: scale(1);    opacity: 1; }
+  from {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .kConfirmClose {
@@ -1582,6 +1603,7 @@
   .kBoardWrap {
     flex-direction: column;
   }
+
   .kRightPanel {
     flex: 0 0 auto;
     width: 100%;
@@ -1700,4 +1722,5 @@
   font-weight: var(--fw-semi);
   letter-spacing: 0.4px;
   text-transform: uppercase;
+
 }

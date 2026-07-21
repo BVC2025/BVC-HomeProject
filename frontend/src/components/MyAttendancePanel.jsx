@@ -28,7 +28,7 @@
  * Admin still sees all of this via attendance_security_logs.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import API from "../services/api";
 import { formatISTTime } from "../utils/time";
@@ -40,23 +40,23 @@ import styles from "./MyAttendancePanel.module.css";
 // ------------------------------------------------------------------
 const icon = (children, size = 18) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-       stroke="currentColor" strokeWidth="1.9"
-       strokeLinecap="round" strokeLinejoin="round"
-       aria-hidden="true">{children}</svg>
+    stroke="currentColor" strokeWidth="1.9"
+    strokeLinecap="round" strokeLinejoin="round"
+    aria-hidden="true">{children}</svg>
 );
 
 const I = {
-  clockIn:   icon(<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>),
-  clockOut:  icon(<><circle cx="12" cy="12" r="9" /><path d="M12 12l3 -3M12 12v5" /></>),
-  overtime:  icon(<><path d="M12 3v3" /><path d="M12 21v-3" /><path d="M3 12h3" /><path d="M21 12h-3" /><circle cx="12" cy="12" r="5" /></>),
-  finger:    icon(<>
+  clockIn: icon(<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>),
+  clockOut: icon(<><circle cx="12" cy="12" r="9" /><path d="M12 12l3 -3M12 12v5" /></>),
+  overtime: icon(<><path d="M12 3v3" /><path d="M12 21v-3" /><path d="M3 12h3" /><path d="M21 12h-3" /><circle cx="12" cy="12" r="5" /></>),
+  finger: icon(<>
     <circle cx="12" cy="12" r="9" />
     <path d="M12 3a7 7 0 0 0-7 9c1 3 3 5 7 8" />
     <path d="M12 3a7 7 0 0 1 7 9c-1 3-3 5-7 8" />
     <path d="M12 8c-1.8 0-3 1.4-3 3v1c0 2 1 3.5 3 5" />
     <path d="M12 8c1.8 0 3 1.4 3 3v1c0 2-1 3.5-3 5" />
   </>),
-  info:      icon(<><circle cx="12" cy="12" r="9" /><path d="M12 8v.01" /><path d="M11 12h1v4h1" /></>),
+  info: icon(<><circle cx="12" cy="12" r="9" /><path d="M12 8v.01" /><path d="M11 12h1v4h1" /></>),
 };
 
 
@@ -68,16 +68,16 @@ function fmtWorkedHours(h) {
   const val = Number(h || 0);
   if (val <= 0) return "—";
   const hours = Math.floor(val);
-  const mins  = Math.round((val - hours) * 60);
+  const mins = Math.round((val - hours) * 60);
   if (hours === 0) return `${mins}m`;
-  if (mins === 0)  return `${hours}h`;
+  if (mins === 0) return `${hours}h`;
   return `${hours}h ${mins}m`;
 }
 
 function fmtLateBy(minutes) {
   const m = Math.max(0, Math.round(Number(minutes || 0)));
   if (m === 0) return "";
-  if (m < 60)  return `Late by ${m} minute${m === 1 ? "" : "s"}`;
+  if (m < 60) return `Late by ${m} minute${m === 1 ? "" : "s"}`;
   const h = Math.floor(m / 60);
   const rem = m % 60;
   if (rem === 0) return `Late by ${h} hour${h === 1 ? "" : "s"}`;
@@ -97,9 +97,9 @@ function getPositionSilent(options = {}) {
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({
         coords: {
-          latitude:  pos.coords.latitude,
+          latitude: pos.coords.latitude,
           longitude: pos.coords.longitude,
-          accuracy:  pos.coords.accuracy,
+          accuracy: pos.coords.accuracy,
         },
         reason: null,
       }),
@@ -165,9 +165,9 @@ function ActionTile({
 export default function MyAttendancePanel({ employeeId }) {
 
   const [today, setToday] = useState(null);   // today's Attendance row or null
-  const [busy, setBusy]   = useState(false);
+  const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState("");
-  const [tick, setTick]   = useState(0);      // triggers hourly re-render
+  const [tick, setTick] = useState(0);      // triggers hourly re-render
 
   // ---- Refresh today's row ----
   const refreshToday = useCallback(async () => {
@@ -177,7 +177,7 @@ export default function MyAttendancePanel({ employeeId }) {
       const todayISO = new Date().toISOString().slice(0, 10);
       const mine = (res.data || []).find((r) => {
         const okEmp = (r.EMPLOYEE_ID || "") === employeeId
-                   || (r.EMPLOYEE_CODE || "") === employeeId;
+          || (r.EMPLOYEE_CODE || "") === employeeId;
         const okDay = (r.DATE || "").slice(0, 10) === todayISO;
         return okEmp && okDay;
       });
@@ -215,9 +215,9 @@ export default function MyAttendancePanel({ employeeId }) {
     try {
       await API.post("/check-in", {
         EMPLOYEE_ID: employeeId,
-        LATITUDE:  coords.latitude,
+        LATITUDE: coords.latitude,
         LONGITUDE: coords.longitude,
-        ACCURACY:  coords.accuracy,
+        ACCURACY: coords.accuracy,
         VENDOR_ID: 1,
       });
       setToast("Checked in");
@@ -252,9 +252,9 @@ export default function MyAttendancePanel({ employeeId }) {
     try {
       await API.post("/check-out", {
         EMPLOYEE_ID: employeeId,
-        LATITUDE:  coords.latitude,
+        LATITUDE: coords.latitude,
         LONGITUDE: coords.longitude,
-        ACCURACY:  coords.accuracy,
+        ACCURACY: coords.accuracy,
         VENDOR_ID: 1,
       });
       setToast("Checked out — have a good evening!");
@@ -306,21 +306,21 @@ export default function MyAttendancePanel({ employeeId }) {
     }
   }, [employeeId, busy, refreshToday]);
 
-  const doOtCheckIn  = useCallback(() => runAction({
-    url: "/ot-check-in",  successMsg: "OT session started", actionLabel: "OT check-in",
+  const doOtCheckIn = useCallback(() => runAction({
+    url: "/ot-check-in", successMsg: "OT session started", actionLabel: "OT check-in",
   }), [runAction]);
   const doOtCheckOut = useCallback(() => runAction({
-    url: "/ot-check-out", successMsg: "OT session ended",   actionLabel: "OT check-out",
+    url: "/ot-check-out", successMsg: "OT session ended", actionLabel: "OT check-out",
   }), [runAction]);
 
 
   // -------------------------------------------------------------
   // Derived state
   // -------------------------------------------------------------
-  const hasCheckedIn  = !!(today && today.CHECK_IN);
+  const hasCheckedIn = !!(today && today.CHECK_IN);
   const hasCheckedOut = !!(today && today.CHECK_OUT);
-  const hasOtIn       = !!(today && today.OT_CHECK_IN);
-  const hasOtOut      = !!(today && today.OT_CHECK_OUT);
+  const hasOtIn = !!(today && today.OT_CHECK_IN);
+  const hasOtOut = !!(today && today.OT_CHECK_OUT);
 
   // Live worked hours (climbs while checked-in-not-out)
   const liveWorkedHours = useMemo(() => {
@@ -347,6 +347,7 @@ export default function MyAttendancePanel({ employeeId }) {
     }
     return 0;
   }, [today, tick]);   // eslint-disable-line react-hooks/exhaustive-deps
+
   const isLate = hasCheckedIn && (today?.STATUS || "").toUpperCase() === "LATE";
   const lateText = isLate ? fmtLateBy(today?.LATE_MINUTES || 0) : "";
 
@@ -377,7 +378,6 @@ export default function MyAttendancePanel({ employeeId }) {
               : <span className={`${styles.chip} ${styles.chip_present}`}>Present</span>
           )}
         </div>
-
 
         {/* ================ 2. TIME STATS ================ */}
         <div className={styles.stats}>
@@ -413,7 +413,6 @@ export default function MyAttendancePanel({ employeeId }) {
           </div>
         </div>
 
-
         {/* ================ 3. OT SUMMARY (conditional) ================ */}
         {(hasOtIn || hasOtOut || overtimeHours > 0) && (
           <div className={styles.otBlock}>
@@ -447,7 +446,6 @@ export default function MyAttendancePanel({ employeeId }) {
             </div>
           </div>
         )}
-
 
         {/* ================ 4. LIFECYCLE ACTIONS ================ */}
         <div className={styles.actionGrid}>
@@ -494,7 +492,6 @@ export default function MyAttendancePanel({ employeeId }) {
           />
         </div>
 
-
         {/* ================ 5. BIOMETRIC HINT ================ */}
         <div className={styles.bioHint}>
           <span className={styles.bioHintIcon}>{I.finger}</span>
@@ -503,6 +500,7 @@ export default function MyAttendancePanel({ employeeId }) {
             device is on the office network.
           </span>
         </div>
+
       </section>
 
       {toast && <div className={styles.toast}>{toast}</div>}

@@ -8,16 +8,16 @@ import styles from "./EmployeeProfileForm.module.css";
 // Small set surfaced during onboarding. Anything else can still be
 // uploaded later from Profile → Documents in the ESS panel.
 const DOC_TYPES = [
-  { value: "RESUME",            label: "Resume / CV" },
-  { value: "AADHAAR",           label: "Aadhaar" },
-  { value: "PAN",               label: "PAN card" },
-  { value: "DEGREE",            label: "Degree certificate" },
-  { value: "TENTH_MARKSHEET",   label: "10th marksheet" },
+  { value: "RESUME", label: "Resume / CV" },
+  { value: "AADHAAR", label: "Aadhaar" },
+  { value: "PAN", label: "PAN card" },
+  { value: "DEGREE", label: "Degree certificate" },
+  { value: "TENTH_MARKSHEET", label: "10th marksheet" },
   { value: "TWELFTH_MARKSHEET", label: "12th marksheet" },
-  { value: "OFFER_LETTER",      label: "Offer letter" },
-  { value: "BANK_PASSBOOK",     label: "Bank passbook / cheque" },
-  { value: "ADDRESS_PROOF",     label: "Address proof" },
-  { value: "OTHER",             label: "Other" },
+  { value: "OFFER_LETTER", label: "Offer letter" },
+  { value: "BANK_PASSBOOK", label: "Bank passbook / cheque" },
+  { value: "ADDRESS_PROOF", label: "Address proof" },
+  { value: "OTHER", label: "Other" },
 ];
 
 const MAX_DOC_MB = 10;
@@ -29,9 +29,9 @@ const MAX_DOC_MB = 10;
 // icons render identically across OS emoji fonts.
 const svg = (path) => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-       stroke="currentColor" strokeWidth="1.8"
-       strokeLinecap="round" strokeLinejoin="round"
-       aria-hidden="true">
+    stroke="currentColor" strokeWidth="1.8"
+    strokeLinecap="round" strokeLinejoin="round"
+    aria-hidden="true">
     {path}
   </svg>
 );
@@ -302,7 +302,10 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
             Welcome, {employee.NAME || employee.EMPLOYEE_CODE}!
           </h1>
           <div className={styles.heroDesc}>
-            Complete your profile to unlock the ERP.
+            Please fill in your personal and work details below.
+            This is a <b>one-time submission</b> — after you save,
+            only admin can change these details.
+            Verify everything carefully before submitting.
           </div>
           <button onClick={onLogout} className={styles.logoutBtn}>
             {Icons.logout} <span>Logout</span>
@@ -576,6 +579,7 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
         onCancel={() => setConfirmOpen(false)}
         onConfirm={confirmSubmit}
       />
+
     </div>
   );
 }

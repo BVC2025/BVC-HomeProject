@@ -10,12 +10,11 @@ import ApplyLeave from "./pages/ApplyLeave";
 import QuotationPrint from "./pages/QuotationPrint";
 import PublicQuotation from "./pages/PublicQuotation";
 import PublicEnquiry from "./pages/PublicEnquiry";
-import PurchaseOrderPrint from "./pages/PurchaseOrderPrint";
-import GRNPrint from "./pages/GRNPrint";
 import SalesOrderPrint from "./pages/SalesOrderPrint";
 import OnboardingPortal from "./pages/OnboardingPortal";
 import OnboardingChat from "./pages/OnboardingChat";
 import EmployeeOnboardingChat from "./pages/EmployeeOnboardingChat";
+import SupplierRegistrationPortal from "./pages/SupplierRegistrationPortal";
 
 function isAuthenticated() {
 
@@ -73,7 +72,6 @@ function LoginGate() {
 function App() {
 
   return (
-
     <Routes>
 
       <Route
@@ -129,22 +127,10 @@ function App() {
         element={<EmployeeOnboardingChat />}
       />
 
+      {/* Supplier self-registration portal — public, token-gated */}
       <Route
-        path="/po-print/:id"
-        element={
-          <ProtectedRoute>
-            <PurchaseOrderPrint />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/grn-print/:id"
-        element={
-          <ProtectedRoute>
-            <GRNPrint />
-          </ProtectedRoute>
-        }
+        path="/supplier-register/:token"
+        element={<SupplierRegistrationPortal />}
       />
 
       <Route

@@ -29,6 +29,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import API, { API_BASE_URL } from "../services/api";
+
 import styles from "./Payroll.module.css";
 
 
@@ -38,7 +39,7 @@ const MONTH_NAMES = [
 ];
 
 const DEFAULT_WORKING_DAYS = 26;  // preview fallback if no payroll run yet
-const MAX_PAID_CL   = 1;    // CL paid up to 1/month
+const MAX_PAID_CL = 1;    // CL paid up to 1/month
 const MAX_PAID_PERM = 4;    // permission paid up to 4 hours/month (BVC rule)
 const HOURS_PER_DAY = 9;    // BVC: a working day is 9 hours
 
@@ -73,8 +74,8 @@ export default function Payroll() {
   // ----- filters -----
   const [search, setSearch] = useState("");
   const [deptId, setDeptId] = useState("");
-  const [month, setMonth] = useState(today.getMonth() + 1);
   const [year, setYear] = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth() + 1);
   const [statusFilter, setStatusFilter] = useState("");
 
   // ----- data -----
@@ -149,7 +150,7 @@ export default function Payroll() {
     const lastDay = new Date(y, month, 0).getDate();
     return {
       start: `${y}-${m}-01`,
-      end:   `${y}-${m}-${String(lastDay).padStart(2, "0")}`,
+      end: `${y}-${m}-${String(lastDay).padStart(2, "0")}`,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year, month]);
@@ -211,7 +212,7 @@ export default function Payroll() {
           params: {
             employee_id: e.ID,
             start_date: monthBounds.start,
-            end_date:   monthBounds.end,
+            end_date: monthBounds.end,
             limit: 500,
           },
         }).then((r) => {
@@ -222,7 +223,7 @@ export default function Payroll() {
           const present = rows.filter((x) =>
             x.STATUS === "PRESENT" || x.STATUS === "LATE"
           ).length;
-          const absent  = rows.filter((x) => x.STATUS === "ABSENT").length;
+          const absent = rows.filter((x) => x.STATUS === "ABSENT").length;
           // Late check-in count uses BOTH the STATUS=LATE marker AND the
           // 09:15 time rule on raw CHECK_IN — handles backfilled records
           // where STATUS may not be set correctly.
@@ -255,7 +256,7 @@ export default function Payroll() {
     API.get("/leave/all", {
       params: {
         start_date: monthBounds.start,
-        end_date:   monthBounds.end,
+        end_date: monthBounds.end,
         status: "APPROVED",
         limit: 1000,
       },
@@ -294,42 +295,42 @@ export default function Payroll() {
 
     return employees.map((e) => {
       const slip = slipByEmp[e.ID];
-      const att  = attendanceMap[e.ID] || { present: 0, absent: 0, late: 0, otHours: 0 };
-      const lv   = leaveMap[e.ID]     || { clDays: 0, permissionHours: 0, otherUnpaidDays: 0 };
+      const att = attendanceMap[e.ID] || { present: 0, absent: 0, late: 0, otHours: 0 };
+      const lv = leaveMap[e.ID] || { clDays: 0, permissionHours: 0, otherUnpaidDays: 0 };
 
       // Base salary precedence:
       //   1. slip.BASE_SALARY  — locked-in figure after payroll was generated
       //   2. salary_structure.GROSS_MONTHLY — when HR set the CTC breakdown
       //   3. employee.SALARY  — when HR set the simple monthly amount
-      const slipBase  = Number(slip?.BASE_SALARY || 0);
-      const ctcBase   = Number(salaryStructMap[e.ID] || 0);
-      const flatBase  = Number(e.SALARY || 0);
+      const slipBase = Number(slip?.BASE_SALARY || 0);
+      const ctcBase = Number(salaryStructMap[e.ID] || 0);
+      const flatBase = Number(e.SALARY || 0);
       const base = slipBase > 0 ? slipBase : (ctcBase > 0 ? ctcBase : flatBase);
       // Prefer working days from the generated slip (actual month calendar)
       // over the preview fallback so per-day / hourly match the backend.
-      const wd     = Number(slip?.WORKING_DAYS) || DEFAULT_WORKING_DAYS;
+      const wd = Number(slip?.WORKING_DAYS) || DEFAULT_WORKING_DAYS;
       const perDay = Number(slip?.PER_DAY_RATE) || (base / wd);
-      const hourly = Number(slip?.HOURLY_RATE)  || (perDay / HOURS_PER_DAY);
+      const hourly = Number(slip?.HOURLY_RATE) || (perDay / HOURS_PER_DAY);
 
       // CL: up to 1 paid, extra is unpaid
-      const clTotal       = lv.clDays;
-      const clPaid        = Math.min(clTotal, MAX_PAID_CL);
-      const clUnpaidDays  = Math.max(0, clTotal - MAX_PAID_CL);
+      const clTotal = lv.clDays;
+      const clPaid = Math.min(clTotal, MAX_PAID_CL);
+      const clUnpaidDays = Math.max(0, clTotal - MAX_PAID_CL);
 
       // Permission: up to 4 hrs paid, extra is unpaid
-      const permTotalH      = lv.permissionHours;
-      const permPaidH       = Math.min(permTotalH, MAX_PAID_PERM);
-      const permUnpaidH     = Math.max(0, permTotalH - MAX_PAID_PERM);
-      const permUnpaidDays  = permUnpaidH / HOURS_PER_DAY;
+      const permTotalH = lv.permissionHours;
+      const permPaidH = Math.min(permTotalH, MAX_PAID_PERM);
+      const permUnpaidH = Math.max(0, permTotalH - MAX_PAID_PERM);
+      const permUnpaidDays = permUnpaidH / HOURS_PER_DAY;
 
       const unpaidDays = att.absent + clUnpaidDays + permUnpaidDays + lv.otherUnpaidDays;
-      const deduction  = Math.round(unpaidDays * perDay * 100) / 100;
+      const deduction = Math.round(unpaidDays * perDay * 100) / 100;
 
       // OT pay = ot hours × hourly rate (straight time, no multiplier).
       // Added to the final salary so a worker who put in extra hours
       // earns more this month.
       const otHours = Number(att.otHours || 0);
-      const otPay   = Math.round(otHours * hourly * 100) / 100;
+      const otPay = Math.round(otHours * hourly * 100) / 100;
 
       const increment = Number(increments[e.ID] || 0);
       const net = Math.max(0, base - deduction + increment + otPay);
@@ -342,8 +343,8 @@ export default function Payroll() {
         perDay,
         hourly,
         present: att.present,
-        absent:  att.absent,
-        late:    att.late,
+        absent: att.absent,
+        late: att.late,
         otHours,
         otPay,
         clTotal,
@@ -399,7 +400,7 @@ export default function Payroll() {
     setSelected((prev) => {
       const next = new Set(prev);
       if (allOnPageSelected) pagedRows.forEach((r) => next.delete(r.emp.ID));
-      else                   pagedRows.forEach((r) => next.add(r.emp.ID));
+      else pagedRows.forEach((r) => next.add(r.emp.ID));
       return next;
     });
   };
@@ -602,12 +603,17 @@ export default function Payroll() {
         <span>Period: <strong>{MONTH_NAMES[month - 1]} {year}</strong></span>
       </div>
 
+      <div className={styles.controlsHint}>
+        Salary is auto-computed from attendance, approved leaves, and
+        permission hours for the selected month.
+      </div>
+
       {/* ===== ACTION ROW ===== */}
       <div className={styles.actionRow}>
         <button
           onClick={() => {
             if (selected.size === 1) generatePayslipForOne([...selected][0]);
-            else                     downloadPdfBulk();
+            else downloadPdfBulk();
           }}
           className={`${styles.actionBtn} ${styles.actionBtnBlue}`}
         >
@@ -652,8 +658,8 @@ export default function Payroll() {
               <tbody>
                 {pagedRows.map((r) => {
                   const isSelected = selected.has(r.emp.ID);
-                  const clOver   = r.clUnpaidDays   > 0;
-                  const permOver = r.permUnpaidH    > 0;
+                  const clOver = r.clUnpaidDays > 0;
+                  const permOver = r.permUnpaidH > 0;
                   return (
                     <tr key={r.emp.ID} className={isSelected ? styles.trSelected : undefined}>
                       <td className={styles.tdCheck}>
@@ -687,7 +693,7 @@ export default function Payroll() {
                       <td className={styles.tdNum}>
                         {r.otHours > 0 ? (
                           <span title={`OT pay: ₹ ${inr(r.otPay)} (${r.otHours.toFixed(1)} h × ₹ ${inr2(r.hourly)}/h)`}
-                                style={{ color: "#7c3aed", fontWeight: 700 }}>
+                            style={{ color: "#7c3aed", fontWeight: 700 }}>
                             {r.otHours.toFixed(1)} h
                           </span>
                         ) : (
@@ -796,32 +802,32 @@ function SalarySummaryModal({ row, period, onClose }) {
 
         <div className={styles.modalBody}>
           <div className={styles.summaryGrid}>
-            <SummaryRow label="Working days (this month)"   value={r.wd} />
-            <SummaryRow label="Present days"                value={r.present} />
-            <SummaryRow label="Absent days"                 value={r.absent}        warn={r.absent > 0} />
+            <SummaryRow label="Working days (this month)" value={r.wd} />
+            <SummaryRow label="Present days" value={r.present} />
+            <SummaryRow label="Absent days" value={r.absent} warn={r.absent > 0} />
             <SummaryRow label={`CL used (paid up to ${MAX_PAID_CL})`} value={`${r.clTotal} / ${r.clPaid} paid`}
-                        warn={r.clUnpaidDays > 0} />
+              warn={r.clUnpaidDays > 0} />
             <SummaryRow label={`Permission used (paid up to ${MAX_PAID_PERM}h)`}
-                        value={`${r.permTotalH.toFixed(1)} h / ${r.permPaidH.toFixed(1)} h paid`}
-                        warn={r.permUnpaidH > 0} />
-            <SummaryRow label="Late check-ins"              value={r.late} />
-            <SummaryRow label="OT hours (overtime)"         value={`${r.otHours.toFixed(1)} h`}
-                        good={r.otHours > 0} />
-            <SummaryRow label="Per-day rate"                value={`₹ ${inr2(r.perDay)}`} />
-            <SummaryRow label="Hourly rate"                 value={`₹ ${inr2(r.hourly)}`} />
-            <SummaryRow label="Total unpaid days"           value={r.unpaidDays.toFixed(2)} />
+              value={`${r.permTotalH.toFixed(1)} h / ${r.permPaidH.toFixed(1)} h paid`}
+              warn={r.permUnpaidH > 0} />
+            <SummaryRow label="Late check-ins" value={r.late} />
+            <SummaryRow label="OT hours (overtime)" value={`${r.otHours.toFixed(1)} h`}
+              good={r.otHours > 0} />
+            <SummaryRow label="Per-day rate" value={`₹ ${inr2(r.perDay)}`} />
+            <SummaryRow label="Hourly rate" value={`₹ ${inr2(r.hourly)}`} />
+            <SummaryRow label="Total unpaid days" value={r.unpaidDays.toFixed(2)} />
           </div>
 
           <div className={styles.summaryDivider} />
 
           <div className={styles.summaryGrid}>
-            <SummaryRow label="Base salary"                 value={`₹ ${inr(r.base)}`} />
-            <SummaryRow label="Deduction (unpaid days)"     value={`− ₹ ${inr(r.deduction)}`}
-                        bad />
-            <SummaryRow label="Increment (HR selected)"     value={`+ ₹ ${inr(r.increment)}`}
-                        good={r.increment > 0} />
-            <SummaryRow label="OT pay (overtime × hourly)"  value={`+ ₹ ${inr(r.otPay)}`}
-                        good={r.otPay > 0} />
+            <SummaryRow label="Base salary" value={`₹ ${inr(r.base)}`} />
+            <SummaryRow label="Deduction (unpaid days)" value={`− ₹ ${inr(r.deduction)}`}
+              bad />
+            <SummaryRow label="Increment (HR selected)" value={`+ ₹ ${inr(r.increment)}`}
+              good={r.increment > 0} />
+            <SummaryRow label="OT pay (overtime × hourly)" value={`+ ₹ ${inr(r.otPay)}`}
+              good={r.otPay > 0} />
           </div>
 
           <div className={styles.summaryDivider} />
@@ -881,9 +887,6 @@ function KpiCard({ label, value, sub, accent, bg, icon }) {
 }
 
 
-// =====================================================================
-// AVATAR
-// =====================================================================
 function Avatar({ emp }) {
   const photoUrl = emp?.PHOTO_URL
     ? (emp.PHOTO_URL.startsWith("http")
@@ -895,7 +898,7 @@ function Avatar({ emp }) {
     .map((s) => s.charAt(0).toUpperCase())
     .join("");
   const palette = ["#fee2e2", "#dbeafe", "#dcfce7", "#fef3c7", "#ede9fe", "#fff7ed"];
-  const fgPal   = ["#991b1b", "#1e40af", "#166534", "#854d0e", "#5b21b6", "#9a3412"];
+  const fgPal = ["#991b1b", "#1e40af", "#166534", "#854d0e", "#5b21b6", "#9a3412"];
   let h = 0;
   for (const ch of (emp?.NAME || "")) h = (h * 31 + ch.charCodeAt(0)) | 0;
   const idx = Math.abs(h) % palette.length;
@@ -941,7 +944,7 @@ function Pagination({ current, total, onChange }) {
 // =====================================================================
 const SVG = (path, more = {}) => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-       strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...more}>
+    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...more}>
     {path}
   </svg>
 );

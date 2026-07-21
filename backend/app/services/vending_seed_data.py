@@ -373,7 +373,7 @@ SUPPLIERS = [
 # MATERIALS — 35+ items mapped to supplier categories above
 # =====================================================================
 # Format: (material_name, default_unit_price_INR, supplier_code, unit, hsn)
-# The seeder creates MaterialCatalog rows + a matching Inventory row
+# The seeder creates ProductMaster rows + a matching Inventory row
 # starting at QUANTITY=0 so PO+GRN flow has something to land in.
 
 MATERIALS = [
@@ -457,7 +457,7 @@ MATERIALS = [
 # PRODUCTS — 2 realistic vending machine models with full BOMs
 # =====================================================================
 # Each BOM line references a material by NAME (resolved at seed time
-# into MATERIAL_ID + PREFERRED_SUPPLIER_ID).
+# into PRODUCT_ID + PREFERRED_SUPPLIER_ID).
 
 PRODUCTS = [
     {

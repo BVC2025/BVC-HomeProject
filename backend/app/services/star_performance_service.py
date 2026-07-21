@@ -518,7 +518,7 @@ def compute_performance_for_all(
     """
 
     role_cache = {
-        r.ID: (r.ROLE_NAME or "")
+        r.ID: (r.NAME or "")
         for r in db.query(Role).all()
     }
 

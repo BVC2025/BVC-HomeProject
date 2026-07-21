@@ -3,15 +3,13 @@
 /* ─── Page wrapper ───────────────────────────────────────────── */
 
 .page {
-  /* Standalone page (not inside the ADMIN/EMPLOYEE shell). The global
-     `body { overflow: hidden }` in App.css otherwise traps this form
-     when it's taller than the viewport — desktop couldn't scroll.
-     Make this page its own scroll region. `100dvh` handles the mobile
-     URL-bar reflow better than `100vh`. */
+
+
   height: 100vh;
   height: 100dvh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  min-height: 100vh;
   background: var(--layout-bg);
   padding: 30px 24px;
 }
@@ -70,6 +68,10 @@
   margin-top: 10px;
   max-width: 700px;
   letter-spacing: 0.2px;
+  font-size: var(--font-sm);
+  opacity: 0.9;
+  margin-top: 10px;
+  max-width: 700px;
 }
 
 .logoutBtn {
@@ -88,6 +90,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+
 }
 
 /* ─── Error banner ───────────────────────────────────────────── */
@@ -103,6 +106,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+
 }
 
 /* ─── Section card ───────────────────────────────────────────── */
@@ -119,6 +123,7 @@
   font-size: 12px;
   font-weight: var(--fw-black);
   color: var(--clr-primary);
+  color: #4338ca;
   letter-spacing: 1.6px;
   text-transform: uppercase;
   margin-bottom: 16px;
@@ -133,16 +138,39 @@
   display: inline-flex;
   align-items: center;
   color: var(--clr-primary);
+
 }
 
 /* ─── Grid layouts ───────────────────────────────────────────── */
 
-.grid3  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-.grid2  { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
-.gridEdu { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
-.grid21 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
 
-.spacer { height: 14px; }
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.gridEdu {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 14px;
+}
+
+.grid21 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.spacer {
+  height: 14px;
+}
 
 /* ─── Field ──────────────────────────────────────────────────── */
 
@@ -212,6 +240,7 @@
   height: 100px;
   border-radius: 50%;
   background: var(--clr-primary);
+  background: #818cf8;
   color: var(--text-inverse);
   display: flex;
   align-items: center;
@@ -220,6 +249,7 @@
   font-weight: var(--fw-black);
   flex-shrink: 0;
   box-shadow: 0 8px 24px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
   overflow: hidden;
 }
 
@@ -228,6 +258,7 @@
   color: var(--text-secondary);
   margin-top: 6px;
 }
+
 
 /* ─── Documents section ──────────────────────────────────────── */
 
@@ -289,7 +320,9 @@
   font-family: inherit;
 }
 
-.docRemove:hover { background: #fee2e2; }
+.docRemove:hover {
+  background: #fee2e2;
+}
 
 
 /* ─── Submit bar ─────────────────────────────────────────────── */
@@ -317,9 +350,11 @@
 }
 
 .submitWarning svg {
-  color: #f59e0b;              /* amber-500 — warning yellow, icon only */
+  color: #f59e0b;
+  /* amber-500 — warning yellow, icon only */
   flex-shrink: 0;
   margin-top: 1px;
+
 }
 
 .submitBtn {
@@ -338,6 +373,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+
 }
 
 .submitBtn:disabled {
@@ -347,12 +383,23 @@
 }
 
 
+
 /* ==================================================================
    MOBILE responsive additions
    ================================================================== */
 @media (max-width: 900px) {
-  .page, .container, .wrapper { padding: 14px; }
-  .docUploadRow { grid-template-columns: 1fr; gap: 10px; }
+
+  .page,
+  .container,
+  .wrapper {
+    padding: 14px;
+  }
+
+  .docUploadRow {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
   .docItem {
     grid-template-columns: 1fr auto;
     grid-template-areas:
@@ -360,29 +407,99 @@
       "title  title";
     row-gap: 4px;
   }
-  .docType   { grid-area: type; }
-  .docTitle  { grid-area: title; }
-  .docRemove { grid-area: remove; }
-  .pageHead, .header, .toolbar {
+
+  .docType {
+    grid-area: type;
+  }
+
+  .docTitle {
+    grid-area: title;
+  }
+
+  .docRemove {
+    grid-area: remove;
+  }
+
+  .pageHead,
+  .header,
+  .toolbar {
     flex-wrap: wrap;
     gap: 10px;
   }
-  .filterCard, .filterRow, .filters {
+
+  .filterCard,
+  .filterRow,
+  .filters {
     flex-direction: column;
     align-items: stretch;
     gap: 10px;
   }
-  .searchInput, .filterSelect, .searchWrap, input, select { width: 100%; }
-  .kpiRow, .statRow, .statsGrid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .cardGrid, .cardsGrid, .tileGrid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .twoCol, .splitPanel, .detailGrid { grid-template-columns: 1fr; }
-  .tableCard, .tableWrap, .tblWrap { overflow-x: auto; }
+
+  .searchInput,
+  .filterSelect,
+  .searchWrap,
+  input,
+  select {
+    width: 100%;
+  }
+
+  .kpiRow,
+  .statRow,
+  .statsGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .cardGrid,
+  .cardsGrid,
+  .tileGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .twoCol,
+  .splitPanel,
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .tableCard,
+  .tableWrap,
+  .tblWrap {
+    overflow-x: auto;
+  }
 }
+
 @media (max-width: 640px) {
-  .page, .container, .wrapper { padding: 10px; }
-  .kpiRow, .statRow, .statsGrid { grid-template-columns: repeat(2, 1fr); }
-  .cardGrid, .cardsGrid, .tileGrid { grid-template-columns: 1fr; }
-  .kpiValue, .statValue { font-size: 20px; }
-  h1 { font-size: 20px; }
-  h2 { font-size: 17px; }
+
+  .page,
+  .container,
+  .wrapper {
+    padding: 10px;
+  }
+
+  .kpiRow,
+  .statRow,
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cardGrid,
+  .cardsGrid,
+  .tileGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .kpiValue,
+  .statValue {
+    font-size: 20px;
+  }
+
+  h1 {
+    font-size: 20px;
+  }
+
+  h2 {
+    font-size: 17px;
+  }
 }
