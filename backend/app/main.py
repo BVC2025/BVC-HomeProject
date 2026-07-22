@@ -43,7 +43,6 @@ from app.routes.settings import router as settings_router
 from app.routes.employee_task import router as employee_task_router
 from app.routes.project_template import router as project_template_router
 from app.routes.project_quotation import router as project_quotation_router
-from app.routes.project_quotation import router as project_quotation_router
 from app.routes.organization import router as organization_router
 from app.routes.task_approval import router as task_approval_router
 from app.routes.chatbot import router as chatbot_router
@@ -91,7 +90,6 @@ from app.routes.inventory_movements import router as inventory_movements_router
 from app.routes.inventory_batches import router as inventory_batches_router
 from app.routes.email_config import router as email_config_router
 from app.routes.email_templates import router as email_templates_router
-from app.routes.lead_management import router as lead_management_router
 from app.routes.lead_management import router as lead_management_router
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -1425,7 +1423,6 @@ app.include_router(task_approval_router, tags=["Task Approval"])
 app.include_router(task_router, tags=["Project Tasks"])
 # app.include_router(project_router, tags=["Projects"])  # removed — customer projects replaced by Project template hierarchy
 app.include_router(project_template_router, tags=["Project Templates"])
-app.include_router(project_quotation_router, tags=["Project Quotation Templates"])
 app.include_router(project_quotation_router, tags=["Project Quotation Templates"])
 app.include_router(users_router, tags=["Users"])
 app.include_router(vendor_router, tags=["Vendors"])
