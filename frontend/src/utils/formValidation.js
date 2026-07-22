@@ -311,3 +311,32 @@ export const BATCH_EDIT_RULES = {
   QTY_RECEIVED: ["nonNegativeNumber"],
   UNIT_COST: ["nonNegativeNumber"],
 };
+
+/** Lead Polling Configuration Add/Edit modal */
+export const LEAD_POLLING_CONFIG_RULES = {
+  ACCOUNT_LABEL: ["required", minLength(2), maxLength(150)],
+  PLATFORM_NAME: ["required", maxLength(50)],
+  BASE_URL: ["required", "url"],
+  ENDPOINT_URL: ["required", maxLength(500)],
+  API_TYPE: ["required"],
+  POLL_INTERVAL_MINUTES: [rangeNumber(5, 1440)],
+};
+
+/** Polling config PULL_API_KEY is validated separately (required on Add,
+ * optional on Edit — blank preserves the existing key) */
+export const LEAD_POLLING_API_KEY_RULE = ["required", minLength(5)];
+
+/** Manual Lead Management Add/Edit modal */
+export const LEAD_RULES = {
+  CONTACT_NAME: ["required", minLength(2), maxLength(200)],
+  CONTACT_MOBILE: ["phone"],
+  CONTACT_EMAIL: ["email"],
+  COMPANY_NAME: [maxLength(255)],
+  PINCODE: [
+    (value) => {
+      if (!value || !String(value).trim()) return null;
+      return /^\d{4,10}$/.test(String(value).trim()) ? null : "Enter a valid pincode.";
+    },
+  ],
+  LEAD_STATUS: ["required"],
+};

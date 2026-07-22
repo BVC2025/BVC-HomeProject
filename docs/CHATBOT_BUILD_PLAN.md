@@ -1,5 +1,16 @@
 # BVC24 ERP — AI Chatbot Build Plan
 
+> **⚠️ SUPERSEDED** — This plan's RAG track (Phase C: knowledge base +
+> vector store) is superseded by the Common Enterprise RAG AI Platform
+> (`backend/app/rag_modules/`, `backend/app/routes/rag.py`,
+> `backend/app/models/rag_models.py`). That platform is the one RAG system
+> in this ERP going forward. This general ERP chatbot can onboard onto it
+> later as just another module (e.g. `MODULE_CODE="erp-general"`) instead
+> of building the separate in-memory vector store described in Phase C
+> below — see `backend/app/rag_modules/README.md`. The rest of this doc
+> (Phases A/B/D/E/F/G — Gemini Q&A, RBAC, frontend, multilingual,
+> hardening) is unaffected and still describes the existing chatbot.
+>
 > **Status:** Active build. Phase 1 deployment dependency removed —
 > Gemini is a cloud API call from the backend, unaffected by tunnel URLs.
 >

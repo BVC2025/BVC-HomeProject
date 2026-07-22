@@ -2,8 +2,13 @@
 # ENV FILES
 # =========================
 .env
+backend/.env
+backend/.env.*
+backend/.env.local
 .env.*
 !.env.example
+frontend/.env
+frontend/.env.*
 
 # =========================
 # NODE / REACT / VITE
@@ -79,6 +84,11 @@ uploads/
 media/
 temp/
 tmp/
+
+# =========================
+# RAG AI PLATFORM (Qdrant local storage)
+# =========================
+backend/qdrant-storage/
 
 # =========================
 # IDE

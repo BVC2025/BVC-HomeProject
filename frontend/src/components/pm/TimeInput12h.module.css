@@ -1,0 +1,31 @@
+.timeGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.timeSelect {
+  height: 36px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  outline: none;
+  cursor: pointer;
+}
+
+.timeSelect:focus {
+  border-color: var(--clr-primary);
+  box-shadow: 0 0 0 3px var(--clr-primary-muted);
+}
+
+.timeColon {
+  color: var(--text-muted);
+  font-weight: var(--fw-semi);
+}
+
+.ampmWrap {
+  min-width: 76px;
+}

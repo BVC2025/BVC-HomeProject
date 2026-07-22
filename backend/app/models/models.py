@@ -9,10 +9,12 @@ from datetime import time
 import uuid
 from app.utils.datetime_utils import now_ist
 
-from app.models.project_models import ProjectCategory, Project, TaskTemplate  # noqa: F401
+from app.models.project_models import ProjectCategory, Project, TaskTemplate, ProjectPricing  # noqa: F401
 from app.models.supplier_models import Supplier  # noqa: F401
 from app.models.email_models import VendorEmailConfig, EmailTemplate  # noqa: F401
-__all__ = ["ProjectCategory", "Project", "TaskTemplate", "Supplier", "VendorEmailConfig", "EmailTemplate"]  # re-exported from dedicated model files
+from app.models.lead_models import LeadPollingConfig, Lead, LeadPollingLog  # noqa: F401
+from app.models.project_quotation_models import ProjectQuotationTemplate  # noqa: F401
+__all__ = ["ProjectCategory", "Project", "TaskTemplate", "ProjectPricing", "Supplier", "VendorEmailConfig", "EmailTemplate", "LeadPollingConfig", "Lead", "LeadPollingLog", "ProjectQuotationTemplate"]  # re-exported from dedicated model files
 
 # ──────────────────────────────────────────────
 # Shared SQLAlchemy Enum types
@@ -54,6 +56,21 @@ class Vendor(Base):
     )
     email_templates = relationship(
         "EmailTemplate",
+        back_populates="vendor",
+        cascade="all, delete-orphan",
+    )
+    lead_polling_configs = relationship(
+        "LeadPollingConfig",
+        back_populates="vendor",
+        cascade="all, delete-orphan",
+    )
+    leads = relationship(
+        "Lead",
+        back_populates="vendor",
+        cascade="all, delete-orphan",
+    )
+    lead_polling_logs = relationship(
+        "LeadPollingLog",
         back_populates="vendor",
         cascade="all, delete-orphan",
     )
