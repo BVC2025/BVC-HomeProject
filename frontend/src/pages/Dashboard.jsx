@@ -82,15 +82,12 @@ const PollingActivityLog = lazy(() => import("./PollingActivityLog"));
 const TaskTemplatePage = lazy(() => import("./TaskTemplatePage"));
 const ProjectQuotationManagement = lazy(() => import("./ProjectQuotationManagement"));
 const ProjectPricingPage = lazy(() => import("./ProjectPricingPage"));
-const ProjectQuotationManagement = lazy(() => import("./ProjectQuotationManagement"));
-const ProjectPricingPage = lazy(() => import("./ProjectPricingPage"));
 const InventoryCategoriesPage = lazy(() => import("./InventoryCategoriesPage"));
 const ProductMasterPage = lazy(() => import("./ProductMasterPage"));
 const SupplierManagementPage = lazy(() => import("./SupplierManagementPage"));
 const InventoryItemsPage = lazy(() => import("./InventoryItemsPage"));
 const CompanyProfilePage = lazy(() => import("./CompanyProfilePage"));
 const EmailConfigManagement = lazy(() => import("./EmailConfigManagement"));
-const EmailTemplatePage = lazy(() => import("./EmailTemplatePage"));
 const EmailTemplatePage = lazy(() => import("./EmailTemplatePage"));
 
 import styles from "./Dashboard.module.css";
