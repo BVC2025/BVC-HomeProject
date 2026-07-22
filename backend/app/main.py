@@ -43,6 +43,7 @@ from app.routes.settings import router as settings_router
 from app.routes.employee_task import router as employee_task_router
 from app.routes.project_template import router as project_template_router
 from app.routes.project_quotation import router as project_quotation_router
+from app.routes.project_quotation import router as project_quotation_router
 from app.routes.organization import router as organization_router
 from app.routes.task_approval import router as task_approval_router
 from app.routes.chatbot import router as chatbot_router
@@ -90,6 +91,7 @@ from app.routes.inventory_movements import router as inventory_movements_router
 from app.routes.inventory_batches import router as inventory_batches_router
 from app.routes.email_config import router as email_config_router
 from app.routes.email_templates import router as email_templates_router
+from app.routes.lead_management import router as lead_management_router
 from app.routes.lead_management import router as lead_management_router
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -299,7 +301,32 @@ def _drop_legacy_lead_tables():
         print(f"[startup] legacy lead table cleanup skipped: {exc}")
 
 
+def _drop_legacy_lead_tables():
+    """One-time cleanup: the Lead Management module was renamed/restructured
+    (IndiamartConfig/IndiamartLead -> LeadPollingConfig/Lead/LeadPollingLog,
+    with a changed schema — CONFIG_ID removed from the lead table, columns
+    renamed, unique constraints changed). The old tables held no production
+    data (pre-launch scaffolding only), so they're dropped here rather than
+    migrated in place; create_all() below then creates the new tables fresh.
+    Guarded and idempotent — a no-op once the old tables are gone.
+    """
+    from sqlalchemy import text, inspect
+    insp = inspect(engine)
+    existing = set(insp.get_table_names())
+    try:
+        with engine.begin() as conn:
+            if "indiamart_lead" in existing:
+                conn.execute(text("DROP TABLE IF EXISTS `indiamart_lead`"))
+                print("[startup] Dropped legacy 'indiamart_lead' table")
+            if "indiamart_config" in existing:
+                conn.execute(text("DROP TABLE IF EXISTS `indiamart_config`"))
+                print("[startup] Dropped legacy 'indiamart_config' table")
+    except Exception as exc:
+        print(f"[startup] legacy lead table cleanup skipped: {exc}")
+
+
 _rename_legacy_project_table()
+_drop_legacy_lead_tables()
 _drop_legacy_lead_tables()
 
 Base.metadata.create_all(bind=engine)
@@ -1398,6 +1425,7 @@ app.include_router(task_approval_router, tags=["Task Approval"])
 app.include_router(task_router, tags=["Project Tasks"])
 # app.include_router(project_router, tags=["Projects"])  # removed — customer projects replaced by Project template hierarchy
 app.include_router(project_template_router, tags=["Project Templates"])
+app.include_router(project_quotation_router, tags=["Project Quotation Templates"])
 app.include_router(project_quotation_router, tags=["Project Quotation Templates"])
 app.include_router(users_router, tags=["Users"])
 app.include_router(vendor_router, tags=["Vendors"])

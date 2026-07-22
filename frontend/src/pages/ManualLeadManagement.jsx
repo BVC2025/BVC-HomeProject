@@ -506,7 +506,7 @@ export default function ManualLeadManagement() {
         }
       />
 
-      <StatsRow stats={stats} />
+      < StatsRow stats={stats} />
 
       <div className={styles.filterBar}>
         <div className={styles.filterGroup}>
@@ -908,7 +908,7 @@ export default function ManualLeadManagement() {
       <PMConfirmModal
         open={!!confirmModal}
         onClose={() => setConfirmModal(null)}
-        onConfirm={confirmModal?.onConfirm ?? (() => {})}
+        onConfirm={confirmModal?.onConfirm ?? (() => { })}
         title={confirmModal?.title}
         description={confirmModal?.description}
         confirmLabel="Delete"
@@ -916,6 +916,6 @@ export default function ManualLeadManagement() {
 
       {/* Lead AI Assistant — purely additive, module_code="lead" */}
       <LeadAIAssistantPanel open={aiPanelOpen} onClose={() => setAiPanelOpen(false)} />
-    </div>
+    </div >
   );
 }
