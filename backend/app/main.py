@@ -25,6 +25,9 @@ from app.models.models import Base
 import app.models.inventory_models   # noqa: F401 — registers inventory tables
 import app.models.supplier_models    # noqa: F401 — registers supplier/procurement tables
 import app.models.email_models       # noqa: F401 — registers vendor_email_config table
+import app.models.lead_models        # noqa: F401 — registers lead_polling_config, lead, lead_polling_log tables
+import app.models.project_quotation_models  # noqa: F401 — registers project_quotation_template table
+import app.models.rag_models         # noqa: F401 — registers ai_modules, ai_documents, ai_chat_history, ai_training_job tables
 from app.routes.users import router as users_router
 from app.routes.auth import router as auth_router
 from app.routes.vendor import router as vendor_router
@@ -39,6 +42,7 @@ from app.routes.reports import router as reports_router
 from app.routes.settings import router as settings_router
 from app.routes.employee_task import router as employee_task_router
 from app.routes.project_template import router as project_template_router
+from app.routes.project_quotation import router as project_quotation_router
 from app.routes.organization import router as organization_router
 from app.routes.task_approval import router as task_approval_router
 from app.routes.chatbot import router as chatbot_router
@@ -76,6 +80,7 @@ from app.routes.holiday import router as holiday_router    # Phase 2 Holiday Cal
 from app.routes.chatbot_ai import router as chatbot_ai_router  # AI chatbot v1 (Gemini)
 from app.routes.work_center import router as work_center_router  # Mfg Phase 1 — Work Centers
 from app.routes.custom_fields import router as custom_fields_router  # Custom Fields System
+from app.routes.rag import router as rag_router  # Common Enterprise RAG AI Platform
 # ── New Inventory & Supplier Procurement Module ──────────────────────
 from app.routes.supplier_onboarding import router as supplier_onboarding_router
 from app.routes.supplier_products import router as supplier_products_router
@@ -85,6 +90,7 @@ from app.routes.inventory_movements import router as inventory_movements_router
 from app.routes.inventory_batches import router as inventory_batches_router
 from app.routes.email_config import router as email_config_router
 from app.routes.email_templates import router as email_templates_router
+from app.routes.lead_management import router as lead_management_router
 from fastapi.middleware.cors import CORSMiddleware
 
 # Phase 3 — Audit log
@@ -223,6 +229,10 @@ _STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 (_STATIC_DIR / "company").mkdir(parents=True, exist_ok=True)
 
+(_STATIC_DIR / "quotation").mkdir(parents=True, exist_ok=True)
+
+(_STATIC_DIR / "ai-documents").mkdir(parents=True, exist_ok=True)
+
 app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
 
@@ -265,7 +275,32 @@ def _rename_legacy_project_table():
             print(f"[startup] sub_project_template rename skipped: {exc}")
 
 
+def _drop_legacy_lead_tables():
+    """One-time cleanup: the Lead Management module was renamed/restructured
+    (IndiamartConfig/IndiamartLead -> LeadPollingConfig/Lead/LeadPollingLog,
+    with a changed schema — CONFIG_ID removed from the lead table, columns
+    renamed, unique constraints changed). The old tables held no production
+    data (pre-launch scaffolding only), so they're dropped here rather than
+    migrated in place; create_all() below then creates the new tables fresh.
+    Guarded and idempotent — a no-op once the old tables are gone.
+    """
+    from sqlalchemy import text, inspect
+    insp = inspect(engine)
+    existing = set(insp.get_table_names())
+    try:
+        with engine.begin() as conn:
+            if "indiamart_lead" in existing:
+                conn.execute(text("DROP TABLE IF EXISTS `indiamart_lead`"))
+                print("[startup] Dropped legacy 'indiamart_lead' table")
+            if "indiamart_config" in existing:
+                conn.execute(text("DROP TABLE IF EXISTS `indiamart_config`"))
+                print("[startup] Dropped legacy 'indiamart_config' table")
+    except Exception as exc:
+        print(f"[startup] legacy lead table cleanup skipped: {exc}")
+
+
 _rename_legacy_project_table()
+_drop_legacy_lead_tables()
 
 Base.metadata.create_all(bind=engine)
 
@@ -1306,6 +1341,55 @@ def _auto_seed_defaults():
 _auto_seed_defaults()
 
 
+def _auto_seed_ai_modules():
+    """Seeds the first AI_MODULES row (Lead AI Assistant) so the RAG
+    platform has something to onboard against on a fresh install. Follows
+    the same idempotent shape as the other _auto_seed_* functions above:
+    own session, try/except/log.warning, safe to re-run any number of
+    times."""
+
+    import logging
+    from sqlalchemy.orm import sessionmaker
+    from app.models.rag_models import AIModule
+    from app.rag_modules.core.llm_client import DEFAULT_MODEL as RAG_DEFAULT_LLM_MODEL
+
+    log = logging.getLogger("uvicorn")
+    Session = sessionmaker(bind=engine)
+    db = Session()
+
+    try:
+        existing = db.query(AIModule).filter(AIModule.MODULE_CODE == "lead").first()
+
+        if existing is None:
+            db.add(AIModule(
+                MODULE_NAME="Lead AI Assistant",
+                MODULE_CODE="lead",
+                DESCRIPTION=(
+                    "Answers questions about the lead management process "
+                    "from uploaded SOPs/FAQs."
+                ),
+                VECTOR_COLLECTION_NAME="lead_rag_collection",
+                EMBEDDING_MODEL="BAAI/bge-small-en-v1.5",
+                LLM_MODEL=RAG_DEFAULT_LLM_MODEL,
+                IS_ACTIVE=True,
+            ))
+            db.commit()
+            log.info("auto-seed-ai-modules: 'lead' module created")
+
+    except Exception as exc:
+        db.rollback()
+        log.warning("auto-seed-ai-modules skipped: %s", exc)
+
+    finally:
+        db.close()
+
+
+_auto_seed_ai_modules()
+
+from app.scheduler import start_scheduler  # noqa: E402 — started after seeding, before routers
+start_scheduler()
+
+
 app.include_router(auth_router, tags=["Auth"])
 app.include_router(organization_router, tags=["Organization"])
 app.include_router(employee.router, tags=["Employees (IAM)"])
@@ -1314,6 +1398,7 @@ app.include_router(task_approval_router, tags=["Task Approval"])
 app.include_router(task_router, tags=["Project Tasks"])
 # app.include_router(project_router, tags=["Projects"])  # removed — customer projects replaced by Project template hierarchy
 app.include_router(project_template_router, tags=["Project Templates"])
+app.include_router(project_quotation_router, tags=["Project Quotation Templates"])
 app.include_router(users_router, tags=["Users"])
 app.include_router(vendor_router, tags=["Vendors"])
 app.include_router(inventory_router, tags=["Inventory"])
@@ -1360,6 +1445,8 @@ app.include_router(work_center_router)
 app.include_router(custom_fields_router, tags=["Custom Fields"])
 app.include_router(email_config_router, tags=["Email Configuration"])
 app.include_router(email_templates_router, tags=["Email Templates"])
+app.include_router(lead_management_router, tags=["Lead Management"])
+app.include_router(rag_router, tags=["AI Platform"])
 
 # ── Inventory & Supplier Procurement Module ───────────────────────────────
 app.include_router(supplier_onboarding_router, prefix="/api")

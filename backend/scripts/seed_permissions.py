@@ -149,6 +149,13 @@ CATALOGUE = [
     ("audit.export",          "Export audit log",       "System", "CSV download for compliance"),
     ("report.export",         "Export reports",         "Reports","PDF / Excel exports"),
     ("notification.broadcast","Broadcast notifications","System", "Send to all staff"),
+
+    # ---- AI Platform (common Enterprise RAG platform) ----
+    ("rag.module.manage",   "Manage AI modules",         "AI Platform", "Create/edit/deactivate AI_MODULES rows"),
+    ("rag.document.upload", "Upload/manage KB documents","AI Platform", "Upload, replace, retrain, activate/deactivate documents"),
+    ("rag.document.delete", "Delete KB documents",       "AI Platform", "Soft-delete a document + its vectors"),
+    ("rag.query",           "Use AI chat/playground",    "AI Platform", "Ask questions via any AI module's chat endpoint"),
+    ("rag.settings.manage", "Manage AI settings",        "AI Platform", "Edit per-module LLM model / global RAG settings"),
 ]
 
 
@@ -238,6 +245,7 @@ DEFAULT_GRANTS = {
         "employee.view", "customer.view", "customer.manage",
         "sales_order.view", "sales_order.manage", "quotation.manage",
         "leave.approve", "leave.reject", "attendance.view.team", "org.view",
+        "rag.query",
     ],
 
     "PURCHASE_MANAGER": SELF + [
