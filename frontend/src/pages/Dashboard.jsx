@@ -7,6 +7,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
   Link,
   NavLink,
+  Navigate,
   Routes,
   Route,
   Outlet,
@@ -74,6 +75,7 @@ import Allowances from "./Allowances";
 import EmployeeProfile from "./EmployeeProfile";
 import Recruitment from "./Recruitment";
 import PayslipGenerator from "./PayslipGenerator";
+import PayrollRecords from "./PayrollRecords";
 import OnboardingChecklist from "./OnboardingChecklist";
 import ShiftManagement from "./ShiftManagement";
 import HrAutomation from "./HrAutomation";
@@ -1591,6 +1593,7 @@ const NAV_GROUPS = [
       { to: "/shifts", icon: <SidebarIcon name="attendance" />, label: "Shift Management" },
       { to: "/leave-management", icon: <SidebarIcon name="leaves" />, label: "Leave Management" },
       { to: "/payroll", icon: <SidebarIcon name="payroll" />, label: "Payroll" },
+      { to: "/payroll-records", icon: <SidebarIcon name="payroll" />, label: "Payroll Records" },
       { to: "/star-performance", icon: <SidebarIcon name="star" />, label: "Star Performance" },
       { to: "/allowances", icon: <SidebarIcon name="allowances" />, label: "Allowances" },
       { to: "/recruitment", icon: <SidebarIcon name="recruitment" />, label: "Recruitment" },
@@ -1992,6 +1995,7 @@ function Dashboard() {
             <Route path="/star-performance" element={<StarPerformance />} />
             <Route path="/payroll" element={<Payroll />} />
             <Route path="/payslip-generator" element={<PayslipGenerator />} />
+            <Route path="/payroll-records"   element={<PayrollRecords />} />
           </Route>
 
           <Route
@@ -2044,19 +2048,25 @@ function Dashboard() {
             element={<Quality />}
           />
 
+          {/* ram-development commit 3eef8b5e removed Suppliers.jsx /
+              Purchase.jsx / PurchaseOrders.jsx and consolidated them into
+              SupplierManagementPage (routed at /supplier-management below).
+              Redirect the old URLs so any existing bookmarks / sidebar
+              links keep working instead of crashing Dashboard on mount
+              with a ReferenceError. */}
           <Route
             path="/suppliers"
-            element={<Suppliers />}
+            element={<Navigate to="/supplier-management" replace />}
           />
 
           <Route
             path="/purchase"
-            element={<Purchase />}
+            element={<Navigate to="/supplier-management" replace />}
           />
 
           <Route
             path="/purchase-orders"
-            element={<PurchaseOrders />}
+            element={<Navigate to="/supplier-management" replace />}
           />
 
           <Route

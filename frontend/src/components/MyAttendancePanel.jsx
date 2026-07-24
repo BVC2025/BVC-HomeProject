@@ -202,6 +202,66 @@ export default function MyAttendancePanel({ employeeId }) {
 
 
   // -------------------------------------------------------------
+  // Silent auto check-in on portal load.
+  // Runs ONCE per employee-id and only if today's row shows no
+  // CHECK_IN_TIME yet. Requests GPS silently — if the browser blocks
+  // it, we bail out and let the employee use the manual button.
+  // Backend applies the same geofence rules the manual endpoint uses
+  // PLUS the Wi-Fi allow-list, so this is safe against spoofed calls.
+  // -------------------------------------------------------------
+  const [autoTried, setAutoTried] = useState(false);
+
+  useEffect(() => {
+    if (!employeeId) return;
+    if (autoTried) return;
+    // Wait until refreshToday has completed at least once so we
+    // don't fire on an already-checked-in day.
+    if (today && today.CHECK_IN_TIME) { setAutoTried(true); return; }
+
+    let cancelled = false;
+    (async () => {
+      const { coords } = await getPositionSilent();
+      if (cancelled) return;
+      // Even without coords we still call the endpoint — the server
+      // then returns { status: "no_coords" } and we quietly stop.
+      try {
+        const res = await API.post("/geofence/auto-checkin", {
+          EMPLOYEE_ID: employeeId,
+          LATITUDE:   coords?.latitude,
+          LONGITUDE:  coords?.longitude,
+          DEVICE_INFO: (typeof navigator !== "undefined" && navigator.userAgent) || null,
+          VENDOR_ID: 1,
+        });
+        if (cancelled) return;
+        const s = res.data?.status;
+        if (s === "checked_in") {
+          setToast(`Auto check-in successful (${Math.round(res.data.distance_m)}m from office).`);
+          await refreshToday();
+        } else if (s === "already_checked_in") {
+          // silent
+        } else if (s === "manual_required") {
+          setToast(res.data?.message || "Tap Check In to record attendance.");
+        } else if (s === "no_coords") {
+          setToast("Enable location and reload for auto check-in.");
+        } else if (s === "geo_disabled") {
+          // silent — geofencing turned off
+        }
+      } catch (err) {
+        if (cancelled) return;
+        // 403 = blocked outright (beyond MAX_RADIUS). Any other failure
+        // is silent so the manual button stays as fallback.
+        if (err?.response?.status === 403) {
+          setToast(err?.response?.data?.detail || "Check-in blocked — you're too far from the office.");
+        }
+      } finally {
+        if (!cancelled) setAutoTried(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [employeeId, today, autoTried, refreshToday]);
+
+
+  // -------------------------------------------------------------
   // Actions
   // -------------------------------------------------------------
   const doCheckIn = useCallback(async () => {

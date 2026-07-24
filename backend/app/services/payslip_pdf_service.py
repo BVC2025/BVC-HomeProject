@@ -174,43 +174,45 @@ def render_payslip_pdf(
     )
 
     base = getSampleStyleSheet()
+    # Slightly upsized + tighter letterhead for a more professional feel.
     s_company = ParagraphStyle(
         "company", parent=base["Normal"],
-        fontName="Helvetica-Bold", fontSize=13, leading=15,
-        textColor=BVC_DARK, spaceAfter=0,
+        fontName="Helvetica-Bold", fontSize=15, leading=18,
+        textColor=BVC_DARK, spaceAfter=2,
     )
     s_company_sub = ParagraphStyle(
         "companySub", parent=base["Normal"],
-        fontName="Helvetica", fontSize=8.5, leading=11,
+        fontName="Helvetica", fontSize=9, leading=12.5,
         textColor=GREY,
     )
     s_title = ParagraphStyle(
         "title", parent=base["Normal"],
-        fontName="Helvetica-Bold", fontSize=13, leading=16,
+        fontName="Helvetica-Bold", fontSize=15, leading=18,
         alignment=TA_CENTER, textColor=BVC_DARK,
-        spaceBefore=4, spaceAfter=2,
+        spaceBefore=6, spaceAfter=3,
     )
     s_period = ParagraphStyle(
         "period", parent=base["Normal"],
-        fontName="Helvetica", fontSize=10, leading=12,
-        alignment=TA_CENTER, textColor=GREY, spaceAfter=8,
+        fontName="Helvetica", fontSize=10, leading=13,
+        alignment=TA_CENTER, textColor=GREY, spaceAfter=10,
     )
     s_label = ParagraphStyle(
         "label", parent=base["Normal"],
-        fontName="Helvetica-Bold", fontSize=10, leading=12,
-        textColor=BVC_DARK, spaceBefore=8, spaceAfter=4,
+        fontName="Helvetica-Bold", fontSize=10.5, leading=13,
+        textColor=BVC_DARK, spaceBefore=10, spaceAfter=5,
     )
     s_body = ParagraphStyle(
         "body", parent=base["Normal"],
-        fontName="Helvetica", fontSize=9.5, leading=12, textColor=INK,
+        fontName="Helvetica", fontSize=10, leading=13, textColor=INK,
     )
     s_small = ParagraphStyle(
         "small", parent=base["Normal"],
-        fontName="Helvetica", fontSize=8.5, leading=11, textColor=GREY,
+        fontName="Helvetica", fontSize=9, leading=12, textColor=GREY,
+        alignment=TA_CENTER,
     )
     s_words = ParagraphStyle(
         "words", parent=base["Normal"],
-        fontName="Helvetica-Bold", fontSize=10, leading=14,
+        fontName="Helvetica-Bold", fontSize=10.5, leading=15,
         textColor=BVC_DARK,
     )
 
@@ -229,22 +231,17 @@ def render_payslip_pdf(
         except Exception:
             logo_cell = ""
 
-    legal_name = company.get("legal_name") or company.get("name") or "Bharath Vending Corporation"
-    addr_lines = []
-    if company.get("address_line_1"): addr_lines.append(company["address_line_1"])
-    if company.get("address_line_2"): addr_lines.append(company["address_line_2"])
-    city_line = ", ".join(filter(None, [
-        company.get("city"), company.get("state"), company.get("pincode"),
-    ]))
-    if city_line: addr_lines.append(city_line)
-    contact = []
-    if company.get("phone"):   contact.append(company["phone"])
-    if company.get("email"):   contact.append(company["email"])
-    if contact: addr_lines.append(" &nbsp;·&nbsp; ".join(contact))
-    statutory = []
-    if company.get("gst_number"): statutory.append(f"GSTIN: {company['gst_number']}")
-    if company.get("pan_number"): statutory.append(f"PAN: {company['pan_number']}")
-    if statutory: addr_lines.append(" &nbsp;·&nbsp; ".join(statutory))
+    # Fixed BVC letterhead — client-approved address block. The
+    # company_master row is intentionally NOT read here anymore so the
+    # letterhead is the same regardless of what admin has typed into
+    # Company Settings.
+    legal_name = "Bharath Vending Corporation"
+    addr_lines = [
+        "Plot No: 16B, E&amp;E Industrial Estate,",
+        "Civil Aerodrome Post, Sitra,",
+        "Coimbatore - 641 014.",
+        "Tamil Nadu, India.",
+    ]
 
     right_lines = [Paragraph(legal_name, s_company)]
     for ln in addr_lines:
@@ -286,7 +283,6 @@ def render_payslip_pdf(
         ["Name",          employee.get("NAME") or "—"],
         ["Department",    employee.get("DEPARTMENT") or "—"],
         ["Designation",   employee.get("DESIGNATION") or "—"],
-        ["Date of Joining", _fmt_date(employee.get("JOINING_DATE"))],
         ["Bank A/C",      employee.get("BANK_ACCOUNT") or "—"],
         ["PAN",           employee.get("PAN") or "—"],
     ]
@@ -403,7 +399,7 @@ def render_payslip_pdf(
                            spaceBefore=2, spaceAfter=4))
     story.append(Paragraph(
         "This is a system-generated payslip and does not require a signature. "
-        f"For any clarifications, contact <b>{company.get('email') or 'HR'}</b>.",
+        "For any clarifications, contact <b>support@bvc24.com</b>.",
         s_small,
     ))
 

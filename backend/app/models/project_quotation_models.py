@@ -44,11 +44,16 @@ class ProjectQuotationTemplate(Base):
     ID = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
 
     PROJECT_ID = Column(
-        String(36),
+        Integer,
         ForeignKey("project.ID", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
+    # Integer FK — matches project.ID (see project_models.Project for the
+    # backwards-compatibility rationale). Original ram-development draft
+    # declared String(36) UUID; that mismatched the live DB and produced
+    # MySQL error 3780 on CREATE TABLE.
+    #
     # CASCADE (unlike TaskTemplate.PROJECT_ID's RESTRICT) — this is a true
     # 1:1 owned document; a DB-level backstop is safe even though the ORM
     # cascade="all, delete-orphan" on Project.quotation_template is what

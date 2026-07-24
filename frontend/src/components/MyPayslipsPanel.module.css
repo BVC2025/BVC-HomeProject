@@ -27,27 +27,19 @@
   grid-template-columns: 1fr auto;
   gap: 22px;
   align-items: center;
-  padding: 22px 26px;
-  background: linear-gradient(135deg, #b91c1c 0%, #7f1d1d 100%);
-  color: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 14px 36px rgba(220, 38, 38, 0.25);
+  padding: 18px 24px;
+  /* White card body, red border only — plain, professional. */
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #dc2626;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
   position: relative;
   overflow: hidden;
 }
 
-/* Soft amber glow accent — same trick used elsewhere for warmth */
 .hero::before {
-  content: "";
-  position: absolute;
-  right: -80px;
-  top: -80px;
-  width: 240px;
-  height: 240px;
-  background: radial-gradient(circle,
-              rgba(244, 179, 36, 0.22) 0%,
-              transparent 70%);
-  pointer-events: none;
+  content: none;
 }
 
 .heroLeft { min-width: 0; position: relative; z-index: 1; }
@@ -57,24 +49,24 @@
   font-weight: 700;
   letter-spacing: 1.6px;
   text-transform: uppercase;
-  color: #fde68a;
-  opacity: 0.95;
+  color: #dc2626;
   margin-bottom: 4px;
 }
 
 .heroTitle {
-  margin: 0 0 8px;
-  font-size: 24px;
+  margin: 0 0 6px;
+  font-size: 22px;
   font-weight: 700;
   letter-spacing: -0.4px;
   line-height: 1.15;
+  color: #0f172a;
 }
 
 .heroSub {
   margin: 0;
   font-size: 13px;
   line-height: 1.55;
-  opacity: 0.9;
+  color: #64748b;
   max-width: 480px;
 }
 
@@ -84,7 +76,7 @@
   min-width: 180px;
   text-align: right;
   padding-left: 22px;
-  border-left: 1px solid rgba(255, 255, 255, 0.22);
+  border-left: 1px solid #e2e8f0;
 }
 
 .heroBigLabel {
@@ -92,8 +84,7 @@
   font-weight: 700;
   letter-spacing: 1.4px;
   text-transform: uppercase;
-  color: #fde68a;
-  opacity: 0.95;
+  color: #dc2626;
   margin-bottom: 4px;
 }
 
@@ -103,12 +94,13 @@
   letter-spacing: -0.6px;
   line-height: 1;
   font-variant-numeric: tabular-nums;
+  color: #0f172a;
 }
 
 .heroBigSub {
   font-size: 11.5px;
   font-weight: 600;
-  opacity: 0.85;
+  color: #64748b;
   margin-top: 4px;
 }
 
@@ -568,13 +560,20 @@
 
 :global(html[data-theme="dark"]) .wrap { color: #e2e8f0; }
 
-/* Hero — keep the red gradient but darken the inner content bar */
+/* Hero on dark theme — dark navy card with red border, mirrors the
+   light-mode "white card + red border" idea. */
 :global(html[data-theme="dark"]) .hero {
-  box-shadow: 0 8px 24px rgba(220, 38, 38, 0.30);
+  background: #131c2c;
+  border-color: #dc2626;
+  box-shadow: 0 8px 24px rgba(220, 38, 38, 0.20);
 }
-:global(html[data-theme="dark"]) .heroBigLabel { color: rgba(255, 255, 255, 0.75); }
-:global(html[data-theme="dark"]) .heroBigValue { color: #ffffff; }
-:global(html[data-theme="dark"]) .heroBigSub   { color: rgba(255, 255, 255, 0.75); }
+:global(html[data-theme="dark"]) .heroEyebrow  { color: #fca5a5; }
+:global(html[data-theme="dark"]) .heroTitle    { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .heroSub      { color: #94a3b8; }
+:global(html[data-theme="dark"]) .heroRight    { border-left-color: rgba(255, 255, 255, 0.10); }
+:global(html[data-theme="dark"]) .heroBigLabel { color: #fca5a5; }
+:global(html[data-theme="dark"]) .heroBigValue { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .heroBigSub   { color: #94a3b8; }
 
 /* Stat tiles — Latest / PF / ESI / Bonus */
 :global(html[data-theme="dark"]) .stat {

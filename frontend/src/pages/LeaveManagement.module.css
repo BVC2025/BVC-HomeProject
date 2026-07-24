@@ -1,23 +1,28 @@
-/* LeaveManagement page — scoped styles */
+/* =====================================================================
+   LeaveManagement — page styles.
+   Rewritten as one clean, non-duplicated block. Rules match the rest
+   of the ERP (Employees / Attendance / Memos / Payroll Records):
+     - white card + red left rail on the page banner
+     - 5 uniform KPI tiles with a coloured top rail + tinted body
+     - subtle pill-style tabs (active gets a soft red fill, not a shout)
+     - understated filter row
+   ===================================================================== */
 
-/* ─── Page wrapper ──────────────────────────────────────────── */
-
-/* Fixed-height flex column: chrome stays put, table area scrolls
-   independently. Height accounts for .main-content vertical padding
-   (~66px) + a small safety margin. */
-
+/* ---- Page wrapper — flex column, fixed height so the table scrolls
+        inside its card instead of the whole page bouncing. ---------- */
 .page {
-  padding: 26px;
+  padding: 26px 22px 32px;
   background: var(--layout-bg, #f1f5f9);
   height: calc(100vh - 80px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   box-sizing: border-box;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, sans-serif;
+  color: #1e293b;
 }
 
-/* Each tab's content area — fills remaining vertical space, scroll
-   only happens inside the table. */
 .tabContent {
   flex: 1 1 auto;
   min-height: 0;
@@ -26,15 +31,15 @@
   gap: 0;
 }
 
-/* ─── Page banner — clean white, thin red accent ───────────── */
 
+/* ---- 1. Header banner ------------------------------------------- */
 .pageBanner {
-  background: var(--card-bg, white);
-  border: 1px solid var(--border, #e2e8f0);
-  border-left: 4px solid var(--clr-primary, #C8102E);
-  border-radius: var(--radius-lg, 12px);
-  padding: 18px 24px;
-  margin-bottom: 16px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #dc2626;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 14px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   display: flex;
   justify-content: space-between;
@@ -48,29 +53,32 @@
   display: flex;
   flex-direction: column;
   min-width: 240px;
+  gap: 4px;
 }
 
 .pageBannerEyebrow {
-  font-size: 11px;
-  letter-spacing: 1.6px;
-  color: var(--clr-primary, #C8102E);
-  font-weight: var(--fw-extrabold, 800);
+  font-size: 10.5px;
+  letter-spacing: 1.4px;
+  color: #dc2626;
+  font-weight: 700;
   text-transform: uppercase;
+  margin-bottom: 2px;
 }
 
 .pageBannerTitle {
   font-size: 22px;
-  font-weight: var(--fw-black, 800);
-  margin: 4px 0 0;
+  font-weight: 700;
+  margin: 0;
   line-height: 1.2;
-  color: var(--text-primary, #0f172a);
+  color: #0f172a;
   letter-spacing: -0.4px;
 }
 
 .pageBannerSub {
   font-size: 13px;
-  color: var(--text-muted, #64748b);
-  margin-top: 2px;
+  color: #64748b;
+  line-height: 1.5;
+  max-width: 560px;
 }
 
 .pageBannerActions {
@@ -80,276 +88,151 @@
   align-items: center;
 }
 
+/* Info hint on the right side of the banner — quiet, informational
+   (not a warning). Slate tones so it reads as guidance rather than an
+   alert the admin needs to dismiss. */
 .bannerHint {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
-  color: #9a3412;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  max-width: 560px;
-  line-height: 1.4;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  max-width: 520px;
+  line-height: 1.5;
 }
-
 .bannerHint svg {
   flex-shrink: 0;
-  color: #ea580c;
+  color: #64748b;
+  margin-top: 2px;
 }
 
-/* ─── KPI tiles grid — compact, uniform, top accent ────────── */
-.page {
-  padding: var(--sp-6);
-  background: var(--layout-bg);
-  min-height: 100%;
-}
 
-.header {
-  margin-bottom: var(--sp-5);
-}
-
-.pageTitle {
-  font-size: var(--font-2xl);
-  font-weight: var(--fw-bold);
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.pageSub {
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
-  margin-top: var(--sp-1);
-}
-
-/* ─── Policy banner ─────────────────────────────────────────── */
-
-.policyBanner {
-  background: var(--info-bg);
-  border: 1px solid var(--info-border);
-  border-left: 4px solid var(--info);
-  border-radius: var(--radius-lg);
-  padding: var(--sp-4);
-  margin-bottom: var(--sp-5);
-  display: flex;
-  gap: var(--sp-3);
-  flex-wrap: wrap;
-}
-
-.policyLabel {
-  font-size: var(--font-xs);
-  font-weight: var(--fw-bold);
-  letter-spacing: 1px;
-  color: var(--info);
-  text-transform: uppercase;
-  flex-basis: 100%;
-}
-
-.policyItem {
-  flex: 1;
-  min-width: 260px;
-}
-
-.policyItemTitle {
-  font-size: var(--font-sm);
-  font-weight: var(--fw-bold);
-  color: var(--text-primary);
-  margin-bottom: var(--sp-1);
-}
-
-.policyItemText {
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
-  line-height: var(--lh);
-}
-
-/* ─── KPI tiles grid ────────────────────────────────────────── */
-
-
+/* ---- 2. KPI tiles — 5-up grid, consistent with other pages ----- */
 .tilesGrid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 14px;
+  margin-bottom: 14px;
   flex-shrink: 0;
 }
 
 .tile {
-  background: var(--card-bg, white);
-  padding: 12px 14px;
-  border: 1px solid var(--border, #e2e8f0);
-  border-radius: 10px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
   position: relative;
+  background: #ffffff;
+  padding: 16px 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   overflow: hidden;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.tile:hover {
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  border-color: #cbd5e1;
 }
 
+/* Coloured top rail — colour comes from the inline `--tile-color`
+   CSS variable set by the Tile component. */
 .tile::before {
   content: "";
   position: absolute;
-  inset: 0 0 auto 0;
+  top: 0;
+  left: 0;
+  right: 0;
   height: 3px;
-  background: var(--tile-color, var(--border));
+  background: var(--tile-color, #e2e8f0);
 }
 
 .tileLabel {
-  font-size: 10px;
-  font-weight: var(--fw-extrabold, 800);
-  letter-spacing: 1.2px;
-  color: var(--text-muted, #94a3b8);
-
-  gap: 14px;
-  margin-bottom: var(--sp-5);
-}
-
-.tile {
-  background: var(--card-bg);
-  padding: var(--sp-5);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  border-top: 3px solid var(--tile-color, var(--border));
-}
-
-.tileLabel {
-  font-size: var(--font-xs);
-  font-weight: var(--fw-bold);
-  letter-spacing: 1px;
-  color: var(--text-secondary);
-
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: #64748b;
   text-transform: uppercase;
+  margin-bottom: 8px;
 }
 
 .tileValue {
-
-  font-size: 22px;
-  font-weight: var(--fw-black, 800);
-  color: var(--text-primary, #0f172a);
-  margin-top: 4px;
-  line-height: 1.1;
-  letter-spacing: -0.3px;
+  font-size: 26px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
 }
 
 .tileSub {
-  font-size: 10px;
-  color: var(--text-muted, #94a3b8);
-  margin-top: 2px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
+  font-size: 11.5px;
+  color: #94a3b8;
+  margin-top: 6px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
 }
 
-/* ─── Tab bar — pill style, enterprise look ────────────────── */
 
+/* ---- 3. Tab bar — subtle pill container, one bordered strip ---- */
 .tabBar {
   display: inline-flex;
   gap: 2px;
-  margin-bottom: 14px;
-  background: var(--card-bg, white);
-  border: 1px solid var(--border, #e2e8f0);
+  margin-bottom: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
   padding: 4px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   flex-shrink: 0;
   align-self: flex-start;
-
-  font-size: 28px;
-  font-weight: var(--fw-bold);
-  color: var(--text-primary);
-  margin-top: 6px;
-}
-
-.tileSub {
-  font-size: var(--font-sm);
-  color: var(--text-muted);
-  margin-top: 2px;
-}
-
-/* ─── Tab bar ───────────────────────────────────────────────── */
-
-.tabBar {
-  display: flex;
-  gap: var(--sp-1);
-  margin-bottom: var(--sp-5);
-  border-bottom: 1px solid var(--border);
-
 }
 
 .tab {
   border: none;
   background: transparent;
-
-  padding: 8px 18px;
+  padding: 8px 16px;
+  font-family: inherit;
   font-size: 13px;
-  font-weight: var(--fw-bold, 700);
-  font-family: var(--font);
-  color: var(--text-muted, #64748b);
+  font-weight: 600;
+  color: #64748b;
   cursor: pointer;
-  border-radius: 7px;
-  transition: color 0.15s, background 0.15s;
+  border-radius: 8px;
+  transition: color 0.15s ease, background 0.15s ease;
   letter-spacing: 0.1px;
+  white-space: nowrap;
 }
-
 .tab:hover {
-  color: var(--text-primary, #0f172a);
+  color: #0f172a;
   background: #f8fafc;
 }
-
 .tabActive,
 .tabActive:hover {
-  color: white;
-  background: var(--clr-primary, #C8102E);
-  box-shadow: 0 1px 2px rgba(200, 16, 46, 0.25);
-
-  padding: var(--sp-2) var(--sp-5);
-  font-size: var(--font-base);
-  font-weight: var(--fw-semi);
-  font-family: var(--font);
-  color: var(--text-secondary);
-  cursor: pointer;
-  border-bottom: 3px solid transparent;
-  margin-bottom: -1px;
-  transition: color var(--ease), border-color var(--ease);
+  color: #dc2626;
+  background: #fef2f2;
+  font-weight: 700;
+  box-shadow: none;
 }
 
-.tabActive {
-  color: var(--info);
-  border-bottom-color: var(--info);
-
-}
-
-/* ─── Filter row ────────────────────────────────────────────── */
-
+/* ---- 4. Filter row — search + result count ---------------------- */
 .filterRow {
-
-  background: var(--card-bg, white);
-  padding: 8px 10px;
-  border: 1px solid var(--border, #e2e8f0);
+  background: #ffffff;
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   margin-bottom: 14px;
   flex-wrap: wrap;
   flex-shrink: 0;
-
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  margin-bottom: 14px;
-  flex-wrap: wrap;
-
 }
 
 .searchWrap {
   position: relative;
-
-  flex: 0 0 280px;
-
-  flex: 0 0 300px;
-
+  flex: 1 1 320px;
   max-width: 100%;
 }
 
@@ -613,28 +496,47 @@
   justify-content: flex-end;
 }
 
+/* Approve / Reject actions in the table row.
+   Small, refined pill buttons that don't shout — the table itself
+   is the important thing on this page, not the action buttons. */
 .approveBtn {
-  border: none;
-  background: var(--success);
-  color: var(--text-inverse);
-  padding: 5px var(--sp-3);
-  border-radius: var(--radius);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #86efac;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: var(--font-sm);
-  font-weight: var(--fw-semi);
-  font-family: var(--font);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.approveBtn:hover {
+  background: #d1fae5;
+  border-color: #34d399;
 }
 
 .rejectBtn {
-  border: none;
-  background: var(--clr-primary);
-  color: var(--text-inverse);
-  padding: 5px var(--sp-3);
-  border-radius: var(--radius);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: var(--font-sm);
-  font-weight: var(--fw-semi);
-  font-family: var(--font);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.rejectBtn:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
 }
 
 .emptyCell {
@@ -1345,4 +1247,77 @@
   h2 {
     font-size: 17px;
   }
+}
+
+
+/* =====================================================================
+   Dark mode — module-scoped overrides for the redesigned top block.
+   Mirrors the pattern used on Employees / Payroll / Memos / Attendance.
+   ===================================================================== */
+:global(html[data-theme="dark"]) .page { color: #e2e8f0; }
+
+:global(html[data-theme="dark"]) .pageBanner {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+  border-left-color: #dc2626;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.20);
+}
+:global(html[data-theme="dark"]) .pageBannerEyebrow { color: #fca5a5; }
+:global(html[data-theme="dark"]) .pageBannerTitle   { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .pageBannerSub     { color: #94a3b8; }
+:global(html[data-theme="dark"]) .bannerHint {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: #cbd5e1;
+}
+:global(html[data-theme="dark"]) .bannerHint svg { color: #94a3b8; }
+
+:global(html[data-theme="dark"]) .tile {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .tile:hover {
+  border-color: rgba(255, 255, 255, 0.20);
+}
+:global(html[data-theme="dark"]) .tileLabel { color: #94a3b8; }
+:global(html[data-theme="dark"]) .tileValue { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .tileSub   { color: #64748b; }
+
+:global(html[data-theme="dark"]) .tabBar {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .tab { color: #94a3b8; }
+:global(html[data-theme="dark"]) .tab:hover {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.05);
+}
+:global(html[data-theme="dark"]) .tabActive,
+:global(html[data-theme="dark"]) .tabActive:hover {
+  color: #fca5a5;
+  background: rgba(220, 38, 38, 0.15);
+}
+
+:global(html[data-theme="dark"]) .filterRow {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+:global(html[data-theme="dark"]) .approveBtn {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #6ee7b7;
+}
+:global(html[data-theme="dark"]) .approveBtn:hover {
+  background: rgba(16, 185, 129, 0.22);
+  border-color: rgba(16, 185, 129, 0.50);
+}
+:global(html[data-theme="dark"]) .rejectBtn {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+}
+:global(html[data-theme="dark"]) .rejectBtn:hover {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: rgba(239, 68, 68, 0.50);
 }

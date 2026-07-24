@@ -209,15 +209,18 @@ function EmployeeMemos({ employeeIdLocked = null } = {}) {
 
     <div>
 
-      {/* HERO ------------------------------------------------------- */}
+      {/* HERO — white card with red left rail, consistent with the
+          rest of the ERP. Memos created here surface directly on the
+          Employee Portal, so the header is intentionally understated
+          rather than a big red banner. */}
       <div className={styles.hero}>
-        <div>
-          <div className={styles.heroEyebrow}>
-            HR
-          </div>
-          <h1 className={styles.heroTitle}>
-            Memos
-          </h1>
+        <div className={styles.heroLeft}>
+          <div className={styles.heroEyebrow}>HR</div>
+          <h1 className={styles.heroTitle}>Memos</h1>
+          <p className={styles.heroSub}>
+            Issue warnings, appreciations, and notices. Every memo
+            published here appears on the employee&apos;s portal.
+          </p>
         </div>
 
         <button

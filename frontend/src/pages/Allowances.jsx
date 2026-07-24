@@ -205,24 +205,44 @@ export default function Allowances() {
   return (
     <div style={{ padding: 24, background: "#f1f5f9", minHeight: "calc(100vh - 80px)" }}>
 
-      {/* Hero */}
+      {/* Header — white card with red left rail, matches Employees /
+          Payroll / Memos / Leave Management design language. Eyebrow
+          text in red, dark-slate title, muted description. */}
       <div style={{
-        background: `linear-gradient(135deg, ${BVC_DARK} 0%, ${BVC_RED} 100%)`,
-        borderRadius: 16,
-        padding: "20px 26px",
-        marginBottom: 20,
-        color: "white",
+        background: "#ffffff",
+        border: "1px solid #e2e8f0",
+        borderLeft: "4px solid #dc2626",
+        borderRadius: 12,
+        padding: "20px 24px",
+        marginBottom: 16,
+        boxShadow: "0 1px 2px rgba(15, 23, 42, 0.04)",
       }}>
         <div style={{
-          fontSize: 11, fontWeight: 800, letterSpacing: 2,
-          color: BVC_GOLD, textTransform: "uppercase",
+          fontSize: 10.5,
+          fontWeight: 700,
+          letterSpacing: 1.4,
+          color: "#dc2626",
+          textTransform: "uppercase",
+          marginBottom: 6,
         }}>
-          BVC24 &middot; MD review queue
+          BVC24 &middot; MD Review Queue
         </div>
-        <div style={{ fontSize: 24, fontWeight: 900, marginTop: 4 }}>
+        <div style={{
+          fontSize: 22,
+          fontWeight: 700,
+          color: "#0f172a",
+          letterSpacing: "-0.4px",
+          lineHeight: 1.2,
+          marginBottom: 4,
+        }}>
           Employee Allowances
         </div>
-        <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>
+        <div style={{
+          fontSize: 13,
+          color: "#64748b",
+          lineHeight: 1.5,
+          maxWidth: 620,
+        }}>
           Review office-related expense claims submitted by employees and
           approve or reject them.
         </div>

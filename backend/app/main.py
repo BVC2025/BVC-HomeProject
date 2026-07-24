@@ -341,6 +341,43 @@ def _auto_migrate():
         ("project",  "PRODUCT_MODEL_ID", "INT NULL"),
         ("project",  "QUANTITY",         "INT NULL DEFAULT 1"),
         ("project",  "TARGET_DATE",      "DATE NULL"),
+        # ---- ram-development additions on project table (kept nullable so
+        #      the existing project row survives without a data migration) ----
+        ("project",  "CATEGORY_ID",          "INT NULL"),
+        ("project",  "BOM_MODE",             "VARCHAR(20) NULL"),
+        ("project",  "ESTIMATED_TOTAL_DAYS", "DECIMAL(10,2) NULL DEFAULT 0"),
+        ("project",  "CREATED_AT",           "DATETIME NULL"),
+        ("project",  "UPDATED_AT",           "DATETIME NULL"),
+        # ---- ram-development additions on project_category (also nullable
+        #      so the 13 existing category rows survive) ----
+        ("project_category", "VENDOR_ID",   "INT NULL"),
+        ("project_category", "DESCRIPTION", "VARCHAR(500) NULL"),
+        ("project_category", "CREATED_AT",  "DATETIME NULL"),
+        ("project_category", "UPDATED_AT",  "DATETIME NULL"),
+        # ---- ram-development also added inventory.PRODUCT_ID (FK to
+        #      the new product_master table). Nullable so existing rows
+        #      that pre-date the product master survive intact. ----
+        ("inventory", "PRODUCT_ID", "VARCHAR(36) NULL"),
+        # ---- CompanyMaster gained DOMAIN + WORK_HOURS (used by settings
+        #      /settings/company). Both nullable → the 500 that blocked
+        #      the logo-upload flow disappears once the columns exist. ----
+        ("company_master", "DOMAIN",     "VARCHAR(100) NULL"),
+        ("company_master", "WORK_HOURS", "DECIMAL(5,2) NULL DEFAULT 0"),
+        # ---- PayrollSlip.PAY_DATE — the admin-typed pay date from the
+        #      payslip generator form. Without this column the value
+        #      is discarded and the preview reads run.CREATED_AT instead. ----
+        ("payroll_slip", "PAY_DATE", "DATE NULL"),
+        # ---- PayrollSlip.SUBMITTED_AT — the "publish to history"
+        #      timestamp. NULL until the admin clicks Submit on the
+        #      generator form; /payroll/records only returns non-null
+        #      rows so drafts stay out of the audit-facing history. ----
+        ("payroll_slip", "SUBMITTED_AT", "DATETIME NULL"),
+        # ---- GeofenceSettings — two-tier radius model + WiFi allow-list
+        #      for the auto-checkin feature. MAX_RADIUS_METERS is the
+        #      hard block (>50m = refused); OFFICE_WIFI_IPS is the CSV
+        #      of company public IPs used as a second factor. ----
+        ("geofence_settings", "MAX_RADIUS_METERS", "INT NOT NULL DEFAULT 50"),
+        ("geofence_settings", "OFFICE_WIFI_IPS",   "VARCHAR(500) NULL"),
         ("bom_item", "ITEM_NO",          "INT NULL"),
         ("bom_item", "IMAGE_URL",        "VARCHAR(255) NULL"),
         # ---- Employee profile / resume fields ----

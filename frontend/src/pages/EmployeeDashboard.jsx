@@ -1,7 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
-
 import { useLocation, useNavigate } from "react-router-dom";
-
 
 import API, { API_BASE_URL } from "../services/api";
 import EmployeeAIAssistant from "../components/EmployeeAIAssistant";
@@ -637,14 +635,14 @@ function EmployeeDashboardBody() {
   // employee — unassigned tasks (EMPLOYEE_ID = NULL) are excluded.
   const summary = portal?.task_summary || {};
   const kpis = {
-    total_assigned: summary.total ?? 0,
-    today: summary.today ?? 0,
-    pending: summary.pending ?? 0,
-    in_progress: summary.in_progress ?? 0,
-    on_hold: summary.on_hold ?? 0,
-    completed: summary.completed ?? 0,
-    upcoming: summary.upcoming ?? 0,
-    overdue: summary.overdue ?? 0,
+    total_assigned: summary.total       ?? 0,
+    today:          summary.today       ?? 0,
+    pending:        summary.pending     ?? 0,
+    in_progress:    summary.in_progress ?? 0,
+    on_hold:        summary.on_hold     ?? 0,
+    completed:      summary.completed   ?? 0,
+    upcoming:       summary.upcoming    ?? 0,
+    overdue:        summary.overdue     ?? 0,
   };
   const taskBuckets = {
     today: portal?.tasks?.today || [],
@@ -707,7 +705,6 @@ function EmployeeDashboardBody() {
 
   return (
 
-
     <div className={styles.zShell}>
 
       {/* ---------- Left rail — Employee Self-Service navigation ---------- */}
@@ -718,6 +715,7 @@ function EmployeeDashboardBody() {
         unreadCount={unreadCount}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        profile={profile}
       />
 
       <main className={styles.zMain}>
@@ -725,332 +723,192 @@ function EmployeeDashboardBody() {
         <ZMainHeader
           title={Z_TAB_TITLES[mainTab] || "Dashboard"}
           attendanceStatus={attendanceStatus}
-          loginTime={loginTime} />
+          loginTime={loginTime}
+          productivity={productivity}
+          voiceOn={voiceOn}
+          onToggleVoice={toggleVoice}
+          voiceSupported={isVoiceSupported()}
+          overdueCount={overdueCount}
+          onBellClick={showOverdueToast}
+          onGoHome={() => setMainTab("home")}
+          onLogout={handleLogout}
+          onMenuToggle={() => setSidebarOpen((v) => !v)}
+        />
 
-        <div className={styles.page}>
+        <div className={styles.zMainContent}>
 
-          {/* ---------- TOP BAR ---------- */}
-          <header className={styles.topbar}>
-            <div className={styles.topbarLeft}>
-              <img
-                src="/logo.webp"
-                alt="logo"
-                className={styles.topbarLogo}
-              />
-              <div>
-                <div className={styles.topbarTitle}>
-                  BVC24 · Employee Portal
-                </div>
-                <div className={styles.topbarMeta}>
-                  {employeeName || profile.name} · {profile.employee_code}{" "}
-                  {profile.department ? `· ${profile.department}` : ""}
-                </div>
-              </div>
-            </div>
-
-            <div className={styles.topbarRight}>
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 800,
-                  padding: "5px 10px",
-                  borderRadius: 999,
-                  background: attendanceStatus === "LATE"
-                    ? "rgba(244,179,36,0.22)"
-                    : "rgba(34,197,94,0.22)",
-                  color: attendanceStatus === "LATE" ? "#b45309" : "#16a34a",
-                  letterSpacing: 0.4
-                }}
-                title={`Login: ${fmtTime(loginTime)}`}
-              >
-                {attendanceStatus} · {fmtTime(loginTime)}
+          {portalErr && (
+            <div className={styles.portalError}>
+              {portalErr}{" "}
+              <span className={styles.portalErrorNote}>
+                — supporting widgets below remain functional.
               </span>
-
-              {isVoiceSupported() && (
-                <button
-                  type="button"
-                  onClick={toggleVoice}
-                  className={styles.topbarBtn}
-                  title="Toggle voice alerts"
-                >
-                  {voiceOn ? "🔊" : "🔇"} Voice
-                </button>
-              )}
-
-              <button type="button" className={styles.topbarBtn} onClick={handleLogout}>
-                Logout
-              </button>
-
-              {unreadCount > 0 && (
-                <span className={styles.topbarNotifBadge}>
-                  🔔 {unreadCount}
-                </span>
-              )}
             </div>
-          </header>
+          )}
 
-          <main className={styles.mainContent}>
+          {loading && !portal && (
+            <div className={styles.loadingCard}>
+              Loading your workspace…
+            </div>
+          )}
 
-            {portalErr && (
-              <div className={styles.portalError}>
-                ⚠ {portalErr}{" "}
-                <span className={styles.portalErrorNote}>
-                  — supporting widgets below remain functional.
-                </span>
-              </div>
-            )}
+          {mainTab === "attendance" && (
+            <MyAttendancePanel employeeId={employeeId} />
+          )}
 
-            {loading && !portal && (
-              <div className={styles.loadingCard}>
-                Loading your workspace…
-              </div>
-            )}
-
-            {/* ---------- PROFILE STRIP (persistent across all tabs) ---------- */}
-            <ProfileStrip
-              profile={profile}
-
-              productivity={productivity}
-              voiceOn={voiceOn}
-              onToggleVoice={toggleVoice}
-              voiceSupported={isVoiceSupported()}
-              overdueCount={overdueCount}
-              onBellClick={showOverdueToast}
-              onGoHome={() => setMainTab("home")}
-              onLogout={handleLogout}
-              onMenuToggle={() => setSidebarOpen((v) => !v)}
-            />
-
-
-            <div className={styles.zMainContent}>
-
-              {/* ---------- TAB NAV — focuses each role-task on its own section ---------- */}
-              <PortalTabNav
-                active={mainTab}
-                onChange={setMainTab}
-                badges={{
-                  tasks: (taskBuckets.today?.length || 0)
-                    + (taskBuckets.pending?.length || 0),
-                  leave: (leaveHistory || []).filter(
-                    (l) => l.STATUS === "PENDING_APPROVAL"
-                  ).length
-                }}
-              />
-
-
-              {portalErr && (
-                <div className={styles.portalError}>
-                  {portalErr}{" "}
-                  <span className={styles.portalErrorNote}>
-                    — supporting widgets below remain functional.
-                  </span>
-                </div>
-              )}
-
-              {loading && !portal && (
-                <div className={styles.loadingCard}>
-                  Loading your workspace…
-                </div>
-              )}
-
-              {mainTab === "attendance" && (
-                <MyAttendancePanel employeeId={employeeId} />
-              )}
-
-
-              {
-                mainTab === "tasks" && (
-                  <>
-                    {/* Modern card-based tasks view; the old ZTasksPage
+          {mainTab === "tasks" && (
+            <>
+              {/* Modern card-based tasks view; the old ZTasksPage
                   table remains defined below for admin-side reuse
                   but is no longer surfaced in the ESS. */}
-                    <MyTasksPanel
-                      buckets={taskBuckets}
-                      busyMap={actionBusy}
-                      onUpdate={updateAssignmentStatus}
-                    />
+              <MyTasksPanel
+                buckets={taskBuckets}
+                busyMap={actionBusy}
+                onUpdate={updateAssignmentStatus}
+              />
+              <AssignedProjectsCard
+                projects={projects}
+                busyMap={projectBusy}
+                onUpdate={updateProjectStatus}
+              />
+              {productionStages.length > 0 && (
+                <ProductionStagesSection
+                  stages={productionStages}
+                  busyMap={stageBusy}
+                  onUpdate={updateStage}
+                />
+              )}
+            </>
+          )}
 
-                    <AssignedProjectsCard
-                      projects={projects}
-                      busyMap={projectBusy}
-                      onUpdate={updateProjectStatus}
-                    />
+          {mainTab === "leave" && (
+            <MyLeaveRequest
+              employeeId={employeeId}
+              onSubmitted={() => setLeaveStatusRefresh((n) => n + 1)}
+            />
+          )}
 
-                    {productionStages.length > 0 && (
-                      <ProductionStagesSection
-                        stages={productionStages}
-                        busyMap={stageBusy}
-                        onUpdate={updateStage}
-                      />
-                    )}
-                  </>
-                )
-              }
+          {mainTab === "permission" && (
+            <MyPermissionRequest employeeId={employeeId} />
+          )}
 
-              {
-                mainTab === "leave" && (
-                  <MyLeaveRequest
-                    employeeId={employeeId}
-                    onSubmitted={() => setLeaveStatusRefresh((n) => n + 1)}
-                  />
-                )
-              }
-
-              {
-                mainTab === "permission" && (
-                  <MyPermissionRequest employeeId={employeeId} />
-                )
-              }
-
-              {/* Personal memos — warnings, appreciations, notices issued
+          {/* Personal memos — warnings, appreciations, notices issued
               to this employee. */}
-              {
-                mainTab === "memos" && (
-                  <MyMemosPanel employeeId={employeeId} />
-                )
-              }
+          {mainTab === "memos" && (
+            <MyMemosPanel employeeId={employeeId} />
+          )}
 
-              {/* Company-wide announcements — holidays, notices, meetings,
+          {/* Company-wide announcements — holidays, notices, meetings,
               events, birthdays. Tab-based. */}
-              {
-                mainTab === "announcements" && (
-                  <MyAnnouncementsPanel employeeId={employeeId} />
-                )
-              }
+          {mainTab === "announcements" && (
+            <MyAnnouncementsPanel employeeId={employeeId} />
+          )}
 
-              {/* Performance dashboard — pulls from the star-performance
+          {/* Performance dashboard — pulls from the star-performance
               history endpoint and computes an AI overall score client-side. */}
-              {
-                mainTab === "performance" && (
-                  <MyPerformancePanel employeeId={employeeId} />
-                )
-              }
+          {mainTab === "performance" && (
+            <MyPerformancePanel employeeId={employeeId} />
+          )}
 
-              {
-                mainTab === "allowance" && (
-                  <MyAllowanceSection employeeId={employeeId} />
-                )
-              }
+          {mainTab === "allowance" && (
+            <MyAllowanceSection employeeId={employeeId} />
+          )}
 
-              {
-                mainTab === "payslips" && (
-                  <MyPayslipsPanel employeeId={employeeId} />
-                )
-              }
+          {mainTab === "payslips" && (
+            <MyPayslipsPanel employeeId={employeeId} />
+          )}
 
-              {/* ---------- New ESS home dashboard ---------- */}
-              {
-                mainTab === "home" && (
-                  <EmployeeHomeDashboard
-                    portal={portal}
-                    attendanceStatus={attendanceStatus}
-                    loginTime={loginTime}
-                    productivity={productivity}
-                    leaveBalance={leaveBalance}
-                    unreadCount={unreadCount}
-                    overdueCount={overdueCount}
-                    onNavigate={(key) => setMainTab(key)}
-                  />
-                )
-              }
+          {/* ---------- New ESS home dashboard ---------- */}
+          {mainTab === "home" && (
+            <EmployeeHomeDashboard
+              portal={portal}
+              attendanceStatus={attendanceStatus}
+              loginTime={loginTime}
+              productivity={productivity}
+              leaveBalance={leaveBalance}
+              unreadCount={unreadCount}
+              overdueCount={overdueCount}
+              onNavigate={(key) => setMainTab(key)}
+            />
+          )}
 
-              {/* ---------- Coming-soon placeholders for modules whose
+          {/* ---------- Coming-soon placeholders for modules whose
                         backend is on the roadmap ---------- */}
-              {
-                mainTab === "documents" && (
-                  <MyDocumentsPanel employeeId={employeeId} />
-                )
-              }
-              {
-                mainTab === "holidays" && (
-                  <ComingSoonPanel
-                    title="Holiday Calendar"
-                    iconKey="calendar"
-                    description="Monthly calendar with public, company and restricted holidays clearly marked."
-                    bullets={[
-                      "Public and company holidays for the year",
-                      "Restricted / optional holiday tags",
-                      "Filter by month, search by name",
-                    ]}
-                  />
-                )
-              }
-              {
-                mainTab === "notifications" && (
-                  <ComingSoonPanel
-                    title="Notifications"
-                    iconKey="bell"
-                    description="Every alert in one inbox — salary credited, leave approved, HR announcements, birthdays."
-                    bullets={[
-                      "Filter by read / unread",
-                      "Search across HR, payroll and policy events",
-                      "Mark all read in a single tap",
-                    ]}
-                  />
-                )
-              }
-              {/* announcements handled above alongside memos */}
-              {
-                mainTab === "assets" && (
-                  <MyAssetsPanel employeeId={employeeId} />
-                )
-              }
-              {
-                mainTab === "training" && (
-                  <ComingSoonPanel
-                    title="Training"
-                    iconKey="book"
-                    description="Assigned courses, completion progress and certificates you can download."
-                    bullets={[
-                      "Course thumbnail, trainer and duration",
-                      "Per-course progress bar",
-                      "Certificate download once complete",
-                    ]}
-                  />
-                )
-              }
-              {
-                mainTab === "helpdesk" && (
-                  <MyHelpDeskPanel employeeId={employeeId} />
-                )
-              }
-              {/* Performance now handled above by MyPerformancePanel. */}
-              {
-                mainTab === "orgchart" && (
-                  <ComingSoonPanel
-                    title="Organization Chart"
-                    iconKey="tree"
-                    description="See the reporting hierarchy from CEO down to your seat."
-                    bullets={[
-                      "Interactive drill-down by department",
-                      "Photos, names and designations",
-                      "Your position highlighted",
-                    ]}
-                  />
-                )
-              }
-              {
-                mainTab === "myteam" && (
-                  <ComingSoonPanel
-                    title="My Team"
-                    iconKey="users"
-                    description="For team leads and managers — team attendance, pending approvals and birthdays."
-                    bullets={[
-                      "Approve or reject leave requests",
-                      "See attendance at a glance",
-                      "Only visible to Managers and Team Leads",
-                    ]}
-                  />
-                )
-              }
-              {
-                mainTab === "settings" && (
-                  <MySettingsPanel />
-                )
-              }
+          {mainTab === "documents" && (
+            <MyDocumentsPanel employeeId={employeeId} />
+          )}
+          {mainTab === "holidays" && (
+            <ComingSoonPanel
+              title="Holiday Calendar"
+              iconKey="calendar"
+              description="Monthly calendar with public, company and restricted holidays clearly marked."
+              bullets={[
+                "Public and company holidays for the year",
+                "Restricted / optional holiday tags",
+                "Filter by month, search by name",
+              ]}
+            />
+          )}
+          {mainTab === "notifications" && (
+            <ComingSoonPanel
+              title="Notifications"
+              iconKey="bell"
+              description="Every alert in one inbox — salary credited, leave approved, HR announcements, birthdays."
+              bullets={[
+                "Filter by read / unread",
+                "Search across HR, payroll and policy events",
+                "Mark all read in a single tap",
+              ]}
+            />
+          )}
+          {/* announcements handled above alongside memos */}
+          {mainTab === "assets" && (
+            <MyAssetsPanel employeeId={employeeId} />
+          )}
+          {mainTab === "training" && (
+            <ComingSoonPanel
+              title="Training"
+              iconKey="book"
+              description="Assigned courses, completion progress and certificates you can download."
+              bullets={[
+                "Course thumbnail, trainer and duration",
+                "Per-course progress bar",
+                "Certificate download once complete",
+              ]}
+            />
+          )}
+          {mainTab === "helpdesk" && (
+            <MyHelpDeskPanel employeeId={employeeId} />
+          )}
+          {/* Performance now handled above by MyPerformancePanel. */}
+          {mainTab === "orgchart" && (
+            <ComingSoonPanel
+              title="Organization Chart"
+              iconKey="tree"
+              description="See the reporting hierarchy from CEO down to your seat."
+              bullets={[
+                "Interactive drill-down by department",
+                "Photos, names and designations",
+                "Your position highlighted",
+              ]}
+            />
+          )}
+          {mainTab === "myteam" && (
+            <ComingSoonPanel
+              title="My Team"
+              iconKey="users"
+              description="For team leads and managers — team attendance, pending approvals and birthdays."
+              bullets={[
+                "Approve or reject leave requests",
+                "See attendance at a glance",
+                "Only visible to Managers and Team Leads",
+              ]}
+            />
+          )}
+          {mainTab === "settings" && (
+            <MySettingsPanel />
+          )}
 
-            </div>
-          </main >
         </div>
       </main>
 
@@ -1066,7 +924,7 @@ function EmployeeDashboardBody() {
         onCancel={() => setLogoutOpen(false)}
         onConfirm={performLogout}
       />
-    </div >
+    </div>
   );
 }
 
@@ -1082,17 +940,13 @@ function EmployeeDashboardBody() {
 function PortalTabNav({ active, onChange, badges = {} }) {
 
   const tabs = [
-
-    { key: "overview", label: "Overview" },
-    { key: "attendance", label: "Attendance" },
-    { key: "leave", label: "Leave", badge: badges.leave },
-    { key: "memos", label: "Memos" },
-    { key: "allowance", label: "Allowance" },
-    { key: "payslips", label: "Payslips" },
-    { key: "overview", label: "Overview" },
-    { key: "attendance", label: "Attendance" },
-    { key: "tasks", label: "Tasks", badge: badges.tasks },
-
+    { key: "overview",    label: "Overview"    },
+    { key: "attendance",  label: "Attendance"  },
+    { key: "tasks",       label: "Tasks",       badge: badges.tasks },
+    { key: "leave",       label: "Leave",       badge: badges.leave },
+    { key: "memos",       label: "Memos"       },
+    { key: "allowance",   label: "Allowance"   },
+    { key: "payslips",    label: "Payslips"    },
     { key: "performance", label: "Performance" }
   ];
 
@@ -1170,24 +1024,24 @@ function applyOptimisticStatus(portal, assignmentId, newStatus) {
 // =================================================================
 
 const SVG_PATHS = {
-  overview: "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
-  attendance: "M19 3h-1V1h-2v2H8V1H6v2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 18H5V9h14v12z",
-  tasks: "M9 16.17 4.83 12l-1.41 1.41L9 19 21 7l-1.41-1.41L9 16.17z",
-  leave: "M12 2C8 2 5 5 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-4-3-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z",
-  memos: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z",
-  allowance: "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 14.09v1.41h-2v-1.42c-1.27-.27-2.36-1.08-2.44-2.5h1.47c.08.81.62 1.43 1.97 1.43 1.45 0 1.78-.72 1.78-1.18 0-.61-.33-1.18-1.97-1.58-1.82-.44-3.06-1.18-3.06-2.66 0-1.24.99-2.05 2.25-2.32V5.87h2v1.42c1.36.34 2.04 1.38 2.08 2.51h-1.46c-.04-.86-.5-1.43-1.69-1.43-1.14 0-1.81.51-1.81 1.24 0 .64.5 1.06 1.97 1.43 1.47.37 3.06.99 3.06 2.83 0 1.31-.99 2.04-2.26 2.31z",
-  payslips: "M19.5 3.5 18 2l-1.5 1.5L15 2l-1.5 1.5L12 2l-1.5 1.5L9 2 7.5 3.5 6 2v14H3v3a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3V2l-1.5 1.5zM14 19v.5a1.5 1.5 0 0 1-3 0V19H5v-4h11v4zm5-.5a1.5 1.5 0 0 1-3 0V13H8V4h11v14.5zM10 7h7v2h-7zm0 4h7v2h-7z",
+  overview:    "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
+  attendance:  "M19 3h-1V1h-2v2H8V1H6v2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 18H5V9h14v12z",
+  tasks:       "M9 16.17 4.83 12l-1.41 1.41L9 19 21 7l-1.41-1.41L9 16.17z",
+  leave:       "M12 2C8 2 5 5 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-4-3-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z",
+  memos:       "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z",
+  allowance:   "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 14.09v1.41h-2v-1.42c-1.27-.27-2.36-1.08-2.44-2.5h1.47c.08.81.62 1.43 1.97 1.43 1.45 0 1.78-.72 1.78-1.18 0-.61-.33-1.18-1.97-1.58-1.82-.44-3.06-1.18-3.06-2.66 0-1.24.99-2.05 2.25-2.32V5.87h2v1.42c1.36.34 2.04 1.38 2.08 2.51h-1.46c-.04-.86-.5-1.43-1.69-1.43-1.14 0-1.81.51-1.81 1.24 0 .64.5 1.06 1.97 1.43 1.47.37 3.06.99 3.06 2.83 0 1.31-.99 2.04-2.26 2.31z",
+  payslips:    "M19.5 3.5 18 2l-1.5 1.5L15 2l-1.5 1.5L12 2l-1.5 1.5L9 2 7.5 3.5 6 2v14H3v3a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3V2l-1.5 1.5zM14 19v.5a1.5 1.5 0 0 1-3 0V19H5v-4h11v4zm5-.5a1.5 1.5 0 0 1-3 0V13H8V4h11v14.5zM10 7h7v2h-7zm0 4h7v2h-7z",
   performance: "M3 13h2v8H3zm6-4h2v12H9zm6-6h2v18h-2z",
-  clock: "M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z",
-  bell: "M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 0 0-5-5.91V4a1 1 0 0 0-2 0v1.09A6 6 0 0 0 6 11v5l-2 2v1h16v-1z",
-  logout: "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8v-2H4z",
-  mic: "M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5.91-3a1 1 0 0 0-1.98.34A4 4 0 0 1 12 15a4 4 0 0 1-3.93-3.66 1 1 0 0 0-1.98.34A6 6 0 0 0 11 16.92V19H8v2h8v-2h-3v-2.08a6 6 0 0 0 4.91-5.92z",
-  micOff: "M19 11h-1.7c0 .58-.1 1.13-.27 1.64l1.27 1.27a6 6 0 0 0 .7-2.91zM15 11.16V5a3 3 0 0 0-6 0v.18L15 11.16zM3.41 2 2 3.41l6 6V11a3 3 0 0 0 4.94 2.31l1.42 1.42a4 4 0 0 1-6.34-3.39A1 1 0 0 0 6.04 11a6 6 0 0 0 4.96 5.92V19H8v2h8v-2h-3v-2.08c.85-.13 1.64-.45 2.34-.92L20.59 22 22 20.59 3.41 2z",
-  play: "M8 5v14l11-7L8 5z",
-  pause: "M6 4h4v16H6zm8 0h4v16h-4z",
-  check: "M9 16.17 4.83 12l-1.41 1.41L9 19 21 7l-1.41-1.41L9 16.17z",
-  search: "M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19 15.5 14zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z",
-  rotate: "M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6a5.92 5.92 0 0 1 4.22 1.78L13 11h7V4z"
+  clock:       "M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z",
+  bell:        "M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 0 0-5-5.91V4a1 1 0 0 0-2 0v1.09A6 6 0 0 0 6 11v5l-2 2v1h16v-1z",
+  logout:      "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8v-2H4z",
+  mic:         "M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5.91-3a1 1 0 0 0-1.98.34A4 4 0 0 1 12 15a4 4 0 0 1-3.93-3.66 1 1 0 0 0-1.98.34A6 6 0 0 0 11 16.92V19H8v2h8v-2h-3v-2.08a6 6 0 0 0 4.91-5.92z",
+  micOff:      "M19 11h-1.7c0 .58-.1 1.13-.27 1.64l1.27 1.27a6 6 0 0 0 .7-2.91zM15 11.16V5a3 3 0 0 0-6 0v.18L15 11.16zM3.41 2 2 3.41l6 6V11a3 3 0 0 0 4.94 2.31l1.42 1.42a4 4 0 0 1-6.34-3.39A1 1 0 0 0 6.04 11a6 6 0 0 0 4.96 5.92V19H8v2h8v-2h-3v-2.08c.85-.13 1.64-.45 2.34-.92L20.59 22 22 20.59 3.41 2z",
+  play:        "M8 5v14l11-7L8 5z",
+  pause:       "M6 4h4v16H6zm8 0h4v16h-4z",
+  check:       "M9 16.17 4.83 12l-1.41 1.41L9 19 21 7l-1.41-1.41L9 16.17z",
+  search:      "M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19 15.5 14zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z",
+  rotate:      "M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6a5.92 5.92 0 0 1 4.22 1.78L13 11h7V4z"
 };
 
 function Ico({ name, size = 16, style }) {
@@ -1313,14 +1167,14 @@ function ZTopBar({
 function ZTabStrip({ active, onChange, badges = {} }) {
 
   const tabs = [
-    { key: "overview", label: "Overview", icon: "overview" },
-    { key: "attendance", label: "Attendance", icon: "attendance" },
-    { key: "tasks", label: "Tasks", icon: "tasks", badge: badges.tasks },
-    { key: "leave", label: "Leave", icon: "leave", badge: badges.leave },
-    { key: "permission", label: "Permission", icon: "clock" },
-    { key: "memos", label: "Memos", icon: "memos" },
-    { key: "allowance", label: "Allowance", icon: "allowance" },
-    { key: "payslips", label: "Payslips", icon: "payslips" },
+    { key: "overview",    label: "Overview",    icon: "overview" },
+    { key: "attendance",  label: "Attendance",  icon: "attendance" },
+    { key: "tasks",       label: "Tasks",       icon: "tasks", badge: badges.tasks },
+    { key: "leave",       label: "Leave",       icon: "leave", badge: badges.leave },
+    { key: "permission",  label: "Permission",  icon: "clock" },
+    { key: "memos",       label: "Memos",       icon: "memos" },
+    { key: "allowance",   label: "Allowance",   icon: "allowance" },
+    { key: "payslips",    label: "Payslips",    icon: "payslips" },
     { key: "performance", label: "Performance", icon: "performance" }
   ];
 
@@ -1355,25 +1209,25 @@ function ZTabStrip({ active, onChange, badges = {} }) {
 // =================================================================
 
 const Z_TAB_TITLES = {
-  home: "Dashboard",
-  attendance: "Attendance",
-  tasks: "Tasks",
-  leave: "Leave",
-  permission: "Permission",
-  memos: "Memos",
-  allowance: "Allowance",
-  payslips: "Payslips",
-  documents: "Documents",
-  holidays: "Holiday Calendar",
+  home:          "Dashboard",
+  attendance:    "Attendance",
+  tasks:         "Tasks",
+  leave:         "Leave",
+  permission:    "Permission",
+  memos:         "Memos",
+  allowance:     "Allowance",
+  payslips:      "Payslips",
+  documents:     "Documents",
+  holidays:      "Holiday Calendar",
   notifications: "Notifications",
   announcements: "Announcements",
-  assets: "My Assets",
-  training: "Training",
-  helpdesk: "Help Desk",
-  performance: "Performance",
-  orgchart: "Organization Chart",
-  myteam: "My Team",
-  settings: "Settings",
+  assets:        "My Assets",
+  training:      "Training",
+  helpdesk:      "Help Desk",
+  performance:   "Performance",
+  orgchart:      "Organization Chart",
+  myteam:        "My Team",
+  settings:      "Settings",
 };
 
 function ZSidebar({
@@ -1397,13 +1251,13 @@ function ZSidebar({
     .toUpperCase() || "?";
 
   const items = [
-    { key: "attendance", label: "Attendance", icon: "attendance" },
-    { key: "tasks", label: "Tasks", icon: "tasks", badge: badges.tasks },
-    { key: "leave", label: "Leave", icon: "leave", badge: badges.leave },
-    { key: "permission", label: "Permission", icon: "clock" },
-    { key: "memos", label: "Memos", icon: "memos" },
-    { key: "allowance", label: "Allowance", icon: "allowance" },
-    { key: "payslips", label: "Payslips", icon: "payslips" },
+    { key: "attendance",  label: "Attendance",  icon: "attendance" },
+    { key: "tasks",       label: "Tasks",       icon: "tasks", badge: badges.tasks },
+    { key: "leave",       label: "Leave",       icon: "leave", badge: badges.leave },
+    { key: "permission",  label: "Permission",  icon: "clock" },
+    { key: "memos",       label: "Memos",       icon: "memos" },
+    { key: "allowance",   label: "Allowance",   icon: "allowance" },
+    { key: "payslips",    label: "Payslips",    icon: "payslips" },
     { key: "performance", label: "Performance", icon: "performance" }
   ];
 
@@ -1507,8 +1361,8 @@ function ZMainHeader({
           title="Menu"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="2.2"
-            strokeLinecap="round" strokeLinejoin="round">
+               stroke="currentColor" strokeWidth="2.2"
+               strokeLinecap="round" strokeLinejoin="round">
             <path d="M4 6h16" />
             <path d="M4 12h16" />
             <path d="M4 18h16" />
@@ -1585,16 +1439,16 @@ function ZMainHeader({
 // =================================================================
 
 const Z_TASK_STATUS_PILL = {
-  PENDING: { label: "Pending", cls: "zPillNeutral" },
+  PENDING:     { label: "Pending",     cls: "zPillNeutral" },
   IN_PROGRESS: { label: "In Progress", cls: "zPillInfo" },
-  ON_HOLD: { label: "On Hold", cls: "zPillWarn" },
-  COMPLETED: { label: "Completed", cls: "zPillSuccess" }
+  ON_HOLD:     { label: "On Hold",     cls: "zPillWarn" },
+  COMPLETED:   { label: "Completed",   cls: "zPillSuccess" }
 };
 
 const Z_PRIORITY_PILL = {
-  HIGH: "zPillDanger",
+  HIGH:   "zPillDanger",
   MEDIUM: "zPillWarn",
-  LOW: "zPillNeutral"
+  LOW:    "zPillNeutral"
 };
 
 function ZTasksPage({ buckets, busyMap, onUpdate }) {
@@ -1603,20 +1457,20 @@ function ZTasksPage({ buckets, busyMap, onUpdate }) {
   const [q, setQ] = useState("");
 
   const filters = [
-    { key: "today", label: "Today", count: buckets.today?.length || 0 },
-    { key: "pending", label: "Pending", count: buckets.pending?.length || 0 },
+    { key: "today",       label: "Today",       count: buckets.today?.length || 0 },
+    { key: "pending",     label: "Pending",     count: buckets.pending?.length || 0 },
     { key: "in_progress", label: "In Progress", count: buckets.in_progress?.length || 0 },
-    { key: "on_hold", label: "On Hold", count: buckets.on_hold?.length || 0 },
-    { key: "upcoming", label: "Upcoming", count: buckets.upcoming?.length || 0 },
-    { key: "completed", label: "Completed", count: buckets.completed?.length || 0 }
+    { key: "on_hold",     label: "On Hold",     count: buckets.on_hold?.length || 0 },
+    { key: "upcoming",    label: "Upcoming",    count: buckets.upcoming?.length || 0 },
+    { key: "completed",   label: "Completed",   count: buckets.completed?.length || 0 }
   ];
 
   const all = buckets[filter] || [];
   const qNorm = q.trim().toLowerCase();
   const rows = qNorm
     ? all.filter((t) =>
-      (t.title || "").toLowerCase().includes(qNorm) ||
-      (t.project_name || "").toLowerCase().includes(qNorm))
+        (t.title || "").toLowerCase().includes(qNorm) ||
+        (t.project_name || "").toLowerCase().includes(qNorm))
     : all;
 
   return (
@@ -1711,19 +1565,19 @@ function ZTaskRow({ task, busy, onUpdate }) {
     switch (status) {
       case "PENDING":
         return [
-          { target: "IN_PROGRESS", label: "Start", icon: "play", cls: "zActionPrimary" },
-          { target: "ON_HOLD", label: "Hold", icon: "pause", cls: "zActionWarn" },
-          { target: "COMPLETED", label: "Done", icon: "check", cls: "zActionSuccess" }
+          { target: "IN_PROGRESS", label: "Start", icon: "play",  cls: "zActionPrimary" },
+          { target: "ON_HOLD",     label: "Hold",  icon: "pause", cls: "zActionWarn" },
+          { target: "COMPLETED",   label: "Done",  icon: "check", cls: "zActionSuccess" }
         ];
       case "IN_PROGRESS":
         return [
-          { target: "ON_HOLD", label: "Hold", icon: "pause", cls: "zActionWarn" },
+          { target: "ON_HOLD",   label: "Hold", icon: "pause", cls: "zActionWarn" },
           { target: "COMPLETED", label: "Done", icon: "check", cls: "zActionSuccess" }
         ];
       case "ON_HOLD":
         return [
-          { target: "IN_PROGRESS", label: "Resume", icon: "play", cls: "zActionPrimary" },
-          { target: "COMPLETED", label: "Done", icon: "check", cls: "zActionSuccess" }
+          { target: "IN_PROGRESS", label: "Resume", icon: "play",  cls: "zActionPrimary" },
+          { target: "COMPLETED",   label: "Done",   icon: "check", cls: "zActionSuccess" }
         ];
       case "COMPLETED":
       default:
@@ -2186,10 +2040,10 @@ function AssignedProjectsCard({ projects, busyMap = {}, onUpdate }) {
   // quick-buttons under each card. Bulk-updates every task assigned to
   // this employee within the project via PATCH /projects/:id/status.
   const PROJECT_STATUS_BUTTONS = [
-    { key: "PENDING", label: "Pending" },
+    { key: "PENDING",     label: "Pending"     },
     { key: "IN_PROGRESS", label: "In Progress" },
-    { key: "ON_HOLD", label: "On Hold" },
-    { key: "COMPLETED", label: "Completed" }
+    { key: "ON_HOLD",     label: "On Hold"     },
+    { key: "COMPLETED",   label: "Completed"   }
   ];
 
   return (
@@ -2294,20 +2148,20 @@ function PerformanceBreakdownCard({ productivity }) {
 
   // Task completion / memo / star-performance mirror server-side fields
   // that may not yet be populated — fall back to 0 so the UI stays clean.
-  const attendancePct = Number(productivity?.attendance_pct ?? 0);
-  const taskDonePct = Number(productivity?.task_completion_pct ?? productivity?.project_contribution_pct ?? 0);
-  const onTimePct = Number(productivity?.on_time_pct ?? 0);
-  const memoPct = Number(productivity?.memo_pct ?? 0);
-  const starPct = Number(productivity?.star_pct ?? productivity?.score ?? 0);
-  const ratingStars = Math.round(Number(productivity?.rating ?? 0));
+  const attendancePct  = Number(productivity?.attendance_pct        ?? 0);
+  const taskDonePct    = Number(productivity?.task_completion_pct   ?? productivity?.project_contribution_pct ?? 0);
+  const onTimePct      = Number(productivity?.on_time_pct           ?? 0);
+  const memoPct        = Number(productivity?.memo_pct              ?? 0);
+  const starPct        = Number(productivity?.star_pct              ?? productivity?.score ?? 0);
+  const ratingStars    = Math.round(Number(productivity?.rating     ?? 0));
 
   const rows = [
-    { label: "Attendance", value: attendancePct, suffix: "%", bar: attendancePct },
-    { label: "Task Completion", value: taskDonePct, suffix: "%", bar: taskDonePct },
-    { label: "On-Time Completion", value: onTimePct, suffix: "%", bar: onTimePct },
-    { label: "Memo", value: memoPct, suffix: "%", bar: memoPct },
-    { label: "Star Performance", value: starPct, suffix: "%", bar: starPct },
-    { label: "Overall Rating", value: null, suffix: "", bar: null, stars: ratingStars }
+    { label: "Attendance",         value: attendancePct, suffix: "%", bar: attendancePct },
+    { label: "Task Completion",    value: taskDonePct,   suffix: "%", bar: taskDonePct   },
+    { label: "On-Time Completion", value: onTimePct,     suffix: "%", bar: onTimePct     },
+    { label: "Memo",               value: memoPct,       suffix: "%", bar: memoPct       },
+    { label: "Star Performance",   value: starPct,       suffix: "%", bar: starPct       },
+    { label: "Overall Rating",     value: null,          suffix: "",  bar: null, stars: ratingStars }
   ];
 
   return (
@@ -2495,8 +2349,8 @@ function ZAttItem({ label, value, sub, tone = "slate" }) {
   const toneCls = {
     green: styles.zAttItemGreen,
     amber: styles.zAttItemAmber,
-    red: styles.zAttItemRed,
-    blue: styles.zAttItemBlue,
+    red:   styles.zAttItemRed,
+    blue:  styles.zAttItemBlue,
     slate: styles.zAttItemSlate,
   }[tone] || styles.zAttItemSlate;
 
@@ -2521,17 +2375,17 @@ function MyAttendanceOverview({
     month: "long", year: "numeric"
   });
 
-  const present = Number(attendance?.present ?? 0);
-  const absent = Number(attendance?.absent ?? 0);
-  const lateCnt = Number(attendance?.late ?? 0);
-  const leaveCnt = Number(attendance?.leave ?? 0);
-  const permCnt = Number(attendance?.permission ?? 0);
-  const pct = Number(attendance?.percentage ?? 0);
+  const present    = Number(attendance?.present    ?? 0);
+  const absent     = Number(attendance?.absent     ?? 0);
+  const lateCnt    = Number(attendance?.late       ?? 0);
+  const leaveCnt   = Number(attendance?.leave      ?? 0);
+  const permCnt    = Number(attendance?.permission ?? 0);
+  const pct        = Number(attendance?.percentage ?? 0);
   const workingDays =
     Number(attendance?.working_days ?? attendance?.total_days ?? 0);
 
   const casual = leaveBalance?.CASUAL || { total: 0, used: 0, remaining: 0 };
-  const sick = leaveBalance?.SICK || { total: 0, used: 0, remaining: 0 };
+  const sick   = leaveBalance?.SICK   || { total: 0, used: 0, remaining: 0 };
   const earned = leaveBalance?.EARNED || { total: 0, used: 0, remaining: 0 };
 
   const pendingLeave = (leaveHistory || []).filter(
@@ -2554,11 +2408,11 @@ function MyAttendanceOverview({
         </div>
 
         <div className={styles.zAttStatRow}>
-          <ZAttItem label="Present" value={present} tone="green" />
-          <ZAttItem label="Late" value={lateCnt} tone="amber" />
-          <ZAttItem label="Absent" value={absent} tone="red" />
-          <ZAttItem label="Leave" value={leaveCnt} tone="amber" />
-          <ZAttItem label="Permission" value={permCnt} tone="blue" />
+          <ZAttItem label="Present"    value={present}  tone="green" />
+          <ZAttItem label="Late"       value={lateCnt}  tone="amber" />
+          <ZAttItem label="Absent"     value={absent}   tone="red"   />
+          <ZAttItem label="Leave"      value={leaveCnt} tone="amber" />
+          <ZAttItem label="Permission" value={permCnt}  tone="blue"  />
           <div className={styles.zAttDivider} />
           <ZAttItem label="Attendance" value={`${pct}%`} tone="slate" />
           {workingDays > 0 && (
@@ -3941,3 +3795,4 @@ function MyMemoDetail({ memo, onClose, onAcknowledge, ackBusy }) {
 
 
 export default EmployeeDashboard;
+
