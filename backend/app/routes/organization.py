@@ -1058,8 +1058,7 @@ def list_org_roles(
             "DESCRIPTION": r.DESCRIPTION,
             "DEPARTMENT_ID": r.DEPARTMENT_ID,
             "DEPARTMENT_NAME": d.NAME if d else None,
-            "VENDOR_ID": r.VENDOR_ID,
-            "CREATED_AT": r.CREATED_AT.isoformat() if r.CREATED_AT else None,
+            "VENDOR_ID": r.VENDOR_ID
         }
         for r, d in rows
     ]

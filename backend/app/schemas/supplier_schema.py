@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -25,21 +25,6 @@ class SupplierCreate(BaseModel):
     STATUS: str = "ACTIVE"
     NOTES: Optional[str] = None
     VENDOR_ID: int = 1
-    # new fields
-    REGISTRATION_NO: Optional[str] = None
-    COMPANY_TYPE: Optional[str] = None
-    WEBSITE: Optional[str] = None
-    ALTERNATE_EMAIL: Optional[str] = None
-    ALTERNATE_PHONE: Optional[str] = None
-    YEARS_IN_BUSINESS: Optional[int] = None
-    ANNUAL_TURNOVER: Optional[float] = None
-    EMPLOYEE_COUNT: Optional[int] = None
-    CERTIFICATIONS: Optional[List[str]] = None
-    ADVANCE_PERCENT: Optional[float] = None
-    CREDIT_DAYS: Optional[int] = None
-    MINIMUM_ORDER_VALUE: Optional[float] = None
-    LEAD_TIME_DAYS: Optional[int] = None
-    DELIVERY_MODES: Optional[List[str]] = None
 
 
 class SupplierUpdate(BaseModel):
@@ -62,18 +47,3 @@ class SupplierUpdate(BaseModel):
     PAYMENT_TERMS: Optional[str] = None
     STATUS: Optional[str] = None
     NOTES: Optional[str] = None
-    # new fields
-    REGISTRATION_NO: Optional[str] = None
-    COMPANY_TYPE: Optional[str] = None
-    WEBSITE: Optional[str] = None
-    ALTERNATE_EMAIL: Optional[str] = None
-    ALTERNATE_PHONE: Optional[str] = None
-    YEARS_IN_BUSINESS: Optional[int] = None
-    ANNUAL_TURNOVER: Optional[float] = None
-    EMPLOYEE_COUNT: Optional[int] = None
-    CERTIFICATIONS: Optional[List[str]] = None
-    ADVANCE_PERCENT: Optional[float] = None
-    CREDIT_DAYS: Optional[int] = None
-    MINIMUM_ORDER_VALUE: Optional[float] = None
-    LEAD_TIME_DAYS: Optional[int] = None
-    DELIVERY_MODES: Optional[List[str]] = None

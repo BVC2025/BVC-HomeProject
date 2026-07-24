@@ -1,8 +1,0 @@
-/* Tailwind v4 entry — imported once from main.jsx, generates utility
-   classes on demand. Coexists with the existing CSS Modules — Tailwind
-   utilities are scoped inline via className strings, they don't conflict
-   with .module.css rules that own their own class names.
-
-   Only the new Performance Dashboard uses Tailwind today; everything
-   else in the app continues to use CSS Modules. */
-@import "tailwindcss";

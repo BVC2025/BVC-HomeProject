@@ -1,38 +1,21 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-
-from app.utils.db_error_handler import raise_db_error
 from typing import Optional, List
 from pydantic import BaseModel
 import io
 import csv
-import json
-import logging
 import openpyxl
 
-log = logging.getLogger(__name__)
-
 from app.database.database import get_db
-from app.utils.datetime_utils import now_ist
 
 from app.models.models import (
     ProjectCategory,
     Project,
     TaskTemplate,
-    ProjectPricing,
     Department,
     Role,
     CustomField,
     CustomFieldTableValue,
-    ProjectQuotationTemplate,
-)
-from app.services.company_settings_service import get_company_settings
-from app.services.project_quotation_service import (
-    build_default_quotation_content,
-    default_quotation_number,
-    render_quotation_html,
-    sync_final_price_into_quotation,
 )
 
 
@@ -107,40 +90,6 @@ class TaskTemplateUpdate(BaseModel):
 class ReorderItem(BaseModel):
     id: str
     sequence_number: int
-
-
-class ProjectPricingCreate(BaseModel):
-    PROJECT_ID: str
-    CURRENCY: str = "INR"
-    ORIGINAL_PRICE: float
-    MINIMUM_NEGOTIATION_PRICE: Optional[float] = None
-    NEGOTIATION_PERCENT: Optional[float] = None
-    PACKING_CHARGE: float = 0
-    TRANSPORTATION_CHARGE: float = 0
-    INSTALLATION_CHARGE: float = 0
-    SERVICE_CHARGE: float = 0
-    ADDITIONAL_CHARGES: float = 0
-    TAX_AMOUNT: float = 0
-    DISCOUNT_AMOUNT: float = 0
-    REMARKS: Optional[str] = None
-    IS_ACTIVE: bool = True
-    VENDOR_ID: int = 1
-
-
-class ProjectPricingUpdate(BaseModel):
-    CURRENCY: Optional[str] = None
-    ORIGINAL_PRICE: Optional[float] = None
-    MINIMUM_NEGOTIATION_PRICE: Optional[float] = None
-    NEGOTIATION_PERCENT: Optional[float] = None
-    PACKING_CHARGE: Optional[float] = None
-    TRANSPORTATION_CHARGE: Optional[float] = None
-    INSTALLATION_CHARGE: Optional[float] = None
-    SERVICE_CHARGE: Optional[float] = None
-    ADDITIONAL_CHARGES: Optional[float] = None
-    TAX_AMOUNT: Optional[float] = None
-    DISCOUNT_AMOUNT: Optional[float] = None
-    REMARKS: Optional[str] = None
-    IS_ACTIVE: Optional[bool] = None
 
 
 # =========================
@@ -268,16 +217,9 @@ def create_category(data: CategoryCreate, db: Session = Depends(get_db)):
         DESCRIPTION=data.DESCRIPTION,
         VENDOR_ID=data.VENDOR_ID
     )
-    try:
-        db.add(cat)
-        db.commit()
-        db.refresh(cat)
-    except IntegrityError as e:
-        db.rollback()
-        raise_db_error(e, "create project category")
-    except Exception as e:
-        db.rollback()
-        raise_db_error(e, "create project category")
+    db.add(cat)
+    db.commit()
+    db.refresh(cat)
     return {"message": "Category created", "ID": cat.ID}
 
 
@@ -290,14 +232,7 @@ def update_category(category_id: str, data: CategoryUpdate, db: Session = Depend
         cat.NAME = data.NAME
     if data.DESCRIPTION is not None:
         cat.DESCRIPTION = data.DESCRIPTION
-    try:
-        db.commit()
-    except IntegrityError as e:
-        db.rollback()
-        raise_db_error(e, "update project category")
-    except Exception as e:
-        db.rollback()
-        raise_db_error(e, "update project category")
+    db.commit()
     return {"message": "Category updated"}
 
 
@@ -315,15 +250,8 @@ def delete_category(category_id: str, db: Session = Depends(get_db)):
         CustomFieldTableValue.TABLE_NAME == "project_category",
         CustomFieldTableValue.TABLE_ROW_ID == str(category_id),
     ).delete(synchronize_session=False)
-    try:
-        db.delete(cat)
-        db.commit()
-    except IntegrityError as e:
-        db.rollback()
-        raise_db_error(e, "delete project category")
-    except Exception as e:
-        db.rollback()
-        raise_db_error(e, "delete project category")
+    db.delete(cat)
+    db.commit()
     return {"message": "Category deleted"}
 
 
@@ -420,21 +348,6 @@ def create_project(data: ProjectCreate, db: Session = Depends(get_db)):
     db.add(project)
     db.flush()
 
-    # Auto-create a default quotation template for this project (Project
-    # Quotation Management, phase 1) — every project gets its own independent
-    # quotation document, seeded from the standard default layout.
-    _company = get_company_settings(db, data.VENDOR_ID)
-    _content = build_default_quotation_content(project, _company)
-    _qtn = ProjectQuotationTemplate(
-        PROJECT_ID=project.ID,
-        VENDOR_ID=data.VENDOR_ID,
-        QUOTATION_NUMBER=default_quotation_number(project, _company, now_ist().date()),
-        QUOTATION_DATE=now_ist().date(),
-        CONTENT_JSON=json.dumps(_content),
-    )
-    _qtn.RENDERED_HTML = render_quotation_html(_qtn, _company)
-    db.add(_qtn)
-
     if data.tasks:
         for i, t in enumerate(data.tasks):
             task = TaskTemplate(
@@ -452,15 +365,8 @@ def create_project(data: ProjectCreate, db: Session = Depends(get_db)):
         db.flush()
         _recalc_project_duration(project, db)
 
-    try:
-        db.commit()
-        db.refresh(project)
-    except IntegrityError as e:
-        db.rollback()
-        raise_db_error(e, "create project")
-    except Exception as e:
-        db.rollback()
-        raise_db_error(e, "create project")
+    db.commit()
+    db.refresh(project)
     return {"message": "Project created", "ID": project.ID}
 
 
@@ -497,14 +403,7 @@ def update_project(project_id: str, data: ProjectUpdate, db: Session = Depends(g
             db.add(task)
         db.flush()
         _recalc_project_duration(project, db)
-    try:
-        db.commit()
-    except IntegrityError as e:
-        db.rollback()
-        raise_db_error(e, "update project")
-    except Exception as e:
-        db.rollback()
-        raise_db_error(e, "update project")
+    db.commit()
     return {"message": "Project updated"}
 
 
@@ -520,368 +419,13 @@ def delete_project(project_id: str, db: Session = Depends(get_db)):
             CustomFieldTableValue.TABLE_NAME == "task_template",
             CustomFieldTableValue.TABLE_ROW_ID.in_(task_ids),
         ).delete(synchronize_session=False)
-    # Clean up project pricing CF values before cascade deletes the 1:1 pricing row
-    pricing_row = db.query(ProjectPricing).filter(ProjectPricing.PROJECT_ID == project_id).first()
-    if pricing_row:
-        db.query(CustomFieldTableValue).filter(
-            CustomFieldTableValue.TABLE_NAME == "project_pricing",
-            CustomFieldTableValue.TABLE_ROW_ID == str(pricing_row.ID),
-        ).delete(synchronize_session=False)
     db.query(CustomFieldTableValue).filter(
         CustomFieldTableValue.TABLE_NAME == "project",
         CustomFieldTableValue.TABLE_ROW_ID == str(project_id),
     ).delete(synchronize_session=False)
-    try:
-        db.delete(project)
-        db.commit()
-    except IntegrityError as e:
-        db.rollback()
-        raise_db_error(e, "delete project")
-    except Exception as e:
-        db.rollback()
-        raise_db_error(e, "delete project")
-    return {"message": "Project deleted"}
-
-
-# =========================
-# PROJECT PRICING
-# =========================
-
-def _compute_final_price(original, packing, transport, installation, service, additional, tax, discount) -> float:
-    return float(original or 0) + float(packing or 0) + float(transport or 0) + float(installation or 0) \
-        + float(service or 0) + float(additional or 0) + float(tax or 0) - float(discount or 0)
-
-
-def _push_pricing_to_quotation(db: Session, pricing: ProjectPricing) -> None:
-    """Best-effort: whenever pricing is saved, push FINAL_PRICE into that
-    project's quotation (if one exists) so the Amount column stays in sync
-    automatically — never lets a sync failure affect the pricing save that
-    already succeeded."""
-    try:
-        quotation = db.query(ProjectQuotationTemplate).filter(
-            ProjectQuotationTemplate.PROJECT_ID == pricing.PROJECT_ID
-        ).first()
-        if not quotation:
-            return
-        company = get_company_settings(db, pricing.VENDOR_ID)
-        if sync_final_price_into_quotation(quotation, pricing, company):
-            db.commit()
-    except Exception:
-        db.rollback()
-        log.warning("Could not sync pricing into quotation for project %s", pricing.PROJECT_ID, exc_info=True)
-
-
-def _serialize_pricing(p: ProjectPricing, project_name: str = None, category_id: str = None) -> dict:
-    return {
-        "ID": p.ID,
-        "PROJECT_ID": p.PROJECT_ID,
-        "PROJECT_NAME": project_name,
-        "CATEGORY_ID": category_id,
-        "VENDOR_ID": p.VENDOR_ID,
-        "CURRENCY": p.CURRENCY,
-        "ORIGINAL_PRICE": float(p.ORIGINAL_PRICE) if p.ORIGINAL_PRICE is not None else None,
-        "MINIMUM_NEGOTIATION_PRICE": float(p.MINIMUM_NEGOTIATION_PRICE) if p.MINIMUM_NEGOTIATION_PRICE is not None else None,
-        "NEGOTIATION_PERCENT": float(p.NEGOTIATION_PERCENT) if p.NEGOTIATION_PERCENT is not None else None,
-        "PACKING_CHARGE": float(p.PACKING_CHARGE) if p.PACKING_CHARGE is not None else None,
-        "TRANSPORTATION_CHARGE": float(p.TRANSPORTATION_CHARGE) if p.TRANSPORTATION_CHARGE is not None else None,
-        "INSTALLATION_CHARGE": float(p.INSTALLATION_CHARGE) if p.INSTALLATION_CHARGE is not None else None,
-        "SERVICE_CHARGE": float(p.SERVICE_CHARGE) if p.SERVICE_CHARGE is not None else None,
-        "ADDITIONAL_CHARGES": float(p.ADDITIONAL_CHARGES) if p.ADDITIONAL_CHARGES is not None else None,
-        "TAX_AMOUNT": float(p.TAX_AMOUNT) if p.TAX_AMOUNT is not None else None,
-        "DISCOUNT_AMOUNT": float(p.DISCOUNT_AMOUNT) if p.DISCOUNT_AMOUNT is not None else None,
-        "FINAL_PRICE": float(p.FINAL_PRICE) if p.FINAL_PRICE is not None else None,
-        "REMARKS": p.REMARKS,
-        "IS_ACTIVE": p.IS_ACTIVE,
-        "CREATED_AT": p.CREATED_AT.isoformat() if p.CREATED_AT else None,
-        "UPDATED_AT": p.UPDATED_AT.isoformat() if p.UPDATED_AT else None,
-    }
-
-
-@router.get("/project-pricing")
-def list_project_pricing(
-    project_id: Optional[str] = Query(None),
-    vendor_id: Optional[int] = Query(None),
-    is_active: Optional[bool] = Query(None),
-    search: Optional[str] = Query(None),
-    db: Session = Depends(get_db),
-):
-    q = db.query(ProjectPricing, Project).join(Project, ProjectPricing.PROJECT_ID == Project.ID)
-    if vendor_id is not None:
-        q = q.filter(ProjectPricing.VENDOR_ID == vendor_id)
-    if project_id:
-        q = q.filter(ProjectPricing.PROJECT_ID == project_id)
-    if is_active is not None:
-        q = q.filter(ProjectPricing.IS_ACTIVE == is_active)
-    if search:
-        term = f"%{search}%"
-        q = q.filter(Project.NAME.ilike(term))
-    rows = q.order_by(Project.NAME).all()
-    return [_serialize_pricing(p, proj.NAME, proj.CATEGORY_ID) for p, proj in rows]
-
-
-@router.get("/project-pricing/{pricing_id}")
-def get_project_pricing(pricing_id: str, db: Session = Depends(get_db)):
-    p = db.query(ProjectPricing).filter(ProjectPricing.ID == pricing_id).first()
-    if not p:
-        raise HTTPException(status_code=404, detail="Pricing not found")
-    project = db.query(Project).filter(Project.ID == p.PROJECT_ID).first()
-    return _serialize_pricing(p, project.NAME if project else None, project.CATEGORY_ID if project else None)
-
-
-@router.post("/project-pricing")
-def create_project_pricing(data: ProjectPricingCreate, db: Session = Depends(get_db)):
-    project = db.query(Project).filter(Project.ID == data.PROJECT_ID).first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    existing = db.query(ProjectPricing).filter(ProjectPricing.PROJECT_ID == data.PROJECT_ID).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Pricing already exists for this project")
-
-    if data.MINIMUM_NEGOTIATION_PRICE is not None and data.MINIMUM_NEGOTIATION_PRICE > data.ORIGINAL_PRICE:
-        raise HTTPException(status_code=400, detail="Minimum Negotiation Price cannot exceed Original Price")
-
-    pricing = ProjectPricing(
-        PROJECT_ID=data.PROJECT_ID,
-        VENDOR_ID=data.VENDOR_ID,
-        CURRENCY=data.CURRENCY,
-        ORIGINAL_PRICE=data.ORIGINAL_PRICE,
-        MINIMUM_NEGOTIATION_PRICE=data.MINIMUM_NEGOTIATION_PRICE,
-        NEGOTIATION_PERCENT=data.NEGOTIATION_PERCENT,
-        PACKING_CHARGE=data.PACKING_CHARGE,
-        TRANSPORTATION_CHARGE=data.TRANSPORTATION_CHARGE,
-        INSTALLATION_CHARGE=data.INSTALLATION_CHARGE,
-        SERVICE_CHARGE=data.SERVICE_CHARGE,
-        ADDITIONAL_CHARGES=data.ADDITIONAL_CHARGES,
-        TAX_AMOUNT=data.TAX_AMOUNT,
-        DISCOUNT_AMOUNT=data.DISCOUNT_AMOUNT,
-        REMARKS=data.REMARKS,
-        IS_ACTIVE=data.IS_ACTIVE,
-    )
-    pricing.FINAL_PRICE = _compute_final_price(
-        data.ORIGINAL_PRICE, data.PACKING_CHARGE, data.TRANSPORTATION_CHARGE, data.INSTALLATION_CHARGE,
-        data.SERVICE_CHARGE, data.ADDITIONAL_CHARGES, data.TAX_AMOUNT, data.DISCOUNT_AMOUNT,
-    )
-    try:
-        db.add(pricing)
-        db.commit()
-        db.refresh(pricing)
-    except IntegrityError as e:
-        db.rollback()
-        raise_db_error(e, "create project pricing")
-    except Exception as e:
-        db.rollback()
-        raise_db_error(e, "create project pricing")
-    _push_pricing_to_quotation(db, pricing)
-    return {"message": "Pricing created", "ID": pricing.ID}
-
-
-@router.put("/project-pricing/{pricing_id}")
-def update_project_pricing(pricing_id: str, data: ProjectPricingUpdate, db: Session = Depends(get_db)):
-    pricing = db.query(ProjectPricing).filter(ProjectPricing.ID == pricing_id).first()
-    if not pricing:
-        raise HTTPException(status_code=404, detail="Pricing not found")
-
-    for field in (
-        "CURRENCY", "ORIGINAL_PRICE", "MINIMUM_NEGOTIATION_PRICE", "NEGOTIATION_PERCENT",
-        "PACKING_CHARGE", "TRANSPORTATION_CHARGE", "INSTALLATION_CHARGE", "SERVICE_CHARGE",
-        "ADDITIONAL_CHARGES", "TAX_AMOUNT", "DISCOUNT_AMOUNT", "REMARKS", "IS_ACTIVE",
-    ):
-        value = getattr(data, field)
-        if value is not None:
-            setattr(pricing, field, value)
-
-    if pricing.MINIMUM_NEGOTIATION_PRICE is not None and pricing.MINIMUM_NEGOTIATION_PRICE > pricing.ORIGINAL_PRICE:
-        raise HTTPException(status_code=400, detail="Minimum Negotiation Price cannot exceed Original Price")
-
-    pricing.FINAL_PRICE = _compute_final_price(
-        pricing.ORIGINAL_PRICE, pricing.PACKING_CHARGE, pricing.TRANSPORTATION_CHARGE, pricing.INSTALLATION_CHARGE,
-        pricing.SERVICE_CHARGE, pricing.ADDITIONAL_CHARGES, pricing.TAX_AMOUNT, pricing.DISCOUNT_AMOUNT,
-    )
-    try:
-        db.commit()
-    except IntegrityError as e:
-        db.rollback()
-        raise_db_error(e, "update project pricing")
-    except Exception as e:
-        db.rollback()
-        raise_db_error(e, "update project pricing")
-    _push_pricing_to_quotation(db, pricing)
-    return {"message": "Pricing updated"}
-
-
-@router.delete("/project-pricing/{pricing_id}")
-def delete_project_pricing(pricing_id: str, db: Session = Depends(get_db)):
-    pricing = db.query(ProjectPricing).filter(ProjectPricing.ID == pricing_id).first()
-    if not pricing:
-        raise HTTPException(status_code=404, detail="Pricing not found")
-    db.query(CustomFieldTableValue).filter(
-        CustomFieldTableValue.TABLE_NAME == "project_pricing",
-        CustomFieldTableValue.TABLE_ROW_ID == str(pricing_id),
-    ).delete(synchronize_session=False)
-    try:
-        db.delete(pricing)
-        db.commit()
-    except IntegrityError as e:
-        db.rollback()
-        raise_db_error(e, "delete project pricing")
-    except Exception as e:
-        db.rollback()
-        raise_db_error(e, "delete project pricing")
-    return {"message": "Pricing deleted"}
-
-
-_PRICING_STD_COLS = {
-    "PROJECT NAME", "CURRENCY", "ORIGINAL PRICE", "MINIMUM NEGOTIATION PRICE", "NEGOTIATION PERCENTAGE",
-    "PACKING CHARGE", "TRANSPORTATION CHARGE", "INSTALLATION CHARGE", "SERVICE CHARGE",
-    "ADDITIONAL CHARGES", "TAX AMOUNT", "DISCOUNT AMOUNT", "REMARKS", "S.NO", "S.N", "SN", "",
-}
-
-_PRICING_NUMERIC_FIELDS = (
-    ("ORIGINAL PRICE", "ORIGINAL_PRICE", True),
-    ("MINIMUM NEGOTIATION PRICE", "MINIMUM_NEGOTIATION_PRICE", False),
-    ("NEGOTIATION PERCENTAGE", "NEGOTIATION_PERCENT", False),
-    ("PACKING CHARGE", "PACKING_CHARGE", False),
-    ("TRANSPORTATION CHARGE", "TRANSPORTATION_CHARGE", False),
-    ("INSTALLATION CHARGE", "INSTALLATION_CHARGE", False),
-    ("SERVICE CHARGE", "SERVICE_CHARGE", False),
-    ("ADDITIONAL CHARGES", "ADDITIONAL_CHARGES", False),
-    ("TAX AMOUNT", "TAX_AMOUNT", False),
-    ("DISCOUNT AMOUNT", "DISCOUNT_AMOUNT", False),
-)
-
-# Columns that are genuinely nullable on ProjectPricing — every other numeric
-# field is NOT NULL with a default of 0, so a blank cell must become 0, not
-# None (an explicit None would override the column default and violate the
-# NOT NULL constraint on commit).
-_PRICING_NULLABLE_FIELDS = {"MINIMUM_NEGOTIATION_PRICE", "NEGOTIATION_PERCENT"}
-
-
-@router.post("/project-pricing/bulk-upload")
-async def bulk_upload_project_pricing(
-    vendor_id: int = Query(1),
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db),
-):
-    content = await file.read()
-    headers, data_rows = _parse_bulk_xl(content, "Pricing")
-
-    cf_fields = _cf_fields_for_table("project_pricing", vendor_id, db)
-    cf_by_upper = {f.FIELD_NAME.upper(): f for f in cf_fields}
-    cf_cols = [h for h in headers if h not in _PRICING_STD_COLS and h in cf_by_upper]
-
-    inserted = updated = skipped = 0
-    errors: List[dict] = []
-    synced_pricings: List[ProjectPricing] = []
-
-    for row_num, raw in enumerate(data_rows, start=2):
-        record = {headers[i].upper(): raw[i] for i in range(len(headers))}
-
-        project_name = _cell(record, "PROJECT NAME")
-        if not project_name:
-            errors.append({"row": row_num, "field": "Project Name", "message": "Project Name is required"})
-            continue
-
-        project = db.query(Project).filter(
-            Project.VENDOR_ID == vendor_id, Project.NAME == project_name
-        ).first()
-        if not project:
-            errors.append({"row": row_num, "field": "Project Name", "message": f"Project '{project_name}' not found"})
-            continue
-
-        currency = _cell(record, "CURRENCY") or "INR"
-        remarks = _cell(record, "REMARKS") or None
-
-        numeric_vals = {}
-        row_error = False
-        for col, field, required in _PRICING_NUMERIC_FIELDS:
-            raw_val = _cell(record, col)
-            if not raw_val:
-                if required:
-                    errors.append({"row": row_num, "field": col.title(), "message": f"{col.title()} is required"})
-                    row_error = True
-                numeric_vals[field] = None if field in _PRICING_NULLABLE_FIELDS else 0
-                continue
-            try:
-                numeric_vals[field] = float(raw_val)
-            except ValueError:
-                errors.append({"row": row_num, "field": col.title(), "message": "Must be a number"})
-                row_error = True
-        if row_error:
-            continue
-
-        original_price = numeric_vals["ORIGINAL_PRICE"] or 0
-        min_negotiation = numeric_vals["MINIMUM_NEGOTIATION_PRICE"]
-        if min_negotiation is not None and min_negotiation > original_price:
-            errors.append({
-                "row": row_num, "field": "Minimum Negotiation Price",
-                "message": "Minimum Negotiation Price cannot exceed Original Price",
-            })
-            continue
-
-        # Validate CFs (required + type)
-        cf_vals: dict = {}
-        cf_error = False
-        for col in cf_cols:
-            cf_f = cf_by_upper[col]
-            val  = _cell(record, col) or None
-            if cf_f.IS_REQUIRED and not val:
-                errors.append({
-                    "row": row_num, "field": cf_f.FIELD_NAME,
-                    "message": f'Required custom field "{cf_f.FIELD_NAME}" is missing',
-                })
-                cf_error = True
-            elif val:
-                type_err = _validate_cf_value(cf_f, val)
-                if type_err:
-                    errors.append({"row": row_num, "field": cf_f.FIELD_NAME, "message": type_err})
-                    cf_error = True
-            cf_vals[cf_f.ID] = val
-        if cf_error:
-            continue
-
-        final_price = _compute_final_price(
-            original_price, numeric_vals["PACKING_CHARGE"], numeric_vals["TRANSPORTATION_CHARGE"],
-            numeric_vals["INSTALLATION_CHARGE"], numeric_vals["SERVICE_CHARGE"], numeric_vals["ADDITIONAL_CHARGES"],
-            numeric_vals["TAX_AMOUNT"], numeric_vals["DISCOUNT_AMOUNT"],
-        )
-
-        existing = db.query(ProjectPricing).filter(ProjectPricing.PROJECT_ID == project.ID).first()
-        if existing:
-            existing.CURRENCY = currency
-            existing.REMARKS = remarks
-            for field in numeric_vals:
-                setattr(existing, field, numeric_vals[field])
-            existing.FINAL_PRICE = final_price
-            for cf_id, val in cf_vals.items():
-                _upsert_cf_bulk(existing.ID, "project_pricing", cf_id, val, db)
-            updated += 1
-            synced_pricings.append(existing)
-        else:
-            new_pricing = ProjectPricing(
-                PROJECT_ID=project.ID, VENDOR_ID=vendor_id, CURRENCY=currency, REMARKS=remarks,
-                **numeric_vals,
-            )
-            new_pricing.FINAL_PRICE = final_price
-            db.add(new_pricing)
-            db.flush()
-            for cf_id, val in cf_vals.items():
-                _upsert_cf_bulk(new_pricing.ID, "project_pricing", cf_id, val, db)
-            inserted += 1
-            synced_pricings.append(new_pricing)
-
+    db.delete(project)
     db.commit()
-    for p in synced_pricings:
-        _push_pricing_to_quotation(db, p)
-    total = inserted + updated + skipped + len(errors)
-    msg = f"Upload complete: {inserted} inserted, {updated} updated, {skipped} skipped"
-    if errors:
-        msg += f", {len(errors)} error(s)"
-    return {
-        "message": msg,
-        "inserted": inserted, "updated": updated, "skipped": skipped,
-        "total_rows": total, "errors": errors,
-    }
+    return {"message": "Project deleted"}
 
 
 # =========================
@@ -979,15 +523,8 @@ def create_task_template(data: TaskTemplateCreate, db: Session = Depends(get_db)
     db.add(task)
     db.flush()
     _recalc_project_duration(project, db)
-    try:
-        db.commit()
-        db.refresh(task)
-    except IntegrityError as e:
-        db.rollback()
-        raise_db_error(e, "create task template")
-    except Exception as e:
-        db.rollback()
-        raise_db_error(e, "create task template")
+    db.commit()
+    db.refresh(task)
     return {"message": "Task created", "ID": task.ID}
 
 
@@ -1019,14 +556,7 @@ def update_task_template(task_id: str, data: TaskTemplateUpdate, db: Session = D
     project = db.query(Project).filter(Project.ID == task.PROJECT_ID).first()
     if project:
         _recalc_project_duration(project, db)
-    try:
-        db.commit()
-    except IntegrityError as e:
-        db.rollback()
-        raise_db_error(e, "update task template")
-    except Exception as e:
-        db.rollback()
-        raise_db_error(e, "update task template")
+    db.commit()
     return {"message": "Task updated"}
 
 
@@ -1045,14 +575,7 @@ def delete_task_template(task_id: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.ID == project_id).first()
     if project:
         _recalc_project_duration(project, db)
-    try:
-        db.commit()
-    except IntegrityError as e:
-        db.rollback()
-        raise_db_error(e, "delete task template")
-    except Exception as e:
-        db.rollback()
-        raise_db_error(e, "delete task template")
+    db.commit()
     return {"message": "Task deleted"}
 
 

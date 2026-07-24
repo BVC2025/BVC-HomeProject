@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, date, time
 from typing import Optional
 from pydantic import BaseModel
 
@@ -121,51 +121,22 @@ def _log_failure(
 # Source of truth is attendance_settings_service.get_office_hours(db)
 # — that reads from the `setting` table (configurable from the UI).
 WORK_START_HOUR = 9
-WORK_START_MINUTE = 15    # Shift starts 9:00 with 15-min grace — LATE after 9:15
+WORK_START_MINUTE = 15
 
 
 # =========================
 # HELPERS
 # =========================
 
-def _resolve_office_start(db: Session) -> time:
-    """Look up the office start time from Settings, fall back to constants."""
-    try:
-        from app.services.attendance_settings_service import get_office_hours
-        start, _end = get_office_hours(db)
-        return start
-    except Exception:
-        return time(WORK_START_HOUR, WORK_START_MINUTE)
-
-
-def compute_status_and_late(
-    check_in_time: datetime,
-    cutoff: time
-) -> tuple:
-    """Return (status, late_minutes).
-
-    late_minutes is 0 when the employee is on time; otherwise it's the
-    number of whole minutes past the cutoff. Used at check-in to record
-    exactly how late an employee was — this is stored on the Attendance
-    row so admins can see "LATE · 30m" instead of just "LATE".
-    """
-    if not check_in_time:
-        return "PRESENT", 0
-
-    if check_in_time.time() <= cutoff:
-        return "PRESENT", 0
-
-    cutoff_dt = datetime.combine(check_in_time.date(), cutoff)
-    delta_seconds = (check_in_time - cutoff_dt).total_seconds()
-    late_min = max(0, int(delta_seconds // 60))
-    return "LATE", late_min
-
-
 def compute_status(check_in_time: datetime) -> str:
-    """Kept for any legacy callers that only want the status flag."""
+
+    if not check_in_time:
+
+        return "PRESENT"
+
     cutoff = time(WORK_START_HOUR, WORK_START_MINUTE)
-    status, _ = compute_status_and_late(check_in_time, cutoff)
-    return status
+
+    return "LATE" if check_in_time.time() > cutoff else "PRESENT"
 
 
 # =========================
@@ -245,11 +216,6 @@ def check_in(
 
     now = datetime.now()
 
-    # Resolve today's office start from Settings so admins can change it
-    # from the UI without a code deploy. Falls back to 9:00 constants.
-    office_start = _resolve_office_start(db)
-    status_flag, late_min = compute_status_and_late(now, office_start)
-
     if record:
 
         if record.CHECK_IN:
@@ -260,8 +226,8 @@ def check_in(
             )
 
         record.CHECK_IN = now
-        record.STATUS = status_flag
-        record.LATE_MINUTES = late_min
+
+        record.STATUS = compute_status(now)
 
     else:
 
@@ -269,8 +235,7 @@ def check_in(
             EMPLOYEE_ID=data.EMPLOYEE_ID,
             DATE=today,
             CHECK_IN=now,
-            STATUS=status_flag,
-            LATE_MINUTES=late_min,
+            STATUS=compute_status(now),
             VENDOR_ID=data.VENDOR_ID
         )
 
@@ -290,14 +255,9 @@ def check_in(
     db.refresh(record)
 
     return {
-        "message": (
-            f"Checked in — {record.LATE_MINUTES} minute(s) late."
-            if record.STATUS == "LATE" and (record.LATE_MINUTES or 0) > 0
-            else "Checked in"
-        ),
+        "message": "Checked in",
         "attendance_id": record.ID,
         "status": record.STATUS,
-        "late_minutes": record.LATE_MINUTES or 0,
         "geofence_status": record.GEOFENCE_STATUS,
         "distance_meters": record.CHECKIN_DISTANCE
     }
@@ -397,25 +357,9 @@ def check_out(
 
     record.WORKED_HOURS = hours
 
-    # ---- Auto-compute OT for work after 18:00 ----
-    # Company policy: any time worked past 18:00 is treated as overtime
-    # (unless an explicit OT session was already logged via
-    # /attendance/ot-check-in, in which case we don't double-count).
-    if not record.OVERTIME_HOURS and not record.OT_CHECK_IN:
-
-        ot_cutoff = now.replace(hour=18, minute=0, second=0, microsecond=0)
-
-        if now > ot_cutoff and record.CHECK_IN < ot_cutoff:
-
-            # OT is the wall-clock time worked between 18:00 and now
-            ot_seconds = (now - ot_cutoff).total_seconds()
-
-            record.OVERTIME_HOURS = round(ot_seconds / 3600, 2)
-
-        elif record.CHECK_IN >= ot_cutoff:
-
-            # Employee started AND ended after 18:00 — entire shift is OT
-            record.OVERTIME_HOURS = hours
+    # OT is no longer auto-derived from regular hours. Employees must
+    # explicitly start a separate OT session (POST /attendance/ot-check-in)
+    # for any time after their regular check-out to count as overtime.
 
     # ---- Persist check-out geo ----
     record.CHECKOUT_LATITUDE  = data.LATITUDE
@@ -655,7 +599,6 @@ def get_attendance(
             "CHECK_IN":  record.CHECK_IN.isoformat()  if record.CHECK_IN  else None,
             "CHECK_OUT": record.CHECK_OUT.isoformat() if record.CHECK_OUT else None,
             "STATUS": record.STATUS,
-            "LATE_MINUTES": record.LATE_MINUTES or 0,
             "WORKED_HOURS": record.WORKED_HOURS,
             "OVERTIME_HOURS": record.OVERTIME_HOURS,
             "OT_CHECK_IN":  record.OT_CHECK_IN.isoformat()  if record.OT_CHECK_IN  else None,
@@ -730,7 +673,6 @@ def get_today_attendance(
                 if rec.CHECK_OUT else None
             ),
             "STATUS": rec.STATUS,
-            "LATE_MINUTES": rec.LATE_MINUTES or 0,
             "WORKED_HOURS": rec.WORKED_HOURS,
             "OVERTIME_HOURS": rec.OVERTIME_HOURS,
             "OT_CHECK_IN":  rec.OT_CHECK_IN.isoformat()  if rec.OT_CHECK_IN  else None,
@@ -749,52 +691,6 @@ def get_today_attendance(
             "IP_ADDRESS":         rec.IP_ADDRESS
         }
         for rec, name, code in rows
-    ]
-
-
-@router.get("/attendance/my-history")
-def my_attendance_history(
-    days: int = 30,
-    db: Session = Depends(get_db),
-    payload: dict = Depends(get_current_user),
-):
-    """Employee's own recent attendance rows — check-in / check-out /
-    working hours / OT / status. Strips every GPS + geofence field
-    before returning so nothing sensitive is exposed on the employee
-    portal. Own data only regardless of role."""
-
-    caller_id = payload.get("employee_id")
-
-    if not caller_id:
-
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
-    caller_id = resolve_employee_uuid(db, caller_id)
-
-    days = max(1, min(365, int(days or 30)))
-
-    horizon = date.today() - timedelta(days=days - 1)
-
-    rows = (
-        db.query(Attendance)
-        .filter(
-            Attendance.EMPLOYEE_ID == caller_id,
-            Attendance.DATE >= horizon,
-        )
-        .order_by(Attendance.DATE.desc())
-        .all()
-    )
-
-    return [
-        {
-            "date":           r.DATE.isoformat() if r.DATE else None,
-            "check_in":       r.CHECK_IN.isoformat()  if r.CHECK_IN  else None,
-            "check_out":      r.CHECK_OUT.isoformat() if r.CHECK_OUT else None,
-            "status":         r.STATUS,
-            "worked_hours":   float(r.WORKED_HOURS or 0),
-            "overtime_hours": float(r.OVERTIME_HOURS or 0),
-        }
-        for r in rows
     ]
 
 
