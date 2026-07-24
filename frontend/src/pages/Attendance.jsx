@@ -341,30 +341,27 @@ function Attendance() {
   }, []);
 
   return (
-    <div>
-      {/* ===== Clean compact header ===== */}
+    <div className={styles.attendancePage}>
+
+      {/* ===================================================================
+          1. HEADER — title on the left, primary action on the right.
+             Sits in its own row so nothing else fights for horizontal space.
+          =================================================================== */}
       <div className={styles.headerStrip}>
         <div className={styles.headerTitleRow}>
-          <h1 className={styles.headerTitle}>Attendance</h1>
-          <div className={styles.headerDate}>
-            {new Date().toLocaleDateString("en-IN", {
-              weekday: "short",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
+          <div className={styles.headerLeft}>
+            <h1 className={styles.headerTitle}>Attendance</h1>
+            <span className={styles.headerDate}>
+              {new Date().toLocaleDateString("en-IN", {
+                weekday: "short",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            </span>
           </div>
 
-          {/* ---- Biometric CSV import — offline USB export path ---- */}
-          <div
-            style={{
-              marginLeft: "auto",
-              display: "flex",
-              gap: 8,
-              alignItems: "center",
-              flexWrap: "wrap",
-            }}
-          >
+          <div className={styles.headerActions}>
             <input
               ref={csvFileRef}
               type="file"
@@ -377,213 +374,153 @@ function Attendance() {
               onClick={() => csvFileRef.current?.click()}
               disabled={csvBusy}
               title="Upload the attendance file you downloaded from the biometric device via USB"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "8px 14px",
-                borderRadius: 8,
-                background: csvBusy ? "#94a3b8" : "#C8102E",
-                color: "#fff",
-                border: "none",
-                fontWeight: 700,
-                fontSize: 13,
-                cursor: csvBusy ? "wait" : "pointer",
-              }}
+              className={styles.primaryCta}
             >
               <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+                width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2"
+                strokeLinecap="round" strokeLinejoin="round"
               >
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="17 8 12 3 7 8" />
                 <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
-              {csvBusy ? "Importing..." : "Import Biometric CSV"}
+              {csvBusy ? "Importing…" : "Import Biometric CSV"}
             </button>
+          </div>
+        </div>
 
-            {csvResult && (
-              <div
-                style={{
-                  fontSize: 12,
-                  padding: "6px 10px",
-                  borderRadius: 6,
-                  background: csvResult.error ? "#fef2f2" : "#dcfce7",
-                  color: csvResult.error ? "#b91c1c" : "#166534",
-                  border: csvResult.error
-                    ? "1px solid #fecaca"
-                    : "1px solid #86efac",
-                  maxWidth: 420,
-                }}
-              >
-                {csvResult.error ? (
-                  <span>❌ {csvResult.error}</span>
-                ) : (
-                  <span>
-                    ✓ Applied <b>{csvResult.applied}</b> / {csvResult.total_rows}
-                    {csvResult.skipped_duplicate > 0 &&
-                      ` · ${csvResult.skipped_duplicate} dup`}
-                    {csvResult.skipped_unmapped > 0 &&
-                      ` · ${csvResult.skipped_unmapped} unmapped`}
-                    {csvResult.skipped_invalid > 0 &&
-                      ` · ${csvResult.skipped_invalid} invalid`}
-                    {csvResult.sample_unmapped_ids?.length > 0 &&
-                      ` (unknown IDs: ${csvResult.sample_unmapped_ids
-                        .slice(0, 5)
-                        .join(", ")})`}
-                  </span>
-                )}
-              </div>
+        {csvResult && (
+          <div
+            className={csvResult.error ? styles.csvToastError : styles.csvToastOk}
+          >
+            {csvResult.error ? (
+              <span>❌ {csvResult.error}</span>
+            ) : (
+              <span>
+                ✓ Applied <b>{csvResult.applied}</b> / {csvResult.total_rows}
+                {csvResult.skipped_duplicate > 0 && ` · ${csvResult.skipped_duplicate} dup`}
+                {csvResult.skipped_unmapped > 0 && ` · ${csvResult.skipped_unmapped} unmapped`}
+                {csvResult.skipped_invalid > 0 && ` · ${csvResult.skipped_invalid} invalid`}
+                {csvResult.sample_unmapped_ids?.length > 0 &&
+                  ` (unknown IDs: ${csvResult.sample_unmapped_ids.slice(0, 5).join(", ")})`}
+              </span>
             )}
-
-            <div className="card card-green">
-              <h3>Present Today</h3>
-              <p>{presentCount}</p>
-            </div>
-
-            <div className="card card-amber">
-              <h3>Late Today</h3>
-              <p>{lateCount}</p>
-            </div>
-
-            <div className="card card-blue">
-              <h3>Absent Today</h3>
-              <p>{absentCount}</p>
-            </div>
-
-            <div className="card card-violet">
-              <h3>Total Employees</h3>
-              <p>{employees.length}</p>
-            </div>
           </div>
+        )}
+      </div>
 
-          {/* ===== Geofence widgets — live counts from /geofence/dashboard ===== */}
-          <div className={styles.geoStrip}>
-            <div className={`${styles.geoWidget} ${styles.geoWidgetGreen}`}>
-              <div className={styles.geoLabel}>📍 Inside Geofence</div>
-              <div className={`${styles.geoValue} ${styles.geoValueGreen}`}>
-                {geoStats?.inside_geofence ?? "—"}
-              </div>
-              <div className={styles.geoSub}>employees inside office today</div>
-            </div>
-            <div className={`${styles.geoWidget} ${styles.geoWidgetRed}`}>
-              <div className={styles.geoLabel}>🚫 Outside Geofence</div>
-              <div className={`${styles.geoValue} ${styles.geoValueRed}`}>
-                {geoStats?.outside_geofence ?? "—"}
-              </div>
-              <div className={styles.geoSub}>marked from outside the radius</div>
-            </div>
-            <div className={`${styles.geoWidget} ${styles.geoWidgetAmber}`}>
-              <div className={styles.geoLabel}>🚨 Security Failures (Today)</div>
-              <div className={`${styles.geoValue} ${styles.geoValueAmber}`}>
-                {geoStats?.security_failures_today ?? "—"}
-              </div>
-              <div className={styles.geoSub}>
-                <a href="/geofence" className={styles.geoSubLink}>
-                  review log →
-                </a>
-              </div>
-            </div>
 
-            {/* One inline stat row instead of seven cards */}
-            <div className={styles.statRow}>
-              <StatItem label="Present" value={presentCount} tone="green" />
-              <StatItem label="Late" value={lateCount} tone="amber" />
-              <StatItem label="Absent" value={absentCount} tone="red" />
-              <StatItem label="Total" value={employees.length} tone="slate" />
-              <div className={styles.statDivider} />
-              <StatItem
-                label="Inside"
-                value={geoStats?.inside_geofence ?? "—"}
-                tone="green"
-                small
-              />
-              <StatItem
-                label="Outside"
-                value={geoStats?.outside_geofence ?? "—"}
-                tone="red"
-                small
-              />
-              <StatItem
-                label="Sec. fails"
-                value={geoStats?.security_failures_today ?? "—"}
-                tone="amber"
-                small
-                href="/geofence"
-              />
-            </div>
-          </div>
+      {/* ===================================================================
+          2. KPI GRID — four unified tiles (present / late / absent / total).
+             The old page duplicated these across two rows (small border-top
+             cards top-right + inline pills below) — one clean grid replaces
+             both.
+          =================================================================== */}
+      <div className={styles.kpiGrid}>
+        <KpiTile label="Present Today" value={presentCount}       tint="green" icon={KpiIcons.check} />
+        <KpiTile label="Late Today"    value={lateCount}          tint="amber" icon={KpiIcons.clock} />
+        <KpiTile label="Absent Today"  value={absentCount}        tint="red"   icon={KpiIcons.x} />
+        <KpiTile label="Total Employees" value={employees.length} tint="blue"  icon={KpiIcons.users} />
+      </div>
 
-          {/* Compact GPS gate — single-line status */}
-          <GeofenceGate
-            compact
-            employeeId={selectedEmployee || null}
-            onAllowed={(ctx) => setGpsCtx(ctx)}
-            onBlocked={() => setGpsCtx(null)}
-          />
 
-          {/* Mark-attendance action bar */}
-          <div className={styles.markBar}>
-            <select
-              className={styles.markSelect}
-              value={selectedEmployee}
-              onChange={(e) => setSelectedEmployee(e.target.value)}
-            >
-              <option value="">Select employee…</option>
-              {employees.map((emp) => (
-                <option key={emp.ID} value={emp.ID}>
-                  {emp.NAME} ({emp.EMPLOYEE_CODE || emp.EMAIL})
-                </option>
-              ))}
-            </select>
+      {/* ===================================================================
+          3. GEOFENCE STRIP — three compact tiles in the same visual language
+             as the KPI grid above. Replaces the earlier stack of tall
+             coloured banners + a redundant pill row.
+          =================================================================== */}
+      <div className={styles.geoGrid}>
+        <GeoTile
+          label="Inside Geofence"
+          value={geoStats?.inside_geofence ?? "—"}
+          sub="employees inside office today"
+          tint="green"
+        />
+        <GeoTile
+          label="Outside Geofence"
+          value={geoStats?.outside_geofence ?? "—"}
+          sub="marked from outside the radius"
+          tint="red"
+        />
+        <GeoTile
+          label="Security Failures (Today)"
+          value={geoStats?.security_failures_today ?? "—"}
+          sub={<a href="/geofence" className={styles.geoSubLink}>review log →</a>}
+          tint="amber"
+        />
+      </div>
 
-            <button
-              className={`${styles.markBtn} ${styles.markBtnPrimary}`}
-              onClick={checkIn}
-              disabled={!gpsCtx}
-              title={!gpsCtx ? "Waiting for geofence verification…" : "Check In"}
-            >
-              Check In
-            </button>
 
-            <button
-              className={`${styles.markBtn} ${styles.markBtnSecondary}`}
-              onClick={checkOut}
-              disabled={!gpsCtx}
-              title={!gpsCtx ? "Waiting for geofence verification…" : "Check Out"}
-            >
-              Check Out
-            </button>
+      {/* ===================================================================
+          4. ACTION CARD — mark-attendance controls in one bordered panel.
+             Compact GPS gate + employee picker + all five action buttons.
+          =================================================================== */}
+      <div className={styles.actionCard}>
+        <GeofenceGate
+          compact
+          employeeId={selectedEmployee || null}
+          onAllowed={(ctx) => setGpsCtx(ctx)}
+          onBlocked={() => setGpsCtx(null)}
+        />
 
-            <button
-              className={`${styles.markBtn} ${styles.markBtnOt}`}
-              onClick={otCheckIn}
-              title="Start OT session (after regular check-out)"
-            >
-              OT Check In
-            </button>
+        <div className={styles.markBar}>
+          <select
+            className={styles.markSelect}
+            value={selectedEmployee}
+            onChange={(e) => setSelectedEmployee(e.target.value)}
+          >
+            <option value="">Select employee…</option>
+            {employees.map((emp) => (
+              <option key={emp.ID} value={emp.ID}>
+                {emp.NAME} ({emp.EMPLOYEE_CODE || emp.EMAIL})
+              </option>
+            ))}
+          </select>
 
-            <button
-              className={`${styles.markBtn} ${styles.markBtnOt}`}
-              onClick={otCheckOut}
-              title="Close OT session"
-            >
-              OT Check Out
-            </button>
+          <button
+            className={`${styles.markBtn} ${styles.markBtnPrimary}`}
+            onClick={checkIn}
+            disabled={!gpsCtx}
+            title={!gpsCtx ? "Waiting for geofence verification…" : "Check In"}
+          >
+            Check In
+          </button>
 
-            <button
-              className={`${styles.markBtn} ${styles.markBtnDanger}`}
-              onClick={markAbsent}
-            >
-              Mark Absent
-            </button>
-          </div>
+          <button
+            className={`${styles.markBtn} ${styles.markBtnSecondary}`}
+            onClick={checkOut}
+            disabled={!gpsCtx}
+            title={!gpsCtx ? "Waiting for geofence verification…" : "Check Out"}
+          >
+            Check Out
+          </button>
+
+          <button
+            className={`${styles.markBtn} ${styles.markBtnOt}`}
+            onClick={otCheckIn}
+            title="Start OT session (after regular check-out)"
+          >
+            OT Check In
+          </button>
+
+          <button
+            className={`${styles.markBtn} ${styles.markBtnOt}`}
+            onClick={otCheckOut}
+            title="Close OT session"
+          >
+            OT Check Out
+          </button>
+
+          <button
+            className={`${styles.markBtn} ${styles.markBtnDanger}`}
+            onClick={markAbsent}
+          >
+            Mark Absent
+          </button>
+        </div>
+      </div>
+
 
           <div className="tabs">
             <button
@@ -820,8 +757,6 @@ function Attendance() {
               />
             </>
           )}
-        </div>
-      </div>
     </div>
   );
 }
@@ -1579,6 +1514,71 @@ function LegendDot({ color, label }) {
     </span>
   );
 }
+
+// ----- KPI + Geofence tiles for the redesigned header block -----
+const KpiIcons = {
+  check: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth="2"
+         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M22 11.1V12a10 10 0 1 1-5.9-9.1" />
+      <path d="M22 4L12 14.01l-3-3" />
+    </svg>
+  ),
+  clock: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth="2"
+         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 6v6l4 2" />
+    </svg>
+  ),
+  x: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth="2"
+         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" />
+      <path d="M15 9l-6 6M9 9l6 6" />
+    </svg>
+  ),
+  users: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth="2"
+         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M17 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+      <circle cx="10" cy="8" r="4" />
+      <path d="M23 20v-2a4 4 0 0 0-3-3.87" />
+      <path d="M17 4.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  ),
+};
+
+function KpiTile({ label, value, tint = "blue", icon }) {
+  return (
+    <div className={`${styles.kpiTile} ${styles[`kpiTile_${tint}`]}`}>
+      <div className={`${styles.kpiIcon} ${styles[`kpiIcon_${tint}`]}`}>
+        {icon}
+      </div>
+      <div className={styles.kpiBody}>
+        <div className={styles.kpiLabel}>{label}</div>
+        <div className={styles.kpiValue}>{value}</div>
+      </div>
+    </div>
+  );
+}
+
+function GeoTile({ label, value, sub, tint = "green" }) {
+  return (
+    <div className={`${styles.geoTile} ${styles[`geoTile_${tint}`]}`}>
+      <div className={styles.geoTileLabel}>{label}</div>
+      <div className={`${styles.geoTileValue} ${styles[`geoTileValue_${tint}`]}`}>
+        {value}
+      </div>
+      {sub && <div className={styles.geoTileSub}>{sub}</div>}
+    </div>
+  );
+}
+
 
 // ----- Compact stat pill used in the page header -----
 function StatItem({ label, value, tone = "slate", small, href }) {

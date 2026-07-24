@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 
 import API, { API_BASE_URL } from "../services/api";
 import Pagination from "../components/Pagination";
-
 import styles from "./Employees.module.css";
 
 
@@ -115,17 +114,47 @@ function StatTile({ label, value, sub, color }) {
 }
 
 
+// 8-colour theme palette cycled deterministically from EMPLOYEE_CODE.
+// Same code always gets the same colour, so the directory looks the
+// same across refreshes.
+const CARD_THEMES = [
+  { tag: "#dbeafe", tagFg: "#1d4ed8", title: "#2563eb", btn: "#3b82f6", chip: "#eff6ff", chipFg: "#1d4ed8", deptBg: "#eff6ff", deptFg: "#1d4ed8" }, // blue
+  { tag: "#d1fae5", tagFg: "#047857", title: "#059669", btn: "#10b981", chip: "#ecfdf5", chipFg: "#047857", deptBg: "#ecfdf5", deptFg: "#047857" }, // green
+  { tag: "#ede9fe", tagFg: "#6d28d9", title: "#7c3aed", btn: "#8b5cf6", chip: "#f5f3ff", chipFg: "#6d28d9", deptBg: "#f5f3ff", deptFg: "#6d28d9" }, // purple
+  { tag: "#fed7aa", tagFg: "#c2410c", title: "#ea580c", btn: "#f97316", chip: "#fff7ed", chipFg: "#c2410c", deptBg: "#fff7ed", deptFg: "#c2410c" }, // orange
+  { tag: "#fce7f3", tagFg: "#be185d", title: "#db2777", btn: "#ec4899", chip: "#fdf2f8", chipFg: "#be185d", deptBg: "#fdf2f8", deptFg: "#be185d" }, // pink
+  { tag: "#cffafe", tagFg: "#0e7490", title: "#0891b2", btn: "#06b6d4", chip: "#ecfeff", chipFg: "#0e7490", deptBg: "#ecfeff", deptFg: "#0e7490" }, // teal
+  { tag: "#fef3c7", tagFg: "#a16207", title: "#d97706", btn: "var(--text-secondary)", chip: "#fffbeb", chipFg: "#a16207", deptBg: "#fffbeb", deptFg: "#a16207" }, // amber
+  { tag: "#e0e7ff", tagFg: "#4338ca", title: "#4f46e5", btn: "#6366f1", chip: "#eef2ff", chipFg: "#4338ca", deptBg: "#eef2ff", deptFg: "#4338ca" }, // indigo
+];
+
+function pickTheme(code) {
+  const s = String(code || "");
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return CARD_THEMES[h % CARD_THEMES.length];
+}
+
+function fmtJoinDate(iso) {
+  if (!iso) return null;
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  } catch { return null; }
+}
+
 // Lifecycle status → display label + dot colour + text colour + pill bg.
 // Aligned with backend ALLOWED_STATUSES (see employee_status.py).
 const STATUS_THEMES = {
-  ACTIVE: { label: "Active", dot: "#10b981", fg: "#166534", bg: "#dcfce7" },
-  ON_NOTICE: { label: "On Notice", dot: "#f59e0b", fg: "#92400e", bg: "#fef3c7" },
-  RESIGNED: { label: "Resigned", dot: "#94a3b8", fg: "#475569", bg: "#e2e8f0" },
-  TERMINATED: { label: "Terminated", dot: "#dc2626", fg: "#991b1b", bg: "#fee2e2" },
-  RETIRED: { label: "Retired", dot: "#3b82f6", fg: "#1e40af", bg: "#dbeafe" },
+  ACTIVE:        { label: "Active",        dot: "#10b981", fg: "#166534", bg: "#dcfce7" },
+  ON_NOTICE:     { label: "On Notice",     dot: "#f59e0b", fg: "#92400e", bg: "#fef3c7" },
+  RESIGNED:      { label: "Resigned",      dot: "#94a3b8", fg: "#475569", bg: "#e2e8f0" },
+  TERMINATED:    { label: "Terminated",    dot: "#dc2626", fg: "#991b1b", bg: "#fee2e2" },
+  RETIRED:       { label: "Retired",       dot: "#3b82f6", fg: "#1e40af", bg: "#dbeafe" },
   ON_LEAVE_LONG: { label: "On Long Leave", dot: "#8b5cf6", fg: "#6b21a8", bg: "#f3e8ff" },
-  INACTIVE: { label: "Inactive", dot: "#94a3b8", fg: "#64748b", bg: "#f1f5f9" },
-  ON_LEAVE: { label: "On Leave", dot: "#f59e0b", fg: "#92400e", bg: "#fef3c7" },
+  INACTIVE:      { label: "Inactive",      dot: "#94a3b8", fg: "#64748b", bg: "#f1f5f9" },
+  ON_LEAVE:      { label: "On Leave",      dot: "#f59e0b", fg: "#92400e", bg: "#fef3c7" },
 };
 
 function statusBadge(emp) {
@@ -133,7 +162,6 @@ function statusBadge(emp) {
   // wants to see at a glance, even if the underlying STATUS is ACTIVE.
   const onLeave = (emp.LEAVE_STATUS || "").toUpperCase() === "ON_LEAVE"
     || (emp.TODAY_STATUS || "").toUpperCase() === "ON_LEAVE";
-
   if (onLeave) return STATUS_THEMES.ON_LEAVE;
 
   const code = (emp.STATUS || "ACTIVE").toUpperCase();
@@ -153,6 +181,7 @@ function EmployeeCard({ employee, onView, onEdit, onDelete }) {
 
   return (
     <div className={styles.employeeCard}>
+
       {/* ====== TOP: photo (left) + minimal info (right) ====== */}
       <div className={styles.cardBody}>
 
@@ -164,17 +193,20 @@ function EmployeeCard({ employee, onView, onEdit, onDelete }) {
         {/* Info column */}
         <div className={styles.cardInfoCol}>
 
-          {/* ===== TOP ROW: EMP code tag + Status pill ===== */}
-          <div className={styles.cardTopRow}>
-            <span className={styles.cardEmpCode}>
-              {employee.EMPLOYEE_CODE || "—"}
-            </span>
-
-            <div className={styles.cardStatusBadge} style={{ color: status.fg }}>
-              <span className={styles.statusDot} style={{ background: status.dot }} />
-              {status.label}
-            </div>
-          </div>
+          {/* Status pill in the top-right corner — visible label so HR
+              can scan the whole list and spot On Notice / Resigned /
+              Terminated rows at a glance. */}
+          <span
+            className={styles.cardStatusPill}
+            style={{ background: status.bg, color: status.fg }}
+            title={status.label}
+          >
+            <span
+              className={styles.cardStatusDot}
+              style={{ background: status.dot }}
+            />
+            {status.label}
+          </span>
 
           <div className={styles.cardName}>
             {employee.NAME || "—"}
@@ -248,6 +280,7 @@ function EmployeeCard({ employee, onView, onEdit, onDelete }) {
 }
 
 
+// ===== Inline SVG icons (replaces emoji + per-card colours) =====
 const ICON_PROPS = {
   width: 14, height: 14, viewBox: "0 0 24 24", fill: "none",
   stroke: "currentColor", strokeWidth: 1.8,
@@ -317,6 +350,9 @@ function TrashIcon() {
     </svg>
   );
 }
+
+
+// ---- EmployeeCard style helpers moved to Employees.module.css ----
 
 
 // =====================================================================
@@ -505,7 +541,7 @@ function EmployeeDocumentsSection({ employee }) {
             {/* Render as grouped <optgroup> so the 24 types scan easily */}
             {(() => {
 
-              const groupedTypes = DOC_TYPES.reduce((acc, t) => {
+              const grouped = DOC_TYPES.reduce((acc, t) => {
 
                 (acc[t.group || "Other"] ||= []).push(t);
 
@@ -515,11 +551,11 @@ function EmployeeDocumentsSection({ employee }) {
               const order = ["Identity", "Education", "Employment", "Personal", "Other"];
 
               return order
-                .filter((g) => groupedTypes[g])
+                .filter((g) => grouped[g])
                 .map((g) => (
 
                   <optgroup key={g} label={g}>
-                    {groupedTypes[g].map((t) => (
+                    {grouped[g].map((t) => (
                       <option key={t.key} value={t.key}>{t.icon} {t.label}</option>
                     ))}
                   </optgroup>
@@ -2283,7 +2319,6 @@ function Employees() {
         <div>
           <div className={styles.pageBannerEyebrow}>Workforce</div>
           <h1 className={styles.pageBannerTitle}>Employees</h1>
-
           <div className={styles.pageBannerSub}>
             Manage your team, onboarding invites and roles.
           </div>
@@ -2296,8 +2331,8 @@ function Employees() {
             className={styles.bannerInviteBtn}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2"
-              strokeLinecap="round" strokeLinejoin="round">
+                 stroke="currentColor" strokeWidth="2"
+                 strokeLinecap="round" strokeLinejoin="round">
               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
               <polyline points="22,6 12,13 2,6" />
             </svg>
@@ -2309,8 +2344,8 @@ function Employees() {
             className={styles.bannerAddBtn}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2.4"
-              strokeLinecap="round" strokeLinejoin="round">
+                 stroke="currentColor" strokeWidth="2.4"
+                 strokeLinecap="round" strokeLinejoin="round">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
@@ -2327,12 +2362,11 @@ function Employees() {
       </div>
 
       <div className={styles.filterBar}>
-
         <div className={styles.filterSearchWrap}>
           <span className={styles.filterSearchIcon} aria-hidden="true">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" strokeWidth="2.2"
-              strokeLinecap="round" strokeLinejoin="round">
+                 stroke="currentColor" strokeWidth="2.2"
+                 strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="7" />
               <path d="m21 21-4.3-4.3" />
             </svg>
@@ -2345,7 +2379,6 @@ function Employees() {
             className={styles.filterInput}
           />
         </div>
-
         <select
           value={deptFilter}
           onChange={(e) => setDeptFilter(e.target.value)}
@@ -2361,77 +2394,91 @@ function Employees() {
         </div>
       </div>
 
-      {loading && (
-        <div className={styles.loadingState}>
-          Loading employees…
-        </div>
-      )}
-
-      {!loading && filtered.length === 0 && (
-        <div className={styles.emptyState}>
-          {employees.length === 0
-            ? <>No employees yet. Click <strong>+ Add Employee</strong> to start the directory.</>
-            : "No employees match these filters."}
-        </div>
-      )}
-
-      {!loading && filtered.length > 0 && (
-        <>
-          <div className={styles.cardGrid}>
-            {pagedEmployees.map((emp) => (
-              <EmployeeCard
-                key={emp.ID}
-                employee={emp}
-                onView={setViewing}
-                onEdit={setEditingEmployee}
-                onDelete={handleDelete}
-              />
-            ))}
+      {
+        loading && (
+          <div className={styles.loadingState}>
+            Loading employees…
           </div>
-          <Pagination
-            page={page}
-            pageSize={pageSize}
-            total={filtered.length}
-            onPageChange={setPage}
-            onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+        )
+      }
+
+      {
+        !loading && filtered.length === 0 && (
+          <div className={styles.emptyState}>
+            {employees.length === 0
+              ? <>No employees yet. Click <strong>+ Add Employee</strong> to start the directory.</>
+              : "No employees match these filters."}
+          </div>
+        )
+      }
+
+      {
+        !loading && filtered.length > 0 && (
+          <>
+            <div className={styles.cardGrid}>
+              {pagedEmployees.map((emp) => (
+                <EmployeeCard
+                  key={emp.ID}
+                  employee={emp}
+                  onView={setViewing}
+                  onEdit={setEditingEmployee}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              total={filtered.length}
+              onPageChange={setPage}
+              onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+            />
+          </>
+        )
+      }
+
+      {
+        showAdd && (
+          <AddEmployeeModal
+            onClose={() => setShowAdd(false)}
+            onCreated={() => {
+              setShowAdd(false);
+              fetchAll();
+            }}
           />
-        </>
-      )}
+        )
+      }
 
-      {showAdd && (
-        <AddEmployeeModal
-          onClose={() => setShowAdd(false)}
-          onCreated={() => {
-            setShowAdd(false);
-            fetchAll();
-          }}
-        />
-      )}
+      {
+        editingEmployee && (
+          <AddEmployeeModal
+            editingEmployee={editingEmployee}
+            onClose={() => setEditingEmployee(null)}
+            onCreated={() => {
+              setEditingEmployee(null);
+              fetchAll();
+            }}
+          />
+        )
+      }
 
-      {editingEmployee && (
-        <AddEmployeeModal
-          editingEmployee={editingEmployee}
-          onClose={() => setEditingEmployee(null)}
-          onCreated={() => {
-            setEditingEmployee(null);
-            fetchAll();
-          }}
-        />
-      )}
+      {
+        viewing && (
+          <ResumeModal
+            employee={viewing}
+            onClose={() => setViewing(null)}
+          />
+        )
+      }
 
-      {viewing && (
-        <ResumeModal
-          employee={viewing}
-          onClose={() => setViewing(null)}
-        />
-      )}
-
-      {showInvite && (
-        <InviteEmployeeModal
-          onClose={() => setShowInvite(false)}
-        />
-      )}
-    </div>
+      {
+        showInvite && (
+          <InviteEmployeeModal
+            onClose={() => setShowInvite(false)}
+          />
+        )
+      }
+    </div >
   );
 }
 
@@ -2753,9 +2800,7 @@ function InviteEmployeeModal({ onClose }) {
           {result && (
             <div className={styles.inviteResultBox}>
               <div className={styles.inviteResultHeader}>
-
                 {result.email_sent ? "✅ INVITE SENT" : "✅ INVITE CREATED"}
-
                 {result.expires_at && (
                   <span className={styles.inviteResultExpiry}>
                     · expires {new Date(result.expires_at).toLocaleDateString("en-IN")}
@@ -2841,7 +2886,9 @@ function InviteEmployeeModal({ onClose }) {
   );
 }
 
+
 function InviteField({ label, span, children }) {
+
   return (
 
     <div
@@ -2853,5 +2900,7 @@ function InviteField({ label, span, children }) {
     </div>
   );
 }
+
+
 
 export default Employees;

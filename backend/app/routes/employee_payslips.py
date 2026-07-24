@@ -70,6 +70,15 @@ def list_my_payslips(
             "PAID_LEAVE_DAYS":  float(s.PAID_LEAVE_DAYS or 0),
             "UNPAID_LEAVE_DAYS": float(s.UNPAID_LEAVE_DAYS or 0),
             "ABSENT_DAYS":      float(s.ABSENT_DAYS or 0),
+            # ---- Deduction breakdown so the ESS Payslips card can show
+            #      an at-a-glance summary under the total (PF · ESI · PT ·
+            #      Absence) without opening the detail preview. ----
+            "PF_EMPLOYEE":         float(s.PF_EMPLOYEE or 0),
+            "ESI_EMPLOYEE":        float(s.ESI_EMPLOYEE or 0),
+            "PT_EMPLOYEE":         float(getattr(s, "PT_EMPLOYEE", 0) or 0),
+            "ABSENCE_DEDUCTION":   float(getattr(s, "ABSENCE_DEDUCTION", 0) or 0),
+            "PERMISSION_DEDUCTION": float(getattr(s, "PERMISSION_DEDUCTION", 0) or 0),
+            "LATE_PENALTY":        float(getattr(s, "LATE_PENALTY", 0) or 0),
         }
         for s, run in rows
     ]
@@ -274,9 +283,15 @@ def get_payslip_detail(
     slip_number = _payslip_number(slip, run)
     pay_period_label = f"{_month_name(run.PAY_MONTH)} {run.PAY_YEAR}"
 
-    # Pay date — use finalized_at / created_at fallback
-    pay_date_dt = getattr(run, "FINALIZED_AT", None) or getattr(run, "CREATED_AT", None)
-    pay_date_str = pay_date_dt.strftime("%d/%m/%Y") if pay_date_dt else "—"
+    # Pay date — prefer the admin-typed PayrollSlip.PAY_DATE. Only fall
+    # back to run.FINALIZED_AT / run.CREATED_AT when the slip pre-dates
+    # the PAY_DATE column (older auto-migrated rows have it NULL).
+    slip_pay_date = getattr(slip, "PAY_DATE", None)
+    if slip_pay_date:
+        pay_date_str = slip_pay_date.strftime("%d/%m/%Y")
+    else:
+        pay_date_dt = getattr(run, "FINALIZED_AT", None) or getattr(run, "CREATED_AT", None)
+        pay_date_str = pay_date_dt.strftime("%d/%m/%Y") if pay_date_dt else "—"
 
     net = float(slip.NET_PAY or 0)
 

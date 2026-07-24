@@ -1214,7 +1214,25 @@ class GeofenceSettings(Base):
     OFFICE_NAME   = Column(String(150), nullable=True)
     LATITUDE      = Column(Float, nullable=False, default=0.0)
     LONGITUDE     = Column(Float, nullable=False, default=0.0)
-    RADIUS_METERS = Column(Integer, nullable=False, default=50)
+
+    # Two-tier radius model —
+    #   RADIUS_METERS     : "auto check-in" zone. Employees inside this
+    #                       ring get checked in without touching a button.
+    #   MAX_RADIUS_METERS : hard block. Beyond this distance the check-in
+    #                       is refused entirely. The band between the two
+    #                       is a "grace zone" where the employee is
+    #                       allowed to manually tap Check In (say, they
+    #                       just stepped outside the door to get coffee).
+    RADIUS_METERS     = Column(Integer, nullable=False, default=30)
+    MAX_RADIUS_METERS = Column(Integer, nullable=False, default=50)
+
+    # WiFi allow-list. Comma-separated list of the company's public IP
+    # addresses (or CIDR blocks) — a client connected from any of these
+    # is treated as "on office WiFi". Combined with the geofence, this
+    # gives the two-factor location check the admin asked for. NULL /
+    # empty string = WiFi check disabled (geofence alone decides).
+    OFFICE_WIFI_IPS = Column(String(500), nullable=True)
+
     IS_ACTIVE     = Column(Integer, default=1)
     # 1 = enforce geofencing, 0 = allow attendance from anywhere (kill-switch)
     CREATED_AT    = Column(DateTime, default=now_ist)
@@ -2330,6 +2348,19 @@ class PayrollSlip(Base):
     NET_PAY = Column(Float, default=0.0)
 
     NOTES = Column(String(500), nullable=True)
+
+    # Pay Date — what the admin typed into the payslip form. Distinct
+    # from PayrollRun.CREATED_AT (when the batch was generated) and
+    # from PAID_AT (when the money actually moved). Nullable so old
+    # slips without a stored date can fall back to run.CREATED_AT.
+    PAY_DATE = Column(Date, nullable=True)
+
+    # SUBMITTED_AT — the "publish to Payroll Records" moment. Slips
+    # exist in DRAFT form (NULL here) after Generate/Update Payslip;
+    # only after the admin explicitly clicks "Submit" does this get
+    # stamped, and only then does the slip appear on /payroll-records.
+    # Keeps unfinished drafts out of the audit-facing history.
+    SUBMITTED_AT = Column(DateTime, nullable=True)
 
     # Per-slip payment workflow (simpler than run-level statuses).
     # 'PENDING' on generation; flips to 'PAID' when the admin clicks

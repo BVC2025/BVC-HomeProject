@@ -1,13 +1,28 @@
 """
 Project Management SQLAlchemy models.
 
-Moved from app/models/models.py for cleaner module organisation.
-Table names, columns, constraints, indexes, relationships, and FK rules
-are identical to the original definitions — zero schema change.
+This file is a merge target: the ram-development branch redesigned the
+project schema (UUID PKs, new columns like NAME/CATEGORY_ID) while
+puvi-development's DB still has the original schema (Integer PKs,
+PROJECT_NAME/CUSTOMER_ID/DEPARTMENT_ID, plus 77+ places in old routes
+that read Project.STATUS, Project.DEPARTMENT_ID etc.).
 
-DURATION_UNIT_ENUM is imported from models.py (defined at line ~24 there)
-rather than redefined, so there is exactly one SAEnum object per type name
-in the shared Base.metadata.
+To keep both universes running against the existing MySQL DB without a
+destructive data migration:
+
+  * IDs stay Integer autoincrement (matches DB and every FK column
+    already in task/task_assignment/work_order/purchase_order).
+  * All original columns are preserved so old routes keep working.
+  * The ram-development additions (NAME, CATEGORY_ID, BOM_MODE,
+    ESTIMATED_TOTAL_DAYS, CREATED_AT/UPDATED_AT) are appended as
+    nullable columns; the auto-migrate hook in app/main.py ALTERs
+    the live table to add them.
+  * Project.NAME is exposed as a `synonym` of Project.PROJECT_NAME
+    so ram-development's `Project.NAME` queries and the legacy
+    `Project.PROJECT_NAME` accesses read/write the same DB column.
+
+DURATION_UNIT_ENUM is defined once here so all task-template code shares
+a single SAEnum instance in Base.metadata.
 """
 
 import uuid
@@ -15,9 +30,9 @@ from app.utils.datetime_utils import now_ist
 
 from sqlalchemy import (
     Column, String, Integer, ForeignKey, Text, DateTime, Numeric,
-    UniqueConstraint, Boolean, Index,
+    UniqueConstraint, Boolean, Index, Date,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, synonym
 
 from sqlalchemy import Enum as SAEnum
 
@@ -33,55 +48,70 @@ class ProjectCategory(Base):
 
     __tablename__ = "project_category"
 
-    __table_args__ = (
-        UniqueConstraint("VENDOR_ID", "NAME", name="uq_proj_cat_vendor_name"),
-    )
+    # DB column is INT auto_increment. UNIQUE(VENDOR_ID, NAME) is added
+    # lazily by auto-migrate once VENDOR_ID exists on all rows.
+    ID = Column(Integer, primary_key=True, autoincrement=True)
 
-    ID = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    # ram-development columns — nullable so existing rows aren't broken.
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=True, index=True)
 
-    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
+    NAME = Column(String(100), nullable=True)
 
-    NAME = Column(String(100), nullable=False)
+    # SECTION lived on the legacy schema; keep it so legacy reads work.
+    SECTION = Column(String(30), nullable=True, index=True)
 
     DESCRIPTION = Column(String(500), nullable=True)
 
-    CREATED_AT = Column(DateTime, default=now_ist)
-    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
+    CREATED_AT = Column(DateTime, nullable=True, default=now_ist)
+    UPDATED_AT = Column(DateTime, nullable=True, default=now_ist, onupdate=now_ist)
 
-    projects = relationship("Project", back_populates="category", cascade="all, delete-orphan")
+    projects = relationship("Project", back_populates="category")
 
 
 class Project(Base):
 
     __tablename__ = "project"
 
-    __table_args__ = (
-        UniqueConstraint("VENDOR_ID", "CATEGORY_ID", "NAME", name="uq_project_vendor_cat_name"),
-    )
+    # No cross-column UniqueConstraint here — CATEGORY_ID / NAME may be
+    # NULL on legacy rows and MySQL would reject the constraint.
 
-    ID = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
 
-    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
+    # ---------- Original (legacy) columns — still populated by many
+    #            routes (ai_chat, chatbot, attendance, biometric, connect,
+    #            project, project_template, purchase_order, etc.) ----------
+    PROJECT_NAME             = Column(String(200), nullable=True)
+    DESCRIPTION              = Column(String(2000), nullable=True)
+    STATUS                   = Column(String(50),  nullable=True, default="PENDING")
+    SUB_PROJECT_TEMPLATE_ID  = Column(Integer, ForeignKey("sub_project_template.ID"), nullable=True, index=True)
+    DEPARTMENT_ID            = Column(Integer, ForeignKey("department.ID"),           nullable=True, index=True)
+    CUSTOMER_ID              = Column(Integer, ForeignKey("customer.ID"),             nullable=True)
+    SKILLS_REQUIRED          = Column(String(500), nullable=True)
+    PRIORITY                 = Column(String(20),  nullable=True, default="MEDIUM")
+    PRODUCT_MODEL_ID         = Column(Integer, nullable=True, index=True)
+    QUANTITY                 = Column(Integer, nullable=True, default=1)
+    TARGET_DATE              = Column(Date,    nullable=True)
+    VENDOR_ID                = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=True, index=True)
 
-    CATEGORY_ID = Column(
-        String(36),
-        ForeignKey("project_category.ID", ondelete="RESTRICT"),
-        nullable=False,
-        index=True
-    )
+    # ---------- ram-development additions — nullable so existing rows
+    #            (which lack these columns until auto-migrate ALTERs the
+    #            table) don't break ----------
+    CATEGORY_ID          = Column(Integer, ForeignKey("project_category.ID", ondelete="RESTRICT"), nullable=True, index=True)
+    BOM_MODE             = Column(String(20), nullable=True)
+    ESTIMATED_TOTAL_DAYS = Column(Numeric(10, 2), nullable=True, default=0.0)
 
-    NAME = Column(String(100), nullable=False)
+    CREATED_AT = Column(DateTime, nullable=True, default=now_ist)
+    UPDATED_AT = Column(DateTime, nullable=True, default=now_ist, onupdate=now_ist)
 
-    DESCRIPTION = Column(String(500), nullable=True)
+    # ---------- Attribute alias ----------
+    # ram-development's routes (project_template.py, project_quotation_service.py)
+    # use `Project.NAME` for what puvi-development already stored as
+    # `PROJECT_NAME`. Synonym makes both attribute names read/write the
+    # SAME DB column — no data duplication.
+    NAME = synonym("PROJECT_NAME")
 
-    BOM_MODE = Column(String(20), nullable=True)
-
-    ESTIMATED_TOTAL_DAYS = Column(Numeric(10, 2), default=0.0, nullable=False)
-
-    CREATED_AT = Column(DateTime, default=now_ist)
-    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
-
-    category       = relationship("ProjectCategory", back_populates="projects")
+    # ---------- Relationships ----------
+    category       = relationship("ProjectCategory", back_populates="projects", foreign_keys=[CATEGORY_ID])
     task_templates = relationship(
         "TaskTemplate", back_populates="project",
         order_by="TaskTemplate.SEQUENCE_NUMBER",
@@ -106,9 +136,13 @@ class ProjectPricing(Base):
         Index("ix_project_pricing_vendor", "VENDOR_ID"),
     )
 
+    # New table — no existing data, keep UUID PK.
     ID = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
 
-    PROJECT_ID = Column(String(36), ForeignKey("project.ID", ondelete="CASCADE"), nullable=False, index=True)
+    # FK must match project.ID's actual DB type (Integer) or MySQL rejects
+    # the constraint (error 3780). This is the root cause of the merge
+    # failure that motivated this rewrite.
+    PROJECT_ID = Column(Integer, ForeignKey("project.ID", ondelete="CASCADE"), nullable=False, index=True)
     VENDOR_ID  = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
 
     # Plain string, no ENUM — matches supplier_models.py's Supplier.CURRENCY convention.
@@ -138,8 +172,12 @@ class ProjectPricing(Base):
 class TaskTemplate(Base):
     __tablename__ = "task_template"
 
+    # New table — no existing data, keep UUID PK.
     ID              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    PROJECT_ID      = Column(String(36), ForeignKey("project.ID", ondelete="RESTRICT"), nullable=False, index=True)
+
+    # FK type matches project.ID (Integer). See ProjectPricing.PROJECT_ID
+    # for context.
+    PROJECT_ID      = Column(Integer, ForeignKey("project.ID", ondelete="RESTRICT"), nullable=False, index=True)
     VENDOR_ID       = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
     NAME            = Column(String(100), nullable=False)
     DESCRIPTION     = Column(Text, nullable=True)

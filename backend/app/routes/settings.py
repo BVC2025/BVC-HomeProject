@@ -407,7 +407,18 @@ def update_company_settings(
     }
 
 
-_ALLOWED_LOGO_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".svg"}
+_ALLOWED_LOGO_EXTS = {
+    ".png",
+    ".jpg", ".jpeg", ".jfif", ".jpe",  # all JPEG variants; .jfif is what
+                                        # Windows saves some downloaded
+                                        # JPEGs as, so accept it explicitly
+    ".webp",
+    ".svg",
+    ".gif",
+}
+# JPEG variants get normalized to `.jpg` when the file lands on disk so
+# the browser gets a standard extension in the <img src>.
+_JPEG_VARIANT_EXTS = {".jpg", ".jpeg", ".jfif", ".jpe"}
 
 _LOGO_DIR = (
     Path(__file__).resolve().parent.parent.parent / "static" / "company"
@@ -436,7 +447,12 @@ def upload_company_logo(
 
     _LOGO_DIR.mkdir(parents=True, exist_ok=True)
 
-    fname = f"vendor-{vendor_id}-{uuid.uuid4().hex[:8]}{ext}"
+    # Normalize any JPEG variant (.jfif / .jpe / .jpeg) to .jpg on disk
+    # so the served /static/company/... URL always ends in a browser-
+    # friendly extension. Byte content is untouched.
+    stored_ext = ".jpg" if ext in _JPEG_VARIANT_EXTS else ext
+
+    fname = f"vendor-{vendor_id}-{uuid.uuid4().hex[:8]}{stored_ext}"
 
     dest = _LOGO_DIR / fname
 

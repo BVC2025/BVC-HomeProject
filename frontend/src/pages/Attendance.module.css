@@ -1132,3 +1132,279 @@
     font-size: 18px;
   }
 }
+
+
+/* =====================================================================
+   REDESIGNED HEADER BLOCK — clean, professional, non-duplicated.
+   Everything below this comment supersedes the earlier
+   .geoStrip / .geoWidget / .statRow / .card.card-green mess.
+   ===================================================================== */
+
+.attendancePage {
+  padding: 6px 2px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, sans-serif;
+}
+
+/* ---- 1. Header strip — title + primary action only ------------- */
+.headerStrip {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #dc2626;
+  border-radius: 12px;
+  padding: 18px 22px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.headerTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.headerTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.4px;
+}
+.headerDate {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.primaryCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: #dc2626;
+  color: #ffffff;
+  border: 1px solid #dc2626;
+  border-radius: 10px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.22);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.primaryCta:hover:not(:disabled) {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  box-shadow: 0 8px 22px rgba(220, 38, 38, 0.30);
+}
+.primaryCta:disabled {
+  background: #94a3b8;
+  border-color: #94a3b8;
+  cursor: wait;
+  box-shadow: none;
+}
+
+/* CSV result toast — inline under the header row */
+.csvToastOk,
+.csvToastError {
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  align-self: stretch;
+}
+.csvToastOk    { background: #ecfdf5; color: #166534; border-color: #86efac; }
+.csvToastError { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+
+
+/* ---- 2. KPI grid — 4 tiles, professional card language ---------- */
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.kpiTile {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.kpiTile:hover {
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  border-color: #cbd5e1;
+}
+.kpiTile_green { border-top: 3px solid #059669; }
+.kpiTile_amber { border-top: 3px solid #d97706; }
+.kpiTile_red   { border-top: 3px solid #dc2626; }
+.kpiTile_blue  { border-top: 3px solid #1d4ed8; }
+
+.kpiIcon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.kpiIcon_green { background: #ecfdf5; color: #059669; }
+.kpiIcon_amber { background: #fffbeb; color: #d97706; }
+.kpiIcon_red   { background: #fef2f2; color: #dc2626; }
+.kpiIcon_blue  { background: #eff6ff; color: #1d4ed8; }
+
+.kpiBody { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.kpiLabel {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: #64748b;
+}
+.kpiValue {
+  font-size: 26px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.5px;
+  line-height: 1;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+
+/* ---- 3. Geofence tiles — same visual language, 3-up ------------ */
+.geoGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.geoTile {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.geoTile_green { border-left: 4px solid #059669; }
+.geoTile_amber { border-left: 4px solid #d97706; }
+.geoTile_red   { border-left: 4px solid #dc2626; }
+
+.geoTileLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #64748b;
+}
+.geoTileValue {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.geoTileValue_green { color: #059669; }
+.geoTileValue_amber { color: #d97706; }
+.geoTileValue_red   { color: #dc2626; }
+
+.geoTileSub {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+}
+.geoTileSub a { color: #dc2626; font-weight: 600; text-decoration: none; }
+.geoTileSub a:hover { text-decoration: underline; }
+
+
+/* ---- 4. Action card — mark-attendance controls, one panel ------ */
+.actionCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 18px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+
+/* ---- Responsive ---- */
+@media (max-width: 960px) {
+  .kpiGrid { grid-template-columns: repeat(2, 1fr); }
+  .geoGrid { grid-template-columns: 1fr; }
+  .primaryCta { width: 100%; justify-content: center; }
+}
+@media (max-width: 560px) {
+  .kpiGrid   { grid-template-columns: 1fr; }
+  .kpiTile   { padding: 14px 16px; }
+  .kpiValue  { font-size: 22px; }
+}
+
+
+/* ---- Dark mode ---- */
+:global(html[data-theme="dark"]) .headerStrip,
+:global(html[data-theme="dark"]) .kpiTile,
+:global(html[data-theme="dark"]) .geoTile,
+:global(html[data-theme="dark"]) .actionCard {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.20);
+}
+:global(html[data-theme="dark"]) .headerStrip { border-left-color: #dc2626; }
+:global(html[data-theme="dark"]) .headerTitle { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .headerDate  { color: #94a3b8; }
+:global(html[data-theme="dark"]) .kpiLabel,
+:global(html[data-theme="dark"]) .geoTileLabel,
+:global(html[data-theme="dark"]) .geoTileSub { color: #94a3b8; }
+:global(html[data-theme="dark"]) .kpiValue { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .kpiIcon_green { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+:global(html[data-theme="dark"]) .kpiIcon_amber { background: rgba(251, 191, 36, 0.18); color: #fbbf24; }
+:global(html[data-theme="dark"]) .kpiIcon_red   { background: rgba(239, 68, 68, 0.18);  color: #fca5a5; }
+:global(html[data-theme="dark"]) .kpiIcon_blue  { background: rgba(59, 130, 246, 0.18); color: #93c5fd; }
+:global(html[data-theme="dark"]) .geoTileValue_green { color: #6ee7b7; }
+:global(html[data-theme="dark"]) .geoTileValue_amber { color: #fbbf24; }
+:global(html[data-theme="dark"]) .geoTileValue_red   { color: #fca5a5; }
+:global(html[data-theme="dark"]) .csvToastOk {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #6ee7b7;
+}
+:global(html[data-theme="dark"]) .csvToastError {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+}

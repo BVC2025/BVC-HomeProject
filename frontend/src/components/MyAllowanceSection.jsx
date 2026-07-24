@@ -12,7 +12,6 @@ import API from "../services/api";
 
 const BVC_RED  = "#C8102E";
 const BVC_DARK = "#8B0B1F";
-const BVC_GOLD = "#F4B324";
 
 
 /* Live-tracks the root `data-theme` attribute so inline-style colours
@@ -243,26 +242,68 @@ export default function MyAllowanceSection({ employeeId }) {
   return (
     <div style={{ display: "grid", gap: 16 }}>
 
-      {/* Hero */}
+      {/* Hero — white card, red border only. Text uses the standard
+          dark-slate / red-accent palette used across the rest of the
+          ERP. Theme-aware via `pal` so dark mode gets a dark-navy card
+          with the same red border. */}
       <div style={{
-        background: `linear-gradient(135deg, ${BVC_DARK} 0%, ${BVC_RED} 100%)`,
+        background: pal.cardBg,
         borderRadius: 14,
-        padding: "18px 22px",
-        color: "white",
+        padding: "16px 22px",
+        color: pal.strong,
+        border: `1px solid ${BVC_RED}`,
+        boxShadow: "0 4px 14px rgba(15,23,42,0.05)",
+        position: "relative",
+        overflow: "hidden",
+        display: "grid",
+        gridTemplateColumns: summary ? "1fr auto" : "1fr",
+        gap: 22,
+        alignItems: "center",
       }}>
-        <div style={{
-          fontSize: 11, fontWeight: 800, letterSpacing: 2,
-          color: BVC_GOLD, textTransform: "uppercase",
-        }}>
-          Expense claims
+        <div style={{ position: "relative", zIndex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: 10.5, fontWeight: 700, letterSpacing: 1.6,
+            color: BVC_RED, textTransform: "uppercase",
+            marginBottom: 4,
+          }}>
+            Expense claims
+          </div>
+          <div style={{
+            fontSize: 22, fontWeight: 700, letterSpacing: -0.4,
+            lineHeight: 1.2, marginBottom: 4, color: pal.strong,
+          }}>
+            Submit office-related expenses for approval
+          </div>
+          <div style={{ fontSize: 12.5, lineHeight: 1.5, maxWidth: 520, color: pal.soft }}>
+            Travel, food, supplies, fuel and more. The Managing Director
+            receives an email the moment you submit.
+          </div>
         </div>
-        <div style={{ fontSize: 20, fontWeight: 800, marginTop: 4 }}>
-          Submit office-related expenses for approval
-        </div>
-        <div style={{ fontSize: 12, opacity: 0.9, marginTop: 4 }}>
-          Travel, food, supplies, fuel and more. The Managing Director receives
-          an email the moment you submit.
-        </div>
+
+        {summary && (
+          <div style={{
+            position: "relative",
+            zIndex: 1,
+            paddingLeft: 22,
+            borderLeft: `1px solid ${pal.cardBorder}`,
+            textAlign: "right",
+            minWidth: 180,
+          }}>
+            <div style={{
+              fontSize: 10.5, fontWeight: 700, letterSpacing: 1.4,
+              color: BVC_RED, textTransform: "uppercase",
+              marginBottom: 4,
+            }}>
+              This month
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: -0.5, lineHeight: 1, color: pal.strong }}>
+              {inr((summary.pending_amount || 0) + (summary.approved_amount || 0))}
+            </div>
+            <div style={{ fontSize: 11, marginTop: 4, color: pal.soft }}>
+              {summary.total} claim{summary.total === 1 ? "" : "s"} submitted
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Summary tiles */}
@@ -272,10 +313,10 @@ export default function MyAllowanceSection({ employeeId }) {
           gridTemplateColumns: "repeat(4, 1fr)",
           gap: 12,
         }}>
-          <Tile pal={pal} label="Total claims" value={summary.total}     color="#1d4ed8" />
-          <Tile pal={pal} label="Pending"      value={summary.pending}   color="#B47900" sub={inr(summary.pending_amount)} />
-          <Tile pal={pal} label="Approved"     value={summary.approved}  color="#059669" sub={inr(summary.approved_amount)} />
-          <Tile pal={pal} label="Rejected"     value={summary.rejected}  color="#991b1b" />
+          <Tile pal={pal} label="Total claims" value={summary.total}     color="#1d4ed8" tintKey="blue"  icon="📋" />
+          <Tile pal={pal} label="Pending"      value={summary.pending}   color="#B47900" tintKey="amber" icon="⏳" sub={inr(summary.pending_amount)} />
+          <Tile pal={pal} label="Approved"     value={summary.approved}  color="#059669" tintKey="green" icon="✓" sub={inr(summary.approved_amount)} />
+          <Tile pal={pal} label="Rejected"     value={summary.rejected}  color="#991b1b" tintKey="red"   icon="✕" />
         </div>
       )}
 
@@ -504,7 +545,23 @@ export default function MyAllowanceSection({ employeeId }) {
 }
 
 
-function Tile({ label, value, sub, color, pal }) {
+// Tint pairs used by the small icon square inside each Tile so the
+// four claim cards get colour-coded at a glance (blue = total,
+// amber = pending, green = approved, red = rejected).
+const TILE_TINTS = {
+  blue:  { light: { bg: "#eff6ff", fg: "#1d4ed8" }, dark: { bg: "rgba(59, 130, 246, 0.18)", fg: "#93c5fd" } },
+  amber: { light: { bg: "#fffbeb", fg: "#b45309" }, dark: { bg: "rgba(251, 191, 36, 0.18)", fg: "#fbbf24" } },
+  green: { light: { bg: "#ecfdf5", fg: "#047857" }, dark: { bg: "rgba(16, 185, 129, 0.18)", fg: "#6ee7b7" } },
+  red:   { light: { bg: "#fef2f2", fg: "#b91c1c" }, dark: { bg: "rgba(239, 68, 68, 0.18)",  fg: "#fca5a5" } },
+};
+
+function Tile({ label, value, sub, color, pal, icon, tintKey }) {
+  // Detect dark mode from pal (strong colour is off-white on dark).
+  const isDark = pal.strong === "#f1f5f9";
+  const tint = tintKey && TILE_TINTS[tintKey]
+    ? (isDark ? TILE_TINTS[tintKey].dark : TILE_TINTS[tintKey].light)
+    : null;
+
   return (
     <div style={{
       background: pal.cardBg,
@@ -513,26 +570,43 @@ function Tile({ label, value, sub, color, pal }) {
       border: `1px solid ${pal.cardBorder}`,
       borderTop: `3px solid ${color}`,
       boxShadow: "0 4px 14px rgba(15,23,42,0.06)",
+      display: "flex",
+      flexDirection: "column",
+      gap: 6,
     }}>
-      <div style={{
-        fontSize: 10,
-        fontWeight: 700,
-        letterSpacing: 1,
-        color: pal.soft,
-        textTransform: "uppercase",
-      }}>
-        {label}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {tint && icon && (
+          <span style={{
+            width: 30, height: 30, borderRadius: 8,
+            background: tint.bg, color: tint.fg,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            fontSize: 15, fontWeight: 700, flexShrink: 0,
+          }}>
+            {icon}
+          </span>
+        )}
+        <div style={{
+          fontSize: 10.5,
+          fontWeight: 700,
+          letterSpacing: 1.1,
+          color: pal.soft,
+          textTransform: "uppercase",
+        }}>
+          {label}
+        </div>
       </div>
       <div style={{
-        fontSize: 24,
+        fontSize: 22,
         fontWeight: 800,
         color: pal.strong,
-        marginTop: 4,
+        letterSpacing: -0.4,
+        lineHeight: 1,
+        marginTop: 2,
       }}>
         {value}
       </div>
       {sub && (
-        <div style={{ fontSize: 11, color: pal.muted, marginTop: 2 }}>
+        <div style={{ fontSize: 11, color: pal.muted, marginTop: 0 }}>
           {sub}
         </div>
       )}

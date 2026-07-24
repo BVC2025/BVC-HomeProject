@@ -112,29 +112,60 @@ const NAV_GROUPS = [
 // -----------------------------------------------------------------
 // Component
 // -----------------------------------------------------------------
+// RBAC role names that sometimes leak into localStorage.employee_id
+// when the person logs in through the admin path. The sidebar footer
+// is supposed to show a real employee code (BVC008, EMP-021 etc.) —
+// never a role name — so we filter these out.
+const ROLE_NAME_BLOCKLIST = new Set([
+  "ADMIN", "SUPER_ADMIN", "SUPERADMIN", "HR", "MANAGER",
+  "OWNER", "SYSTEM_ADMINISTRATOR",
+]);
+
 export default function EmployeeSidebar({
   activeTab, onSelect, onLogout, unreadCount = 0,
-  open = false, onClose,
+  open = false, onClose, profile,
 }) {
 
   const navigate = useNavigate();
 
   // Employee identity for the footer card.
-  // NOTE: Login.jsx on this branch only writes `employee_id` (the
-  // CODE), not `employee_code`, so we fall back to it. We also
-  // deliberately don't surface the RBAC role name (ADMIN / HR /
-  // MANAGER) here — this is the ESS sidebar, everyone using it is
-  // acting as an employee.
+  //
+  // Preference order for the code shown under the name:
+  //   1. `profile.employee_code` — from /portal-dashboard (authoritative,
+  //      always the linked EMPLOYEE.EMPLOYEE_CODE, e.g. BVC008)
+  //   2. localStorage.employee_code
+  //   3. localStorage.employee_id — LAST resort, and only if it doesn't
+  //      look like a role name (ADMIN / HR / MANAGER), which the
+  //      admin-login path writes here.
+  //
+  // We deliberately don't surface the RBAC role name in the sidebar
+  // — this is the ESS sidebar, everyone using it is acting as an
+  // employee, so their employee code is what matters.
   const identity = useMemo(() => {
-    const name  = (localStorage.getItem("employee_name") || "").trim() || "Employee";
-    const code  = (localStorage.getItem("employee_code") || "").trim()
-               || (localStorage.getItem("employee_id")   || "").trim();
-    const photo = localStorage.getItem("employee_photo") || "";
+    const lsName = (localStorage.getItem("employee_name") || "").trim();
+    const name = (profile?.name || lsName || "Employee").trim();
+
+    const fromProfile = (profile?.employee_code || "").trim();
+    const lsCode      = (localStorage.getItem("employee_code") || "").trim();
+    const lsId        = (localStorage.getItem("employee_id")   || "").trim();
+
+    const looksLikeRole = (v) => !!v && ROLE_NAME_BLOCKLIST.has(v.toUpperCase());
+
+    let code = "";
+    if (fromProfile && !looksLikeRole(fromProfile)) {
+      code = fromProfile;
+    } else if (lsCode && !looksLikeRole(lsCode)) {
+      code = lsCode;
+    } else if (lsId && !looksLikeRole(lsId)) {
+      code = lsId;
+    }
+
+    const photo = profile?.photo_url || localStorage.getItem("employee_photo") || "";
     const initials = name.split(/\s+/).slice(0, 2)
       .map((s) => s.charAt(0).toUpperCase())
       .join("");
     return { name, code, photo, initials };
-  }, []);
+  }, [profile?.employee_code, profile?.name, profile?.photo_url]);
 
   const photoUrl = identity.photo
     ? (identity.photo.startsWith("http")
