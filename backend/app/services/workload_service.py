@@ -52,18 +52,6 @@ def candidate_pool(
         Role.NAME.notin_(EXCLUDED_ROLES)
     )
 
-    # Attendance filter — auto-assign only picks employees who have
-    # actually punched in today. Employees on leave / absent / not
-    # yet checked in should not receive new tasks.
-    from app.services.attendance_helpers import present_employee_ids_on
-    present_ids = present_employee_ids_on(db)
-    if present_ids:
-        base_q = base_q.filter(Employee.ID.in_(present_ids))
-    # else: no attendance yet today (early morning before anyone's
-    # punched in). Fall through to the un-filtered pool so the
-    # scheduler can still plan the day; the first employee to punch
-    # in gets a task via the biometric flow.
-
     chosen_dept = department_id
 
     if chosen_dept is None and project is not None:

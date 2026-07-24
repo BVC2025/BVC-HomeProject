@@ -53,11 +53,10 @@ from app.services.email_service import send_task_assignment_email
 from app.services.attendance_settings_service import (
     get_office_hours,
     is_before_end,
+    get_grace_minutes
 )
 
-# Note: auto_create_permission is intentionally NOT imported here.
-# Permissions are only created when an employee explicitly submits
-# one via POST /leave/apply-permission — see backend/app/routes/leave.py.
+from app.services.leave_service import auto_create_permission
 
 
 router = APIRouter()
@@ -635,11 +634,6 @@ def employee_login(
 
     if fresh and attendance.STATUS == "LATE":
 
-        # Notify HR / manager of a late login. The late duration is
-        # already persisted on the attendance row as LATE_MINUTES —
-        # we do NOT create a Permission row from this. Permissions are
-        # only recorded when the employee explicitly submits one via
-        # POST /leave/apply-permission.
         push_notification(
             db,
             title=f"Late login: {emp.NAME}",
@@ -651,6 +645,43 @@ def employee_login(
             ntype="WARNING",
             vendor_id=emp.VENDOR_ID or 1
         )
+
+        # Phase D — auto-create a LATE_COMING Permission row when
+        # the employee is past the configured grace window.
+        try:
+
+            office_start, _ = get_office_hours(db)
+
+            late_grace_min, _ = get_grace_minutes(db)
+
+            start_dt = datetime.combine(now.date(), office_start)
+
+            minutes_late = max(0, int((now - start_dt).total_seconds() // 60))
+
+            if minutes_late > late_grace_min:
+
+                hours_late = round(minutes_late / 60.0, 2)
+
+                auto_create_permission(
+                    db,
+                    employee_id=emp.ID,
+                    on_date=now.date(),
+                    subtype="LATE_COMING",
+                    duration_hours=hours_late,
+                    reason=(
+                        f"Auto-recorded: logged in at "
+                        f"{now.strftime('%H:%M')} "
+                        f"({minutes_late} min after "
+                        f"{office_start.strftime('%H:%M')} cutoff, "
+                        f"beyond {late_grace_min} min grace)."
+                    ),
+                    vendor_id=emp.VENDOR_ID or 1
+                )
+
+        except Exception:
+
+            # Best-effort: never block login on the permission write
+            pass
 
     if fresh and pending_yesterday:
 
@@ -730,25 +761,128 @@ def employee_logout(
             detail="Token does not match employee"
         )
 
-    # Logout no longer mutates attendance. The `attendance.CHECK_OUT`,
-    # `WORKED_HOURS`, and `OVERTIME_HOURS` fields are written EXCLUSIVELY
-    # by the biometric device (via essl_bridge / /biometric/scan) or by
-    # the explicit admin /check-out endpoint. Web logout is treated as
-    # a session end, not an attendance event — an employee closing the
-    # browser tab shouldn't accidentally clock out.
     now = datetime.now()
+
+    start, end = get_office_hours(db)
 
     row = db.query(Attendance).filter(
         Attendance.EMPLOYEE_ID == emp.ID,
         Attendance.DATE == now.date()
     ).first()
 
+    # Rule 5 + 6: logout without a Check-In is invalid. Refuse with
+    # the exact warning message and notify MD via the notification
+    # bell so they can follow up with the employee.
+    if row is None or row.CHECK_IN is None:
+
+        warning = (
+            "Attendance is not valid because you have logged out without "
+            "checking in. Since only a logout record exists for today, "
+            "this attendance entry will not be considered valid. Please "
+            "inform the Managing Director (MD) about the reason for "
+            "logging out without checking in."
+        )
+
+        push_notification(
+            db,
+            title=f"Invalid logout: {emp.NAME}",
+            message=(
+                f"{emp.EMPLOYEE_CODE} attempted to log out at "
+                f"{now.strftime('%H:%M')} without a Check-In today."
+            ),
+            ntype="WARNING",
+            vendor_id=emp.VENDOR_ID or 1
+        )
+
+        raise HTTPException(status_code=400, detail=warning)
+
+    row.CHECK_OUT = now
+
+    # Rule 3: logout before the configured office end time counts as
+    # an Early Exit / Permission, not a normal logout. We keep the
+    # CHECK_OUT stamp and overwrite STATUS only when this is the case;
+    # otherwise the existing PRESENT / LATE status sticks.
+    early_exit = is_before_end(now, end)
+
+    if early_exit:
+
+        row.STATUS = "EARLY_EXIT"
+
+    worked = None
+
+    if row.CHECK_IN and row.CHECK_OUT:
+
+        delta = row.CHECK_OUT - row.CHECK_IN
+
+        worked = round(delta.total_seconds() / 3600, 2)
+
+        row.WORKED_HOURS = worked
+
+        row.OVERTIME_HOURS = max(0, round(worked - 8, 2))
+
+    db.commit()
+
+    if early_exit:
+
+        push_notification(
+            db,
+            title=f"Early exit: {emp.NAME}",
+            message=(
+                f"{emp.EMPLOYEE_CODE} checked out at "
+                f"{now.strftime('%H:%M')}, before the "
+                f"{end.strftime('%H:%M')} office close. "
+                f"Recorded as Permission / Early Exit."
+            ),
+            ntype="WARNING",
+            vendor_id=emp.VENDOR_ID or 1
+        )
+
+        # Phase D — auto-create EARLY_EXIT Permission past the grace.
+        try:
+
+            _, early_grace_min = get_grace_minutes(db)
+
+            end_dt = datetime.combine(now.date(), end)
+
+            minutes_early = max(0, int((end_dt - now).total_seconds() // 60))
+
+            if minutes_early > early_grace_min:
+
+                hours_early = round(minutes_early / 60.0, 2)
+
+                auto_create_permission(
+                    db,
+                    employee_id=emp.ID,
+                    on_date=now.date(),
+                    subtype="EARLY_EXIT",
+                    duration_hours=hours_early,
+                    reason=(
+                        f"Auto-recorded: checked out at "
+                        f"{now.strftime('%H:%M')} "
+                        f"({minutes_early} min before "
+                        f"{end.strftime('%H:%M')} office close, "
+                        f"beyond {early_grace_min} min grace)."
+                    ),
+                    vendor_id=emp.VENDOR_ID or 1
+                )
+
+        except Exception:
+
+            # Best-effort: never block logout on the permission write
+            pass
+
     return {
-        "message": "Logged out (attendance unchanged — check-out only via biometric)",
-        "LOGOUT_TIME": now.isoformat(),
-        "CHECK_IN":  row.CHECK_IN.isoformat()  if row and row.CHECK_IN  else None,
-        "CHECK_OUT": row.CHECK_OUT.isoformat() if row and row.CHECK_OUT else None,
-        "STATUS": row.STATUS if row else None,
+        "message": (
+            "Recorded as Permission / Early Exit."
+            if early_exit
+            else "Logged out"
+        ),
+        "LOGIN_TIME":  row.CHECK_IN.isoformat(),
+        "LOGOUT_TIME": row.CHECK_OUT.isoformat(),
+        "WORKED_HOURS": worked,
+        "STATUS": row.STATUS,
+        "EARLY_EXIT": early_exit,
+        "OFFICE_END": end.strftime("%H:%M")
     }
 
 
@@ -1516,22 +1650,6 @@ def assign_task(
             )
 
     assigned_date = data.ASSIGNED_DATE or date.today()
-
-    # Attendance gate: for tasks assigned FOR TODAY, the employee must
-    # be present (biometric check-in). Absent employees can't be given
-    # today's work — the task would sit unclaimable. Future / past
-    # dates skip this check (future can't be known; past is history).
-    if assigned_date == date.today():
-        from app.services.attendance_helpers import is_present_on
-        if not is_present_on(db, emp.ID, assigned_date):
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    f"{emp.NAME} hasn't checked in today — task cannot "
-                    f"be assigned. Either wait for the employee to punch "
-                    f"in, or set ASSIGNED_DATE to a future date."
-                )
-            )
 
     task = TaskAssignment(
         EMPLOYEE_ID=emp.ID,

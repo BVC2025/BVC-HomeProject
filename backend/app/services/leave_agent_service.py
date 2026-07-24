@@ -400,7 +400,6 @@ class LeaveAgent:
     def _submit_leave(self, conv: AILeaveConversation) -> AgentReply:
         entities = self._collected(conv)
 
-        # 1. Existing yearly-balance check (LeaveBalance rows).
         ok, msg = self._validate_against_balance(entities)
         if not ok:
             conv.STATE = "FAILED"
@@ -410,45 +409,18 @@ class LeaveAgent:
                 collected=entities.to_dict(),
             )
 
-        # 2. BVC company-specific policies (monthly caps + reason-required).
-        decision = self._apply_company_policies(entities)
-        if decision.get("hard_reject"):
-            conv.STATE = "REJECTED"
-            conv.RESULT_MESSAGE = decision["reason"]
-            return AgentReply(
-                message=decision["message"],
-                state=conv.STATE,
-                collected=entities.to_dict(),
-            )
-        if decision.get("needs_reason") and not (entities.reason or "").strip():
-            conv.STATE = "COLLECTING"
-            return AgentReply(
-                message=decision["message"],
-                state=conv.STATE,
-                collected=entities.to_dict(),
-            )
-        # Extra tag added to the leave record if this is an "exception"
-        # request (e.g., more than 1 CL this month with a stated reason).
-        exception_tag = decision.get("exception_tag")
-
         days_used = float(entities.days or 0)
         if entities.half_day:
             days_used = 0.5
 
         try:
-            reason_text = (entities.reason or "").strip() or "(no reason given)"
-            if exception_tag:
-                # Prepend the tag so admins scanning the Leave Management
-                # module can spot exception requests at a glance.
-                reason_text = f"[{exception_tag}] {reason_text}"
-
             lr = LeaveRequest(
                 EMPLOYEE_ID=self.employee.ID,
                 LEAVE_TYPE=entities.leave_type,
                 START_DATE=entities.start_date,
                 END_DATE=entities.end_date,
                 DAYS=days_used,
-                REASON=reason_text,
+                REASON=entities.reason or "(no reason given)",
                 STATUS="PENDING_APPROVAL",
                 CREATED_AT=datetime.utcnow(),
                 VENDOR_ID=getattr(self.employee, "VENDOR_ID", None),
@@ -537,101 +509,6 @@ class LeaveAgent:
             )
 
         return True, ""
-
-    # ------------------------------------------------------------
-    # BVC company policies — layered on top of yearly-balance check
-    # ------------------------------------------------------------
-    #
-    # Policy 1: Every employee gets 1 Casual Leave per calendar month.
-    #           Requesting a 2nd CL within the same month is allowed
-    #           only if the employee gives a written reason — the row
-    #           is then flagged EXCEPTION for admin review.
-    #
-    # Policy 2: No employee may take more than 5 leave days in a single
-    #           calendar month (across all leave types). Anything over
-    #           that cap is auto-rejected. The employee is told to talk
-    #           to HR for a special override.
-    #
-    # Returns a dict with:
-    #     hard_reject    → True → block the leave, message = reason
-    #     needs_reason   → True → ask the employee to explain first
-    #     exception_tag  → tag written into the LeaveRequest.REASON so
-    #                      admins can filter for exception cases
-
-    MONTHLY_CL_QUOTA        = 1
-    MONTHLY_TOTAL_HARD_CAP  = 5
-
-    def _apply_company_policies(self, entities: LeaveEntities) -> Dict[str, Any]:
-        from calendar import monthrange
-
-        if not entities.start_date or not entities.end_date:
-            return {}
-
-        days_needed = float(entities.days or 1)
-        if entities.half_day:
-            days_needed = 0.5
-
-        y, m = entities.start_date.year, entities.start_date.month
-        month_first = entities.start_date.replace(day=1)
-        month_last  = entities.start_date.replace(day=monthrange(y, m)[1])
-
-        # How many days of leave has this employee already committed to
-        # in this same month? Approved + Pending count — refusing to
-        # count Pending would let an employee stack multiple pending
-        # requests past the cap while their first one is under review.
-        existing_rows = (
-            self.db.query(LeaveRequest)
-            .filter(
-                LeaveRequest.EMPLOYEE_ID == self.employee.ID,
-                LeaveRequest.LEAVE_TYPE != "PERMISSION",
-                LeaveRequest.STATUS.in_(("PENDING_APPROVAL", "APPROVED")),
-                LeaveRequest.START_DATE >= month_first,
-                LeaveRequest.START_DATE <= month_last,
-            ).all()
-        )
-        already_days = sum(float(r.DAYS or 0) for r in existing_rows)
-        already_cl_days = sum(
-            float(r.DAYS or 0) for r in existing_rows
-            if (r.LEAVE_TYPE or "").upper() == "CASUAL"
-        )
-
-        # ---- Policy 2: Hard 5-day monthly cap ----
-        if (already_days + days_needed) > self.MONTHLY_TOTAL_HARD_CAP:
-            return {
-                "hard_reject": True,
-                "reason": "MONTHLY_LIMIT_EXCEEDED",
-                "message": (
-                    f"Sorry — I can't approve this. Company policy caps "
-                    f"total leave at {self.MONTHLY_TOTAL_HARD_CAP} days per "
-                    f"calendar month. You've already used {already_days:g} "
-                    f"day(s) this month, and this request would push you to "
-                    f"{already_days + days_needed:g}. If this is a genuine "
-                    f"emergency, please contact HR for a special override."
-                ),
-            }
-
-        # ---- Policy 1: 1 CL per month, exceptions require a reason ----
-        if (entities.leave_type or "").upper() == "CASUAL":
-            new_cl_total = already_cl_days + days_needed
-            if new_cl_total > self.MONTHLY_CL_QUOTA:
-                if not (entities.reason or "").strip():
-                    # Ask for the reason before we submit.
-                    return {
-                        "needs_reason": True,
-                        "message": (
-                            f"You've already used {already_cl_days:g} Casual "
-                            f"Leave day(s) this month — the standard "
-                            f"allowance is {self.MONTHLY_CL_QUOTA} CL / month. "
-                            f"Requesting another CL is possible, but I need "
-                            f"a written reason so HR can review it as an "
-                            f"exception. Could you tell me why you need this "
-                            f"leave?"
-                        ),
-                    }
-                # Reason provided → flag as exception, let it through
-                return {"exception_tag": "EXCEPTION-CL-OVER-QUOTA"}
-
-        return {}
 
     def _balance_for(self, leave_type: str, year: int) -> Optional[float]:
         row = (

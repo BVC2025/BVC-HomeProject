@@ -30,7 +30,7 @@ class ProductModelUpdate(BaseModel):
 
 class BOMItemCreate(BaseModel):
 
-    PRODUCT_ID: Optional[str] = None
+    MATERIAL_ID: Optional[int] = None
     MATERIAL_NAME: str
     QUANTITY: float = 1.0
     UNIT: str = "pcs"

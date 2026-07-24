@@ -42,6 +42,8 @@ from app.models.models import (
     CustomerProject,
     TaskAssignment,
     Inventory,
+    MaterialCatalog,
+    MaterialDepartment,
     Machine,
     Attendance,
     Notification,
@@ -409,9 +411,7 @@ def find_project_in_text(db, text):
 
 def find_material_in_text(db, text):
 
-    from app.models.inventory_models import ProductMaster
-
-    rows = db.query(ProductMaster).all()
+    rows = db.query(MaterialCatalog).all()
 
     text_l = text.lower()
 
@@ -421,7 +421,7 @@ def find_material_in_text(db, text):
 
     for m in rows:
 
-        name = (m.PRODUCT_NAME or "").strip().lower()
+        name = (m.MATERIAL_NAME or "").strip().lower()
 
         if not name or len(name) < 3:
 
@@ -649,7 +649,7 @@ def profile_project(db, proj, tok_set):
 def profile_material(db, mat, tok_set):
 
     stock_rows = db.query(Inventory).filter(
-        Inventory.PRODUCT_ID == mat.ID
+        Inventory.MATERIAL_ID == mat.ID
     ).all()
 
     total_qty = sum(r.QUANTITY for r in stock_rows)
@@ -658,13 +658,27 @@ def profile_material(db, mat, tok_set):
         (r.QUANTITY or 0) * (r.UNIT_PRICE or 0) for r in stock_rows
     )
 
-    dept_name = mat.department.NAME if mat.department else "(unclassified)"
+    dept_tags = db.query(MaterialDepartment).filter(
+        MaterialDepartment.MATERIAL_ID == mat.ID
+    ).all()
+
+    dept_names = []
+
+    for dt in dept_tags:
+
+        d = db.query(Department).filter(
+            Department.ID == dt.DEPARTMENT_ID
+        ).first()
+
+        if d:
+
+            dept_names.append(d.NAME)
 
     items = [
         {"label": "Total quantity", "meta": str(total_qty)},
         {"label": "Stock entries", "meta": str(len(stock_rows))},
         {"label": "Total value", "meta": f"₹{total_value:,.2f}"},
-        {"label": "Department", "meta": dept_name}
+        {"label": "Departments", "meta": ", ".join(dept_names) or "(unclassified)"}
     ]
 
     for r in stock_rows[:5]:
@@ -1291,13 +1305,11 @@ def handle_inventory_total(tok_set, raw, db):
         (r.QUANTITY or 0) * (r.UNIT_PRICE or 0) for r in rows
     )
 
-    from app.models.inventory_models import ProductMaster
-
-    products = db.query(ProductMaster).count()
+    catalog = db.query(MaterialCatalog).count()
 
     items = [
         {"label": "Stock entries", "meta": str(len(rows))},
-        {"label": "Products", "meta": str(products)},
+        {"label": "Catalog items", "meta": str(catalog)},
         {"label": "Total quantity", "meta": str(total_qty)},
         {"label": "Total value", "meta": f"₹{total_value:,.2f}"}
     ]

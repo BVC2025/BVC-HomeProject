@@ -7,6 +7,8 @@ from typing import AnyStr, Generic, NamedTuple
 from . import ImageFont
 from ._typing import _Ink
 
+Font = ImageFont.ImageFont | ImageFont.FreeTypeFont | ImageFont.TransposedFont
+
 
 class _Line(NamedTuple):
     x: float
@@ -25,7 +27,7 @@ class _Wrap(Generic[AnyStr]):
         text: Text[AnyStr],
         width: int,
         height: int | None = None,
-        font: ImageFont.BaseImageFont | None = None,
+        font: Font | None = None,
     ) -> None:
         self.text: Text[AnyStr] = text
         self.width = width
@@ -95,7 +97,7 @@ class Text(Generic[AnyStr]):
     def __init__(
         self,
         text: AnyStr,
-        font: ImageFont.BaseImageFont | None = None,
+        font: Font | None = None,
         mode: str = "RGB",
         spacing: float = 4,
         direction: str | None = None,
@@ -447,10 +449,7 @@ class Text(Generic[AnyStr]):
         return parts
 
     def _get_bbox(
-        self,
-        text: str | bytes,
-        font: ImageFont.BaseImageFont | None = None,
-        anchor: str | None = None,
+        self, text: str | bytes, font: Font | None = None, anchor: str | None = None
     ) -> tuple[float, float, float, float]:
         return (font or self.font).getbbox(
             text,

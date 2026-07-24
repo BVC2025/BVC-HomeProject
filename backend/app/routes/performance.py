@@ -332,66 +332,48 @@ def list_stars(
     month: Optional[int] = None,
     db: Session = Depends(get_db)
 ):
-    """List star scores for a given period. Auto-computes from live
-    data (attendance + tasks) when scores don't exist for that period
-    or when the last compute was over 30 minutes ago for the current
-    month. Past months only compute if empty — locked once done."""
-
-    from datetime import date as _date, datetime as _dt, timedelta as _td
+    """List star scores for a given period. If year/month not
+    given, returns the latest month available."""
 
     vendor_id = _resolve_vendor_id(db, vendor_id)
 
-    today = _date.today()
     if year is None or month is None:
-        year, month = today.year, today.month
 
-    # Existing rows for this period (may be empty)
-    def _fetch():
-        return (
-            db.query(PerformanceScore, Employee)
-            .join(Employee, PerformanceScore.EMPLOYEE_ID == Employee.ID)
-            .filter(
-                PerformanceScore.PAY_YEAR == year,
-                PerformanceScore.PAY_MONTH == month,
-                Employee.VENDOR_ID == vendor_id,
+        latest = (
+            db.query(PerformanceScore)
+            .order_by(
+                PerformanceScore.PAY_YEAR.desc(),
+                PerformanceScore.PAY_MONTH.desc()
             )
-            .order_by(PerformanceScore.OVERALL_STARS.desc())
-            .all()
+            .first()
         )
 
-    rows = _fetch()
+        if not latest:
 
-    # Auto-compute if:
-    #   • nothing exists yet for this period, OR
-    #   • it's the CURRENT month and the last compute is > 30 min old
-    is_current = (year == today.year and month == today.month)
+            return {
+                "year": None,
+                "month": None,
+                "scores": []
+            }
 
-    latest_at = None
-    if rows:
-        latest_at = max(
-            (r.UPDATED_AT for r, _ in rows if getattr(r, "UPDATED_AT", None)),
-            default=None,
+        year, month = latest.PAY_YEAR, latest.PAY_MONTH
+
+    rows = (
+        db.query(PerformanceScore, Employee)
+        .join(Employee, PerformanceScore.EMPLOYEE_ID == Employee.ID)
+        .filter(
+            PerformanceScore.PAY_YEAR == year,
+            PerformanceScore.PAY_MONTH == month,
+            Employee.VENDOR_ID == vendor_id
         )
-    stale = (
-        is_current
-        and latest_at is not None
-        and (_dt.utcnow() - latest_at) > _td(minutes=30)
+        .order_by(PerformanceScore.OVERALL_STARS.desc())
+        .all()
     )
-
-    if (not rows) or stale:
-        try:
-            compute_performance_for_all(db, vendor_id, year, month)
-            rows = _fetch()
-        except Exception:
-            # If compute fails (e.g., no attendance yet), fall through
-            # and return whatever rows exist. Never 500 on a GET.
-            rows = _fetch()
 
     return {
         "year": year,
         "month": month,
-        "scores": [_serialize_score(s, e) for s, e in rows],
-        "auto_computed": (not rows) or stale,
+        "scores": [_serialize_score(s, e) for s, e in rows]
     }
 
 

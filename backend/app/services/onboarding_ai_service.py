@@ -890,112 +890,6 @@ def _is_quota_error(exc: Exception) -> bool:
     )
 
 
-def _selected_backend() -> str:
-    """Read AI_ONBOARDING_BACKEND. Default: ollama. Values: ollama | gemini | auto."""
-
-    val = (os.getenv("AI_ONBOARDING_BACKEND") or "").strip().lower()
-
-    if val in {"ollama", "gemini", "auto"}:
-
-        return val
-
-    return "ollama"
-
-
-def _ollama_chat(
-    partial: Dict[str, Any],
-    history: List[dict],
-    user_message: str,
-) -> dict:
-    """Ollama backend for the customer-onboarding chat. Returns the
-    same shape as _gemini_chat() so downstream code doesn't care which
-    backend answered.
-
-    Raises on total failure (no Ollama, non-JSON response) so the
-    caller's try/except falls back to rule-based."""
-
-    try:
-
-        from app.services import ollama_client
-
-    except Exception as exc:
-
-        raise RuntimeError(f"Ollama client unavailable: {exc}")
-
-    system_prompt = _build_system_prompt(partial)
-
-    transcript_lines: List[str] = []
-
-    for h in (history or [])[-10:]:
-
-        role = (h.get("ROLE") or h.get("role") or "").lower()
-
-        content = h.get("CONTENT") or h.get("content") or ""
-
-        if not content:
-
-            continue
-
-        if role == "user":
-
-            transcript_lines.append(f"USER: {content}")
-
-        elif role == "assistant":
-
-            transcript_lines.append(f"ASSISTANT: {content}")
-
-    transcript = "\n".join(transcript_lines) if transcript_lines else "(no prior turns)"
-
-    full_prompt = (
-        f"--- CONVERSATION HISTORY ---\n{transcript}\n\n"
-        f"--- USER'S LATEST MESSAGE ---\n{user_message}\n\n"
-        f"Reply with the JSON object described in the system prompt:"
-    )
-
-    text = ollama_client.generate(
-        prompt=full_prompt,
-        system=system_prompt,
-        temperature=0.4,
-        max_tokens=800,
-        format="json",
-    )
-
-    if not text:
-
-        raise RuntimeError("Ollama returned empty response")
-
-    parsed = _safe_parse_json(text)
-
-    if not parsed or not isinstance(parsed, dict):
-
-        # Fallback shape — same graceful degradation as _gemini_chat
-        return {
-            "reply": text or "Could you say that another way?",
-            "extracted": {},
-            "next_field": None,
-            "complete": False,
-            "_gemini_model": None,
-        }
-
-    parsed["extracted"] = _coerce_extracted(parsed.get("extracted", {}))
-
-    parsed.setdefault("reply", "")
-    parsed.setdefault("next_field", None)
-    parsed.setdefault("complete", False)
-
-    # Surface the skipped field via the extracted dict, matching
-    # _gemini_chat's behaviour exactly.
-    skipped_field = parsed.get("skipped_field")
-
-    if skipped_field and isinstance(skipped_field, str):
-
-        if any(f["key"] == skipped_field for f in FIELDS):
-
-            parsed["extracted"][SKIPPED_KEY] = [skipped_field]
-
-    return parsed
-
-
 def _gemini_chat(
     partial: Dict[str, Any],
     history: List[dict],
@@ -1369,62 +1263,15 @@ def process_turn(
             "complete": False
         }
 
-    # ---- Backend dispatch (Phase 5 migration) ----
-    # AI_ONBOARDING_BACKEND selects between local Ollama and Gemini.
-    # Default = ollama. Both raise on hard failure so the outer
-    # rule-based fallback below kicks in transparently.
-    backend = _selected_backend()
-
-    import logging
-    log = logging.getLogger("uvicorn")
-
-    def _try_ollama() -> Optional[dict]:
-        try:
-            r = _ollama_chat(partial, history, user_message)
-            r["_engine"] = "ollama"
-            return r
-        except Exception as exc_local:
-            log.info("onboarding_ai: ollama failed: %s", exc_local)
-            return None
-
-    def _try_gemini() -> Optional[dict]:
-        if not is_gemini_configured():
-            return None
-        try:
-            r = _gemini_chat(partial, history, user_message)
-            r["_engine"] = "gemini"
-            return r
-        except Exception as exc_local:
-            log.info("onboarding_ai: gemini failed: %s", exc_local)
-            return None
-
-    llm_result: Optional[dict] = None
-    llm_error: Optional[str] = None
-
-    if backend == "ollama":
-
-        llm_result = _try_ollama()
-
-    elif backend == "gemini":
-
-        llm_result = _try_gemini()
-
-    else:   # auto
-
-        llm_result = _try_ollama() or _try_gemini()
-
-    if llm_result is not None:
-
-        log.info("onboarding_ai: served by %s", llm_result.get("_engine"))
-        return llm_result
-
-    if backend != "ollama" or is_gemini_configured() or True:
+    if is_gemini_configured():
 
         try:
 
-            # Legacy path guaranteed to raise if neither backend worked
-            # so we drop into the same fallback UX users saw before.
-            raise RuntimeError("All LLM backends unavailable")
+            result = _gemini_chat(partial, history, user_message)
+
+            result["_engine"] = "gemini"
+
+            return result
 
         except Exception as exc:
 

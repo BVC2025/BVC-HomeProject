@@ -50,10 +50,7 @@ DOC_TYPES = {
     # ---- Employment ----
     "RESUME",
     "OFFER_LETTER",
-    "APPOINTMENT_LETTER",      # Formal appointment order after offer
-    "JOINING_LETTER",          # Kept for back-compat (some HRMS call it this)
-    "INCREMENT_LETTER",        # Annual salary revision letter
-    "PROMOTION_LETTER",        # Designation change letter
+    "JOINING_LETTER",
     "EXPERIENCE_LETTER",
     "RELIEVING_LETTER",
     "SALARY_SLIP",             # Previous employer payslip
@@ -122,7 +119,10 @@ def _serialize(d: EmployeeDocument) -> dict:
 
 # ---- Endpoints ----
 
-@router.post("/employees/{employee_id}/documents")
+@router.post(
+    "/employees/{employee_id}/documents",
+    dependencies=[Depends(require("document.upload"))]
+)
 def upload_document(
     employee_id: str,
     file: UploadFile = File(...),
@@ -131,14 +131,8 @@ def upload_document(
     notes: str = Form(""),
     uploaded_by_id: str = Form(""),
     db: Session = Depends(get_db),
-    payload: dict = Depends(get_current_user),
 ):
     """Upload a single file against an employee.
-
-    Access:
-      • The employee themselves (self-service) — always allowed
-      • Any admin — allowed
-      • Otherwise → 403
 
     Form fields:
       file           — the file itself (multipart)
@@ -147,11 +141,6 @@ def upload_document(
       notes          — optional admin note
       uploaded_by_id — optional; admin's employee_id for audit
     """
-
-    # Lets an employee upload their own docs from the onboarding form
-    # / ESS portal without needing the admin-only `document.upload`
-    # permission. Admins still pass by virtue of their role.
-    assert_self_or_admin(employee_id, payload)
 
     emp = db.query(Employee).filter(Employee.ID == employee_id).first()
 
@@ -288,22 +277,16 @@ def get_document(
     return _serialize(doc)
 
 
-@router.delete("/employees/{employee_id}/documents/{doc_id}")
+@router.delete(
+    "/employees/{employee_id}/documents/{doc_id}",
+    dependencies=[Depends(require("document.delete"))]
+)
 def delete_document(
     employee_id: str,
     doc_id: int,
     db: Session = Depends(get_db),
-    payload: dict = Depends(get_current_user),
 ):
-    """Permanently remove a document row + its file on disk.
-
-    Access mirrors the upload endpoint — the employee themselves or
-    any admin. Prevents an admin-only `document.delete` gate from
-    blocking employees who want to replace a mis-uploaded file
-    during their own onboarding.
-    """
-
-    assert_self_or_admin(employee_id, payload)
+    """Permanently remove a document row + its file on disk."""
 
     doc = db.query(EmployeeDocument).filter(
         EmployeeDocument.ID == doc_id,

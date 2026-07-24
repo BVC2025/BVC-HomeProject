@@ -102,13 +102,7 @@ def serialize_company(c: CompanyMaster) -> dict:
         "BANK_BRANCH":         c.BANK_BRANCH,
         "UPI_ID":              c.UPI_ID,
         "LOGO_URL":            c.LOGO_URL,
-        "DOMAIN":              c.DOMAIN,
-        "WORK_HOURS":          float(c.WORK_HOURS) if c.WORK_HOURS is not None else None,
         "NOTES":               c.NOTES,
-        "CREATED_AT": (
-            c.CREATED_AT.isoformat()
-            if c.CREATED_AT else None
-        ),
         "UPDATED_AT": (
             c.UPDATED_AT.isoformat()
             if c.UPDATED_AT else None

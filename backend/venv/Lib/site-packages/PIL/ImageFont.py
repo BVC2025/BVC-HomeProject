@@ -27,7 +27,6 @@
 
 from __future__ import annotations
 
-import abc
 import base64
 import os
 import sys
@@ -92,27 +91,7 @@ def _string_length_check(text: str | bytes | bytearray) -> None:
 # --------------------------------------------------------------------
 
 
-class BaseImageFont(abc.ABC):
-    """Used by ImageDraw and ImageText"""
-
-    @abc.abstractmethod
-    def getbbox(
-        self, text: str | bytes | bytearray, *args: Any, **kwargs: Any
-    ) -> tuple[float, float, float, float]:
-        pass
-
-    @abc.abstractmethod
-    def getmask(
-        self, text: str | bytes, mode: str = "", *args: Any, **kwargs: Any
-    ) -> Image.core.ImagingCore:
-        pass
-
-    @abc.abstractmethod
-    def getlength(self, text: str | bytes, *args: Any, **kwargs: Any) -> float:
-        pass
-
-
-class ImageFont(BaseImageFont):
+class ImageFont:
     """PIL font wrapper"""
 
     font: ImagingFont
@@ -236,7 +215,7 @@ class ImageFont(BaseImageFont):
 # <b>truetype</b> factory function to create font objects.
 
 
-class FreeTypeFont(BaseImageFont):
+class FreeTypeFont:
     """FreeType font wrapper (requires _imagingft service)"""
 
     font: Font
@@ -404,7 +383,7 @@ class FreeTypeFont(BaseImageFont):
 
     def getbbox(
         self,
-        text: str | bytes | bytearray,
+        text: str | bytes,
         mode: str = "",
         direction: str | None = None,
         features: list[str] | None = None,
@@ -744,7 +723,7 @@ class FreeTypeFont(BaseImageFont):
         self.font.setvaraxes(axes)
 
 
-class TransposedFont(BaseImageFont):
+class TransposedFont:
     """Wrapper for writing rotated or mirrored text"""
 
     def __init__(
@@ -772,7 +751,7 @@ class TransposedFont(BaseImageFont):
         return im
 
     def getbbox(
-        self, text: str | bytes | bytearray, *args: Any, **kwargs: Any
+        self, text: str | bytes, *args: Any, **kwargs: Any
     ) -> tuple[int, int, float, float]:
         # TransposedFont doesn't support getmask2, move top-left point to (0, 0)
         # this has no effect on ImageFont and simulates anchor="lt" for FreeTypeFont
