@@ -834,20 +834,48 @@
 }
 
 /* ----- Table column widths ----- */
-.thW40  { width: 40px; }
-.thW60  { width: 60px; }
-.thW70  { width: 70px; }
-.thW80  { width: 80px; }
-.thW110 { width: 110px; }
-.thW130 { width: 130px; }
-.thW160 { width: 160px; }
+.thW40 {
+  width: 40px;
+}
+
+.thW60 {
+  width: 60px;
+}
+
+.thW70 {
+  width: 70px;
+}
+
+.thW80 {
+  width: 80px;
+}
+
+.thW110 {
+  width: 110px;
+}
+
+.thW130 {
+  width: 130px;
+}
+
+.thW160 {
+  width: 160px;
+}
 
 /* ----- Table cell alignment helpers ----- */
-.tdAlignRight     { text-align: right; }
-.tdAlignRightBold { text-align: right; font-weight: var(--fw-bold); }
+.tdAlignRight {
+  text-align: right;
+}
+
+.tdAlignRightBold {
+  text-align: right;
+  font-weight: var(--fw-bold);
+}
 
 /* ----- Table cell padding (td: 6px — editor rows) ----- */
-.tdPadSm { padding: 6px; }
+.tdPadSm {
+  padding: 6px;
+}
 
 /* ----- Line total cell (right-aligned, bold) ----- */
 .tdLineTotalRight {
@@ -881,6 +909,7 @@
   display: flex;
   justify-content: flex-end;
   margin-bottom: 0;
+
 }
 
 /* ==================================================================
@@ -888,35 +917,136 @@
    Targets common class names used across the ERP.
    ================================================================== */
 @media (max-width: 900px) {
-  .page, .container, .wrapper, .shell { padding: 14px; }
-  .pageHead, .header, .toolbar, .headerRow {
+
+  .page,
+  .container,
+  .wrapper,
+  .shell {
+    padding: 14px;
+  }
+
+  .pageHead,
+  .header,
+  .toolbar,
+  .headerRow {
     flex-wrap: wrap;
     gap: 10px;
   }
-  .filterCard, .filterRow, .filters, .filterBar {
+
+  .filterCard,
+  .filterRow,
+  .filters,
+  .filterBar {
     flex-direction: column;
     align-items: stretch;
     gap: 10px;
   }
-  .searchInput, .filterSelect, .searchWrap { width: 100%; }
-  .kpiRow, .statRow, .statsGrid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .cardGrid, .cardsGrid, .tileGrid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .twoCol, .splitPanel, .detailGrid, .formGrid { grid-template-columns: 1fr; }
-  .actionRow, .btnRow, .formActions { flex-wrap: wrap; gap: 8px; }
-  .tableCard, .tableWrap, .tblWrap { overflow-x: auto; }
-  .modalPanel, .modalContent { max-width: calc(100vw - 24px); max-height: calc(100vh - 40px); overflow-y: auto; }
+
+  .searchInput,
+  .filterSelect,
+  .searchWrap {
+    width: 100%;
+  }
+
+  .kpiRow,
+  .statRow,
+  .statsGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .cardGrid,
+  .cardsGrid,
+  .tileGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .twoCol,
+  .splitPanel,
+  .detailGrid,
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .actionRow,
+  .btnRow,
+  .formActions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .tableCard,
+  .tableWrap,
+  .tblWrap {
+    overflow-x: auto;
+  }
+
+  .modalPanel,
+  .modalContent {
+    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+  }
 }
+
 @media (max-width: 640px) {
-  .page, .container, .wrapper, .shell { padding: 10px; }
-  .kpiRow, .statRow, .statsGrid { grid-template-columns: repeat(2, 1fr); }
-  .cardGrid, .cardsGrid, .tileGrid { grid-template-columns: 1fr; }
-  .kpiValue, .statValue, .tileValue { font-size: 20px; }
-  h1 { font-size: 20px; }
-  h2 { font-size: 17px; }
-  h3 { font-size: 15px; }
-  table th, table td { padding: 8px 10px; font-size: 12.5px; }
+
+  .page,
+  .container,
+  .wrapper,
+  .shell {
+    padding: 10px;
+  }
+
+  .kpiRow,
+  .statRow,
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cardGrid,
+  .cardsGrid,
+  .tileGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .kpiValue,
+  .statValue,
+  .tileValue {
+    font-size: 20px;
+  }
+
+  h1 {
+    font-size: 20px;
+  }
+
+  h2 {
+    font-size: 17px;
+  }
+
+  h3 {
+    font-size: 15px;
+  }
+
+  table th,
+  table td {
+    padding: 8px 10px;
+    font-size: 12.5px;
+  }
 }
+
 @media (max-width: 480px) {
-  .modalPanel, .modalContent { max-width: 100vw; border-radius: 0; margin: 0; max-height: 100vh; }
-  .modalOverlay { padding: 0; }
+
+  .modalPanel,
+  .modalContent {
+    max-width: 100vw;
+    border-radius: 0;
+    margin: 0;
+    max-height: 100vh;
+  }
+
+  .modalOverlay {
+    padding: 0;
+  }
 }

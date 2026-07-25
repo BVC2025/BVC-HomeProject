@@ -789,6 +789,7 @@
   background: #fef2f2;
 }
 
+
 /* Quick status buttons under each project card */
 .projectStatusBtnRow {
   display: grid;
@@ -1862,6 +1863,7 @@
   cursor: pointer;
 }
 
+
 /* ================================================================
    Zoho-style redesign — Employee Portal (z* classes)
    Slim compact top header + underline tab strip + dense Tasks table.
@@ -2224,11 +2226,35 @@
   border: 1px solid transparent;
 }
 
-.zPillNeutral { background: var(--neutral-bg); color: var(--text-secondary); border-color: var(--neutral-border); }
-.zPillInfo    { background: var(--info-bg);    color: var(--info);           border-color: var(--info-border); }
-.zPillSuccess { background: var(--success-bg); color: var(--success-dark);   border-color: var(--success-border); }
-.zPillWarn    { background: var(--warning-bg); color: var(--warning-dark);   border-color: var(--warning-border); }
-.zPillDanger  { background: var(--danger-bg);  color: var(--danger-dark);    border-color: var(--danger-border); }
+.zPillNeutral {
+  background: var(--neutral-bg);
+  color: var(--text-secondary);
+  border-color: var(--neutral-border);
+}
+
+.zPillInfo {
+  background: var(--info-bg);
+  color: var(--info);
+  border-color: var(--info-border);
+}
+
+.zPillSuccess {
+  background: var(--success-bg);
+  color: var(--success-dark);
+  border-color: var(--success-border);
+}
+
+.zPillWarn {
+  background: var(--warning-bg);
+  color: var(--warning-dark);
+  border-color: var(--warning-border);
+}
+
+.zPillDanger {
+  background: var(--danger-bg);
+  color: var(--danger-dark);
+  border-color: var(--danger-border);
+}
 
 .zDue {
   font-size: 12px;
@@ -2271,14 +2297,33 @@
   border-color: var(--border-strong);
 }
 
-.zActionPrimary { color: var(--info); border-color: var(--info-border); }
-.zActionPrimary:hover:not(:disabled) { background: var(--info-bg); color: var(--info); }
+.zActionPrimary {
+  color: var(--info);
+  border-color: var(--info-border);
+}
 
-.zActionWarn    { color: var(--warning-dark); border-color: var(--warning-border); }
-.zActionWarn:hover:not(:disabled)    { background: var(--warning-bg); }
+.zActionPrimary:hover:not(:disabled) {
+  background: var(--info-bg);
+  color: var(--info);
+}
 
-.zActionSuccess { color: var(--success-dark); border-color: var(--success-border); }
-.zActionSuccess:hover:not(:disabled) { background: var(--success-bg); }
+.zActionWarn {
+  color: var(--warning-dark);
+  border-color: var(--warning-border);
+}
+
+.zActionWarn:hover:not(:disabled) {
+  background: var(--warning-bg);
+}
+
+.zActionSuccess {
+  color: var(--success-dark);
+  border-color: var(--success-border);
+}
+
+.zActionSuccess:hover:not(:disabled) {
+  background: var(--success-bg);
+}
 
 .zActionBtn:disabled {
   opacity: 0.4;
@@ -2863,29 +2908,56 @@
   margin-top: 1px;
 }
 
-.zAttItemGreen  { border-left: 3px solid #16a34a; }
-.zAttItemGreen  .zAttItemValue { color: #16a34a; }
+.zAttItemGreen {
+  border-left: 3px solid #16a34a;
+}
 
-.zAttItemAmber  { border-left: 3px solid #d97706; }
-.zAttItemAmber  .zAttItemValue { color: #d97706; }
+.zAttItemGreen .zAttItemValue {
+  color: #16a34a;
+}
 
-.zAttItemRed    { border-left: 3px solid #dc2626; }
-.zAttItemRed    .zAttItemValue { color: #dc2626; }
+.zAttItemAmber {
+  border-left: 3px solid #d97706;
+}
 
-.zAttItemBlue   { border-left: 3px solid #2563eb; }
-.zAttItemBlue   .zAttItemValue { color: #2563eb; }
+.zAttItemAmber .zAttItemValue {
+  color: #d97706;
+}
 
-.zAttItemSlate  { border-left: 3px solid var(--text-muted); }
-.zAttItemSlate  .zAttItemValue { color: var(--text-primary); }
+.zAttItemRed {
+  border-left: 3px solid #dc2626;
+}
+
+.zAttItemRed .zAttItemValue {
+  color: #dc2626;
+}
+
+.zAttItemBlue {
+  border-left: 3px solid #2563eb;
+}
+
+.zAttItemBlue .zAttItemValue {
+  color: #2563eb;
+}
+
+.zAttItemSlate {
+  border-left: 3px solid var(--text-muted);
+}
+
+.zAttItemSlate .zAttItemValue {
+  color: var(--text-primary);
+}
 
 @media (max-width: 480px) {
   .zAttCard {
     padding: 14px 14px;
   }
+
   .zAttItem {
     min-width: 78px;
     padding: 7px 11px;
   }
+
   .zAttItemValue {
     font-size: 18px;
   }

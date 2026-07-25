@@ -24,5 +24,4 @@ typing-inspection==0.4.2
 typing_extensions==4.15.0
 uvicorn==0.46.0
 python-multipart
-pyzk==0.9
-apscheduler==3.10.4
+openpyxl==3.1.5

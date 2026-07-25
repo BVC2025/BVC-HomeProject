@@ -94,7 +94,7 @@ def haversine_meters(
 # Settings — single row per vendor (one office for v1)
 # =====================================================================
 
-DEFAULT_RADIUS_M = 50
+DEFAULT_RADIUS_M = 100
 
 
 def _get_or_create_settings(db: Session, vendor_id: int = 1) -> GeofenceSettings:

@@ -429,7 +429,7 @@ def send_approval_request(
 
     base_url = (
         os.getenv("BACKEND_URL", "").strip()
-        or "http://192.168.1.10:8001"
+        or "http://127.0.0.1:8000"
     )
 
     approve_url = f"{base_url}/approve-task?token={approval_token}"

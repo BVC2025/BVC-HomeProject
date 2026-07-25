@@ -94,12 +94,12 @@ const T = {
   navySoft: "#e5e7eb"
 };
 
+
 // Font tokens (referenced by inline-styled cells that haven't been
 // migrated to CSS modules yet). Kept after the colour palette so they're
 // available to every component below.
 const FONT_BODY = "var(--font, 'Segoe UI', system-ui, -apple-system, sans-serif)";
 const FONT_HEAD = "var(--font, 'Segoe UI', system-ui, -apple-system, sans-serif)";
-
 
 // =====================================================================
 // Reusable atoms
@@ -263,9 +263,9 @@ function Sparkline({ color, data }) {
 
   const series = data && data.length ? data : [4, 6, 5, 8, 7, 9, 6, 10, 8, 11];
 
-  const w  = 90;
+  const w = 90;
 
-  const h  = 36;
+  const h = 36;
 
   const max = Math.max(...series, 1);
 
@@ -290,7 +290,7 @@ function Sparkline({ color, data }) {
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ flexShrink: 0 }}>
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor={color} stopOpacity="0.30" />
+          <stop offset="0%" stopColor={color} stopOpacity="0.30" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
       </defs>
@@ -443,10 +443,10 @@ function ExecKPIRow({ stats }) {
   // Four headline metrics only — the ones a CEO opens the app to see.
   // Inventory + Employees moved to their dedicated sections below.
   const items = [
-    { label: "Revenue · MTD",   value: inrShort(stats.monthly_revenue || 0), accent: T.red,    iconName: "rupee",   trend: stats.revenue_trend,    to: "/sales-orders" },
-    { label: "Customers",       value: stats.total_customers ?? 0,           accent: T.amber,  iconName: "users",   trend: stats.customers_trend,  to: "/customers" },
-    { label: "Active Orders",   value: stats.total_sales_orders ?? 0,        accent: T.blue,   iconName: "bag",     trend: stats.orders_trend,     to: "/sales-orders" },
-    { label: "Production WOs",  value: stats.active_wos ?? 0,                accent: T.purple, iconName: "factory", trend: stats.production_trend, to: "/production" }
+    { label: "Revenue · MTD", value: inrShort(stats.monthly_revenue || 0), accent: T.red, iconName: "rupee", trend: stats.revenue_trend, to: "/sales-orders" },
+    { label: "Customers", value: stats.total_customers ?? 0, accent: T.amber, iconName: "users", trend: stats.customers_trend, to: "/customers" },
+    { label: "Active Orders", value: stats.total_sales_orders ?? 0, accent: T.blue, iconName: "bag", trend: stats.orders_trend, to: "/sales-orders" },
+    { label: "Production WOs", value: stats.active_wos ?? 0, accent: T.purple, iconName: "factory", trend: stats.production_trend, to: "/production" }
   ];
 
   return (
@@ -591,8 +591,8 @@ function StatBars({ color }) {
 
   return (
     <svg width="14" height="14" viewBox="0 0 24 24"
-         fill="none" stroke={color} strokeWidth="2.4"
-         strokeLinecap="round" strokeLinejoin="round">
+      fill="none" stroke={color} strokeWidth="2.4"
+      strokeLinecap="round" strokeLinejoin="round">
       <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
     </svg>
   );
@@ -623,7 +623,7 @@ function MachineIcon({ name, color }) {
   if (name === "pause") {
     return (
       <svg {...common}>
-        <rect x="6"  y="4" width="4" height="16" fill={color} />
+        <rect x="6" y="4" width="4" height="16" fill={color} />
         <rect x="14" y="4" width="4" height="16" fill={color} />
       </svg>
     );
@@ -673,6 +673,7 @@ function HealthQuad({ title, marker, accent, items }) {
             <div className={styles.healthQuadMetricLabel}>
               {it.label}
             </div>
+
             <div style={{
               display: "flex", alignItems: "center", gap: 8,
               marginTop: 4
@@ -984,10 +985,10 @@ function FactoryFloor({ factory }) {
   const utilColor = utilization >= 80 ? T.green : utilization >= 50 ? T.amber : T.red;
 
   const segs = [
-    { label: "Running",     value: running,     color: T.green, iconName: "play"    },
-    { label: "Idle",        value: idle,        color: T.amber, iconName: "pause"   },
-    { label: "Maintenance", value: maintenance, color: T.blue,  iconName: "gear"    },
-    { label: "Breakdown",   value: breakdown,   color: T.red,   iconName: "warning" }
+    { label: "Running", value: running, color: T.green, iconName: "play" },
+    { label: "Idle", value: idle, color: T.amber, iconName: "pause" },
+    { label: "Maintenance", value: maintenance, color: T.blue, iconName: "gear" },
+    { label: "Breakdown", value: breakdown, color: T.red, iconName: "warning" }
   ];
 
   return (
@@ -1704,7 +1705,7 @@ export default function EnterpriseCommandCenter() {
 
       setActivity(Array.isArray(act) ? act : (act?.items || act?.events || []));
 
-      // Top performers: backend returns { categories: [...] }
+      // Top performers: backend returns {categories: [...] }
       const perfRows = Array.isArray(perf)
         ? perf
         : (perf?.categories || perf?.rows || []);
@@ -1718,7 +1719,7 @@ export default function EnterpriseCommandCenter() {
         badge: p.badge
       })));
 
-      // Approvals: buckets are ARRAYS — convert to { count } for the UI
+      // Approvals: buckets are ARRAYS — convert to {count} for the UI
       const rawBuckets = buck?.buckets || {};
 
       const formatted = {};
@@ -1783,22 +1784,29 @@ export default function EnterpriseCommandCenter() {
 
       {/* CRM funnel */}
       <div className={styles.singleColSection}>
-        <CRMFunnel stats={stats} />
+
+        {/* Approval + CRM funnel side-by-side */}
+        <div className={`${styles.twoColGrid} ${styles.twoColGrid12x1}`}>
+          <ApprovalCenter buckets={buckets} />
+
+          <CRMFunnel stats={stats} />
+        </div>
+
+        <div className={styles.singleColSection}>
+          <InventoryCenter stats={stats} lowStock={lowStock} />
+        </div>
+
+        {/* Sections below temporarily hidden to keep the dashboard focused on
+            the day-one essentials. Restore by uncommenting:
+              <ProductionPipeline flow={flow} />
+              <MemoSummaryCard stats={memoStats} />
+              <EmployeeLeaderboard performers={performers} />
+              <ExecutiveAnalytics />
+        */}
+
+        {/* QuickActionsFAB removed — the VoiceAssistant now occupies
+            the bottom-right floating slot on the admin dashboard. */}
       </div>
-
-      <div className={styles.singleColSection}>
-        <InventoryCenter stats={stats} lowStock={lowStock} />
-      </div>
-
-      {/* Sections below temporarily hidden to keep the dashboard focused on
-          the day-one essentials. Restore by uncommenting:
-            <ProductionPipeline flow={flow} />
-            <MemoSummaryCard stats={memoStats} />
-            <EmployeeLeaderboard performers={performers} />
-            <ExecutiveAnalytics />
-       */}
-
-      <QuickActionsFAB />
     </div>
   );
 }

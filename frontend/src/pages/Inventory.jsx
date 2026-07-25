@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 
 import API from "../services/api";
+
 import Pagination from "../components/Pagination";
+
+
 import styles from "./Inventory.module.css";
 
 
@@ -17,26 +20,26 @@ import styles from "./Inventory.module.css";
 const STATUS_THEME = {
   OUT: { bg: "#fee2e2", fg: "#991b1b", color: "#ef4444", icon: "🛑", label: "Out of stock" },
   LOW: { bg: "#fef3c7", fg: "#854d0e", color: "#f59e0b", icon: "⚠️", label: "Low stock" },
-  OK:  { bg: "#dcfce7", fg: "#166534", color: "#10b981", icon: "✅", label: "In stock" }
+  OK: { bg: "#dcfce7", fg: "#166534", color: "#10b981", icon: "✅", label: "In stock" }
 };
 
 
 const CATEGORY_THEME = {
-  "Sheet Metal":   { bg: "#f1f5f9", fg: "#475569", icon: "🪙" },
+  "Sheet Metal": { bg: "#f1f5f9", fg: "#475569", icon: "🪙" },
   "Refrigeration": { bg: "#dbeafe", fg: "#1e40af", icon: "🧊" },
-  "Electronics":   { bg: "#e0e7ff", fg: "#4338ca", icon: "🔌" },
-  "Display":       { bg: "#fae8ff", fg: "#86198f", icon: "🖥️" },
-  "Motors":        { bg: "#fff7ed", fg: "#9a3412", icon: "⚙️" },
-  "Payment":       { bg: "#ecfeff", fg: "#155e75", icon: "💳" },
-  "Glass":         { bg: "#f0fdf4", fg: "#166534", icon: "🪟" },
-  "Wires":         { bg: "#fef3c7", fg: "#854d0e", icon: "🔌" },
-  "Hardware":      { bg: "#fef2f2", fg: "#dc2626", icon: "🔩" },
-  "Insulation":    { bg: "#f8fafc", fg: "#475569", icon: "🧱" },
-  "Plumbing":      { bg: "#e0f2fe", fg: "#0c4a6e", icon: "🚰" },
-  "Heating":       { bg: "#fef2f2", fg: "#991b1b", icon: "🔥" },
-  "Power":         { bg: "#fef9c3", fg: "#713f12", icon: "⚡" },
-  "Packaging":     { bg: "#fef3c7", fg: "#92400e", icon: "📦" },
-  "Other":         { bg: "#f1f5f9", fg: "#64748b", icon: "🧰" }
+  "Electronics": { bg: "#e0e7ff", fg: "#4338ca", icon: "🔌" },
+  "Display": { bg: "#fae8ff", fg: "#86198f", icon: "🖥️" },
+  "Motors": { bg: "#fff7ed", fg: "#9a3412", icon: "⚙️" },
+  "Payment": { bg: "#ecfeff", fg: "#155e75", icon: "💳" },
+  "Glass": { bg: "#f0fdf4", fg: "#166534", icon: "🪟" },
+  "Wires": { bg: "#fef3c7", fg: "#854d0e", icon: "🔌" },
+  "Hardware": { bg: "#fef2f2", fg: "#dc2626", icon: "🔩" },
+  "Insulation": { bg: "#f8fafc", fg: "#475569", icon: "🧱" },
+  "Plumbing": { bg: "#e0f2fe", fg: "#0c4a6e", icon: "🚰" },
+  "Heating": { bg: "#fef2f2", fg: "#991b1b", icon: "🔥" },
+  "Power": { bg: "#fef9c3", fg: "#713f12", icon: "⚡" },
+  "Packaging": { bg: "#fef3c7", fg: "#92400e", icon: "📦" },
+  "Other": { bg: "#f1f5f9", fg: "#64748b", icon: "🧰" }
 };
 
 
@@ -214,7 +217,7 @@ function AdjustModal({ item, onClose, onSaved }) {
 
   const delta = Number(qty) - item.QUANTITY;
   const initialMin = Number(item.MIN_STOCK || 0);
-  const targetMin  = minStock === "" ? initialMin : Number(minStock) || 0;
+  const targetMin = minStock === "" ? initialMin : Number(minStock) || 0;
   const minChanged = targetMin !== initialMin;
   const qtyChanged = Number(qty) !== Number(item.QUANTITY);
 
@@ -725,6 +728,7 @@ function Inventory() {
       )}
 
       {!loading && filtered.length > 0 && (
+
         <>
           <div className={styles.cardGrid}>
             {pagedItems.map((item) => (
@@ -744,6 +748,7 @@ function Inventory() {
             onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
           />
         </>
+
       )}
 
       {openItem && (

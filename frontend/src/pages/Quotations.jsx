@@ -1413,6 +1413,7 @@ function Quotations() {
 
       {!loading && filtered.length > 0 && (
         <div className={styles.list}>
+
           {pagedRows.map((r) => {
 
             const isProtected = !["DRAFT", "REJECTED", "EXPIRED"].includes(r.STATUS);
@@ -1495,6 +1496,7 @@ function Quotations() {
               </div>
             );
           })}
+
         </div>
       )}
 

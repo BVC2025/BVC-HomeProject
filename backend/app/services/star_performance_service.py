@@ -24,7 +24,7 @@ payroll adds on top of the calculated salary
 import calendar
 import statistics
 from datetime import date, datetime, timedelta
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -398,18 +398,10 @@ def compute_performance_for_employee(
     db: Session,
     employee: Employee,
     year: int,
-    month: int,
-    as_of_date: Optional[date] = None,
+    month: int
 ) -> PerformanceScore:
     """Idempotently compute one employee's PerformanceScore for the
-    period. Overwrites the existing row if one exists.
-
-    For the CURRENT month, pass as_of_date=today() so working days are
-    prorated (Mon-Sat between start-of-month and today only). Otherwise
-    a mid-month score would divide by the FULL month's working days
-    and unfairly penalise employees for days that haven't happened yet.
-    Past months use the full-month denominator.
-    """
+    period. Overwrites the existing row if one exists."""
 
     # Phase 2: vendor-aware working-day count (Sundays + declared
     # holidays). Falls back to Sundays-only if the table is empty.
@@ -419,21 +411,6 @@ def compute_performance_for_employee(
         db, year, month,
         vendor_id=(employee.VENDOR_ID or 1),
     )
-
-    # Prorate for the current month — only count working days
-    # elapsed so far. Without this, day-1 of the month would divide
-    # 0 present days by 27 working days = 0 stars for everyone.
-    first, last = _month_range(year, month)
-    if as_of_date and first <= as_of_date < last:
-        elapsed = 0
-        cursor = first
-        while cursor <= as_of_date:
-            if cursor.weekday() != 6:   # Mon-Sat only
-                elapsed += 1
-            cursor = date.fromordinal(cursor.toordinal() + 1)
-        # Never zero — a fresh month with no elapsed working days
-        # (impossible in practice) would still divide safely.
-        working_days = max(1, elapsed)
 
     att  = _score_attendance(db, employee.ID, year, month, working_days)
 
@@ -511,14 +488,10 @@ def compute_performance_for_all(
     month: int
 ) -> Dict:
     """Compute scores for every active non-admin employee. Returns
-    a summary dict for the API response.
-
-    Automatically prorates the current month based on today's date so
-    scores reflect the actual elapsed working days, not the full month.
-    """
+    a summary dict for the API response."""
 
     role_cache = {
-        r.ID: (r.ROLE_NAME or "")
+        r.ID: (r.NAME or "")
         for r in db.query(Role).all()
     }
 
@@ -532,18 +505,13 @@ def compute_performance_for_all(
         if not _is_excluded_role(role_cache.get(e.ROLE_ID, ""))
     ]
 
-    # Prorate only for the CURRENT month. Past months use the full
-    # month; future months would return 0 (skipped by callers anyway).
-    today = date.today()
-    as_of = today if (year == today.year and month == today.month) else None
-
     scored = 0
 
     for emp in eligible:
 
         try:
 
-            compute_performance_for_employee(db, emp, year, month, as_of_date=as_of)
+            compute_performance_for_employee(db, emp, year, month)
 
             scored += 1
 

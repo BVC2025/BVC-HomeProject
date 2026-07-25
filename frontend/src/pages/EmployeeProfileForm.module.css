@@ -4,21 +4,12 @@
 
 .page {
 
-  /* Standalone page (not inside the ADMIN/EMPLOYEE shell), so it
-     needs to be its own scroll region — the global `body { overflow:
-     hidden }` in App.css otherwise traps content when the form is
-     taller than the viewport. */
-
-  /* Standalone page (not inside the ADMIN/EMPLOYEE shell). The global
-     `body { overflow: hidden }` in App.css otherwise traps this form
-     when it's taller than the viewport — desktop couldn't scroll.
-     Make this page its own scroll region. `100dvh` handles the mobile
-     URL-bar reflow better than `100vh`. */
 
   height: 100vh;
   height: 100dvh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  min-height: 100vh;
   background: var(--layout-bg);
   padding: 30px 24px;
 }
@@ -77,6 +68,10 @@
   margin-top: 10px;
   max-width: 700px;
   letter-spacing: 0.2px;
+  font-size: var(--font-sm);
+  opacity: 0.9;
+  margin-top: 10px;
+  max-width: 700px;
 }
 
 .logoutBtn {
@@ -95,6 +90,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+
 }
 
 /* ─── Error banner ───────────────────────────────────────────── */
@@ -110,6 +106,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+
 }
 
 /* ─── Section card ───────────────────────────────────────────── */
@@ -126,6 +123,7 @@
   font-size: 12px;
   font-weight: var(--fw-black);
   color: var(--clr-primary);
+  color: #4338ca;
   letter-spacing: 1.6px;
   text-transform: uppercase;
   margin-bottom: 16px;
@@ -140,16 +138,39 @@
   display: inline-flex;
   align-items: center;
   color: var(--clr-primary);
+
 }
 
 /* ─── Grid layouts ───────────────────────────────────────────── */
 
-.grid3  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-.grid2  { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
-.gridEdu { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; }
-.grid21 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
 
-.spacer { height: 14px; }
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.gridEdu {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 14px;
+}
+
+.grid21 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.spacer {
+  height: 14px;
+}
 
 /* ─── Field ──────────────────────────────────────────────────── */
 
@@ -219,6 +240,7 @@
   height: 100px;
   border-radius: 50%;
   background: var(--clr-primary);
+  background: #818cf8;
   color: var(--text-inverse);
   display: flex;
   align-items: center;
@@ -227,6 +249,7 @@
   font-weight: var(--fw-black);
   flex-shrink: 0;
   box-shadow: 0 8px 24px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
   overflow: hidden;
 }
 
@@ -235,6 +258,7 @@
   color: var(--text-secondary);
   margin-top: 6px;
 }
+
 
 /* ─── Documents section ──────────────────────────────────────── */
 
@@ -300,7 +324,9 @@
   font-family: inherit;
 }
 
-.docRemove:hover { background: #fee2e2; }
+.docRemove:hover {
+  background: #fee2e2;
+}
 
 
 /* ─── Submit bar ─────────────────────────────────────────────── */
@@ -328,9 +354,11 @@
 }
 
 .submitWarning svg {
-  color: #f59e0b;              /* amber-500 — warning yellow, icon only */
+  color: #f59e0b;
+  /* amber-500 — warning yellow, icon only */
   flex-shrink: 0;
   margin-top: 1px;
+
 }
 
 .submitBtn {
@@ -349,6 +377,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+
 }
 
 .submitBtn:disabled {
@@ -359,106 +388,21 @@
 
 
 
-/* ═════════════════════════════════════════════════════════════════
-   MOBILE LAYOUT (≤ 768 px)
-   ─────────────────────────────────────────────────────────────────
-   Desktop layout above is UNCHANGED. This block collapses every
-   multi-column grid to a single column, tightens paddings, and
-   repositions the absolutely-placed Logout button so it doesn't
-   overlap the welcome title on a small screen.
-   ═════════════════════════════════════════════════════════════════ */
-
-@media (max-width: 768px) {
-
-  /* Page container — thinner side padding, allow vertical scroll.
-     `body { overflow: hidden }` is set globally in App.css so the
-     ADMIN/EMPLOYEE shells can manage their own scroll regions. This
-     page is standalone (rendered before the shell), so we make the
-     page container itself scrollable, filling the viewport. */
-  .page {
-    padding: 14px 12px 28px;
-    height: 100dvh;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .formWrapper {
-    max-width: 100%;
-  }
-
-  /* Hero — smaller, less shouty */
-  .hero {
-    padding: 20px 18px 18px;
-    margin-bottom: 14px;
-    border-radius: 14px;
-    /* Give bottom room so Logout button (absolute positioned) doesn't
-       eat into the description text. */
-    padding-top: 52px;
-  }
-
-  .heroRing {
-    width: 140px;
-    height: 140px;
-    right: -40px;
-    top: -40px;
-  }
-
-  .heroEyebrow {
-    font-size: 10px;
-    letter-spacing: 1.6px;
-  }
-
-  .heroTitle {
-    font-size: 20px;
-    line-height: 1.2;
-  }
-
-  .heroDesc {
-    font-size: 12.5px;
-    line-height: 1.4;
-    max-width: 100%;
-  }
-
-  /* Logout button — pinned to top-right of the hero, but sized to
-     fit on a phone without breaking the hero's own padding. */
-  .logoutBtn {
-    top: 12px;
-    right: 12px;
-    padding: 5px 10px;
-    font-size: 11px;
-  }
-
-  /* Section cards — tighter, smaller radius */
-  .section {
-    padding: 14px 14px 16px;
-    margin-bottom: 12px;
-    border-radius: 12px;
-  }
-
-  .sectionHeader {
-    font-size: 11px;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-  }
-
-  /* ALL grids collapse to one column — no exceptions */
-  .grid3,
-  .grid2,
-  .gridEdu,
-  .grid21,
-  .docUploadRow {
-    grid-template-columns: 1fr !important;
-    gap: 10px;
-  }
-
-  /* Doc list rows stack on mobile — type + title, remove button below */
-
 /* ==================================================================
    MOBILE responsive additions
    ================================================================== */
 @media (max-width: 900px) {
-  .page, .container, .wrapper { padding: 14px; }
-  .docUploadRow { grid-template-columns: 1fr; gap: 10px; }
+
+  .page,
+  .container,
+  .wrapper {
+    padding: 14px;
+  }
+
+  .docUploadRow {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
 
   .docItem {
     grid-template-columns: 1fr auto;
@@ -470,139 +414,99 @@
 
     row-gap: 4px;
   }
-  .docType   { grid-area: type; }
-  .docTitle  { grid-area: title; }
-  .docRemove { grid-area: remove; }
 
-
-  .grid21 {
-    margin-bottom: 10px;
+  .docType {
+    grid-area: type;
   }
 
-  /* Form field spacing — labels tighter to inputs on mobile */
-  .fieldLabel {
-    font-size: 11px;
-    margin-bottom: 4px;
+  .docTitle {
+    grid-area: title;
   }
 
-  .fieldHint {
-    font-size: 10.5px;
-    margin-top: 3px;
+  .docRemove {
+    grid-area: remove;
   }
 
-  /* Every input / select / textarea goes full-width and taller
-     (44px min-height so it hits the touch-target guideline) */
-  .input,
-  .textarea,
-  .inputReadonly {
-    width: 100%;
-    box-sizing: border-box;
-    min-height: 44px;
-    font-size: 14px;
-    padding: 10px 12px;
-  }
-
-  .textarea {
-    min-height: 88px;
-  }
-
-  /* Photo row — stack avatar over "choose file" instead of side-by-side */
-  .photoRow {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .photoInputWrapper {
-    width: 100%;
-  }
-
-  .avatar {
-    width: 84px;
-    height: 84px;
-    font-size: 30px;
-  }
-
-  .fileInput {
-    width: 100%;
-  }
-
-  .photoHint {
-    font-size: 11px;
-  }
-
-  /* Submit bar — button becomes full-width, warning wraps above */
-  .submitBar {
-    padding: 14px;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-    position: sticky;
-    bottom: 0;
-    /* Slight lift + safe area for phones with a home indicator */
-    padding-bottom: max(14px, env(safe-area-inset-bottom, 14px));
-    z-index: 5;
-    /* Ensure it sits above content when it hits the viewport bottom */
-    box-shadow: 0 -6px 22px rgba(15, 23, 42, 0.10);
-  }
-
-  .submitWarning {
-    text-align: center;
-    min-width: 0;
-    font-size: 11.5px;
-  }
-
-  .submitBtn {
-    width: 100%;
-    padding: 14px 20px;
-    font-size: 15px;
-  }
-
-  /* Error banner tighter */
-  .errorBanner {
-    padding: 10px 12px;
-    font-size: 13px;
-    border-radius: 10px;
-  }
-}
-
-}
-/* Very small phones (≤ 380 px) — extra squeeze on the hero */
-@media (max-width: 380px) {
-  .heroTitle { font-size: 18px; }
-  .heroDesc  { font-size: 12px; }
-  .hero {
-    padding: 18px 14px 14px;
-    padding-top: 48px;
-  }
-  .logoutBtn {
-    top: 10px;
-    right: 10px;
-    padding: 4px 8px;
-    font-size: 10.5px;
-  }
-
-  .pageHead, .header, .toolbar {
+  .pageHead,
+  .header,
+  .toolbar {
     flex-wrap: wrap;
     gap: 10px;
   }
-  .filterCard, .filterRow, .filters {
+
+  .filterCard,
+  .filterRow,
+  .filters {
     flex-direction: column;
     align-items: stretch;
     gap: 10px;
   }
-  .searchInput, .filterSelect, .searchWrap, input, select { width: 100%; }
-  .kpiRow, .statRow, .statsGrid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .cardGrid, .cardsGrid, .tileGrid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .twoCol, .splitPanel, .detailGrid { grid-template-columns: 1fr; }
-  .tableCard, .tableWrap, .tblWrap { overflow-x: auto; }
-}
-@media (max-width: 640px) {
-  .page, .container, .wrapper { padding: 10px; }
-  .kpiRow, .statRow, .statsGrid { grid-template-columns: repeat(2, 1fr); }
-  .cardGrid, .cardsGrid, .tileGrid { grid-template-columns: 1fr; }
-  .kpiValue, .statValue { font-size: 20px; }
-  h1 { font-size: 20px; }
-  h2 { font-size: 17px; }
 
+  .searchInput,
+  .filterSelect,
+  .searchWrap,
+  input,
+  select {
+    width: 100%;
+  }
+
+  .kpiRow,
+  .statRow,
+  .statsGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .cardGrid,
+  .cardsGrid,
+  .tileGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .twoCol,
+  .splitPanel,
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .tableCard,
+  .tableWrap,
+  .tblWrap {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 640px) {
+
+  .page,
+  .container,
+  .wrapper {
+    padding: 10px;
+  }
+
+  .kpiRow,
+  .statRow,
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cardGrid,
+  .cardsGrid,
+  .tileGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .kpiValue,
+  .statValue {
+    font-size: 20px;
+  }
+
+  h1 {
+    font-size: 20px;
+  }
+
+  h2 {
+    font-size: 17px;
+  }
 }

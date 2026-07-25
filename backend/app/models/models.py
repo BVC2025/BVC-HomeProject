@@ -1,9 +1,38 @@
-from sqlalchemy import Column, String, Integer, ForeignKey, Float, Date, Time, Text, UniqueConstraint
+from sqlalchemy import (
+    Column, String, Integer, ForeignKey, Float, Date, Time,
+    Text, UniqueConstraint, DateTime, Boolean, Numeric, JSON,
+    Enum as SAEnum
+)
 from sqlalchemy.orm import relationship
 from app.database.database import Base
 from datetime import datetime, time
-from sqlalchemy import DateTime
 import uuid
+
+# ──────────────────────────────────────────────
+# Shared SQLAlchemy Enum types
+# ──────────────────────────────────────────────
+FIELD_TYPE_ENUM = SAEnum(
+    "TEXT", "NUMBER", "DATE", "DATETIME", "CHECKBOX",
+    "RADIO", "SELECT", "TEXTAREA", "EMAIL", "PHONE",
+    name="field_type_enum", create_constraint=True
+)
+UNIT_ENUM = SAEnum(
+    "PCS", "KG", "GRAM", "LITER", "ML",
+    "METER", "CM", "BOX", "PACK", "SET",
+    name="unit_enum", create_constraint=True
+)
+DURATION_UNIT_ENUM = SAEnum(
+    "HOURS", "DAYS", "WEEKS", "MONTHS", "YEARS",
+    name="duration_unit_enum", create_constraint=True
+)
+TASK_STATUS_ENUM = SAEnum(
+    "PENDING", "IN_PROGRESS", "COMPLETED", "EXTENDED", "OVERDUE",
+    name="task_status_enum", create_constraint=True
+)
+ASSIGNMENT_MODE_ENUM = SAEnum(
+    "PARALLEL", "SEQUENTIAL",
+    name="assignment_mode_enum", create_constraint=True
+)
 
 class Vendor(Base):
     __tablename__ = "vendor"
@@ -38,12 +67,6 @@ class Employee(Base):
     NAME = Column(String(100))
 
     EMAIL = Column(String(100), unique=True, nullable=True)
-
-    CORPORATE_EMAIL = Column(String(120), unique=True, nullable=True, index=True)
-    # Company-assigned email (e.g. firstname.lastname@bvc24.com).
-    # Distinct from EMAIL (which is the candidate's personal inbox
-    # used during recruitment / onboarding invites). Auto-provisioned
-    # by /hr-onboarding/employees/{id}/provision-email.
 
     PHONE = Column(String(20), nullable=True)
 
@@ -213,21 +236,22 @@ class Role(Base):
 
     __tablename__ = "role"
 
-    ID = Column(Integer, primary_key=True, index=True)
-
-    ROLE_NAME = Column(String(100))
-
-    DESCRIPTION = Column(String(255), nullable=True)
-
-    IS_SYSTEM = Column(Integer, default=0)
-    # 1 = standard role seeded by us (cannot be deleted)
-    # 0 = custom role created by admin
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID"),
-        index=True
+    __table_args__ = (
+        UniqueConstraint("VENDOR_ID", "NAME", name="uq_role_vendor_name"),
     )
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
+
+    DEPARTMENT_ID = Column(Integer, ForeignKey("department.ID", ondelete="SET NULL"), nullable=True, index=True)
+
+    NAME = Column(String(100), nullable=False)
+
+    DESCRIPTION = Column(String(500), nullable=True)
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class Department(Base):
@@ -235,40 +259,21 @@ class Department(Base):
     __tablename__ = "department"
 
     __table_args__ = (
-        UniqueConstraint(
-            "VENDOR_ID", "CODE",
-            name="uq_dept_vendor_code"
-        ),
+        UniqueConstraint("VENDOR_ID", "DEPARTMENT_CODE", name="uq_dept_vendor_code"),
     )
 
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
 
-    NAME = Column(String(100))
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
 
-    CODE = Column(String(20))
-    # short code per vendor — e.g. "SW", "WLD", "PRD"
+    DEPARTMENT_CODE = Column(String(20), nullable=False)
 
-    DESCRIPTION = Column(String(255), nullable=True)
+    NAME = Column(String(100), nullable=False)
 
-    HEAD_EMPLOYEE_ID = Column(
-        String(36),
-        nullable=True
-        # FK to employee.ID added in Module 2 once Employee
-        # model is restructured — leave nullable for now
-    )
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID"),
-        index=True
-    )
+    DESCRIPTION = Column(String(500), nullable=True)
 
     CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class Designation(Base):
@@ -641,146 +646,81 @@ class ProjectCategory(Base):
 
     __tablename__ = "project_category"
 
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
+    __table_args__ = (
+        UniqueConstraint("VENDOR_ID", "NAME", name="uq_proj_cat_vendor_name"),
     )
 
-    SECTION = Column(
-        String(30),
-        index=True
-    )
+    ID = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
 
-    NAME = Column(
-        String(100),
-        unique=True
-    )
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
 
-    DESCRIPTION = Column(
-        String(255),
-        nullable=True
-    )
+    NAME = Column(String(100), nullable=False)
 
+    DESCRIPTION = Column(String(500), nullable=True)
 
-class SubProjectTemplate(Base):
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    __tablename__ = "sub_project_template"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    CATEGORY_ID = Column(
-        Integer,
-        ForeignKey("project_category.ID"),
-        index=True
-    )
-
-    NAME = Column(
-        String(100)
-    )
-
-    DESCRIPTION = Column(
-        String(500),
-        nullable=True
-    )
-
-    ESTIMATED_TOTAL_DAYS = Column(
-        Integer,
-        default=30
-    )
+    projects = relationship("Project", back_populates="category", cascade="all, delete-orphan")
 
 
 class Project(Base):
 
     __tablename__ = "project"
 
-    ID = Column(
-        Integer,
-        primary_key=True,
+    __table_args__ = (
+        UniqueConstraint("VENDOR_ID", "CATEGORY_ID", "NAME", name="uq_project_vendor_cat_name"),
+    )
+
+    ID = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
+
+    CATEGORY_ID = Column(
+        String(36),
+        ForeignKey("project_category.ID", ondelete="RESTRICT"),
+        nullable=False,
         index=True
     )
 
-    PROJECT_NAME = Column(
-        String(200)
+    NAME = Column(String(100), nullable=False)
+
+    DESCRIPTION = Column(String(500), nullable=True)
+
+    BOM_MODE = Column(String(20), nullable=True)
+
+    ESTIMATED_TOTAL_DAYS = Column(Numeric(10, 2), default=0.0, nullable=False)
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    category       = relationship("ProjectCategory", back_populates="projects")
+    task_templates = relationship(
+        "TaskTemplate", back_populates="project",
+        order_by="TaskTemplate.SEQUENCE_NUMBER",
+        cascade="all, delete-orphan"
     )
 
-    DESCRIPTION = Column(
-        String(2000)
-    )
 
-    STATUS = Column(
-        String(50),
-        default="PENDING"
-    )
+class CustomerProject(Base):
+    """Legacy customer-project records — table renamed to project_legacy by _rename_legacy_project_table()."""
 
-    SUB_PROJECT_TEMPLATE_ID = Column(
-        Integer,
-        ForeignKey("sub_project_template.ID"),
-        nullable=True,
-        index=True
-    )
+    __tablename__ = "project_legacy"
+    __table_args__ = {"extend_existing": True}
 
-    DEPARTMENT_ID = Column(
-        Integer,
-        ForeignKey("department.ID"),
-        nullable=True,
-        index=True
-    )
-
-    CUSTOMER_ID = Column(
-        Integer,
-        ForeignKey("customer.ID")
-    )
-
-    SKILLS_REQUIRED = Column(
-        String(500),
-        nullable=True
-    )
-    # comma-separated skill tags this project needs;
-    # used by allocation_service for skill-overlap scoring.
-
-    PRIORITY = Column(
-        String(20),
-        default="MEDIUM"
-    )
-    # HIGH / MEDIUM / LOW — weights into allocation score.
-
-    # ---- NEW: Product-as-source linkage --------------------------
-    # A Project is now an *instance* of a Product (Machine Model)
-    # being built for a Customer. The product's BOM + stages flow
-    # into the project's task graph automatically when the project
-    # is created via the /projects/from-product endpoint.
-
-    PRODUCT_MODEL_ID = Column(
-        Integer,
-        ForeignKey("product_model.ID"),
-        nullable=True,
-        index=True
-    )
-
-    QUANTITY = Column(
-        Integer,
-        default=1
-    )
-    # How many units of the product this project will deliver.
-
-    TARGET_DATE = Column(
-        Date,
-        nullable=True
-    )
-    # When the project should be completed by.
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID")
-    )
-
+    ID = Column(Integer, primary_key=True, index=True)
+    PROJECT_NAME = Column(String(200))
+    DESCRIPTION = Column(String(2000))
+    STATUS = Column(String(50), default="PENDING")
+    SUB_PROJECT_TEMPLATE_ID = Column(Integer, nullable=True, index=True)  # historical ref; old sub_project_template table archived to sub_project_template_legacy
+    DEPARTMENT_ID = Column(Integer, ForeignKey("department.ID"), nullable=True, index=True)
+    CUSTOMER_ID = Column(Integer, ForeignKey("customer.ID"))
+    SKILLS_REQUIRED = Column(String(500), nullable=True)
+    PRIORITY = Column(String(20), default="MEDIUM")
+    PRODUCT_MODEL_ID = Column(Integer, ForeignKey("product_model.ID"), nullable=True, index=True)
+    QUANTITY = Column(Integer, default=1)
+    TARGET_DATE = Column(Date, nullable=True)
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID"))
 
 
 class Task(Base):
@@ -816,7 +756,7 @@ class Task(Base):
 
     PROJECT_ID = Column(
         Integer,
-        ForeignKey("project.ID")
+        ForeignKey("project_legacy.ID")
     )
 
     ASSIGNED_TO = Column(
@@ -1099,7 +1039,7 @@ class TaskAssignment(Base):
 
     PROJECT_ID = Column(
         Integer,
-        ForeignKey("project.ID"),
+        ForeignKey("project_legacy.ID"),
         nullable=True,
         index=True
     )
@@ -1113,25 +1053,8 @@ class TaskAssignment(Base):
     DUE_DATE = Column(Date, nullable=True)
 
     TASK_STATUS = Column(
-        String(30),
+        String(20),
         default="PENDING"
-    )
-
-    # Odoo-style quick-progress indicator: 0 = none, 1 = Start,
-    # 2 = In Progress, 3 = Complete. Independent of TASK_STATUS so
-    # the kanban can show a quick visual flag without changing the
-    # workflow state. Existing flows (Employee Dashboard, Payroll)
-    # ignore this column.
-    STAR_LEVEL = Column(
-        Integer,
-        default=0,
-        nullable=True
-    )
-
-    PRIORITY = Column(
-        String(10),
-        default="MEDIUM",
-        nullable=True
     )
 
     # ---- Approval workflow ----
@@ -1211,6 +1134,23 @@ class Notification(Base):
         nullable=True
     )
 
+    # ---- Per-employee targeting (added for automated memo delivery) ----
+    # NULL = broadcast to every employee (matches legacy behavior).
+    # Non-NULL = only that employee should see it. The /notifications
+    # endpoint filters on this when ?employee_id= is passed.
+    EMPLOYEE_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=True,
+        index=True,
+    )
+
+    # ---- Deep-link payload ----
+    # REF_TYPE + REF_ID lets the frontend open the referenced record when
+    # the notification is clicked, e.g. REF_TYPE="MEMO" REF_ID=42.
+    REF_TYPE = Column(String(30), nullable=True)
+    REF_ID   = Column(Integer, nullable=True)
+
 
 class Attendance(Base):
     """
@@ -1256,11 +1196,6 @@ class Attendance(Base):
         default="PRESENT"
     )
     # PRESENT / LATE / ABSENT / HALF_DAY
-
-    LATE_MINUTES = Column(Integer, nullable=True, default=0)
-    # Whole minutes past the office start time. 0 when PRESENT / on time.
-    # Set at check-in; independent of the Permission module (a late
-    # arrival is NOT a permission request — those go through leave.py).
 
     WORKED_HOURS = Column(Float, nullable=True)
 
@@ -1520,7 +1455,7 @@ class WorkOrder(Base):
 
     PROJECT_ID = Column(
         Integer,
-        ForeignKey("project.ID"),
+        ForeignKey("project_legacy.ID"),
         nullable=True,
         index=True
     )
@@ -2312,7 +2247,7 @@ class DailyAllocation(Base):
 
     PROJECT_ID = Column(
         Integer,
-        ForeignKey("project.ID"),
+        ForeignKey("project_legacy.ID"),
         nullable=True
     )
 
@@ -2533,17 +2468,6 @@ class PayrollSlip(Base):
     # falling inside this slip's pay period. Surfaced as an input
     # column on the employee-list view; does not itself affect pay.
     PERMISSION_HOURS = Column(Float, default=0.0)
-
-    # ---- BVC company rules — Phase F ----
-    # Hourly wage derived from base_salary / (working_days × 9).
-    # Used to convert excess permission hours + OT hours into money.
-    HOURLY_RATE = Column(Float, default=0.0)
-    # Permission hours above the 4-hour monthly quota.
-    PERMISSION_EXCESS_HOURS = Column(Float, default=0.0)
-    # Permission excess × hourly_rate. Subtracted from base salary.
-    PERMISSION_DEDUCTION = Column(Float, default=0.0)
-    # Absent days × per_day_rate. Subtracted from base salary.
-    ABSENCE_DEDUCTION = Column(Float, default=0.0)
 
     # Snapshot of the employee's PerformanceScore.OVERALL_STARS for
     # this pay period (0.0–5.0). Drives STAR_BONUS below.
@@ -3057,7 +2981,7 @@ class PurchaseOrder(Base):
 
     LINKED_PROJECT_ID = Column(
         Integer,
-        ForeignKey("project.ID"),
+        ForeignKey("project_legacy.ID"),
         nullable=True,
         index=True
     )
@@ -3445,7 +3369,7 @@ class SalesOrderLine(Base):
 
     SPAWNED_PROJECT_ID = Column(
         Integer,
-        ForeignKey("project.ID"),
+        ForeignKey("project_legacy.ID"),
         nullable=True,
         index=True
     )
@@ -3912,6 +3836,16 @@ class EmployeeMemo(Base):
         nullable=True
     )
 
+    # ---- Automation ----
+    IS_AUTOMATED = Column(Integer, default=0, index=True)
+    # 1 = generated by memo_automation.py; 0 = written manually by admin
+
+    AUTOMATION_KEY = Column(String(80), unique=True, nullable=True, index=True)
+    # Idempotency key. Format:
+    #   AUTO-WEEK-<isoyear>W<isoweek>-<WARNING|APPRECIATION>-<employee_id>
+    # A unique index guarantees the automation cannot double-write for
+    # the same employee in the same week, even across concurrent runs.
+
 
 # ====================================================================
 # Holiday Calendar (Phase 2 — replaces hardcoded 26 working days)
@@ -3966,69 +3900,6 @@ class HolidayCalendar(Base):
         DateTime,
         default=datetime.utcnow,
         onupdate=datetime.utcnow
-    )
-
-
-# ====================================================================
-# Help Desk — employee-submitted tickets
-# ====================================================================
-# Category-based tickets for employee complaints, IT / HR requests
-# and facility maintenance. Employees can create + view their own;
-# admins / assignees can update status. Kept intentionally lean so
-# the schema can absorb new categories without migration.
-
-class HelpDeskTicket(Base):
-    """One employee-submitted ticket for the help desk queue."""
-
-    __tablename__ = "helpdesk_ticket"
-
-    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
-
-    TICKET_NUMBER = Column(String(30), unique=True, index=True)
-    # Human-readable — format: HD-2026-07-0001 (generated on create).
-
-    EMPLOYEE_ID = Column(
-        String(36),
-        ForeignKey("employee.ID"),
-        nullable=False,
-        index=True,
-    )
-
-    CATEGORY = Column(String(30), nullable=False, index=True)
-    # COMPLAINT / IT_REQUEST / HR_REQUEST / MAINTENANCE / OTHER
-
-    SUBJECT = Column(String(200), nullable=False)
-
-    DESCRIPTION = Column(Text, nullable=True)
-
-    PRIORITY = Column(String(20), default="MEDIUM")
-    # LOW / MEDIUM / HIGH / URGENT
-
-    STATUS = Column(String(30), default="OPEN", index=True)
-    # OPEN / IN_PROGRESS / RESOLVED / CLOSED / REJECTED
-
-    ASSIGNED_TO_ID = Column(
-        String(36),
-        ForeignKey("employee.ID"),
-        nullable=True,
-    )
-    ASSIGNED_TO_NAME = Column(String(120), nullable=True)
-    # Denormalised so the employee UI doesn't need a second lookup.
-
-    RESOLUTION_NOTES = Column(Text, nullable=True)
-    # Set by whoever closes / resolves the ticket. Shown to the
-    # employee on the detail modal so they know what was done.
-
-    RESOLVED_AT = Column(DateTime, nullable=True)
-
-    VENDOR_ID = Column(Integer, default=1)
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-
-    UPDATED_AT = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
     )
 
 
@@ -4281,7 +4152,6 @@ class AuditLog(Base):
 
     CREATED_AT  = Column(DateTime, default=datetime.utcnow, index=True)
 
-
 # ====================================================================
 # Employee Allowance / Expense Claim
 # ====================================================================
@@ -4409,96 +4279,6 @@ class AILeaveConversation(Base):
 # is officially hired, at which point a normal Employee row is created
 # through the existing onboarding flow.
 
-class ManpowerRequisition(Base):
-    """Manpower requisition — the front of the recruitment funnel.
-
-    A department raises a request for headcount ("we need 2 backend
-    engineers"), HR reviews, an approver either approves or rejects,
-    and on approval the requisition is converted into one or more
-    RecruitmentJob rows via `/recruitment/requisitions/{id}/convert`.
-    """
-
-    __tablename__ = "recruitment_requisition"
-
-    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
-
-    REQ_CODE = Column(String(30), unique=True, index=True, nullable=True)
-    # Auto-generated: MRF-2026-0001
-
-    # ----- What are we asking for -----
-    POSITION_TITLE = Column(String(150), nullable=False)
-    DEPARTMENT     = Column(String(100), nullable=True)
-    LOCATION       = Column(String(100), nullable=True)
-
-    EMPLOYMENT_TYPE = Column(String(30), default="FULL_TIME")
-    # FULL_TIME / PART_TIME / CONTRACT / INTERN
-
-    HEADCOUNT = Column(Integer, nullable=False, default=1)
-
-    EXPERIENCE_MIN_YEARS = Column(Float, nullable=True, default=0.0)
-    EXPERIENCE_MAX_YEARS = Column(Float, nullable=True)
-
-    BUDGET_CTC_MIN = Column(Float, nullable=True)
-    BUDGET_CTC_MAX = Column(Float, nullable=True)
-
-    REQUIRED_SKILLS   = Column(String(1000), nullable=True)
-    PREFERRED_SKILLS  = Column(String(1000), nullable=True)
-    REQUIRED_EDUCATION = Column(String(200), nullable=True)
-
-    JUSTIFICATION = Column(String(2000), nullable=True)
-    # Why this hire is needed. Free-text.
-
-    URGENCY = Column(String(20), default="NORMAL", index=True)
-    # LOW / NORMAL / HIGH / CRITICAL
-
-    NEEDED_BY_DATE = Column(Date, nullable=True)
-    # When the position needs to be filled by.
-
-    # ----- Approval workflow -----
-    STATUS = Column(String(20), default="PENDING", index=True)
-    # PENDING / APPROVED / REJECTED / ON_HOLD / CANCELLED / CONVERTED
-    # CONVERTED = at least one RecruitmentJob has been spawned from
-    # this requisition.
-
-    REJECTION_REASON = Column(String(500), nullable=True)
-
-    REQUESTED_BY_ID = Column(
-        String(36),
-        ForeignKey("employee.ID"),
-        nullable=True,
-        index=True,
-    )
-    # The department head / requester employee.
-
-    APPROVED_BY_ID = Column(
-        String(36),
-        ForeignKey("employee.ID"),
-        nullable=True,
-    )
-    APPROVED_AT = Column(DateTime, nullable=True)
-
-    # ----- Convert-to-job link -----
-    CONVERTED_JOB_ID = Column(
-        Integer,
-        ForeignKey("recruitment_job.ID", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-    # First job spawned from this requisition. Additional jobs may
-    # be created via subsequent conversions, but we only pin the
-    # first for quick lookup.
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID"),
-        nullable=True,
-        index=True,
-    )
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-
 class RecruitmentJob(Base):
     """An open position the company is hiring for."""
 
@@ -4545,16 +4325,6 @@ class RecruitmentJob(Base):
         ForeignKey("employee.ID"),
         nullable=True,
     )
-
-    REQUISITION_ID = Column(
-        Integer,
-        ForeignKey("recruitment_requisition.ID", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
-    # Traces this job back to the ManpowerRequisition it was spawned
-    # from. Nullable so jobs can still be created ad-hoc without a
-    # requisition (e.g. urgent replacements).
 
     VENDOR_ID = Column(
         Integer,
@@ -5089,163 +4859,105 @@ class OnboardingChecklistItem(Base):
     UPDATED_AT      = Column(DateTime, default=datetime.utcnow,
                              onupdate=datetime.utcnow)
 
+# ──────────────────────────────────────────────
+# Custom Fields System
+# ──────────────────────────────────────────────
+
+class CustomField(Base):
+    __tablename__ = "custom_fields"
+
+    ID          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    TABLE_NAME  = Column(String(100), nullable=False, index=True)
+    FIELD_NAME  = Column(String(50),  nullable=False)
+    FIELD_TYPE  = Column(FIELD_TYPE_ENUM, nullable=False)
+    OPTIONS     = Column(JSON, nullable=True)
+    IS_REQUIRED = Column(Boolean, default=False, nullable=False)
+    SORT_ORDER  = Column(Integer, nullable=False, default=0)
+    VENDOR_ID   = Column(Integer, ForeignKey("vendor.ID"), nullable=True, index=True)
+    CREATED_AT  = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT  = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    values = relationship("CustomFieldTableValue", back_populates="field", cascade="all, delete-orphan")
+
+
+class CustomFieldTableValue(Base):
+    __tablename__ = "custom_fields_table_values"
+
+    ID                 = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    TABLE_NAME         = Column(String(100), nullable=False, index=True)
+    TABLE_ROW_ID       = Column(String(36),  nullable=False, index=True)
+    CUSTOM_FIELD_ID    = Column(String(36), ForeignKey("custom_fields.ID", ondelete="CASCADE"), nullable=False)
+    CUSTOM_FIELD_VALUE = Column(JSON, nullable=True)
+    CREATED_AT         = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT         = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    field = relationship("CustomField", back_populates="values")
+
+
+# ──────────────────────────────────────────────
+# Task Template
+# ──────────────────────────────────────────────
+
+class TaskTemplate(Base):
+    __tablename__ = "task_template"
+
+    ID              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    PROJECT_ID      = Column(String(36), ForeignKey("project.ID", ondelete="RESTRICT"), nullable=False, index=True)
+    VENDOR_ID       = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
+    NAME            = Column(String(100), nullable=False)
+    DESCRIPTION     = Column(Text, nullable=True)
+    DURATION_VALUE  = Column(Numeric(7, 2), default=1.0, nullable=False)
+    DURATION_UNIT   = Column(DURATION_UNIT_ENUM, default="DAYS", nullable=False)
+    SEQUENCE_NUMBER = Column(Integer, nullable=False, default=0)
+    DEPARTMENT_ID   = Column(Integer, ForeignKey("department.ID", ondelete="SET NULL"), nullable=True, index=True)
+    ROLE_ID         = Column(Integer, ForeignKey("role.ID",       ondelete="SET NULL"), nullable=True, index=True)
+    CREATED_AT      = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    project    = relationship("Project", back_populates="task_templates")
+    department = relationship("Department", foreign_keys=[DEPARTMENT_ID])
+    role       = relationship("Role",       foreign_keys=[ROLE_ID])
+
 
 # =====================================================================
-# SHIFT MANAGEMENT
-#
-# Three tables:
-#   Shift              — master (named templates like "Morning", "Night")
-#   ShiftAssignment    — per-employee per-date scheduled shift
-#   ShiftChangeRequest — swap / new-shift approval workflow
-#
-# Employee.SHIFT_START/END is kept as the "default shift" fallback used
-# by /shifts/schedule/auto-fill when no explicit assignment exists.
+# Help Desk — employee-submitted tickets
 # =====================================================================
 
+class HelpDeskTicket(Base):
+    """One employee-raised ticket. Admins triage, assign, and resolve."""
 
-class Shift(Base):
-    """Named shift template. Every scheduled ShiftAssignment references
-    one Shift so payroll + attendance can derive expected hours, break
-    minutes, night differential, etc. from a single source of truth."""
+    __tablename__ = "helpdesk_ticket"
 
-    __tablename__ = "shift_master"
-    __table_args__ = (
-        UniqueConstraint("VENDOR_ID", "SHIFT_CODE", name="uq_shift_vendor_code"),
-    )
+    ID               = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    TICKET_NUMBER    = Column(String(30), unique=True, index=True, nullable=False)
 
-    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    EMPLOYEE_ID      = Column(String(36), ForeignKey("employee.ID"), index=True, nullable=False)
 
-    SHIFT_CODE = Column(String(30), nullable=False)
-    # Short code, e.g. "M", "E", "N", "GEN"
+    CATEGORY         = Column(String(30), nullable=False, index=True)
+    # COMPLAINT / IT_REQUEST / HR_REQUEST / MAINTENANCE / OTHER
 
-    NAME = Column(String(80), nullable=False)
-    # Human-friendly: "Morning", "General", "Night Shift"
+    SUBJECT          = Column(String(200), nullable=False)
+    DESCRIPTION      = Column(Text, nullable=True)
 
-    START_TIME = Column(Time, nullable=False, default=time(9, 0))
-    END_TIME   = Column(Time, nullable=False, default=time(18, 0))
+    PRIORITY         = Column(String(10), nullable=False, default="MEDIUM", index=True)
+    # LOW / MEDIUM / HIGH / URGENT
 
-    CROSS_MIDNIGHT = Column(Integer, default=0)
-    # 1 if the shift ends on the next calendar day (e.g. 22:00-06:00).
-    # When 1, ShiftAssignment.SHIFT_DATE refers to the *start* date.
+    STATUS           = Column(String(20), nullable=False, default="OPEN", index=True)
+    # OPEN / IN_PROGRESS / RESOLVED / CLOSED / REJECTED
 
-    BREAK_MINUTES = Column(Integer, default=60)
-    # Unpaid break in minutes. Payroll subtracts this from gross hours.
+    ASSIGNED_TO_ID   = Column(String(36), ForeignKey("employee.ID"), nullable=True, index=True)
+    ASSIGNED_TO_NAME = Column(String(150), nullable=True)
 
-    CATEGORY = Column(String(20), default="DAY", index=True)
-    # DAY / NIGHT / FLEXIBLE / SPLIT
+    INTERNAL_NOTES   = Column(Text, nullable=True)
+    RESOLUTION_NOTES = Column(Text, nullable=True)
 
-    IS_NIGHT = Column(Integer, default=0)
-    # 1 if this qualifies for the night-shift differential /
-    # allowance calc. Independent of CROSS_MIDNIGHT — a 20:00–04:00
-    # shift is CROSS_MIDNIGHT=1 AND IS_NIGHT=1.
+    RESOLVED_AT      = Column(DateTime, nullable=True)
+    CLOSED_AT        = Column(DateTime, nullable=True)
 
-    NIGHT_ALLOWANCE_PCT = Column(Float, nullable=True, default=0.0)
-    # % uplift on that day's basic pay if IS_NIGHT=1.
+    VENDOR_ID        = Column(Integer, ForeignKey("vendor.ID"), nullable=True, index=True)
 
-    FLEX_WINDOW_MINUTES = Column(Integer, nullable=True, default=0)
-    # For FLEXIBLE shifts: how many minutes ± the start/end an
-    # employee may check in/out. 0 = strict.
+    CREATED_AT       = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT       = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    COLOR = Column(String(20), nullable=True, default="#3b82f6")
-    # UI colour for the calendar cell.
-
-    DESCRIPTION = Column(String(300), nullable=True)
-
-    IS_ACTIVE = Column(Integer, default=1, index=True)
-
-    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID"),
-                       nullable=False, index=True)
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT = Column(DateTime, default=datetime.utcnow,
-                        onupdate=datetime.utcnow)
-
-
-class ShiftAssignment(Base):
-    """One row per employee × date. Nullable SHIFT_ID = OFF-day (e.g.
-    weekly off / leave). Uniqueness enforced so an employee can't be
-    double-booked on the same date."""
-
-    __tablename__ = "shift_assignment"
-    __table_args__ = (
-        UniqueConstraint(
-            "EMPLOYEE_ID", "SHIFT_DATE",
-            name="uq_shift_emp_date",
-        ),
-    )
-
-    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
-
-    EMPLOYEE_ID = Column(String(36), ForeignKey("employee.ID"),
-                         nullable=False, index=True)
-
-    SHIFT_ID = Column(Integer, ForeignKey("shift_master.ID"),
-                      nullable=True, index=True)
-    # Nullable: OFF-day / weekly off / leave day → no shift.
-
-    SHIFT_DATE = Column(Date, nullable=False, index=True)
-    # If the shift crosses midnight, this is the *start* date.
-
-    STATUS = Column(String(20), default="SCHEDULED", index=True)
-    # SCHEDULED / COMPLETED / MISSED / SWAPPED / CANCELLED
-
-    NOTES = Column(String(300), nullable=True)
-
-    ASSIGNED_BY_ID = Column(String(36), ForeignKey("employee.ID"),
-                            nullable=True)
-
-    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID"),
-                       nullable=False, index=True)
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT = Column(DateTime, default=datetime.utcnow,
-                        onupdate=datetime.utcnow)
-
-
-class ShiftChangeRequest(Base):
-    """Employee-initiated request to change or swap a scheduled shift.
-    HR / manager approves, at which point the referenced ShiftAssignment
-    row is mutated."""
-
-    __tablename__ = "shift_change_request"
-
-    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
-
-    REQUESTED_BY_ID = Column(String(36), ForeignKey("employee.ID"),
-                             nullable=False, index=True)
-
-    SHIFT_DATE = Column(Date, nullable=False, index=True)
-    # The date being changed.
-
-    FROM_SHIFT_ID = Column(Integer, ForeignKey("shift_master.ID"),
-                           nullable=True)
-    # Current shift on SHIFT_DATE. Null if today was an OFF-day.
-
-    TO_SHIFT_ID = Column(Integer, ForeignKey("shift_master.ID"),
-                         nullable=True)
-    # Requested shift. Null if requesting a leave / OFF-day.
-
-    SWAP_WITH_EMPLOYEE_ID = Column(String(36), ForeignKey("employee.ID"),
-                                   nullable=True)
-    # Optional: swap-partner. If set, the partner's assignment on the
-    # same date is also mutated when approved.
-
-    REASON = Column(String(500), nullable=True)
-
-    STATUS = Column(String(20), default="PENDING", index=True)
-    # PENDING / APPROVED / REJECTED / CANCELLED
-
-    REJECTION_REASON = Column(String(500), nullable=True)
-
-    APPROVED_BY_ID = Column(String(36), ForeignKey("employee.ID"),
-                            nullable=True)
-    APPROVED_AT = Column(DateTime, nullable=True)
-
-    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID"),
-                       nullable=False, index=True)
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT = Column(DateTime, default=datetime.utcnow,
-                        onupdate=datetime.utcnow)
-
-
+    employee     = relationship("Employee", foreign_keys=[EMPLOYEE_ID])
+    assigned_to  = relationship("Employee", foreign_keys=[ASSIGNED_TO_ID])

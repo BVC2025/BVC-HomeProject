@@ -384,6 +384,19 @@ function PayslipCard({ slip, busy, onView, onDownload, onPrint }) {
     return parts.join(" · ");
   })();
 
+  // Deductions breakdown — shown as a small hint under the total so the
+  // employee sees WHY the number is what it is, not just "-₹17,505".
+  const deductionsBreakdown = (() => {
+    const parts = [];
+    if (slip.ABSENCE_DEDUCTION > 0)   parts.push(`Absence ${inr(slip.ABSENCE_DEDUCTION)}`);
+    if (slip.PF_EMPLOYEE > 0)         parts.push(`PF ${inr(slip.PF_EMPLOYEE)}`);
+    if (slip.ESI_EMPLOYEE > 0)        parts.push(`ESI ${inr(slip.ESI_EMPLOYEE)}`);
+    if (slip.PT_EMPLOYEE > 0)         parts.push(`PT ${inr(slip.PT_EMPLOYEE)}`);
+    if (slip.PERMISSION_DEDUCTION > 0) parts.push(`Perm ${inr(slip.PERMISSION_DEDUCTION)}`);
+    if (slip.LATE_PENALTY > 0)        parts.push(`Late ${inr(slip.LATE_PENALTY)}`);
+    return parts.join(" · ");
+  })();
+
   return (
     <li className={styles.slip}>
 
@@ -413,6 +426,9 @@ function PayslipCard({ slip, busy, onView, onDownload, onPrint }) {
             <span className={`${styles.slipStatValue} ${styles.deduction}`}>
               −{inr(slip.TOTAL_DEDUCTIONS)}
             </span>
+            {deductionsBreakdown && (
+              <span className={styles.slipStatHint}>{deductionsBreakdown}</span>
+            )}
           </div>
           <div className={styles.slipStat}>
             <span className={styles.slipStatLabel}>Attendance</span>

@@ -24,7 +24,7 @@ from app.models.models import Base
 from app.routes.users import router as users_router
 from app.routes.auth import router as auth_router
 from app.routes.vendor import router as vendor_router
-from app.routes.project import router as project_router
+# project_router (customer projects) removed — ProjectCategory→Project hierarchy now owns the "project" table
 from app.routes.task import router as task_router
 from app.routes.inventory import router as inventory_router
 from app.routes.analytics import router as analytics_router
@@ -39,10 +39,6 @@ from app.routes.organization import router as organization_router
 from app.routes.task_approval import router as task_approval_router
 from app.routes.chatbot import router as chatbot_router
 from app.routes.biometric import router as biometric_router
-from app.routes.essl_ingest import router as essl_ingest_router
-from app.routes.adms_push import router as adms_push_router
-from app.routes.attendance_csv_import import router as attendance_csv_import_router
-
 from app.routes.bvc24_seed import router as bvc24_seed_router
 from app.routes.performance import router as performance_router
 from app.routes.production import router as production_router
@@ -69,8 +65,6 @@ from app.routes.ai import router as ai_router
 from app.routes.public_enquiry import router as public_enquiry_router
 from app.routes.geofence import router as geofence_router
 from app.routes.employee_memos import router as employee_memos_router
-from app.routes.helpdesk import router as helpdesk_router
-from app.routes.me import router as me_router
 from app.routes.leave_chatbot import router as leave_chatbot_router
 from app.routes.employee_portal import router as employee_portal_router
 from app.routes.audit import router as audit_router  # Phase 3 security
@@ -84,13 +78,15 @@ from app.routes.hr_chat import router as hr_chat_router          # Unified HR As
 from app.routes.recruitment import router as recruitment_router  # Phase 2 — AI Recruitment Assistant
 from app.routes.employee_payslips import router as my_payslips_router  # Employee self-service payslips
 from app.routes.onboarding_checklist import router as onboarding_checklist_router  # Post-joining onboarding
-from app.routes.shifts import router as shifts_router  # Shift Management
-from app.routes.ai_chat import router as ai_chat_router  # AI Agent — Phase 1 intent router
 from app.routes.attendance_ai import router as attendance_ai_router  # Attendance Automation (Phase 1)
 from app.routes.leave_decisions import router as leave_decisions_router  # Leave Automation (Phase 1)
 from app.routes.monthly_reports import router as monthly_reports_router  # Auto monthly attendance + payroll reports
 from app.routes.employee_status import router as employee_status_router  # Employee lifecycle status tracking
 from app.routes.employee_insights import router as employee_insights_router  # AI workforce analytics
+from app.routes.custom_fields import router as custom_fields_router  # Custom Fields System
+from app.routes.helpdesk import router as helpdesk_router  # Help Desk (employee tickets + admin triage)
+from app.routes.memo_automation import router as memo_automation_router  # Weekly warning/appreciation memo automation
+from app.voice_assistant.routes import router as voice_assistant_router  # Voice-first ERP assistant (Siri-style)
 from fastapi.middleware.cors import CORSMiddleware
 
 # Phase 3 — Audit log
@@ -231,6 +227,48 @@ _STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
+
+def _rename_legacy_project_table():
+    """Archive legacy tables that have been superseded by new ORM models.
+
+    - old 'project'           (customer-facing projects, INTEGER PK)  → 'project_legacy'
+    - old 'sub_project_template' (old template model, INTEGER PK)     → 'sub_project_template_legacy'
+
+    Both renames are idempotent: they are skipped when the source table is
+    absent or when the target already exists.  Errors are caught per-table
+    so one failure never blocks the other rename or startup.
+    """
+    from sqlalchemy import text, inspect
+    insp = inspect(engine)
+    existing = set(insp.get_table_names())
+
+    # ── 1. Rename old customer-project table ──────────────────────────────────
+    if "project" in existing and "project_legacy" not in existing:
+        try:
+            cols = {c["name"] for c in insp.get_columns("project")}
+            if "PROJECT_NAME" in cols:          # old customer-project signature
+                with engine.connect() as conn:
+                    conn.execute(text("RENAME TABLE `project` TO `project_legacy`"))
+                    conn.commit()
+                print("[startup] Renamed legacy 'project' → 'project_legacy'")
+        except Exception as exc:
+            print(f"[startup] project rename skipped: {exc}")
+
+    # ── 2. Archive old sub_project_template table ─────────────────────────────
+    if "sub_project_template" in existing and "sub_project_template_legacy" not in existing:
+        try:
+            with engine.connect() as conn:
+                conn.execute(
+                    text("RENAME TABLE `sub_project_template` TO `sub_project_template_legacy`")
+                )
+                conn.commit()
+            print("[startup] Renamed legacy 'sub_project_template' → 'sub_project_template_legacy'")
+        except Exception as exc:
+            print(f"[startup] sub_project_template rename skipped: {exc}")
+
+
+_rename_legacy_project_table()
+
 Base.metadata.create_all(bind=engine)
 
 
@@ -308,31 +346,11 @@ def _auto_migrate():
         ("quotation", "VIEW_COUNT",         "INT NOT NULL DEFAULT 0"),
         # ---- Phase 5: SO advance-due tracking ----
         ("sales_order", "ADVANCE_DUE_DATE", "DATE NULL"),
-        # ---- Attendance late tracking ----
-        # Whole minutes past the office start time when the employee checked in.
-        # 0 when PRESENT / on time. Independent of the Permission module — a
-        # late arrival is NOT a permission request.
-        ("attendance",      "LATE_MINUTES",   "INT NULL DEFAULT 0"),
-        # ---- Payroll: BVC-specific fields ----
-        # Hourly rate derived from base_salary / (working_days × 9). Used
-        # to convert excess permission hours + OT hours into cash values.
-        ("payroll_slip",    "HOURLY_RATE",              "FLOAT NULL DEFAULT 0"),
-        # Permission hours above the 4-hour monthly quota (excess).
-        ("payroll_slip",    "PERMISSION_EXCESS_HOURS",  "FLOAT NULL DEFAULT 0"),
-        # Salary deducted for the excess permission = excess_hours × HOURLY_RATE.
-        ("payroll_slip",    "PERMISSION_DEDUCTION",     "FLOAT NULL DEFAULT 0"),
-        # Salary deducted for unauthorised absent days = absent_days × per_day_rate.
-        ("payroll_slip",    "ABSENCE_DEDUCTION",        "FLOAT NULL DEFAULT 0"),
         # ---- Unified Employee Dashboard (Permission support) ----
         # LEAVE_TYPE='PERMISSION' rows track sub-day time-off in hours
         ("leave_request",   "DURATION_HOURS", "FLOAT NULL"),
         # Per-task PRIORITY surfaced on the employee dashboard cards
         ("task_assignment", "PRIORITY",       "VARCHAR(10) NULL"),
-        ("task_assignment", "STAR_LEVEL",     "INT NULL DEFAULT 0"),
-        # Recruitment — link a job to its manpower requisition
-        ("recruitment_job",  "REQUISITION_ID",  "INT NULL"),
-        # Onboarding — corporate email provisioned during auto-onboarding
-        ("employee",         "CORPORATE_EMAIL", "VARCHAR(120) NULL"),
         # ---- Employee onboarding: admin-chosen password at invite time ----
         # Replaces the AI chatbot flow with admin-sets-password-at-invite +
         # candidate logs in to fill the registration form.
@@ -416,6 +434,30 @@ def _auto_migrate():
         # separate check-in/check-out, never auto-derived from regular hours)
         ("attendance", "OT_CHECK_IN",        "DATETIME NULL"),
         ("attendance", "OT_CHECK_OUT",       "DATETIME NULL"),
+        # ---- Project Management Module (2026-06) ----
+        ("department", "UPDATED_AT",         "DATETIME NULL"),
+        ("role",       "DEPARTMENT_ID",      "INT NULL"),
+        ("role",       "CREATED_AT",         "DATETIME NULL"),
+        ("role",       "UPDATED_AT",         "DATETIME NULL"),
+        # ---- Help Desk (2026-07): new columns added when the module
+        # was rebuilt after the ram-development merge deleted it.
+        ("helpdesk_ticket", "INTERNAL_NOTES", "TEXT NULL"),
+        ("helpdesk_ticket", "CLOSED_AT",      "DATETIME NULL"),
+        # ---- Memo automation (2026-07): system-generated warning /
+        # appreciation memos + per-employee notification targeting.
+        ("employee_memos", "IS_AUTOMATED",   "INT NULL DEFAULT 0"),
+        ("employee_memos", "AUTOMATION_KEY", "VARCHAR(80) NULL"),
+        ("notification",   "EMPLOYEE_ID",    "VARCHAR(36) NULL"),
+        ("notification",   "REF_TYPE",       "VARCHAR(30) NULL"),
+        ("notification",   "REF_ID",         "INT NULL"),
+    ]
+
+    # Columns to rename. Old names from legacy schema that the model has
+    # since replaced. Each entry: (table, old_col, new_col, new_ddl).
+    # Idempotent: if old_col is absent (already renamed) we skip.
+    rename_columns = [
+        ("department", "CODE",      "DEPARTMENT_CODE", "VARCHAR(20) NULL"),
+        ("role",       "ROLE_NAME", "NAME",            "VARCHAR(100) NOT NULL DEFAULT ''"),
     ]
 
     # Indexes / unique constraints that earlier model versions
@@ -435,8 +477,11 @@ def _auto_migrate():
     # Each entry: (table, column, new_ddl). The DDL is whatever you'd
     # put in `ADD COLUMN`, e.g. "VARCHAR(2000) NULL".
     widened_columns = [
-        ("project", "DESCRIPTION",  "VARCHAR(2000) NULL"),
-        ("project", "PROJECT_NAME", "VARCHAR(200) NULL"),
+        # Extend FIELD_TYPE enum to include PHONE (idempotent MODIFY)
+        (
+            "custom_fields", "FIELD_TYPE",
+            "ENUM('TEXT','NUMBER','DATE','DATETIME','CHECKBOX','RADIO','SELECT','TEXTAREA','EMAIL','PHONE') NOT NULL",
+        ),
     ]
 
     # New tables that older deployments may not have yet. create_all()
@@ -858,6 +903,41 @@ def _auto_migrate():
                         table, column, exc_inner
                     )
 
+            # ---- 3b. Rename legacy columns whose Python attribute changed ----
+            for table, old_col, new_col, new_ddl in rename_columns:
+
+                if not insp.has_table(table):
+
+                    continue
+
+                existing_cols = {
+                    c["name"].lower()
+                    for c in insp.get_columns(table)
+                }
+
+                if old_col.lower() not in existing_cols:
+
+                    continue  # already renamed or never existed
+
+                try:
+
+                    conn.execute(text(
+                        f"ALTER TABLE `{table}` "
+                        f"CHANGE COLUMN `{old_col}` `{new_col}` {new_ddl}"
+                    ))
+
+                    log.info(
+                        "auto-migrate: renamed %s.%s → %s",
+                        table, old_col, new_col
+                    )
+
+                except Exception as exc_inner:
+
+                    log.warning(
+                        "auto-migrate: could not rename %s.%s → %s: %s",
+                        table, old_col, new_col, exc_inner
+                    )
+
             # ---- 4. Backfill NULL VENDOR_ID on customers (Phase 1) ----
             # New tenant-scope column — existing rows need a default.
             if insp.has_table("customer"):
@@ -906,72 +986,6 @@ def _auto_migrate():
                             "auto-migrate: employee.%s blank-to-null "
                             "backfill skipped: %s", col, exc_bf
                         )
-
-            # ---- 6. Rebind stale foreign keys that still point at
-            #         the orphan `project_legacy` table.
-            # During an earlier schema reset somebody renamed `project`
-            # to `project_legacy` (or created a new `project` alongside
-            # the old one) and forgot to repoint the dependent FKs. The
-            # ORM still declares `ForeignKey("project.ID")`, but in the
-            # live DB the constraint still points at `project_legacy`,
-            # so every INSERT on the child table (e.g. work_order) fails
-            # with IntegrityError 1452 — "Cannot add or update a child
-            # row: a foreign key constraint fails".
-            #
-            # Strategy: enumerate any FK whose REFERENCED_TABLE_NAME is
-            # `project_legacy`, drop it, and re-add it against `project`.
-            try:
-
-                stale_fks = list(conn.execute(text("""
-                    SELECT TABLE_NAME, CONSTRAINT_NAME,
-                           COLUMN_NAME, REFERENCED_COLUMN_NAME
-                    FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
-                    WHERE TABLE_SCHEMA = DATABASE()
-                      AND REFERENCED_TABLE_NAME = 'project_legacy'
-                """)))
-
-                for row in stale_fks:
-
-                    tname    = row[0]
-                    cname    = row[1]
-                    col      = row[2]
-                    ref_col  = row[3] or "ID"
-
-                    try:
-
-                        conn.execute(text(
-                            f"ALTER TABLE `{tname}` "
-                            f"DROP FOREIGN KEY `{cname}`"
-                        ))
-
-                        conn.execute(text(
-                            f"ALTER TABLE `{tname}` "
-                            f"ADD CONSTRAINT `{cname}` "
-                            f"FOREIGN KEY (`{col}`) "
-                            f"REFERENCES `project`(`{ref_col}`) "
-                            f"ON DELETE SET NULL"
-                        ))
-
-                        log.info(
-                            "auto-migrate: rebound FK %s.%s "
-                            "(%s) from project_legacy -> project",
-                            tname, cname, col
-                        )
-
-                    except Exception as exc_fk:
-
-                        log.warning(
-                            "auto-migrate: could not rebind FK "
-                            "%s.%s: %s",
-                            tname, cname, exc_fk
-                        )
-
-            except Exception as exc_fk_outer:
-
-                log.warning(
-                    "auto-migrate: project_legacy FK repair phase "
-                    "skipped: %s", exc_fk_outer
-                )
 
     except Exception as exc:
 
@@ -1051,128 +1065,6 @@ def _auto_seed_holidays():
 _auto_seed_holidays()
 
 
-# Canonical department + designation lists for a manufacturing company.
-# Inserted ADDITIVELY — existing custom entries are kept, missing ones
-# are added. Order doesn't matter; we de-dupe by (VENDOR_ID, NAME).
-_MFG_DEPARTMENTS = [
-    ("Software Development",          "SW"),
-    ("Accounts & Finance",            "FIN"),
-    ("Sales",                         "SAL"),
-    ("Purchase / Procurement",        "PUR"),
-    ("Design & Engineering",          "DSN"),
-    ("Electrical",                    "ELE"),
-    ("Welding",                       "WLD"),
-    ("Fitting",                       "FIT"),
-    ("Assembly",                      "ASM"),
-    ("Production",                    "PRD"),
-    ("Quality Control",               "QC"),
-    ("Quality Assurance",             "QA"),
-    ("Maintenance",                   "MNT"),
-    ("Manufacturing",                 "MFG"),
-    ("Operations",                    "OPS"),
-    ("Stores / Inventory",            "INV"),
-    ("Logistics",                     "LOG"),
-    ("Supply Chain Management",       "SCM"),
-    ("Research & Development",        "RND"),
-    ("Human Resources",               "HR"),
-    ("Administration",                "ADM"),
-    ("Safety (EHS)",                  "EHS"),
-    ("Planning",                      "PLN"),
-    ("Project Management",            "PM"),
-    ("Tool Room",                     "TR"),
-    ("Machine Shop",                  "MS"),
-    ("Fabrication",                   "FAB"),
-    ("Inspection",                    "INSP"),
-    ("Packaging",                     "PKG"),
-    ("Dispatch",                      "DSP"),
-    ("Customer Support / Service",    "CS"),
-    ("Information Technology",        "IT"),
-]
-
-_MFG_DESIGNATIONS = [
-    "Trainee", "Apprentice", "Operator", "Technician", "Fitter",
-    "Welder", "Electrician", "Supervisor", "Senior Supervisor",
-    "Engineer", "Senior Engineer", "Design Engineer", "Production Engineer",
-    "Quality Engineer", "Maintenance Engineer", "Team Leader",
-    "Shift In-Charge", "Assistant Manager", "Deputy Manager", "Manager",
-    "Senior Manager", "General Manager", "Department Head", "Executive",
-    "Senior Executive", "Accountant", "Purchase Executive",
-    "Sales Executive", "HR Executive", "HR Manager", "IT Administrator",
-    "Project Engineer", "Project Manager", "Plant Head", "Factory Manager",
-    "Director",
-]
-
-
-def _auto_seed_org_catalog():
-    """Top up Department + Designation tables with the canonical
-    manufacturing-industry list. Existing entries are NEVER modified;
-    only missing names get inserted. Safe to re-run on every boot."""
-
-    from sqlalchemy.orm import sessionmaker
-    from app.models.models import Department, Designation
-
-    Session = sessionmaker(bind=engine)
-    db = Session()
-
-    try:
-
-        # ---- Departments ------------------------------------------
-        existing_dept_names = {
-            (d.NAME or "").strip().lower()
-            for d in db.query(Department).filter(Department.VENDOR_ID == 1).all()
-        }
-
-        dept_added = 0
-        for name, code in _MFG_DEPARTMENTS:
-            if name.strip().lower() in existing_dept_names:
-                continue
-            db.add(Department(NAME=name, CODE=code, VENDOR_ID=1))
-            dept_added += 1
-
-        if dept_added:
-            db.commit()
-
-        # ---- Designations -----------------------------------------
-        # Designation is keyed by TITLE alone (no vendor scope on the
-        # model — it's company-agnostic). Use a case-insensitive set.
-        existing_des_titles = {
-            (d.TITLE or "").strip().lower()
-            for d in db.query(Designation).all()
-        }
-
-        des_added = 0
-        for title in _MFG_DESIGNATIONS:
-            if title.strip().lower() in existing_des_titles:
-                continue
-            db.add(Designation(TITLE=title))
-            des_added += 1
-
-        if des_added:
-            db.commit()
-
-        if dept_added or des_added:
-
-            import logging
-            logging.getLogger("uvicorn").info(
-                "auto-seed-org-catalog: +%d departments, +%d designations",
-                dept_added, des_added,
-            )
-
-    except Exception as exc:
-
-        db.rollback()
-
-        import logging
-        logging.getLogger("uvicorn").warning(
-            "auto-seed-org-catalog skipped: %s", exc
-        )
-
-    finally:
-
-        db.close()
-
-
-_auto_seed_org_catalog()
 
 
 # Canonical Work Center catalog for a manufacturing shop. Inserted
@@ -1246,65 +1138,6 @@ def _auto_seed_work_centers():
 _auto_seed_work_centers()
 
 
-def _auto_seed_org():
-    """If Department / Role / Designation are empty for vendor 1,
-    seed the MANUFACTURING preset. Idempotent — only runs when the
-    tables are actually empty so existing tenant data is never
-    overwritten."""
-
-    import logging
-
-    from sqlalchemy.orm import sessionmaker
-
-    from app.models.models import Department, Role, Designation
-
-    from app.routes.organization import do_seed_org
-
-    log = logging.getLogger("uvicorn")
-
-    SessionLocal = sessionmaker(bind=engine)
-
-    db = SessionLocal()
-
-    try:
-
-        has_dept = db.query(Department).filter(
-            Department.VENDOR_ID == 1
-        ).first()
-
-        has_role = db.query(Role).filter(
-            Role.VENDOR_ID == 1
-        ).first()
-
-        has_desg = db.query(Designation).filter(
-            Designation.VENDOR_ID == 1
-        ).first()
-
-        if has_dept and has_role and has_desg:
-
-            return  # everything's there — nothing to do
-
-        result = do_seed_org(db, "MANUFACTURING", 1)
-
-        log.info(
-            "auto-seed-org: added %s depts, %s designations, "
-            "%s roles, %s permissions",
-            result["departments_added"],
-            result["designations_added"],
-            result["roles_added"],
-            result["permissions_added"]
-        )
-
-    except Exception as exc:
-
-        log.warning("auto-seed-org skipped: %s", exc)
-
-    finally:
-
-        db.close()
-
-
-_auto_seed_org()
 
 
 def _auto_seed_quotation_settings():
@@ -1373,13 +1206,214 @@ def _auto_seed_sales_order_settings():
 _auto_seed_sales_order_settings()
 
 
+def _auto_seed_defaults():
+    """Seed the single default Vendor → Department → Role → Employee
+    chain on first boot.  Each step is guarded by a name/code lookup:
+    if the record already exists it is reused so a partial seed can be
+    completed without creating duplicates."""
+
+    import logging
+    import uuid
+    from datetime import date, time as dtime
+    from sqlalchemy.orm import sessionmaker
+    from app.models.models import Vendor, Department, Role, Employee
+    from app.services.auth_service import hash_password
+
+    log = logging.getLogger("uvicorn")
+    Session = sessionmaker(bind=engine)
+    db = Session()
+
+    try:
+        # ── 1. Vendor ─────────────────────────────────────────────────
+        vendor = (
+            db.query(Vendor)
+              .filter(Vendor.VENDOR_NAME == "Bharath Vending Corporation")
+              .first()
+        )
+        if vendor is None:
+            vendor = Vendor(VENDOR_NAME="Bharath Vending Corporation")
+            db.add(vendor)
+            db.flush()
+            log.info("auto-seed-defaults: vendor created (ID=%s)", vendor.ID)
+
+        # ── 2. Department ─────────────────────────────────────────────
+        dept = (
+            db.query(Department)
+              .filter(
+                  Department.VENDOR_ID == vendor.ID,
+                  Department.DEPARTMENT_CODE == "HRD",
+              )
+              .first()
+        )
+        if dept is None:
+            dept = Department(
+                VENDOR_ID=vendor.ID,
+                DEPARTMENT_CODE="HRD",
+                NAME="HR",
+                DESCRIPTION=(
+                    "Human Resources department responsible for employee "
+                    "recruitment, onboarding, payroll, and compliance."
+                ),
+            )
+            db.add(dept)
+            db.flush()
+            log.info("auto-seed-defaults: department created (ID=%s)", dept.ID)
+
+        # ── 3. Role ───────────────────────────────────────────────────
+        role = (
+            db.query(Role)
+              .filter(
+                  Role.VENDOR_ID == vendor.ID,
+                  Role.NAME == "SUPER_ADMIN",
+              )
+              .first()
+        )
+        if role is None:
+            role = Role(
+                VENDOR_ID=vendor.ID,
+                DEPARTMENT_ID=dept.ID,
+                NAME="SUPER_ADMIN",
+                DESCRIPTION=(
+                    "Super Administrator role with full access to all modules, "
+                    "settings, and system configuration."
+                ),
+            )
+            db.add(role)
+            db.flush()
+            log.info("auto-seed-defaults: role created (ID=%s)", role.ID)
+
+        # ── 4. Employee ───────────────────────────────────────────────
+        emp = (
+            db.query(Employee)
+              .filter(
+                  Employee.VENDOR_ID == vendor.ID,
+                  Employee.EMPLOYEE_CODE == "SA001",
+              )
+              .first()
+        )
+        if emp is None:
+            emp = Employee(
+                ID=str(uuid.uuid4()),
+                EMPLOYEE_CODE="SA001",
+                NAME="SUPERADMIN",
+                PASSWORD=hash_password("SuperAdmin@123"),
+                DEPARTMENT_ID=dept.ID,
+                ROLE_ID=role.ID,
+                VENDOR_ID=vendor.ID,
+                JOINING_DATE=date.today(),
+                SALARY=0.0,
+                SHIFT_START=dtime(10, 0),
+                SHIFT_END=dtime(18, 0),
+                STATUS="ACTIVE",
+                PROFILE_SUBMITTED=0,
+            )
+            db.add(emp)
+            log.info("auto-seed-defaults: employee created (CODE=SA001)")
+
+        db.commit()
+
+    except Exception as exc:
+        db.rollback()
+        log.warning("auto-seed-defaults skipped: %s", exc)
+
+    finally:
+        db.close()
+
+
+_auto_seed_defaults()
+
+
+# =====================================================================
+# Weekly memo-automation scheduler
+# ---------------------------------------------------------------------
+# Fires once every Monday at 06:00 local server time. Idempotent — each
+# memo is keyed on ISO week + employee + type via AUTOMATION_KEY, so a
+# duplicate wake-up (server restart mid-morning, manual admin trigger
+# earlier, etc.) never issues the same memo twice.
+# =====================================================================
+def _start_memo_automation_scheduler():
+
+    import logging
+    import threading
+    import time as _time
+    from datetime import datetime, timedelta
+    from sqlalchemy.orm import sessionmaker
+
+    log = logging.getLogger("uvicorn")
+
+    RUN_HOUR   = 6      # 06:00
+    RUN_WEEKDAY = 0     # Monday
+    POLL_SECONDS = 60 * 30   # check every 30 minutes
+
+    SessionLocal = sessionmaker(bind=engine)
+
+    def _last_run_at(db):
+        """Return the datetime of the previous automation run, or None."""
+        from app.models.models import Setting
+        row = db.query(Setting).filter(
+            Setting.KEY == "memo_automation.last_run"
+        ).first()
+        if not row or not row.VALUE:
+            return None
+        try:
+            import json
+            payload = json.loads(row.VALUE)
+            return datetime.fromisoformat(payload.get("ran_at"))
+        except Exception:
+            return None
+
+    def _tick():
+        while True:
+            try:
+                now = datetime.now()
+                # Only fire on Monday, at or after 06:00
+                if now.weekday() == RUN_WEEKDAY and now.hour >= RUN_HOUR:
+                    db = SessionLocal()
+                    try:
+                        last = _last_run_at(db)
+                        # If we already ran within the last 48h, skip —
+                        # this covers manual runs and server restarts.
+                        if not last or (now - last) > timedelta(hours=48):
+                            log.info(
+                                "memo-automation: weekly scheduler firing at %s",
+                                now.isoformat(timespec="seconds"),
+                            )
+                            from app.services.memo_automation import run_weekly_automation
+                            from app.routes.memo_automation import _store_last_run
+                            summary = run_weekly_automation(db)
+                            _store_last_run(db, summary)
+                            log.info(
+                                "memo-automation: created %d warnings, %d appreciations "
+                                "(skipped %d already-issued)",
+                                summary.warnings_created,
+                                summary.appreciations_created,
+                                summary.skipped_existing,
+                            )
+                    finally:
+                        db.close()
+            except Exception as exc:
+                log.warning("memo-automation scheduler tick failed: %s", exc)
+            _time.sleep(POLL_SECONDS)
+
+    t = threading.Thread(
+        target=_tick,
+        name="memo-automation-scheduler",
+        daemon=True,
+    )
+    t.start()
+    log.info("memo-automation scheduler started (weekly, Monday 06:00)")
+
+
+_start_memo_automation_scheduler()
+
+
 app.include_router(auth_router, tags=["Auth"])
 app.include_router(organization_router, tags=["Organization"])
 app.include_router(employee.router, tags=["Employees (IAM)"])
 app.include_router(employee_task_router, tags=["Employee Workflow"])
 app.include_router(task_approval_router, tags=["Task Approval"])
 app.include_router(task_router, tags=["Project Tasks"])
-app.include_router(project_router, tags=["Projects"])
+# app.include_router(project_router, tags=["Projects"])  # removed — customer projects replaced by Project template hierarchy
 app.include_router(project_template_router, tags=["Project Templates"])
 app.include_router(users_router, tags=["Users"])
 app.include_router(vendor_router, tags=["Vendors"])
@@ -1392,12 +1426,6 @@ app.include_router(reports_router, tags=["Reports"])
 app.include_router(settings_router, tags=["Settings"])
 app.include_router(chatbot_router, tags=["Chatbot"])
 app.include_router(biometric_router)
-app.include_router(essl_ingest_router)
-# ADMS push endpoints are mounted at ROOT (no prefix) because eSSL
-# device firmware hardcodes `/iclock/cdata`, `/iclock/getrequest`,
-# `/iclock/devicecmd` — see backend/app/routes/adms_push.py header.
-app.include_router(adms_push_router)
-app.include_router(attendance_csv_import_router)
 app.include_router(bvc24_seed_router)
 app.include_router(performance_router)
 app.include_router(production_router)
@@ -1424,8 +1452,6 @@ app.include_router(ai_router)
 app.include_router(public_enquiry_router)
 app.include_router(geofence_router)
 app.include_router(employee_memos_router)
-app.include_router(helpdesk_router)
-app.include_router(me_router)
 app.include_router(leave_chatbot_router)
 app.include_router(employee_portal_router, tags=["Employee Portal"])
 app.include_router(audit_router)
@@ -1439,13 +1465,15 @@ app.include_router(hr_chat_router)
 app.include_router(recruitment_router)
 app.include_router(my_payslips_router)
 app.include_router(onboarding_checklist_router)
-app.include_router(shifts_router)
-app.include_router(ai_chat_router)
 app.include_router(attendance_ai_router)
 app.include_router(leave_decisions_router)
 app.include_router(monthly_reports_router)
 app.include_router(employee_status_router)
 app.include_router(employee_insights_router)
+app.include_router(custom_fields_router, tags=["Custom Fields"])
+app.include_router(helpdesk_router)
+app.include_router(memo_automation_router)
+app.include_router(voice_assistant_router)
 
 
 @app.get("/", tags=["Health"])
@@ -1489,149 +1517,3 @@ def debug_env():
         "BACKEND_URL": os.getenv("BACKEND_URL", "(empty)"),
         "SMS_PROVIDER": os.getenv("SMS_PROVIDER", "(empty)")
     }
-
-
-# =====================================================================
-# eSSL biometric bridge — background auto-sync
-# =====================================================================
-# Every N minutes, pulls the latest attendance events from the office
-# biometric device (eSSL X2008) into the `attendance` table.
-#
-# Enabled automatically whenever ESSL_DEVICE_IP is set in .env.
-# Interval: ESSL_SYNC_INTERVAL_MIN (default 2 minutes).
-# To disable, set ESSL_AUTOSYNC=0.
-#
-# Runs inside the FastAPI process — stops cleanly when uvicorn stops.
-# If the device is unreachable at tick time, the error is logged and
-# the next tick tries again. No retries within a tick.
-
-def _start_essl_autosync():
-
-    if not os.getenv("ESSL_DEVICE_IP"):
-        return   # Device not configured
-
-    # Default OFF — the device is on WiFi behind router client-isolation,
-    # so the server can't reach :4370. We use ADMS Cloud Push instead
-    # (see app.routes.adms_push). Opt-in via ESSL_AUTOSYNC=1 for the
-    # rare case where the server IS on the device's LAN.
-    if os.getenv("ESSL_AUTOSYNC", "0") != "1":
-        return
-
-    import logging
-    log = logging.getLogger("uvicorn")
-
-    try:
-        from apscheduler.schedulers.background import BackgroundScheduler
-    except ImportError:
-        log.warning(
-            "essl-autosync: apscheduler not installed. "
-            "Run: pip install apscheduler==3.10.4"
-        )
-        return
-
-    interval_min = int(os.getenv("ESSL_SYNC_INTERVAL_MIN", "2"))
-
-    def _tick():
-        try:
-            from app.services.essl_bridge import sync_once
-            result = sync_once()
-            if result.get("applied", 0) > 0 or result.get("error"):
-                log.info(
-                    "essl-autosync: applied=%s skipped_dup=%s "
-                    "skipped_unmap=%s error=%s",
-                    result.get("applied"),
-                    result.get("skipped_duplicate"),
-                    result.get("skipped_unmapped"),
-                    result.get("error"),
-                )
-        except Exception as exc:
-            log.exception("essl-autosync: tick failed: %s", exc)
-
-    scheduler = BackgroundScheduler(daemon=True)
-    scheduler.add_job(
-        _tick,
-        "interval",
-        minutes=interval_min,
-        id="essl_sync",
-        max_instances=1,           # ticks never overlap
-        coalesce=True,             # missed catch-ups collapse into one
-    )
-    scheduler.start()
-
-    log.info(
-        "essl-autosync: started (every %s min, device=%s)",
-        interval_min,
-        os.getenv("ESSL_DEVICE_IP"),
-    )
-
-
-_start_essl_autosync()
-
-
-# =====================================================================
-# Star Performance — nightly + on-startup recompute
-# =====================================================================
-# Every day at 01:15 IST, recomputes every employee's Star Performance
-# score for the CURRENT month using the latest attendance / task / leave
-# data. Prorated: only counts working days elapsed so far, so scores
-# reflect real behaviour without being penalised for future days.
-#
-# Also fires once at server startup so the first page load after a
-# restart shows fresh data immediately.
-
-def _start_star_performance_autosync():
-
-    if os.getenv("STAR_AUTOSYNC", "1") == "0":
-        return
-
-    import logging
-    log = logging.getLogger("uvicorn")
-
-    try:
-        from apscheduler.schedulers.background import BackgroundScheduler
-        from apscheduler.triggers.cron import CronTrigger
-    except ImportError:
-        return
-
-    def _tick():
-        try:
-            from datetime import date as _date
-            from app.database.database import SessionLocal
-            from app.services.star_performance_service import (
-                compute_performance_for_all,
-            )
-            today = _date.today()
-            db = SessionLocal()
-            try:
-                summary = compute_performance_for_all(
-                    db, vendor_id=1, year=today.year, month=today.month,
-                )
-                db.commit()
-                log.info(
-                    "star-autosync: scored %s employees for %s-%02d",
-                    summary.get("scored"), today.year, today.month,
-                )
-            finally:
-                db.close()
-        except Exception as exc:
-            log.exception("star-autosync: tick failed: %s", exc)
-
-    scheduler = BackgroundScheduler(daemon=True)
-    scheduler.add_job(
-        _tick,
-        CronTrigger(hour=1, minute=15),
-        id="star_daily_recompute",
-        max_instances=1,
-        coalesce=True,
-    )
-    scheduler.start()
-
-    # Also compute once at startup (deferred 30 s so uvicorn is fully up
-    # before it hits the DB)
-    from threading import Timer
-    Timer(30, _tick).start()
-
-    log.info("star-autosync: started (nightly 01:15 + 30s after boot)")
-
-
-_start_star_performance_autosync()

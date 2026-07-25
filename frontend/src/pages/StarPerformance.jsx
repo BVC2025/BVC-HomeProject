@@ -141,6 +141,8 @@ function StarRow({ value, size = 18, color = "#f59e0b", showNumber = true }) {
           style={{
             width: size,
             height: size,
+            position: "relative",
+            display: "inline-block",
             color: s === "empty" ? "#e2e8f0" : color,
           }}
         >
@@ -152,6 +154,7 @@ function StarRow({ value, size = 18, color = "#f59e0b", showNumber = true }) {
           ) : "★"}
         </span>
       ))}
+
       {showNumber && (
         <span className={styles.starValue} style={{ fontSize: size * 0.7 }}>
           {value.toFixed(1)}
@@ -162,9 +165,9 @@ function StarRow({ value, size = 18, color = "#f59e0b", showNumber = true }) {
 }
 
 
-// ============================================================
-// Avatar
-// ============================================================
+// =====================================================================
+// Avatar — flat color per name (no gradients)
+// =====================================================================
 
 function initials(name) {
   return (name || "")
@@ -176,6 +179,7 @@ function initials(name) {
     .toUpperCase() || "?";
 }
 
+
 function avatarColor(name) {
   const palette = ["#ef4444", "#10b981", "#f59e0b", "#06b6d4", "#6366f1", "#ec4899"];
   let h = 0;
@@ -184,22 +188,27 @@ function avatarColor(name) {
   return palette[h % palette.length];
 }
 
+
 function Avatar({ score, size = 48 }) {
   const url = score?.PHOTO_URL ? `${API_BASE_URL}${score.PHOTO_URL}` : null;
   if (url) {
     return (
-      <img src={url} alt={score.EMPLOYEE_NAME}
-           className={styles.avatarImg}
-           style={{ width: size, height: size }} />
+      <img
+        src={url}
+        alt={score.EMPLOYEE_NAME}
+        className={styles.avatarImg}
+        style={{ width: size, height: size }}
+      />
     );
   }
   return (
     <div
       className={styles.avatarInitials}
       style={{
-        width: size, height: size,
+        width: size,
+        height: size,
         background: avatarColor(score?.EMPLOYEE_NAME),
-        fontSize: size * 0.38,
+        fontSize: size * 0.38
       }}
     >
       {initials(score?.EMPLOYEE_NAME)}
@@ -213,10 +222,10 @@ function Avatar({ score, size = 48 }) {
 // ============================================================
 
 const TIER_MAP = {
-  TOP:     { label: "Top Performer", bg: "#dcfce7", fg: "#065f46", icon: "trophy" },
-  STRONG:  { label: "Strong",        bg: "#dbeafe", fg: "#1e40af", icon: "shield" },
-  AVERAGE: { label: "Average",       bg: "#fef3c7", fg: "#92400e", icon: "trending" },
-  AT_RISK: { label: "At Risk",       bg: "#fee2e2", fg: "#991b1b", icon: "alert" },
+  TOP: { label: "Top Performer", bg: "#dcfce7", fg: "#065f46", icon: "trophy" },
+  STRONG: { label: "Strong", bg: "#dbeafe", fg: "#1e40af", icon: "shield" },
+  AVERAGE: { label: "Average", bg: "#fef3c7", fg: "#92400e", icon: "trending" },
+  AT_RISK: { label: "At Risk", bg: "#fee2e2", fg: "#991b1b", icon: "alert" },
 };
 
 function tierOf(stars) {
@@ -240,8 +249,8 @@ function ScoreCard({ score, onAction }) {
       const body = {};
       body[field] = !score[
         field === "PROMOTION" ? "RECOMMENDED_FOR_PROMOTION"
-        : field === "INCREMENT" ? "RECOMMENDED_FOR_INCREMENT"
-        : "REWARDED"
+          : field === "INCREMENT" ? "RECOMMENDED_FOR_INCREMENT"
+            : "REWARDED"
       ];
       await API.patch(`/performance/stars/${score.ID}/action`, body);
       onAction?.();
@@ -282,16 +291,16 @@ function ScoreCard({ score, onAction }) {
         </div>
       </div>
 
-      <DimRow label="Task"       stars={score.TASK_STARS}       weight="25%" />
+      <DimRow label="Task" stars={score.TASK_STARS} weight="25%" />
       <DimRow label="Attendance" stars={score.ATTENDANCE_STARS} weight="25%" />
-      <DimRow label="Leave"      stars={score.LEAVE_STARS}      weight="25%" />
+      <DimRow label="Leave" stars={score.LEAVE_STARS} weight="25%" />
       <DimRow label="Permission" stars={score.PERMISSION_STARS} weight="25%" />
 
       <div className={styles.statsRow}>
         <StatChip icon="calendar" text={`${score.DAYS_PRESENT}/${score.WORKING_DAYS} days`} />
-        <StatChip icon="star"     text={`${score.TASKS_COMPLETED}/${score.TASKS_ASSIGNED} tasks`} />
-        <StatChip                 text={`${Number(score.LEAVE_DAYS_TAKEN || 0).toFixed(1)} unpaid`} />
-        <StatChip                 text={`${Number(score.PERMISSION_HOURS_TAKEN || 0).toFixed(1)}h perm`} />
+        <StatChip icon="star" text={`${score.TASKS_COMPLETED}/${score.TASKS_ASSIGNED} tasks`} />
+        <StatChip text={`${Number(score.LEAVE_DAYS_TAKEN || 0).toFixed(1)} unpaid`} />
+        <StatChip text={`${Number(score.PERMISSION_HOURS_TAKEN || 0).toFixed(1)}h perm`} />
       </div>
 
       <div className={styles.actionRow}>
@@ -363,7 +372,9 @@ function ActionBtn({ active, icon, label, color, onClick, disabled }) {
       disabled={disabled}
       className={styles.actionBtn}
       style={{
-        border: active ? "none" : `1px solid ${color}44`,
+        flex: 1,
+        padding: "7px 10px",
+        border: active ? "none" : `1px solid ${color}33`,
         background: active ? color : "transparent",
         color: active ? "white" : color,
       }}
@@ -416,6 +427,7 @@ function StarPerformance() {
     month: today.getMonth() + 1,
   });
   const [actualPeriod, setActualPeriod] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [autoComputed, setAutoComputed] = useState(false);
@@ -452,10 +464,10 @@ function StarPerformance() {
 
   const stats = useMemo(() => {
     const total = scores.length;
-    const top    = scores.filter((s) => s.OVERALL_STARS >= 4.5).length;
+    const top = scores.filter((s) => s.OVERALL_STARS >= 4.5).length;
     const strong = scores.filter((s) => s.OVERALL_STARS >= 3.5 && s.OVERALL_STARS < 4.5).length;
-    const avg    = scores.filter((s) => s.OVERALL_STARS >= 2.5 && s.OVERALL_STARS < 3.5).length;
-    const risk   = scores.filter((s) => s.OVERALL_STARS < 2.5).length;
+    const avg = scores.filter((s) => s.OVERALL_STARS >= 2.5 && s.OVERALL_STARS < 3.5).length;
+    const risk = scores.filter((s) => s.OVERALL_STARS < 2.5).length;
     const overallAvg = total
       ? (scores.reduce((s, x) => s + x.OVERALL_STARS, 0) / total).toFixed(2)
       : 0;
@@ -479,6 +491,7 @@ function StarPerformance() {
         <div>
           <div className={styles.heroEyebrow}>Performance</div>
           <h1 className={styles.heroTitle}>Star Performance</h1>
+
           <div className={styles.heroSub}>
             Auto-computed from live attendance, tasks, leaves and permissions.
             {autoComputed && (
@@ -520,11 +533,11 @@ function StarPerformance() {
 
       {/* Stat tiles */}
       <div className={styles.tilesGrid}>
-        <Tile label="Period"     value={periodLabel}       color="#6366f1" icon="calendar" />
-        <Tile label="Avg Stars"  value={stats.overallAvg}  color="#f59e0b" icon="star"     stars />
-        <Tile label="Top"        value={stats.top}         color="#10b981" icon="trophy"   sub="(4.5+)" />
-        <Tile label="Strong"     value={stats.strong}      color="#3b82f6" icon="shield"   sub="(3.5+)" />
-        <Tile label="At Risk"    value={stats.risk}        color="#ef4444" icon="alert"    sub="(below 2.5)" />
+        <Tile label="Period" value={periodLabel} color="#6366f1" icon="calendar" />
+        <Tile label="Avg Stars" value={stats.overallAvg} color="#f59e0b" icon="star" stars />
+        <Tile label="Top" value={stats.top} color="#10b981" icon="trophy" sub="(4.5+)" />
+        <Tile label="Strong" value={stats.strong} color="#3b82f6" icon="shield" sub="(3.5+)" />
+        <Tile label="At Risk" value={stats.risk} color="#ef4444" icon="alert" sub="(below 2.5)" />
       </div>
 
       {/* Search */}
@@ -574,6 +587,5 @@ function StarPerformance() {
     </div>
   );
 }
-
 
 export default StarPerformance;

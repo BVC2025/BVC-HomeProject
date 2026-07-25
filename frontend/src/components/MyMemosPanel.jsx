@@ -106,7 +106,7 @@ function fmtDateTime(value) {
 // ==================================================================
 // Component
 // ==================================================================
-export default function MyMemosPanel({ employeeId }) {
+export default function MyMemosPanel({ employeeId, initialOpenId = null, onInitialOpenConsumed }) {
 
   const [memos, setMemos]     = useState([]);
   const [loading, setLoading] = useState(true);
@@ -136,6 +136,16 @@ export default function MyMemosPanel({ employeeId }) {
   }, [employeeId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Auto-open a specific memo when arriving from a notification click.
+  useEffect(() => {
+    if (!initialOpenId || memos.length === 0) return;
+    const target = memos.find((m) => m.ID === Number(initialOpenId));
+    if (target) {
+      setOpenMemo(target);
+      onInitialOpenConsumed?.();
+    }
+  }, [initialOpenId, memos, onInitialOpenConsumed]);
 
 
   // ---- Derived ----

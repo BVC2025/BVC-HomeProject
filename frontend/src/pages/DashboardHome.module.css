@@ -1,19 +1,41 @@
 /* DashboardHome — scoped styles */
 
 @keyframes dhFadeUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes dhPulse {
-  0%   { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.40); }
-  70%  { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.40);
+  }
+
+  70% {
+    box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
 }
 
 @keyframes dhSkeletonPulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 /* ─── Page ──────────────────────────────────────────────────── */
@@ -641,31 +663,98 @@
 }
 
 
+
 /* ==================================================================
    MOBILE responsive additions
    ================================================================== */
 @media (max-width: 900px) {
-  .page, .container, .wrapper { padding: 14px; }
-  .pageHead, .header, .toolbar {
+
+  .page,
+  .container,
+  .wrapper {
+    padding: 14px;
+  }
+
+  .pageHead,
+  .header,
+  .toolbar {
     flex-wrap: wrap;
     gap: 10px;
   }
-  .filterCard, .filterRow, .filters {
+
+  .filterCard,
+  .filterRow,
+  .filters {
     flex-direction: column;
     align-items: stretch;
     gap: 10px;
   }
-  .searchInput, .filterSelect, .searchWrap, input, select { width: 100%; }
-  .kpiRow, .statRow, .statsGrid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
-  .cardGrid, .cardsGrid, .tileGrid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .twoCol, .splitPanel, .detailGrid { grid-template-columns: 1fr; }
-  .tableCard, .tableWrap, .tblWrap { overflow-x: auto; }
+
+  .searchInput,
+  .filterSelect,
+  .searchWrap,
+  input,
+  select {
+    width: 100%;
+  }
+
+  .kpiRow,
+  .statRow,
+  .statsGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .cardGrid,
+  .cardsGrid,
+  .tileGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .twoCol,
+  .splitPanel,
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .tableCard,
+  .tableWrap,
+  .tblWrap {
+    overflow-x: auto;
+  }
 }
+
 @media (max-width: 640px) {
-  .page, .container, .wrapper { padding: 10px; }
-  .kpiRow, .statRow, .statsGrid { grid-template-columns: repeat(2, 1fr); }
-  .cardGrid, .cardsGrid, .tileGrid { grid-template-columns: 1fr; }
-  .kpiValue, .statValue { font-size: 20px; }
-  h1 { font-size: 20px; }
-  h2 { font-size: 17px; }
+
+  .page,
+  .container,
+  .wrapper {
+    padding: 10px;
+  }
+
+  .kpiRow,
+  .statRow,
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cardGrid,
+  .cardsGrid,
+  .tileGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .kpiValue,
+  .statValue {
+    font-size: 20px;
+  }
+
+  h1 {
+    font-size: 20px;
+  }
+
+  h2 {
+    font-size: 17px;
+  }
 }

@@ -118,7 +118,6 @@ def _serialize_assignment(
         # In this schema both resolve to TaskAssignment.TASK_ID.
         "id": ta.TASK_ID,
         "task_id": ta.TASK_ID,
-        "assignment_id": ta.TASK_ID,
         "title": ta.TASK_NAME,
         "priority": getattr(ta, "PRIORITY", None),
         "due_date": _iso(ta.DUE_DATE),
@@ -434,22 +433,12 @@ def _employee_profile(
             department_name = d.NAME
 
     return {
-        # Uppercase keys — original spec, kept for backward-compat.
         "ID": emp.ID,
         "EMPLOYEE_CODE": emp.EMPLOYEE_CODE,
         "NAME": emp.NAME,
         "PHOTO_URL": getattr(emp, "PHOTO_URL", None),
         "DESIGNATION": designation_title,
         "DEPARTMENT": department_name,
-        # Lowercase aliases — the EmployeeDashboard ProfileStrip
-        # reads these. Without them the header shows blank
-        # ("Employee" / "—" / "?" avatar).
-        "id": emp.ID,
-        "employee_code": emp.EMPLOYEE_CODE,
-        "name": emp.NAME,
-        "photo_url": getattr(emp, "PHOTO_URL", None),
-        "designation": designation_title,
-        "department": department_name,
     }
 
 
@@ -469,18 +458,9 @@ def _bucket_assignments(
     # TaskAssignment has no declared ORM relationship to Project in
     # this codebase, so a joinedload would be a no-op here. We resolve
     # project names with a single follow-up bulk query instead.
-    #
-    # The `EMPLOYEE_ID == employee_id` predicate already excludes
-    # unassigned tasks (NULL = '<id>' evaluates to UNKNOWN, not TRUE).
-    # The explicit `.isnot(None)` below is defence-in-depth: it makes
-    # the intent obvious to any future maintainer and protects against
-    # someone accidentally passing employee_id=None.
     rows: List[TaskAssignment] = (
         db.query(TaskAssignment)
-        .filter(
-            TaskAssignment.EMPLOYEE_ID.isnot(None),
-            TaskAssignment.EMPLOYEE_ID == employee_id,
-        )
+        .filter(TaskAssignment.EMPLOYEE_ID == employee_id)
         .all()
     )
 
@@ -850,100 +830,6 @@ def patch_task_status(
         "on_time": bool(on_time),
         "unlock_result": unlock_result,
         "performance": fresh_perf,
-    }
-
-
-# ---------------------------------------------------------------------
-# (2b) PATCH /employee/{employee_id}/projects/{project_id}/status
-# ---------------------------------------------------------------------
-@router.patch(
-    "/employee/{employee_id}/projects/{project_id}/status",
-    tags=["Employee Portal"],
-)
-def patch_project_status(
-    employee_id: str,
-    project_id: int,
-    body: TaskStatusPatch,
-    db: Session = Depends(get_db),
-    payload: dict = Depends(get_current_user),
-):
-    """Bulk-update every TaskAssignment for this employee inside a
-    single project to the target status. Convenience for the employee
-    dashboard's Assigned Projects card, where each project card exposes
-    Pending / In Progress / On Hold / Completed quick-buttons.
-
-    Returns a summary of how many rows changed. Rows already at the
-    target status are counted separately (no-op). END_TIME is stamped
-    on any row transitioning INTO 'COMPLETED'; START_TIME is stamped
-    on any row transitioning INTO 'IN_PROGRESS' (unless already set).
-    """
-
-    assert_self_or_admin(employee_id, payload)
-
-    employee_id = _resolve_employee_uuid(db, employee_id)
-
-    new_status = (body.status or "").upper().strip()
-
-    if new_status not in _ALLOWED_PATCH_STATUSES:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Invalid status '{body.status}'. Allowed: "
-                f"{sorted(_ALLOWED_PATCH_STATUSES)}"
-            ),
-        )
-
-    rows = (
-        db.query(TaskAssignment)
-        .filter(
-            TaskAssignment.PROJECT_ID == project_id,
-            TaskAssignment.EMPLOYEE_ID == employee_id,
-        )
-        .all()
-    )
-
-    if not rows:
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                f"No task assignments found for this employee in "
-                f"project {project_id}."
-            ),
-        )
-
-    now = datetime.utcnow()
-    changed = 0
-    unchanged = 0
-
-    for ta in rows:
-
-        current = (ta.TASK_STATUS or "PENDING").upper()
-
-        if current == new_status:
-            unchanged += 1
-            continue
-
-        ta.TASK_STATUS = new_status
-
-        if new_status == "IN_PROGRESS" and ta.START_TIME is None:
-            ta.START_TIME = now
-
-        if new_status == "COMPLETED":
-            ta.END_TIME = now
-
-        changed += 1
-
-    db.commit()
-
-    return {
-        "message": (
-            f"Updated {changed} task(s) in project {project_id} "
-            f"to {new_status}."
-        ),
-        "new_status": new_status,
-        "changed_count": changed,
-        "unchanged_count": unchanged,
-        "total_assignments": len(rows),
     }
 
 

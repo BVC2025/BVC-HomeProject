@@ -17,18 +17,18 @@ import styles from "./AdminDashboard.module.css";
 // --- Tile config ------------------------------------------------------
 
 const TILES = [
-  { key: "total_customers",         label: "Total Customers",          icon: "👥", gradient: "#ef4444", accent: "#fef2f2", format: "int",        href: "/customers"      },
-  { key: "total_quotations",        label: "Total Quotations",         icon: "📋", gradient: "#3b82f6", accent: "#eff6ff", format: "int",        href: "/quotations"     },
-  { key: "total_sales_orders",      label: "Total Sales Orders",       icon: "🛒", gradient: "#10b981", accent: "#f0fdf4", format: "int",        href: "/sales-orders"   },
-  { key: "active_projects",         label: "Active Projects",          icon: "🏗️", gradient: "#f59e0b", accent: "#fffbeb", format: "int",        href: "/projects"       },
-  { key: "purchase_orders",         label: "Purchase Orders",          icon: "📦", gradient: "#6366f1", accent: "#f5f3ff", format: "int",        href: "/purchase-orders"},
-  { key: "inventory_value",         label: "Inventory Value",          icon: "🏷️", gradient: "#0ea5e9", accent: "#f0f9ff", format: "money",      href: "/inventory"      },
-  { key: "employees_present_today", label: "Employees Present Today",  icon: "🟢", gradient: "#22c55e", accent: "#f0fdf4", format: "int",        href: "/attendance"     },
-  { key: "leave_requests_pending",  label: "Leave Requests Pending",   icon: "📅", gradient: "#f97316", accent: "#fff7ed", format: "int",        href: "/leave"          },
-  { key: "production_status",       label: "Production Status",        icon: "🏭", gradient: "#ec4899", accent: "#fdf2f8", format: "production", href: "/production"     },
-  { key: "monthly_revenue",         label: "Monthly Revenue",          icon: "💰", gradient: "#16a34a", accent: "#f0fdf4", format: "money",      href: "/sales-orders"   },
-  { key: "pending_payments",        label: "Pending Payments",         icon: "💳", gradient: "#dc2626", accent: "#fef2f2", format: "money",      href: "/sales-orders"   },
-  { key: "ai_notifications",        label: "AI Notifications",         icon: "🔔", gradient: "#f59e0b", accent: "#fffbeb", format: "int",        href: "#"               },
+  { key: "total_customers", label: "Total Customers", icon: "👥", gradient: "#ef4444", accent: "#fef2f2", format: "int", href: "/customers" },
+  { key: "total_quotations", label: "Total Quotations", icon: "📋", gradient: "#3b82f6", accent: "#eff6ff", format: "int", href: "/quotations" },
+  { key: "total_sales_orders", label: "Total Sales Orders", icon: "🛒", gradient: "#10b981", accent: "#f0fdf4", format: "int", href: "/sales-orders" },
+  { key: "active_projects", label: "Active Projects", icon: "🏗️", gradient: "#f59e0b", accent: "#fffbeb", format: "int", href: "/projects" },
+  { key: "purchase_orders", label: "Purchase Orders", icon: "📦", gradient: "#6366f1", accent: "#f5f3ff", format: "int" },
+  { key: "inventory_value", label: "Inventory Value", icon: "🏷️", gradient: "#0ea5e9", accent: "#f0f9ff", format: "money", href: "/inventory" },
+  { key: "employees_present_today", label: "Employees Present Today", icon: "🟢", gradient: "#22c55e", accent: "#f0fdf4", format: "int", href: "/attendance" },
+  { key: "leave_requests_pending", label: "Leave Requests Pending", icon: "📅", gradient: "#f97316", accent: "#fff7ed", format: "int", href: "/leave" },
+  { key: "production_status", label: "Production Status", icon: "🏭", gradient: "#ec4899", accent: "#fdf2f8", format: "production", href: "/production" },
+  { key: "monthly_revenue", label: "Monthly Revenue", icon: "💰", gradient: "#16a34a", accent: "#f0fdf4", format: "money", href: "/sales-orders" },
+  { key: "pending_payments", label: "Pending Payments", icon: "💳", gradient: "#dc2626", accent: "#fef2f2", format: "money", href: "/sales-orders" },
+  { key: "ai_notifications", label: "AI Notifications", icon: "🔔", gradient: "#f59e0b", accent: "#fffbeb", format: "int", href: "#" },
 ];
 
 
@@ -43,8 +43,8 @@ function formatMoney(n) {
   if (n == null) return "₹0";
   const v = Number(n);
   if (Math.abs(v) >= 1_00_00_000) return `₹${(v / 1_00_00_000).toFixed(2)} Cr`;
-  if (Math.abs(v) >= 1_00_000)    return `₹${(v / 1_00_000).toFixed(2)} L`;
-  if (Math.abs(v) >= 1_000)       return `₹${(v / 1_000).toFixed(1)}K`;
+  if (Math.abs(v) >= 1_00_000) return `₹${(v / 1_00_000).toFixed(2)} L`;
+  if (Math.abs(v) >= 1_000) return `₹${(v / 1_000).toFixed(1)}K`;
   return `₹${v.toLocaleString("en-IN")}`;
 }
 
@@ -54,7 +54,7 @@ function formatMoney(n) {
 function useCountUp(value, duration = 1200) {
   const [display, setDisplay] = useState(0);
   const fromRef = useRef(0);
-  const rafRef  = useRef(null);
+  const rafRef = useRef(null);
 
   useEffect(() => {
     const from = fromRef.current;
@@ -62,9 +62,9 @@ function useCountUp(value, duration = 1200) {
     if (from === to) { setDisplay(to); return; }
     const start = performance.now();
     const tick = (t) => {
-      const elapsed  = t - start;
+      const elapsed = t - start;
       const progress = Math.min(1, elapsed / duration);
-      const eased    = 1 - Math.pow(1 - progress, 3);
+      const eased = 1 - Math.pow(1 - progress, 3);
       setDisplay(from + (to - from) * eased);
       if (progress < 1) rafRef.current = requestAnimationFrame(tick);
       else fromRef.current = to;
@@ -80,17 +80,17 @@ function useCountUp(value, duration = 1200) {
 // --- Production mini donut --------------------------------------------
 
 function ProductionDonut({ data, tileColor }) {
-  const planned = data?.PLANNED    || 0;
-  const inProg  = data?.IN_PROGRESS || 0;
-  const done    = data?.DONE        || 0;
-  const total   = Math.max(1, planned + inProg + done);
+  const planned = data?.PLANNED || 0;
+  const inProg = data?.IN_PROGRESS || 0;
+  const done = data?.DONE || 0;
+  const total = Math.max(1, planned + inProg + done);
   const r = 28;
   const c = 2 * Math.PI * r;
 
   const segments = [
     { v: planned, color: "#e2e8f0" },
-    { v: inProg,  color: tileColor || "#3b82f6" },
-    { v: done,    color: "#f59e0b" },
+    { v: inProg, color: tileColor || "#3b82f6" },
+    { v: done, color: "#f59e0b" },
   ];
 
   let acc = 0;
@@ -141,7 +141,7 @@ function CinematicTile({ tile, value, index, onClick }) {
   const animated = useCountUp(numeric, 1200);
 
   const displayText = useMemo(() => {
-    if (tile.format === "money")      return formatMoney(animated);
+    if (tile.format === "money") return formatMoney(animated);
     if (tile.format === "production") return formatInt(Math.round(animated));
     return formatInt(Math.round(animated));
   }, [tile.format, animated]);

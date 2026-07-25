@@ -53,9 +53,6 @@ class GeneratePayrollRequest(BaseModel):
     LATE_PENALTY_PER_DAY: float = DEFAULT_LATE_PENALTY
     GENERATED_BY: Optional[str] = None
     OVERWRITE: bool = False
-    # HR-chosen monthly increment per employee — keyed by employee UUID.
-    # Stored on the slip's INCENTIVES column and added to NET_PAY.
-    INCREMENTS_BY_EMPLOYEE: Optional[dict] = None
 
 
 def _resolve_vendor_id(db: Session, requested: Optional[int]) -> int:
@@ -164,12 +161,7 @@ def _serialize_slip(slip: PayrollSlip, employee: Optional[Employee] = None) -> d
         "PAID_AT": slip.PAID_AT.isoformat() if slip.PAID_AT else None,
         "PERMISSION_HOURS": slip.PERMISSION_HOURS or 0.0,
         "PERFORMANCE_STARS": slip.PERFORMANCE_STARS or 0.0,
-        "STAR_BONUS": slip.STAR_BONUS or 0.0,
-        # BVC Phase F — attendance-driven payroll fields
-        "HOURLY_RATE":             getattr(slip, "HOURLY_RATE", 0.0) or 0.0,
-        "PERMISSION_EXCESS_HOURS": getattr(slip, "PERMISSION_EXCESS_HOURS", 0.0) or 0.0,
-        "PERMISSION_DEDUCTION":    getattr(slip, "PERMISSION_DEDUCTION", 0.0) or 0.0,
-        "ABSENCE_DEDUCTION":       getattr(slip, "ABSENCE_DEDUCTION", 0.0) or 0.0,
+        "STAR_BONUS": slip.STAR_BONUS or 0.0
     }
 
 
@@ -421,42 +413,6 @@ def generate_payroll(
     except ValueError as e:
 
         raise HTTPException(status_code=400, detail=str(e))
-
-    # Phase F — HR-chosen monthly increments. Apply them on top of the
-    # auto-computed slips. Stored in the INCENTIVES column so existing
-    # reports / payslip PDFs pick them up automatically.
-    if data.INCREMENTS_BY_EMPLOYEE:
-        slips = db.query(PayrollSlip).filter(
-            PayrollSlip.PAYROLL_RUN_ID == run.ID
-        ).all()
-        for slip in slips:
-            inc = data.INCREMENTS_BY_EMPLOYEE.get(slip.EMPLOYEE_ID)
-            if inc is None:
-                continue
-            try:
-                amt = float(inc)
-            except (TypeError, ValueError):
-                continue
-            if amt <= 0:
-                # Explicitly clear any previous increment
-                slip.INCENTIVES = 0.0
-            else:
-                slip.INCENTIVES = amt
-            # Recompute NET_PAY = GROSS_PAY - TOTAL_DEDUCTIONS, with
-            # INCENTIVES factored into GROSS_PAY. We keep the math
-            # simple here: NET_PAY = (existing GROSS_PAY - existing
-            # INCENTIVES that was in GROSS_PAY) + new INCENTIVES
-            # - existing TOTAL_DEDUCTIONS. Since INCENTIVES from
-            # auto-compute is 0 by default (generator doesn't add it),
-            # this simplifies to: NET_PAY = NET_PAY_old + new_increment.
-            slip.NET_PAY = float(slip.NET_PAY or 0.0) + amt
-            slip.GROSS_PAY = float(slip.GROSS_PAY or 0.0) + amt
-        # Refresh the run totals so the dashboard KPIs reflect the
-        # increments.
-        run.TOTAL_GROSS = sum(float(s.GROSS_PAY or 0) for s in slips)
-        run.TOTAL_NET   = sum(float(s.NET_PAY   or 0) for s in slips)
-        db.commit()
-        db.refresh(run)
 
     return {
         "message": (
@@ -1112,368 +1068,156 @@ def payslip_pdf(
 
     company_address = format_full_address(company)
 
-    # ---- Logo (embed as base64 data URI so xhtml2pdf can render it) ----
-    import base64
-    from pathlib import Path
-    logo_data_uri = None
-    if company.LOGO_URL:
-        rel = company.LOGO_URL.split("/static/", 1)[-1]
-        disk = Path(__file__).resolve().parent.parent.parent / "static" / rel
-        if disk.exists():
-            try:
-                ext = disk.suffix.lower().lstrip(".") or "png"
-                mime = (
-                    "image/jpeg" if ext in ("jpg", "jpeg")
-                    else "image/png" if ext == "png"
-                    else "image/webp" if ext == "webp"
-                    else "image/svg+xml" if ext == "svg"
-                    else f"image/{ext}"
-                )
-                with disk.open("rb") as fh:
-                    b64 = base64.b64encode(fh.read()).decode("ascii")
-                logo_data_uri = f"data:{mime};base64,{b64}"
-            except Exception:
-                logo_data_uri = None
+    def _row(label, amount, bold=False):
 
-    # ---- Compute per-rule numbers (same formula as the Payroll page) ----
-    # The displayed Total Salary is ALWAYS base − deduction + increment so
-    # the payslip never disagrees with the page; we do not read slip.NET_PAY
-    # here because legacy slips may have stored a value computed under a
-    # different ruleset.
-    # ------------------------------------------------------------------
-    # BVC Phase F — attendance-driven payroll (9h/day, 4h free permission,
-    # no late deduction, explicit absence + permission deduction lines,
-    # OT added on top). Fall back to on-the-fly computation for legacy
-    # slips that don't yet have the new columns filled in.
-    # ------------------------------------------------------------------
-    HOURS_PER_DAY = 9
-    working_days = int(slip.WORKING_DAYS or 26)
-    base_salary  = float(slip.BASE_SALARY or 0.0)
-    per_day      = float(slip.PER_DAY_RATE or ((base_salary / working_days) if working_days else 0.0))
-    hourly_rate  = float(getattr(slip, "HOURLY_RATE", 0.0) or 0.0)
-    if hourly_rate <= 0:
-        hourly_rate = (per_day / HOURS_PER_DAY) if per_day else 0.0
+        weight = "700" if bold else "400"
 
-    days_present = int(slip.DAYS_PRESENT or 0)
-    absent_days  = float(slip.ABSENT_DAYS or 0.0)
-    cl_used      = float(slip.PAID_LEAVE_DAYS or 0.0)
-    perm_hours   = float(slip.PERMISSION_HOURS or 0.0)
-    late_count   = int(slip.DAYS_LATE or 0)
-    ot_hours     = float(slip.OT_HOURS or 0.0)
-    ot_pay       = float(slip.OT_PAY or (ot_hours * hourly_rate))
-
-    cl_paid       = min(cl_used, 1.0)
-    cl_unpaid     = max(0.0, cl_used - 1.0)
-    perm_paid     = min(perm_hours, 4.0)
-    perm_excess_h = float(getattr(slip, "PERMISSION_EXCESS_HOURS", 0.0) or max(0.0, perm_hours - 4.0))
-
-    absence_deduction = float(getattr(slip, "ABSENCE_DEDUCTION", 0.0) or round(absent_days * per_day, 2))
-    permission_deduction = float(getattr(slip, "PERMISSION_DEDUCTION", 0.0) or round(perm_excess_h * hourly_rate, 2))
-
-    increment     = float(slip.INCENTIVES or 0.0)
-    total_salary  = max(
-        0.0,
-        base_salary - absence_deduction - permission_deduction + increment + ot_pay,
-    )
-
-    def _row2(label, val_html, muted=False, strong=False):
-        color = "#64748b" if muted else "#0f172a"
-        weight = "700" if strong else "400"
         return (
-            f"<tr>"
-            f"<td style='padding:6px 10px;color:#475569;font-size:12px;'>{label}</td>"
-            f"<td style='padding:6px 10px;color:{color};font-size:12px;"
-            f"font-weight:{weight};text-align:right;font-family:monospace;'>{val_html}</td>"
-            f"</tr>"
+            f"<tr><td style='padding:5px 8px;font-weight:{weight};'>"
+            f"{label}</td>"
+            f"<td style='padding:5px 8px;text-align:right;"
+            f"font-weight:{weight};font-family:monospace;'>"
+            f"₹ {amount:,.2f}</td></tr>"
         )
 
-    # ---- Build the HTML pieces conditionally (no flexbox — xhtml2pdf uses tables) ----
-    logo_cell_html = (
-        f'<img src="{logo_data_uri}" style="height:64px;max-width:160px;" />'
-        if logo_data_uri else
-        f'<div style="display:inline-block;background:#C8102E;color:#fff;'
-        f'width:64px;height:64px;text-align:center;line-height:64px;'
-        f'border-radius:8px;font-size:22px;font-weight:900;">'
-        f'{(company.SHORT_NAME or "BVC")[:3].upper()}</div>'
-    )
+    earnings_rows = "".join([
+        _row("Basic",                slip.EARNED_BASIC or 0),
+        _row("HRA",                  slip.HRA or 0),
+        _row("DA",                   slip.DA or 0),
+        _row("Conveyance",           slip.CONVEYANCE_ALLOWANCE or 0),
+        _row("Medical",              slip.MEDICAL_ALLOWANCE or 0),
+        _row("Special Allowance",    slip.SPECIAL_ALLOWANCE or 0),
+        _row("Other Allowances",     slip.OTHER_ALLOWANCES or 0),
+        _row("Bonus (monthly share)", slip.ANNUAL_BONUS or 0),
+        _row("Incentives",           slip.INCENTIVES or 0),
+        _row("Task Bonus",           slip.TASK_BONUS or 0),
+        _row("Overtime Pay",         slip.OT_PAY or 0),
+    ])
 
-    warning_html = ""
-    if cl_unpaid > 0 or perm_excess_h > 0:
-        which = []
-        if cl_unpaid > 0:    which.append("CL")
-        if perm_excess_h > 0: which.append(f"permission (excess {perm_excess_h:.1f} h)")
-        warning_html = (
-            '<table style="width:100%;border-collapse:collapse;margin-top:14px;">'
-            '<tr><td style="background:#fef3c7;border:1px solid #fde68a;'
-            'border-left:4px solid #f59e0b;padding:10px 14px;font-size:11px;'
-            'color:#78350f;border-radius:4px;">'
-            f'<b>Note:</b> Monthly cap exceeded on {" and ".join(which)}. '
-            'The excess was deducted at the hourly rate for this payslip.'
-            '</td></tr></table>'
-        )
-
-    company_meta_bits = []
-    if company.GST_NUMBER: company_meta_bits.append(f"GST: {company.GST_NUMBER}")
-    if company.PAN_NUMBER: company_meta_bits.append(f"PAN: {company.PAN_NUMBER}")
-    if company.PHONE:      company_meta_bits.append(company.PHONE)
-    if company.EMAIL:      company_meta_bits.append(company.EMAIL)
-    company_meta = " · ".join(company_meta_bits)
+    deductions_rows = "".join([
+        _row("PF (Employee)",        slip.PF_EMPLOYEE or 0),
+        _row("ESI (Employee)",       slip.ESI_EMPLOYEE or 0),
+        _row("Professional Tax",     slip.PROFESSIONAL_TAX or 0),
+        _row("Late Penalty",         slip.LATE_PENALTY or 0),
+        _row("Other Deductions",     slip.OTHER_DEDUCTIONS or 0),
+    ])
 
     html = f"""
     <html>
-      <head>
-        <meta charset="utf-8"/>
-        <style>
-          body  {{ font-family: Helvetica, Arial, sans-serif; color:#0f172a;
-                   margin:0; padding:0; }}
-          .page {{ padding: 36px 44px; }}
-          .h-title  {{ font-size:28px; font-weight:900; letter-spacing:-0.5px;
-                       color:#0f172a; }}
-          .h-sub    {{ font-size:13px; color:#475569; font-weight:600; }}
-          .lbl-xs   {{ font-size:11px; font-weight:800; letter-spacing:1.8px;
-                       color:#64748b; text-transform:uppercase; }}
-          .section-title {{ font-size:13px; font-weight:900; letter-spacing:1.6px;
-                            color:#0f172a; text-transform:uppercase;
-                            padding:14px 18px; background:#f8fafc;
-                            border-bottom:2px solid #e2e8f0; }}
-          .panel {{ border:1px solid #e2e8f0; border-radius:8px;
-                    margin-bottom:18px; overflow:hidden;
-                    background:white; }}
-          .info-tbl td   {{ padding:9px 18px; font-size:13px; vertical-align:top;
-                            font-weight:600; }}
-          .info-tbl td.lbl {{ color:#64748b; font-weight:600; }}
-          .summary-tbl td {{ padding:12px 18px; font-size:13px;
-                             border-bottom:1px solid #f1f5f9;
-                             font-weight:600; }}
-          .summary-tbl tr:last-child td {{ border-bottom:none; }}
-          .summary-tbl td.lbl {{ color:#334155; }}
-          .val-right     {{ text-align:right; font-family: Helvetica, Arial, sans-serif;
-                            font-weight:800; color:#0f172a; font-size:14px; }}
-          .total-table   {{ width:100%; border-collapse:collapse;
-                            margin-top:10px; margin-bottom:10px; }}
-          .total-table td  {{ padding:24px 28px; }}
-          .total-band      {{ background:#C8102E; color:white;
-                              border-radius:8px; }}
-          .total-label     {{ font-size:12px; letter-spacing:2.4px;
-                              font-weight:900; }}
-          .total-help      {{ font-size:11px; opacity:0.9; margin-top:4px;
-                              font-weight:600; }}
-          .total-amt       {{ font-size:36px; font-weight:900;
-                              text-align:right; letter-spacing:-0.6px; }}
-          .sign-row td     {{ padding-top:64px; vertical-align:bottom;
-                              font-size:12px; color:#475569; font-weight:700;
-                              border-top:1.5px solid #94a3b8; width:35%; }}
-          .footnote        {{ margin-top:28px; padding-top:16px;
-                              border-top:1px dashed #cbd5e1;
-                              font-size:11px; color:#64748b; font-weight:500;
-                              text-align:center; line-height:1.7; }}
-          .footnote b      {{ color:#0f172a; }}
-          .pill-warn       {{ display:inline-block; padding:2px 9px;
-                              border-radius:4px; font-size:10px;
-                              font-weight:800; letter-spacing:0.6px;
-                              background:#fef3c7; color:#92400e;
-                              margin-left:8px; text-transform:uppercase; }}
-          .muted-note      {{ color:#94a3b8; font-weight:500; font-size:11px; }}
-        </style>
-      </head>
-      <body>
-        <div class="page">
+      <head><meta charset="utf-8"/></head>
+      <body style="font-family:Arial,sans-serif;color:#0f172a;
+                   margin:0;padding:24px;">
 
-          <!-- ============ HEADER (logo + company) ============ -->
-          <table style="width:100%;border-collapse:collapse;margin-bottom:10px;">
-            <tr>
-              <td style="width:96px;vertical-align:middle;">{logo_cell_html}</td>
-              <td style="vertical-align:middle;padding-left:18px;">
-                <div style="font-size:22px;font-weight:900;letter-spacing:-0.5px;
-                            color:#0f172a;">{company.LEGAL_NAME or 'Company'}</div>
-                <div style="font-size:12px;color:#475569;margin-top:4px;font-weight:600;">
-                  {company_address}
-                </div>
-                <div style="font-size:11px;color:#64748b;margin-top:3px;font-weight:500;">
-                  {company_meta}
-                </div>
-              </td>
-              <td style="vertical-align:middle;text-align:right;width:200px;">
-                <div class="lbl-xs" style="color:#C8102E;">Payslip</div>
-                <div style="font-size:18px;font-weight:900;color:#0f172a;
-                            margin-top:4px;letter-spacing:-0.3px;">{month_label}</div>
-                <div style="font-size:11px;color:#64748b;margin-top:3px;font-weight:600;">
-                  Generated: {datetime.now().strftime('%d %b %Y')}
-                </div>
-              </td>
-            </tr>
-          </table>
-
-          <!-- Red rule line -->
-          <div style="height:4px;background:#C8102E;margin:14px 0 24px;"></div>
-
-          <!-- ============ EMPLOYEE + BANK INFO ============ -->
-          <table style="width:100%;border-collapse:collapse;margin-bottom:22px;">
-            <tr>
-              <td style="width:50%;vertical-align:top;padding-right:10px;">
-                <div class="lbl-xs" style="margin-bottom:8px;">Employee</div>
-                <div class="panel">
-                  <table class="info-tbl" style="width:100%;border-collapse:collapse;">
-                    <tr>
-                      <td class="lbl" style="width:38%;">Name</td>
-                      <td style="font-weight:800;">{emp.NAME or '—'}</td>
-                    </tr>
-                    <tr>
-                      <td class="lbl">Code</td>
-                      <td>{emp.EMPLOYEE_CODE or '—'}</td>
-                    </tr>
-                    <tr>
-                      <td class="lbl">Department</td>
-                      <td>{(emp.DEPARTMENT.NAME if hasattr(emp, 'DEPARTMENT') and emp.DEPARTMENT else '—')}</td>
-                    </tr>
-                    <tr>
-                      <td class="lbl">Designation</td>
-                      <td>{(emp.DESIGNATION.TITLE if hasattr(emp, 'DESIGNATION') and emp.DESIGNATION else '—')}</td>
-                    </tr>
-                    <tr>
-                      <td class="lbl">Joining date</td>
-                      <td>{emp.JOINING_DATE.strftime('%d %b %Y') if emp.JOINING_DATE else '—'}</td>
-                    </tr>
-                  </table>
-                </div>
-              </td>
-              <td style="width:50%;vertical-align:top;padding-left:10px;">
-                <div class="lbl-xs" style="margin-bottom:8px;">Bank &amp; Tax</div>
-                <div class="panel">
-                  <table class="info-tbl" style="width:100%;border-collapse:collapse;">
-                    <tr>
-                      <td class="lbl" style="width:38%;">Bank</td>
-                      <td>{emp.BANK_NAME or '—'}</td>
-                    </tr>
-                    <tr>
-                      <td class="lbl">A/C No.</td>
-                      <td style="font-family:monospace;">{emp.BANK_ACCOUNT_NUMBER or '—'}</td>
-                    </tr>
-                    <tr>
-                      <td class="lbl">IFSC</td>
-                      <td style="font-family:monospace;">{emp.IFSC_CODE or '—'}</td>
-                    </tr>
-                    <tr>
-                      <td class="lbl">PAN</td>
-                      <td style="font-family:monospace;">{emp.PAN_NUMBER or '—'}</td>
-                    </tr>
-                    <tr>
-                      <td class="lbl">Aadhaar</td>
-                      <td style="font-family:monospace;">{emp.AADHAAR_NUMBER or '—'}</td>
-                    </tr>
-                  </table>
-                </div>
-              </td>
-            </tr>
-          </table>
-
-          <!-- ============ ATTENDANCE SUMMARY ============ -->
-          <div class="panel">
-            <div class="section-title">Attendance Summary</div>
-            <table class="summary-tbl" style="width:100%;border-collapse:collapse;">
-              <tr>
-                <td class="lbl" style="width:60%;">Working days <span class="muted-note">({HOURS_PER_DAY} h / day)</span></td>
-                <td class="val-right">{working_days}</td>
-              </tr>
-              <tr>
-                <td class="lbl">Present days</td>
-                <td class="val-right" style="color:#15803d;">{days_present}</td>
-              </tr>
-              <tr>
-                <td class="lbl">Absent days</td>
-                <td class="val-right" style="color:{'#b91c1c' if absent_days > 0 else '#0f172a'};">{absent_days:g}</td>
-              </tr>
-              <tr>
-                <td class="lbl">Casual Leave used &nbsp;<span class="muted-note">(paid up to 1)</span>
-                  {'<span class="pill-warn">Over cap</span>' if cl_unpaid > 0 else ''}</td>
-                <td class="val-right">{cl_used:g} <span class="muted-note">/ {cl_paid:g} paid</span></td>
-              </tr>
-              <tr>
-                <td class="lbl">Permission used &nbsp;<span class="muted-note">(free up to 4 h)</span>
-                  {'<span class="pill-warn">Excess</span>' if perm_excess_h > 0 else ''}</td>
-                <td class="val-right">{perm_hours:g} h <span class="muted-note">(excess {perm_excess_h:.1f} h)</span></td>
-              </tr>
-              <tr>
-                <td class="lbl">Late check-ins &nbsp;<span class="muted-note">(no deduction)</span></td>
-                <td class="val-right">{late_count}</td>
-              </tr>
-              <tr>
-                <td class="lbl">Overtime hours</td>
-                <td class="val-right" style="color:{'#7c3aed' if ot_hours > 0 else '#0f172a'};">{ot_hours:.1f} h</td>
-              </tr>
-            </table>
+        <div style="border-bottom:3px solid #C8102E;padding-bottom:12px;
+                    margin-bottom:18px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div>
+              <div style="font-size:11px;letter-spacing:2px;color:#7f1d1d;
+                          font-weight:800;">
+                {(company.SHORT_NAME or company.LEGAL_NAME or 'COMPANY')} · PAYSLIP
+              </div>
+              <div style="font-size:18px;font-weight:900;color:#1A0508;margin-top:2px;">
+                {company.LEGAL_NAME or ''}
+              </div>
+              <div style="font-size:10px;color:#64748b;margin-top:2px;">
+                {company_address}
+                {' · GST: ' + company.GST_NUMBER if company.GST_NUMBER else ''}
+              </div>
+            </div>
           </div>
-
-          <!-- ============ SALARY CALCULATION ============ -->
-          <div class="panel">
-            <div class="section-title">Salary Calculation</div>
-            <table class="summary-tbl" style="width:100%;border-collapse:collapse;">
-              <tr>
-                <td class="lbl" style="width:60%;">Base salary &nbsp;<span class="muted-note">(monthly)</span></td>
-                <td class="val-right">₹ {base_salary:,.2f}</td>
-              </tr>
-              <tr>
-                <td class="lbl">Per-day rate &nbsp;<span class="muted-note">(base ÷ {working_days})</span></td>
-                <td class="val-right" style="color:#475569;">₹ {per_day:,.2f}</td>
-              </tr>
-              <tr>
-                <td class="lbl">Hourly rate &nbsp;<span class="muted-note">(per-day ÷ {HOURS_PER_DAY})</span></td>
-                <td class="val-right" style="color:#475569;">₹ {hourly_rate:,.2f}</td>
-              </tr>
-              <tr>
-                <td class="lbl">Less: Absence deduction &nbsp;<span class="muted-note">({absent_days:g} × per-day)</span></td>
-                <td class="val-right" style="color:{'#b91c1c' if absence_deduction > 0 else '#0f172a'};">− ₹ {absence_deduction:,.2f}</td>
-              </tr>
-              <tr>
-                <td class="lbl">Less: Permission excess &nbsp;<span class="muted-note">({perm_excess_h:.1f} h × hourly)</span></td>
-                <td class="val-right" style="color:{'#b91c1c' if permission_deduction > 0 else '#0f172a'};">− ₹ {permission_deduction:,.2f}</td>
-              </tr>
-              <tr>
-                <td class="lbl">Add: OT pay &nbsp;<span class="muted-note">({ot_hours:.1f} h × hourly)</span></td>
-                <td class="val-right" style="color:{'#7c3aed' if ot_pay > 0 else '#0f172a'};">+ ₹ {ot_pay:,.2f}</td>
-              </tr>
-              <tr>
-                <td class="lbl">Add: Increment &nbsp;<span class="muted-note">(HR approved)</span></td>
-                <td class="val-right" style="color:#15803d;">+ ₹ {increment:,.2f}</td>
-              </tr>
-            </table>
+          <div style="font-size:24px;font-weight:900;margin-top:14px;">
+            {emp.NAME}
           </div>
-
-          <!-- ============ TOTAL SALARY BAND ============ -->
-          <table class="total-table">
-            <tr>
-              <td class="total-band">
-                <table style="width:100%;border-collapse:collapse;">
-                  <tr>
-                    <td>
-                      <div class="total-label">Total Salary</div>
-                      <div class="total-help">Base − Absence − Permission + OT + Increment</div>
-                    </td>
-                    <td class="total-amt">₹ {total_salary:,.2f}</td>
-                  </tr>
-                </table>
-              </td>
-            </tr>
-          </table>
-
-          {warning_html}
-
-          <!-- ============ SIGNATURE STRIPS ============ -->
-          <table style="width:100%;border-collapse:collapse;margin-top:70px;">
-            <tr class="sign-row">
-              <td>Authorised Signatory</td>
-              <td style="width:30%;border:none;"></td>
-              <td>Employee Signature</td>
-            </tr>
-          </table>
-
-          <!-- ============ FOOTER ============ -->
-          <div class="footnote">
-            This is a computer-generated payslip — no signature is required for online records.<br/>
-            <b>Salary policy:</b> {working_days} working days ({HOURS_PER_DAY} h / day) &nbsp;·&nbsp; 1 CL paid &nbsp;·&nbsp; 4 h permission free &nbsp;·&nbsp; Late shown but not deducted.
+          <div style="font-size:12px;color:#64748b;margin-top:2px;">
+            {emp.EMPLOYEE_CODE} · Pay Period: {month_label} ·
+            Working Days: {slip.WORKING_DAYS}
           </div>
-
         </div>
+
+        <table style="width:100%;font-size:12px;
+                      border-collapse:collapse;margin-bottom:18px;">
+          <tr>
+            <td style="padding:4px 8px;color:#64748b;">Bank</td>
+            <td style="padding:4px 8px;">
+              {emp.BANK_NAME or '—'} ·
+              {emp.BANK_ACCOUNT_NUMBER or '—'}
+            </td>
+            <td style="padding:4px 8px;color:#64748b;">IFSC</td>
+            <td style="padding:4px 8px;">{emp.IFSC_CODE or '—'}</td>
+          </tr>
+          <tr>
+            <td style="padding:4px 8px;color:#64748b;">PAN</td>
+            <td style="padding:4px 8px;">{emp.PAN_NUMBER or '—'}</td>
+            <td style="padding:4px 8px;color:#64748b;">UAN/Aadhaar</td>
+            <td style="padding:4px 8px;">{emp.AADHAAR_NUMBER or '—'}</td>
+          </tr>
+        </table>
+
+        <table style="width:100%;font-size:12px;
+                      border-collapse:collapse;margin-bottom:18px;">
+          <tr>
+            <td style="padding:4px 8px;color:#64748b;">Days Present</td>
+            <td style="padding:4px 8px;">{slip.DAYS_PRESENT}</td>
+            <td style="padding:4px 8px;color:#64748b;">Paid Leave</td>
+            <td style="padding:4px 8px;">{slip.PAID_LEAVE_DAYS}</td>
+            <td style="padding:4px 8px;color:#64748b;">Unpaid Leave</td>
+            <td style="padding:4px 8px;">{slip.UNPAID_LEAVE_DAYS}</td>
+            <td style="padding:4px 8px;color:#64748b;">Absent</td>
+            <td style="padding:4px 8px;">{slip.ABSENT_DAYS}</td>
+          </tr>
+        </table>
+
+        <table style="width:100%;border-collapse:collapse;
+                      border:1px solid #e2e8f0;margin-bottom:16px;">
+          <tr>
+            <td style="width:50%;vertical-align:top;
+                       border-right:1px solid #e2e8f0;">
+              <div style="background:#fef2f2;padding:8px 12px;
+                          font-size:11px;font-weight:800;letterspacing:1px;
+                          color:#7f1d1d;border-bottom:1px solid #fecaca;">
+                EARNINGS
+              </div>
+              <table style="width:100%;font-size:12px;">
+                {earnings_rows}
+              </table>
+            </td>
+            <td style="width:50%;vertical-align:top;">
+              <div style="background:#eff6ff;padding:8px 12px;
+                          font-size:11px;font-weight:800;letterspacing:1px;
+                          color:#1e3a8a;border-bottom:1px solid #bfdbfe;">
+                DEDUCTIONS
+              </div>
+              <table style="width:100%;font-size:12px;">
+                {deductions_rows}
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <table style="width:100%;font-size:13px;border-collapse:collapse;
+                      margin-bottom:18px;">
+          {_row("Gross Pay",          slip.GROSS_PAY or 0, bold=True)}
+          {_row("Total Deductions",   slip.TOTAL_DEDUCTIONS or 0, bold=True)}
+        </table>
+
+        <div style="background:linear-gradient(135deg,#C8102E,#8B0B1F);
+                    color:white;padding:16px 22px;border-radius:8px;
+                    text-align:right;">
+          <div style="font-size:10px;letter-spacing:2px;font-weight:700;
+                      opacity:0.9;">NET PAY</div>
+          <div style="font-size:30px;font-weight:900;margin-top:2px;
+                      font-family:monospace;">
+            ₹ {(slip.NET_PAY or 0):,.2f}
+          </div>
+        </div>
+
+        <div style="margin-top:24px;font-size:10px;color:#94a3b8;
+                    text-align:center;">
+          Computer-generated payslip — no signature required.
+          Statutory deductions: PF (12% of basic ≤ ₹15k),
+          ESI (0.75% when gross ≤ ₹21k), PT per state slab.
+        </div>
+
       </body>
     </html>
     """
