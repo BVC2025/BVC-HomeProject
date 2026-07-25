@@ -76,12 +76,13 @@ import EmployeeProfile from "./EmployeeProfile";
 import Recruitment from "./Recruitment";
 import PayslipGenerator from "./PayslipGenerator";
 import PayrollRecords from "./PayrollRecords";
+import HelpDeskAdmin from "./HelpDeskAdmin";
 import OnboardingChecklist from "./OnboardingChecklist";
 import ShiftManagement from "./ShiftManagement";
 import HrAutomation from "./HrAutomation";
 import MonthlyReports from "./MonthlyReports";
 import WorkforceAnalytics from "./WorkforceAnalytics";
-import ChatBot from "../components/ChatBot";
+import VoiceAssistant from "../components/VoiceAssistant";
 function HrLayout() {
   return <Outlet />;
 }
@@ -1565,6 +1566,13 @@ function SidebarIcon({ name }) {
           <path d="M3 7l9 7 9-7" />
         </svg>
       );
+    case "helpdesk":
+      return (
+        <svg {...props}>
+          <path d="M20 12a3 3 0 0 1 0-6V4H4v2a3 3 0 0 1 0 6 3 3 0 0 1 0 6v2h16v-2a3 3 0 0 1 0-6z" />
+          <path d="M13 6v2M13 12v2M13 18v-2" />
+        </svg>
+      );
     default:
       return (
         <svg {...props}>
@@ -1601,6 +1609,7 @@ const NAV_GROUPS = [
       { to: "/hr-automation", icon: <SidebarIcon name="approvals" />, label: "HR Automation" },
       { to: "/monthly-reports", icon: <SidebarIcon name="payroll" />, label: "Monthly Reports" },
       // { to: "/workforce-analytics", icon: <SidebarIcon name="star"      />, label: "Workforce Analytics" }  // temporarily hidden per request
+      { to: "/help-desk", icon: <SidebarIcon name="helpdesk" />, label: "Help Desk" },
       { to: "/approvals", icon: <SidebarIcon name="approvals" />, label: "Approval Center" },
       // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
       { to: "/departments", icon: <SidebarIcon name="departments" />, label: "Department Management" },
@@ -1996,6 +2005,7 @@ function Dashboard() {
             <Route path="/payroll" element={<Payroll />} />
             <Route path="/payslip-generator" element={<PayslipGenerator />} />
             <Route path="/payroll-records"   element={<PayrollRecords />} />
+            <Route path="/help-desk"         element={<HelpDeskAdmin />} />
           </Route>
 
           <Route
@@ -2142,7 +2152,15 @@ function Dashboard() {
 
       </div>
 
-      <ChatBot />
+      <VoiceAssistant
+        employeeId={
+          typeof window !== "undefined"
+            ? (localStorage.getItem("employee_id")
+                || localStorage.getItem("employee_code")
+                || "")
+            : ""
+        }
+      />
 
       <ConfirmDialog
         open={logoutOpen}
