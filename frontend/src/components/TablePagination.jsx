@@ -1,5 +1,18 @@
 import styles from "./TablePagination.module.css";
 
+
+/**
+ * Shared pagination footer for any table.
+ *
+ *   <TablePagination
+ *     total={rows.length}
+ *     page={page}
+ *     pageSize={pageSize}
+ *     onPageChange={setPage}
+ *     onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+ *   />
+ */
+
 const DEFAULT_PAGE_SIZES = [5, 10, 25, 50, 100, 0]; // 0 = All
 
 function TablePagination({
@@ -43,6 +56,7 @@ function TablePagination({
 
   return (
     <div className={styles.bar}>
+
       <label className={styles.rowsLabel}>
         Rows:
         <select

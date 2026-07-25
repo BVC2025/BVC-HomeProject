@@ -57,7 +57,7 @@ function Pill({ status }) {
 
 export default function Recruitment() {
 
-  const [tab, setTab] = useState("jobs");
+  const [tab, setTab] = useState("requisitions");
 
   return (
     <div style={{ padding: 20, background: "#f1f5f9", minHeight: "calc(100vh - 80px)" }}>
@@ -88,11 +88,12 @@ export default function Recruitment() {
         marginBottom: 18, display: "flex", gap: 4,
       }}>
         {[
-          { key: "jobs",       label: "Jobs" },
-          { key: "candidates", label: "Candidates" },
-          { key: "pipeline",   label: "Pipeline" },
-          { key: "interviews", label: "Interviews" },
-          { key: "offers",     label: "Offers" },
+          { key: "requisitions", label: "Requisitions" },
+          { key: "jobs",         label: "Jobs" },
+          { key: "candidates",   label: "Candidates" },
+          { key: "pipeline",     label: "Pipeline" },
+          { key: "interviews",   label: "Interviews" },
+          { key: "offers",       label: "Offers" },
         ].map((t) => (
           <button
             key={t.key}
@@ -111,12 +112,866 @@ export default function Recruitment() {
         ))}
       </div>
 
-      {tab === "jobs"       && <JobsTab />}
-      {tab === "candidates" && <CandidatesTab />}
-      {tab === "pipeline"   && <PipelineTab />}
-      {tab === "interviews" && <InterviewsTab />}
-      {tab === "offers"     && <OffersTab />}
+      {tab === "requisitions" && <RequisitionsTab onConverted={() => setTab("jobs")} />}
+      {tab === "jobs"         && <JobsTab />}
+      {tab === "candidates"   && <CandidatesTab />}
+      {tab === "pipeline"     && <PipelineTab />}
+      {tab === "interviews"   && <InterviewsTab />}
+      {tab === "offers"       && <OffersTab />}
     </div>
+  );
+}
+
+
+// =====================================================================
+// REQUISITIONS TAB — manpower requests, approval workflow, convert-to-job
+// =====================================================================
+
+const REQ_URGENCIES = [
+  { key: "LOW",      label: "Low",      color: "#64748b" },
+  { key: "NORMAL",   label: "Normal",   color: "#2563eb" },
+  { key: "HIGH",     label: "High",     color: "#d97706" },
+  { key: "CRITICAL", label: "Critical", color: "#dc2626" },
+];
+
+const REQ_STATUS_THEME = {
+  PENDING:   { bg: "#fef3c7", fg: "#854d0e" },
+  APPROVED:  { bg: "#dcfce7", fg: "#166534" },
+  REJECTED:  { bg: "#fee2e2", fg: "#991b1b" },
+  ON_HOLD:   { bg: "#e0e7ff", fg: "#3730a3" },
+  CANCELLED: { bg: "#f1f5f9", fg: "#475569" },
+  CONVERTED: { bg: "#dbeafe", fg: "#1e40af" },
+};
+
+function ReqPill({ status }) {
+  const t = REQ_STATUS_THEME[status] || { bg: "#f1f5f9", fg: "#475569" };
+  return (
+    <span style={{
+      display: "inline-block", padding: "3px 10px", borderRadius: 999,
+      fontSize: 10, fontWeight: 800, background: t.bg, color: t.fg,
+      letterSpacing: 0.4,
+    }}>
+      {status?.replace(/_/g, " ") || "—"}
+    </span>
+  );
+}
+
+function UrgencyDot({ urgency }) {
+  const u = REQ_URGENCIES.find((x) => x.key === urgency) || REQ_URGENCIES[1];
+  return (
+    <span title={u.label} style={{
+      display: "inline-flex", alignItems: "center", gap: 5,
+      fontSize: 11, fontWeight: 700, color: u.color,
+    }}>
+      <span style={{
+        width: 8, height: 8, borderRadius: 999, background: u.color,
+      }} />
+      {u.label}
+    </span>
+  );
+}
+
+function RequisitionsTab({ onConverted }) {
+
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
+  const [busy, setBusy] = useState(null);          // { id, action }
+  const [detailReq, setDetailReq] = useState(null);
+  const [toast, setToast] = useState("");
+
+  const load = () => {
+    setLoading(true);
+    API.get("/recruitment/requisitions")
+      .then((r) => setRows(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setRows([]))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(load, []);
+
+  useEffect(() => {
+    if (!toast) return undefined;
+    const id = setTimeout(() => setToast(""), 2600);
+    return () => clearTimeout(id);
+  }, [toast]);
+
+  const stats = useMemo(() => {
+    const s = { total: rows.length, pending: 0, approved: 0, converted: 0, rejected: 0 };
+    for (const r of rows) {
+      if (r.STATUS === "PENDING") s.pending++;
+      else if (r.STATUS === "APPROVED") s.approved++;
+      else if (r.STATUS === "CONVERTED") s.converted++;
+      else if (r.STATUS === "REJECTED") s.rejected++;
+    }
+    return s;
+  }, [rows]);
+
+  const filtered = useMemo(() => {
+    if (!statusFilter) return rows;
+    return rows.filter((r) => r.STATUS === statusFilter);
+  }, [rows, statusFilter]);
+
+  const approve = async (r) => {
+    setBusy({ id: r.ID, action: "approve" });
+    try {
+      await API.post(`/recruitment/requisitions/${r.ID}/approve`, {});
+      setToast(`Approved ${r.REQ_CODE}`);
+      load();
+    } catch (err) {
+      setToast(err?.response?.data?.detail || "Approve failed");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const reject = async (r) => {
+    const reason = window.prompt(`Reject ${r.REQ_CODE}? Enter a reason:`);
+    if (!reason || !reason.trim()) return;
+    setBusy({ id: r.ID, action: "reject" });
+    try {
+      await API.post(`/recruitment/requisitions/${r.ID}/reject`, {
+        REJECTION_REASON: reason.trim(),
+      });
+      setToast(`Rejected ${r.REQ_CODE}`);
+      load();
+    } catch (err) {
+      setToast(err?.response?.data?.detail || "Reject failed");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const convert = async (r) => {
+    if (!window.confirm(
+      `Convert ${r.REQ_CODE} into an open job posting for ${r.POSITION_TITLE}?`
+    )) return;
+    setBusy({ id: r.ID, action: "convert" });
+    try {
+      const res = await API.post(`/recruitment/requisitions/${r.ID}/convert`, {});
+      setToast(`Job ${res.data?.job_code || res.data?.job_id} created`);
+      load();
+      onConverted?.();
+    } catch (err) {
+      setToast(err?.response?.data?.detail || "Convert failed");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const remove = async (r) => {
+    if (!window.confirm(`Delete requisition ${r.REQ_CODE}? This cannot be undone.`)) return;
+    setBusy({ id: r.ID, action: "delete" });
+    try {
+      await API.delete(`/recruitment/requisitions/${r.ID}`);
+      setToast(`Deleted ${r.REQ_CODE}`);
+      load();
+    } catch (err) {
+      setToast(err?.response?.data?.detail || "Delete failed");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div>
+
+      {/* --- Stats + create button --- */}
+      <div style={{
+        display: "flex", gap: 12, alignItems: "center",
+        justifyContent: "space-between", marginBottom: 14, flexWrap: "wrap",
+      }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <ReqStatChip label="Total"     value={stats.total} />
+          <ReqStatChip label="Pending"   value={stats.pending}   tone="#d97706" />
+          <ReqStatChip label="Approved"  value={stats.approved}  tone="#16a34a" />
+          <ReqStatChip label="Converted" value={stats.converted} tone="#2563eb" />
+          <ReqStatChip label="Rejected"  value={stats.rejected}  tone="#dc2626" />
+        </div>
+
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={{
+              padding: "8px 12px", border: "1px solid #e2e8f0",
+              borderRadius: 8, fontSize: 12, background: "white",
+              color: "#0f172a", outline: "none",
+            }}
+          >
+            <option value="">All statuses</option>
+            <option value="PENDING">Pending</option>
+            <option value="APPROVED">Approved</option>
+            <option value="CONVERTED">Converted</option>
+            <option value="ON_HOLD">On Hold</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="CANCELLED">Cancelled</option>
+          </select>
+          <button
+            onClick={() => setShowCreate(true)}
+            style={{
+              background: BVC_RED, color: "white", border: "none",
+              padding: "9px 16px", borderRadius: 8, fontSize: 12,
+              fontWeight: 700, cursor: "pointer",
+            }}
+          >
+            + New Requisition
+          </button>
+        </div>
+      </div>
+
+      {/* --- List --- */}
+      {loading && <Spinner />}
+
+      {!loading && filtered.length === 0 && (
+        <EmptyState text={
+          rows.length === 0
+            ? "No requisitions yet. Click + New Requisition to raise the first one."
+            : "No requisitions match this filter."
+        } />
+      )}
+
+      {!loading && filtered.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {filtered.map((r) => (
+            <RequisitionRow
+              key={r.ID}
+              req={r}
+              busy={busy?.id === r.ID ? busy.action : null}
+              onOpen={() => setDetailReq(r)}
+              onApprove={() => approve(r)}
+              onReject={() => reject(r)}
+              onConvert={() => convert(r)}
+              onDelete={() => remove(r)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* --- Overlays --- */}
+      {showCreate && (
+        <CreateRequisitionModal
+          onClose={() => setShowCreate(false)}
+          onSaved={() => { setShowCreate(false); load(); }}
+        />
+      )}
+
+      {detailReq && (
+        <RequisitionDetailDrawer
+          req={detailReq}
+          onClose={() => setDetailReq(null)}
+        />
+      )}
+
+      {/* --- Toast --- */}
+      {toast && (
+        <div style={{
+          position: "fixed", bottom: 24, left: "50%",
+          transform: "translateX(-50%)",
+          background: "#1f2937", color: "white",
+          padding: "9px 16px", borderRadius: 8, fontSize: 12,
+          fontWeight: 600, boxShadow: "0 6px 18px rgba(0,0,0,0.2)",
+          zIndex: 300,
+        }}>
+          {toast}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReqStatChip({ label, value, tone }) {
+  return (
+    <div style={{
+      background: "white",
+      border: "1px solid #e2e8f0",
+      padding: "6px 12px",
+      borderRadius: 8,
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 8,
+      borderLeft: tone ? `3px solid ${tone}` : "1px solid #e2e8f0",
+    }}>
+      <span style={{ fontSize: 18, fontWeight: 800, color: tone || "#0f172a" }}>
+        {value}
+      </span>
+      <span style={{
+        fontSize: 10, fontWeight: 700, color: "#64748b",
+        letterSpacing: 0.8, textTransform: "uppercase",
+      }}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+function RequisitionRow({ req, busy, onOpen, onApprove, onReject, onConvert, onDelete }) {
+
+  const isPending   = req.STATUS === "PENDING";
+  const isApproved  = req.STATUS === "APPROVED";
+  const isConverted = req.STATUS === "CONVERTED";
+  const isTerminal  = ["REJECTED", "CANCELLED"].includes(req.STATUS);
+
+  return (
+    <div
+      onClick={onOpen}
+      style={{
+        background: "white",
+        border: "1px solid #e2e8f0",
+        borderRadius: 10,
+        padding: "12px 14px",
+        cursor: "pointer",
+        display: "grid",
+        gridTemplateColumns: "1fr auto",
+        alignItems: "center",
+        gap: 12,
+      }}
+    >
+      <div style={{ minWidth: 0 }}>
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10,
+          flexWrap: "wrap", marginBottom: 4,
+        }}>
+          <span style={{
+            fontSize: 10, fontWeight: 800, color: "#64748b",
+            letterSpacing: 0.6, fontFamily: "ui-monospace, monospace",
+          }}>
+            {req.REQ_CODE}
+          </span>
+          <ReqPill status={req.STATUS} />
+          <UrgencyDot urgency={req.URGENCY} />
+        </div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
+          {req.POSITION_TITLE}
+          <span style={{
+            fontSize: 12, color: "#64748b", fontWeight: 500, marginLeft: 8,
+          }}>
+            × {req.HEADCOUNT}
+          </span>
+        </div>
+        <div style={{ fontSize: 11, color: "#64748b", marginTop: 3 }}>
+          {req.DEPARTMENT || "—"}
+          {req.LOCATION ? ` · ${req.LOCATION}` : ""}
+          {req.EMPLOYMENT_TYPE ? ` · ${req.EMPLOYMENT_TYPE.replace(/_/g, " ")}` : ""}
+          {req.REQUESTED_BY_NAME ? ` · by ${req.REQUESTED_BY_NAME}` : ""}
+          {req.NEEDED_BY_DATE ? ` · needed ${req.NEEDED_BY_DATE}` : ""}
+        </div>
+      </div>
+
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{ display: "flex", gap: 6 }}
+      >
+        {isPending && (
+          <>
+            <MiniBtn
+              label={busy === "approve" ? "…" : "Approve"}
+              onClick={onApprove}
+              disabled={!!busy}
+              tone="green"
+            />
+            <MiniBtn
+              label={busy === "reject" ? "…" : "Reject"}
+              onClick={onReject}
+              disabled={!!busy}
+              tone="red"
+            />
+          </>
+        )}
+
+        {isApproved && (
+          <MiniBtn
+            label={busy === "convert" ? "Converting…" : "Convert → Job"}
+            onClick={onConvert}
+            disabled={!!busy}
+            tone="blue"
+          />
+        )}
+
+        {isConverted && req.CONVERTED_JOB_ID && (
+          <span style={{
+            fontSize: 11, color: "#2563eb", fontWeight: 700,
+            padding: "5px 10px", background: "#eff6ff",
+            border: "1px solid #bfdbfe", borderRadius: 6,
+          }}>
+            → Job #{req.CONVERTED_JOB_ID}
+          </span>
+        )}
+
+        {(isPending || isTerminal) && (
+          <MiniBtn
+            label="Delete"
+            onClick={onDelete}
+            disabled={!!busy}
+            tone="slate"
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MiniBtn({ label, onClick, disabled, tone = "slate" }) {
+  const themes = {
+    green: { bg: "#16a34a", fg: "white" },
+    red:   { bg: "#dc2626", fg: "white" },
+    blue:  { bg: "#2563eb", fg: "white" },
+    slate: { bg: "white",   fg: "#475569", border: "#e2e8f0" },
+  };
+  const t = themes[tone] || themes.slate;
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        background: t.bg, color: t.fg,
+        border: t.border ? `1px solid ${t.border}` : "none",
+        padding: "6px 12px", borderRadius: 6, fontSize: 11,
+        fontWeight: 700, cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.55 : 1, whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function CreateRequisitionModal({ onClose, onSaved }) {
+
+  const [form, setForm] = useState({
+    POSITION_TITLE: "",
+    DEPARTMENT: "",
+    LOCATION: "",
+    EMPLOYMENT_TYPE: "FULL_TIME",
+    HEADCOUNT: 1,
+    EXPERIENCE_MIN_YEARS: 0,
+    EXPERIENCE_MAX_YEARS: "",
+    BUDGET_CTC_MIN: "",
+    BUDGET_CTC_MAX: "",
+    REQUIRED_SKILLS: "",
+    PREFERRED_SKILLS: "",
+    REQUIRED_EDUCATION: "",
+    JUSTIFICATION: "",
+    URGENCY: "NORMAL",
+    NEEDED_BY_DATE: "",
+    REQUESTED_BY_ID: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [employees, setEmployees] = useState([]);
+
+  useEffect(() => {
+    API.get("/employees").then(
+      (r) => setEmployees(Array.isArray(r.data) ? r.data : [])
+    ).catch(() => setEmployees([]));
+  }, []);
+
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const submit = async (e) => {
+    e?.preventDefault?.();
+    setError("");
+    if (!form.POSITION_TITLE.trim()) {
+      setError("Position title is required.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        POSITION_TITLE:       form.POSITION_TITLE.trim(),
+        DEPARTMENT:           form.DEPARTMENT.trim() || null,
+        LOCATION:             form.LOCATION.trim() || null,
+        EMPLOYMENT_TYPE:      form.EMPLOYMENT_TYPE || "FULL_TIME",
+        HEADCOUNT:            Number(form.HEADCOUNT) || 1,
+        EXPERIENCE_MIN_YEARS: Number(form.EXPERIENCE_MIN_YEARS) || 0,
+        EXPERIENCE_MAX_YEARS: form.EXPERIENCE_MAX_YEARS === "" ? null : Number(form.EXPERIENCE_MAX_YEARS),
+        BUDGET_CTC_MIN:       form.BUDGET_CTC_MIN === "" ? null : Number(form.BUDGET_CTC_MIN),
+        BUDGET_CTC_MAX:       form.BUDGET_CTC_MAX === "" ? null : Number(form.BUDGET_CTC_MAX),
+        REQUIRED_SKILLS:      form.REQUIRED_SKILLS.trim() || null,
+        PREFERRED_SKILLS:     form.PREFERRED_SKILLS.trim() || null,
+        REQUIRED_EDUCATION:   form.REQUIRED_EDUCATION.trim() || null,
+        JUSTIFICATION:        form.JUSTIFICATION.trim() || null,
+        URGENCY:              form.URGENCY || "NORMAL",
+        NEEDED_BY_DATE:       form.NEEDED_BY_DATE || null,
+        REQUESTED_BY_ID:      form.REQUESTED_BY_ID || null,
+      };
+      await API.post("/recruitment/requisitions", payload);
+      onSaved?.();
+    } catch (err) {
+      setError(err?.response?.data?.detail || "Failed to create requisition.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        zIndex: 200, padding: 16,
+      }}
+    >
+      <form
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={submit}
+        style={{
+          background: "white", borderRadius: 12,
+          width: "100%", maxWidth: 720,
+          maxHeight: "92vh", overflowY: "auto",
+          boxShadow: "0 20px 40px rgba(0,0,0,0.15)",
+        }}
+      >
+        <div style={{
+          background: `linear-gradient(135deg, ${BVC_DARK} 0%, ${BVC_RED} 100%)`,
+          color: "white", padding: "18px 22px",
+          borderRadius: "12px 12px 0 0",
+        }}>
+          <div style={{
+            fontSize: 10, fontWeight: 800, letterSpacing: 2,
+            color: BVC_GOLD, textTransform: "uppercase",
+          }}>
+            Recruitment · New Requisition
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 900, marginTop: 3 }}>
+            Raise a manpower request
+          </div>
+          <div style={{ fontSize: 11, opacity: 0.85, marginTop: 3 }}>
+            Once approved, HR can convert this into an open job posting with one click.
+          </div>
+        </div>
+
+        <div style={{ padding: 22 }}>
+          <ReqField label="Position title *">
+            <input
+              type="text" required
+              value={form.POSITION_TITLE}
+              onChange={set("POSITION_TITLE")}
+              placeholder="e.g. Senior Backend Developer"
+              style={reqInputStyle}
+            />
+          </ReqField>
+
+          <ReqRow>
+            <ReqField label="Department">
+              <input
+                type="text"
+                value={form.DEPARTMENT}
+                onChange={set("DEPARTMENT")}
+                placeholder="e.g. Engineering"
+                style={reqInputStyle}
+              />
+            </ReqField>
+            <ReqField label="Location">
+              <input
+                type="text"
+                value={form.LOCATION}
+                onChange={set("LOCATION")}
+                placeholder="e.g. Chennai / Remote"
+                style={reqInputStyle}
+              />
+            </ReqField>
+          </ReqRow>
+
+          <ReqRow>
+            <ReqField label="Employment type">
+              <select
+                value={form.EMPLOYMENT_TYPE}
+                onChange={set("EMPLOYMENT_TYPE")}
+                style={reqInputStyle}
+              >
+                <option value="FULL_TIME">Full-time</option>
+                <option value="PART_TIME">Part-time</option>
+                <option value="CONTRACT">Contract</option>
+                <option value="INTERN">Intern</option>
+              </select>
+            </ReqField>
+            <ReqField label="Headcount">
+              <input
+                type="number" min="1"
+                value={form.HEADCOUNT}
+                onChange={set("HEADCOUNT")}
+                style={reqInputStyle}
+              />
+            </ReqField>
+            <ReqField label="Urgency">
+              <select
+                value={form.URGENCY}
+                onChange={set("URGENCY")}
+                style={reqInputStyle}
+              >
+                {REQ_URGENCIES.map((u) => (
+                  <option key={u.key} value={u.key}>{u.label}</option>
+                ))}
+              </select>
+            </ReqField>
+          </ReqRow>
+
+          <ReqRow>
+            <ReqField label="Min experience (years)">
+              <input
+                type="number" min="0" step="0.5"
+                value={form.EXPERIENCE_MIN_YEARS}
+                onChange={set("EXPERIENCE_MIN_YEARS")}
+                style={reqInputStyle}
+              />
+            </ReqField>
+            <ReqField label="Max experience (years)">
+              <input
+                type="number" min="0" step="0.5"
+                value={form.EXPERIENCE_MAX_YEARS}
+                onChange={set("EXPERIENCE_MAX_YEARS")}
+                placeholder="optional"
+                style={reqInputStyle}
+              />
+            </ReqField>
+          </ReqRow>
+
+          <ReqRow>
+            <ReqField label="Budget CTC min">
+              <input
+                type="number" min="0" step="1000"
+                value={form.BUDGET_CTC_MIN}
+                onChange={set("BUDGET_CTC_MIN")}
+                placeholder="e.g. 500000"
+                style={reqInputStyle}
+              />
+            </ReqField>
+            <ReqField label="Budget CTC max">
+              <input
+                type="number" min="0" step="1000"
+                value={form.BUDGET_CTC_MAX}
+                onChange={set("BUDGET_CTC_MAX")}
+                placeholder="e.g. 900000"
+                style={reqInputStyle}
+              />
+            </ReqField>
+          </ReqRow>
+
+          <ReqField label="Required skills">
+            <input
+              type="text"
+              value={form.REQUIRED_SKILLS}
+              onChange={set("REQUIRED_SKILLS")}
+              placeholder="Python, FastAPI, MySQL, React"
+              style={reqInputStyle}
+            />
+          </ReqField>
+
+          <ReqField label="Preferred skills">
+            <input
+              type="text"
+              value={form.PREFERRED_SKILLS}
+              onChange={set("PREFERRED_SKILLS")}
+              placeholder="Docker, Redis, AWS"
+              style={reqInputStyle}
+            />
+          </ReqField>
+
+          <ReqField label="Required education">
+            <input
+              type="text"
+              value={form.REQUIRED_EDUCATION}
+              onChange={set("REQUIRED_EDUCATION")}
+              placeholder="B.E. Computer Science or equivalent"
+              style={reqInputStyle}
+            />
+          </ReqField>
+
+          <ReqRow>
+            <ReqField label="Requested by">
+              <select
+                value={form.REQUESTED_BY_ID}
+                onChange={set("REQUESTED_BY_ID")}
+                style={reqInputStyle}
+              >
+                <option value="">— pick employee (optional) —</option>
+                {employees.map((e) => (
+                  <option key={e.ID} value={e.ID}>
+                    {e.NAME || e.EMPLOYEE_CODE || e.ID}
+                    {e.EMPLOYEE_CODE ? ` (${e.EMPLOYEE_CODE})` : ""}
+                  </option>
+                ))}
+              </select>
+            </ReqField>
+            <ReqField label="Needed by">
+              <input
+                type="date"
+                value={form.NEEDED_BY_DATE}
+                onChange={set("NEEDED_BY_DATE")}
+                style={reqInputStyle}
+              />
+            </ReqField>
+          </ReqRow>
+
+          <ReqField label="Justification">
+            <textarea
+              rows={3}
+              value={form.JUSTIFICATION}
+              onChange={set("JUSTIFICATION")}
+              placeholder="Why this hire is needed…"
+              style={{ ...reqInputStyle, resize: "vertical", fontFamily: "inherit" }}
+            />
+          </ReqField>
+
+          {error && (
+            <div style={{
+              background: "#fef2f2", color: "#991b1b",
+              padding: "9px 12px", borderRadius: 8,
+              fontSize: 12, fontWeight: 600, marginTop: 12,
+              border: "1px solid #fecaca",
+            }}>
+              {error}
+            </div>
+          )}
+
+          <div style={{
+            display: "flex", gap: 8, justifyContent: "flex-end",
+            marginTop: 18,
+          }}>
+            <button
+              type="button" onClick={onClose}
+              style={{
+                background: "white", color: "#475569",
+                border: "1px solid #e2e8f0",
+                padding: "10px 18px", borderRadius: 8,
+                fontSize: 12, fontWeight: 700, cursor: "pointer",
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit" disabled={saving}
+              style={{
+                background: BVC_RED, color: "white", border: "none",
+                padding: "10px 22px", borderRadius: 8,
+                fontSize: 12, fontWeight: 700,
+                cursor: saving ? "not-allowed" : "pointer",
+                opacity: saving ? 0.7 : 1,
+              }}
+            >
+              {saving ? "Saving…" : "Submit requisition"}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+const reqInputStyle = {
+  width: "100%",
+  padding: "9px 12px",
+  border: "1px solid #e2e8f0",
+  borderRadius: 8,
+  fontSize: 13,
+  outline: "none",
+  color: "#0f172a",
+  background: "#fafbfc",
+  boxSizing: "border-box",
+};
+
+function ReqField({ label, children }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <label style={{
+        fontSize: 10, fontWeight: 800, color: "#475569",
+        letterSpacing: 0.8, textTransform: "uppercase",
+        display: "block", marginBottom: 5,
+      }}>
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function ReqRow({ children }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: `repeat(${Array.isArray(children) ? children.length : 1}, 1fr)`, gap: 12 }}>
+      {children}
+    </div>
+  );
+}
+
+function RequisitionDetailDrawer({ req, onClose }) {
+  return (
+    <Drawer title={`Requisition ${req.REQ_CODE}`} onClose={onClose} width={520}>
+      <div style={{ padding: 20 }}>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
+          <ReqPill status={req.STATUS} />
+          <UrgencyDot urgency={req.URGENCY} />
+          <span style={{ fontSize: 11, color: "#64748b" }}>
+            × {req.HEADCOUNT} opening{req.HEADCOUNT === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        <SectionTitle>{req.POSITION_TITLE}</SectionTitle>
+        <div style={{ fontSize: 12, color: "#64748b", marginBottom: 16 }}>
+          {req.DEPARTMENT || "—"}
+          {req.LOCATION ? ` · ${req.LOCATION}` : ""}
+          {req.EMPLOYMENT_TYPE ? ` · ${req.EMPLOYMENT_TYPE.replace(/_/g, " ")}` : ""}
+        </div>
+
+        <FieldRow label="Experience" value={
+          req.EXPERIENCE_MIN_YEARS != null
+            ? `${req.EXPERIENCE_MIN_YEARS}${req.EXPERIENCE_MAX_YEARS ? "–" + req.EXPERIENCE_MAX_YEARS : "+"} yrs`
+            : "—"
+        } />
+        <FieldRow label="Budget CTC" value={
+          req.BUDGET_CTC_MIN || req.BUDGET_CTC_MAX
+            ? `₹${req.BUDGET_CTC_MIN || "?"} – ₹${req.BUDGET_CTC_MAX || "?"}`
+            : "—"
+        } />
+        <FieldRow label="Required skills"  value={req.REQUIRED_SKILLS  || "—"} />
+        <FieldRow label="Preferred skills" value={req.PREFERRED_SKILLS || "—"} />
+        <FieldRow label="Education"        value={req.REQUIRED_EDUCATION || "—"} />
+        <FieldRow label="Needed by"        value={req.NEEDED_BY_DATE || "—"} />
+        <FieldRow label="Requested by"     value={req.REQUESTED_BY_NAME || "—"} />
+        <FieldRow label="Approved by"      value={req.APPROVED_BY_NAME || "—"} />
+        <FieldRow label="Approved at"      value={req.APPROVED_AT || "—"} />
+
+        {req.JUSTIFICATION && (
+          <div style={{ marginTop: 14 }}>
+            <SectionTitle>Justification</SectionTitle>
+            <div style={{
+              background: "#f8fafc", padding: 12, borderRadius: 8,
+              border: "1px solid #e2e8f0",
+              fontSize: 12, color: "#334155", whiteSpace: "pre-wrap",
+            }}>
+              {req.JUSTIFICATION}
+            </div>
+          </div>
+        )}
+
+        {req.REJECTION_REASON && (
+          <div style={{ marginTop: 14 }}>
+            <SectionTitle>Rejection reason</SectionTitle>
+            <div style={{
+              background: "#fef2f2", padding: 12, borderRadius: 8,
+              border: "1px solid #fecaca",
+              fontSize: 12, color: "#991b1b", whiteSpace: "pre-wrap",
+            }}>
+              {req.REJECTION_REASON}
+            </div>
+          </div>
+        )}
+
+        {req.CONVERTED_JOB_ID && (
+          <div style={{
+            marginTop: 14, padding: 12, background: "#eff6ff",
+            border: "1px solid #bfdbfe", borderRadius: 8,
+            fontSize: 12, color: "#1e40af", fontWeight: 700,
+          }}>
+            → Converted to Job #{req.CONVERTED_JOB_ID}
+          </div>
+        )}
+
+      </div>
+    </Drawer>
   );
 }
 
@@ -416,6 +1271,13 @@ function CandidatesTab() {
   const fileRef = useRef(null);
   const [uploading, setUploading] = useState(false);
 
+  // Phase 5 — parsed-resume review modal state.
+  // The parser now runs on a local Qwen 2.5 model whose accuracy is
+  // lower than Gemini's, so HR reviews / edits the extracted fields
+  // before the candidate row is persisted.
+  const [reviewQueue, setReviewQueue] = useState([]);   // pending parses
+  const [reviewIdx, setReviewIdx] = useState(0);
+
   const load = () => {
     setLoading(true);
     API.get("/recruitment/candidates")
@@ -427,23 +1289,78 @@ function CandidatesTab() {
   const onFiles = async (files) => {
     if (!files || files.length === 0) return;
     setUploading(true);
+    const parsed = [];
     for (const f of files) {
       const fd = new FormData();
       fd.append("file", f);
-      fd.append("source", "WEBSITE");
       try {
-        await API.post("/recruitment/candidates/upload", fd, {
+        // NEW: parse-only first (does NOT create the Candidate row).
+        // Backend saves the file to disk and returns the extracted
+        // fields for HR to review.
+        const res = await API.post("/recruitment/candidates/parse", fd, {
           headers: { "Content-Type": "multipart/form-data" },
         });
+        parsed.push({
+          filename: f.name,
+          resume_url:    res.data?.resume_url,
+          parsed:        res.data?.parsed || {},
+          existing_id:   res.data?.existing_id,
+          existing_name: res.data?.existing_name,
+        });
       } catch (e) {
-        // Continue uploading other files even if one fails
-        console.error("Upload failed:", f.name, e?.response?.data?.detail);
+        console.error("Parse failed:", f.name, e?.response?.data?.detail);
       }
     }
     setUploading(false);
-    load();
     if (fileRef.current) fileRef.current.value = "";
+    if (parsed.length > 0) {
+      setReviewQueue(parsed);
+      setReviewIdx(0);
+    } else {
+      // Nothing parsed — silent; a toast could go here later.
+      load();
+    }
   };
+
+  const finishReview = () => {
+    setReviewQueue([]);
+    setReviewIdx(0);
+    load();
+  };
+
+  const nextReview = () => {
+    if (reviewIdx + 1 < reviewQueue.length) {
+      setReviewIdx(reviewIdx + 1);
+    } else {
+      finishReview();
+    }
+  };
+
+  const saveReviewed = async (edited) => {
+    const item = reviewQueue[reviewIdx];
+    if (!item) return;
+    await API.post("/recruitment/candidates", {
+      resume_url:       item.resume_url,
+      resume_text:      edited.raw_text || item.parsed?.raw_text || "",
+      full_name:        edited.full_name || "",
+      email:            edited.email || null,
+      phone:            edited.phone || null,
+      location:         edited.location || null,
+      linkedin:         edited.linkedin || null,
+      skills:           edited.skills || [],
+      languages:        edited.languages || [],
+      certifications:   edited.certifications || [],
+      education:        edited.education || [],
+      work_experience:  edited.work_experience || [],
+      projects:         edited.projects || [],
+      total_experience_years: edited.total_experience_years ?? null,
+      highest_qualification:  edited.highest_qualification || null,
+      source: "WEBSITE",
+    });
+    nextReview();
+  };
+
+  const skipReview = () => nextReview();
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -510,9 +1427,238 @@ function CandidatesTab() {
           candidate={focus} onClose={() => setFocus(null)} onChange={load}
         />
       )}
+
+      {reviewQueue.length > 0 && (
+        <ResumeReviewModal
+          key={`review-${reviewIdx}`}
+          item={reviewQueue[reviewIdx]}
+          position={reviewIdx + 1}
+          total={reviewQueue.length}
+          onSave={saveReviewed}
+          onSkip={skipReview}
+          onCancelAll={finishReview}
+        />
+      )}
     </div>
   );
 }
+
+
+function ResumeReviewModal({ item, position, total, onSave, onSkip, onCancelAll }) {
+
+  const p = item?.parsed || {};
+
+  const [form, setForm] = useState({
+    full_name:              p.full_name || "",
+    email:                  p.email || "",
+    phone:                  p.phone || "",
+    location:               p.location || "",
+    linkedin:               p.linkedin || "",
+    total_experience_years: p.total_experience_years ?? "",
+    highest_qualification:  p.highest_qualification || "",
+    skills:                 (p.skills || []).join(", "),
+    languages:              (p.languages || []).join(", "),
+    certifications:         (p.certifications || []).join(", "),
+  });
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const toList = (s) =>
+    (s || "").split(",").map((x) => x.trim()).filter(Boolean);
+
+  const submit = async (e) => {
+    e?.preventDefault?.();
+    if (!form.full_name.trim()) {
+      setError("Full name is required.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    try {
+      await onSave({
+        raw_text:               p.raw_text || "",
+        full_name:              form.full_name.trim(),
+        email:                  form.email.trim() || null,
+        phone:                  form.phone.trim() || null,
+        location:               form.location.trim() || null,
+        linkedin:               form.linkedin.trim() || null,
+        total_experience_years: form.total_experience_years === ""
+          ? null
+          : Number(form.total_experience_years),
+        highest_qualification:  form.highest_qualification.trim() || null,
+        skills:                 toList(form.skills),
+        languages:              toList(form.languages),
+        certifications:         toList(form.certifications),
+        education:              p.education || [],
+        work_experience:        p.work_experience || [],
+        projects:               p.projects || [],
+      });
+    } catch (err) {
+      setError(err?.response?.data?.detail || "Save failed.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      padding: 16, zIndex: 300,
+    }} onClick={onCancelAll}>
+      <form onClick={(e) => e.stopPropagation()} onSubmit={submit} style={{
+        background: "white", borderRadius: 12, width: "100%", maxWidth: 640,
+        maxHeight: "92vh", overflowY: "auto",
+        boxShadow: "0 20px 40px rgba(0,0,0,0.15)",
+      }}>
+        <div style={{
+          background: "linear-gradient(135deg,#7A1022,#C8102E)",
+          color: "white", padding: "16px 22px",
+          borderRadius: "12px 12px 0 0",
+        }}>
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 2,
+                        color: "#F4B324", textTransform: "uppercase" }}>
+            Review Parsed Resume · {position} of {total}
+          </div>
+          <div style={{ fontSize: 17, fontWeight: 900, marginTop: 3 }}>
+            {item.filename}
+          </div>
+          {item.existing_id && (
+            <div style={{ fontSize: 11, marginTop: 4, opacity: 0.85 }}>
+              An existing candidate ({item.existing_name}) shares this email —
+              saving will update that record.
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding: 20 }}>
+          <div style={{
+            background: "#fef3c7", color: "#854d0e",
+            padding: "8px 12px", borderRadius: 8, fontSize: 11,
+            marginBottom: 14, border: "1px solid #fde68a",
+          }}>
+            The parser guesses these fields from the resume. Please review
+            and correct anything wrong before saving.
+          </div>
+
+          <RvRow>
+            <RvField label="Full name *"><input type="text" value={form.full_name}
+              onChange={set("full_name")} style={fInput} /></RvField>
+            <RvField label="Email"><input type="email" value={form.email}
+              onChange={set("email")} style={fInput} /></RvField>
+          </RvRow>
+          <RvRow>
+            <RvField label="Phone"><input type="text" value={form.phone}
+              onChange={set("phone")} style={fInput} /></RvField>
+            <RvField label="Location"><input type="text" value={form.location}
+              onChange={set("location")} style={fInput} /></RvField>
+          </RvRow>
+          <RvRow>
+            <RvField label="LinkedIn"><input type="text" value={form.linkedin}
+              onChange={set("linkedin")} style={fInput}
+              placeholder="linkedin.com/in/…" /></RvField>
+            <RvField label="Experience (years)"><input type="number" step="0.1"
+              value={form.total_experience_years}
+              onChange={set("total_experience_years")} style={fInput} /></RvField>
+          </RvRow>
+          <RvField label="Highest qualification"><input type="text"
+            value={form.highest_qualification}
+            onChange={set("highest_qualification")} style={fInput} /></RvField>
+          <RvField label="Skills (comma separated)"><textarea rows={2}
+            value={form.skills} onChange={set("skills")}
+            style={{ ...fInput, resize: "vertical", fontFamily: "inherit" }} /></RvField>
+          <RvField label="Languages (comma separated)"><input type="text"
+            value={form.languages} onChange={set("languages")}
+            style={fInput} /></RvField>
+          <RvField label="Certifications (comma separated)"><input type="text"
+            value={form.certifications} onChange={set("certifications")}
+            style={fInput} /></RvField>
+
+          {(p.education?.length > 0 || p.work_experience?.length > 0) && (
+            <div style={{
+              background: "#f8fafc", padding: 10, borderRadius: 8,
+              fontSize: 11, color: "#64748b", marginTop: 8,
+              border: "1px solid #e2e8f0",
+            }}>
+              Also captured (auto-saved): {p.education?.length || 0} education
+              entries, {p.work_experience?.length || 0} work experience entries,
+              {" "}{p.projects?.length || 0} projects. You can edit these later
+              from the candidate detail page.
+            </div>
+          )}
+
+          {error && (
+            <div style={{
+              background: "#fef2f2", color: "#991b1b", padding: "9px 12px",
+              borderRadius: 8, fontSize: 12, fontWeight: 600, marginTop: 10,
+              border: "1px solid #fecaca",
+            }}>
+              {error}
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 8, justifyContent: "space-between",
+                        marginTop: 16, flexWrap: "wrap" }}>
+            <button type="button" onClick={onCancelAll} style={{
+              background: "white", color: "#64748b",
+              border: "1px solid #e2e8f0", padding: "8px 15px",
+              borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer",
+            }}>Cancel all</button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" onClick={onSkip} style={{
+                background: "white", color: "#64748b",
+                border: "1px solid #e2e8f0", padding: "8px 15px",
+                borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer",
+              }}>Skip this resume</button>
+              <button type="submit" disabled={saving} style={{
+                background: "#C8102E", color: "white", border: "none",
+                padding: "8px 18px", borderRadius: 6, fontSize: 12,
+                fontWeight: 700, cursor: saving ? "not-allowed" : "pointer",
+                opacity: saving ? 0.7 : 1,
+              }}>
+                {saving ? "Saving…" : position < total ? "Save & next" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+
+function RvRow({ children }) {
+  const count = Array.isArray(children) ? children.length : 1;
+  return (
+    <div style={{ display: "grid", gap: 10, marginBottom: 10,
+                  gridTemplateColumns: `repeat(${count}, 1fr)` }}>
+      {children}
+    </div>
+  );
+}
+
+function RvField({ label, children }) {
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <label style={{
+        fontSize: 10, fontWeight: 800, color: "#64748b",
+        letterSpacing: 0.6, textTransform: "uppercase",
+        display: "block", marginBottom: 4,
+      }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+const fInput = {
+  width: "100%", padding: "8px 11px",
+  border: "1px solid #e2e8f0", borderRadius: 7, fontSize: 13,
+  outline: "none", color: "#0f172a", background: "#f8fafc",
+  boxSizing: "border-box",
+};
 
 
 function CandidateCard({ c, onOpen }) {

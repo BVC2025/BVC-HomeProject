@@ -197,10 +197,9 @@ function Login() {
         localStorage.removeItem("pending_yesterday");
       }
 
-      // Employee landing: RoleBasedLanding at "/" gates on profile
-      // completion → renders the EmployeeProfileForm on first login
-      // and the Leave & Permission page on every subsequent login.
-      navigate("/");
+      // Employee landing: go straight to the sidebar-driven ESS
+      // dashboard (RoleBasedLanding → EmployeeDashboard, mainTab="home").
+      navigate("/", { replace: true });
 
     } catch (err) {
 

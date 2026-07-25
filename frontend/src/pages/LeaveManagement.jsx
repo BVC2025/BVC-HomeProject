@@ -247,22 +247,22 @@ function LeaveManagement() {
   // ----- History tab: server-side filters + pagination -----
   const [historyFilters, setHistoryFilters] = useState({
     start_date: "",
-    end_date:   "",
+    end_date: "",
     employee_id: "",
-    leave_type:  "",
+    leave_type: "",
     department_id: "",
   });
   const [historyTotal, setHistoryTotal] = useState(0);
-  const [historyPage, setHistoryPage]   = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
   const [historyPageSize] = useState(50);
 
-  const [employees, setEmployees]     = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [departments, setDepartments] = useState([]);
 
   // Fetch dropdown sources once
   useEffect(() => {
-    API.get("/employees").then((r) => setEmployees(r.data || [])).catch(() => {});
-    API.get("/departments").then((r) => setDepartments(r.data || [])).catch(() => {});
+    API.get("/employees").then((r) => setEmployees(r.data || [])).catch(() => { });
+    API.get("/departments").then((r) => setDepartments(r.data || [])).catch(() => { });
   }, []);
 
   const matchesEmp = (r) => {
@@ -286,14 +286,14 @@ function LeaveManagement() {
       // Build /leave/all params from server-side filters + pagination
       const allParams = {
         vendor_id: 1,
-        limit:  historyPageSize,
+        limit: historyPageSize,
         offset: (historyPage - 1) * historyPageSize,
       };
-      if (statusFilter)               allParams.status        = statusFilter;
-      if (historyFilters.start_date)  allParams.start_date    = historyFilters.start_date;
-      if (historyFilters.end_date)    allParams.end_date      = historyFilters.end_date;
-      if (historyFilters.employee_id) allParams.employee_id   = historyFilters.employee_id;
-      if (historyFilters.leave_type)  allParams.leave_type    = historyFilters.leave_type;
+      if (statusFilter) allParams.status = statusFilter;
+      if (historyFilters.start_date) allParams.start_date = historyFilters.start_date;
+      if (historyFilters.end_date) allParams.end_date = historyFilters.end_date;
+      if (historyFilters.employee_id) allParams.employee_id = historyFilters.employee_id;
+      if (historyFilters.leave_type) allParams.leave_type = historyFilters.leave_type;
       if (historyFilters.department_id) allParams.department_id = historyFilters.department_id;
 
       const [pRes, aRes, sRes] = await Promise.all([
@@ -332,7 +332,6 @@ function LeaveManagement() {
 
     <div className={styles.page}>
 
-
       {/* ── Page banner — clean white, thin red accent ── */}
       <div className={styles.pageBanner}>
         <div className={styles.pageBannerLeft}>
@@ -356,15 +355,9 @@ function LeaveManagement() {
       {summary && (
         <div className={styles.tilesGrid}>
           <Tile label="Pending" value={summary.pending} sub="needs MD action" color="#f59e0b" />
-
           <Tile label="Approved" value={summary.approved} sub="this period" color="#10b981" />
           <Tile label="Rejected" value={summary.rejected} sub="declined" color="#ef4444" />
           <Tile label="Cancelled" value={summary.cancelled} sub="withdrawn" color="#94a3b8" />
-
-          <Tile label="Approved" value={summary.approved} color="#10b981" />
-          <Tile label="Rejected" value={summary.rejected} color="#ef4444" />
-          <Tile label="Cancelled" value={summary.cancelled} color="#94a3b8" />
-
           <Tile label="On Leave Today" value={summary.on_leave_today} sub="currently absent" color="#7c3aed" />
         </div>
       )}
@@ -372,9 +365,9 @@ function LeaveManagement() {
       {/* Tabs */}
       <div className={styles.tabBar}>
         {[
-          { key: "pending",   label: `Pending (${pending.length})` },
-          { key: "all",       label: "All Requests" },
-          { key: "balances",  label: "Balances" },
+          { key: "pending", label: `Pending (${pending.length})` },
+          { key: "all", label: "All Requests" },
+          { key: "balances", label: "Balances" },
         ].map((t) => (
           <button
             key={t.key}
@@ -389,15 +382,11 @@ function LeaveManagement() {
       {/* Employee filter */}
       <div className={styles.filterRow}>
         <div className={styles.searchWrap}>
-
           <span className={styles.searchIcon}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" />
             </svg>
           </span>
-
-          <span className={styles.searchIcon}>🔍</span>
-
           <input
             value={empQuery}
             onChange={(e) => setEmpQuery(e.target.value)}
@@ -408,15 +397,13 @@ function LeaveManagement() {
             <button onClick={() => setEmpQuery("")} title="Clear filter" className={styles.clearBtn}>✕</button>
           )}
         </div>
-        {
-          empQuery.trim() && (
-            <span className={styles.filterResult}>
-              {(tab === "pending" ? pending : all).filter(matchesEmp).length} match
-              {(tab === "pending" ? pending : all).filter(matchesEmp).length === 1 ? "" : "es"} for "{empQuery.trim()}"
-            </span>
-          )
-        }
-      </div >
+        {empQuery.trim() && (
+          <span className={styles.filterResult}>
+            {(tab === "pending" ? pending : all).filter(matchesEmp).length} match
+            {(tab === "pending" ? pending : all).filter(matchesEmp).length === 1 ? "" : "es"} for "{empQuery.trim()}"
+          </span>
+        )}
+      </div>
 
       {tab === "pending" && (
         <div className={styles.tabContent}>
@@ -424,84 +411,82 @@ function LeaveManagement() {
         </div>
       )}
 
-      {
-        tab === "all" && (
-
-          <div className={styles.tabContent}>
-            {/* ===== Server-side history filter bar ===== */}
-            <div className={styles.historyFilterBar}>
-              <div className={styles.histField}>
-                <label>From</label>
-                <input
-                  type="date"
-                  value={historyFilters.start_date}
-                  onChange={(e) => {
-                    setHistoryPage(1);
-                    setHistoryFilters({ ...historyFilters, start_date: e.target.value });
-                  }}
-                />
-              </div>
-              <div className={styles.histField}>
-                <label>To</label>
-                <input
-                  type="date"
-                  value={historyFilters.end_date}
-                  onChange={(e) => {
-                    setHistoryPage(1);
-                    setHistoryFilters({ ...historyFilters, end_date: e.target.value });
-                  }}
-                />
-              </div>
-              <div className={styles.histField}>
-                <label>Employee</label>
-                <select
-                  value={historyFilters.employee_id}
-                  onChange={(e) => {
-                    setHistoryPage(1);
-                    setHistoryFilters({ ...historyFilters, employee_id: e.target.value });
-                  }}
-                >
-                  <option value="">All employees</option>
-                  {employees.map((emp) => (
-                    <option key={emp.ID} value={emp.ID}>
-                      {emp.NAME} ({emp.EMPLOYEE_CODE || "—"})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className={styles.histField}>
-                <label>Type</label>
-                <select
-                  value={historyFilters.leave_type}
-                  onChange={(e) => {
-                    setHistoryPage(1);
-                    setHistoryFilters({ ...historyFilters, leave_type: e.target.value });
-                  }}
-                >
-                  <option value="">All types</option>
-                  {["CASUAL", "SICK", "UNPAID", "LOP", "PERMISSION", "MATERNITY"].map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              </div>
-              <div className={styles.histField}>
-                <label>Department</label>
-                <select
-                  value={historyFilters.department_id}
-                  onChange={(e) => {
-                    setHistoryPage(1);
-                    setHistoryFilters({ ...historyFilters, department_id: e.target.value });
-                  }}
-                >
-                  <option value="">All departments</option>
-                  {departments.map((d) => (
-                    <option key={d.ID} value={d.ID}>{d.NAME}</option>
-                  ))}
-                </select>
-              </div>
-              {(historyFilters.start_date || historyFilters.end_date ||
-                historyFilters.employee_id || historyFilters.leave_type ||
-                historyFilters.department_id) && (
+      {tab === "all" && (
+        <div className={styles.tabContent}>
+          {/* ===== Server-side history filter bar ===== */}
+          <div className={styles.historyFilterBar}>
+            <div className={styles.histField}>
+              <label>From</label>
+              <input
+                type="date"
+                value={historyFilters.start_date}
+                onChange={(e) => {
+                  setHistoryPage(1);
+                  setHistoryFilters({ ...historyFilters, start_date: e.target.value });
+                }}
+              />
+            </div>
+            <div className={styles.histField}>
+              <label>To</label>
+              <input
+                type="date"
+                value={historyFilters.end_date}
+                onChange={(e) => {
+                  setHistoryPage(1);
+                  setHistoryFilters({ ...historyFilters, end_date: e.target.value });
+                }}
+              />
+            </div>
+            <div className={styles.histField}>
+              <label>Employee</label>
+              <select
+                value={historyFilters.employee_id}
+                onChange={(e) => {
+                  setHistoryPage(1);
+                  setHistoryFilters({ ...historyFilters, employee_id: e.target.value });
+                }}
+              >
+                <option value="">All employees</option>
+                {employees.map((emp) => (
+                  <option key={emp.ID} value={emp.ID}>
+                    {emp.NAME} ({emp.EMPLOYEE_CODE || "—"})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className={styles.histField}>
+              <label>Type</label>
+              <select
+                value={historyFilters.leave_type}
+                onChange={(e) => {
+                  setHistoryPage(1);
+                  setHistoryFilters({ ...historyFilters, leave_type: e.target.value });
+                }}
+              >
+                <option value="">All types</option>
+                {["CASUAL", "SICK", "UNPAID", "LOP", "PERMISSION", "MATERNITY"].map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </div>
+            <div className={styles.histField}>
+              <label>Department</label>
+              <select
+                value={historyFilters.department_id}
+                onChange={(e) => {
+                  setHistoryPage(1);
+                  setHistoryFilters({ ...historyFilters, department_id: e.target.value });
+                }}
+              >
+                <option value="">All departments</option>
+                {departments.map((d) => (
+                  <option key={d.ID} value={d.ID}>{d.NAME}</option>
+                ))}
+              </select>
+            </div>
+            {(historyFilters.start_date || historyFilters.end_date ||
+              historyFilters.employee_id || historyFilters.leave_type ||
+              historyFilters.department_id) && (
                 <button
                   type="button"
                   className={styles.histClear}
@@ -514,57 +499,55 @@ function LeaveManagement() {
                   }}
                 >✕ Clear</button>
               )}
-              <div className={styles.histCount}>
-                {historyTotal} record{historyTotal === 1 ? "" : "s"}
-              </div>
+            <div className={styles.histCount}>
+              {historyTotal} record{historyTotal === 1 ? "" : "s"}
             </div>
-
-            {/* Status chips (kept for quick toggling) */}
-            <div className={styles.statusFilterRow}>
-              {["", "PENDING_APPROVAL", "APPROVED", "REJECTED", "CANCELLED"].map((s) => (
-                <button
-                  key={s || "all"}
-                  onClick={() => { setHistoryPage(1); setStatusFilter(s); }}
-                  className={`${styles.statusBtn}${statusFilter === s ? ` ${styles.statusBtnActive}` : ""}`}
-                >
-                  {s ? s.replaceAll("_", " ") : "All"}
-                </button>
-
-              ))}
-            </div>
-
-            <LeaveTable rows={all.filter(matchesEmp)} onChanged={fetchAll} showActions={true} />
-
-            {/* ===== Pagination (server-side) ===== */}
-            {historyTotal > historyPageSize && (
-              <div className={styles.histPager}>
-                <button
-                  type="button"
-                  disabled={historyPage <= 1}
-                  onClick={() => setHistoryPage(historyPage - 1)}
-                  className={styles.histPagerBtn}
-                >← Previous</button>
-                <span className={styles.histPagerInfo}>
-                  Page {historyPage} of {Math.max(1, Math.ceil(historyTotal / historyPageSize))}
-                </span>
-                <button
-                  type="button"
-                  disabled={historyPage * historyPageSize >= historyTotal}
-                  onClick={() => setHistoryPage(historyPage + 1)}
-                  className={styles.histPagerBtn}
-                >Next →</button>
-              </div>
-            )}
           </div>
-        )
-      }
+
+          {/* Status chips (kept for quick toggling) */}
+          <div className={styles.statusFilterRow}>
+            {["", "PENDING_APPROVAL", "APPROVED", "REJECTED", "CANCELLED"].map((s) => (
+              <button
+                key={s || "all"}
+                onClick={() => { setHistoryPage(1); setStatusFilter(s); }}
+                className={`${styles.statusBtn}${statusFilter === s ? ` ${styles.statusBtnActive}` : ""}`}
+              >
+                {s ? s.replaceAll("_", " ") : "All"}
+              </button>
+            ))}
+          </div>
+
+          <LeaveTable rows={all.filter(matchesEmp)} onChanged={fetchAll} showActions={true} />
+
+          {/* ===== Pagination (server-side) ===== */}
+          {historyTotal > historyPageSize && (
+            <div className={styles.histPager}>
+              <button
+                type="button"
+                disabled={historyPage <= 1}
+                onClick={() => setHistoryPage(historyPage - 1)}
+                className={styles.histPagerBtn}
+              >← Previous</button>
+              <span className={styles.histPagerInfo}>
+                Page {historyPage} of {Math.max(1, Math.ceil(historyTotal / historyPageSize))}
+              </span>
+              <button
+                type="button"
+                disabled={historyPage * historyPageSize >= historyTotal}
+                onClick={() => setHistoryPage(historyPage + 1)}
+                className={styles.histPagerBtn}
+              >Next →</button>
+            </div>
+          )}
+        </div>
+      )}
 
       {tab === "balances" && (
         <div className={styles.tabContent}>
           <BalanceOverview />
         </div>
       )}
-    </div >
+    </div>
   );
 }
 
@@ -598,7 +581,7 @@ function BalanceOverview() {
   // Quick "running low" flag — < 25% available across all paid types
   const isLow = (emp) => {
     const total = (emp.casual.total + emp.sick.total) +
-                  (emp.casual.carryover + emp.sick.carryover);
+      (emp.casual.carryover + emp.sick.carryover);
     const avail = emp.casual.available + emp.sick.available;
     if (total <= 0) return false;
     return (avail / total) < 0.25;
@@ -638,7 +621,7 @@ function BalanceOverview() {
             )}
             {data.rows.map((emp) => (
               <tr key={emp.employee_id}
-                  className={isLow(emp) ? styles.balanceRowLow : ""}>
+                className={isLow(emp) ? styles.balanceRowLow : ""}>
                 <td>
                   <div className={styles.balanceEmpName}>{emp.employee_name}</div>
                   <div className={styles.balanceEmpCode}>{emp.employee_code || "—"}</div>
@@ -677,8 +660,8 @@ function BalanceCell({ data, hideIfZero }) {
     return <td className={styles.balanceCellEmpty}>—</td>;
   }
   const total = data.total + data.carryover;
-  const pct   = total ? Math.min(100, (data.used / total) * 100) : 0;
-  const tier  = pct >= 80 ? "high" : pct >= 50 ? "mid" : "low";
+  const pct = total ? Math.min(100, (data.used / total) * 100) : 0;
+  const tier = pct >= 80 ? "high" : pct >= 50 ? "mid" : "low";
   return (
     <td>
       <div className={styles.balanceCellLine}>
@@ -700,18 +683,18 @@ function BalanceCell({ data, hideIfZero }) {
 function AdjustmentModal({ employee, year, onClose, onSaved }) {
 
   const [leaveType, setLeaveType] = useState("CASUAL");
-  const [delta,     setDelta]     = useState("");
-  const [reason,    setReason]    = useState("");
-  const [notes,     setNotes]     = useState("");
-  const [busy,      setBusy]      = useState(false);
-  const [error,     setError]     = useState("");
-  const [history,   setHistory]   = useState([]);
+  const [delta, setDelta] = useState("");
+  const [reason, setReason] = useState("");
+  const [notes, setNotes] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [history, setHistory] = useState([]);
 
   // Load prior adjustments for context
   useEffect(() => {
     API.get(`/leave/balance/${employee.employee_id}/adjustments`)
       .then((r) => setHistory(r.data || []))
-      .catch(() => {});
+      .catch(() => { });
   }, [employee.employee_id]);
 
   const submit = async () => {
@@ -725,7 +708,7 @@ function AdjustmentModal({ employee, year, onClose, onSaved }) {
         leave_type: leaveType,
         delta_days: num,
         reason: reason.trim(),
-        notes:  notes.trim() || null,
+        notes: notes.trim() || null,
         year,
       });
       onSaved?.();
@@ -816,7 +799,7 @@ function AdjustmentModal({ employee, year, onClose, onSaved }) {
         <div className={styles.adjFooter}>
           <button onClick={onClose} className={styles.adjCancelBtn}>Cancel</button>
           <button onClick={submit} disabled={busy}
-                  className={styles.adjSubmitBtn}>
+            className={styles.adjSubmitBtn}>
             {busy ? "Saving…" : "Apply adjustment"}
           </button>
         </div>

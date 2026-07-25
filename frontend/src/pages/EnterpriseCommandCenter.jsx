@@ -101,8 +101,6 @@ const T = {
 const FONT_BODY = "var(--font, 'Segoe UI', system-ui, -apple-system, sans-serif)";
 const FONT_HEAD = "var(--font, 'Segoe UI', system-ui, -apple-system, sans-serif)";
 
-
-
 // =====================================================================
 // Reusable atoms
 // =====================================================================
@@ -376,33 +374,50 @@ function ExecKPI({ label, value, accent, delta = 0, deltaLabel = "vs last month"
   return (
     <div
       onClick={onClick}
-      className={`${styles.execKpiCard}${onClick ? ` ${styles.clickable}` : ""}`}
+      style={{
+        background: T.card,
+        border: `1px solid ${T.border}`,
+        borderRadius: 14,
+        padding: "18px 20px",
+        cursor: onClick ? "pointer" : "default",
+        transition: "transform 0.15s, box-shadow 0.15s",
+        display: "flex",
+        alignItems: "center",
+        gap: 14
+      }}
+      onMouseEnter={(e) => {
+        if (!onClick) return;
+        e.currentTarget.style.boxShadow = "0 10px 26px rgba(11,36,71,0.10)";
+        e.currentTarget.style.transform = "translateY(-2px)";
+      }}
+      onMouseLeave={(e) => {
+        if (!onClick) return;
+        e.currentTarget.style.boxShadow = "none";
+        e.currentTarget.style.transform = "translateY(0)";
+      }}
     >
-      {/* Side accent bar — vertical, BVC24-style */}
-      <div className={styles.execKpiAccentBar} style={{ background: accent }} />
-
-      <div className={styles.execKpiLabel}>
-        {label}
+      {/* Left — circular tinted icon */}
+      <div style={{
+        width: 44, height: 44, borderRadius: 22,
+        background: accent + "1a",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        flexShrink: 0
+      }}>
+        <KpiIcon name={iconName} color={accent} />
       </div>
 
-      <div className={styles.execKpiValue}>
-        {value}
-      </div>
-
-      {delta !== undefined && delta !== null && delta !== 0 && (
-        <div className={styles.execKpiDeltaRow}>
-          <span
-            className={styles.execKpiDeltaBadge}
-            style={{
-              background: positive ? T.greenSoft : T.orangeSoft,
-              color: positive ? "#047857" : T.orangeDeep
-            }}
-          >
-            {positive ? "↑" : "↓"} {Math.abs(delta)}%
-          </span>
-          <span className={styles.execKpiDeltaLabel}>
-            {deltaLabel}
-          </span>
+      {/* Middle — label + big value */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: 1.2,
+          color: T.muted,
+          textTransform: "uppercase",
+          fontFamily: FONT_BODY,
+          marginBottom: 4
+        }}>
+          {label}
         </div>
       )}
     </div>
@@ -417,10 +432,10 @@ function ExecKPIRow({ stats }) {
   // Four headline metrics only — the ones a CEO opens the app to see.
   // Inventory + Employees moved to their dedicated sections below.
   const items = [
-    { label: "Revenue · MTD",   value: inrShort(stats.monthly_revenue || 0), delta: stats.revenue_delta    || 0, accent: T.red,     to: "/sales-orders" },
-    { label: "Customers",       value: stats.total_customers ?? 0,           delta: stats.customers_delta  || 0, accent: T.gold,    to: "/customers" },
-    { label: "Active Orders",   value: stats.total_sales_orders ?? 0,        delta: stats.orders_delta     || 0, accent: T.slate,   to: "/sales-orders" },
-    { label: "Production WOs",  value: stats.active_wos ?? 0,                delta: stats.production_delta || 0, accent: T.redDeep, to: "/production" }
+    { label: "Revenue · MTD", value: inrShort(stats.monthly_revenue || 0), accent: T.red, iconName: "rupee", trend: stats.revenue_trend, to: "/sales-orders" },
+    { label: "Customers", value: stats.total_customers ?? 0, accent: T.amber, iconName: "users", trend: stats.customers_trend, to: "/customers" },
+    { label: "Active Orders", value: stats.total_sales_orders ?? 0, accent: T.blue, iconName: "bag", trend: stats.orders_trend, to: "/sales-orders" },
+    { label: "Production WOs", value: stats.active_wos ?? 0, accent: T.purple, iconName: "factory", trend: stats.production_trend, to: "/production" }
   ];
 
   return (
@@ -564,12 +579,12 @@ function ExecKPIRow({ stats }) {
       function StatBars({color}) {
 
   return (
-      <svg width="14" height="14" viewBox="0 0 24 24"
-        fill="none" stroke={color} strokeWidth="2.4"
-        strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
-      </svg>
-      );
+    <svg width="14" height="14" viewBox="0 0 24 24"
+      fill="none" stroke={color} strokeWidth="2.4"
+      strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+    </svg>
+  );
 }
 
 
@@ -631,9 +646,47 @@ function ExecKPIRow({ stats }) {
       <div className={styles.healthQuadCard}>
         <div className={styles.healthQuadTopBar} style={{ background: accent }} />
 
-        <div className={styles.healthQuadHeader}>
-          <div className={styles.healthQuadMarker} style={{ background: accent }}>
-            {marker}
+      <div className={styles.healthQuadHeader}>
+        <div className={styles.healthQuadMarker} style={{ background: accent }}>
+          {marker}
+        </div>
+        <div className={styles.healthQuadTitle}>
+          {title}
+        </div>
+      </div>
+
+      <div className={styles.healthQuadDataGrid}>
+        {items.map((it) => (
+
+          <div key={it.label}>
+            <div className={styles.healthQuadMetricLabel}>
+              {it.label}
+            </div>
+
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              marginTop: 4
+            }}>
+              <span style={{
+                width: 26, height: 26, borderRadius: 7,
+                background: accent + "1a",
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0
+              }}>
+                <StatBars color={accent} />
+              </span>
+              <span style={{
+                fontSize: 22, fontWeight: 800, color: T.text,
+                letterSpacing: -0.3, fontFamily: FONT_HEAD, lineHeight: 1
+              }}>
+                {it.value ?? "—"}
+              </span>
+            </div>
+            {it.sub && (
+              <div style={{ fontSize: 11, color: T.muted, marginTop: 4, marginLeft: 34 }}>
+                {it.sub}
+              </div>
+            )}
           </div>
           <div className={styles.healthQuadTitle}>
             {title}
@@ -941,32 +994,60 @@ function ExecKPIRow({ stats }) {
   const utilColor = utilization >= 80 ? T.green : utilization >= 50 ? T.amber : T.red;
 
   const segs = [
-    { label: "Running",     value: running,     color: T.green, iconName: "play"    },
-    { label: "Idle",        value: idle,        color: T.amber, iconName: "pause"   },
-    { label: "Maintenance", value: maintenance, color: T.blue,  iconName: "gear"    },
-    { label: "Breakdown",   value: breakdown,   color: T.red,   iconName: "warning" }
+    { label: "Running", value: running, color: T.green, iconName: "play" },
+    { label: "Idle", value: idle, color: T.amber, iconName: "pause" },
+    { label: "Maintenance", value: maintenance, color: T.blue, iconName: "gear" },
+    { label: "Breakdown", value: breakdown, color: T.red, iconName: "warning" }
   ];
 
-        return (
-        <Card>
-          <SectionTitle
-            eyebrow="Shop Floor"
-            title="Machine Utilization"
-            action={
-              <div className={styles.factoryUtilLabel} style={{ color: utilColor }}>
-                {utilization}<span className={styles.factoryUtilUnit}>% util.</span>
-              </div>
-            }
-          />
+  return (
+    <Card>
+      <SectionTitle
+        eyebrow="Shop Floor"
+        title="Machine Utilization"
+        action={
+          <div className={styles.factoryUtilLabel} style={{ color: utilColor }}>
+            {utilization}<span className={styles.factoryUtilUnit}>% util.</span>
+          </div>
+        }
+      />
 
-          {/* Stacked horizontal bar */}
-          <div className={styles.factoryBarTrack}>
-            {segs.map((s) => total > 0 && s.value > 0 && (
-              <div key={s.label} style={{
-                width: `${(s.value / total) * 100}%`,
-                background: s.color
-              }} />
-            ))}
+      {/* Stacked horizontal bar */}
+      <div className={styles.factoryBarTrack}>
+        {segs.map((s) => total > 0 && s.value > 0 && (
+          <div key={s.label} style={{
+            width: `${(s.value / total) * 100}%`,
+            background: s.color
+          }} />
+        ))}
+      </div>
+
+      <div className={styles.factoryMachineGrid}>
+        {segs.map((s) => (
+
+          <div key={s.label} style={{
+            border: `1px solid ${T.border}`, borderRadius: 10, padding: "10px 12px",
+            display: "flex", alignItems: "center", gap: 10
+          }}>
+            <span style={{
+              width: 30, height: 30, borderRadius: 15,
+              background: s.color + "1a",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0
+            }}>
+              <MachineIcon name={s.iconName} color={s.color} />
+            </span>
+            <div>
+              <div style={{
+                fontSize: 10, fontWeight: 700, color: T.muted, letterSpacing: 0.8,
+                textTransform: "uppercase", fontFamily: FONT_BODY
+              }}>
+                {s.label}
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: T.text, fontFamily: FONT_HEAD, lineHeight: 1.1 }}>
+                {s.value}
+              </div>
+            </div>
           </div>
 
           <div className={styles.factoryMachineGrid}>
@@ -1648,9 +1729,9 @@ function ExecKPIRow({ stats }) {
             setActivity(Array.isArray(act) ? act : (act?.items || act?.events || []));
 
       // Top performers: backend returns {categories: [...] }
-            const perfRows = Array.isArray(perf)
-            ? perf
-            : (perf?.categories || perf?.rows || []);
+      const perfRows = Array.isArray(perf)
+        ? perf
+        : (perf?.categories || perf?.rows || []);
 
       setPerformers(perfRows.map((p) => ({
               name: p.name || p.NAME,
@@ -1662,7 +1743,7 @@ function ExecKPIRow({ stats }) {
       })));
 
       // Approvals: buckets are ARRAYS — convert to {count} for the UI
-            const rawBuckets = buck?.buckets || { };
+      const rawBuckets = buck?.buckets || {};
 
             const formatted = { };
 
@@ -1724,25 +1805,31 @@ function ExecKPIRow({ stats }) {
                 <FactoryFloor factory={factory} />
               </div>
 
-              {/* Approval + CRM funnel side-by-side */}
-              <div className={`${styles.twoColGrid} ${styles.twoColGrid12x1}`}>
-                <ApprovalCenter buckets={buckets} />
-                <CRMFunnel stats={stats} />
-              </div>
+      {/* CRM funnel */}
+      <div className={styles.singleColSection}>
 
-              <div className={styles.singleColSection}>
-                <InventoryCenter stats={stats} lowStock={lowStock} />
-              </div>
+        {/* Approval + CRM funnel side-by-side */}
+        <div className={`${styles.twoColGrid} ${styles.twoColGrid12x1}`}>
+          <ApprovalCenter buckets={buckets} />
 
-              {/* Sections below temporarily hidden to keep the dashboard focused on
-          the day-one essentials. Restore by uncommenting:
-            <ProductionPipeline flow={flow} />
-            <MemoSummaryCard stats={memoStats} />
-            <EmployeeLeaderboard performers={performers} />
-            <ExecutiveAnalytics />
-       */}
+          <CRMFunnel stats={stats} />
+        </div>
 
-              <QuickActionsFAB />
-            </div>
-            );
+        <div className={styles.singleColSection}>
+          <InventoryCenter stats={stats} lowStock={lowStock} />
+        </div>
+
+        {/* Sections below temporarily hidden to keep the dashboard focused on
+            the day-one essentials. Restore by uncommenting:
+              <ProductionPipeline flow={flow} />
+              <MemoSummaryCard stats={memoStats} />
+              <EmployeeLeaderboard performers={performers} />
+              <ExecutiveAnalytics />
+        */}
+
+        {/* QuickActionsFAB removed — the VoiceAssistant now occupies
+            the bottom-right floating slot on the admin dashboard. */}
+      </div>
+    </div>
+  );
 }

@@ -1,173 +1,627 @@
-/* MyAttendancePanel.module.css */
+/* ==================================================================
+   MyAttendancePanel — modern attendance page for the employee portal.
+   Cream background page, elevated white card, tight typography,
+   colour restricted to accent moments (red for Check In, amber for
+   Late, purple for OT).
+   ================================================================== */
 
-/* ---- Card shell ---- */
-.card {
-  background: var(--card-bg);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  padding: 22px;
-  margin-bottom: 16px;
-}
-
-/* ---- Card header ---- */
-.cardHeader {
+.wrap {
   display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 4px 2px 32px;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #1e293b;
+}
+
+
+/* ==================================================================
+   Main card
+   ================================================================== */
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px 26px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+
+/* ==================================================================
+   Header — TODAY eyebrow, full date, status chip
+   ================================================================== */
+
+.head {
+  display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.sectionLabel {
-  text-transform: uppercase;
-  font-size: 11px;
-  letter-spacing: 1.2px;
-  font-weight: var(--fw-bold);
-  color: var(--clr-primary);
-  margin: 0;
-}
-
-/* ---- Badge ---- */
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  border-radius: var(--radius-full);
-  font-size: 12px;
-  font-weight: var(--fw-bold);
-  white-space: nowrap;
-}
-
-.badgeDot {
-  width: 7px;
-  height: 7px;
-  border-radius: var(--radius-full);
-  display: inline-block;
-}
-
-/* ---- Stat grid ---- */
-.statGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
 }
 
-.statGrid2 {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 10px;
-  margin-top: 14px;
+.headLeft {
+  min-width: 0;
 }
 
-/* ---- Stat tile ---- */
-.statTile {
-  background: var(--surface, #fafbfc);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 14px;
-}
-
-.statTileLabel {
-  font-size: 10px;
-  font-weight: var(--fw-bold);
-  color: var(--text-muted);
+.eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
   text-transform: uppercase;
-  letter-spacing: 0.7px;
+  color: #94a3b8;
   margin-bottom: 4px;
 }
 
-.statTileValue {
-  font-size: 16px;
-  font-weight: var(--fw-extrabold);
-  line-height: 1.25;
-  word-break: break-word;
+.date {
+  font-size: 19px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.3px;
+  line-height: 1.2;
 }
 
-.statTileValueMono {
-  font-size: 14px;
-  font-weight: var(--fw-extrabold);
-  line-height: 1.25;
-  word-break: break-word;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  flex-shrink: 0;
 }
 
-/* ---- Action buttons row ---- */
-.actionRow {
+.chip::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.chip_present {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+
+.chip_late {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fcd34d;
+}
+
+
+/* ==================================================================
+   Time stats — four columns:
+     Check-in · Check-out · Working hours · OT working hours
+   ================================================================== */
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.stat {
+  background: #f8fafc;
+  border: 1px solid #eef2f7;
+  border-radius: 12px;
+  padding: 14px 16px;
+  min-width: 0;
+}
+
+.statLabel {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+
+.statValue {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.3px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.statValueOt {
+  color: #7c3aed;
+}
+
+/* "Late by 15 minutes" caption under Check-in when applicable */
+.statNote {
+  margin-top: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #b45309;
+}
+
+
+/* ==================================================================
+   OT summary block — appears only when OT started/completed
+   ================================================================== */
+
+.otBlock {
+  background: #f5f3ff;
+  border: 1px solid #e9d5ff;
+  border-radius: 12px;
+  padding: 14px 16px 16px;
+}
+
+.otHead {
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
 }
 
-.actionBtn {
-  flex: 1 1 180px;
-  min-height: 48px;
-  padding: 12px 18px;
-  border: none;
-  border-radius: 10px;
-  color: #fff;
-  font-size: 15px;
-  font-weight: var(--fw-bold);
-  cursor: pointer;
-  transition: opacity 0.2s;
+.otEyebrow {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #7c3aed;
 }
-.actionBtn:disabled {
-  background: var(--border, #cbd5e1) !important;
-  box-shadow: none !important;
+
+.otTotalPill {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #7c3aed;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.otStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.otStats .stat {
+  background: #ffffff;
+  border-color: #e9d5ff;
+}
+
+
+/* ==================================================================
+   Action tiles — the 4-stage lifecycle buttons
+   ================================================================== */
+
+.actionGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.action {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+  text-align: left;
+  border: 1px solid transparent;
+  transition: transform 0.1s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  min-height: 68px;
+}
+
+.action:disabled {
   cursor: not-allowed;
 }
 
-/* ---- Notice banner ---- */
-.noticeOk {
-  margin-top: 12px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  /* success — status chip exception */
-  background: #dcfce7;
-  color: #166534;
-  border: 1px solid #86efac;
-  font-size: 13px;
-  font-weight: 600;
+.actionIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.noticeErr {
-  margin-top: 12px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  /* error — status chip exception */
-  background: #fee2e2;
-  color: #991b1b;
-  border: 1px solid #fca5a5;
-  font-size: 13px;
-  font-weight: 600;
+.actionBody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
-/* ---- Blocked reason / detail boxes ---- */
-.reasonBox {
-  margin-top: 12px;
-  padding: 10px 14px;
-  background: var(--surface, #fef2f2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 13px;
-  color: var(--text-primary);
+.actionTitle {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+  line-height: 1.2;
 }
 
-.detailBox {
-  margin-top: 10px;
-  padding: 10px 14px;
-  background: var(--surface, #fef2f2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+.actionHint {
   font-size: 12px;
-  color: var(--text-primary);
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+
+/* Ready — primary red for check-in/out, purple for OT */
+
+.action_ready {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+  box-shadow: 0 6px 18px rgba(220, 38, 38, 0.20);
+}
+
+.action_ready:hover:not(:disabled) {
+  filter: brightness(0.94);
+  box-shadow: 0 10px 24px rgba(220, 38, 38, 0.28);
+}
+
+.action_ready:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.action_ready .actionIcon {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+.action_ot.action_ready {
+  background: #7c3aed;
+  border-color: #7c3aed;
+  box-shadow: 0 6px 18px rgba(124, 58, 237, 0.20);
+}
+
+.action_ot.action_ready:hover:not(:disabled) {
+  box-shadow: 0 10px 24px rgba(124, 58, 237, 0.30);
+}
+
+
+/* Done — soft green pill */
+
+.action_done {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.action_done .actionIcon {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.action_done .actionHint {
+  color: #059669;
+  font-weight: 600;
+}
+
+.action_ot.action_done {
+  background: #f5f3ff;
+  color: #4c1d95;
+  border-color: #e9d5ff;
+}
+
+.action_ot.action_done .actionIcon {
+  background: #ede9fe;
+  color: #7c3aed;
+}
+
+.action_ot.action_done .actionHint {
+  color: #7c3aed;
+}
+
+
+/* Locked — dashed slate */
+
+.action_locked {
+  background: #f8fafc;
+  color: #94a3b8;
+  border-color: #e2e8f0;
+  border-style: dashed;
+}
+
+.action_locked .actionIcon {
+  background: #f1f5f9;
+  color: #cbd5e1;
+}
+
+.action_locked .actionHint {
+  color: #94a3b8;
+}
+
+
+/* ==================================================================
+   Biometric hint footer
+   ================================================================== */
+
+.bioHint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #64748b;
+  letter-spacing: 0.1px;
   line-height: 1.5;
 }
 
-/* ---- Empty state text ---- */
-.emptyText {
-  color: var(--text-muted);
-  font-size: 14px;
-  padding: 12px 0;
+.bioHintIcon {
+  color: #94a3b8;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+}
+
+
+/* ==================================================================
+   Toast — bottom-center transient message
+   ================================================================== */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  background: #0f172a;
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.25);
+  z-index: 200;
+}
+
+
+/* ==================================================================
+   MOBILE
+   ================================================================== */
+
+@media (max-width: 768px) {
+  .wrap {
+    gap: 12px;
+    padding: 4px 0 32px;
+  }
+
+  .card {
+    padding: 20px 18px 16px;
+    border-radius: 14px;
+    gap: 16px;
+  }
+
+  .date {
+    font-size: 17px;
+  }
+
+  .stats,
+  .otStats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .statValue {
+    font-size: 18px;
+  }
+
+  .actionGrid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+@media (max-width: 420px) {
+
+  .stats,
+  .otStats {
+    grid-template-columns: 1fr;
+  }
+
+  .date {
+    font-size: 16px;
+  }
+
+  /* MyAttendancePanel.module.css */
+
+  /* ---- Card shell ---- */
+  .card {
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 22px;
+    margin-bottom: 16px;
+  }
+
+  /* ---- Card header ---- */
+  .cardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .sectionLabel {
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 1.2px;
+    font-weight: var(--fw-bold);
+    color: var(--clr-primary);
+    margin: 0;
+  }
+
+  /* ---- Badge ---- */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: var(--radius-full);
+    font-size: 12px;
+    font-weight: var(--fw-bold);
+    white-space: nowrap;
+  }
+
+  .badgeDot {
+    width: 7px;
+    height: 7px;
+    border-radius: var(--radius-full);
+    display: inline-block;
+  }
+
+  /* ---- Stat grid ---- */
+  .statGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+  }
+
+  .statGrid2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  /* ---- Stat tile ---- */
+  .statTile {
+    background: var(--surface, #fafbfc);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+  }
+
+  .statTileLabel {
+    font-size: 10px;
+    font-weight: var(--fw-bold);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    margin-bottom: 4px;
+  }
+
+  .statTileValue {
+    font-size: 16px;
+    font-weight: var(--fw-extrabold);
+    line-height: 1.25;
+    word-break: break-word;
+  }
+
+  .statTileValueMono {
+    font-size: 14px;
+    font-weight: var(--fw-extrabold);
+    line-height: 1.25;
+    word-break: break-word;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
+  /* ---- Action buttons row ---- */
+  .actionRow {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .actionBtn {
+    flex: 1 1 180px;
+    min-height: 48px;
+    padding: 12px 18px;
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-size: 15px;
+    font-weight: var(--fw-bold);
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .actionBtn:disabled {
+    background: var(--border, #cbd5e1) !important;
+    box-shadow: none !important;
+    cursor: not-allowed;
+  }
+
+  /* ---- Notice banner ---- */
+  .noticeOk {
+    margin-top: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    /* success — status chip exception */
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #86efac;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .noticeErr {
+    margin-top: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    /* error — status chip exception */
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fca5a5;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  /* ---- Blocked reason / detail boxes ---- */
+  .reasonBox {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: var(--surface, #fef2f2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+
+  .detailBox {
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: var(--surface, #fef2f2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--text-primary);
+    line-height: 1.5;
+  }
+
+  /* ---- Empty state text ---- */
+  .emptyText {
+    color: var(--text-muted);
+    font-size: 14px;
+    padding: 12px 0;
+
+  }
 }

@@ -1,16 +1,30 @@
 ﻿import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import API, { API_BASE_URL } from "../services/api";
-import ChatBot from "../components/ChatBot";
-import HRAssistant from "../components/HRAssistant";
+import EmployeeAIAssistant from "../components/EmployeeAIAssistant";
+// HRAssistant replaced by EmployeeAIAssistant (voice + chat).
 import LeaveChatbot from "../components/LeaveChatbot";
-import VoiceLeaveTest from "../components/VoiceLeaveTest";
 import LeaveAgentChat from "../components/LeaveAgentChat";
 import MyLeaveStatus from "../components/MyLeaveStatus";
 import MyAttendancePanel from "../components/MyAttendancePanel";
+import MyTasksPanel from "../components/MyTasksPanel";
 import MyAllowanceSection from "../components/MyAllowanceSection";
 import MyPayslipsPanel from "../components/MyPayslipsPanel";
+import MyLeaveRequest from "../components/MyLeaveRequest";
+import MyPermissionRequest from "../components/MyPermissionRequest";
+import MyMemosPanel from "../components/MyMemosPanel";
+import MyPerformancePanel from "../components/MyPerformancePanel";
+import MyAssetsPanel from "../components/MyAssetsPanel";
+import MyAnnouncementsPanel from "../components/MyAnnouncementsPanel";
+import MyHelpDeskPanel from "../components/MyHelpDeskPanel";
+import VoiceAssistant from "../components/VoiceAssistant";
+import MyDocumentsPanel from "../components/MyDocumentsPanel";
+import MySettingsPanel from "../components/MySettingsPanel";
+import EmployeeSidebar from "../components/EmployeeSidebar";
+import EmployeeHomeDashboard from "../components/EmployeeHomeDashboard";
+import ComingSoonPanel from "../components/ComingSoonPanel";
+import ConfirmDialog from "../components/ConfirmDialog";
 import EmployeeProfileForm from "./EmployeeProfileForm";
 
 import styles from "./EmployeeDashboard.module.css";
@@ -157,6 +171,131 @@ function Toast({ toast, onClose }) {
 
 
 // =================================================================
+// NotificationsInbox — employee-side alert list.
+// Renders the notifications the employee has received. MEMO
+// notifications open the associated memo in the Memos tab.
+// =================================================================
+function NotificationsInbox({ notifications, onOpenMemo, onMarkRead }) {
+
+  const rows = Array.isArray(notifications) ? notifications : [];
+
+  const handleClick = (n) => {
+    if (!n.IS_READ) onMarkRead?.(n.ID);
+    if (n.REF_TYPE === "MEMO" && n.REF_ID) onOpenMemo?.(n.REF_ID);
+  };
+
+  const toneOf = (type) => {
+    switch ((type || "").toUpperCase()) {
+      case "WARNING": return { bg: "#fef3c7", fg: "#92400e", label: "Warning" };
+      case "SUCCESS": return { bg: "#dcfce7", fg: "#166534", label: "Appreciation" };
+      case "ALERT":   return { bg: "#fee2e2", fg: "#991b1b", label: "Alert" };
+      default:        return { bg: "#dbeafe", fg: "#1e40af", label: "Info" };
+    }
+  };
+
+  return (
+    <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
+      <div>
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#0f172a" }}>Notifications</h2>
+        <p style={{ margin: "4px 0 0", fontSize: 13, color: "#64748b" }}>
+          Every alert you&apos;ve received. Click a memo notification to open the full memo.
+        </p>
+      </div>
+
+      {rows.length === 0 && (
+        <div style={{
+          padding: "40px 20px",
+          textAlign: "center",
+          background: "#ffffff",
+          border: "1px dashed #cbd5e1",
+          borderRadius: 12,
+          color: "#64748b",
+          fontSize: 13.5,
+        }}>
+          You&apos;re all caught up — no notifications right now.
+        </div>
+      )}
+
+      {rows.map((n) => {
+        const tone = toneOf(n.TYPE);
+        const isMemo = n.REF_TYPE === "MEMO" && !!n.REF_ID;
+        return (
+          <button
+            key={n.ID}
+            type="button"
+            onClick={() => handleClick(n)}
+            style={{
+              textAlign: "left",
+              display: "flex",
+              gap: 14,
+              padding: "14px 16px",
+              background: "#ffffff",
+              border: n.IS_READ ? "1px solid #e2e8f0" : "1px solid #fecaca",
+              borderLeft: `3px solid ${n.IS_READ ? "#cbd5e1" : "#dc2626"}`,
+              borderRadius: 12,
+              cursor: isMemo ? "pointer" : "default",
+              fontFamily: "inherit",
+              width: "100%",
+              alignItems: "flex-start",
+            }}
+          >
+            <span style={{
+              padding: "2px 8px",
+              borderRadius: 999,
+              background: tone.bg,
+              color: tone.fg,
+              fontSize: 10.5,
+              fontWeight: 700,
+              letterSpacing: 0.4,
+              textTransform: "uppercase",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}>
+              {tone.label}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: 13.5,
+                fontWeight: 600,
+                color: "#0f172a",
+                marginBottom: 2,
+              }}>
+                {n.TITLE || "Notification"}
+                {!n.IS_READ && (
+                  <span style={{
+                    marginLeft: 8,
+                    display: "inline-block",
+                    width: 8, height: 8, borderRadius: "50%",
+                    background: "#dc2626",
+                    verticalAlign: "middle",
+                  }} />
+                )}
+              </div>
+              <div style={{
+                fontSize: 12.5, color: "#475569", lineHeight: 1.5,
+              }}>
+                {n.MESSAGE}
+              </div>
+              <div style={{
+                marginTop: 6, fontSize: 11.5, color: "#94a3b8",
+              }}>
+                {fmtDateTime(n.CREATED_AT)}
+                {isMemo && (
+                  <span style={{ marginLeft: 10, color: "#dc2626", fontWeight: 600 }}>
+                    View memo →
+                  </span>
+                )}
+              </div>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+
+// =================================================================
 // EmployeeDashboard — top-level (profile gate)
 // =================================================================
 
@@ -170,6 +309,10 @@ function EmployeeDashboard() {
     employee: null,
     submitted: false
   });
+
+  // Confirm modal gate for the onboarding-form logout button. The
+  // main dashboard has its own confirm inside EmployeeDashboardBody.
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   const reloadProfileGate = () => {
     if (!employeeId) {
@@ -205,26 +348,30 @@ function EmployeeDashboard() {
 
   if (profileGate.employee && !profileGate.submitted) {
     return (
-      <EmployeeProfileForm
-        employee={profileGate.employee}
-        onSubmitted={() => reloadProfileGate()}
-        onLogout={() => {
-          localStorage.clear();
-          navigate("/login", { replace: true });
-        }}
-      />
+      <>
+        <EmployeeProfileForm
+          employee={profileGate.employee}
+          onSubmitted={() => reloadProfileGate()}
+          onLogout={() => setLogoutOpen(true)}
+        />
+        <ConfirmDialog
+          open={logoutOpen}
+          title="Are you sure you want to log out?"
+          confirmLabel="Log Out"
+          cancelLabel="Continue"
+          danger
+          onCancel={() => setLogoutOpen(false)}
+          onConfirm={() => {
+            setLogoutOpen(false);
+            localStorage.clear();
+            navigate("/login", { replace: true });
+          }}
+        />
+      </>
     );
   }
 
-  return (
-    <>
-      <EmployeeDashboardBody />
-      <HRAssistant
-        employeeId={profileGate.employee?.EMPLOYEE_CODE || employeeId}
-        employeeName={profileGate.employee?.NAME || ""}
-      />
-    </>
-  );
+  return <EmployeeDashboardBody />;
 }
 
 
@@ -235,6 +382,7 @@ function EmployeeDashboard() {
 function EmployeeDashboardBody() {
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   // localStorage keys written by Login.jsx (Employee login flow):
   //   employee_id, employee_name, department, employee_role,
@@ -254,10 +402,25 @@ function EmployeeDashboardBody() {
   const [toast, setToast] = useState(null);
   const [tab, setTab] = useState("pending");
 
-  // Top-level tab for the redesigned employee portal. Splits the long
-  // single-scroll page into focused sections: Overview / Attendance /
-  // Tasks / Leave / Memos / Performance.
-  const [mainTab, setMainTab] = useState("overview");
+  // Which section is currently shown. Deep-linked from the welcome
+  // screen via location.state.tab; falls back to "home" so an
+  // unadorned visit to "/" lands on the new ESS dashboard.
+  const [mainTab, setMainTab] = useState(
+    () => location.state?.tab || "home"
+  );
+
+  // Mobile sidebar drawer state — hamburger button in the header
+  // toggles this; the sidebar itself calls onClose when a nav item
+  // is picked, so navigation on a phone acts like a real drawer.
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+
+  // Re-sync when the user comes back through the welcome tiles.
+  useEffect(() => {
+    const t = location.state?.tab;
+    if (t && t !== mainTab) setMainTab(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state?.tab]);
 
   // Bumped whenever the AI agent successfully submits a leave so the
   // MyLeaveStatus panel reloads without a page refresh.
@@ -272,6 +435,8 @@ function EmployeeDashboardBody() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const lastNotifIdRef = useRef(0);
+  // When a notification deep-links to a memo, MyMemosPanel opens this ID.
+  const [focusMemoId, setFocusMemoId] = useState(null);
 
   const [voiceOn, setVoiceOn] = useState(
     () => isVoiceSupported() && isVoiceEnabled()
@@ -351,9 +516,10 @@ function EmployeeDashboardBody() {
 
   const fetchNotifications = async () => {
     try {
+      const empParam = employeeId ? `?employee_id=${encodeURIComponent(employeeId)}` : "";
       const [listRes, countRes] = await Promise.all([
-        API.get("/notifications"),
-        API.get("/notifications/unread-count")
+        API.get(`/notifications${empParam}`),
+        API.get(`/notifications/unread-count${empParam}`)
       ]);
       const items = listRes.data || [];
       setNotifications(items);
@@ -420,6 +586,43 @@ function EmployeeDashboardBody() {
     }
   };
 
+  // Bulk-update every task assigned to this employee within a project
+  // via PATCH /employee/{id}/projects/{project_id}/status. Used by the
+  // 4 status buttons on each Assigned Projects card.
+  const [projectBusy, setProjectBusy] = useState({});   // { [projectId]: true }
+
+  const updateProjectStatus = async (projectId, newStatus, currentStatus) => {
+    if (!projectId || projectBusy[projectId]) return;
+    if (newStatus === currentStatus) return;             // no-op click
+
+    setProjectBusy((b) => ({ ...b, [projectId]: true }));
+
+    try {
+      const res = await API.patch(
+        `/employee/${employeeId}/projects/${projectId}/status`,
+        { status: newStatus }
+      );
+      const changed = res?.data?.changed_count ?? 0;
+      setToast({
+        message: (
+          changed > 0
+            ? `Project updated — ${changed} task(s) → ${newStatus.replace("_", " ")}.`
+            : `Project already at ${newStatus.replace("_", " ")}.`
+        )
+      });
+      await fetchPortalDashboard();
+    } catch (e) {
+      const detail = e?.response?.data?.detail || "Failed to update project";
+      setToast({ message: `⚠ ${detail}` });
+    } finally {
+      setProjectBusy((b) => {
+        const next = { ...b };
+        delete next[projectId];
+        return next;
+      });
+    }
+  };
+
   const updateStage = async (stage, newStatus) => {
     const key = `${stage.WORK_ORDER_ID}-${stage.STAGE_ID}`;
     setStageBusy((b) => ({ ...b, [key]: true }));
@@ -480,11 +683,15 @@ function EmployeeDashboardBody() {
     if (!next) stopSpeaking();
   };
 
-  const handleLogout = async () => {
-    if (!window.confirm("Log out now?")) return;
+  // Open the branded confirm modal; the actual logout happens in
+  // performLogout below, called on Confirm.
+  const handleLogout = () => setLogoutOpen(true);
+
+  const performLogout = async () => {
+    setLogoutOpen(false);
     try {
       await API.post("/employee-logout", { EMPLOYEE_ID: employeeId });
-    } catch { /* ignore */ }
+    } catch { /* server-side logout is best-effort */ }
     localStorage.clear();
     navigate("/login", { replace: true });
   };
@@ -550,7 +757,22 @@ function EmployeeDashboardBody() {
     current_streak: 0
   };
 
-  const kpis = portal?.kpis || {};
+  // KpiGrid expects per-bucket task counts (total_assigned, today,
+  // pending, in_progress, on_hold, completed, upcoming, overdue).
+  // The backend already filters by EMPLOYEE_ID == employee_id, so
+  // these counts only reflect tasks actually assigned to this
+  // employee — unassigned tasks (EMPLOYEE_ID = NULL) are excluded.
+  const summary = portal?.task_summary || {};
+  const kpis = {
+    total_assigned: summary.total       ?? 0,
+    today:          summary.today       ?? 0,
+    pending:        summary.pending     ?? 0,
+    in_progress:    summary.in_progress ?? 0,
+    on_hold:        summary.on_hold     ?? 0,
+    completed:      summary.completed   ?? 0,
+    upcoming:       summary.upcoming    ?? 0,
+    overdue:        summary.overdue     ?? 0,
+  };
   const taskBuckets = {
     today: portal?.tasks?.today || [],
     pending: portal?.tasks?.pending || [],
@@ -576,6 +798,35 @@ function EmployeeDashboardBody() {
     }
   })();
 
+  // Bell badge now surfaces OVERDUE tasks only — a task is overdue
+  // when its remaining_days is negative and it isn't COMPLETED. That
+  // means the bell only lights up when the employee genuinely has
+  // something they haven't submitted on time.
+  const overdueTasks = [
+    ...(taskBuckets.today || []),
+    ...(taskBuckets.pending || []),
+    ...(taskBuckets.in_progress || []),
+    ...(taskBuckets.on_hold || [])
+  ].filter((t) => {
+    const days = Number(t?.remaining_days);
+    const status = String(t?.status || "").toUpperCase();
+    return Number.isFinite(days) && days < 0 && status !== "COMPLETED";
+  });
+  const overdueCount = overdueTasks.length;
+
+  const showOverdueToast = () => {
+    if (overdueCount === 0) {
+      setToast({ message: "You're all caught up. No pending overdue tasks." });
+      return;
+    }
+    const first = overdueTasks[0];
+    const others = overdueCount > 1 ? ` (+${overdueCount - 1} more)` : "";
+    const title = first?.title ? `“${first.title}”` : "a task";
+    setToast({
+      message: `⚠ Time is over — your task ${title} is still pending.${others}`
+    });
+  };
+
 
   // =============================================================
   // RENDER
@@ -583,225 +834,237 @@ function EmployeeDashboardBody() {
 
   return (
 
-    <div className={styles.page}>
+    <div className={styles.zShell}>
 
-      {/* ---------- TOP BAR ---------- */}
-      <header className={styles.topbar}>
-        <div className={styles.topbarLeft}>
-          <img
-            src="/logo.webp"
-            alt="logo"
-            className={styles.topbarLogo}
-          />
-          <div>
-            <div className={styles.topbarTitle}>
-              BVC24 · Employee Portal
-            </div>
-            <div className={styles.topbarMeta}>
-              {employeeName || profile.name} · {profile.employee_code}{" "}
-              {profile.department ? `· ${profile.department}` : ""}
-            </div>
-          </div>
-        </div>
+      {/* ---------- Left rail — Employee Self-Service navigation ---------- */}
+      <EmployeeSidebar
+        activeTab={mainTab}
+        onSelect={(key) => setMainTab(key)}
+        onLogout={handleLogout}
+        unreadCount={unreadCount}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        profile={profile}
+      />
 
-        <div className={styles.topbarRight}>
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 800,
-              padding: "5px 10px",
-              borderRadius: 999,
-              background: attendanceStatus === "LATE"
-                ? "rgba(244,179,36,0.22)"
-                : "rgba(34,197,94,0.22)",
-              color: attendanceStatus === "LATE" ? "#b45309" : "#16a34a",
-              letterSpacing: 0.4
-            }}
-            title={`Login: ${fmtTime(loginTime)}`}
-          >
-            {attendanceStatus} · {fmtTime(loginTime)}
-          </span>
+      <main className={styles.zMain}>
 
-          {isVoiceSupported() && (
-            <button
-              type="button"
-              onClick={toggleVoice}
-              className={styles.topbarBtn}
-              title="Toggle voice alerts"
-            >
-              {voiceOn ? "🔊" : "🔇"} Voice
-            </button>
-          )}
-
-          <button type="button" className={styles.topbarBtn} onClick={handleLogout}>
-            Logout
-          </button>
-
-          {unreadCount > 0 && (
-            <span className={styles.topbarNotifBadge}>
-              🔔 {unreadCount}
-            </span>
-          )}
-        </div>
-      </header>
-
-      <main className={styles.mainContent}>
-
-        {portalErr && (
-          <div className={styles.portalError}>
-            ⚠ {portalErr}{" "}
-            <span className={styles.portalErrorNote}>
-              — supporting widgets below remain functional.
-            </span>
-          </div>
-        )}
-
-        {loading && !portal && (
-          <div className={styles.loadingCard}>
-            Loading your workspace…
-          </div>
-        )}
-
-        {/* ---------- PROFILE STRIP (persistent across all tabs) ---------- */}
-        <ProfileStrip
-          profile={profile}
+        <ZMainHeader
+          title={Z_TAB_TITLES[mainTab] || "Dashboard"}
+          attendanceStatus={attendanceStatus}
+          loginTime={loginTime}
           productivity={productivity}
+          voiceOn={voiceOn}
+          onToggleVoice={toggleVoice}
+          voiceSupported={isVoiceSupported()}
+          overdueCount={overdueCount}
+          onBellClick={showOverdueToast}
+          onGoHome={() => setMainTab("home")}
+          onLogout={handleLogout}
+          onMenuToggle={() => setSidebarOpen((v) => !v)}
         />
 
-        {/* ---------- TAB NAV — focuses each role-task on its own section ---------- */}
-        <PortalTabNav
-          active={mainTab}
-          onChange={setMainTab}
-          badges={{
-            tasks: (taskBuckets.today?.length || 0)
-              + (taskBuckets.pending?.length || 0),
-            leave: (leaveHistory || []).filter(
-              (l) => l.STATUS === "PENDING_APPROVAL"
-            ).length
-          }}
-        />
+        <div className={styles.zMainContent}>
 
-        {/* ---------- TAB CONTENT ---------- */}
-        {mainTab === "overview" && (
-          <>
-            <KpiGrid kpis={kpis} />
-            <TodayTasksCard
-              tasks={taskBuckets.today}
-              busyMap={actionBusy}
-              onUpdate={updateAssignmentStatus}
-            />
-          </>
-        )}
-
-        {mainTab === "attendance" && (
-          <>
-            <MyAttendancePanel employeeId={employeeId} />
-            <AttendanceSummaryCard attendance={attendance} />
-          </>
-        )}
-
-        {mainTab === "tasks" && (
-          <>
-            <TodayTasksCard
-              tasks={taskBuckets.today}
-              busyMap={actionBusy}
-              onUpdate={updateAssignmentStatus}
-            />
-            <TabbedTaskLists
-              tab={tab}
-              onTabChange={setTab}
-              counts={{
-                pending: taskBuckets.pending.length,
-                in_progress: taskBuckets.in_progress.length,
-                on_hold: taskBuckets.on_hold.length,
-                upcoming: taskBuckets.upcoming.length,
-                completed: taskBuckets.completed.length
-              }}
-              tasks={tilesActiveTab}
-              busyMap={actionBusy}
-              onUpdate={updateAssignmentStatus}
-            />
-            <AssignedProjectsCard projects={projects} />
-            {productionStages.length > 0 && (
-              <ProductionStagesSection
-                stages={productionStages}
-                busyMap={stageBusy}
-                onUpdate={updateStage}
-              />
-            )}
-          </>
-        )}
-
-        {mainTab === "leave" && (
-          <>
-            {/* Primary: conversational AI leave assistant — extracts
-                dates / type / reason, validates balance, asks for
-                confirmation, submits to manager. */}
-            <LeaveAgentChat
-              employeeId={employeeId}
-              onLeaveSubmitted={() => setLeaveStatusRefresh((n) => n + 1)}
-            />
-
-            {/* Live status panel — shows every leave request with
-                approval state, auto-refreshes after a submit + every 30s. */}
-            <MyLeaveStatus
-              employeeId={employeeId}
-              refreshSignal={leaveStatusRefresh}
-            />
-
-            {/* Voice-driven leave POC stays for quick voice tests. */}
-            <div style={{ marginTop: 16 }}>
-              <VoiceLeaveTest />
+          {portalErr && (
+            <div className={styles.portalError}>
+              {portalErr}{" "}
+              <span className={styles.portalErrorNote}>
+                — supporting widgets below remain functional.
+              </span>
             </div>
+          )}
 
-            {/* The chat-based leave assistant and the manual apply
-                form are temporarily removed from this tab — voice is
-                the new primary input. Components stay imported so
-                bringing them back is a 3-line change. To restore:
+          {loading && !portal && (
+            <div className={styles.loadingCard}>
+              Loading your workspace…
+            </div>
+          )}
 
-                <LeaveChatbot
-                  employeeId={employeeId}
-                  onLeaveSubmitted={() => {
-                    fetchLeaveHistory?.();
-                    fetchLeaveBalance?.();
-                  }}
+          {mainTab === "attendance" && (
+            <MyAttendancePanel employeeId={employeeId} />
+          )}
+
+          {mainTab === "tasks" && (
+            <>
+              {/* Modern card-based tasks view; the old ZTasksPage
+                  table remains defined below for admin-side reuse
+                  but is no longer surfaced in the ESS. */}
+              <MyTasksPanel
+                buckets={taskBuckets}
+                busyMap={actionBusy}
+                onUpdate={updateAssignmentStatus}
+              />
+              <AssignedProjectsCard
+                projects={projects}
+                busyMap={projectBusy}
+                onUpdate={updateProjectStatus}
+              />
+              {productionStages.length > 0 && (
+                <ProductionStagesSection
+                  stages={productionStages}
+                  busyMap={stageBusy}
+                  onUpdate={updateStage}
                 />
-                <LeavePermissionSection
-                  balance={leaveBalance}
-                  leaveHistory={leaveHistory}
-                  permissionHistory={permissionHistory}
-                  onSubmitLeave={submitLeave}
-                  onSubmitPermission={submitPermission}
-                  onCancel={cancelLeave}
-                />
-            */}
-          </>
-        )}
+              )}
+            </>
+          )}
 
-        {mainTab === "memos" && (
-          <MyMemosCard employeeId={employeeId} />
-        )}
+          {mainTab === "leave" && (
+            <MyLeaveRequest
+              employeeId={employeeId}
+              onSubmitted={() => setLeaveStatusRefresh((n) => n + 1)}
+            />
+          )}
 
-        {mainTab === "allowance" && (
-          <MyAllowanceSection employeeId={employeeId} />
-        )}
+          {mainTab === "permission" && (
+            <MyPermissionRequest employeeId={employeeId} />
+          )}
 
-        {mainTab === "payslips" && (
-          <MyPayslipsPanel employeeId={employeeId} />
-        )}
+          {/* Personal memos — warnings, appreciations, notices issued
+              to this employee. */}
+          {mainTab === "memos" && (
+            <MyMemosPanel
+              employeeId={employeeId}
+              initialOpenId={focusMemoId}
+              onInitialOpenConsumed={() => setFocusMemoId(null)}
+            />
+          )}
 
-        {mainTab === "performance" && (
-          <>
-            <PerformanceBreakdownCard productivity={productivity} />
-            <MonthlyProductivityChart data={monthlyChart} />
-            <RewardsCard productivity={productivity} />
-          </>
-        )}
+          {/* Company-wide announcements — holidays, notices, meetings,
+              events, birthdays. Tab-based. */}
+          {mainTab === "announcements" && (
+            <MyAnnouncementsPanel employeeId={employeeId} />
+          )}
 
+          {/* Performance dashboard — pulls from the star-performance
+              history endpoint and computes an AI overall score client-side. */}
+          {mainTab === "performance" && (
+            <MyPerformancePanel employeeId={employeeId} />
+          )}
+
+          {mainTab === "allowance" && (
+            <MyAllowanceSection employeeId={employeeId} />
+          )}
+
+          {mainTab === "payslips" && (
+            <MyPayslipsPanel employeeId={employeeId} />
+          )}
+
+          {/* ---------- New ESS home dashboard ---------- */}
+          {mainTab === "home" && (
+            <EmployeeHomeDashboard
+              portal={portal}
+              attendanceStatus={attendanceStatus}
+              loginTime={loginTime}
+              productivity={productivity}
+              leaveBalance={leaveBalance}
+              unreadCount={unreadCount}
+              overdueCount={overdueCount}
+              onNavigate={(key) => setMainTab(key)}
+            />
+          )}
+
+          {/* ---------- Coming-soon placeholders for modules whose
+                        backend is on the roadmap ---------- */}
+          {mainTab === "documents" && (
+            <MyDocumentsPanel employeeId={employeeId} />
+          )}
+          {mainTab === "holidays" && (
+            <ComingSoonPanel
+              title="Holiday Calendar"
+              iconKey="calendar"
+              description="Monthly calendar with public, company and restricted holidays clearly marked."
+              bullets={[
+                "Public and company holidays for the year",
+                "Restricted / optional holiday tags",
+                "Filter by month, search by name",
+              ]}
+            />
+          )}
+          {mainTab === "notifications" && (
+            <NotificationsInbox
+              notifications={notifications}
+              onOpenMemo={(memoId) => {
+                setFocusMemoId(memoId);
+                setMainTab("memos");
+              }}
+              onMarkRead={async (id) => {
+                try {
+                  await API.put(`/notifications/${id}/read`);
+                  setNotifications((prev) =>
+                    prev.map((n) => (n.ID === id ? { ...n, IS_READ: true } : n))
+                  );
+                  setUnreadCount((c) => Math.max(0, c - 1));
+                } catch { /* ignore */ }
+              }}
+            />
+          )}
+          {/* announcements handled above alongside memos */}
+          {mainTab === "assets" && (
+            <MyAssetsPanel employeeId={employeeId} />
+          )}
+          {mainTab === "training" && (
+            <ComingSoonPanel
+              title="Training"
+              iconKey="book"
+              description="Assigned courses, completion progress and certificates you can download."
+              bullets={[
+                "Course thumbnail, trainer and duration",
+                "Per-course progress bar",
+                "Certificate download once complete",
+              ]}
+            />
+          )}
+          {mainTab === "helpdesk" && (
+            <MyHelpDeskPanel employeeId={employeeId} />
+          )}
+          {/* Performance now handled above by MyPerformancePanel. */}
+          {mainTab === "orgchart" && (
+            <ComingSoonPanel
+              title="Organization Chart"
+              iconKey="tree"
+              description="See the reporting hierarchy from CEO down to your seat."
+              bullets={[
+                "Interactive drill-down by department",
+                "Photos, names and designations",
+                "Your position highlighted",
+              ]}
+            />
+          )}
+          {mainTab === "myteam" && (
+            <ComingSoonPanel
+              title="My Team"
+              iconKey="users"
+              description="For team leads and managers — team attendance, pending approvals and birthdays."
+              bullets={[
+                "Approve or reject leave requests",
+                "See attendance at a glance",
+                "Only visible to Managers and Team Leads",
+              ]}
+            />
+          )}
+          {mainTab === "settings" && (
+            <MySettingsPanel />
+          )}
+
+        </div>
       </main>
 
       <Toast toast={toast} onClose={() => setToast(null)} />
-      <ChatBot />
+      <EmployeeAIAssistant />
+
+      <VoiceAssistant employeeId={employeeId} />
+
+      <ConfirmDialog
+        open={logoutOpen}
+        title="Are you sure you want to log out?"
+        confirmLabel="Log Out"
+        cancelLabel="Continue"
+        danger
+        onCancel={() => setLogoutOpen(false)}
+        onConfirm={performLogout}
+      />
     </div>
   );
 }
@@ -818,21 +1081,13 @@ function EmployeeDashboardBody() {
 function PortalTabNav({ active, onChange, badges = {} }) {
 
   const tabs = [
-
-    { key: "overview", label: "Overview" },
-    { key: "attendance", label: "Attendance" },
-    { key: "tasks", label: "Tasks", badge: badges.tasks },
-    { key: "leave", label: "Leave", badge: badges.leave },
-    { key: "memos", label: "Memos" },
-    { key: "allowance", label: "Allowance" },
-    { key: "payslips", label: "Payslips" },
-
-    { key: "overview", label: "Overview" },
-    { key: "attendance", label: "Attendance" },
-    { key: "tasks", label: "Tasks", badge: badges.tasks },
-    { key: "leave", label: "Leave", badge: badges.leave },
-    { key: "memos", label: "Memos" },
-
+    { key: "overview",    label: "Overview"    },
+    { key: "attendance",  label: "Attendance"  },
+    { key: "tasks",       label: "Tasks",       badge: badges.tasks },
+    { key: "leave",       label: "Leave",       badge: badges.leave },
+    { key: "memos",       label: "Memos"       },
+    { key: "allowance",   label: "Allowance"   },
+    { key: "payslips",    label: "Payslips"    },
     { key: "performance", label: "Performance" }
   ];
 
@@ -902,6 +1157,617 @@ function applyOptimisticStatus(portal, assignmentId, newStatus) {
     );
   }
   return { ...portal, tasks: patched };
+}
+
+
+// =================================================================
+// Zoho-style icon set (no emojis anywhere on the portal)
+// =================================================================
+
+const SVG_PATHS = {
+  overview:    "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
+  attendance:  "M19 3h-1V1h-2v2H8V1H6v2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 18H5V9h14v12z",
+  tasks:       "M9 16.17 4.83 12l-1.41 1.41L9 19 21 7l-1.41-1.41L9 16.17z",
+  leave:       "M12 2C8 2 5 5 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-4-3-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z",
+  memos:       "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z",
+  allowance:   "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 14.09v1.41h-2v-1.42c-1.27-.27-2.36-1.08-2.44-2.5h1.47c.08.81.62 1.43 1.97 1.43 1.45 0 1.78-.72 1.78-1.18 0-.61-.33-1.18-1.97-1.58-1.82-.44-3.06-1.18-3.06-2.66 0-1.24.99-2.05 2.25-2.32V5.87h2v1.42c1.36.34 2.04 1.38 2.08 2.51h-1.46c-.04-.86-.5-1.43-1.69-1.43-1.14 0-1.81.51-1.81 1.24 0 .64.5 1.06 1.97 1.43 1.47.37 3.06.99 3.06 2.83 0 1.31-.99 2.04-2.26 2.31z",
+  payslips:    "M19.5 3.5 18 2l-1.5 1.5L15 2l-1.5 1.5L12 2l-1.5 1.5L9 2 7.5 3.5 6 2v14H3v3a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3V2l-1.5 1.5zM14 19v.5a1.5 1.5 0 0 1-3 0V19H5v-4h11v4zm5-.5a1.5 1.5 0 0 1-3 0V13H8V4h11v14.5zM10 7h7v2h-7zm0 4h7v2h-7z",
+  performance: "M3 13h2v8H3zm6-4h2v12H9zm6-6h2v18h-2z",
+  clock:       "M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z",
+  bell:        "M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 0 0-5-5.91V4a1 1 0 0 0-2 0v1.09A6 6 0 0 0 6 11v5l-2 2v1h16v-1z",
+  logout:      "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8v-2H4z",
+  mic:         "M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5.91-3a1 1 0 0 0-1.98.34A4 4 0 0 1 12 15a4 4 0 0 1-3.93-3.66 1 1 0 0 0-1.98.34A6 6 0 0 0 11 16.92V19H8v2h8v-2h-3v-2.08a6 6 0 0 0 4.91-5.92z",
+  micOff:      "M19 11h-1.7c0 .58-.1 1.13-.27 1.64l1.27 1.27a6 6 0 0 0 .7-2.91zM15 11.16V5a3 3 0 0 0-6 0v.18L15 11.16zM3.41 2 2 3.41l6 6V11a3 3 0 0 0 4.94 2.31l1.42 1.42a4 4 0 0 1-6.34-3.39A1 1 0 0 0 6.04 11a6 6 0 0 0 4.96 5.92V19H8v2h8v-2h-3v-2.08c.85-.13 1.64-.45 2.34-.92L20.59 22 22 20.59 3.41 2z",
+  play:        "M8 5v14l11-7L8 5z",
+  pause:       "M6 4h4v16H6zm8 0h4v16h-4z",
+  check:       "M9 16.17 4.83 12l-1.41 1.41L9 19 21 7l-1.41-1.41L9 16.17z",
+  search:      "M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19 15.5 14zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z",
+  rotate:      "M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6a5.92 5.92 0 0 1 4.22 1.78L13 11h7V4z"
+};
+
+function Ico({ name, size = 16, style }) {
+  const d = SVG_PATHS[name];
+  if (!d) return null;
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+      style={style}
+    >
+      <path d={d} />
+    </svg>
+  );
+}
+
+
+// =================================================================
+// Z-shell — slim Zoho-style top header (replaces topbar + hero strip)
+// =================================================================
+
+function ZTopBar({
+  profile, productivity, employeeName, employeeCode,
+  attendanceStatus, loginTime,
+  voiceOn, onToggleVoice, voiceSupported,
+  unreadCount, onLogout
+}) {
+
+  const name = profile?.name || employeeName || "Employee";
+  const code = profile?.employee_code || employeeCode || "—";
+  const designation = profile?.designation || "";
+  const department = profile?.department || "";
+  const photoUrl = profile?.photo_url || null;
+  const score = Math.max(0, Math.min(100, Number(productivity?.score || 0)));
+
+  const initials = (name || "?")
+    .split(/\s+/)
+    .map((p) => p.charAt(0))
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "?";
+
+  const isLate = attendanceStatus === "LATE";
+
+  return (
+    <header className={styles.zHeader}>
+      <div className={styles.zHeaderLeft}>
+        <div className={styles.zAvatar}>
+          {photoUrl ? <img src={photoUrl} alt={name} /> : initials}
+        </div>
+        <div className={styles.zIdentText}>
+          <div className={styles.zIdentName}>
+            {name} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>· {code}</span>
+          </div>
+          <div className={styles.zIdentMeta}>
+            {designation || "—"}{department ? ` · ${department}` : ""}
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.zHeaderRight}>
+        <span
+          className={`${styles.zChip} ${isLate ? styles.zChipWarn : styles.zChipSuccess}`}
+          title={`Login: ${fmtTime(loginTime)}`}
+        >
+          <Ico name="clock" size={12} />
+          {attendanceStatus} · {fmtTime(loginTime)}
+        </span>
+
+        <span className={`${styles.zChip} ${styles.zChipScore}`} title="Productivity score">
+          <Ico name="performance" size={12} />
+          {score} / 100
+        </span>
+
+        {voiceSupported && (
+          <button
+            type="button"
+            onClick={onToggleVoice}
+            className={`${styles.zIconBtn}${voiceOn ? " " + styles.zIconBtnActive : ""}`}
+            title={voiceOn ? "Disable voice alerts" : "Enable voice alerts"}
+            aria-label="Toggle voice alerts"
+          >
+            <Ico name={voiceOn ? "mic" : "micOff"} size={14} />
+          </button>
+        )}
+
+        <button
+          type="button"
+          className={styles.zIconBtn}
+          title="Notifications"
+          aria-label="Notifications"
+        >
+          <Ico name="bell" size={14} />
+          {unreadCount > 0 && (
+            <span className={styles.zIconBtnBadge}>
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={onLogout}
+          className={styles.zIconBtn}
+          title="Log out"
+          aria-label="Log out"
+        >
+          <Ico name="logout" size={14} />
+        </button>
+      </div>
+    </header>
+  );
+}
+
+
+// =================================================================
+// Z-shell — slim underline tab strip (replaces PortalTabNav)
+// =================================================================
+
+function ZTabStrip({ active, onChange, badges = {} }) {
+
+  const tabs = [
+    { key: "overview",    label: "Overview",    icon: "overview" },
+    { key: "attendance",  label: "Attendance",  icon: "attendance" },
+    { key: "tasks",       label: "Tasks",       icon: "tasks", badge: badges.tasks },
+    { key: "leave",       label: "Leave",       icon: "leave", badge: badges.leave },
+    { key: "permission",  label: "Permission",  icon: "clock" },
+    { key: "memos",       label: "Memos",       icon: "memos" },
+    { key: "allowance",   label: "Allowance",   icon: "allowance" },
+    { key: "payslips",    label: "Payslips",    icon: "payslips" },
+    { key: "performance", label: "Performance", icon: "performance" }
+  ];
+
+  return (
+    <div className={styles.zTabStrip}>
+      {tabs.map((t) => {
+        const isOn = t.key === active;
+        return (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => onChange(t.key)}
+            className={`${styles.zTab}${isOn ? " " + styles.zTabActive : ""}`}
+          >
+            <Ico name={t.icon} size={14} />
+            <span>{t.label}</span>
+            {!!t.badge && t.badge > 0 && (
+              <span className={styles.zTabBadge}>
+                {t.badge > 99 ? "99+" : t.badge}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+
+// =================================================================
+// Z-shell — left sidebar (Admin-Dashboard style) + main header
+// =================================================================
+
+const Z_TAB_TITLES = {
+  home:          "Dashboard",
+  attendance:    "Attendance",
+  tasks:         "Tasks",
+  leave:         "Leave",
+  permission:    "Permission",
+  memos:         "Memos",
+  allowance:     "Allowance",
+  payslips:      "Payslips",
+  documents:     "Documents",
+  holidays:      "Holiday Calendar",
+  notifications: "Notifications",
+  announcements: "Announcements",
+  assets:        "My Assets",
+  training:      "Training",
+  helpdesk:      "Help Desk",
+  performance:   "Performance",
+  orgchart:      "Organization Chart",
+  myteam:        "My Team",
+  settings:      "Settings",
+};
+
+function ZSidebar({
+  active, onChange, badges = {},
+  profile, employeeName, employeeCode,
+  onLogout,
+  open, onClose
+}) {
+
+  const name = profile?.name || employeeName || "Employee";
+  const code = profile?.employee_code || employeeCode || "—";
+  const designation = profile?.designation || "—";
+  const department = profile?.department || "";
+  const photoUrl = profile?.photo_url || null;
+
+  const initials = (name || "?")
+    .split(/\s+/)
+    .map((p) => p.charAt(0))
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "?";
+
+  const items = [
+    { key: "attendance",  label: "Attendance",  icon: "attendance" },
+    { key: "tasks",       label: "Tasks",       icon: "tasks", badge: badges.tasks },
+    { key: "leave",       label: "Leave",       icon: "leave", badge: badges.leave },
+    { key: "permission",  label: "Permission",  icon: "clock" },
+    { key: "memos",       label: "Memos",       icon: "memos" },
+    { key: "allowance",   label: "Allowance",   icon: "allowance" },
+    { key: "payslips",    label: "Payslips",    icon: "payslips" },
+    { key: "performance", label: "Performance", icon: "performance" }
+  ];
+
+  return (
+    <>
+      {open && (
+        <div
+          className={styles.zSidebarOverlay}
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={`${styles.zSidebar}${open ? " " + styles.zSidebarOpen : ""}`}
+      >
+
+        <div className={styles.zSidebarBrand}>
+          <div className={styles.zSidebarBrandLogo}>B</div>
+          <div>
+            <div className={styles.zSidebarBrandText}>Bharath ERP</div>
+            <div className={styles.zSidebarBrandSub}>Employee Portal</div>
+          </div>
+        </div>
+
+        <nav className={styles.zSidebarNav}>
+          <div className={styles.zSidebarGroupLabel}>Workspace</div>
+          {items.map((t) => {
+            const isOn = t.key === active;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => { onChange(t.key); onClose?.(); }}
+                className={`${styles.zSidebarItem}${isOn ? " " + styles.zSidebarItemActive : ""}`}
+              >
+                <span className={styles.zSidebarItemIcon}>
+                  <Ico name={t.icon} size={16} />
+                </span>
+                <span className={styles.zSidebarItemLabel}>{t.label}</span>
+                {!!t.badge && t.badge > 0 && (
+                  <span className={styles.zSidebarItemBadge}>
+                    {t.badge > 99 ? "99+" : t.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className={styles.zSidebarFooter}>
+          <div className={styles.zSidebarUserCard}>
+            <div className={styles.zSidebarUserAvatar}>
+              {photoUrl ? <img src={photoUrl} alt={name} /> : initials}
+            </div>
+            <div className={styles.zSidebarUserInfo}>
+              <div className={styles.zSidebarUserName}>{name}</div>
+              <div className={styles.zSidebarUserMeta}>
+                {code}{department ? ` · ${department}` : ""}
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onLogout}
+            className={styles.zSidebarLogout}
+          >
+            <Ico name="logout" size={13} />
+            Logout
+          </button>
+        </div>
+
+      </aside>
+    </>
+  );
+}
+
+
+function ZMainHeader({
+  title,
+  attendanceStatus, loginTime,
+  productivity,
+  voiceOn, onToggleVoice, voiceSupported,
+  overdueCount, onBellClick,
+  onGoHome, onLogout,
+  onMenuToggle,
+}) {
+
+  const isLate = attendanceStatus === "LATE";
+  const score = Math.max(0, Math.min(100, Number(productivity?.score || 0)));
+
+  return (
+    <header className={styles.zMainHeader}>
+      <div className={styles.zMainHeaderLeft}>
+        {/* Mobile only: hamburger opens the sidebar drawer. Hidden on
+            desktop where the sidebar is always visible. */}
+        <button
+          type="button"
+          className={styles.zHamburger}
+          onClick={onMenuToggle}
+          aria-label="Open menu"
+          title="Menu"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" strokeWidth="2.2"
+               strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 6h16" />
+            <path d="M4 12h16" />
+            <path d="M4 18h16" />
+          </svg>
+        </button>
+        <h1 className={styles.zMainTitle}>{title}</h1>
+      </div>
+
+      <div className={styles.zMainHeaderRight}>
+        <span
+          className={`${styles.zChip} ${isLate ? styles.zChipWarn : styles.zChipSuccess}`}
+          title={`Login: ${fmtTime(loginTime)}`}
+        >
+          <Ico name="clock" size={12} />
+          {attendanceStatus} · {fmtTime(loginTime)}
+        </span>
+
+        <span
+          className={`${styles.zChip} ${styles.zChipScore}`}
+          title="Productivity score"
+        >
+          <Ico name="performance" size={12} />
+          {score} / 100
+        </span>
+
+        {voiceSupported && (
+          <button
+            type="button"
+            onClick={onToggleVoice}
+            className={`${styles.zIconBtn}${voiceOn ? " " + styles.zIconBtnActive : ""}`}
+            title={voiceOn ? "Disable voice alerts" : "Enable voice alerts"}
+            aria-label="Toggle voice alerts"
+          >
+            <Ico name={voiceOn ? "mic" : "micOff"} size={14} />
+          </button>
+        )}
+
+        <button
+          type="button"
+          className={styles.zIconBtn}
+          onClick={onBellClick}
+          title={
+            overdueCount > 0
+              ? `${overdueCount} overdue task${overdueCount === 1 ? "" : "s"}`
+              : "No overdue tasks"
+          }
+          aria-label="Overdue task alerts"
+        >
+          <Ico name="bell" size={14} />
+          {overdueCount > 0 && (
+            <span className={styles.zIconBtnBadge}>
+              {overdueCount > 99 ? "99+" : overdueCount}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          className={styles.zIconBtn}
+          onClick={onLogout}
+          title="Log out"
+          aria-label="Log out"
+        >
+          <Ico name="logout" size={14} />
+        </button>
+      </div>
+    </header>
+  );
+}
+
+
+// =================================================================
+// Z-shell — Tasks page (replaces TodayTasksCard + TabbedTaskLists)
+// =================================================================
+
+const Z_TASK_STATUS_PILL = {
+  PENDING:     { label: "Pending",     cls: "zPillNeutral" },
+  IN_PROGRESS: { label: "In Progress", cls: "zPillInfo" },
+  ON_HOLD:     { label: "On Hold",     cls: "zPillWarn" },
+  COMPLETED:   { label: "Completed",   cls: "zPillSuccess" }
+};
+
+const Z_PRIORITY_PILL = {
+  HIGH:   "zPillDanger",
+  MEDIUM: "zPillWarn",
+  LOW:    "zPillNeutral"
+};
+
+function ZTasksPage({ buckets, busyMap, onUpdate }) {
+
+  const [filter, setFilter] = useState("pending");
+  const [q, setQ] = useState("");
+
+  const filters = [
+    { key: "today",       label: "Today",       count: buckets.today?.length || 0 },
+    { key: "pending",     label: "Pending",     count: buckets.pending?.length || 0 },
+    { key: "in_progress", label: "In Progress", count: buckets.in_progress?.length || 0 },
+    { key: "on_hold",     label: "On Hold",     count: buckets.on_hold?.length || 0 },
+    { key: "upcoming",    label: "Upcoming",    count: buckets.upcoming?.length || 0 },
+    { key: "completed",   label: "Completed",   count: buckets.completed?.length || 0 }
+  ];
+
+  const all = buckets[filter] || [];
+  const qNorm = q.trim().toLowerCase();
+  const rows = qNorm
+    ? all.filter((t) =>
+        (t.title || "").toLowerCase().includes(qNorm) ||
+        (t.project_name || "").toLowerCase().includes(qNorm))
+    : all;
+
+  return (
+    <div className={styles.zCard}>
+      <div className={styles.zCardHead}>
+        <div className={styles.zCardTitle}>
+          <Ico name="tasks" size={14} />
+          My Tasks
+        </div>
+        <div className={styles.zSearchBox}>
+          <Ico name="search" size={12} />
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search title or project"
+          />
+        </div>
+      </div>
+
+      <div className={styles.zFilterRow}>
+        {filters.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            onClick={() => setFilter(f.key)}
+            className={`${styles.zFilter}${filter === f.key ? " " + styles.zFilterActive : ""}`}
+          >
+            {f.label}
+            <span className={styles.zFilterCount}>{f.count}</span>
+          </button>
+        ))}
+      </div>
+
+      {rows.length === 0 ? (
+        <div className={styles.zEmpty}>
+          No tasks in this view.
+        </div>
+      ) : (
+        <div className={styles.zTableWrap}>
+          <table className={styles.zTable}>
+            <thead>
+              <tr>
+                <th style={{ width: "40%" }}>Task</th>
+                <th>Priority</th>
+                <th>Due</th>
+                <th>Status</th>
+                <th style={{ textAlign: "right" }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((t) => (
+                <ZTaskRow
+                  key={t.assignment_id || t.id}
+                  task={t}
+                  busy={!!busyMap[t.assignment_id]}
+                  onUpdate={onUpdate}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ZTaskRow({ task, busy, onUpdate }) {
+
+  const status = (task.status || "PENDING").toUpperCase();
+  const pill = Z_TASK_STATUS_PILL[status] || Z_TASK_STATUS_PILL.PENDING;
+  const priority = (task.priority || "MEDIUM").toUpperCase();
+  const priorityCls = Z_PRIORITY_PILL[priority] || "zPillNeutral";
+
+  const due = task.due_date ? fmtDate(task.due_date) : "—";
+  const remaining = task.remaining_days != null ? Number(task.remaining_days) : null;
+  const dueSub = remaining == null
+    ? null
+    : remaining < 0
+      ? `${Math.abs(remaining)}d overdue`
+      : remaining === 0
+        ? "due today"
+        : `${remaining}d left`;
+
+  const dueSubStyle = remaining != null && remaining < 0
+    ? { color: "var(--danger-dark)", fontWeight: 600 }
+    : remaining === 0
+      ? { color: "var(--warning-dark)", fontWeight: 600 }
+      : null;
+
+  const actions = (() => {
+    switch (status) {
+      case "PENDING":
+        return [
+          { target: "IN_PROGRESS", label: "Start", icon: "play",  cls: "zActionPrimary" },
+          { target: "ON_HOLD",     label: "Hold",  icon: "pause", cls: "zActionWarn" },
+          { target: "COMPLETED",   label: "Done",  icon: "check", cls: "zActionSuccess" }
+        ];
+      case "IN_PROGRESS":
+        return [
+          { target: "ON_HOLD",   label: "Hold", icon: "pause", cls: "zActionWarn" },
+          { target: "COMPLETED", label: "Done", icon: "check", cls: "zActionSuccess" }
+        ];
+      case "ON_HOLD":
+        return [
+          { target: "IN_PROGRESS", label: "Resume", icon: "play",  cls: "zActionPrimary" },
+          { target: "COMPLETED",   label: "Done",   icon: "check", cls: "zActionSuccess" }
+        ];
+      case "COMPLETED":
+      default:
+        return [];
+    }
+  })();
+
+  return (
+    <tr>
+      <td>
+        <div className={styles.zTaskTitle}>{task.title || "Untitled task"}</div>
+        {task.project_name && (
+          <div className={styles.zTaskMeta}>{task.project_name}</div>
+        )}
+      </td>
+      <td>
+        <span className={`${styles.zPill} ${styles[priorityCls]}`}>{priority}</span>
+      </td>
+      <td>
+        <div className={styles.zDue}>{due}</div>
+        {dueSub && (
+          <div className={styles.zDueSub} style={dueSubStyle || undefined}>{dueSub}</div>
+        )}
+      </td>
+      <td>
+        <span className={`${styles.zPill} ${styles[pill.cls]}`}>{pill.label}</span>
+      </td>
+      <td>
+        <div className={styles.zRowActions}>
+          {actions.length === 0 ? (
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>—</span>
+          ) : (
+            actions.map((a) => (
+              <button
+                key={a.target}
+                type="button"
+                disabled={busy}
+                onClick={() => onUpdate(task.assignment_id, a.target, status)}
+                className={`${styles.zActionBtn} ${styles[a.cls]}`}
+              >
+                <Ico name={a.icon} size={11} />
+                {busy ? "…" : a.label}
+              </button>
+            ))
+          )}
+        </div>
+      </td>
+    </tr>
+  );
 }
 
 
@@ -1309,7 +2175,18 @@ function taskActionBtn(color, busy) {
 // 5. ASSIGNED PROJECTS CARD
 // =================================================================
 
-function AssignedProjectsCard({ projects }) {
+function AssignedProjectsCard({ projects, busyMap = {}, onUpdate }) {
+
+  // Four fixed statuses the employee can flip a project to via the
+  // quick-buttons under each card. Bulk-updates every task assigned to
+  // this employee within the project via PATCH /projects/:id/status.
+  const PROJECT_STATUS_BUTTONS = [
+    { key: "PENDING",     label: "Pending"     },
+    { key: "IN_PROGRESS", label: "In Progress" },
+    { key: "ON_HOLD",     label: "On Hold"     },
+    { key: "COMPLETED",   label: "Completed"   }
+  ];
+
   return (
     <section className={styles.projectsCard}>
       <div className={styles.kpiSectionLabel} style={{ marginBottom: 12 }}>
@@ -1321,14 +2198,16 @@ function AssignedProjectsCard({ projects }) {
       ) : (
         <div className={styles.projectsGrid}>
           {projects.map((p) => {
+            const projectId = p.id || p.project_id;
             const total = Number(p.my_stages_count || 0);
             const done = Number(p.my_completed_count || 0);
             const pct = total > 0 ? Math.round((done / total) * 100) : 0;
             const statusKey = (p.status || "PENDING").toUpperCase();
             const sPill = STATUS_PILL[statusKey] || STATUS_PILL.PENDING;
+            const busy = !!busyMap[projectId];
             return (
               <div
-                key={p.project_id || p.id || p.name}
+                key={projectId || p.name}
                 className={styles.projectCard}
               >
                 <div className={styles.projectCardName}>
@@ -1367,6 +2246,31 @@ function AssignedProjectsCard({ projects }) {
                     style={{ width: `${pct}%` }}
                   />
                 </div>
+
+                {/* Status quick-buttons — flips ALL of this employee's
+                    task assignments in the project to the chosen status.
+                    The current status button is highlighted; clicking it
+                    is a no-op server-side but the UI still calls through
+                    for consistency. */}
+                <div className={styles.projectStatusBtnRow}>
+                  {PROJECT_STATUS_BUTTONS.map((btn) => {
+                    const isCurrent = btn.key === statusKey;
+                    return (
+                      <button
+                        key={btn.key}
+                        type="button"
+                        disabled={busy || !projectId || !onUpdate}
+                        onClick={() => onUpdate?.(projectId, btn.key, statusKey)}
+                        className={
+                          `${styles.projectStatusBtn}` +
+                          (isCurrent ? ` ${styles.projectStatusBtnActive}` : "")
+                        }
+                      >
+                        {busy ? "…" : btn.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             );
           })}
@@ -1383,15 +2287,22 @@ function AssignedProjectsCard({ projects }) {
 
 function PerformanceBreakdownCard({ productivity }) {
 
+  // Task completion / memo / star-performance mirror server-side fields
+  // that may not yet be populated — fall back to 0 so the UI stays clean.
+  const attendancePct  = Number(productivity?.attendance_pct        ?? 0);
+  const taskDonePct    = Number(productivity?.task_completion_pct   ?? productivity?.project_contribution_pct ?? 0);
+  const onTimePct      = Number(productivity?.on_time_pct           ?? 0);
+  const memoPct        = Number(productivity?.memo_pct              ?? 0);
+  const starPct        = Number(productivity?.star_pct              ?? productivity?.score ?? 0);
+  const ratingStars    = Math.round(Number(productivity?.rating     ?? 0));
+
   const rows = [
-    { label: "Productivity Score", value: productivity?.score, suffix: "/ 100", bar: productivity?.score },
-    { label: "On-Time Completion", value: productivity?.on_time_pct, suffix: "%", bar: productivity?.on_time_pct },
-    { label: "Attendance", value: productivity?.attendance_pct, suffix: "%", bar: productivity?.attendance_pct },
-    { label: "Avg Completion Hours", value: productivity?.avg_completion_hours, suffix: " hrs", bar: null },
-    { label: "Project Contribution", value: productivity?.project_contribution_pct, suffix: "%", bar: productivity?.project_contribution_pct },
-    { label: "Delayed Tasks", value: productivity?.delayed_tasks, suffix: "", bar: null },
-    { label: "Total Points Earned", value: productivity?.points_total, suffix: " pts", bar: null },
-    { label: "Overall Rating", value: null, suffix: "", bar: null, stars: Math.round(Number(productivity?.rating || 0)) }
+    { label: "Attendance",         value: attendancePct, suffix: "%", bar: attendancePct },
+    { label: "Task Completion",    value: taskDonePct,   suffix: "%", bar: taskDonePct   },
+    { label: "On-Time Completion", value: onTimePct,     suffix: "%", bar: onTimePct     },
+    { label: "Memo",               value: memoPct,       suffix: "%", bar: memoPct       },
+    { label: "Star Performance",   value: starPct,       suffix: "%", bar: starPct       },
+    { label: "Overall Rating",     value: null,          suffix: "",  bar: null, stars: ratingStars }
   ];
 
   return (
@@ -1568,6 +2479,142 @@ function MonthlyProductivityChart({ data }) {
 // =================================================================
 // 8. ATTENDANCE SUMMARY CARD
 // =================================================================
+
+// =================================================================
+// Z-shell — Attendance overview page (admin-Attendance-style stat rows)
+// Two cards: "This month" (attendance counts) + "Leave & permissions"
+// (balance remaining + pending counts).
+// =================================================================
+
+function ZAttItem({ label, value, sub, tone = "slate" }) {
+  const toneCls = {
+    green: styles.zAttItemGreen,
+    amber: styles.zAttItemAmber,
+    red:   styles.zAttItemRed,
+    blue:  styles.zAttItemBlue,
+    slate: styles.zAttItemSlate,
+  }[tone] || styles.zAttItemSlate;
+
+  return (
+    <div className={`${styles.zAttItem} ${toneCls}`}>
+      <div className={styles.zAttItemValue}>{value}</div>
+      <div className={styles.zAttItemLabel}>{label}</div>
+      {sub && <div className={styles.zAttItemSub}>{sub}</div>}
+    </div>
+  );
+}
+
+function MyAttendanceOverview({
+  attendance, leaveBalance, leaveHistory, permissionHistory
+}) {
+
+  const today = new Date();
+  const dateLabel = today.toLocaleDateString("en-IN", {
+    weekday: "short", day: "numeric", month: "long", year: "numeric"
+  });
+  const monthLabel = today.toLocaleString("en-IN", {
+    month: "long", year: "numeric"
+  });
+
+  const present    = Number(attendance?.present    ?? 0);
+  const absent     = Number(attendance?.absent     ?? 0);
+  const lateCnt    = Number(attendance?.late       ?? 0);
+  const leaveCnt   = Number(attendance?.leave      ?? 0);
+  const permCnt    = Number(attendance?.permission ?? 0);
+  const pct        = Number(attendance?.percentage ?? 0);
+  const workingDays =
+    Number(attendance?.working_days ?? attendance?.total_days ?? 0);
+
+  const casual = leaveBalance?.CASUAL || { total: 0, used: 0, remaining: 0 };
+  const sick   = leaveBalance?.SICK   || { total: 0, used: 0, remaining: 0 };
+  const earned = leaveBalance?.EARNED || { total: 0, used: 0, remaining: 0 };
+
+  const pendingLeave = (leaveHistory || []).filter(
+    (l) => (l.STATUS || "").toUpperCase() === "PENDING_APPROVAL"
+  ).length;
+
+  const pendingPerm = (permissionHistory || []).filter(
+    (p) => (p.STATUS || "").toUpperCase() === "PENDING_APPROVAL"
+  ).length;
+
+  const usedLeave = Number(casual.used || 0) + Number(sick.used || 0) + Number(earned.used || 0);
+
+  return (
+    <>
+      {/* ---- Card 1: Attendance — identical to admin headerStrip ---- */}
+      <section className={styles.zAttCard}>
+        <div className={styles.zAttTitleRow}>
+          <h2 className={styles.zAttTitle}>Attendance · {monthLabel}</h2>
+          <div className={styles.zAttDate}>{dateLabel}</div>
+        </div>
+
+        <div className={styles.zAttStatRow}>
+          <ZAttItem label="Present"    value={present}  tone="green" />
+          <ZAttItem label="Late"       value={lateCnt}  tone="amber" />
+          <ZAttItem label="Absent"     value={absent}   tone="red"   />
+          <ZAttItem label="Leave"      value={leaveCnt} tone="amber" />
+          <ZAttItem label="Permission" value={permCnt}  tone="blue"  />
+          <div className={styles.zAttDivider} />
+          <ZAttItem label="Attendance" value={`${pct}%`} tone="slate" />
+          {workingDays > 0 && (
+            <ZAttItem label="Working days" value={workingDays} tone="slate" />
+          )}
+        </div>
+      </section>
+
+      {/* ---- Card 2: Leave & permissions — same headerStrip style ---- */}
+      <section className={styles.zAttCard}>
+        <div className={styles.zAttTitleRow}>
+          <h2 className={styles.zAttTitle}>
+            Leave & permissions · {today.getFullYear()}
+          </h2>
+          <div className={styles.zAttDate}>
+            {(leaveBalance && leaveBalance.YEAR) || today.getFullYear()} year
+          </div>
+        </div>
+
+        <div className={styles.zAttStatRow}>
+          <ZAttItem
+            label="Casual"
+            value={casual.remaining ?? 0}
+            sub={`of ${casual.total ?? 0} · used ${casual.used ?? 0}`}
+            tone="green"
+          />
+          <ZAttItem
+            label="Sick"
+            value={sick.remaining ?? 0}
+            sub={`of ${sick.total ?? 0} · used ${sick.used ?? 0}`}
+            tone="amber"
+          />
+          <ZAttItem
+            label="Earned"
+            value={earned.remaining ?? 0}
+            sub={`of ${earned.total ?? 0} · used ${earned.used ?? 0}`}
+            tone="blue"
+          />
+          <div className={styles.zAttDivider} />
+          <ZAttItem
+            label="Pending leave"
+            value={pendingLeave}
+            tone={pendingLeave > 0 ? "amber" : "slate"}
+          />
+          <ZAttItem
+            label="Pending permission"
+            value={pendingPerm}
+            tone={pendingPerm > 0 ? "amber" : "slate"}
+          />
+          <ZAttItem
+            label="Total taken"
+            value={usedLeave}
+            sub="this year"
+            tone="slate"
+          />
+        </div>
+      </section>
+    </>
+  );
+}
+
 
 function AttendanceSummaryCard({ attendance }) {
 

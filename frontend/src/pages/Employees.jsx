@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import API, { API_BASE_URL } from "../services/api";
+import Pagination from "../components/Pagination";
 import styles from "./Employees.module.css";
 
 
@@ -148,24 +149,20 @@ const STATUS_THEMES = {
 function statusBadge(emp) {
   // Transient "on leave today" hint takes precedence — it's what HR
   // wants to see at a glance, even if the underlying STATUS is ACTIVE.
-  const onLeave =
-    (emp.LEAVE_STATUS || "").toUpperCase() === "ON_LEAVE" ||
-    (emp.TODAY_STATUS || "").toUpperCase() === "ON_LEAVE";
+  const onLeave = (emp.LEAVE_STATUS || "").toUpperCase() === "ON_LEAVE"
+    || (emp.TODAY_STATUS || "").toUpperCase() === "ON_LEAVE";
   if (onLeave) return STATUS_THEMES.ON_LEAVE;
 
   const code = (emp.STATUS || "ACTIVE").toUpperCase();
-  return (
-    STATUS_THEMES[code] || {
-      label: code.replace(/_/g, " "),
-      dot: "#94a3b8",
-      fg: "#475569",
-      bg: "#f1f5f9",
-    }
-  );
+  return STATUS_THEMES[code] || {
+    label: code.replace(/_/g, " "),
+    dot: "#94a3b8", fg: "#475569", bg: "#f1f5f9",
+  };
 }
 
 
 function EmployeeCard({ employee, onView, onEdit, onDelete }) {
+
   // Clean horizontal Odoo-style card.
   // Shows ONLY: name, designation, department, phone.
   // Everything else lives behind "View Details" → 360° profile page.
@@ -197,7 +194,9 @@ function EmployeeCard({ employee, onView, onEdit, onDelete }) {
             {status.label}
           </span>
 
-          <div className={styles.cardName}>{employee.NAME || "—"}</div>
+          <div className={styles.cardName}>
+            {employee.NAME || "—"}
+          </div>
 
           {employee.DESIGNATION?.TITLE && (
             <div className={styles.cardLine}>
@@ -2050,6 +2049,10 @@ function Employees() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState("");
+
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
   const [showAdd, setShowAdd] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   // null = closed; employee object = open in edit mode
@@ -2101,6 +2104,16 @@ function Employees() {
     });
   }, [employees, search, deptFilter]);
 
+  // Reset to page 1 whenever the filter changes (so we don't land on
+  // an empty page beyond the new result set's last page).
+  useEffect(() => { setPage(1); }, [search, deptFilter]);
+
+  // Slice the filtered list for the current page.
+  const pagedEmployees = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
+
   const stats = useMemo(() => {
     const total = employees.length;
     const active = employees.filter((e) => e.STATUS === "ACTIVE").length;
@@ -2136,6 +2149,7 @@ function Employees() {
           <div className={styles.pageBannerSub}>
             Manage your team, onboarding invites and roles.
           </div>
+        </div>
 
           <div className={styles.pageBannerActions}>
             <button
@@ -2217,28 +2231,32 @@ function Employees() {
 
       {loading && <div className={styles.loadingState}>Loading employees…</div>}
 
-      {!loading && filtered.length === 0 && (
-        <div className={styles.emptyState}>
-          {employees.length === 0 ? (
-            <>
-              No employees yet. Click <strong>+ Add Employee</strong> to start the directory.
-            </>
-          ) : (
-            "No employees match these filters."
-          )}
+      <div className={styles.filterBar}>
+        <div className={styles.filterSearchWrap}>
+          <span className={styles.filterSearchIcon} aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" strokeWidth="2.2"
+                 strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+          </span>
+          <input
+            type="text"
+            placeholder="Search by name, code, email, skill…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className={styles.filterInput}
+          />
         </div>
-      )}
-
-      {!loading && filtered.length > 0 && (
-        <div className={styles.cardGrid}>
-          {filtered.map((emp) => (
-            <EmployeeCard
-              key={emp.ID}
-              employee={emp}
-              onView={setViewing}
-              onEdit={setEditingEmployee}
-              onDelete={handleDelete}
-            />
+        <select
+          value={deptFilter}
+          onChange={(e) => setDeptFilter(e.target.value)}
+          className={styles.filterSelect}
+        >
+          <option value="">All departments</option>
+          {departments.map((d) => (
+            <option key={d} value={d}>{d}</option>
           ))}
         </div>
       )}
@@ -2264,7 +2282,30 @@ function Employees() {
         />
       )}
 
-      {viewing && <ResumeModal employee={viewing} onClose={() => setViewing(null)} />}
+      {
+        !loading && filtered.length > 0 && (
+          <>
+            <div className={styles.cardGrid}>
+              {pagedEmployees.map((emp) => (
+                <EmployeeCard
+                  key={emp.ID}
+                  employee={emp}
+                  onView={setViewing}
+                  onEdit={setEditingEmployee}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              total={filtered.length}
+              onPageChange={setPage}
+              onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+            />
+          </>
+        )
+      }
 
       {showInvite && <InviteEmployeeModal onClose={() => setShowInvite(false)} />}
     </div>
@@ -2282,6 +2323,7 @@ function InviteEmployeeModal({ onClose }) {
   const [form, setForm] = useState({
     INVITED_NAME: "",
     EMPLOYEE_CODE: "",
+    EMAIL: "",
     PASSWORD: "",
     EXPIRES_IN_DAYS: 2,
     DEPARTMENT_ID: "",
@@ -2339,6 +2381,16 @@ function InviteEmployeeModal({ onClose }) {
       setError("Employee ID is required.");
       return;
     }
+
+    const emailTrim = form.EMAIL.trim();
+
+    if (!emailTrim || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailTrim)) {
+
+      setError("A valid candidate email is required — the invite link is sent automatically.");
+
+      return;
+    }
+
     if (form.PASSWORD.trim().length < 6) {
       setError("Password must be at least 6 characters.");
       return;
@@ -2350,6 +2402,7 @@ function InviteEmployeeModal({ onClose }) {
       const res = await API.post("/employee-onboarding/invite", {
         INVITED_NAME: form.INVITED_NAME.trim(),
         EMPLOYEE_CODE: form.EMPLOYEE_CODE.trim() || null,
+        EMAIL: emailTrim,
         PASSWORD: form.PASSWORD,
         EXPIRES_IN_DAYS: Number(form.EXPIRES_IN_DAYS) || 2,
         DEPARTMENT_ID: form.DEPARTMENT_ID ? Number(form.DEPARTMENT_ID) : null,
@@ -2422,6 +2475,15 @@ function InviteEmployeeModal({ onClose }) {
                     value={form.EMPLOYEE_CODE}
                     onChange={set("EMPLOYEE_CODE")}
                     placeholder="EMP015"
+                    className={styles.inviteInput}
+                  />
+                </InviteField>
+                <InviteField label="Candidate email *" span={2}>
+                  <input
+                    type="email"
+                    value={form.EMAIL}
+                    onChange={set("EMAIL")}
+                    placeholder="ramesh.kumar@example.com"
                     className={styles.inviteInput}
                   />
                 </InviteField>
@@ -2538,14 +2600,45 @@ function InviteEmployeeModal({ onClose }) {
           {result && (
             <div className={styles.inviteResultBox}>
               <div className={styles.inviteResultHeader}>
-                ✅ INVITE CREATED
+                {result.email_sent ? "✅ INVITE SENT" : "✅ INVITE CREATED"}
                 {result.expires_at && (
                   <span className={styles.inviteResultExpiry}>
                     · expires {new Date(result.expires_at).toLocaleDateString("en-IN")}
                   </span>
                 )}
               </div>
-              <div className={styles.inviteLinkBox}>{result.invite_link}</div>
+
+              <div
+                style={{
+                  marginBottom: 12,
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  lineHeight: 1.5,
+                  background: result.email_sent ? "#ecfdf5" : "#fef2f2",
+                  border: `1px solid ${result.email_sent ? "#a7f3d0" : "#fecaca"}`,
+                  color: result.email_sent ? "#065f46" : "#7A1022",
+                }}
+              >
+                {result.email_sent ? (
+                  <>
+                    The invite link was emailed to{" "}
+                    <b>{result.invited_email}</b>. The candidate can sign in
+                    using the Employee ID and password you set.
+                  </>
+                ) : (
+                  <>
+                    Invite created, but the email could not be delivered to{" "}
+                    <b>{result.invited_email}</b>
+                    {result.email_message ? ` (${result.email_message})` : ""}.
+                    Copy the link below and share it manually as a fallback.
+                  </>
+                )}
+              </div>
+
+              <div className={styles.inviteLinkBox}>
+                {result.invite_link}
+              </div>
               <div className={styles.inviteResultActions}>
                 <button
                   onClick={copyLink}
@@ -2568,10 +2661,11 @@ function InviteEmployeeModal({ onClose }) {
                     setForm({
                       INVITED_NAME: "",
                       EMPLOYEE_CODE: "",
+                      EMAIL: "",
                       PASSWORD: "",
                       EXPIRES_IN_DAYS: 2,
                       DEPARTMENT_ID: "",
-                      DESIGNATION_ID: "",
+                      DESIGNATION_ID: ""
                     });
                   }}
                   className={styles.inviteNewBtn}

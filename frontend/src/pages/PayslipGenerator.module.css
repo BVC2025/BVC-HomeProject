@@ -1,0 +1,592 @@
+/* ==================================================================
+   PayslipGenerator — Zoho-style admin form
+   Company card + Employee Pay Summary + Income Details (two-column
+   earnings/deductions) + Net Payable strip + Action row.
+   ================================================================== */
+
+.page {
+  padding: 20px 24px 40px;
+  background: #f8fafc;
+  min-height: calc(100vh - 80px);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, sans-serif;
+  color: #0f172a;
+}
+
+.pageInner { max-width: 1080px; margin: 0 auto; display: grid; gap: 16px; }
+
+
+/* ---- Header row ---- */
+.crumb {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 4px;
+}
+.crumbTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.4px;
+}
+.crumbSub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+
+/* ==================================================================
+   Card (shared)
+   ================================================================== */
+.card {
+  background: #ffffff;
+  border: 1px solid #dc2626;
+  border-radius: 14px;
+  padding: 22px 26px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+}
+.cardHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.cardTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.1px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.cardTitle::after {
+  content: "*";
+  color: #dc2626;
+  font-weight: 700;
+  margin-left: 2px;
+}
+.cardTitleNoRequired::after { content: none; }
+
+
+/* ==================================================================
+   1. Company header
+   ================================================================== */
+.companyRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 26px;
+  align-items: center;
+}
+/* The logo tile is a <label> so clicking it opens the file picker
+   natively via the nested <input type="file">. No JS needed. */
+.companyLogo {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 12px;
+  background: #fef2f2;
+  border: 1px dashed #fca5a5;
+  color: #dc2626;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.companyLogo:hover {
+  border-color: #dc2626;
+  border-style: solid;
+  background: #fee2e2;
+}
+.companyLogoBusy { cursor: wait; }
+.companyLogo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 6px;
+  box-sizing: border-box;
+}
+.companyLogoInitials { font-size: 22px; font-weight: 800; letter-spacing: -0.6px; }
+
+/* Hover overlay — "Upload" / "Change" hint that fades in over the
+   logo tile so it's clear the whole thing is clickable. */
+.companyLogoOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.72);
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+.companyLogo:hover .companyLogoOverlay,
+.companyLogo:focus-within .companyLogoOverlay,
+.companyLogoBusy .companyLogoOverlay {
+  opacity: 1;
+}
+
+.companyInfo { min-width: 0; }
+.companyName {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.3px;
+  line-height: 1.2;
+  margin-bottom: 4px;
+}
+.companyLine {
+  font-size: 12.5px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.periodBlock {
+  text-align: right;
+  padding-left: 22px;
+  border-left: 1px solid #e2e8f0;
+  min-width: 200px;
+}
+.periodLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #dc2626;
+  margin-bottom: 6px;
+}
+.periodRow { display: flex; gap: 8px; justify-content: flex-end; }
+.periodInput {
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.periodInput:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.10);
+}
+.periodInputYear { width: 90px; }
+.periodInputMonth { flex: 1; }
+
+
+/* ==================================================================
+   2. Employee Pay Summary
+   ================================================================== */
+.summaryGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 40px;
+}
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.fieldLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #64748b;
+}
+.fieldInput,
+.fieldSelect {
+  padding: 9px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #0f172a;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.fieldInput:focus,
+.fieldSelect:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.10);
+}
+.fieldInputRO {
+  background: #f8fafc;
+  color: #475569;
+  cursor: not-allowed;
+}
+
+
+/* ==================================================================
+   3. Income Details — two-column earnings / deductions
+   ================================================================== */
+.incomeGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.incomeColLeft  { border-right: 1px solid #e2e8f0; }
+.incomeColRight { }
+
+.incomeHead {
+  display: grid;
+  grid-template-columns: 1fr 140px;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+.incomeHeadLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: #64748b;
+}
+.incomeHeadAmount { text-align: right; }
+
+.incomeRow {
+  display: grid;
+  grid-template-columns: 1fr 140px;
+  align-items: center;
+  padding: 10px 16px;
+  border-top: 1px solid #f1f5f9;
+}
+.incomeRow:first-of-type { border-top: none; }
+.incomeRowLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+}
+.incomeRowInput {
+  padding: 7px 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0f172a;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  text-align: right;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+.incomeRowInput:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.10);
+}
+
+.incomeSub {
+  display: grid;
+  grid-template-columns: 1fr 140px;
+  align-items: center;
+  padding: 14px 16px;
+  background: #f8fafc;
+  border-top: 2px solid #e2e8f0;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: #0f172a;
+}
+.incomeSubValue {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+
+/* ==================================================================
+   4. Net Payable strip
+   ================================================================== */
+.netBox {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 18px;
+  align-items: center;
+  padding: 20px 26px;
+  background: #ffffff;
+  border: 1px solid #dc2626;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+}
+.netLabel {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+.netFormula { font-size: 12.5px; color: #64748b; }
+.netValue {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.netWords {
+  grid-column: 1 / -1;
+  padding-top: 12px;
+  border-top: 1px dashed #e2e8f0;
+  font-size: 12.5px;
+  color: #475569;
+}
+.netWords b { color: #0f172a; }
+
+
+/* ==================================================================
+   Actions
+   ================================================================== */
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 6px 4px;
+  flex-wrap: wrap;
+}
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 22px;
+  background: #dc2626;
+  color: #ffffff;
+  border: 1px solid #dc2626;
+  border-radius: 10px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
+  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.25);
+}
+.btnPrimary:hover:not(:disabled) { background: #b91c1c; border-color: #b91c1c; }
+.btnPrimary:disabled {
+  background: #ffffff;
+  color: #94a3b8;
+  border-color: #dc2626;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.btnPrimary:disabled svg { color: #dc2626; stroke: #dc2626; }
+
+/* Green "already submitted" variant of the Submit button. Overrides
+   the disabled red styling so it reads as a success indicator, not a
+   grayed-out control. */
+.btnSubmitted,
+.btnSubmitted:disabled {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #6ee7b7;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.btnSubmitted:disabled svg { color: #047857; stroke: #047857; }
+:global(html[data-theme="dark"]) .btnSubmitted,
+:global(html[data-theme="dark"]) .btnSubmitted:disabled {
+  background: rgba(16, 185, 129, 0.14);
+  color: #6ee7b7;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+:global(html[data-theme="dark"]) .btnSubmitted:disabled svg {
+  color: #6ee7b7;
+  stroke: #6ee7b7;
+}
+
+.btnSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 20px;
+  background: #ffffff;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.btnSecondary:hover { background: #f8fafc; border-color: #cbd5e1; }
+
+
+/* ==================================================================
+   Success card (after generate)
+   ================================================================== */
+.successCard {
+  padding: 18px 22px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.successIcon {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: #d1fae5; color: #047857;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.successBody { flex: 1; min-width: 0; }
+.successTitle {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  color: #065f46;
+  text-transform: uppercase;
+}
+.successSub {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 2px;
+}
+.successHint {
+  font-size: 12.5px;
+  color: #166534;
+  margin-top: 2px;
+}
+.successActions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+
+/* ==================================================================
+   Alerts
+   ================================================================== */
+.errorAlert {
+  padding: 12px 16px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.warnAlert {
+  padding: 12px 16px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+
+/* ==================================================================
+   Responsive
+   ================================================================== */
+@media (max-width: 900px) {
+  .companyRow { grid-template-columns: 1fr; }
+  .periodBlock { border-left: none; padding-left: 0; text-align: left; }
+  .periodRow { justify-content: flex-start; }
+  .summaryGrid { grid-template-columns: 1fr; gap: 12px; }
+  .incomeGrid { grid-template-columns: 1fr; }
+  .incomeColLeft { border-right: none; border-bottom: 1px solid #e2e8f0; }
+  .netBox { grid-template-columns: 1fr; }
+  .netValue { text-align: left; }
+}
+
+
+/* ==================================================================
+   Dark mode
+   ================================================================== */
+:global(html[data-theme="dark"]) .page { background: #0b1220; color: #e2e8f0; }
+:global(html[data-theme="dark"]) .crumbTitle { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .crumbSub   { color: #94a3b8; }
+
+:global(html[data-theme="dark"]) .card,
+:global(html[data-theme="dark"]) .netBox {
+  background: #131c2c;
+  border-color: #dc2626;
+}
+:global(html[data-theme="dark"]) .cardTitle,
+:global(html[data-theme="dark"]) .companyName,
+:global(html[data-theme="dark"]) .netLabel,
+:global(html[data-theme="dark"]) .netValue { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .companyLine,
+:global(html[data-theme="dark"]) .netFormula,
+:global(html[data-theme="dark"]) .netWords { color: #94a3b8; }
+:global(html[data-theme="dark"]) .netWords b { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .companyLogo {
+  background: rgba(220, 38, 38, 0.15);
+  border-color: rgba(220, 38, 38, 0.35);
+  color: #fca5a5;
+}
+:global(html[data-theme="dark"]) .companyLogo:hover {
+  background: rgba(220, 38, 38, 0.25);
+  border-color: #dc2626;
+}
+:global(html[data-theme="dark"]) .periodBlock { border-left-color: rgba(255,255,255,0.08); }
+:global(html[data-theme="dark"]) .periodLabel { color: #fca5a5; }
+:global(html[data-theme="dark"]) .fieldLabel  { color: #94a3b8; }
+:global(html[data-theme="dark"]) .fieldInput,
+:global(html[data-theme="dark"]) .fieldSelect,
+:global(html[data-theme="dark"]) .periodInput,
+:global(html[data-theme="dark"]) .incomeRowInput {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  color-scheme: dark;
+}
+:global(html[data-theme="dark"]) .fieldInputRO { background: rgba(255, 255, 255, 0.02); color: #94a3b8; }
+:global(html[data-theme="dark"]) .incomeGrid   { border-color: rgba(255, 255, 255, 0.10); }
+:global(html[data-theme="dark"]) .incomeColLeft { border-right-color: rgba(255, 255, 255, 0.08); }
+:global(html[data-theme="dark"]) .incomeHead,
+:global(html[data-theme="dark"]) .incomeSub {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+:global(html[data-theme="dark"]) .incomeHeadLabel { color: #94a3b8; }
+:global(html[data-theme="dark"]) .incomeRow { border-top-color: rgba(255, 255, 255, 0.06); }
+:global(html[data-theme="dark"]) .incomeRowLabel { color: #cbd5e1; }
+:global(html[data-theme="dark"]) .incomeSub { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .btnSecondary {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+}
+:global(html[data-theme="dark"]) .btnSecondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.20);
+}
+:global(html[data-theme="dark"]) .successCard {
+  background: rgba(16, 185, 129, 0.10);
+  border-color: rgba(16, 185, 129, 0.30);
+}
+:global(html[data-theme="dark"]) .successIcon {
+  background: rgba(16, 185, 129, 0.22);
+  color: #6ee7b7;
+}
+:global(html[data-theme="dark"]) .successTitle { color: #6ee7b7; }
+:global(html[data-theme="dark"]) .successSub   { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .successHint  { color: #a7f3d0; }
+:global(html[data-theme="dark"]) .errorAlert {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.32);
+  color: #fca5a5;
+}
+:global(html[data-theme="dark"]) .warnAlert {
+  background: rgba(251, 191, 36, 0.10);
+  border-color: rgba(251, 191, 36, 0.30);
+  color: #fbbf24;
+}

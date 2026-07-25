@@ -11,6 +11,10 @@ import API, { API_BASE_URL } from "../services/api";
 const BVC_RED  = "#C8102E";
 const BVC_DARK = "#7A1022";
 const BORDER   = "#e2e8f0";
+// Unified red border used on all top navbar-style cards (controls bar,
+// summary tiles, table wrapper). Softer than BVC_RED so it reads as a
+// brand accent, not a warning outline.
+const RED_BORDER = "#fecaca";
 const TEXT     = "#0f172a";
 const MUTED    = "#64748b";
 
@@ -122,7 +126,7 @@ export default function MonthlyReports() {
 
       {/* Controls + auto-status banner */}
       <div style={{
-        background: "white", border: `1px solid ${BORDER}`, borderRadius: 12,
+        background: "white", border: `1px solid ${RED_BORDER}`, borderRadius: 12,
         padding: 16, marginTop: 14, marginBottom: 14,
         display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center",
       }}>
@@ -167,7 +171,7 @@ export default function MonthlyReports() {
 
       {/* Table */}
       <div style={{
-        background: "white", border: `1px solid ${BORDER}`, borderRadius: 12,
+        background: "white", border: `1px solid ${RED_BORDER}`, borderRadius: 12,
         overflow: "hidden",
       }}>
         <div style={{ overflowX: "auto" }}>
@@ -278,17 +282,20 @@ export default function MonthlyReports() {
 function Hero() {
   return (
     <div style={{
-      background: `linear-gradient(135deg, ${BVC_RED} 0%, ${BVC_DARK} 100%)`,
-      color: "white", padding: "20px 24px", borderRadius: 14,
-      boxShadow: "0 4px 14px rgba(139,11,31,0.18)",
+      background: "white",
+      color: TEXT,
+      padding: "20px 24px",
+      borderRadius: 14,
+      border: `1px solid ${RED_BORDER}`,
+      borderLeft: `5px solid ${BVC_RED}`,
     }}>
-      <div style={{ fontSize: 12, letterSpacing: 2, opacity: 0.85, fontWeight: 700 }}>
+      <div style={{ fontSize: 12, letterSpacing: 2, fontWeight: 700, color: BVC_RED }}>
         HR · MONTHLY REPORTS
       </div>
-      <div style={{ fontSize: 26, fontWeight: 800, marginTop: 6 }}>
+      <div style={{ fontSize: 26, fontWeight: 800, marginTop: 6, color: TEXT }}>
         Automated Monthly Attendance & Payroll Reports
       </div>
-      <div style={{ fontSize: 15, marginTop: 6, opacity: 0.9 }}>
+      <div style={{ fontSize: 15, marginTop: 6, color: MUTED }}>
         Per-employee summary · Working days · Leave breakdown · Deductions · Net payable · PDF download
       </div>
     </div>
@@ -298,7 +305,7 @@ function Hero() {
 function Tile({ label, value, accent }) {
   return (
     <div style={{
-      background: "white", border: `1px solid ${BORDER}`,
+      background: "white", border: `1px solid ${RED_BORDER}`,
       borderLeft: `4px solid ${accent}`,
       borderRadius: 10, padding: "14px 16px",
     }}>

@@ -561,7 +561,6 @@ function Retry({ onClick, label, inline = false }) {
   );
   if (inline) return btn;
   return <div className={styles.retryWrap}>{btn}</div>;
-
 }
 
 
@@ -665,6 +664,5 @@ function CompactBar({ phase, coords, serverInfo, errorMsg, onSkip, onRetry }) {
       </div>
     </div>
   );
-
 }
 

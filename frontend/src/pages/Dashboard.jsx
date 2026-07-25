@@ -1,8 +1,13 @@
-﻿import { lazy, Suspense, useEffect, useRef, useState } from "react";
+
+
+
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
+
 
 import {
   Link,
   NavLink,
+  Navigate,
   Routes,
   Route,
   Outlet,
@@ -36,13 +41,12 @@ import {
   setLastSeenId
 } from "../services/voiceAlerts";
 
+import ConfirmDialog from "../components/ConfirmDialog";
 import Employees from "./Employees";
 import EmployeeOnboardingReview from "./EmployeeOnboardingReview";
 import Customers from "./Customers";
 import Quotations from "./Quotations";
 import SalesOrders from "./SalesOrders";
-import InvoiceOrder from "./InvoiceOrder";
-import PurchaseOrders from "./PurchaseOrders";
 import Inventory from "./Inventory";
 import Attendance from "./Attendance";
 import Machines from "./Machines";
@@ -52,8 +56,6 @@ import Organization from "./Organization";
 // MDReview removed Phase 2 — superseded by Star Performance
 import Production from "./Production";
 import Quality from "./Quality";
-import Suppliers from "./Suppliers";
-import Purchase from "./Purchase";
 import LeaveManagement from "./LeaveManagement";
 import DashboardHome from "./DashboardHome";
 import AdminDashboard from "./AdminDashboard";
@@ -63,7 +65,6 @@ import RoleManagement from "./RoleManagement";
 import RbacPermissions from "./RbacPermissions";
 import HolidayCalendar from "./HolidayCalendar";
 import WorkCenters from "./WorkCenters";
-import CompanySettings from "./CompanySettings";
 import GeofenceSettings from "./GeofenceSettings";
 import EmployeeMemos from "./EmployeeMemos";
 import ApprovalCenter from "./ApprovalCenter";
@@ -74,19 +75,37 @@ import Allowances from "./Allowances";
 import EmployeeProfile from "./EmployeeProfile";
 import Recruitment from "./Recruitment";
 import PayslipGenerator from "./PayslipGenerator";
+import PayrollRecords from "./PayrollRecords";
+import HelpDeskAdmin from "./HelpDeskAdmin";
 import OnboardingChecklist from "./OnboardingChecklist";
+import ShiftManagement from "./ShiftManagement";
 import HrAutomation from "./HrAutomation";
 import MonthlyReports from "./MonthlyReports";
 import WorkforceAnalytics from "./WorkforceAnalytics";
-import ChatBot from "../components/ChatBot";
+import VoiceAssistant from "../components/VoiceAssistant";
 function HrLayout() {
   return <Outlet />;
 }
+
 const DepartmentManagement = lazy(() => import("./DepartmentManagement"));
 const OrgRoleManagement = lazy(() => import("./OrgRoleManagement"));
 const ProjectCategoryManagement = lazy(() => import("./ProjectCategoryManagement"));
 const ProjectPage = lazy(() => import("./ProjectPage"));
+const LeadManagementConfig = lazy(() => import("./LeadManagementConfig"));
+const LiveLeadViewer = lazy(() => import("./LiveLeadViewer"));
+const ManualLeadManagement = lazy(() => import("./ManualLeadManagement"));
+const PollingActivityLog = lazy(() => import("./PollingActivityLog"));
 const TaskTemplatePage = lazy(() => import("./TaskTemplatePage"));
+const ProjectQuotationManagement = lazy(() => import("./ProjectQuotationManagement"));
+const ProjectPricingPage = lazy(() => import("./ProjectPricingPage"));
+const InventoryCategoriesPage = lazy(() => import("./InventoryCategoriesPage"));
+const ProductMasterPage = lazy(() => import("./ProductMasterPage"));
+const SupplierManagementPage = lazy(() => import("./SupplierManagementPage"));
+const InventoryItemsPage = lazy(() => import("./InventoryItemsPage"));
+const CompanyProfilePage = lazy(() => import("./CompanyProfilePage"));
+const EmailConfigManagement = lazy(() => import("./EmailConfigManagement"));
+const EmailTemplatePage = lazy(() => import("./EmailTemplatePage"));
+
 
 import styles from "./Dashboard.module.css";
 import {
@@ -1405,21 +1424,6 @@ function SidebarIcon({ name }) {
           <circle cx="17" cy="18.5" r="1.8" />
         </svg>
       );
-    case "purchase":
-      return (
-        <svg {...props}>
-          <path d="M3 5h2l2.5 11h10l2-7H6.5" />
-          <circle cx="9" cy="20" r="1.5" />
-          <circle cx="17" cy="20" r="1.5" />
-        </svg>
-      );
-    case "purchaseorders":
-      return (
-        <svg {...props}>
-          <rect x="5" y="4" width="14" height="17" rx="2" />
-          <path d="M9 9h6M9 13h6M9 17h4" />
-        </svg>
-      );
     case "inventory":
       return (
         <svg {...props}>
@@ -1499,6 +1503,35 @@ function SidebarIcon({ name }) {
           <path d="M19 13v3l2 1" />
         </svg>
       );
+    case "lead-config":
+      return (
+        <svg {...props}>
+          <path d="M4 5h16l-6 7v6l-4 2v-8L4 5z" />
+        </svg>
+      );
+    case "live-leads":
+      return (
+        <svg {...props}>
+          <rect x="3" y="4" width="18" height="14" rx="2" />
+          <path d="M3 9h18M9 4v14" />
+        </svg>
+      );
+    case "lead-records":
+      return (
+        <svg {...props}>
+          <circle cx="9" cy="8" r="3" />
+          <path d="M4 20v-1a5 5 0 0 1 5-5h0a5 5 0 0 1 5 5v1" />
+          <path d="M16 4.5a3 3 0 0 1 0 6" />
+          <path d="M19 20v-1a5 5 0 0 0-3-4.6" />
+        </svg>
+      );
+    case "polling-activity":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+      );
     case "sub-template":
       return (
         <svg {...props}>
@@ -1514,11 +1547,40 @@ function SidebarIcon({ name }) {
           <path d="M9 12l2 2 4-4" />
         </svg>
       );
+    case "proj-quotation":
+      return (
+        <svg {...props}>
+          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+          <path d="M14 3v5h5" />
+          <path d="M9 13h6M9 16.5h6M9 9.5h2" />
+        </svg>
+      );
+    case "proj-pricing":
+      return (
+        <svg {...props}>
+          <path d="M12 2v20" />
+          <path d="M17 6.5c0-1.9-2.2-3.5-5-3.5s-5 1.4-5 3.2 2.2 2.9 5 3.3 5 1.5 5 3.3-2.2 3.2-5 3.2-5-1.6-5-3.5" />
+        </svg>
+      );
     case "custom-fields":
       return (
         <svg {...props}>
           <path d="M12 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
           <path d="M14 2v6h6M8 13h8M8 17h5" />
+        </svg>
+      );
+    case "mail":
+      return (
+        <svg {...props}>
+          <rect x="3" y="5" width="18" height="14" rx="2" />
+          <path d="M3 7l9 7 9-7" />
+        </svg>
+      );
+    case "helpdesk":
+      return (
+        <svg {...props}>
+          <path d="M20 12a3 3 0 0 1 0-6V4H4v2a3 3 0 0 1 0 6 3 3 0 0 1 0 6v2h16v-2a3 3 0 0 1 0-6z" />
+          <path d="M13 6v2M13 12v2M13 18v-2" />
         </svg>
       );
     default:
@@ -1540,25 +1602,32 @@ const NAV_GROUPS = [
     key: "org",
     label: "HRMS",
     items: [
-      { to: "/approvals", icon: <SidebarIcon name="approvals" />, label: "Approval Center" },
-      // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
 
+      // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
       { to: "/rbac", icon: <SidebarIcon name="rbac" />, label: "RBAC" },
-      { to: "/departments", icon: <SidebarIcon name="departments" />, label: "Department Management" },
-      { to: "/org-roles", icon: <SidebarIcon name="org-roles" />, label: "Role Management" },
       { to: "/employees", icon: <SidebarIcon name="employees" />, label: "Employees" },
       { to: "/memos", icon: <SidebarIcon name="memos" />, label: "Memos" },
       { to: "/attendance", icon: <SidebarIcon name="attendance" />, label: "Attendance" },
+      { to: "/shifts", icon: <SidebarIcon name="attendance" />, label: "Shift Management" },
       { to: "/leave-management", icon: <SidebarIcon name="leaves" />, label: "Leave Management" },
       { to: "/payroll", icon: <SidebarIcon name="payroll" />, label: "Payroll" },
-      { to: "/payslip-generator", icon: <SidebarIcon name="payroll" />, label: "Generate Payslip" },
+      { to: "/payroll-records", icon: <SidebarIcon name="payroll" />, label: "Payroll Records" },
       { to: "/star-performance", icon: <SidebarIcon name="star" />, label: "Star Performance" },
       { to: "/allowances", icon: <SidebarIcon name="allowances" />, label: "Allowances" },
       { to: "/recruitment", icon: <SidebarIcon name="recruitment" />, label: "Recruitment" },
       { to: "/onboarding", icon: <SidebarIcon name="employees" />, label: "Onboarding" },
       { to: "/hr-automation", icon: <SidebarIcon name="approvals" />, label: "HR Automation" },
       { to: "/monthly-reports", icon: <SidebarIcon name="payroll" />, label: "Monthly Reports" },
-      { to: "/workforce-analytics", icon: <SidebarIcon name="star" />, label: "Workforce Analytics" },
+      // { to: "/workforce-analytics", icon: <SidebarIcon name="star"      />, label: "Workforce Analytics" }  // temporarily hidden per request
+      { to: "/help-desk", icon: <SidebarIcon name="helpdesk" />, label: "Help Desk" },
+      { to: "/approvals", icon: <SidebarIcon name="approvals" />, label: "Approval Center" },
+      // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
+      { to: "/departments", icon: <SidebarIcon name="departments" />, label: "Department Management" },
+      { to: "/org-roles", icon: <SidebarIcon name="org-roles" />, label: "Role Management" },
+
+
+
+
     ]
   },
   {
@@ -1567,12 +1636,18 @@ const NAV_GROUPS = [
     items: [
       { to: "/customers", icon: <SidebarIcon name="customers" />, label: "Customers" },
       { to: "/quotations", icon: <SidebarIcon name="quotations" />, label: "Quotations" },
+      { to: "/sales-orders", icon: <SidebarIcon name="salesorders" />, label: "Sales Orders" }
 
-      { to: "/sales-orders", icon: <SidebarIcon name="salesorders" />, label: "Sales Orders" },
-
-      { to: "/sales-orders", icon: <SidebarIcon name="salesorders" />, label: "Sales Orders" },
-      { to: "/invoice-orders", icon: <SidebarIcon name="invoiceorders" />, label: "Invoice" }
-
+    ]
+  },
+  {
+    key: "lead-mgmt",
+    label: "Lead Management",
+    items: [
+      { to: "/lead-management/configuration", icon: <SidebarIcon name="lead-config" />, label: "Configuration" },
+      { to: "/lead-management/live-leads", icon: <SidebarIcon name="live-leads" />, label: "Live Lead Viewer" },
+      { to: "/lead-management/leads", icon: <SidebarIcon name="lead-records" />, label: "Lead Records" },
+      { to: "/lead-management/polling-activity", icon: <SidebarIcon name="polling-activity" />, label: "Polling Activity" }
     ]
   },
   // {
@@ -1589,13 +1664,18 @@ const NAV_GROUPS = [
     items: [
       { to: "/project-categories", icon: <SidebarIcon name="proj-cat" />, label: "Project Categories" },
       { to: "/projects", icon: <SidebarIcon name="sub-template" />, label: "Projects" },
-      { to: "/task-templates", icon: <SidebarIcon name="task-tmpl" />, label: "Task Templates" }
+      { to: "/task-templates", icon: <SidebarIcon name="task-tmpl" />, label: "Task Templates" },
+      { to: "/project-pricing", icon: <SidebarIcon name="proj-pricing" />, label: "Project Pricing" },
+      { to: "/project-quotations", icon: <SidebarIcon name="proj-quotation" />, label: "Quotation Templates" },
+
     ]
   },
   {
     key: "manufacturing",
     label: "Manufacturing",
     items: [
+      { to: "/projects", icon: <SidebarIcon name="projects" />, label: "Projects" },
+
       { to: "/machines", icon: <SidebarIcon name="machines" />, label: "Machines" },
       { to: "/work-centers", icon: <SidebarIcon name="workcenters" />, label: "Work Centers" },
       { to: "/production", icon: <SidebarIcon name="production" />, label: "Production & BOM" },
@@ -1606,10 +1686,16 @@ const NAV_GROUPS = [
     key: "purchase",
     label: "Purchase & Inventory",
     items: [
+
       { to: "/suppliers", icon: <SidebarIcon name="suppliers" />, label: "Suppliers" },
       { to: "/purchase", icon: <SidebarIcon name="purchase" />, label: "BOM-Supplier Map" },
       { to: "/purchase-orders", icon: <SidebarIcon name="purchaseorders" />, label: "Purchase Orders" },
-      { to: "/inventory", icon: <SidebarIcon name="inventory" />, label: "Inventory" }
+      { to: "/inventory", icon: <SidebarIcon name="inventory" />, label: "Inventory" },
+      { to: "/supplier-management", icon: <SidebarIcon name="suppliers" />, label: "Supplier Management" },
+      { to: "/inventory-categories", icon: <SidebarIcon name="inventory" />, label: "Inv. Categories" },
+      { to: "/product-master", icon: <SidebarIcon name="inventory" />, label: "Product Master" },
+      { to: "/inventory-items", icon: <SidebarIcon name="inventory" />, label: "Inventory Items" },
+
     ]
   },
   {
@@ -1623,7 +1709,13 @@ const NAV_GROUPS = [
     key: "system",
     label: "System",
     items: [
+
       { to: "/company-settings", icon: <SidebarIcon name="company" />, label: "Company Settings" },
+
+      { to: "/company-profile", icon: <SidebarIcon name="company" />, label: "Company Profile" },
+      { to: "/email-config", icon: <SidebarIcon name="settings" />, label: "Email Config" },
+      { to: "/email-templates", icon: <SidebarIcon name="mail" />, label: "Email Templates" },
+
       { to: "/holidays", icon: <SidebarIcon name="holidays" />, label: "Holiday Calendar" },
       { to: "/geofence", icon: <SidebarIcon name="geofence" />, label: "Geofence Settings" },
       { to: "/settings", icon: <SidebarIcon name="settings" />, label: "Settings" }
@@ -1754,6 +1846,7 @@ function Dashboard() {
   const navigate = useNavigate();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   const closeSidebar = () => setSidebarOpen(false);
 
@@ -1778,19 +1871,16 @@ function Dashboard() {
   const username =
     localStorage.getItem("username") || "User";
 
-  const handleLogout = () => {
 
-    // if (!window.confirm("Log out of Vending ERP?")) {
+  // Open the branded confirm modal; the actual logout runs in
+  // performLogout on Confirm.
+  const handleLogout = () => setLogoutOpen(true);
 
-    //   return;
-    // }
-
+  const performLogout = () => {
+    setLogoutOpen(false);
     localStorage.removeItem("auth");
-
     localStorage.removeItem("username");
-
     localStorage.removeItem("loginTime");
-
     navigate("/login", { replace: true });
   };
 
@@ -1901,7 +1991,6 @@ function Dashboard() {
           <Route path="/roles" element={<RoleManagement />} />
           <Route path="/rbac" element={<RbacPermissions />} />
 
-          <Route path="/company-settings" element={<CompanySettings />} />
           <Route path="/holidays" element={<HolidayCalendar />} />
           <Route path="/geofence" element={<GeofenceSettings />} />
           <Route path="/approvals" element={<ApprovalCenter />} />
@@ -1918,12 +2007,15 @@ function Dashboard() {
           <Route element={<HrLayout />}>
             <Route path="/employees" element={<Employees />} />
             <Route path="/attendance" element={<Attendance />} />
+            <Route path="/shifts" element={<ShiftManagement />} />
             <Route path="/memos" element={<EmployeeMemos />} />
             <Route path="/leave-management" element={<LeaveManagement />} />
             <Route path="/allowances" element={<Allowances />} />
             <Route path="/star-performance" element={<StarPerformance />} />
             <Route path="/payroll" element={<Payroll />} />
             <Route path="/payslip-generator" element={<PayslipGenerator />} />
+            <Route path="/payroll-records"   element={<PayrollRecords />} />
+            <Route path="/help-desk"         element={<HelpDeskAdmin />} />
           </Route>
 
           <Route
@@ -1984,19 +2076,25 @@ function Dashboard() {
             element={<Quality />}
           />
 
+          {/* ram-development commit 3eef8b5e removed Suppliers.jsx /
+              Purchase.jsx / PurchaseOrders.jsx and consolidated them into
+              SupplierManagementPage (routed at /supplier-management below).
+              Redirect the old URLs so any existing bookmarks / sidebar
+              links keep working instead of crashing Dashboard on mount
+              with a ReferenceError. */}
           <Route
             path="/suppliers"
-            element={<Suppliers />}
+            element={<Navigate to="/supplier-management" replace />}
           />
 
           <Route
             path="/purchase"
-            element={<Purchase />}
+            element={<Navigate to="/supplier-management" replace />}
           />
 
           <Route
             path="/purchase-orders"
-            element={<PurchaseOrders />}
+            element={<Navigate to="/supplier-management" replace />}
           />
 
           <Route
@@ -2044,12 +2142,53 @@ function Dashboard() {
           <Route path="/org-roles" element={<Suspense fallback={null}><OrgRoleManagement /></Suspense>} />
           <Route path="/project-categories" element={<Suspense fallback={null}><ProjectCategoryManagement /></Suspense>} />
           <Route path="/task-templates" element={<Suspense fallback={null}><TaskTemplatePage /></Suspense>} />
+          <Route path="/project-quotations" element={<Suspense fallback={null}><ProjectQuotationManagement /></Suspense>} />
+          <Route path="/project-pricing" element={<Suspense fallback={null}><ProjectPricingPage /></Suspense>} />
+
+          {/* Lead Management module (multi-source lead pipeline) */}
+          <Route path="/lead-management/configuration" element={<Suspense fallback={null}><LeadManagementConfig /></Suspense>} />
+          <Route path="/lead-management/live-leads" element={<Suspense fallback={null}><LiveLeadViewer /></Suspense>} />
+          <Route path="/lead-management/leads" element={<Suspense fallback={null}><ManualLeadManagement /></Suspense>} />
+          <Route path="/lead-management/polling-activity" element={<Suspense fallback={null}><PollingActivityLog /></Suspense>} />
+
+          {/* Company Profile */}
+          <Route path="/company-profile" element={<Suspense fallback={null}><CompanyProfilePage /></Suspense>} />
+
+          {/* Email Configuration Management */}
+          <Route path="/email-config" element={<Suspense fallback={null}><EmailConfigManagement /></Suspense>} />
+
+          {/* Email Template Editor */}
+          <Route path="/email-templates" element={<Suspense fallback={null}><EmailTemplatePage /></Suspense>} />
+
+          {/* Supplier & Inventory Management module */}
+          <Route path="/inventory-categories" element={<Suspense fallback={null}><InventoryCategoriesPage /></Suspense>} />
+          <Route path="/product-master" element={<Suspense fallback={null}><ProductMasterPage /></Suspense>} />
+          <Route path="/supplier-management" element={<Suspense fallback={null}><SupplierManagementPage /></Suspense>} />
+          <Route path="/inventory-items" element={<Suspense fallback={null}><InventoryItemsPage /></Suspense>} />
 
         </Routes>
 
       </div>
 
-      <ChatBot />
+      <VoiceAssistant
+        employeeId={
+          typeof window !== "undefined"
+            ? (localStorage.getItem("employee_id")
+                || localStorage.getItem("employee_code")
+                || "")
+            : ""
+        }
+      />
+
+      <ConfirmDialog
+        open={logoutOpen}
+        title="Are you sure you want to log out?"
+        confirmLabel="Log Out"
+        cancelLabel="Continue"
+        danger
+        onCancel={() => setLogoutOpen(false)}
+        onConfirm={performLogout}
+      />
 
     </div>
   );
