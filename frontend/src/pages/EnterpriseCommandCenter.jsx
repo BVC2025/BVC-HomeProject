@@ -1804,7 +1804,8 @@ export default function EnterpriseCommandCenter() {
               <ExecutiveAnalytics />
         */}
 
-        <QuickActionsFAB />
+        {/* QuickActionsFAB removed — the VoiceAssistant now occupies
+            the bottom-right floating slot on the admin dashboard. */}
       </div>
     </div>
   );

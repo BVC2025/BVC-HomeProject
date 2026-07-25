@@ -2773,8 +2773,9 @@ export default function AdminDashboardV2() {
   return (
     <ThemeProvider>
       <AdminDashboardV2Inner />
-      <AIAssistantFAB openSignal={aiOpenSignal} />
-      <QuickActionsFAB onLaunchAI={launchAI} />
+      {/* AIAssistantFAB + QuickActionsFAB removed — the VoiceAssistant
+          mounted at the Dashboard-layout level now owns the bottom-right
+          floating slot. */}
     </ThemeProvider>
   );
 }

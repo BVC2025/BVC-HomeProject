@@ -1,0 +1,158 @@
+.block {
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #ffffff;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.block:last-child {
+  margin-bottom: 0;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.typeTag {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #DC2626;
+  background: #fee2e2;
+  padding: 3px 8px;
+  border-radius: 5px;
+  flex-shrink: 0;
+}
+
+.titleInput {
+  flex: 1;
+  min-width: 140px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+}
+
+.titleInput:focus {
+  border-color: #DC2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.1);
+}
+
+.pageBreakLabel {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: #64748b;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.ctrlBtn {
+  width: 26px;
+  height: 26px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #374151;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.ctrlBtn:hover:not(:disabled) {
+  border-color: #DC2626;
+  color: #DC2626;
+}
+
+.ctrlBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.removeBtn {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: #DC2626;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.removeBtn:hover {
+  background: #DC2626;
+  color: #ffffff;
+}
+
+.body {
+  margin-top: 4px;
+}
+
+.imageRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.imagePreview {
+  max-height: 80px;
+  max-width: 220px;
+  object-fit: contain;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 4px;
+  background: #f8fafc;
+}
+
+.imageEmpty {
+  font-size: 12.5px;
+  color: #9ca3af;
+  padding: 10px 14px;
+  border: 1px dashed #d1d5db;
+  border-radius: 7px;
+  background: #f8fafc;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.uploadBtn {
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.uploadBtn:hover:not(:disabled) {
+  border-color: #DC2626;
+  color: #DC2626;
+}
+
+.uploadBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

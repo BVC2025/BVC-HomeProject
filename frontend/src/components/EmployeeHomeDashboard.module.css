@@ -1,0 +1,651 @@
+/* ==================================================================
+   EmployeeHomeDashboard — modern, at-a-glance layout
+   Cream page, elevated white cards, generous whitespace, tightly
+   controlled palette. Accent red is used ONLY for the employee's
+   name, the Late chip, and the productivity fill.
+   ================================================================== */
+
+.home {
+  display: grid;
+  gap: 18px;
+  padding: 6px 2px 40px;
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #1e293b;
+}
+
+
+/* ==================================================================
+   1. WELCOME CARD
+   ================================================================== */
+
+.welcome {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 24px 28px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 28px;
+  align-items: center;
+}
+
+.welcomeMain {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 18px;
+  align-items: center;
+  min-width: 0;
+}
+
+.avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 22px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid #e2e8f0;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.welcomeText { min-width: 0; }
+
+.welcomeDate {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+
+.welcomeTitle {
+  margin: 0 0 3px;
+  font-size: 21px;
+  font-weight: 600;
+  color: #0f172a;
+  letter-spacing: -0.3px;
+  line-height: 1.25;
+}
+.welcomeTitle span {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.welcomeSubtitle {
+  font-size: 13px;
+  font-weight: 400;
+  color: #64748b;
+}
+
+.welcomeMeta {
+  display: flex;
+  gap: 28px;
+  flex-shrink: 0;
+}
+
+.metaItem {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.metaLabel {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.metaValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  border: 1px solid transparent;
+  width: fit-content;
+}
+.chipDot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.chip_success { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+.chip_warning { background: #fffbeb; color: #b45309; border-color: #fcd34d; }
+.chip_danger  { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.chip_info    { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.chip_muted   { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+
+
+/* ==================================================================
+   2. STAT ROW — three equal glance cards
+   ================================================================== */
+
+.statRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.statCard {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  color: inherit;
+  text-align: left;
+  transition: box-shadow 0.18s ease, transform 0.1s ease, border-color 0.18s ease;
+}
+.statCard:hover {
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+  border-color: #cbd5e1;
+}
+.statCard:active { transform: translateY(1px); }
+
+.statHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.statIcon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.tint_green { background: #ecfdf5; color: #047857; }
+.tint_blue  { background: #eff6ff; color: #1d4ed8; }
+.tint_amber { background: #fffbeb; color: #b45309; }
+.tint_red   { background: #fef2f2; color: #b91c1c; }
+
+.statLabel {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.statValue {
+  font-size: 30px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.8px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 2px;
+}
+.statUnit {
+  font-size: 12px;
+  font-weight: 500;
+  color: #94a3b8;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.statMeta {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #64748b;
+  margin-top: 2px;
+}
+.statOverdue { color: #b91c1c; font-weight: 600; }
+
+
+/* ==================================================================
+   3. SPLIT — tasks (7) + upcoming (5)
+   ================================================================== */
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 16px;
+}
+
+
+/* ==================================================================
+   Panel — shared card container for Tasks / Upcoming / Announcements
+   ================================================================== */
+
+.panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 20px 22px 18px;
+}
+
+.panelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+  letter-spacing: -0.1px;
+}
+
+.panelSubtle {
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.panelLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  color: #dc2626;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+.panelLink:hover { background: #fef2f2; }
+
+
+/* ---- Empty state ---- */
+
+.empty {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 4px 8px;
+  color: #94a3b8;
+}
+.empty > svg { flex-shrink: 0; color: #cbd5e1; }
+.emptyTitle { font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 2px; }
+.emptyBody  { font-size: 12.5px; color: #94a3b8; }
+
+
+/* ---- Task list ---- */
+
+.taskList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.taskRow {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-top: 1px solid #f1f5f9;
+}
+.taskRow:first-child { border-top: none; padding-top: 4px; }
+
+.taskDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+.taskDot_overdue { background: #dc2626; }
+
+.taskBody { min-width: 0; }
+.taskTitle {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #0f172a;
+  line-height: 1.45;
+}
+.taskMeta {
+  display: flex;
+  gap: 6px;
+  font-size: 11.5px;
+  color: #94a3b8;
+  margin-top: 3px;
+}
+.dueOverdue { color: #b91c1c; font-weight: 600; }
+
+
+/* ---- Event list ---- */
+
+.eventList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.eventRow {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid #f1f5f9;
+}
+.eventRow:first-child { border-top: none; padding-top: 4px; }
+
+.eventDate {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.eventDay {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+.eventMonth {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.6px;
+  margin-top: 2px;
+}
+
+.eventBody { min-width: 0; }
+.eventTitle {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.eventKind {
+  font-size: 11.5px;
+  color: #94a3b8;
+  margin-top: 2px;
+  letter-spacing: 0.2px;
+}
+
+
+/* ---- Announcement list ---- */
+
+.announceList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.announceRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 0;
+  border-top: 1px solid #f1f5f9;
+}
+.announceRow:first-child { border-top: none; padding-top: 4px; }
+
+.announceDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #dc2626;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.announceBody { min-width: 0; }
+.announceTitle {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.45;
+}
+.announceDetail {
+  font-size: 12.5px;
+  color: #64748b;
+  margin-top: 3px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.announceWhen {
+  font-size: 11.5px;
+  color: #94a3b8;
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+
+/* ==================================================================
+   5. PRODUCTIVITY — one quiet line, no chart
+   ================================================================== */
+
+.productivity {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 18px 22px;
+}
+.productivityHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.productivityLabel {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+.productivityScore {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+.productivityOutOf {
+  font-size: 12px;
+  font-weight: 500;
+  color: #94a3b8;
+  letter-spacing: 0;
+}
+.productivityTrack {
+  height: 6px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.productivityFill {
+  height: 100%;
+  background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+  border-radius: 999px;
+  transition: width 0.5s ease;
+}
+
+
+/* ==================================================================
+   MOBILE
+   ================================================================== */
+
+@media (max-width: 900px) {
+  .home       { gap: 14px; padding: 4px 0 40px; }
+
+  .welcome    { padding: 20px 20px; grid-template-columns: 1fr; gap: 18px; }
+  .avatar     { width: 52px; height: 52px; font-size: 20px; }
+  .welcomeTitle { font-size: 19px; }
+
+  .welcomeMeta {
+    gap: 22px;
+    padding-top: 14px;
+    border-top: 1px solid #f1f5f9;
+  }
+
+  .statRow    { grid-template-columns: 1fr; gap: 12px; }
+  .statCard   { padding: 18px 20px; }
+  .statValue  { font-size: 26px; }
+
+  .split      { grid-template-columns: 1fr; gap: 14px; }
+
+  .panel      { padding: 18px 20px 16px; }
+  .panelTitle { font-size: 14px; }
+}
+
+
+@media (max-width: 420px) {
+  .welcomeTitle { font-size: 18px; }
+  .welcomeSubtitle { font-size: 12px; }
+  .avatar { width: 46px; height: 46px; font-size: 18px; }
+  .statValue { font-size: 24px; }
+  .eventDate { width: 40px; height: 40px; }
+  .eventDay { font-size: 14px; }
+}
+
+
+/* ==================================================================
+   DARK MODE — module-scoped overrides for the home dashboard.
+   ================================================================== */
+
+/* Welcome hero card */
+:global(html[data-theme="dark"]) .welcome {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .avatar {
+  background: rgba(220, 38, 38, 0.20);
+  color: #fca5a5;
+  border-color: rgba(220, 38, 38, 0.30);
+}
+:global(html[data-theme="dark"]) .welcomeDate      { color: #94a3b8; }
+:global(html[data-theme="dark"]) .welcomeTitle     { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .welcomeSubtitle  { color: #94a3b8; }
+:global(html[data-theme="dark"]) .welcomeMeta {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .metaLabel { color: #94a3b8; }
+:global(html[data-theme="dark"]) .metaValue { color: #f1f5f9; }
+
+/* Chip variants used by welcome-meta status */
+:global(html[data-theme="dark"]) .chip_success { background: rgba(16, 185, 129, 0.14); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.32); }
+:global(html[data-theme="dark"]) .chip_warning { background: rgba(251, 191, 36, 0.14); color: #fbbf24; border-color: rgba(251, 191, 36, 0.34); }
+:global(html[data-theme="dark"]) .chip_danger  { background: rgba(239, 68, 68, 0.14); color: #fca5a5; border-color: rgba(239, 68, 68, 0.32); }
+:global(html[data-theme="dark"]) .chip_info    { background: rgba(59, 130, 246, 0.14); color: #93c5fd; border-color: rgba(59, 130, 246, 0.32); }
+:global(html[data-theme="dark"]) .chip_muted   { background: rgba(148, 163, 184, 0.14); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.28); }
+
+/* Stat cards (Attendance / Leave Balance / Tasks) */
+:global(html[data-theme="dark"]) .statCard {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .statCard:hover {
+  border-color: rgba(255, 255, 255, 0.20);
+}
+:global(html[data-theme="dark"]) .statLabel   { color: #94a3b8; }
+:global(html[data-theme="dark"]) .statValue   { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .statUnit    { color: #94a3b8; }
+:global(html[data-theme="dark"]) .statMeta    { color: #94a3b8; }
+:global(html[data-theme="dark"]) .statOverdue { color: #fca5a5; }
+
+/* Stat-card icon tints */
+:global(html[data-theme="dark"]) .tint_green { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+:global(html[data-theme="dark"]) .tint_blue  { background: rgba(59, 130, 246, 0.18); color: #93c5fd; }
+:global(html[data-theme="dark"]) .tint_amber { background: rgba(251, 191, 36, 0.18); color: #fbbf24; }
+:global(html[data-theme="dark"]) .tint_red   { background: rgba(239, 68, 68, 0.18);  color: #fca5a5; }
+
+/* Panels (Today's tasks / Upcoming) */
+:global(html[data-theme="dark"]) .panel {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .panelTitle  { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .panelSubtle { color: #94a3b8; }
+:global(html[data-theme="dark"]) .panelLink {
+  color: #fca5a5;
+}
+:global(html[data-theme="dark"]) .panelLink:hover {
+  background: rgba(220, 38, 38, 0.15);
+  color: #fecaca;
+}
+
+/* Empty state inside panels */
+:global(html[data-theme="dark"]) .empty > svg { color: #475569; }
+:global(html[data-theme="dark"]) .emptyTitle  { color: #e2e8f0; }
+:global(html[data-theme="dark"]) .emptyBody   { color: #94a3b8; }
+
+/* Task list rows */
+:global(html[data-theme="dark"]) .taskRow {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+:global(html[data-theme="dark"]) .taskTitle  { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .taskMeta   { color: #94a3b8; }
+:global(html[data-theme="dark"]) .dueOverdue { color: #fca5a5; }
+
+/* Event / upcoming rows */
+:global(html[data-theme="dark"]) .eventRow {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+:global(html[data-theme="dark"]) .eventDate {
+  background: rgba(239, 68, 68, 0.14);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.28);
+}
+
+/* Productivity card (bottom of dashboard) */
+:global(html[data-theme="dark"]) .productivity {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .productivityLabel { color: #94a3b8; }
+:global(html[data-theme="dark"]) .productivityScore { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .productivityOutOf { color: #94a3b8; }
+:global(html[data-theme="dark"]) .productivityTrack {
+  background: rgba(255, 255, 255, 0.08);
+}

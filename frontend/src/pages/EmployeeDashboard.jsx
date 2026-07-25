@@ -18,6 +18,7 @@ import MyPerformancePanel from "../components/MyPerformancePanel";
 import MyAssetsPanel from "../components/MyAssetsPanel";
 import MyAnnouncementsPanel from "../components/MyAnnouncementsPanel";
 import MyHelpDeskPanel from "../components/MyHelpDeskPanel";
+import VoiceAssistant from "../components/VoiceAssistant";
 import MyDocumentsPanel from "../components/MyDocumentsPanel";
 import MySettingsPanel from "../components/MySettingsPanel";
 import EmployeeSidebar from "../components/EmployeeSidebar";
@@ -170,6 +171,131 @@ function Toast({ toast, onClose }) {
 
 
 // =================================================================
+// NotificationsInbox — employee-side alert list.
+// Renders the notifications the employee has received. MEMO
+// notifications open the associated memo in the Memos tab.
+// =================================================================
+function NotificationsInbox({ notifications, onOpenMemo, onMarkRead }) {
+
+  const rows = Array.isArray(notifications) ? notifications : [];
+
+  const handleClick = (n) => {
+    if (!n.IS_READ) onMarkRead?.(n.ID);
+    if (n.REF_TYPE === "MEMO" && n.REF_ID) onOpenMemo?.(n.REF_ID);
+  };
+
+  const toneOf = (type) => {
+    switch ((type || "").toUpperCase()) {
+      case "WARNING": return { bg: "#fef3c7", fg: "#92400e", label: "Warning" };
+      case "SUCCESS": return { bg: "#dcfce7", fg: "#166534", label: "Appreciation" };
+      case "ALERT":   return { bg: "#fee2e2", fg: "#991b1b", label: "Alert" };
+      default:        return { bg: "#dbeafe", fg: "#1e40af", label: "Info" };
+    }
+  };
+
+  return (
+    <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
+      <div>
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#0f172a" }}>Notifications</h2>
+        <p style={{ margin: "4px 0 0", fontSize: 13, color: "#64748b" }}>
+          Every alert you&apos;ve received. Click a memo notification to open the full memo.
+        </p>
+      </div>
+
+      {rows.length === 0 && (
+        <div style={{
+          padding: "40px 20px",
+          textAlign: "center",
+          background: "#ffffff",
+          border: "1px dashed #cbd5e1",
+          borderRadius: 12,
+          color: "#64748b",
+          fontSize: 13.5,
+        }}>
+          You&apos;re all caught up — no notifications right now.
+        </div>
+      )}
+
+      {rows.map((n) => {
+        const tone = toneOf(n.TYPE);
+        const isMemo = n.REF_TYPE === "MEMO" && !!n.REF_ID;
+        return (
+          <button
+            key={n.ID}
+            type="button"
+            onClick={() => handleClick(n)}
+            style={{
+              textAlign: "left",
+              display: "flex",
+              gap: 14,
+              padding: "14px 16px",
+              background: "#ffffff",
+              border: n.IS_READ ? "1px solid #e2e8f0" : "1px solid #fecaca",
+              borderLeft: `3px solid ${n.IS_READ ? "#cbd5e1" : "#dc2626"}`,
+              borderRadius: 12,
+              cursor: isMemo ? "pointer" : "default",
+              fontFamily: "inherit",
+              width: "100%",
+              alignItems: "flex-start",
+            }}
+          >
+            <span style={{
+              padding: "2px 8px",
+              borderRadius: 999,
+              background: tone.bg,
+              color: tone.fg,
+              fontSize: 10.5,
+              fontWeight: 700,
+              letterSpacing: 0.4,
+              textTransform: "uppercase",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}>
+              {tone.label}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: 13.5,
+                fontWeight: 600,
+                color: "#0f172a",
+                marginBottom: 2,
+              }}>
+                {n.TITLE || "Notification"}
+                {!n.IS_READ && (
+                  <span style={{
+                    marginLeft: 8,
+                    display: "inline-block",
+                    width: 8, height: 8, borderRadius: "50%",
+                    background: "#dc2626",
+                    verticalAlign: "middle",
+                  }} />
+                )}
+              </div>
+              <div style={{
+                fontSize: 12.5, color: "#475569", lineHeight: 1.5,
+              }}>
+                {n.MESSAGE}
+              </div>
+              <div style={{
+                marginTop: 6, fontSize: 11.5, color: "#94a3b8",
+              }}>
+                {fmtDateTime(n.CREATED_AT)}
+                {isMemo && (
+                  <span style={{ marginLeft: 10, color: "#dc2626", fontWeight: 600 }}>
+                    View memo →
+                  </span>
+                )}
+              </div>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+
+// =================================================================
 // EmployeeDashboard — top-level (profile gate)
 // =================================================================
 
@@ -309,6 +435,8 @@ function EmployeeDashboardBody() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const lastNotifIdRef = useRef(0);
+  // When a notification deep-links to a memo, MyMemosPanel opens this ID.
+  const [focusMemoId, setFocusMemoId] = useState(null);
 
   const [voiceOn, setVoiceOn] = useState(
     () => isVoiceSupported() && isVoiceEnabled()
@@ -388,9 +516,10 @@ function EmployeeDashboardBody() {
 
   const fetchNotifications = async () => {
     try {
+      const empParam = employeeId ? `?employee_id=${encodeURIComponent(employeeId)}` : "";
       const [listRes, countRes] = await Promise.all([
-        API.get("/notifications"),
-        API.get("/notifications/unread-count")
+        API.get(`/notifications${empParam}`),
+        API.get(`/notifications/unread-count${empParam}`)
       ]);
       const items = listRes.data || [];
       setNotifications(items);
@@ -795,7 +924,11 @@ function EmployeeDashboardBody() {
           {/* Personal memos — warnings, appreciations, notices issued
               to this employee. */}
           {mainTab === "memos" && (
-            <MyMemosPanel employeeId={employeeId} />
+            <MyMemosPanel
+              employeeId={employeeId}
+              initialOpenId={focusMemoId}
+              onInitialOpenConsumed={() => setFocusMemoId(null)}
+            />
           )}
 
           {/* Company-wide announcements — holidays, notices, meetings,
@@ -850,15 +983,21 @@ function EmployeeDashboardBody() {
             />
           )}
           {mainTab === "notifications" && (
-            <ComingSoonPanel
-              title="Notifications"
-              iconKey="bell"
-              description="Every alert in one inbox — salary credited, leave approved, HR announcements, birthdays."
-              bullets={[
-                "Filter by read / unread",
-                "Search across HR, payroll and policy events",
-                "Mark all read in a single tap",
-              ]}
+            <NotificationsInbox
+              notifications={notifications}
+              onOpenMemo={(memoId) => {
+                setFocusMemoId(memoId);
+                setMainTab("memos");
+              }}
+              onMarkRead={async (id) => {
+                try {
+                  await API.put(`/notifications/${id}/read`);
+                  setNotifications((prev) =>
+                    prev.map((n) => (n.ID === id ? { ...n, IS_READ: true } : n))
+                  );
+                  setUnreadCount((c) => Math.max(0, c - 1));
+                } catch { /* ignore */ }
+              }}
             />
           )}
           {/* announcements handled above alongside memos */}
@@ -914,6 +1053,8 @@ function EmployeeDashboardBody() {
 
       <Toast toast={toast} onClose={() => setToast(null)} />
       <EmployeeAIAssistant />
+
+      <VoiceAssistant employeeId={employeeId} />
 
       <ConfirmDialog
         open={logoutOpen}

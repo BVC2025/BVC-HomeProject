@@ -77,6 +77,23 @@ function fmtDate(iso) {
   });
 }
 
+function fmtDateTime(iso) {
+
+  if (!iso) return "—";
+
+  const d = new Date(iso);
+
+  if (Number.isNaN(d.getTime())) return "—";
+
+  return d.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
 
 function prettyType(t) {
 
@@ -109,6 +126,43 @@ function EmployeeMemos({ employeeIdLocked = null } = {}) {
   // overlays
   const [showCreate, setShowCreate] = useState(false);
   const [viewing, setViewing] = useState(null);
+
+  // ---- Memo automation (weekly warning / appreciation) ----
+  const [autoLastRun, setAutoLastRun] = useState(null);
+  const [autoRunning, setAutoRunning] = useState(false);
+  const [autoMessage, setAutoMessage] = useState("");
+
+  const loadLastRun = async () => {
+    try {
+      const r = await API.get("/memos/automation/last-run");
+      setAutoLastRun(r.data?.last_run || null);
+    } catch { /* ignore */ }
+  };
+
+  const runAutomation = async () => {
+    if (autoRunning) return;
+    setAutoRunning(true);
+    setAutoMessage("");
+    try {
+      const r = await API.post("/memos/automation/run", {});
+      const s = r.data || {};
+      setAutoLastRun(s);
+      setAutoMessage(
+        `Created ${s.warnings_created ?? 0} warning(s) and ` +
+        `${s.appreciations_created ?? 0} appreciation(s). ` +
+        `Scanned ${s.employees_scanned ?? 0} employees` +
+        (s.skipped_existing ? `, ${s.skipped_existing} already had a memo for this week.` : ".")
+      );
+      // Refresh the memo list to show the new rows.
+      loadAll();
+    } catch (err) {
+      setAutoMessage(err?.response?.data?.detail || "Automation run failed.");
+    } finally {
+      setAutoRunning(false);
+    }
+  };
+
+  useEffect(() => { loadLastRun(); }, []);
 
 
   // pagination
@@ -228,6 +282,39 @@ function EmployeeMemos({ employeeIdLocked = null } = {}) {
           className={styles.heroBtn}
         >
           + Issue Memo
+        </button>
+      </div>
+
+      {/* AUTOMATION BAR --------------------------------------------- */}
+      <div className={styles.autoBar}>
+        <div className={styles.autoBarLeft}>
+          <div className={styles.autoTitle}>Weekly memo automation</div>
+          <div className={styles.autoSub}>
+            Runs every Monday morning. Issues warning memos for absentees / late
+            arrivals / overdue tasks and appreciation memos for perfect weeks.
+            {autoLastRun ? (
+              <>
+                {" "}Last run: <strong>{fmtDateTime(autoLastRun.ran_at)}</strong>
+                {" "}— {autoLastRun.warnings_created} warning(s),
+                {" "}{autoLastRun.appreciations_created} appreciation(s)
+                {autoLastRun.skipped_existing
+                  ? `, ${autoLastRun.skipped_existing} skipped`
+                  : ""}.
+              </>
+            ) : (
+              <> Not run yet.</>
+            )}
+          </div>
+          {autoMessage && (
+            <div className={styles.autoMsg}>{autoMessage}</div>
+          )}
+        </div>
+        <button
+          onClick={runAutomation}
+          disabled={autoRunning}
+          className={styles.autoBtn}
+        >
+          {autoRunning ? "Running…" : "Run automation now"}
         </button>
       </div>
 
