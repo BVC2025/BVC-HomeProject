@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import API from "../services/api";
 
 import EntityDrawer from "../components/EntityDrawer";
+import Pagination from "../components/Pagination";
 
 import styles from "./Customers.module.css";
 
@@ -141,6 +142,12 @@ const Icon = {
     <svg width={p?.size || 14} height={p?.size || 14} viewBox="0 0 24 24" fill="none"
       stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...p}>
       <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  ),
+  info: (p) => (
+    <svg width={p?.size || 18} height={p?.size || 18} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <circle cx="12" cy="12" r="9" /><path d="M12 8v.01" /><path d="M11 12h1v4h1" />
     </svg>
   ),
 };
@@ -2037,6 +2044,9 @@ function Customers() {
 
   const [generatingFor, setGeneratingFor] = useState(null);
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
   const fetchAll = async () => {
 
     setLoading(true);
@@ -2084,6 +2094,13 @@ function Customers() {
     });
 
   }, [customers, search, statusFilter, industryFilter]);
+
+  useEffect(() => { setPage(1); }, [search, statusFilter, industryFilter]);
+
+  const pagedCustomers = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
 
   const stats = useMemo(() => {
 
@@ -2231,7 +2248,8 @@ function Customers() {
       )}
 
       <div className={styles.cardsGrid}>
-        {filtered.map((c) => (
+
+        {pagedCustomers.map((c) => (
           <CustomerCard
             key={c.ID}
             customer={c}
@@ -2242,6 +2260,16 @@ function Customers() {
           />
         ))}
       </div>
+
+      {!loading && filtered.length > 0 && (
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={filtered.length}
+          onPageChange={setPage}
+          onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+        />
+      )}
 
       {editing != null && (
         <CustomerEditor

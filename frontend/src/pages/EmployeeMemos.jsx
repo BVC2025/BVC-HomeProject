@@ -13,6 +13,10 @@
 import { useEffect, useMemo, useState } from "react";
 
 import API, { API_BASE_URL } from "../services/api";
+
+import Pagination from "../components/Pagination";
+
+
 import styles from "./EmployeeMemos.module.css";
 
 
@@ -73,6 +77,23 @@ function fmtDate(iso) {
   });
 }
 
+function fmtDateTime(iso) {
+
+  if (!iso) return "—";
+
+  const d = new Date(iso);
+
+  if (Number.isNaN(d.getTime())) return "—";
+
+  return d.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+}
+
 
 function prettyType(t) {
 
@@ -105,6 +126,59 @@ function EmployeeMemos({ employeeIdLocked = null } = {}) {
   // overlays
   const [showCreate, setShowCreate] = useState(false);
   const [viewing, setViewing] = useState(null);
+
+  // ---- Memo automation (weekly warning / appreciation) ----
+  const [autoLastRun, setAutoLastRun] = useState(null);
+  const [autoRunning, setAutoRunning] = useState(false);
+  const [autoMessage, setAutoMessage] = useState("");
+
+  const loadLastRun = async () => {
+    try {
+      const r = await API.get("/memos/automation/last-run");
+      setAutoLastRun(r.data?.last_run || null);
+    } catch { /* ignore */ }
+  };
+
+  const runAutomation = async () => {
+    if (autoRunning) return;
+    setAutoRunning(true);
+    setAutoMessage("");
+    try {
+      const r = await API.post("/memos/automation/run", {});
+      const s = r.data || {};
+      setAutoLastRun(s);
+      setAutoMessage(
+        `Created ${s.warnings_created ?? 0} warning(s) and ` +
+        `${s.appreciations_created ?? 0} appreciation(s). ` +
+        `Scanned ${s.employees_scanned ?? 0} employees` +
+        (s.skipped_existing ? `, ${s.skipped_existing} already had a memo for this week.` : ".")
+      );
+      // Refresh the memo list to show the new rows.
+      loadAll();
+    } catch (err) {
+      setAutoMessage(err?.response?.data?.detail || "Automation run failed.");
+    } finally {
+      setAutoRunning(false);
+    }
+  };
+
+  useEffect(() => { loadLastRun(); }, []);
+
+
+  // pagination
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
+  useEffect(() => { setPage(1); }, [
+    search, filterEmp, filterType, filterSev, filterStat, dateFrom, dateTo
+  ]);
+
+  const pagedRows = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return (rows || []).slice(start, start + pageSize);
+  }, [rows, page, pageSize]);
+
+
 
   // -- Data loading --------------------------------------------------
   const buildParams = () => {
@@ -189,15 +263,18 @@ function EmployeeMemos({ employeeIdLocked = null } = {}) {
 
     <div>
 
-      {/* HERO ------------------------------------------------------- */}
+      {/* HERO — white card with red left rail, consistent with the
+          rest of the ERP. Memos created here surface directly on the
+          Employee Portal, so the header is intentionally understated
+          rather than a big red banner. */}
       <div className={styles.hero}>
-        <div>
-          <div className={styles.heroEyebrow}>
-            HR
-          </div>
-          <h1 className={styles.heroTitle}>
-            Memos
-          </h1>
+        <div className={styles.heroLeft}>
+          <div className={styles.heroEyebrow}>HR</div>
+          <h1 className={styles.heroTitle}>Memos</h1>
+          <p className={styles.heroSub}>
+            Issue warnings, appreciations, and notices. Every memo
+            published here appears on the employee&apos;s portal.
+          </p>
         </div>
 
         <button
@@ -205,6 +282,39 @@ function EmployeeMemos({ employeeIdLocked = null } = {}) {
           className={styles.heroBtn}
         >
           + Issue Memo
+        </button>
+      </div>
+
+      {/* AUTOMATION BAR --------------------------------------------- */}
+      <div className={styles.autoBar}>
+        <div className={styles.autoBarLeft}>
+          <div className={styles.autoTitle}>Weekly memo automation</div>
+          <div className={styles.autoSub}>
+            Runs every Monday morning. Issues warning memos for absentees / late
+            arrivals / overdue tasks and appreciation memos for perfect weeks.
+            {autoLastRun ? (
+              <>
+                {" "}Last run: <strong>{fmtDateTime(autoLastRun.ran_at)}</strong>
+                {" "}— {autoLastRun.warnings_created} warning(s),
+                {" "}{autoLastRun.appreciations_created} appreciation(s)
+                {autoLastRun.skipped_existing
+                  ? `, ${autoLastRun.skipped_existing} skipped`
+                  : ""}.
+              </>
+            ) : (
+              <> Not run yet.</>
+            )}
+          </div>
+          {autoMessage && (
+            <div className={styles.autoMsg}>{autoMessage}</div>
+          )}
+        </div>
+        <button
+          onClick={runAutomation}
+          disabled={autoRunning}
+          className={styles.autoBtn}
+        >
+          {autoRunning ? "Running…" : "Run automation now"}
         </button>
       </div>
 
@@ -305,7 +415,7 @@ function EmployeeMemos({ employeeIdLocked = null } = {}) {
               </tr>
             </thead>
             <tbody>
-              {rows.map((m) => (
+              {pagedRows.map((m) => (
                 <MemoRow
                   key={m.ID}
                   memo={m}
@@ -317,6 +427,16 @@ function EmployeeMemos({ employeeIdLocked = null } = {}) {
               ))}
             </tbody>
           </table>
+        )}
+
+        {!loading && rows && rows.length > 0 && (
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={rows.length}
+            onPageChange={setPage}
+            onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+          />
         )}
       </div>
 

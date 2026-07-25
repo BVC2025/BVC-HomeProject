@@ -9,6 +9,7 @@ import { departmentService } from "../services/departmentService";
 import { useToast } from "../hooks/useToast";
 import { useCustomFields, useTableCfValues } from "../hooks/useCustomFields";
 import { exportToExcel, downloadTemplate as dlTemplate } from "../utils/exportExcel";
+import { formatDateTime } from "../utils/formatDateTime";
 import DepartmentIcon from "../assets/Icons/departmentIcon.webp";
 import EditIcon from "../assets/Icons/editIcon.webp";
 import DeleteIcon from "../assets/Icons/deleteIcon.webp";
@@ -30,6 +31,8 @@ export default function DepartmentManagement() {
   const [pageSize, setPageSize] = useState(25);
   const [cfOpen, setCfOpen] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null);
+  const [filterFrom, setFilterFrom] = useState("");
+  const [filterTo, setFilterTo] = useState("");
 
   // Bulk upload
   const [bulkModal, setBulkModal] = useState(false);
@@ -68,14 +71,28 @@ export default function DepartmentManagement() {
   const handleRefresh = useCallback(() => load(true), [load]);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return rows;
-    const t = search.toLowerCase();
-    return rows.filter(
-      (r) =>
-        r.NAME?.toLowerCase().includes(t) ||
-        (r.DEPARTMENT_CODE || "").toLowerCase().includes(t)
-    );
-  }, [rows, search]);
+    let data = rows;
+    if (search.trim()) {
+      const t = search.toLowerCase();
+      data = data.filter(
+        (r) =>
+          r.NAME?.toLowerCase().includes(t) ||
+          (r.DEPARTMENT_CODE || "").toLowerCase().includes(t)
+      );
+    }
+    if (filterFrom || filterTo) {
+      const from = filterFrom ? new Date(filterFrom) : null;
+      const to = filterTo ? new Date(filterTo) : null;
+      data = data.filter((r) => {
+        if (!r.CREATED_AT) return false;
+        const d = new Date(r.CREATED_AT);
+        if (from && d < from) return false;
+        if (to && d > to) return false;
+        return true;
+      });
+    }
+    return data;
+  }, [rows, search, filterFrom, filterTo]);
 
   const paginated = useMemo(
     () => pageSize === 0 ? filtered : filtered.slice((page - 1) * pageSize, page * pageSize),
@@ -241,6 +258,13 @@ export default function DepartmentManagement() {
             onChange={handleSearchChange}
             placeholder="Search by name or code…"
           />
+          <div className={styles.dateFilters}>
+            <label className={styles.dateLabel}>From</label>
+            <input type="datetime-local" className={styles.dateInput} value={filterFrom} onChange={(e) => { setFilterFrom(e.target.value); setPage(1); }} />
+            <label className={styles.dateLabel}>To</label>
+            <input type="datetime-local" className={styles.dateInput} value={filterTo} onChange={(e) => { setFilterTo(e.target.value); setPage(1); }} />
+            {(filterFrom || filterTo) && <button className={styles.clearFilter} onClick={() => { setFilterFrom(""); setFilterTo(""); }}>✕</button>}
+          </div>
           <span className={styles.count}>{filtered.length} dept{filtered.length !== 1 ? "s" : ""}</span>
         </div>
 
@@ -282,9 +306,7 @@ export default function DepartmentManagement() {
                     <td className={styles.nameCell}>{r.NAME}</td>
                     <td><span className={styles.codeBadge}>{r.DEPARTMENT_CODE}</span></td>
                     <td className={styles.descCell}>{r.DESCRIPTION || <span className={styles.muted}>—</span>}</td>
-                    <td className={styles.dateCell}>
-                      {r.CREATED_AT ? new Date(r.CREATED_AT).toLocaleDateString() : "—"}
-                    </td>
+                    <td className={styles.dateCell}>{formatDateTime(r.CREATED_AT)}</td>
                     {cfFields.map((f) => {
                       const val = cfValuesMap[String(r.ID)]?.[f.ID];
                       return <td key={f.ID} className={styles.descCell}>{val == null || val === "" ? <span className={styles.muted}>—</span> : Array.isArray(val) ? val.join(", ") : String(val)}</td>;

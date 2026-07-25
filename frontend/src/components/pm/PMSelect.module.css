@@ -1,13 +1,27 @@
 .wrap {
   position: relative;
   display: block;
-  width: 100%;
+  /* width: 100%; */
 }
 
 /* ── Trigger sizes */
-.sz_sm .trigger { height: 30px; font-size: var(--font-xs); border-radius: var(--radius-sm); }
-.sz_md .trigger { height: 36px; font-size: var(--font-sm); border-radius: var(--radius); }
-.sz_lg .trigger { height: 40px; font-size: var(--font-base); border-radius: var(--radius); }
+.sz_sm .trigger {
+  height: 30px;
+  font-size: var(--font-xs);
+  border-radius: var(--radius-sm);
+}
+
+.sz_md .trigger {
+  height: 36px;
+  font-size: var(--font-sm);
+  border-radius: var(--radius);
+}
+
+.sz_lg .trigger {
+  height: 40px;
+  font-size: var(--font-base);
+  border-radius: var(--radius);
+}
 
 /* ── Trigger button */
 .trigger {
@@ -96,8 +110,15 @@
 }
 
 @keyframes pmsDrop {
-  from { opacity: 0; transform: translateY(-5px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ── Search area */
@@ -180,7 +201,10 @@
   width: 4px;
 }
 
-.list::-webkit-scrollbar-track { background: transparent; }
+.list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 .list::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 2px;

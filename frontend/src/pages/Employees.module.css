@@ -30,7 +30,6 @@
 }
 
 /* ================================================================
-
    PAGE HEADER BANNER  —  clean white, thin red accent on the left
    ================================================================ */
 .pageBanner {
@@ -41,16 +40,6 @@
   padding: 22px 28px;
   margin-bottom: 22px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-
-}
-
-.pageBanner {
-  background: var(--clr-primary, #ef4444);
-  color: white;
-  padding: 20px 28px;
-  border-radius: var(--radius-lg, 14px);
-  margin-bottom: 22px;
-  box-shadow: var(--shadow, 0 6px 18px rgba(139, 11, 31, 0.18));
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -62,9 +51,6 @@
   font-size: 11px;
   letter-spacing: 1.6px;
   color: var(--clr-primary, #C8102E);
-  font-size: var(--font-xs, 11px);
-  letter-spacing: 2px;
-  color: #f59e0b;
   font-weight: var(--fw-extrabold, 800);
   text-transform: uppercase;
 }
@@ -82,13 +68,6 @@
   font-size: 13px;
   color: var(--text-muted, #64748b);
   margin-top: 2px;
-  font-size: 22px;
-  font-weight: var(--fw-bold, 700);
-  margin: 4px 0 0;
-  line-height: 1.2;
-  color: white;
-  letter-spacing: -0.3px;
-
 }
 
 .pageBannerActions {
@@ -165,18 +144,6 @@
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
   margin-bottom: 14px;
-
-}
-
-/* ================================================================
-   STAT TILES GRID
-   ================================================================ */
-.statsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 14px;
-  margin-bottom: 20px;
-
 }
 
 .statTile {
@@ -195,17 +162,6 @@
   font-weight: var(--fw-extrabold, 800);
   letter-spacing: 1.2px;
   color: var(--text-muted, #94a3b8);
-  padding: 16px 20px;
-  border-radius: var(--radius-lg, 14px);
-  box-shadow: var(--shadow-sm, 0 6px 18px rgba(15, 23, 42, 0.06));
-  /* border-top color is injected via inline style (dynamic runtime) */
-}
-
-.statTileLabel {
-  font-size: var(--font-xs, 10px);
-  font-weight: var(--fw-extrabold, 800);
-  letter-spacing: 1.5px;
-  color: var(--text-secondary, #64748b);
   text-transform: uppercase;
 }
 
@@ -220,95 +176,87 @@
 
 .statTileSub {
   font-size: 10px;
-  font-size: 26px;
-  font-weight: var(--fw-black, 900);
-  color: var(--text-primary, #0f172a);
-  margin-top: 4px;
-}
-
-.statTileSub {
-  font-size: var(--font-xs, 11px);
   color: var(--text-muted, #94a3b8);
   margin-top: 2px;
 }
 
 /* ================================================================
-<<<<<<< HEAD
    FILTER BAR — slimmer, single-row at a glance
    ================================================================ */
 .filterBar {
   background: var(--card-bg, white);
-  padding: 8px 10px;
+  padding: 10px 12px;
   border: 1px solid var(--border, #e2e8f0);
   border-radius: var(--radius, 10px);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
   display: flex;
-  gap: 8px;
+  gap: 12px;
   flex-wrap: wrap;
   align-items: center;
   margin-bottom: 14px;
 }
 
-.filterBar {
-  background: var(--card-bg, white);
-  padding: 14px;
-  border-radius: var(--radius, 12px);
-  box-shadow: var(--shadow-sm, 0 4px 14px rgba(15, 23, 42, 0.06));
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  align-items: center;
-  margin-bottom: 18px;
+/* Search wrap — capped width, icon on the left */
+.filterSearchWrap {
+  position: relative;
+  flex: 0 1 320px;
+  max-width: 360px;
+  min-width: 220px;
+}
 
+.filterSearchIcon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  color: var(--text-muted, #94a3b8);
+  pointer-events: none;
 }
 
 .filterInput {
-  flex: 1;
-  min-width: 220px;
-  padding: 7px 12px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 12px 9px 36px;
   border: 1px solid var(--border, #e2e8f0);
   border-radius: var(--radius, 8px);
   font-size: 13px;
   background: var(--surface, #f8fafc);
+  color: var(--text-primary, #0f172a);
   transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  font-family: var(--font);
+  outline: none;
+}
+
+.filterInput::placeholder {
+  color: var(--text-muted, #94a3b8);
 }
 
 .filterInput:focus {
-  outline: none;
   background: var(--card-bg, white);
   border-color: var(--clr-primary, #C8102E);
   box-shadow: 0 0 0 3px var(--clr-primary-muted, rgba(200, 16, 46, 0.10));
 }
 
+/* Department — wider, takes the remaining space */
 .filterSelect {
-  padding: 7px 12px;
+  flex: 1 1 240px;
+  min-width: 220px;
+  max-width: 320px;
+  padding: 9px 12px;
   border: 1px solid var(--border, #e2e8f0);
   border-radius: var(--radius, 8px);
   font-size: 13px;
   background: var(--card-bg, white);
   color: var(--text-primary, #0f172a);
-  min-width: 150px;
   cursor: pointer;
+  font-family: var(--font);
+  outline: none;
 }
 
 .filterSelect:focus {
-  outline: none;
   border-color: var(--clr-primary, #C8102E);
-  box-shadow: 0 0 0 3px var(--clr-primary-muted, rgba(200, 16, 46, 0.10));
-  min-width: 280px;
-  padding: 10px 14px;
-  border: 1px solid var(--border, #e2e8f0);
-  border-radius: var(--radius, 8px);
-  font-size: var(--font-sm, 13px);
-}
-
-.filterSelect {
-  padding: 10px 14px;
-  border: 1px solid var(--border, #e2e8f0);
-  border-radius: var(--radius, 8px);
-  font-size: var(--font-sm, 13px);
-  background: var(--card-bg, white);
-
+  box-shadow: 0 0 0 3px var(--clr-primary-muted, rgba(200,16,46,0.10));
 }
 
 .filterCount {
@@ -317,7 +265,6 @@
   padding: 0 4px;
   font-weight: var(--fw-bold, 700);
   white-space: nowrap;
-
 }
 
 /* ================================================================
@@ -348,7 +295,6 @@
 }
 
 /* ================================================================
-<<<<<<< HEAD
    EMPLOYEE CARD — clean Odoo-style: photo left, info right.
    No per-card theme colours. Single accent (BVC red) on the
    View Details button. Everything else is greyscale.
@@ -420,84 +366,12 @@
   color: var(--text-primary, #0f172a);
   line-height: 1.25;
   margin-bottom: 8px;
-}
-
-.employeeCard {
-  background: var(--card-bg, white);
-  border-radius: var(--radius-xl, 16px);
-  padding: 18px;
-  box-shadow: var(--shadow-sm, 0 6px 18px rgba(15, 23, 42, 0.06));
-  transition: transform 0.18s, box-shadow 0.18s;
-  position: relative;
-  overflow: hidden;
-  animation: empFadeIn 0.4s ease-out both;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.employeeCard:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-md, 0 14px 32px rgba(15, 23, 42, 0.12));
-}
-
-/* -- top row: code tag + status badge -- */
-.cardTopRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 14px;
-}
-
-/* EMP code tag — bg/color injected inline (per-card theme palette) */
-.cardEmpCode {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: var(--font-xs, 11px);
-  font-weight: var(--fw-extrabold, 800);
-  letter-spacing: 0.4px;
-  padding: 4px 10px;
-  border-radius: var(--radius, 6px);
-}
-
-.cardStatusBadge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--font-xs, 11px);
-  font-weight: var(--fw-bold, 700);
-}
-
-.statusDot {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-full, 50%);
-  display: inline-block;
-}
-
-/* -- name + photo row -- */
-.cardAvatarRow {
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  margin-bottom: 12px;
-}
-
-.cardNameBlock {
-  flex: 1;
-  min-width: 0;
-}
-
-.cardName {
-  font-size: 17px;
-  font-weight: var(--fw-extrabold, 800);
-  color: var(--text-primary, #0f172a);
-  line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-HEAD .cardLine {
+.cardLine {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -580,159 +454,6 @@ HEAD .cardLine {
   color: #dc2626;
   border-color: #fecaca;
   background: #fef2f2;
-}
-
-/* designation title — color injected inline (per-card theme) */
-.cardDesignation {
-  font-size: var(--font-sm, 13px);
-  font-weight: var(--fw-bold, 700);
-  margin-top: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* -- department chip -- */
-.cardDeptWrap {
-  margin-bottom: 12px;
-}
-
-/* deptChip bg/color/border injected inline (per-card theme) */
-.cardDeptChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--font-xs, 11px);
-  font-weight: var(--fw-bold, 700);
-  padding: 4px 10px;
-  border-radius: var(--radius-full, 999px);
-}
-
-/* -- contact info rows -- */
-.cardContactList {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  margin-bottom: 12px;
-}
-
-.cardContactRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-/* icon box bg injected inline (per-card theme) */
-.cardIconBox {
-  width: 22px;
-  height: 22px;
-  border-radius: var(--radius, 6px);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--font-xs, 11px);
-  flex-shrink: 0;
-}
-
-.cardContactText {
-  font-size: 12px;
-  color: var(--text-secondary, #475569);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
-}
-
-/* -- skills -- */
-.cardSkillsLabel {
-  font-size: var(--font-xs, 11px);
-  font-weight: var(--fw-bold, 700);
-  color: var(--text-secondary, #475569);
-  margin-bottom: 6px;
-}
-
-.cardSkillsList {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 14px;
-}
-
-/* skillChip bg/color injected inline (per-card theme) */
-.skillChip {
-  font-size: var(--font-xs, 11px);
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: var(--radius, 6px);
-}
-
-.skillMore {
-  font-size: var(--font-xs, 11px);
-  color: var(--text-muted, #94a3b8);
-  padding: 4px 8px;
-}
-
-/* -- bottom action row -- */
-.cardActions {
-  display: flex;
-  gap: 8px;
-  margin-top: auto;
-  align-items: stretch;
-}
-
-/* view-profile button — bg injected inline (per-card theme) */
-.cardViewBtn {
-  flex: 1;
-  color: white;
-  border: none;
-  padding: 11px 12px;
-  border-radius: var(--radius, 10px);
-  font-weight: var(--fw-bold, 700);
-  font-size: var(--font-sm, 13px);
-  cursor: pointer;
-  letter-spacing: 0.2px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.10);
-}
-
-.cardViewBtn:hover {
-  filter: brightness(1.08);
-}
-
-.cardIconBtn {
-  border: none;
-  padding: 9px 11px;
-  border-radius: var(--radius, 10px);
-  font-size: 14px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.cardEditBtn {
-  background: #eff6ff;
-  color: #1d4ed8;
-}
-
-.cardDeleteBtn {
-  background: #fef2f2;
-  color: #b91c1c;
-}
-
-.cardEditBtn:hover {
-  background: #dbeafe;
-}
-
-.cardDeleteBtn:hover {
-  background: #fee2e2;
-
 }
 
 /* ================================================================
@@ -1711,4 +1432,31 @@ HEAD .cardLine {
 
 .pwdToggleBtn:not(.visible) {
   color: var(--text-secondary, #64748b);
+}
+
+/* ==================================================================
+   MOBILE — Employees page
+   ================================================================== */
+
+@media (max-width: 900px) {
+  .page { padding: 14px; }
+  .pageHead { flex-wrap: wrap; gap: 10px; }
+  .pageTitle { font-size: 20px; }
+  .bannerActions { flex-direction: column; align-items: stretch; gap: 8px; }
+  .bannerAddBtn, .bannerInviteBtn { width: 100%; justify-content: center; }
+  .statRow { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .filterRow { flex-direction: column; align-items: stretch; gap: 10px; }
+  .searchInput, .filterField { width: 100%; }
+  .cardGrid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+}
+
+@media (max-width: 640px) {
+  .page { padding: 10px; }
+  .pageTitle { font-size: 18px; }
+  .cardGrid { grid-template-columns: 1fr; }
+  .cardName { font-size: 14px; }
+  .statTileValue { font-size: 22px; }
+  .cardBody { padding: 12px; }
+  .cardSecondaryActions { flex-wrap: wrap; gap: 6px; }
+  .cardIconBtn { flex: 1 1 30%; }
 }

@@ -84,6 +84,9 @@ from app.routes.monthly_reports import router as monthly_reports_router  # Auto 
 from app.routes.employee_status import router as employee_status_router  # Employee lifecycle status tracking
 from app.routes.employee_insights import router as employee_insights_router  # AI workforce analytics
 from app.routes.custom_fields import router as custom_fields_router  # Custom Fields System
+from app.routes.helpdesk import router as helpdesk_router  # Help Desk (employee tickets + admin triage)
+from app.routes.memo_automation import router as memo_automation_router  # Weekly warning/appreciation memo automation
+from app.voice_assistant.routes import router as voice_assistant_router  # Voice-first ERP assistant (Siri-style)
 from fastapi.middleware.cors import CORSMiddleware
 
 # Phase 3 — Audit log
@@ -436,6 +439,17 @@ def _auto_migrate():
         ("role",       "DEPARTMENT_ID",      "INT NULL"),
         ("role",       "CREATED_AT",         "DATETIME NULL"),
         ("role",       "UPDATED_AT",         "DATETIME NULL"),
+        # ---- Help Desk (2026-07): new columns added when the module
+        # was rebuilt after the ram-development merge deleted it.
+        ("helpdesk_ticket", "INTERNAL_NOTES", "TEXT NULL"),
+        ("helpdesk_ticket", "CLOSED_AT",      "DATETIME NULL"),
+        # ---- Memo automation (2026-07): system-generated warning /
+        # appreciation memos + per-employee notification targeting.
+        ("employee_memos", "IS_AUTOMATED",   "INT NULL DEFAULT 0"),
+        ("employee_memos", "AUTOMATION_KEY", "VARCHAR(80) NULL"),
+        ("notification",   "EMPLOYEE_ID",    "VARCHAR(36) NULL"),
+        ("notification",   "REF_TYPE",       "VARCHAR(30) NULL"),
+        ("notification",   "REF_ID",         "INT NULL"),
     ]
 
     # Columns to rename. Old names from legacy schema that the model has
@@ -1309,6 +1323,90 @@ def _auto_seed_defaults():
 _auto_seed_defaults()
 
 
+# =====================================================================
+# Weekly memo-automation scheduler
+# ---------------------------------------------------------------------
+# Fires once every Monday at 06:00 local server time. Idempotent — each
+# memo is keyed on ISO week + employee + type via AUTOMATION_KEY, so a
+# duplicate wake-up (server restart mid-morning, manual admin trigger
+# earlier, etc.) never issues the same memo twice.
+# =====================================================================
+def _start_memo_automation_scheduler():
+
+    import logging
+    import threading
+    import time as _time
+    from datetime import datetime, timedelta
+    from sqlalchemy.orm import sessionmaker
+
+    log = logging.getLogger("uvicorn")
+
+    RUN_HOUR   = 6      # 06:00
+    RUN_WEEKDAY = 0     # Monday
+    POLL_SECONDS = 60 * 30   # check every 30 minutes
+
+    SessionLocal = sessionmaker(bind=engine)
+
+    def _last_run_at(db):
+        """Return the datetime of the previous automation run, or None."""
+        from app.models.models import Setting
+        row = db.query(Setting).filter(
+            Setting.KEY == "memo_automation.last_run"
+        ).first()
+        if not row or not row.VALUE:
+            return None
+        try:
+            import json
+            payload = json.loads(row.VALUE)
+            return datetime.fromisoformat(payload.get("ran_at"))
+        except Exception:
+            return None
+
+    def _tick():
+        while True:
+            try:
+                now = datetime.now()
+                # Only fire on Monday, at or after 06:00
+                if now.weekday() == RUN_WEEKDAY and now.hour >= RUN_HOUR:
+                    db = SessionLocal()
+                    try:
+                        last = _last_run_at(db)
+                        # If we already ran within the last 48h, skip —
+                        # this covers manual runs and server restarts.
+                        if not last or (now - last) > timedelta(hours=48):
+                            log.info(
+                                "memo-automation: weekly scheduler firing at %s",
+                                now.isoformat(timespec="seconds"),
+                            )
+                            from app.services.memo_automation import run_weekly_automation
+                            from app.routes.memo_automation import _store_last_run
+                            summary = run_weekly_automation(db)
+                            _store_last_run(db, summary)
+                            log.info(
+                                "memo-automation: created %d warnings, %d appreciations "
+                                "(skipped %d already-issued)",
+                                summary.warnings_created,
+                                summary.appreciations_created,
+                                summary.skipped_existing,
+                            )
+                    finally:
+                        db.close()
+            except Exception as exc:
+                log.warning("memo-automation scheduler tick failed: %s", exc)
+            _time.sleep(POLL_SECONDS)
+
+    t = threading.Thread(
+        target=_tick,
+        name="memo-automation-scheduler",
+        daemon=True,
+    )
+    t.start()
+    log.info("memo-automation scheduler started (weekly, Monday 06:00)")
+
+
+_start_memo_automation_scheduler()
+
+
 app.include_router(auth_router, tags=["Auth"])
 app.include_router(organization_router, tags=["Organization"])
 app.include_router(employee.router, tags=["Employees (IAM)"])
@@ -1373,6 +1471,9 @@ app.include_router(monthly_reports_router)
 app.include_router(employee_status_router)
 app.include_router(employee_insights_router)
 app.include_router(custom_fields_router, tags=["Custom Fields"])
+app.include_router(helpdesk_router)
+app.include_router(memo_automation_router)
+app.include_router(voice_assistant_router)
 
 
 @app.get("/", tags=["Health"])

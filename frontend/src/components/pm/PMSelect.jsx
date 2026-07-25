@@ -16,6 +16,7 @@ function PMSelect({
   labelKey = "label",
   allowClear = false,
   clearLabel = "— None —",
+  showSearch = true,
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -95,10 +96,10 @@ function PMSelect({
 
   /* Focus search input when dropdown opens */
   useEffect(() => {
-    if (!open) return;
+    if (!open || !showSearch) return;
     const t = setTimeout(() => searchRef.current?.focus(), 50);
     return () => clearTimeout(t);
-  }, [open]);
+  }, [open, showSearch]);
 
   /* Close on outside click — ignore clicks inside trigger or dropdown portal */
   useEffect(() => {
@@ -144,46 +145,48 @@ function PMSelect({
 
   const dropdown = (
     <div ref={dropdownRef} className={styles.dropdown} style={dropStyle}>
-      <div className={styles.searchWrap}>
-        <svg
-          className={styles.searchIcon}
-          viewBox="0 0 20 20"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-        >
-          <circle cx="9" cy="9" r="6" />
-          <path d="M15 15l-3.5-3.5" strokeLinecap="round" />
-        </svg>
-        <input
-          ref={searchRef}
-          type="text"
-          className={styles.searchInput}
-          placeholder={searchPlaceholder}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onMouseDown={(e) => e.stopPropagation()}
-        />
-        {search && (
-          <button
-            type="button"
-            className={styles.clearSearch}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              setSearch("");
-            }}
+      {showSearch && (
+        <div className={styles.searchWrap}>
+          <svg
+            className={styles.searchIcon}
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
           >
-            <svg
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
+            <circle cx="9" cy="9" r="6" />
+            <path d="M15 15l-3.5-3.5" strokeLinecap="round" />
+          </svg>
+          <input
+            ref={searchRef}
+            type="text"
+            className={styles.searchInput}
+            placeholder={searchPlaceholder}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onMouseDown={(e) => e.stopPropagation()}
+          />
+          {search && (
+            <button
+              type="button"
+              className={styles.clearSearch}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                setSearch("");
+              }}
             >
-              <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
-            </svg>
-          </button>
-        )}
-      </div>
+              <svg
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
+        </div>
+      )}
 
       <ul className={styles.list}>
         {allowClear && (

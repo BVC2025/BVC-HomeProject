@@ -3,26 +3,20 @@
    ===================================================================== */
 
 
-/* ── Page banner — clean white, thin red accent on the left ─── */
+/* ─────────────────────────────────────────────────────────────
+   Hero — white card with a red LEFT rail (side border only).
+   Deliberately understated: memos published here appear on the
+   employee portal, so the admin header stays quiet and lets the
+   data below carry the visual weight.
+   ───────────────────────────────────────────────────────────── */
 .hero {
-  background: var(--card-bg, white);
-  border: 1px solid var(--border, #e2e8f0);
-  border-left: 4px solid var(--clr-primary, #C8102E);
-  border-radius: var(--radius-lg, 12px);
-  padding: 18px 24px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #dc2626;
+  border-radius: 12px;
+  padding: 20px 26px;
   margin-bottom: 16px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-}
-
-/* ── Hero strip ──────────────────────────────────────────────── */
-.hero {
-  background: var(--clr-primary);
-  color: #fff;
-  padding: 20px 28px;
-  border-radius: var(--radius-xl);
-  margin-bottom: 22px;
-  box-shadow: var(--shadow-md);
-
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -30,249 +24,286 @@
   gap: 16px;
 }
 
+.heroLeft {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .heroEyebrow {
-
-  font-size: 11px;
-  letter-spacing: 1.6px;
-  color: var(--clr-primary, #C8102E);
-  font-weight: var(--fw-extrabold, 800);
-
-  font-size: var(--font-xs);
-  letter-spacing: 2px;
-  color: #f59e0b;
-  font-weight: var(--fw-bold);
-
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  color: #dc2626;
   text-transform: uppercase;
+  margin-bottom: 4px;
 }
 
 .heroTitle {
+  margin: 0 0 4px;
   font-size: 22px;
-
-  font-weight: var(--fw-black, 800);
-  margin: 4px 0 0;
-  line-height: 1.2;
-  color: var(--text-primary, #0f172a);
+  font-weight: 700;
+  color: #0f172a;
   letter-spacing: -0.4px;
+  line-height: 1.2;
+}
+
+.heroSub {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #64748b;
+  max-width: 560px;
 }
 
 .heroBtn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--clr-primary, #C8102E);
-  color: white;
-  border: 1px solid var(--clr-primary, #C8102E);
-  padding: 9px 18px;
-  border-radius: 8px;
-  font-weight: var(--fw-bold, 700);
+  padding: 10px 20px;
+  background: #dc2626;
+  color: #ffffff;
+  border: 1px solid #dc2626;
+  border-radius: 10px;
+  font-family: inherit;
+  font-weight: 700;
   font-size: 13px;
   letter-spacing: 0.2px;
   cursor: pointer;
-  box-shadow: 0 1px 2px rgba(200, 16, 46, 0.18);
-  transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
-  font-family: var(--font);
+  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.22);
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
+  white-space: nowrap;
 }
-
 .heroBtn:hover {
-  background: var(--clr-primary-darker, #7A1022);
-  border-color: var(--clr-primary-darker, #7A1022);
-  box-shadow: 0 4px 12px rgba(122, 16, 34, 0.25);
-  transform: translateY(-1px);
+  background: #b91c1c;
+  border-color: #b91c1c;
+  box-shadow: 0 8px 22px rgba(220, 38, 38, 0.30);
 }
+.heroBtn:active { transform: translateY(1px); }
 
-.heroBtn:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(200, 16, 46, 0.18);
+
+/* ─────────────────────────────────────────────────────────────
+   Automation bar — sits between the hero and the stat tiles.
+   Shows last-run summary + the "Run automation now" button.
+   ───────────────────────────────────────────────────────────── */
+.autoBar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #dc2626;
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
-
-/* ── Stat tiles — compact, uniform, top accent ──────────────── */
-.statGrid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-  margin-bottom: 14px;
+.autoBarLeft { flex: 1; min-width: 0; }
+.autoTitle {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.2px;
 }
-
-.statTile {
-  background: var(--card-bg, white);
-  padding: 12px 14px;
-  border: 1px solid var(--border, #e2e8f0);
-  border-radius: 10px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
-
-  font-weight: var(--fw-bold);
-  margin: 4px 0 0;
-  line-height: 1.2;
-  color: #fff;
-  letter-spacing: -0.3px;
+.autoSub {
+  font-size: 12.5px;
+  color: #64748b;
+  line-height: 1.5;
+  margin-top: 3px;
 }
-
-.heroBtn {
-  background: #fff;
+.autoSub strong { color: #0f172a; font-weight: 600; }
+.autoMsg {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.autoBtn {
+  flex-shrink: 0;
+  padding: 9px 16px;
+  border: 1px solid #dc2626;
+  background: #ffffff;
   color: #dc2626;
-  border: none;
-  padding: 10px 20px;
-  border-radius: var(--radius);
-  font-weight: var(--fw-extrabold);
-  font-size: var(--font-xs);
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
-  box-shadow: var(--shadow);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.autoBtn:hover:not(:disabled) { background: #dc2626; color: #ffffff; }
+.autoBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+:global(html[data-theme="dark"]) .autoBar {
+  background: #0f172a;
+  border-color: #1e293b;
+  border-left-color: #dc2626;
+}
+:global(html[data-theme="dark"]) .autoTitle { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .autoSub { color: #94a3b8; }
+:global(html[data-theme="dark"]) .autoSub strong { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .autoMsg {
+  background: #0b1220;
+  border-color: #14532d;
+  color: #86efac;
+}
+:global(html[data-theme="dark"]) .autoBtn {
+  background: #0b1220;
 }
 
-.heroBtn:hover {
-  opacity: 0.92;
-}
 
-/* ── Stat tiles ──────────────────────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────
+   Stat tiles — 4-up grid. Compact, uniform, with a tinted icon
+   accent so the four numbers scan at a glance. Each tile has a
+   coloured top border set inline via `accent`.
+   ───────────────────────────────────────────────────────────── */
 .statGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 14px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 
 .statTile {
-  background: var(--card-bg);
-  padding: 14px 18px;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
-
   position: relative;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 18px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   overflow: hidden;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.statTile:hover {
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  border-color: #cbd5e1;
 }
 
+/* Coloured top rail — colour comes from an inline `background`
+   set by StatTile's `accent` prop. */
 .statAccent {
   position: absolute;
-
   top: 0;
   left: 0;
   right: 0;
   height: 3px;
-  width: auto;
-  border-radius: 0;
-
-  top: 14px;
-  bottom: 14px;
-  left: 0;
-  width: 3px;
-  border-radius: 0 3px 3px 0;
-
-  /* background is set via inline style (runtime accent color) */
 }
 
 .statLabel {
-
-  font-size: 10px;
-  font-weight: var(--fw-extrabold, 800);
-  color: var(--text-muted, #94a3b8);
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
-
-.statValue {
-  font-size: 22px;
-  font-weight: var(--fw-black, 800);
-  color: var(--text-primary, #0f172a);
-  line-height: 1.1;
-  letter-spacing: -0.3px;
-
-  font-size: var(--font-xs);
-  font-weight: var(--fw-bold);
-  color: var(--text-secondary);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #64748b;
   letter-spacing: 0.8px;
   text-transform: uppercase;
   margin-bottom: 6px;
 }
 
 .statValue {
-  font-size: 24px;
-  font-weight: var(--fw-extrabold);
-  color: var(--text-primary);
+  font-size: 26px;
+  font-weight: 800;
+  color: #0f172a;
   line-height: 1;
-
+  letter-spacing: -0.6px;
+  font-variant-numeric: tabular-nums;
 }
 
-/* ── Filter bar ──────────────────────────────────────────────── */
+
+/* ─────────────────────────────────────────────────────────────
+   Filter bar — one white row that holds search + all filters.
+   ───────────────────────────────────────────────────────────── */
 .filterBar {
-  background: var(--card-bg);
-  padding: 14px;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 16px;
   margin-bottom: 14px;
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
   align-items: center;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .searchInput {
-  flex: 2 1 240px;
-  min-width: 200px;
-  padding: 9px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: var(--font-sm);
-  background: var(--surface);
-  color: var(--text-primary);
+  flex: 2 1 260px;
+  min-width: 220px;
+  padding: 10px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  color: #0f172a;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
   outline: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
-
+.searchInput::placeholder { color: #94a3b8; }
 .searchInput:focus {
-  border-color: var(--clr-primary);
+  border-color: #dc2626;
+  background: #ffffff;
 }
 
 .filterSelect {
-  padding: 9px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 12px;
-  background: var(--surface);
-  color: var(--text-primary);
-  min-width: 130px;
+  padding: 9px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  color: #0f172a;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  min-width: 140px;
+  outline: none;
+  transition: border-color 0.15s ease;
+  color-scheme: light;
 }
+.filterSelect:focus { border-color: #dc2626; }
 
 /* ── Table card ──────────────────────────────────────────────── */
 .tableCard {
-  background: var(--card-bg);
-  padding: 18px;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .loadingText {
-  color: var(--text-muted);
-  padding: 20px;
+  color: #94a3b8;
+  padding: 22px 20px;
+  font-size: 13px;
 }
 
 .emptyState {
-  padding: 36px;
+  padding: 40px 24px;
   text-align: center;
-  color: var(--text-muted);
-  font-size: var(--font-sm);
+  color: #94a3b8;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--font-sm);
+  font-size: 13px;
 }
 
 .thead tr {
-  background: var(--surface);
-  color: var(--text-secondary);
-  font-size: var(--font-xs);
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 10.5px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
 }
 
 .th {
-  padding: 10px 8px;
-  font-weight: var(--fw-bold);
-  border-bottom: 1px solid var(--border);
+  padding: 12px 14px;
+  font-weight: 700;
+  border-bottom: 1px solid #e2e8f0;
   text-align: left;
+  white-space: nowrap;
 }
 
 .thCenter {
@@ -285,13 +316,18 @@
 
 /* ── Table rows ──────────────────────────────────────────────── */
 .memoRow {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #f1f5f9;
+  cursor: pointer;
+  transition: background 0.12s ease;
 }
+.memoRow:hover { background: #f8fafc; }
+.memoRow:last-child { border-bottom: none; }
 
 .td {
-  padding: 12px 8px;
+  padding: 13px 14px;
   vertical-align: top;
   text-align: left;
+  color: #0f172a;
 }
 
 .tdCenter {
@@ -626,3 +662,205 @@
   display: grid;
   gap: 12px;
 }
+
+
+/* ==================================================================
+   MOBILE responsive additions (auto-generated safety block)
+   Targets common class names used across the ERP.
+   ================================================================== */
+@media (max-width: 900px) {
+
+  .page,
+  .container,
+  .wrapper,
+  .shell {
+    padding: 14px;
+  }
+
+  .pageHead,
+  .header,
+  .toolbar,
+  .headerRow {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .filterCard,
+  .filterRow,
+  .filters,
+  .filterBar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .searchInput,
+  .filterSelect,
+  .searchWrap {
+    width: 100%;
+  }
+
+  .kpiRow,
+  .statRow,
+  .statsGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .cardGrid,
+  .cardsGrid,
+  .tileGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .twoCol,
+  .splitPanel,
+  .detailGrid,
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .actionRow,
+  .btnRow,
+  .formActions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .tableCard,
+  .tableWrap,
+  .tblWrap {
+    overflow-x: auto;
+  }
+
+  .modalPanel,
+  .modalContent {
+    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 640px) {
+
+  .page,
+  .container,
+  .wrapper,
+  .shell {
+    padding: 10px;
+  }
+
+  .kpiRow,
+  .statRow,
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cardGrid,
+  .cardsGrid,
+  .tileGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .kpiValue,
+  .statValue,
+  .tileValue {
+    font-size: 20px;
+  }
+
+  h1 {
+    font-size: 20px;
+  }
+
+  h2 {
+    font-size: 17px;
+  }
+
+  h3 {
+    font-size: 15px;
+  }
+
+  table th,
+  table td {
+    padding: 8px 10px;
+    font-size: 12.5px;
+  }
+}
+
+@media (max-width: 480px) {
+
+  .modalPanel,
+  .modalContent {
+    max-width: 100vw;
+    border-radius: 0;
+    margin: 0;
+    max-height: 100vh;
+  }
+
+  .modalOverlay {
+    padding: 0;
+  }
+}
+
+
+/* =====================================================================
+   Dark mode — module-scoped overrides for the redesigned top block.
+   Reuses the same "dark navy card + red border" pattern the rest of
+   the ERP uses so the memo page reads consistently.
+   ===================================================================== */
+:global(html[data-theme="dark"]) .hero {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+  border-left-color: #dc2626;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.20);
+}
+:global(html[data-theme="dark"]) .heroEyebrow { color: #fca5a5; }
+:global(html[data-theme="dark"]) .heroTitle   { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .heroSub     { color: #94a3b8; }
+
+:global(html[data-theme="dark"]) .statTile {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .statTile:hover {
+  border-color: rgba(255, 255, 255, 0.20);
+}
+:global(html[data-theme="dark"]) .statLabel { color: #94a3b8; }
+:global(html[data-theme="dark"]) .statValue { color: #f1f5f9; }
+
+:global(html[data-theme="dark"]) .filterBar {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .searchInput {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: #e2e8f0;
+}
+:global(html[data-theme="dark"]) .searchInput::placeholder { color: #64748b; }
+:global(html[data-theme="dark"]) .filterSelect {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: #e2e8f0;
+  color-scheme: dark;
+}
+
+:global(html[data-theme="dark"]) .tableCard {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .thead tr {
+  background: rgba(255, 255, 255, 0.04);
+  color: #94a3b8;
+}
+:global(html[data-theme="dark"]) .th {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .memoRow {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+:global(html[data-theme="dark"]) .memoRow:hover { background: rgba(255, 255, 255, 0.03); }
+:global(html[data-theme="dark"]) .td { color: #e2e8f0; }
+:global(html[data-theme="dark"]) .emptyState,
+:global(html[data-theme="dark"]) .loadingText { color: #94a3b8; }

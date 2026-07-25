@@ -44,6 +44,11 @@ export default function OnboardingChecklist() {
   const [kitItems, setKitItems]                 = useState([]);
   const [cataloguesOpen, setCataloguesOpen]     = useState(false);
 
+  // Auto-onboard extras
+  const [employees, setEmployees]               = useState([]);
+  const [autoBusy, setAutoBusy]                 = useState(false);
+  const [toast, setToast]                       = useState("");
+
   // ---------------------------------------------------------------
   // Loaders
   // ---------------------------------------------------------------
@@ -93,6 +98,21 @@ export default function OnboardingChecklist() {
   }, []);
 
   useEffect(() => { loadOverview(); loadMasters(); }, [loadOverview, loadMasters]);
+
+  // Fetch the full employee roster once, so the manager picker + full
+  // details are available without hardcoded data.
+  useEffect(() => {
+    API.get("/employees")
+      .then((r) => setEmployees(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setEmployees([]));
+  }, []);
+
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (!toast) return undefined;
+    const id = setTimeout(() => setToast(""), 2800);
+    return () => clearTimeout(id);
+  }, [toast]);
 
   // Auto-select the first joiner if none selected
   useEffect(() => {
@@ -173,6 +193,86 @@ export default function OnboardingChecklist() {
       await loadEmployee(selected);
     } catch (e) {
       alert(e?.response?.data?.detail || "Failed");
+    }
+  };
+
+  // ---- Auto-onboarding actions ----
+
+  const runAutoOnboard = async () => {
+    if (!selected) return;
+    if (!window.confirm(
+      "Run the full auto-onboarding pipeline for this employee?\n\n" +
+      "This will:\n" +
+      "  • seed the joining checklist\n" +
+      "  • add default welcome-kit items\n" +
+      "  • assign all mandatory trainings\n" +
+      "  • generate a corporate email + send welcome mail\n\n" +
+      "Each step is idempotent — safe to run more than once."
+    )) return;
+    setAutoBusy(true);
+    try {
+      const res = await API.post(`/hr-onboarding/employees/${selected}/auto-onboard`);
+      const d = res.data || {};
+      const parts = [];
+      if (d.corporate_email) parts.push(`email ${d.corporate_email}`);
+      if (d.trainings_seeded_count) parts.push(`+${d.trainings_seeded_count} trainings`);
+      if (d.kit_seeded_count)       parts.push(`+${d.kit_seeded_count} kit items`);
+      setToast(parts.length ? `Onboarded — ${parts.join(", ")}` : "Onboarding refreshed");
+      await Promise.all([loadEmployee(selected), loadOverview()]);
+    } catch (e) {
+      alert(e?.response?.data?.detail || "Auto-onboard failed");
+    } finally {
+      setAutoBusy(false);
+    }
+  };
+
+  const provisionEmail = async () => {
+    if (!selected) return;
+    setAutoBusy(true);
+    try {
+      const res = await API.post(`/hr-onboarding/employees/${selected}/provision-email`);
+      const d = res.data || {};
+      setToast(d.was_generated
+        ? `Email provisioned: ${d.corporate_email}`
+        : `Already provisioned: ${d.corporate_email}`);
+      await Promise.all([loadEmployee(selected), loadOverview()]);
+    } catch (e) {
+      alert(e?.response?.data?.detail || "Provision failed");
+    } finally {
+      setAutoBusy(false);
+    }
+  };
+
+  const seedMandatoryTrainings = async () => {
+    if (!selected) return;
+    setAutoBusy(true);
+    try {
+      const res = await API.post(`/hr-onboarding/employees/${selected}/seed-mandatory-trainings`);
+      const d = res.data || {};
+      setToast(
+        `Trainings — ${d.assignments_created || 0} created, ${d.assignments_already_present || 0} already present`
+      );
+      await Promise.all([loadEmployee(selected), loadOverview()]);
+    } catch (e) {
+      alert(e?.response?.data?.detail || "Seed failed");
+    } finally {
+      setAutoBusy(false);
+    }
+  };
+
+  const assignManager = async (mgrId) => {
+    if (!selected) return;
+    setAutoBusy(true);
+    try {
+      await API.patch(`/hr-onboarding/employees/${selected}/reporting-manager`, {
+        reporting_manager_id: mgrId || null,
+      });
+      setToast(mgrId ? "Reporting manager assigned" : "Reporting manager cleared");
+      await Promise.all([loadEmployee(selected), loadOverview()]);
+    } catch (e) {
+      alert(e?.response?.data?.detail || "Failed to assign manager");
+    } finally {
+      setAutoBusy(false);
     }
   };
 
@@ -277,7 +377,16 @@ export default function OnboardingChecklist() {
 
           {checklist && (
             <>
-              <JoinerHeader summary={checklist} />
+              <JoinerHeader
+                summary={checklist}
+                employee={employees.find((e) => e.ID === selected) || null}
+                employees={employees}
+                busy={autoBusy}
+                onAutoOnboard={runAutoOnboard}
+                onProvisionEmail={provisionEmail}
+                onSeedTrainings={seedMandatoryTrainings}
+                onAssignManager={assignManager}
+              />
 
               <TabBar
                 tab={tab} setTab={setTab}
@@ -326,6 +435,19 @@ export default function OnboardingChecklist() {
           )}
         </div>
       </div>
+
+      {toast && (
+        <div style={{
+          position: "fixed", bottom: 24, left: "50%",
+          transform: "translateX(-50%)",
+          background: "#1f2937", color: "white",
+          padding: "9px 16px", borderRadius: 8, fontSize: 12,
+          fontWeight: 600, boxShadow: "0 6px 18px rgba(0,0,0,0.2)",
+          zIndex: 300,
+        }}>
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
@@ -447,32 +569,181 @@ function JoinerCard({ row, active, onClick }) {
 }
 
 
-function JoinerHeader({ summary }) {
+function JoinerHeader({
+  summary, employee, employees,
+  busy, onAutoOnboard, onProvisionEmail, onSeedTrainings, onAssignManager,
+}) {
+
+  const corporateEmail = employee?.CORPORATE_EMAIL || null;
+  const managerId      = employee?.REPORTING_MANAGER_ID || "";
+  const manager        = managerId
+    ? employees.find((e) => e.ID === managerId)
+    : null;
+
   return (
     <div style={{
       background: "white", border: `1px solid ${BORDER}`, borderRadius: 12,
       padding: "14px 18px", marginBottom: 10,
-      display: "flex", justifyContent: "space-between", alignItems: "center",
-      flexWrap: "wrap", gap: 12,
     }}>
-      <div>
-        <div style={{ fontSize: 18, fontWeight: 800, color: TEXT }}>
-          {summary.employee_name}
+
+      {/* Row 1 — name / code + completion % */}
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        flexWrap: "wrap", gap: 12, marginBottom: 12,
+      }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: TEXT }}>
+            {summary.employee_name}
+          </div>
+          <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>
+            {summary.employee_code}
+            {summary.department  && ` · ${summary.department}`}
+            {summary.designation && ` · ${summary.designation}`}
+          </div>
         </div>
-        <div style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>
-          {summary.employee_code}
-          {summary.department  && ` · ${summary.department}`}
-          {summary.designation && ` · ${summary.designation}`}
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 24, fontWeight: 800, color: BVC_RED }}>
+            {summary.completion_pct}%
+          </div>
+          <div style={{ fontSize: 11, color: MUTED }}>
+            {summary.done_items} of {summary.total_items} complete
+          </div>
         </div>
       </div>
-      <div style={{ textAlign: "right" }}>
-        <div style={{ fontSize: 24, fontWeight: 800, color: BVC_RED }}>
-          {summary.completion_pct}%
+
+      {/* Row 2 — corporate email + reporting manager + auto-onboard */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr auto",
+        gap: 10,
+        alignItems: "end",
+      }}>
+
+        {/* Corporate email pill */}
+        <div>
+          <div style={{
+            fontSize: 10, fontWeight: 800, letterSpacing: 0.8,
+            textTransform: "uppercase", color: MUTED, marginBottom: 4,
+          }}>
+            Corporate email
+          </div>
+          {corporateEmail ? (
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              gap: 8, background: "#f0fdf4", border: "1px solid #bbf7d0",
+              padding: "7px 11px", borderRadius: 8,
+            }}>
+              <span style={{
+                fontSize: 12, fontWeight: 600, color: "#166534",
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              }}>
+                {corporateEmail}
+              </span>
+              <span style={{
+                fontSize: 9, fontWeight: 800, background: "#166534",
+                color: "white", padding: "2px 6px", borderRadius: 4,
+                letterSpacing: 0.5,
+              }}>
+                ACTIVE
+              </span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={onProvisionEmail}
+              disabled={busy}
+              style={{
+                width: "100%", background: "white",
+                border: `1px dashed ${BORDER}`, color: BVC_RED,
+                padding: "8px 11px", borderRadius: 8, fontSize: 12,
+                fontWeight: 700, cursor: busy ? "not-allowed" : "pointer",
+                opacity: busy ? 0.55 : 1,
+              }}
+              title="Auto-generate firstname.lastname@bvc24.com"
+            >
+              + Provision email
+            </button>
+          )}
         </div>
-        <div style={{ fontSize: 11, color: MUTED }}>
-          {summary.done_items} of {summary.total_items} complete
+
+        {/* Reporting manager picker */}
+        <div>
+          <div style={{
+            fontSize: 10, fontWeight: 800, letterSpacing: 0.8,
+            textTransform: "uppercase", color: MUTED, marginBottom: 4,
+          }}>
+            Reporting manager
+          </div>
+          <select
+            value={managerId}
+            disabled={busy}
+            onChange={(e) => onAssignManager(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "8px 10px",
+              border: `1px solid ${BORDER}`,
+              borderRadius: 8, fontSize: 12, background: "white",
+              color: manager ? TEXT : MUTED,
+              cursor: busy ? "not-allowed" : "pointer",
+              outline: "none",
+            }}
+          >
+            <option value="">— pick manager —</option>
+            {employees
+              .filter((e) => e.ID !== employee?.ID)
+              .map((e) => (
+                <option key={e.ID} value={e.ID}>
+                  {e.NAME || e.EMPLOYEE_CODE || e.ID}
+                  {e.EMPLOYEE_CODE ? ` (${e.EMPLOYEE_CODE})` : ""}
+                </option>
+              ))
+            }
+          </select>
         </div>
+
+        {/* Auto-onboard button */}
+        <button
+          type="button"
+          onClick={onAutoOnboard}
+          disabled={busy}
+          style={{
+            background: BVC_RED, color: "white", border: "none",
+            padding: "9px 16px", borderRadius: 8, fontSize: 12,
+            fontWeight: 700, cursor: busy ? "not-allowed" : "pointer",
+            opacity: busy ? 0.6 : 1, whiteSpace: "nowrap",
+            boxShadow: "0 3px 10px rgba(200,16,46,0.22)",
+          }}
+          title="Seed checklist + welcome kit + mandatory trainings + email in one click"
+        >
+          {busy ? "Running…" : "Run Auto-Onboard"}
+        </button>
+
       </div>
+
+      {/* Row 3 — small hint about mandatory trainings */}
+      <div style={{
+        marginTop: 10,
+        display: "flex", justifyContent: "flex-end",
+      }}>
+        <button
+          type="button"
+          onClick={onSeedTrainings}
+          disabled={busy}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: MUTED,
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: busy ? "not-allowed" : "pointer",
+            textDecoration: "underline",
+            padding: 0,
+          }}
+        >
+          Seed mandatory trainings only
+        </button>
+      </div>
+
     </div>
   );
 }

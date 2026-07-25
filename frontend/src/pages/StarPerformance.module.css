@@ -1,8 +1,15 @@
 /* StarPerformance page — scoped styles */
 
 @keyframes perfFadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ─── Page ──────────────────────────────────────────────────── */
@@ -403,4 +410,273 @@
   inset: 0;
   width: 50%;
   overflow: hidden;
+}
+
+
+/* ─── Star glyph wrapper (per-star span used by StarRow) ─────── */
+
+.starGlyph {
+  position: relative;
+  display: inline-block;
+  line-height: 1;
+}
+
+/* ─── Hero subtitle + Fresh badge (auto-load status) ────────── */
+
+.heroSub {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: 0.2px;
+}
+
+.freshBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  background: #dcfce7;
+  color: #065f46;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.freshDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  animation: perfPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes perfPulse {
+
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ─── Tile with icon head ────────────────────────────────────── */
+
+.tileHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tileIconBox {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ─── Search box (with leading icon) ─────────────────────────── */
+
+.searchBox {
+  position: relative;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.searchInput {
+  padding-left: 40px;
+}
+
+/* ─── Tier badge — now supports an inline icon ───────────────── */
+
+.tierBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* ─── Stat chip (calendar / star / etc. small pills) ─────────── */
+
+.statChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  background: #f8fafc;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ─── Action button (promote / increment / reward) ───────────── */
+
+.actionBtn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: filter 0.15s ease;
+}
+
+.actionBtn:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+.actionBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ─── Remarks box (icon + text) ──────────────────────────────── */
+
+.remarksBox {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+/* ─── Empty state ─────────────────────────────────────────────── */
+
+.emptyBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 20px;
+}
+
+.emptyIcon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #fef2f2;
+  color: var(--clr-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+
+/* ==================================================================
+   MOBILE responsive additions
+   ================================================================== */
+@media (max-width: 900px) {
+
+  .page,
+  .container,
+  .wrapper {
+    padding: 14px;
+  }
+
+  .pageHead,
+  .header,
+  .toolbar {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .filterCard,
+  .filterRow,
+  .filters {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .searchInput,
+  .filterSelect,
+  .searchWrap,
+  input,
+  select {
+    width: 100%;
+  }
+
+  .kpiRow,
+  .statRow,
+  .statsGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .cardGrid,
+  .cardsGrid,
+  .tileGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .twoCol,
+  .splitPanel,
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .tableCard,
+  .tableWrap,
+  .tblWrap {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 640px) {
+
+  .page,
+  .container,
+  .wrapper {
+    padding: 10px;
+  }
+
+  .kpiRow,
+  .statRow,
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cardGrid,
+  .cardsGrid,
+  .tileGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .kpiValue,
+  .statValue {
+    font-size: 20px;
+  }
+
+  h1 {
+    font-size: 20px;
+  }
+
+  h2 {
+    font-size: 17px;
+  }
 }
