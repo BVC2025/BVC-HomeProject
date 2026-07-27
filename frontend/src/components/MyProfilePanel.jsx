@@ -118,11 +118,15 @@ const DOC_TYPE_LABELS = {
 // ---------------------------------------------------------------------
 export default function MyProfilePanel({ employeeCode, employeeId }) {
 
-  // Prefer UUID (employee_id) — passes assert_self_or_admin via ID match.
-  // Employee_code fallback exists but by-code may 403 if session code
-  // differs from the target code.
-  const empId = employeeId || localStorage.getItem("employee_id") || "";
-  const code  = employeeCode || localStorage.getItem("employee_code") || "";
+  // In practice on this project, localStorage.employee_id often holds
+  // the CODE (like "BVC008"), not the UUID. The /employees/by-code/{code}
+  // endpoint accepts CODE and enforces self-only access. We try that
+  // first with whatever identifier we have. Then, once we get the
+  // employee back, we use the REAL UUID (emp.ID) for the docs endpoint.
+
+  const stored = localStorage.getItem("employee_id") || "";
+  const storedCode = localStorage.getItem("employee_code") || "";
+  const identifier = employeeCode || employeeId || stored || storedCode;
 
   const [emp,   setEmp]   = useState(null);
   const [docs,  setDocs]  = useState([]);
@@ -134,36 +138,49 @@ export default function MyProfilePanel({ employeeCode, employeeId }) {
   useEffect(() => {
     let alive = true;
     const load = async () => {
-      if (!empId && !code) {
+      if (!identifier) {
         setErr("You need to be logged in to view this page.");
         setLoading(false);
         return;
       }
       setLoading(true);
       setErr("");
-      try {
-        // Prefer UUID — the /employees/{id} endpoint is the reliable path.
-        const url = empId
-          ? `/employees/${encodeURIComponent(empId)}`
-          : `/employees/by-code/${encodeURIComponent(code)}`;
-        const res = await API.get(url);
-        if (!alive) return;
-        setEmp(res.data || null);
-      } catch (e) {
-        if (!alive) return;
-        setErr(e?.response?.data?.detail || "Couldn't load your profile.");
-      } finally {
-        if (alive) setLoading(false);
+
+      // Try by-code first (works when identifier is CODE like "BVC008").
+      // If that 4xx's, fall back to UUID endpoint.
+      const tryUrls = [
+        `/employees/by-code/${encodeURIComponent(identifier)}`,
+        `/employees/${encodeURIComponent(identifier)}`,
+      ];
+      let data = null;
+      let lastErr = null;
+      for (const url of tryUrls) {
+        try {
+          const res = await API.get(url);
+          data = res.data;
+          break;
+        } catch (e) {
+          lastErr = e;
+        }
       }
+      if (!alive) return;
+      if (data) {
+        setEmp(data);
+      } else {
+        setErr(lastErr?.response?.data?.detail || "Couldn't load your profile.");
+      }
+      setLoading(false);
     };
     load();
     return () => { alive = false; };
-  }, [empId, code]);
+  }, [identifier]);
 
 
   // ---------- Fetch documents ----------
   useEffect(() => {
-    const empIdForDocs = empId || emp?.ID;
+    // Use the REAL UUID from the fetched employee (emp.ID). The docs
+    // endpoint strictly needs the UUID, not a code.
+    const empIdForDocs = emp?.ID;
     if (!empIdForDocs) return;
 
     let alive = true;
@@ -181,7 +198,7 @@ export default function MyProfilePanel({ employeeCode, employeeId }) {
       }
     })();
     return () => { alive = false; };
-  }, [emp, empId]);
+  }, [emp]);
 
 
   // ---------- Derived ----------
@@ -191,7 +208,7 @@ export default function MyProfilePanel({ employeeCode, employeeId }) {
   }, [emp]);
 
   const fullName    = emp?.NAME || localStorage.getItem("employee_name") || "Employee";
-  const employeeCd  = emp?.EMPLOYEE_CODE || code || "—";
+  const employeeCd  = emp?.EMPLOYEE_CODE || identifier || "—";
   const initials    = useMemo(() => {
     const parts = String(fullName).trim().split(/\s+/).slice(0, 2);
     return parts.map((p) => p[0] || "").join("").toUpperCase() || "E";
