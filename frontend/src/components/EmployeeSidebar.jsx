@@ -73,9 +73,6 @@ const NAV_GROUPS = [
 
       { key: "home",       label: "Dashboard",     icon: ICONS.home },
       { key: "profile",    label: "My Profile",    icon: ICONS.profile },
-
-      { key: "home", label: "Dashboard", icon: ICONS.home },
-
     ],
   },
   {
