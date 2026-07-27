@@ -975,12 +975,11 @@ function EmployeeDashboardBody() {
             <MyPayslipsPanel employeeId={employeeId} />
           )}
 
-          {/* ---------- My Profile (comprehensive view-only) ---------- */}
+          {/* ---------- My Profile (comprehensive view-only) ----------
+              MyProfilePanel reads employee_code + employee_id from
+              localStorage itself (set by Login.jsx). */}
           {mainTab === "profile" && (
-            <MyProfilePanel
-              employeeCode={profileGate.employee?.EMPLOYEE_CODE}
-              employeeId={profileGate.employee?.ID}
-            />
+            <MyProfilePanel />
           )}
 
           {/* ---------- New ESS home dashboard ---------- */}
