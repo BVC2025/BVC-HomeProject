@@ -90,8 +90,31 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-
 }
+
+.greetBtn {
+  position: absolute;
+  top: 16px;
+  right: 140px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: var(--text-inverse);
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  font-family: var(--font);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.greetBtn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+.greetBtn:active { transform: translateY(1px); }
 
 /* ─── Error banner ───────────────────────────────────────────── */
 

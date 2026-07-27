@@ -79,6 +79,11 @@ const Icons = {
     <path d="M8 7h2M8 10h2M14 7h2M14 10h2" />
     <path d="M2 21h20" />
   </>),
+  speaker: svg(<>
+    <path d="M11 5L6 9H2v6h4l5 4V5z" />
+    <path d="M15 9a3 3 0 0 1 0 6" />
+    <path d="M17.5 6.5a7 7 0 0 1 0 11" />
+  </>),
   bank: svg(<>
     <path d="M3 10l9-6 9 6" />
     <path d="M4 10v8M8 10v8M12 10v8M16 10v8M20 10v8" />
@@ -226,22 +231,22 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
 
 
   // ----- Voice greeting on first open -----
-  // Speaks: "Welcome <Name>, please fill in your personal and work
-  // details below." Once per session.
+  // Speaks: "Welcome <Name>, please fill in your personal and work details below."
   //
   // Browser autoplay policy blocks speechSynthesis until AFTER a user
-  // gesture. So we register a one-shot listener that fires on the FIRST
-  // click / tap / key press anywhere, then speaks.
+  // gesture. Strategy:
+  //   1. Try to speak immediately (works when login click is a recent gesture)
+  //   2. If blocked, fire on the first click/tap/key anywhere on the page
+  //   3. User can also click the manual sound button in the hero (state below)
   useEffect(() => {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
     const name = (employee?.NAME || "").trim();
     if (!name) return;
 
-    // Only greet once per session
-    const key = `profile_form_greeted_${employee?.ID || name}`;
-    if (sessionStorage.getItem(key)) return;
+    let hasSpoken = false;
 
     const speak = () => {
+      if (hasSpoken) return;
       try {
         const u = new SpeechSynthesisUtterance(
           `Welcome ${name}. Please fill in your personal and work details below.`
@@ -256,49 +261,45 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
         if (preferred) u.voice = preferred;
         window.speechSynthesis.cancel();
         window.speechSynthesis.speak(u);
-        sessionStorage.setItem(key, "1");
-      } catch { /* ignore */ }
+        hasSpoken = true;
+        // eslint-disable-next-line no-console
+        console.log("[voice] greeting spoken for", name);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn("[voice] greeting failed:", err);
+      }
     };
 
-    // Try to speak immediately (works on desktop after page navigation
-    // — the login click counts as a user gesture).
-    let spoken = false;
-    const trySpeakNow = () => {
-      if (spoken) return;
-      spoken = true;
-      speak();
-      cleanup();
-    };
+    // Expose the speak() to the manual button (via window global so a
+    // component render doesn't hold a stale reference).
+    window.__profileGreet = speak;
 
-    // Fallback: wait for the first user interaction, then speak.
-    const onFirstGesture = () => trySpeakNow();
+    const onFirstGesture = () => { speak(); cleanup(); };
 
     const cleanup = () => {
-      document.removeEventListener("click", onFirstGesture, true);
-      document.removeEventListener("touchstart", onFirstGesture, true);
-      document.removeEventListener("keydown", onFirstGesture, true);
+      document.removeEventListener("click",       onFirstGesture);
+      document.removeEventListener("touchstart",  onFirstGesture);
+      document.removeEventListener("keydown",     onFirstGesture);
     };
 
-    document.addEventListener("click", onFirstGesture, { capture: true, once: true });
-    document.addEventListener("touchstart", onFirstGesture, { capture: true, once: true });
-    document.addEventListener("keydown", onFirstGesture, { capture: true, once: true });
+    document.addEventListener("click",      onFirstGesture);
+    document.addEventListener("touchstart", onFirstGesture);
+    document.addEventListener("keydown",    onFirstGesture);
 
-    // Also attempt immediately after voices are ready — desktop browsers
-    // often allow this because the login click is counted as a recent
-    // gesture.
+    // Try to speak immediately after voices ready
     if (window.speechSynthesis.getVoices().length > 0) {
-      // Small delay so the modal / form is painted first
-      setTimeout(trySpeakNow, 400);
+      setTimeout(speak, 400);
     } else {
       window.speechSynthesis.onvoiceschanged = () => {
         window.speechSynthesis.onvoiceschanged = null;
-        setTimeout(trySpeakNow, 200);
+        setTimeout(speak, 200);
       };
     }
 
     return () => {
       cleanup();
       try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+      delete window.__profileGreet;
     };
   }, [employee?.ID, employee?.NAME]);
 
@@ -435,6 +436,15 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
             only admin can change these details.
             Verify everything carefully before submitting.
           </div>
+          <button
+            type="button"
+            onClick={() => window.__profileGreet && window.__profileGreet()}
+            className={styles.greetBtn}
+            title="Hear welcome message"
+            aria-label="Hear welcome message"
+          >
+            {Icons.speaker} <span>Play welcome</span>
+          </button>
           <button onClick={onLogout} className={styles.logoutBtn}>
             {Icons.logout} <span>Logout</span>
           </button>
