@@ -213,6 +213,53 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
     return () => { cancelled = true; };
   }, [employee?.ID]);
 
+
+  // ----- Voice greeting on first open -----
+  // Speaks: "Welcome <Name>, please fill in your personal and work
+  // details below." Once per browser session (sessionStorage guard).
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    const name = (employee?.NAME || "").trim();
+    if (!name) return;
+
+    // Only greet once per session — prevents replay on form re-render
+    const key = `profile_form_greeted_${employee?.ID || name}`;
+    if (sessionStorage.getItem(key)) return;
+
+    const greet = () => {
+      try {
+        const u = new SpeechSynthesisUtterance(
+          `Welcome ${name}. Please fill in your personal and work details below.`
+        );
+        u.rate  = 0.95;
+        u.pitch = 1.0;
+        u.lang  = "en-IN";
+        const voices = window.speechSynthesis.getVoices();
+        const preferred =
+          voices.find((v) => /en[-_]IN/i.test(v.lang)) ||
+          voices.find((v) => /en/i.test(v.lang));
+        if (preferred) u.voice = preferred;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(u);
+        sessionStorage.setItem(key, "1");
+      } catch { /* ignore */ }
+    };
+
+    // Voices may load asynchronously in some browsers — retry once
+    if (window.speechSynthesis.getVoices().length > 0) {
+      greet();
+    } else {
+      const onVoices = () => { greet(); window.speechSynthesis.onvoiceschanged = null; };
+      window.speechSynthesis.onvoiceschanged = onVoices;
+      // Fallback timeout in case onvoiceschanged never fires
+      setTimeout(greet, 800);
+    }
+
+    return () => {
+      try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+    };
+  }, [employee?.ID, employee?.NAME]);
+
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const handleDocPick = async (e) => {
