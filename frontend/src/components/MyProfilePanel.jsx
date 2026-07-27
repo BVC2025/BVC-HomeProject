@@ -118,8 +118,11 @@ const DOC_TYPE_LABELS = {
 // ---------------------------------------------------------------------
 export default function MyProfilePanel({ employeeCode, employeeId }) {
 
-  const code = employeeCode || localStorage.getItem("employee_code") || "";
-  const empIdFromStorage = localStorage.getItem("employee_id") || "";
+  // Prefer UUID (employee_id) — passes assert_self_or_admin via ID match.
+  // Employee_code fallback exists but by-code may 403 if session code
+  // differs from the target code.
+  const empId = employeeId || localStorage.getItem("employee_id") || "";
+  const code  = employeeCode || localStorage.getItem("employee_code") || "";
 
   const [emp,   setEmp]   = useState(null);
   const [docs,  setDocs]  = useState([]);
@@ -131,7 +134,7 @@ export default function MyProfilePanel({ employeeCode, employeeId }) {
   useEffect(() => {
     let alive = true;
     const load = async () => {
-      if (!code) {
+      if (!empId && !code) {
         setErr("You need to be logged in to view this page.");
         setLoading(false);
         return;
@@ -139,9 +142,11 @@ export default function MyProfilePanel({ employeeCode, employeeId }) {
       setLoading(true);
       setErr("");
       try {
-        const res = await API.get(
-          `/employees/by-code/${encodeURIComponent(code)}`
-        );
+        // Prefer UUID — the /employees/{id} endpoint is the reliable path.
+        const url = empId
+          ? `/employees/${encodeURIComponent(empId)}`
+          : `/employees/by-code/${encodeURIComponent(code)}`;
+        const res = await API.get(url);
         if (!alive) return;
         setEmp(res.data || null);
       } catch (e) {
@@ -153,12 +158,12 @@ export default function MyProfilePanel({ employeeCode, employeeId }) {
     };
     load();
     return () => { alive = false; };
-  }, [code]);
+  }, [empId, code]);
 
 
   // ---------- Fetch documents ----------
   useEffect(() => {
-    const empIdForDocs = employeeId || emp?.ID || empIdFromStorage;
+    const empIdForDocs = empId || emp?.ID;
     if (!empIdForDocs) return;
 
     let alive = true;
@@ -176,7 +181,7 @@ export default function MyProfilePanel({ employeeCode, employeeId }) {
       }
     })();
     return () => { alive = false; };
-  }, [emp, employeeId, empIdFromStorage]);
+  }, [emp, empId]);
 
 
   // ---------- Derived ----------
