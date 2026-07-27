@@ -73,6 +73,17 @@ const Icons = {
     <path d="M16 17l5-5-5-5" />
     <path d="M21 12H9" />
   </>),
+  building: svg(<>
+    <path d="M4 21V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16" />
+    <path d="M9 21V13h6v8" />
+    <path d="M8 7h2M8 10h2M14 7h2M14 10h2" />
+    <path d="M2 21h20" />
+  </>),
+  bank: svg(<>
+    <path d="M3 10l9-6 9 6" />
+    <path d="M4 10v8M8 10v8M12 10v8M16 10v8M20 10v8" />
+    <path d="M2 21h20" />
+  </>),
   alert: svg(<>
     <path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
     <path d="M12 9v4M12 17h.01" />
@@ -216,17 +227,21 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
 
   // ----- Voice greeting on first open -----
   // Speaks: "Welcome <Name>, please fill in your personal and work
-  // details below." Once per browser session (sessionStorage guard).
+  // details below." Once per session.
+  //
+  // Browser autoplay policy blocks speechSynthesis until AFTER a user
+  // gesture. So we register a one-shot listener that fires on the FIRST
+  // click / tap / key press anywhere, then speaks.
   useEffect(() => {
     if (typeof window === "undefined" || !window.speechSynthesis) return;
     const name = (employee?.NAME || "").trim();
     if (!name) return;
 
-    // Only greet once per session — prevents replay on form re-render
+    // Only greet once per session
     const key = `profile_form_greeted_${employee?.ID || name}`;
     if (sessionStorage.getItem(key)) return;
 
-    const greet = () => {
+    const speak = () => {
       try {
         const u = new SpeechSynthesisUtterance(
           `Welcome ${name}. Please fill in your personal and work details below.`
@@ -245,17 +260,44 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
       } catch { /* ignore */ }
     };
 
-    // Voices may load asynchronously in some browsers — retry once
+    // Try to speak immediately (works on desktop after page navigation
+    // — the login click counts as a user gesture).
+    let spoken = false;
+    const trySpeakNow = () => {
+      if (spoken) return;
+      spoken = true;
+      speak();
+      cleanup();
+    };
+
+    // Fallback: wait for the first user interaction, then speak.
+    const onFirstGesture = () => trySpeakNow();
+
+    const cleanup = () => {
+      document.removeEventListener("click", onFirstGesture, true);
+      document.removeEventListener("touchstart", onFirstGesture, true);
+      document.removeEventListener("keydown", onFirstGesture, true);
+    };
+
+    document.addEventListener("click", onFirstGesture, { capture: true, once: true });
+    document.addEventListener("touchstart", onFirstGesture, { capture: true, once: true });
+    document.addEventListener("keydown", onFirstGesture, { capture: true, once: true });
+
+    // Also attempt immediately after voices are ready — desktop browsers
+    // often allow this because the login click is counted as a recent
+    // gesture.
     if (window.speechSynthesis.getVoices().length > 0) {
-      greet();
+      // Small delay so the modal / form is painted first
+      setTimeout(trySpeakNow, 400);
     } else {
-      const onVoices = () => { greet(); window.speechSynthesis.onvoiceschanged = null; };
-      window.speechSynthesis.onvoiceschanged = onVoices;
-      // Fallback timeout in case onvoiceschanged never fires
-      setTimeout(greet, 800);
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.onvoiceschanged = null;
+        setTimeout(trySpeakNow, 200);
+      };
     }
 
     return () => {
+      cleanup();
       try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
     };
   }, [employee?.ID, employee?.NAME]);
@@ -603,7 +645,7 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
 
           {/* Work Details — matches admin's Organization Assignment
               minus Role/Department/Designation which are admin-only. */}
-          <Section icon="🏢" title="Work Details">
+          <Section icon={Icons.building} title="Work Details">
             <div className={styles.grid2}>
               <Field label="Confirmation Date (probation end)">
                 <input type="date" value={form.CONFIRMATION_DATE} onChange={set("CONFIRMATION_DATE")} className={styles.input} />
@@ -616,7 +658,7 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
 
           {/* Bank & Identity (payroll) — required for salary transfer
               and statutory records. Aadhaar/PAN are stored securely. */}
-          <Section icon="🏦" title="Bank & Identity (Payroll)">
+          <Section icon={Icons.bank} title="Bank & Identity (Payroll)">
             <div className={styles.grid2}>
               <Field label="Bank Account Number">
                 <input
@@ -674,8 +716,6 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
             </div>
           </Section>
 
-          {/* Documents */}
-          <Section icon="📎" title="Documents"/>
           {/* Documents */}
           <Section icon={Icons.paperclip} title="Documents">
 
