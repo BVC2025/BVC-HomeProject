@@ -975,13 +975,12 @@ function EmployeeDashboardBody() {
             <MyPayslipsPanel employeeId={employeeId} />
           )}
 
-          {/* ---------- My Profile (photo + documents) ----------
-              MyProfilePanel reads localStorage.employee_uuid itself
-              (set by Login.jsx). It does not need employeeId — that's
-              the CODE (BVC008), while photo/docs endpoints need the
-              internal UUID. */}
+          {/* ---------- My Profile (comprehensive view-only) ---------- */}
           {mainTab === "profile" && (
-            <MyProfilePanel />
+            <MyProfilePanel
+              employeeCode={profileGate.employee?.EMPLOYEE_CODE}
+              employeeId={profileGate.employee?.ID}
+            />
           )}
 
           {/* ---------- New ESS home dashboard ---------- */}

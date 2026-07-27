@@ -1,428 +1,585 @@
 // =====================================================================
-// MyProfilePanel
+// MyProfilePanel — comprehensive VIEW-ONLY employee profile.
 // ---------------------------------------------------------------------
-// Employee Self-Service → "My Profile" tab.
+// Shown on the Employee Portal → "My Profile" tab. Displays every field
+// the employee filled out during onboarding + all documents they've
+// uploaded. NO edit / delete controls.
 //
-// Two features on this panel:
-//   1. Profile photo — see the current photo, upload/replace it. The
-//      new photo also updates localStorage.employee_photo so the home
-//      dashboard hero + sidebar avatar refresh without a page reload.
-//   2. Documents — list of files the employee has already uploaded
-//      (Aadhaar, PAN, resume, education certificates, etc.), plus an
-//      inline uploader with a document-type picker.
+// Layout, top → bottom:
+//   1. Hero band            — photo + name + code + status pills
+//   2. Personal Info        — DOB, gender, blood group, marital, etc.
+//   3. Contact Info         — email, phone, address
+//   4. Emergency Contact
+//   5. Job Info             — dept, designation, joining date, shift
+//   6. Compensation & Bank
+//   7. Government IDs       — PAN, Aadhaar (masked)
+//   8. Education
+//   9. Work Experience
+//  10. Skills
+//  11. Documents            — list, click to view/download
 //
-// Backend endpoints (already-existing):
-//   POST   /employees/{id}/upload-photo                (multipart file)
-//   GET    /employees/{id}/documents                   list
-//   POST   /employees/{id}/documents                   upload (multipart)
-//   DELETE /employees/{id}/documents/{doc_id}          remove
-//
-// The employee endpoint gate was loosened to `assert_self_or_admin`
-// so employees can manage their own docs without the admin-only
-// `document.upload` permission.
+// Backend:
+//   GET /employees/by-code/{code}           — full employee row
+//   GET /employees/{id}/documents           — uploaded docs list
+// Both are self-safe (assert_self_or_admin).
 // =====================================================================
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
 import API, { API_BASE_URL } from "../services/api";
 import styles from "./MyProfilePanel.module.css";
 
 
-// Match backend's DOC_TYPES set. Keep the visible label short so it
-// fits well on mobile.
-const DOC_TYPES = [
-  { value: "AADHAAR",             label: "Aadhaar" },
-  { value: "PAN",                 label: "PAN card" },
-  { value: "PASSPORT",            label: "Passport" },
-  { value: "DRIVING_LICENSE",     label: "Driving licence" },
-  { value: "VOTER_ID",            label: "Voter ID" },
-  { value: "TENTH_MARKSHEET",     label: "10th marksheet" },
-  { value: "TWELFTH_MARKSHEET",   label: "12th marksheet" },
-  { value: "DIPLOMA",             label: "Diploma" },
-  { value: "DEGREE",              label: "Degree certificate" },
-  { value: "POSTGRADUATE",        label: "PG certificate" },
-  { value: "CERTIFICATE",         label: "Other certificate" },
-  { value: "RESUME",              label: "Resume / CV" },
-  { value: "OFFER_LETTER",        label: "Offer letter" },
-  { value: "EXPERIENCE_LETTER",   label: "Experience letter" },
-  { value: "RELIEVING_LETTER",    label: "Relieving letter" },
-  { value: "SALARY_SLIP",         label: "Previous salary slip" },
-  { value: "BANK_PASSBOOK",       label: "Bank passbook / cheque" },
-  { value: "ADDRESS_PROOF",       label: "Address proof" },
-  { value: "BIRTH_CERTIFICATE",   label: "Birth certificate" },
-  { value: "MARRIAGE_CERTIFICATE",label: "Marriage certificate" },
-  { value: "OTHER",               label: "Other" },
-];
-
-const MAX_MB = 10;
-
-
+// ---------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------
 function absoluteUrl(path) {
   if (!path) return null;
   if (/^https?:/.test(path)) return path;
   return `${API_BASE_URL}${path}`;
 }
 
+function fmtDate(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-IN", {
+    day: "2-digit", month: "short", year: "numeric",
+  });
+}
 
-function humanSize(bytes) {
-  if (!bytes && bytes !== 0) return "";
+function fmtTime(iso) {
+  if (!iso) return "—";
+  // Backend returns times like "10:00:00". Take first 5 chars.
+  const s = String(iso);
+  if (/^\d{2}:\d{2}/.test(s)) return s.slice(0, 5);
+  return s;
+}
+
+function fmtMoney(n) {
+  if (n == null || n === "") return "—";
+  const num = Number(n);
+  if (Number.isNaN(num)) return "—";
+  return "₹" + num.toLocaleString("en-IN", {
+    minimumFractionDigits: 2, maximumFractionDigits: 2,
+  });
+}
+
+function fmtBytes(bytes) {
+  if (bytes == null) return "";
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function maskAccount(num) {
+  if (!num) return "—";
+  const s = String(num);
+  if (s.length <= 4) return s;
+  return "X".repeat(s.length - 4) + s.slice(-4);
+}
 
-export default function MyProfilePanel({ employeeUuid }) {
-
-  // employeeUuid is the internal UUID of the logged-in employee — the
-  // ID column, not the EMPLOYEE_CODE. Photo + docs endpoints take this.
-  const empId = employeeUuid || localStorage.getItem("employee_uuid") || "";
-
-  const [photoUrl, setPhotoUrl] = useState(
-    () => localStorage.getItem("employee_photo") || ""
-  );
-  const [photoBusy, setPhotoBusy] = useState(false);
-  const [photoError, setPhotoError] = useState("");
-  const photoInputRef = useRef(null);
-
-  const [docs, setDocs] = useState([]);
-  const [docsLoading, setDocsLoading] = useState(false);
-  const [docsError, setDocsError] = useState("");
-
-  const [uploadType, setUploadType] = useState("AADHAAR");
-  const [uploadTitle, setUploadTitle] = useState("");
-  const [uploadBusy, setUploadBusy] = useState(false);
-  const [uploadError, setUploadError] = useState("");
-  const docInputRef = useRef(null);
-
-  const [confirmDelete, setConfirmDelete] = useState(null);
-  // confirmDelete = { id, title } while a delete confirmation is up
-
-  const identity = useMemo(() => ({
-    name: (localStorage.getItem("employee_name") || "").trim() || "You",
-    code: (localStorage.getItem("employee_code") || "").trim(),
-    email: (localStorage.getItem("employee_email") || "").trim(),
-  }), []);
+function maskAadhaar(num) {
+  if (!num) return "—";
+  const s = String(num).replace(/\s/g, "");
+  if (s.length <= 4) return s;
+  return "XXXX XXXX " + s.slice(-4);
+}
 
 
-  // ---------- Load docs ----------
-  const fetchDocs = async () => {
-    if (!empId) return;
-    setDocsLoading(true);
-    setDocsError("");
-    try {
-      const res = await API.get(
-        `/employees/${encodeURIComponent(empId)}/documents`
-      );
-      const rows = Array.isArray(res.data) ? res.data : (res.data?.rows || []);
-      setDocs(rows);
-    } catch (err) {
-      setDocsError(
-        err?.response?.data?.detail ||
-        err?.message ||
-        "Could not load documents."
-      );
-    } finally {
-      setDocsLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchDocs(); }, [empId]);
-
-
-  // ---------- Photo upload ----------
-  const handlePhotoPick = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setPhotoError("Pick an image file (PNG or JPG).");
-      return;
-    }
-    if (file.size > MAX_MB * 1024 * 1024) {
-      setPhotoError(`Photo must be under ${MAX_MB} MB.`);
-      return;
-    }
-    setPhotoBusy(true);
-    setPhotoError("");
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await API.post(
-        `/employees/${encodeURIComponent(empId)}/upload-photo`,
-        fd,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
-      const newUrl = res.data?.photo_url || "";
-      setPhotoUrl(newUrl);
-      // Update localStorage so home dashboard hero + sidebar avatar
-      // reflect the new photo on the next render / page nav.
-      localStorage.setItem("employee_photo", newUrl);
-    } catch (err) {
-      setPhotoError(
-        err?.response?.data?.detail ||
-        err?.message ||
-        "Photo upload failed."
-      );
-    } finally {
-      setPhotoBusy(false);
-      if (photoInputRef.current) photoInputRef.current.value = "";
-    }
-  };
+// Document type labels for the documents list
+const DOC_TYPE_LABELS = {
+  AADHAAR: "Aadhaar",
+  PAN: "PAN card",
+  PASSPORT: "Passport",
+  DRIVING_LICENSE: "Driving licence",
+  VOTER_ID: "Voter ID",
+  TENTH_MARKSHEET: "10th marksheet",
+  TWELFTH_MARKSHEET: "12th marksheet",
+  DIPLOMA: "Diploma",
+  DEGREE: "Degree certificate",
+  POSTGRADUATE: "PG certificate",
+  CERTIFICATE: "Other certificate",
+  RESUME: "Resume / CV",
+  OFFER_LETTER: "Offer letter",
+  EXPERIENCE_LETTER: "Experience letter",
+  RELIEVING_LETTER: "Relieving letter",
+  SALARY_SLIP: "Previous salary slip",
+  BANK_PASSBOOK: "Bank passbook / cheque",
+  ADDRESS_PROOF: "Address proof",
+  BIRTH_CERTIFICATE: "Birth certificate",
+  MARRIAGE_CERTIFICATE: "Marriage certificate",
+  OTHER: "Other",
+};
 
 
-  // ---------- Document upload ----------
-  const handleDocPick = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > MAX_MB * 1024 * 1024) {
-      setUploadError(`File must be under ${MAX_MB} MB.`);
-      return;
-    }
-    setUploadBusy(true);
-    setUploadError("");
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("doc_type", uploadType);
-      fd.append("title", uploadTitle || file.name);
-      const res = await API.post(
-        `/employees/${encodeURIComponent(empId)}/documents`,
-        fd,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
-      const newDoc = res.data?.document;
-      if (newDoc) setDocs((prev) => [newDoc, ...prev]);
-      setUploadTitle("");
-    } catch (err) {
-      setUploadError(
-        err?.response?.data?.detail ||
-        err?.message ||
-        "Upload failed."
-      );
-    } finally {
-      setUploadBusy(false);
-      if (docInputRef.current) docInputRef.current.value = "";
-    }
-  };
+// ---------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------
+export default function MyProfilePanel({ employeeCode, employeeId }) {
+
+  const code = employeeCode || localStorage.getItem("employee_code") || "";
+  const empIdFromStorage = localStorage.getItem("employee_id") || "";
+
+  const [emp,   setEmp]   = useState(null);
+  const [docs,  setDocs]  = useState([]);
+  const [err,   setErr]   = useState("");
+  const [loading, setLoading] = useState(true);
 
 
-  // ---------- Document delete ----------
-  const handleDelete = async (docId) => {
-    try {
-      await API.delete(
-        `/employees/${encodeURIComponent(empId)}/documents/${docId}`
-      );
-      setDocs((prev) => prev.filter((d) => d.ID !== docId && d.id !== docId));
-      setConfirmDelete(null);
-    } catch (err) {
-      alert(
-        err?.response?.data?.detail ||
-        err?.message ||
-        "Delete failed."
-      );
-    }
-  };
+  // ---------- Fetch employee ----------
+  useEffect(() => {
+    let alive = true;
+    const load = async () => {
+      if (!code) {
+        setErr("You need to be logged in to view this page.");
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      setErr("");
+      try {
+        const res = await API.get(
+          `/employees/by-code/${encodeURIComponent(code)}`
+        );
+        if (!alive) return;
+        setEmp(res.data || null);
+      } catch (e) {
+        if (!alive) return;
+        setErr(e?.response?.data?.detail || "Couldn't load your profile.");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+    load();
+    return () => { alive = false; };
+  }, [code]);
 
 
-  // ---------- Render ----------
+  // ---------- Fetch documents ----------
+  useEffect(() => {
+    const empIdForDocs = employeeId || emp?.ID || empIdFromStorage;
+    if (!empIdForDocs) return;
+
+    let alive = true;
+    (async () => {
+      try {
+        const res = await API.get(
+          `/employees/${encodeURIComponent(empIdForDocs)}/documents`
+        );
+        if (!alive) return;
+        const rows = Array.isArray(res.data) ? res.data : (res.data?.rows || []);
+        setDocs(rows);
+      } catch {
+        // Silent — docs are optional
+        if (alive) setDocs([]);
+      }
+    })();
+    return () => { alive = false; };
+  }, [emp, employeeId, empIdFromStorage]);
+
+
+  // ---------- Derived ----------
+  const photoSrc = useMemo(() => {
+    const raw = emp?.PHOTO_URL || localStorage.getItem("employee_photo") || "";
+    return absoluteUrl(raw);
+  }, [emp]);
+
+  const fullName    = emp?.NAME || localStorage.getItem("employee_name") || "Employee";
+  const employeeCd  = emp?.EMPLOYEE_CODE || code || "—";
+  const initials    = useMemo(() => {
+    const parts = String(fullName).trim().split(/\s+/).slice(0, 2);
+    return parts.map((p) => p[0] || "").join("").toUpperCase() || "E";
+  }, [fullName]);
+
+
+  // ---------- Render states ----------
+  if (loading) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.skeletonCard}>Loading your profile…</div>
+      </div>
+    );
+  }
+
+  if (err) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.errorCard}>
+          <div className={styles.errorTitle}>Couldn't load profile</div>
+          <div className={styles.errorText}>{err}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!emp) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.errorCard}>Profile not found.</div>
+      </div>
+    );
+  }
+
+
+  // ---------- Actual profile ----------
   return (
-    <div className={styles.wrap}>
+    <div className={styles.page}>
 
-      {/* ============ IDENTITY HERO ============ */}
+      {/* ============= HERO ============= */}
       <section className={styles.hero}>
-        <div className={styles.heroAvatar}>
-          {photoUrl
-            ? <img src={absoluteUrl(photoUrl)} alt="" />
-            : <span>{(identity.name || "?").charAt(0).toUpperCase()}</span>}
+        <div className={styles.heroLeft}>
+          {photoSrc ? (
+            <img className={styles.avatar} src={photoSrc} alt={fullName} />
+          ) : (
+            <div className={styles.avatarInitials}>{initials}</div>
+          )}
         </div>
-        <div className={styles.heroText}>
-          <div className={styles.heroEyebrow}>Employee profile</div>
-          <div className={styles.heroName}>{identity.name}</div>
+        <div className={styles.heroMain}>
+          <div className={styles.heroName}>{fullName}</div>
           <div className={styles.heroMeta}>
-            {[identity.code, identity.email].filter(Boolean).join("  ·  ") || "—"}
+            <span className={styles.heroCode}>{employeeCd}</span>
+            {emp.DESIGNATION?.TITLE && (
+              <span className={styles.heroDot}>•</span>
+            )}
+            {emp.DESIGNATION?.TITLE && (
+              <span>{emp.DESIGNATION.TITLE}</span>
+            )}
+            {emp.DEPARTMENT?.NAME && (
+              <span className={styles.heroDot}>•</span>
+            )}
+            {emp.DEPARTMENT?.NAME && (
+              <span>{emp.DEPARTMENT.NAME}</span>
+            )}
           </div>
-        </div>
-      </section>
-
-      {/* ============ PROFILE PHOTO ============ */}
-      <section className={styles.card}>
-        <header className={styles.cardHead}>
-          <h2>Profile photo</h2>
-          <p>PNG or JPG, up to {MAX_MB} MB. Shows on your dashboard + payslips.</p>
-        </header>
-
-        <div className={styles.photoBody}>
-          <div className={styles.photoPreview}>
-            {photoUrl
-              ? <img src={absoluteUrl(photoUrl)} alt="Current profile" />
-              : <span>{(identity.name || "?").charAt(0).toUpperCase()}</span>}
-          </div>
-
-          <div className={styles.photoActions}>
-            <input
-              ref={photoInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handlePhotoPick}
-              style={{ display: "none" }}
-            />
-            <button
-              type="button"
-              className={styles.btnPrimary}
-              disabled={photoBusy || !empId}
-              onClick={() => photoInputRef.current?.click()}
-            >
-              {photoBusy ? "Uploading…" : (photoUrl ? "Change photo" : "Upload photo")}
-            </button>
-            {photoError && (
-              <div className={styles.errorLine}>{photoError}</div>
+          <div className={styles.heroPills}>
+            {emp.STATUS && (
+              <span className={`${styles.pill} ${styles[`pill_${emp.STATUS.toLowerCase()}`] || ""}`}>
+                {emp.STATUS}
+              </span>
+            )}
+            {emp.EMPLOYMENT_TYPE && (
+              <span className={styles.pill}>{emp.EMPLOYMENT_TYPE}</span>
+            )}
+            {emp.PROFILE_SUBMITTED && (
+              <span className={`${styles.pill} ${styles.pill_verified}`}>
+                Profile submitted
+              </span>
             )}
           </div>
         </div>
       </section>
 
-      {/* ============ DOCUMENTS ============ */}
-      <section className={styles.card}>
-        <header className={styles.cardHead}>
-          <h2>My documents</h2>
-          <p>Aadhaar, PAN, education certificates, offer letter, etc. — up to {MAX_MB} MB each.</p>
-        </header>
 
-        {/* Upload form */}
-        <div className={styles.uploadRow}>
-          <label className={styles.uploadField}>
-            <span className={styles.uploadLabel}>Document type</span>
-            <select
-              value={uploadType}
-              onChange={(e) => setUploadType(e.target.value)}
-              className={styles.select}
-              disabled={uploadBusy}
-            >
-              {DOC_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </select>
-          </label>
+      {/* ============= PERSONAL INFO ============= */}
+      <Section title="Personal Information" icon="user">
+        <Grid>
+          <Field label="Full name"        value={emp.NAME} />
+          <Field label="Date of birth"    value={fmtDate(emp.DOB)} />
+          <Field label="Gender"           value={emp.GENDER} />
+          <Field label="Blood group"      value={emp.BLOOD_GROUP} />
+          <Field label="Nationality"      value={emp.NATIONALITY} />
+          <Field label="Marital status"   value={emp.MARITAL_STATUS} />
+          <Field label="Father's name"    value={emp.FATHER_NAME} />
+          <Field label="Mother's name"    value={emp.MOTHER_NAME} />
+          <Field label="Occupation"       value={emp.OCCUPATION} />
+        </Grid>
+      </Section>
 
-          <label className={styles.uploadField}>
-            <span className={styles.uploadLabel}>Title (optional)</span>
-            <input
-              type="text"
-              value={uploadTitle}
-              onChange={(e) => setUploadTitle(e.target.value)}
-              placeholder="e.g. Aadhaar front side"
-              className={styles.input}
-              disabled={uploadBusy}
-            />
-          </label>
 
-          <div className={styles.uploadFieldWide}>
-            <input
-              ref={docInputRef}
-              type="file"
-              accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"
-              onChange={handleDocPick}
-              style={{ display: "none" }}
-            />
-            <button
-              type="button"
-              className={styles.btnPrimary}
-              disabled={uploadBusy || !empId}
-              onClick={() => docInputRef.current?.click()}
-            >
-              {uploadBusy ? "Uploading…" : "Choose file & upload"}
-            </button>
-            {uploadError && (
-              <div className={styles.errorLine}>{uploadError}</div>
-            )}
-          </div>
-        </div>
+      {/* ============= CONTACT ============= */}
+      <Section title="Contact Information" icon="mail">
+        <Grid>
+          <Field label="Email"     value={emp.EMAIL} />
+          <Field label="Phone"     value={emp.PHONE} />
+          <Field label="Address"   value={emp.ADDRESS} wide />
+          <Field label="City"      value={emp.CITY} />
+          <Field label="State"     value={emp.STATE} />
+          <Field label="Pincode"   value={emp.PINCODE} />
+        </Grid>
+      </Section>
 
-        {/* Document list */}
-        <div className={styles.docList}>
-          {docsLoading && (
-            <div className={styles.emptyLine}>Loading…</div>
-          )}
 
-          {!docsLoading && docsError && (
-            <div className={styles.emptyLine} style={{ color: "#b91c1c" }}>
-              {docsError}
-            </div>
-          )}
-
-          {!docsLoading && !docsError && docs.length === 0 && (
-            <div className={styles.emptyLine}>
-              No documents uploaded yet. Pick a type and file above to add your first one.
-            </div>
-          )}
-
-          {docs.map((d) => {
-            const id = d.ID ?? d.id;
-            const label = DOC_TYPES.find((t) => t.value === d.DOC_TYPE)?.label
-                        || d.DOC_TYPE
-                        || "Document";
-            const url = absoluteUrl(d.FILE_URL || d.file_url);
-            return (
-              <div key={id} className={styles.docRow}>
-                <div className={styles.docIcon}>
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" strokeWidth="1.8"
-                       strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <path d="M14 2v6h6" />
-                    <path d="M8 13h8M8 17h5" />
-                  </svg>
-                </div>
-                <div className={styles.docBody}>
-                  <div className={styles.docTitle}>{d.TITLE || d.title || label}</div>
-                  <div className={styles.docMeta}>
-                    <span className={styles.docPill}>{label}</span>
-                    {(d.SIZE_BYTES || d.size_bytes) && (
-                      <span>{humanSize(d.SIZE_BYTES || d.size_bytes)}</span>
-                    )}
-                    {(d.FILE_NAME || d.file_name) && (
-                      <span className={styles.docFile}>{d.FILE_NAME || d.file_name}</span>
-                    )}
-                  </div>
-                </div>
-                <div className={styles.docActions}>
-                  {url && (
-                    <a href={url} target="_blank" rel="noreferrer"
-                       className={styles.btnGhost}>View</a>
-                  )}
-                  <button
-                    type="button"
-                    className={styles.btnDanger}
-                    onClick={() => setConfirmDelete({ id, title: d.TITLE || label })}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* ============ DELETE CONFIRM ============ */}
-      {confirmDelete && (
-        <div className={styles.modalOverlay} onClick={() => setConfirmDelete(null)}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <h3>Delete this document?</h3>
-            <p>
-              <b>{confirmDelete.title}</b> will be removed permanently. This can't be undone.
-            </p>
-            <div className={styles.modalActions}>
-              <button className={styles.btnGhost} onClick={() => setConfirmDelete(null)}>
-                Cancel
-              </button>
-              <button className={styles.btnDanger} onClick={() => handleDelete(confirmDelete.id)}>
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* ============= EMERGENCY CONTACT ============= */}
+      {(emp.EMERGENCY_CONTACT_NAME || emp.EMERGENCY_CONTACT_PHONE) && (
+        <Section title="Emergency Contact" icon="alert">
+          <Grid>
+            <Field label="Name"     value={emp.EMERGENCY_CONTACT_NAME} />
+            <Field label="Phone"    value={emp.EMERGENCY_CONTACT_PHONE} />
+            <Field label="Relation" value={emp.EMERGENCY_CONTACT_RELATION} />
+          </Grid>
+        </Section>
       )}
 
+
+      {/* ============= JOB INFO ============= */}
+      <Section title="Job Information" icon="briefcase">
+        <Grid>
+          <Field label="Employee code"    value={emp.EMPLOYEE_CODE} />
+          <Field label="Department"       value={emp.DEPARTMENT?.NAME} />
+          <Field label="Designation"      value={emp.DESIGNATION?.TITLE} />
+          <Field label="Role"             value={emp.ROLE?.NAME} />
+          <Field label="Employment type"  value={emp.EMPLOYMENT_TYPE} />
+          <Field label="Status"           value={emp.STATUS} />
+          <Field label="Joining date"     value={fmtDate(emp.JOINING_DATE)} />
+          <Field label="Confirmation"     value={fmtDate(emp.CONFIRMATION_DATE)} />
+          <Field label="Work location"    value={emp.WORK_LOCATION} />
+          <Field label="Shift start"      value={fmtTime(emp.SHIFT_START)} />
+          <Field label="Shift end"        value={fmtTime(emp.SHIFT_END)} />
+        </Grid>
+      </Section>
+
+
+      {/* ============= COMPENSATION & BANK ============= */}
+      <Section title="Compensation & Bank" icon="cash">
+        <Grid>
+          <Field label="Monthly salary"   value={fmtMoney(emp.SALARY)} />
+          <Field label="Bank name"        value={emp.BANK_NAME} />
+          <Field label="Account number"   value={maskAccount(emp.BANK_ACCOUNT_NUMBER)} />
+          <Field label="IFSC code"        value={emp.IFSC_CODE} />
+        </Grid>
+      </Section>
+
+
+      {/* ============= GOVERNMENT IDS ============= */}
+      {(emp.PAN_NUMBER || emp.AADHAAR_NUMBER) && (
+        <Section title="Government IDs" icon="id">
+          <Grid>
+            <Field label="PAN"      value={emp.PAN_NUMBER || "—"} />
+            <Field label="Aadhaar"  value={maskAadhaar(emp.AADHAAR_NUMBER)} />
+          </Grid>
+        </Section>
+      )}
+
+
+      {/* ============= EDUCATION ============= */}
+      {(emp.QUALIFICATION || emp.COLLEGE || emp.UNIVERSITY) && (
+        <Section title="Education" icon="book">
+          <Grid>
+            <Field label="Qualification"      value={emp.QUALIFICATION} />
+            <Field label="College"            value={emp.COLLEGE} />
+            <Field label="University"         value={emp.UNIVERSITY} />
+            <Field label="Year of passing"    value={emp.YEAR_OF_PASSING} />
+            <Field label="Percentage / CGPA"  value={emp.PERCENTAGE} />
+          </Grid>
+        </Section>
+      )}
+
+
+      {/* ============= WORK EXPERIENCE ============= */}
+      {(emp.EXPERIENCE_YEARS || emp.EXPERIENCE_DETAILS
+        || emp.PREVIOUS_COMPANY || emp.PAST_PROJECTS) && (
+        <Section title="Work Experience" icon="star">
+          <Grid>
+            <Field label="Total experience (years)" value={emp.EXPERIENCE_YEARS} />
+            <Field label="Previous company"         value={emp.PREVIOUS_COMPANY} />
+            <Field label="Previous salary"          value={emp.PREVIOUS_SALARY ? fmtMoney(emp.PREVIOUS_SALARY) : "—"} />
+            <Field label="Experience details"       value={emp.EXPERIENCE_DETAILS} wide />
+            <Field label="Past projects"            value={emp.PAST_PROJECTS} wide />
+          </Grid>
+        </Section>
+      )}
+
+
+      {/* ============= SKILLS ============= */}
+      {emp.SKILLS && (
+        <Section title="Skills" icon="tag">
+          <div className={styles.skillsWrap}>
+            {String(emp.SKILLS)
+              .split(/[,;\n]/)
+              .map((s) => s.trim())
+              .filter(Boolean)
+              .map((s, i) => (
+                <span key={i} className={styles.skillChip}>{s}</span>
+              ))}
+          </div>
+        </Section>
+      )}
+
+
+      {/* ============= DOCUMENTS ============= */}
+      <Section title="Documents" icon="doc" count={docs.length}>
+        {docs.length === 0 ? (
+          <div className={styles.emptyState}>
+            You haven't uploaded any documents yet.
+          </div>
+        ) : (
+          <div className={styles.docList}>
+            {docs.map((d) => {
+              const title = d.TITLE || DOC_TYPE_LABELS[d.DOC_TYPE] || d.DOC_TYPE || "Document";
+              const url   = absoluteUrl(d.FILE_URL);
+              return (
+                <a
+                  key={d.ID}
+                  className={styles.docRow}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <span className={styles.docIcon}>{DocIcon(d.MIME)}</span>
+                  <span className={styles.docBody}>
+                    <span className={styles.docTitle}>{title}</span>
+                    <span className={styles.docMeta}>
+                      {DOC_TYPE_LABELS[d.DOC_TYPE] || d.DOC_TYPE}
+                      {d.SIZE_BYTES ? ` · ${fmtBytes(d.SIZE_BYTES)}` : ""}
+                      {d.UPLOADED_AT ? ` · uploaded ${fmtDate(d.UPLOADED_AT)}` : ""}
+                    </span>
+                  </span>
+                  <span className={styles.docLink}>View →</span>
+                </a>
+              );
+            })}
+          </div>
+        )}
+      </Section>
+
+
+      {/* ============= NOTES ============= */}
+      {emp.NOTES && (
+        <Section title="Notes" icon="note">
+          <div className={styles.notesText}>{emp.NOTES}</div>
+        </Section>
+      )}
+
+      <div className={styles.footerHint}>
+        This is your read-only profile. To update any information,
+        please contact HR.
+      </div>
     </div>
   );
+}
+
+
+// =====================================================================
+// Sub-components
+// =====================================================================
+
+function Section({ title, icon, count, children }) {
+  return (
+    <section className={styles.section}>
+      <header className={styles.sectionHead}>
+        <span className={styles.sectionIcon}>{SectionIcon(icon)}</span>
+        <h3 className={styles.sectionTitle}>{title}</h3>
+        {typeof count === "number" && (
+          <span className={styles.sectionCount}>{count}</span>
+        )}
+      </header>
+      <div className={styles.sectionBody}>{children}</div>
+    </section>
+  );
+}
+
+
+function Grid({ children }) {
+  return <div className={styles.grid}>{children}</div>;
+}
+
+
+function Field({ label, value, wide }) {
+  const display =
+    value === null || value === undefined || value === "" ? "—" : value;
+  return (
+    <div className={`${styles.field} ${wide ? styles.fieldWide : ""}`}>
+      <div className={styles.fieldLabel}>{label}</div>
+      <div className={styles.fieldValue}>{display}</div>
+    </div>
+  );
+}
+
+
+// ---------------------------------------------------------------------
+// Icons — inline SVG
+// ---------------------------------------------------------------------
+function makeIcon(paths, size = 18) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth="1.8"
+         strokeLinecap="round" strokeLinejoin="round">
+      {paths}
+    </svg>
+  );
+}
+
+function SectionIcon(name) {
+  switch (name) {
+    case "user":
+      return makeIcon(<>
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+      </>);
+    case "mail":
+      return makeIcon(<>
+        <rect x="3" y="5" width="18" height="14" rx="2" />
+        <path d="M3 7l9 7 9-7" />
+      </>);
+    case "alert":
+      return makeIcon(<>
+        <path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+        <path d="M12 9v4M12 17h.01" />
+      </>);
+    case "briefcase":
+      return makeIcon(<>
+        <rect x="3" y="7" width="18" height="13" rx="2" />
+        <path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+      </>);
+    case "cash":
+      return makeIcon(<>
+        <rect x="2" y="6" width="20" height="12" rx="2" />
+        <circle cx="12" cy="12" r="3" />
+      </>);
+    case "id":
+      return makeIcon(<>
+        <rect x="3" y="5" width="18" height="14" rx="2" />
+        <circle cx="9" cy="12" r="2.5" />
+        <path d="M14 10h5M14 14h4" />
+      </>);
+    case "book":
+      return makeIcon(<>
+        <path d="M4 4v16c0-1.6 1.4-3 3-3h13V4H7c-1.6 0-3 1.4-3 3z" />
+        <path d="M4 20V4" />
+      </>);
+    case "star":
+      return makeIcon(<>
+        <path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.7 6.6 19.5l1.2-6L3.3 9.3l6.1-.7L12 3z" />
+      </>);
+    case "tag":
+      return makeIcon(<>
+        <path d="M20 12l-8 8-9-9V3h8z" />
+        <circle cx="7.5" cy="7.5" r="1.4" />
+      </>);
+    case "doc":
+      return makeIcon(<>
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <path d="M14 2v6h6" />
+      </>);
+    case "note":
+      return makeIcon(<>
+        <rect x="5" y="3" width="14" height="18" rx="2" />
+        <path d="M9 8h6M9 12h6M9 16h4" />
+      </>);
+    default:
+      return null;
+  }
+}
+
+function DocIcon(mime) {
+  const m = (mime || "").toLowerCase();
+  if (m.includes("pdf")) {
+    return makeIcon(<>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6" />
+      <text x="8" y="17" fontSize="6" fontFamily="sans-serif" fill="currentColor" stroke="none">PDF</text>
+    </>, 20);
+  }
+  if (m.includes("image")) {
+    return makeIcon(<>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <circle cx="9" cy="11" r="2" />
+      <path d="M21 15l-5-5-10 10" />
+    </>, 20);
+  }
+  return makeIcon(<>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <path d="M14 2v6h6" />
+  </>, 20);
 }
