@@ -225,18 +225,8 @@ export default function EmployeeSidebar({
     : null;
 
   const handleClick = (item) => {
-
     // Profile now renders inline on the dashboard as its own tab —
-    // we no longer navigate away. (The one-time registration form
-    // still lives at /employee-profile and is only shown by the
-    // parent EmployeeDashboard when PROFILE_SUBMITTED is 0.)
-    if (item.key === "profile") {
-      // Profile has its own route already
-      navigate("/employee-profile");
-      onClose?.();
-      return;
-    }
-
+    // no route navigation needed. All tabs go through onSelect.
     onSelect?.(item.key, { soon: !!item.soon });
     // On mobile the sidebar is a drawer — close it after picking a tab
     onClose?.();
