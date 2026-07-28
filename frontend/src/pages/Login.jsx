@@ -10,107 +10,58 @@ import API from "../services/api";
 
 
 // =====================================================================
-// AnimatedWelcomePanel — plays the user-provided AI-generated video
-// (/robot-login.mp4) once, then cross-fades to the static red panel
-// with the welcome text.
+// AnimatedWelcomePanel — plays the AI-generated video (/robot-login.mp4)
+// which already contains the whole sequence (robot walk-in, panel push,
+// text fade-in). The video freezes on its last frame automatically.
 //
-// The video shows the full robot-pushing-panel sequence. When it ends
-// we fade in the real panel content on top, so the transition to the
-// static state feels seamless.
+// A fallback DOM red panel is shown ONLY if the video errors or is
+// blocked — so users on strict browsers still see something.
 // =====================================================================
 function AnimatedWelcomePanel() {
-  const [videoDone, setVideoDone] = useState(false);
   const [videoError, setVideoError] = useState(false);
-  const videoRef = useRef(null);
-
-  useEffect(() => {
-    // Fallback: if the video can't play for any reason (missing file,
-    // codec issue on this browser, autoplay blocked), skip to the final
-    // state after 8s so the user isn't stuck staring at a black rectangle.
-    const t = setTimeout(() => {
-      if (!videoDone) setVideoDone(true);
-    }, 8000);
-    return () => clearTimeout(t);
-  }, [videoDone]);
 
   return (
     <div className={styles.welcomeWrap}>
 
-      {/* Intro video — plays once, muted (browser autoplay requirement) */}
+      {/* Intro video — plays once, freezes on last frame */}
       {!videoError && (
-        <motion.video
-          ref={videoRef}
+        <video
           className={styles.introVideo}
           src="/robot-login.mp4"
           autoPlay
           muted
           playsInline
           preload="auto"
-          onEnded={() => setVideoDone(true)}
-          onError={() => { setVideoError(true); setVideoDone(true); }}
-          animate={{ opacity: videoDone ? 0 : 1 }}
-          initial={{ opacity: 1 }}
-          transition={{ duration: 0.6 }}
+          onError={() => setVideoError(true)}
         />
       )}
 
-      {/* Final red panel — fades in when the video ends */}
-      <motion.div
-        className={styles.panel}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: videoDone ? 1 : 0 }}
-        transition={{ duration: 0.7, ease: "easeOut" }}
-      >
-        <div className={styles.ringA} />
-        <div className={styles.ringB} />
-
-        <motion.img
-          src="/logo.webp"
-          alt="Bharath Vending Corporation"
-          className={styles.brandLogo}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: videoDone ? 1 : 0, y: videoDone ? 0 : 10 }}
-          transition={{ delay: videoDone ? 0.2 : 0, duration: 0.55 }}
-        />
-
-        <motion.h1
-          className={styles.welcomeTitle}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: videoDone ? 1 : 0, y: videoDone ? 0 : 12 }}
-          transition={{ delay: videoDone ? 0.35 : 0, duration: 0.55 }}
-        >
-          Welcome Back
-        </motion.h1>
-
-        <motion.p
-          className={styles.welcomeSub}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: videoDone ? 1 : 0, y: videoDone ? 0 : 10 }}
-          transition={{ delay: videoDone ? 0.55 : 0, duration: 0.55 }}
-        >
-          Access your ERP dashboard.
-        </motion.p>
-
-        <motion.p
-          className={styles.tagline}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: videoDone ? 1 : 0, y: videoDone ? 0 : 10 }}
-          transition={{ delay: videoDone ? 0.75 : 0, duration: 0.55 }}
-        >
-          Automate. Optimize. <span className={styles.taglineAccent}>Accelerate with AI.</span>
-        </motion.p>
-
-        <div className={styles.brandSpacer} />
-
-        <motion.p
-          className={styles.brandName}
+      {/* Fallback red panel — only rendered if the video fails */}
+      {videoError && (
+        <motion.div
+          className={styles.panel}
           initial={{ opacity: 0 }}
-          animate={{ opacity: videoDone ? 1 : 0 }}
-          transition={{ delay: videoDone ? 0.95 : 0, duration: 0.5 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.7, ease: "easeOut" }}
         >
-          Bharath Vending Corporation
-        </motion.p>
-      </motion.div>
+          <div className={styles.ringA} />
+          <div className={styles.ringB} />
+
+          <img
+            src="/logo.webp"
+            alt="Bharath Vending Corporation"
+            className={styles.brandLogo}
+          />
+          <h1 className={styles.welcomeTitle}>Welcome Back</h1>
+          <p className={styles.welcomeSub}>Access your ERP dashboard.</p>
+          <p className={styles.tagline}>
+            Automate. Optimize.{" "}
+            <span className={styles.taglineAccent}>Accelerate with AI.</span>
+          </p>
+          <div className={styles.brandSpacer} />
+          <p className={styles.brandName}>Bharath Vending Corporation</p>
+        </motion.div>
+      )}
     </div>
   );
 }
