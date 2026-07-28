@@ -226,7 +226,7 @@ function HeroBar({ stats }) {
               Bharath Vending Corporation
             </div>
             <div className={styles.heroWelcome}>
-              Welcome, {stats.user_name || "System Administrator"}
+              A new era of ERP software from BVC
             </div>
             <div className={styles.heroDateLine}>
               {dateStr} · <span className={styles.heroTimeAccent}>{timeStr}</span>
