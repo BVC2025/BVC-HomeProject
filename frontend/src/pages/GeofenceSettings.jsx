@@ -133,6 +133,27 @@ export default function GeofenceSettings() {
       return;
     }
 
+    // Browsers block navigator.geolocation on non-secure origins
+    // (anything other than HTTPS, localhost, or 127.0.0.1). Detect
+    // that up front so we can explain WHY the prompt never appeared,
+    // instead of showing a generic 'permission denied' message.
+    if (typeof window !== "undefined" && window.isSecureContext === false) {
+
+      setError(
+        "GPS is blocked because this page is loaded over HTTP. Modern " +
+        "browsers only allow location access on HTTPS. Either open this " +
+        "page over HTTPS (e.g. via the erp.bvc24.com tunnel once it's " +
+        "live), or, as a temporary workaround on Chrome: open " +
+        "chrome://flags/#unsafely-treat-insecure-origin-as-secure, add " +
+        "this site's URL, enable the flag, and restart Chrome. Meanwhile " +
+        "you can type the office latitude/longitude manually — the " +
+        "'Preview on Google Maps' link opens Google Maps where you can " +
+        "right-click the office to copy exact coordinates."
+      );
+
+      return;
+    }
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
 
@@ -145,8 +166,24 @@ export default function GeofenceSettings() {
       },
       (err) => {
 
+        // If we reach this branch on an insecure origin the browser
+        // still returned code 1 without prompting — surface the same
+        // HTTPS explanation as above instead of the generic message.
+        if (err.code === 1 && typeof window !== "undefined" && !window.isSecureContext) {
+
+          setError(
+            "GPS is blocked because this page is loaded over HTTP. Modern " +
+            "browsers only expose location on HTTPS. Open the site over " +
+            "HTTPS, or whitelist it under chrome://flags/#unsafely-treat-" +
+            "insecure-origin-as-secure. You can also type the office " +
+            "latitude/longitude by hand."
+          );
+
+          return;
+        }
+
         const msg = ({
-          1: "GPS permission denied — allow location access in your browser.",
+          1: "GPS permission denied — check the address-bar icon and set 'Allow' for Location, then click the button again.",
           2: "Position unavailable — turn on GPS / move near a window.",
           3: "Timed out asking for your location — try again."
         })[err.code] || `GPS error: ${err.message}`;
