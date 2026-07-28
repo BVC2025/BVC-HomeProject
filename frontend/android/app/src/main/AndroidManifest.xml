@@ -33,4 +33,22 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Mic: needed for the voice assistant (SpeechRecognition + any
+         getUserMedia calls). WebView will only *prompt* the user for
+         mic access if RECORD_AUDIO is declared here. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+    <!-- Location: needed for attendance geofence check-in.
+         COARSE + FINE lets the WebView request either level. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <!-- Feature hints (optional) — help the Play Store filter for
+         devices that actually have a mic / GPS. Marked not-required
+         so the app still installs on emulators without them. -->
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 </manifest>
