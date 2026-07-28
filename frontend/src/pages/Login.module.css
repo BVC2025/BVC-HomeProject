@@ -146,13 +146,18 @@
 
 /* Intro video — covers the left panel area during the walk-in sequence.
    The subtle filter lifts the baked-in text so it reads brighter without
-   crushing the robot's darker tones. */
+   crushing the robot's darker tones.
+
+   object-position anchors to the right so the full red banner (and its
+   'Welcome Back' text on the far right) is always visible; the robot
+   shifts a bit toward the left edge of the panel as a consequence. */
 .introVideo {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: right center;
   z-index: 5;
   background: #ffffff;
   pointer-events: none;
