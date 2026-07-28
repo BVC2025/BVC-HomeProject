@@ -174,6 +174,14 @@ _DEFAULT_CORS_ORIGINS = [
     "http://localhost:4173",        # vite preview (production build)
     "http://127.0.0.1:5173",
     "http://127.0.0.1:4173",
+    # Capacitor / Ionic native shells. The Android/iOS WebView sends
+    # the page's origin as one of these depending on capacitor.config
+    # (androidScheme / iosScheme). All four cover current + legacy
+    # configs so the APK doesn't hit CORS again if the scheme changes.
+    "http://localhost",             # androidScheme: 'http'
+    "https://localhost",            # androidScheme: 'https' (Capacitor default)
+    "capacitor://localhost",        # iOS default scheme
+    "ionic://localhost",            # older Ionic default
 ]
 
 _env_origins = os.getenv("CORS_ALLOWED_ORIGINS", "").strip()
