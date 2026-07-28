@@ -27,42 +27,107 @@
   box-shadow: var(--shadow-lg);
 }
 
-/* ─── Left welcome panel ────────────────────────────────────── */
+/* ─── Left welcome panel (animated) ─────────────────────────── */
 
 .left {
   flex: 0 0 42%;
+  position: relative;
+  padding: 0;               /* AnimatedWelcomePanel handles its own padding */
+  background: transparent;  /* Panel provides its own bg — parent stays white during animation */
+  overflow: hidden;         /* Robot / panel slide from off-screen */
+  min-height: 540px;
+}
+
+.welcomeWrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Panel that slides in — this IS the red band */
+.panel {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   padding: var(--sp-10) var(--sp-8);
   color: var(--text-inverse);
-  background: var(--clr-primary-darker) !important;
+  background: linear-gradient(155deg, #dc2626 0%, #b91c1c 55%, #991b1b 100%);
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.06);
+  z-index: 2;
+  overflow: hidden;
+}
+
+/* Decorative rings — subtle depth */
+.ringA,
+.ringB {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  pointer-events: none;
+}
+.ringA {
+  width: 320px;
+  height: 320px;
+  bottom: -90px;
+  right: -110px;
+}
+.ringB {
+  width: 200px;
+  height: 200px;
+  top: -60px;
+  left: -60px;
+  background: radial-gradient(circle, rgba(255,255,255,0.10) 0%, transparent 70%);
+  border: none;
 }
 
 .brandLogo {
+  position: relative;
   width: 84px;
   height: 84px;
   object-fit: contain;
   padding: 10px;
   border-radius: var(--radius-xl);
-  background: var(--clr-primary-muted);
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(4px);
   margin-bottom: var(--sp-5);
+  z-index: 3;
 }
 
 .welcomeTitle {
+  position: relative;
   margin: 0;
   font-size: var(--font-3xl);
   font-weight: var(--fw-black);
   letter-spacing: -0.3px;
   font-family: var(--font);
+  z-index: 3;
 }
 
 .welcomeSub {
+  position: relative;
   margin: var(--sp-2) 0 0;
   font-size: var(--font-sm);
   line-height: var(--lh);
   opacity: 0.88;
+  z-index: 3;
+}
+
+.tagline {
+  position: relative;
+  margin: var(--sp-3) 0 0;
+  font-size: var(--font-sm);
+  line-height: var(--lh);
+  opacity: 0.95;
+  font-weight: var(--fw-bold);
+  z-index: 3;
+}
+.taglineAccent {
+  color: #fbbf24;
+  text-shadow: 0 0 12px rgba(251, 191, 36, 0.4);
 }
 
 .brandSpacer {
@@ -70,11 +135,29 @@
 }
 
 .brandName {
+  position: relative;
   margin: 0;
   font-size: var(--font-md);
   font-weight: var(--fw-bold);
   letter-spacing: 0.4px;
   opacity: 0.90;
+  z-index: 3;
+}
+
+/* Robot mascot holder — floats above the panel during entry animation */
+.robotHolder {
+  position: absolute;
+  bottom: 30px;
+  left: 0;
+  width: 160px;
+  height: 200px;
+  z-index: 4;
+  pointer-events: none;
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.25));
+}
+.robotSvg {
+  width: 100%;
+  height: 100%;
 }
 
 /* ─── Right form panel ──────────────────────────────────────── */

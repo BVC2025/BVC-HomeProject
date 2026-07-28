@@ -1,10 +1,221 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 
 import styles from "./Login.module.css";
 
 import API from "../services/api";
+
+
+// =====================================================================
+// LoginRobot — chunky brand-red SVG mascot used in the walk-in animation.
+// Kept as an inline SVG (no external assets, works offline).
+// =====================================================================
+function LoginRobot() {
+  return (
+    <svg
+      viewBox="0 0 200 240"
+      xmlns="http://www.w3.org/2000/svg"
+      className={styles.robotSvg}
+      aria-hidden="true"
+    >
+      {/* subtle shadow under feet */}
+      <ellipse cx="100" cy="230" rx="60" ry="6" fill="rgba(0,0,0,0.15)" />
+
+      {/* Body */}
+      <motion.g
+        animate={{ y: [0, -3, 0] }}
+        transition={{ duration: 0.6, repeat: Infinity, ease: "easeInOut" }}
+      >
+        {/* Head */}
+        <ellipse cx="100" cy="60" rx="58" ry="52" fill="#dc2626" />
+        <ellipse cx="100" cy="55" rx="50" ry="44" fill="#ef4444" />
+
+        {/* Visor / face screen */}
+        <rect x="55" y="45" width="90" height="42" rx="20" fill="#0f172a" />
+        {/* Eyes */}
+        <circle cx="82" cy="66" r="6" fill="#38bdf8" />
+        <circle cx="118" cy="66" r="6" fill="#38bdf8" />
+        <circle cx="82" cy="64" r="2" fill="#ffffff" />
+        <circle cx="118" cy="64" r="2" fill="#ffffff" />
+
+        {/* Highlight on head */}
+        <ellipse cx="82" cy="34" rx="18" ry="8" fill="rgba(255,255,255,0.35)" />
+
+        {/* Side ear/speaker */}
+        <circle cx="42" cy="60" r="10" fill="#b91c1c" />
+        <circle cx="42" cy="60" r="5" fill="#fbbf24" />
+
+        {/* Neck / body */}
+        <rect x="72" y="108" width="56" height="16" rx="6" fill="#1f2937" />
+
+        {/* Torso */}
+        <path
+          d="M60 122 L140 122 L148 178 Q100 190 52 178 Z"
+          fill="#dc2626"
+        />
+        <path
+          d="M60 122 L140 122 L145 155 Q100 165 55 155 Z"
+          fill="#ef4444"
+        />
+        {/* Chest badge */}
+        <circle cx="100" cy="150" r="9" fill="#fbbf24" />
+        <circle cx="100" cy="150" r="4" fill="#1f2937" />
+      </motion.g>
+
+      {/* Left arm (front — pushes the panel) */}
+      <motion.g
+        animate={{ rotate: [-8, 8, -8] }}
+        transition={{ duration: 0.6, repeat: Infinity, ease: "easeInOut" }}
+        style={{ transformOrigin: "62px 130px" }}
+      >
+        <rect x="52" y="128" width="18" height="46" rx="8" fill="#1f2937" />
+        <circle cx="60" cy="180" r="12" fill="#dc2626" />
+      </motion.g>
+
+      {/* Right arm (back) */}
+      <motion.g
+        animate={{ rotate: [8, -8, 8] }}
+        transition={{ duration: 0.6, repeat: Infinity, ease: "easeInOut" }}
+        style={{ transformOrigin: "138px 130px" }}
+      >
+        <rect x="130" y="128" width="18" height="46" rx="8" fill="#1f2937" />
+        <circle cx="140" cy="180" r="12" fill="#dc2626" />
+      </motion.g>
+
+      {/* Legs — bob together */}
+      <motion.g
+        animate={{ y: [0, 2, 0] }}
+        transition={{ duration: 0.6, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <rect x="78" y="188" width="16" height="34" rx="6" fill="#1f2937" />
+        <rect x="106" y="188" width="16" height="34" rx="6" fill="#1f2937" />
+        <ellipse cx="86" cy="224" rx="14" ry="6" fill="#dc2626" />
+        <ellipse cx="114" cy="224" rx="14" ry="6" fill="#dc2626" />
+      </motion.g>
+    </svg>
+  );
+}
+
+
+// =====================================================================
+// AnimatedWelcomePanel — the cinematic left-panel sequence.
+// Phases:
+//   0.0-1.0s  robot walks in from off-screen right → toward the center
+//   0.8-2.0s  robot "pushes" the red panel — panel slides in from left
+//   2.0-2.7s  robot walks past the panel and exits stage right
+//   2.4-3.4s  the 3 text lines fade in in sequence
+// After the first play (per session) we skip to the end state so
+// returning users don't wait.
+// =====================================================================
+function AnimatedWelcomePanel() {
+  const KEY = "login_intro_played";
+  const skip = typeof window !== "undefined" && sessionStorage.getItem(KEY);
+  const [phase, setPhase] = useState(skip ? "done" : "start");
+
+  useEffect(() => {
+    if (skip) return;
+    // At the end of the sequence, mark as played so refresh skips.
+    const t = setTimeout(() => {
+      sessionStorage.setItem(KEY, "1");
+      setPhase("done");
+    }, 3600);
+    return () => clearTimeout(t);
+  }, [skip]);
+
+  return (
+    <div className={styles.welcomeWrap}>
+
+      {/* Red panel — slides in from off-screen left */}
+      <motion.div
+        className={styles.panel}
+        initial={skip ? { x: 0 } : { x: "-105%" }}
+        animate={{ x: 0 }}
+        transition={{
+          delay: skip ? 0 : 0.8,
+          duration: skip ? 0 : 1.2,
+          ease: [0.22, 0.9, 0.28, 1],   // custom ease-out, physical feel
+        }}
+      >
+        {/* Decorative rings */}
+        <div className={styles.ringA} />
+        <div className={styles.ringB} />
+
+        {/* Brand logo — fades in after panel arrives */}
+        <motion.img
+          src="/logo.webp"
+          alt="Bharath Vending Corporation"
+          className={styles.brandLogo}
+          initial={skip ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: skip ? 0 : 2.3, duration: 0.6 }}
+        />
+
+        {/* Text stack — fades in line-by-line */}
+        <motion.h1
+          className={styles.welcomeTitle}
+          initial={skip ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: skip ? 0 : 2.4, duration: 0.55 }}
+        >
+          Welcome Back
+        </motion.h1>
+
+        <motion.p
+          className={styles.welcomeSub}
+          initial={skip ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: skip ? 0 : 2.7, duration: 0.55 }}
+        >
+          Access your ERP dashboard.
+        </motion.p>
+
+        <motion.p
+          className={styles.tagline}
+          initial={skip ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: skip ? 0 : 3.0, duration: 0.55 }}
+        >
+          Automate. Optimize. <span className={styles.taglineAccent}>Accelerate with AI.</span>
+        </motion.p>
+
+        <div className={styles.brandSpacer} />
+
+        <motion.p
+          className={styles.brandName}
+          initial={skip ? { opacity: 1 } : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: skip ? 0 : 3.3, duration: 0.5 }}
+        >
+          Bharath Vending Corporation
+        </motion.p>
+      </motion.div>
+
+      {/* Robot — only shown during the intro. Walks in from right,
+          pushes panel, then exits right off-screen. */}
+      <AnimatePresence>
+        {!skip && phase !== "done" && (
+          <motion.div
+            className={styles.robotHolder}
+            initial={{ x: "180%" }}
+            animate={{
+              x: ["180%", "50%", "10%", "-20%", "-150%"],
+            }}
+            transition={{
+              times:    [0,       0.28,   0.55,   0.75,   1],
+              duration: 3.4,
+              ease:     "easeInOut",
+            }}
+            exit={{ opacity: 0, transition: { duration: 0.3 } }}
+          >
+            <LoginRobot />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 
 function Login() {
@@ -217,26 +428,9 @@ function Login() {
         onSubmit={handleLogin}
       >
 
-        {/* Left — welcome panel */}
+        {/* Left — animated welcome panel (robot pushes it in) */}
         <div className={styles.left}>
-          <img
-            src="/logo.webp"
-            alt="Bharath Vending Corporation"
-            className={styles.brandLogo}
-          />
-
-          <h1 className={styles.welcomeTitle}>Welcome Back</h1>
-
-          <p className={styles.welcomeSub}>
-            Sign in to access your ERP dashboard
-          </p>
-
-          <div className={styles.brandSpacer} />
-
-          <p className={styles.brandName}>
-            Bharath Vending Corporation
-          </p>
-
+          <AnimatedWelcomePanel />
         </div>
 
         {/* Right — credentials form */}
