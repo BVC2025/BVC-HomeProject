@@ -1661,18 +1661,6 @@ const NAV_GROUPS = [
     ]
   },
   {
-    key: "manufacturing",
-    label: "Manufacturing",
-    items: [
-      { to: "/projects", icon: <SidebarIcon name="projects" />, label: "Projects" },
-
-      { to: "/machines", icon: <SidebarIcon name="machines" />, label: "Machines" },
-      { to: "/work-centers", icon: <SidebarIcon name="workcenters" />, label: "Work Centers" },
-      { to: "/production", icon: <SidebarIcon name="production" />, label: "Production & BOM" },
-      { to: "/quality", icon: <SidebarIcon name="quality" />, label: "Quality Management" }
-    ]
-  },
-  {
     key: "purchase",
     label: "Purchase & Inventory",
     items: [
