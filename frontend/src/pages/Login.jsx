@@ -9,91 +9,146 @@ import API from "../services/api";
 
 
 // =====================================================================
-// LoginRobot — chunky brand-red SVG mascot used in the walk-in animation.
-// Kept as an inline SVG (no external assets, works offline).
+// LoginRobot — white/cyan SVG mascot matching user's reference.
+// Single unit — no per-limb loops. The parent handles walk-cycle motion
+// via translateX + rotation + a subtle vertical bob so it reads as one
+// person walking, not a baby waving hands.
 // =====================================================================
 function LoginRobot() {
   return (
     <svg
-      viewBox="0 0 200 240"
+      viewBox="0 0 220 280"
       xmlns="http://www.w3.org/2000/svg"
       className={styles.robotSvg}
       aria-hidden="true"
     >
-      {/* subtle shadow under feet */}
-      <ellipse cx="100" cy="230" rx="60" ry="6" fill="rgba(0,0,0,0.15)" />
+      {/* Ground shadow — subtle contact indication */}
+      <ellipse cx="110" cy="272" rx="62" ry="6" fill="rgba(0,0,0,0.18)" />
 
-      {/* Body */}
-      <motion.g
-        animate={{ y: [0, -3, 0] }}
-        transition={{ duration: 0.6, repeat: Infinity, ease: "easeInOut" }}
-      >
-        {/* Head */}
-        <ellipse cx="100" cy="60" rx="58" ry="52" fill="#dc2626" />
-        <ellipse cx="100" cy="55" rx="50" ry="44" fill="#ef4444" />
+      {/* ==================== Legs ==================== */}
+      {/* Left leg (behind — back foot) */}
+      <g>
+        {/* thigh */}
+        <rect x="72" y="205" width="24" height="34" rx="10" fill="#e5e7eb" />
+        {/* shin */}
+        <rect x="74" y="235" width="22" height="30" rx="9" fill="#f3f4f6" />
+        {/* foot */}
+        <ellipse cx="82" cy="266" rx="20" ry="9" fill="#374151" />
+        {/* knee joint */}
+        <circle cx="84" cy="236" r="4" fill="#22d3ee" opacity="0.7" />
+      </g>
+      {/* Right leg (front) */}
+      <g>
+        <rect x="124" y="205" width="24" height="34" rx="10" fill="#e5e7eb" />
+        <rect x="126" y="235" width="22" height="30" rx="9" fill="#f3f4f6" />
+        <ellipse cx="134" cy="266" rx="20" ry="9" fill="#374151" />
+        <circle cx="136" cy="236" r="4" fill="#22d3ee" opacity="0.7" />
+      </g>
 
-        {/* Visor / face screen */}
-        <rect x="55" y="45" width="90" height="42" rx="20" fill="#0f172a" />
-        {/* Eyes */}
-        <circle cx="82" cy="66" r="6" fill="#38bdf8" />
-        <circle cx="118" cy="66" r="6" fill="#38bdf8" />
-        <circle cx="82" cy="64" r="2" fill="#ffffff" />
-        <circle cx="118" cy="64" r="2" fill="#ffffff" />
+      {/* ==================== Body ==================== */}
+      {/* Pelvis pad — dark accent */}
+      <rect x="70" y="196" width="80" height="16" rx="8" fill="#374151" />
 
-        {/* Highlight on head */}
-        <ellipse cx="82" cy="34" rx="18" ry="8" fill="rgba(255,255,255,0.35)" />
+      {/* Torso */}
+      <path
+        d="M 60 130
+           Q 60 122 68 122
+           L 152 122
+           Q 160 122 160 130
+           L 156 196
+           Q 156 202 150 202
+           L 70 202
+           Q 64 202 64 196 Z"
+        fill="#f9fafb"
+      />
+      {/* Chest details */}
+      <ellipse cx="110" cy="145" rx="18" ry="4" fill="#374151" />
+      <circle cx="110" cy="165" r="9" fill="#e5e7eb" stroke="#22d3ee" strokeWidth="1.5" />
+      <circle cx="110" cy="165" r="4" fill="#22d3ee" opacity="0.6" />
+      {/* Ribbed accordion between torso and pelvis */}
+      <path d="M 96 180 L 96 200 M 104 180 L 104 200 M 112 180 L 112 200 M 120 180 L 120 200 M 128 180 L 128 200"
+            stroke="#9ca3af" strokeWidth="1.5" strokeLinecap="round" />
 
-        {/* Side ear/speaker */}
-        <circle cx="42" cy="60" r="10" fill="#b91c1c" />
-        <circle cx="42" cy="60" r="5" fill="#fbbf24" />
+      {/* ==================== Arms ==================== */}
+      {/* Left arm (front — hands press against panel) */}
+      <g>
+        {/* shoulder */}
+        <circle cx="60" cy="140" r="14" fill="#e5e7eb" />
+        {/* upper arm */}
+        <rect x="52" y="146" width="18" height="40" rx="8" fill="#374151" />
+        {/* forearm — angled slightly forward as if pushing */}
+        <rect x="46" y="180" width="18" height="34" rx="8" fill="#f3f4f6" transform="rotate(-8 55 197)" />
+        {/* elbow joint */}
+        <circle cx="61" cy="184" r="4" fill="#22d3ee" opacity="0.7" />
+        {/* hand — small white paddle */}
+        <ellipse cx="42" cy="215" rx="11" ry="8" fill="#f9fafb" stroke="#9ca3af" strokeWidth="1" />
+      </g>
+      {/* Right arm (mirror) */}
+      <g>
+        <circle cx="160" cy="140" r="14" fill="#e5e7eb" />
+        <rect x="150" y="146" width="18" height="40" rx="8" fill="#374151" />
+        <rect x="156" y="180" width="18" height="34" rx="8" fill="#f3f4f6" transform="rotate(8 165 197)" />
+        <circle cx="159" cy="184" r="4" fill="#22d3ee" opacity="0.7" />
+        <ellipse cx="178" cy="215" rx="11" ry="8" fill="#f9fafb" stroke="#9ca3af" strokeWidth="1" />
+      </g>
 
-        {/* Neck / body */}
-        <rect x="72" y="108" width="56" height="16" rx="6" fill="#1f2937" />
+      {/* ==================== Head ==================== */}
+      {/* antennas — cyan tips */}
+      <line x1="72" y1="30" x2="66" y2="14" stroke="#9ca3af" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="66" cy="14" r="6" fill="#22d3ee" opacity="0.85" />
+      <line x1="148" y1="30" x2="154" y2="14" stroke="#9ca3af" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="154" cy="14" r="6" fill="#22d3ee" opacity="0.85" />
 
-        {/* Torso */}
-        <path
-          d="M60 122 L140 122 L148 178 Q100 190 52 178 Z"
-          fill="#dc2626"
-        />
-        <path
-          d="M60 122 L140 122 L145 155 Q100 165 55 155 Z"
-          fill="#ef4444"
-        />
-        {/* Chest badge */}
-        <circle cx="100" cy="150" r="9" fill="#fbbf24" />
-        <circle cx="100" cy="150" r="4" fill="#1f2937" />
-      </motion.g>
+      {/* Head dome */}
+      <ellipse cx="110" cy="70" rx="66" ry="56" fill="#f9fafb" />
+      {/* Highlight arc */}
+      <path d="M 60 42 Q 90 22 130 30" stroke="rgba(255,255,255,0.9)" strokeWidth="3" fill="none" strokeLinecap="round" />
 
-      {/* Left arm (front — pushes the panel) */}
-      <motion.g
-        animate={{ rotate: [-8, 8, -8] }}
-        transition={{ duration: 0.6, repeat: Infinity, ease: "easeInOut" }}
-        style={{ transformOrigin: "62px 130px" }}
-      >
-        <rect x="52" y="128" width="18" height="46" rx="8" fill="#1f2937" />
-        <circle cx="60" cy="180" r="12" fill="#dc2626" />
-      </motion.g>
+      {/* Ear circles / speakers */}
+      <circle cx="46" cy="72" r="11" fill="#e5e7eb" />
+      <circle cx="46" cy="72" r="6" fill="#22d3ee" opacity="0.7" />
+      <circle cx="174" cy="72" r="11" fill="#e5e7eb" />
+      <circle cx="174" cy="72" r="6" fill="#22d3ee" opacity="0.7" />
 
-      {/* Right arm (back) */}
-      <motion.g
-        animate={{ rotate: [8, -8, 8] }}
-        transition={{ duration: 0.6, repeat: Infinity, ease: "easeInOut" }}
-        style={{ transformOrigin: "138px 130px" }}
-      >
-        <rect x="130" y="128" width="18" height="46" rx="8" fill="#1f2937" />
-        <circle cx="140" cy="180" r="12" fill="#dc2626" />
-      </motion.g>
+      {/* Face screen (dark visor) */}
+      <path
+        d="M 62 60
+           Q 62 52 72 52
+           L 148 52
+           Q 158 52 158 60
+           L 158 100
+           Q 158 108 148 108
+           L 72 108
+           Q 62 108 62 100 Z"
+        fill="#111827"
+      />
+      {/* Screen bezel highlight */}
+      <path
+        d="M 68 58 L 152 58"
+        stroke="rgba(255,255,255,0.15)"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
 
-      {/* Legs — bob together */}
-      <motion.g
-        animate={{ y: [0, 2, 0] }}
-        transition={{ duration: 0.6, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <rect x="78" y="188" width="16" height="34" rx="6" fill="#1f2937" />
-        <rect x="106" y="188" width="16" height="34" rx="6" fill="#1f2937" />
-        <ellipse cx="86" cy="224" rx="14" ry="6" fill="#dc2626" />
-        <ellipse cx="114" cy="224" rx="14" ry="6" fill="#dc2626" />
-      </motion.g>
+      {/* Eyes — cyan glow rectangles */}
+      <rect x="80" y="70" width="14" height="20" rx="4" fill="#22d3ee" />
+      <rect x="126" y="70" width="14" height="20" rx="4" fill="#22d3ee" />
+      {/* eye highlights */}
+      <rect x="82" y="72" width="4" height="8" rx="2" fill="rgba(255,255,255,0.6)" />
+      <rect x="128" y="72" width="4" height="8" rx="2" fill="rgba(255,255,255,0.6)" />
+
+      {/* Small smile curve */}
+      <path
+        d="M 100 96 Q 110 102 120 96"
+        stroke="#22d3ee"
+        strokeWidth="2.2"
+        fill="none"
+        strokeLinecap="round"
+        opacity="0.85"
+      />
+
+      {/* Neck */}
+      <rect x="94" y="120" width="32" height="10" rx="4" fill="#9ca3af" />
     </svg>
   );
 }
@@ -109,32 +164,42 @@ function LoginRobot() {
 // After the first play (per session) we skip to the end state so
 // returning users don't wait.
 // =====================================================================
+// ---------------------------------------------------------------------
+// Cinematic timing (all seconds)
+//
+//   0.0 – 2.2   Robot walks in from off-screen right, still in white area.
+//               Panel is off-screen left. Body bobs (gait) + slight sway.
+//   2.2 – 4.4   Robot's hands make contact with the panel. Robot leans
+//               forward slightly. From here on, robot AND panel translate
+//               together at the SAME rate — as if the robot is pushing.
+//   4.4 – 4.9   Robot stops, hands release the panel (small settle).
+//               Panel does a tiny elastic settle.
+//   4.9 – 5.6   Robot walks off-screen left.
+//   4.9 – 6.4   Welcome text lines fade in sequentially.
+// ---------------------------------------------------------------------
 function AnimatedWelcomePanel() {
-  // Play the animation on EVERY fresh mount of the login page. Users
-  // don't refresh /login often, so a 4s intro on each visit is a
-  // signature moment, not annoying.
   const [robotDone, setRobotDone] = useState(false);
 
   useEffect(() => {
-    // Remove any legacy session flag from earlier builds
     try { sessionStorage.removeItem("login_intro_played"); } catch { /* ignore */ }
-    // Hide the robot after the walk-out is complete
-    const t = setTimeout(() => setRobotDone(true), 4200);
+    // Robot walk-out lasts ~5.6s from mount
+    const t = setTimeout(() => setRobotDone(true), 5700);
     return () => clearTimeout(t);
   }, []);
 
   return (
     <div className={styles.welcomeWrap}>
 
-      {/* Red panel — slides in from off-screen left */}
+      {/* Red panel — starts fully off-screen left. Sync'd with robot from
+          2.2s onwards. Total travel: -105% -> 0. */}
       <motion.div
         className={styles.panel}
         initial={{ x: "-105%" }}
-        animate={{ x: 0 }}
+        animate={{ x: ["-105%", "-105%", "-30%", "0%", "-1%", "0%"] }}
         transition={{
-          delay: 1.0,
-          duration: 1.5,
-          ease: [0.22, 0.9, 0.28, 1],
+          times:    [0,       0.35,     0.60,    0.75,   0.78,   0.82],
+          duration: 6.4,
+          ease:     "easeInOut",
         }}
       >
         <div className={styles.ringA} />
@@ -146,14 +211,14 @@ function AnimatedWelcomePanel() {
           className={styles.brandLogo}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 2.8, duration: 0.6 }}
+          transition={{ delay: 5.0, duration: 0.6 }}
         />
 
         <motion.h1
           className={styles.welcomeTitle}
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 3.0, duration: 0.55 }}
+          transition={{ delay: 5.2, duration: 0.55 }}
         >
           Welcome Back
         </motion.h1>
@@ -162,7 +227,7 @@ function AnimatedWelcomePanel() {
           className={styles.welcomeSub}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 3.3, duration: 0.55 }}
+          transition={{ delay: 5.5, duration: 0.55 }}
         >
           Access your ERP dashboard.
         </motion.p>
@@ -171,7 +236,7 @@ function AnimatedWelcomePanel() {
           className={styles.tagline}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 3.6, duration: 0.55 }}
+          transition={{ delay: 5.8, duration: 0.55 }}
         >
           Automate. Optimize. <span className={styles.taglineAccent}>Accelerate with AI.</span>
         </motion.p>
@@ -182,25 +247,35 @@ function AnimatedWelcomePanel() {
           className={styles.brandName}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 3.9, duration: 0.5 }}
+          transition={{ delay: 6.1, duration: 0.5 }}
         >
           Bharath Vending Corporation
         </motion.p>
       </motion.div>
 
-      {/* Robot — walks in from right, pushes panel, exits left */}
+      {/* Robot walk cycle
+          x: off-screen right -> approach panel edge -> pushing zone ->
+             exit off-screen left. Y bob is subtle 4px "gait".
+          rotate: 0 (walking) -> 3deg forward lean while pushing -> 0. */}
       <AnimatePresence>
         {!robotDone && (
           <motion.div
             className={styles.robotHolder}
-            initial={{ x: "220%", y: 0 }}
+            initial={{ x: "260%", y: 0, rotate: 0 }}
             animate={{
-              x: ["220%", "80%", "35%", "-20%", "-180%"],
-              y: [0, -6, -3, -6, 0],
+              // 0.00 spawn far right of viewport
+              // 0.35 approaches, still in the white area
+              // 0.60 contact — robot's left hand touches panel edge
+              // 0.75 push phase — moves left in sync with panel
+              // 0.82 settle — brief pause at final position
+              // 1.00 exit off-screen left
+              x:      ["260%", "150%", "80%",  "30%", "20%",  "-150%"],
+              y:      [0,      -4,     -3,     -5,    0,      0],
+              rotate: [0,       0,     0,      3,     0,      0],
             }}
             transition={{
-              times:    [0, 0.25, 0.55, 0.80, 1],
-              duration: 4.0,
+              times:    [0,     0.35,   0.60,   0.75,  0.82,   1],
+              duration: 6.4,
               ease:     "easeInOut",
             }}
             exit={{ opacity: 0, transition: { duration: 0.4 } }}
