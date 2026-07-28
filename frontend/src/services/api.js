@@ -30,11 +30,46 @@ const PROD_BACKEND_URL = "http://192.168.1.10:8001";
 const LEGACY_QUICK_TUNNEL_BACKEND_URL =
   "http://192.168.1.10:8001";
 
+// Capacitor injects `window.Capacitor` at runtime when the app is
+// running inside a native shell (APK / iOS). Same-host autodiscovery
+// is wrong there — the WebView loads content from https://localhost
+// (Capacitor's internal scheme), so window.location.hostname is
+// 'localhost' and window.location.protocol is 'https:'. If we let the
+// fallback below run in that context, every API call hits
+// https://localhost:8001 (the phone itself), not the LAN server.
+function isCapacitorNative() {
+
+  if (typeof window === "undefined") return false;
+
+  const cap = window.Capacitor;
+
+  if (!cap) return false;
+
+  if (typeof cap.isNativePlatform === "function") {
+
+    return cap.isNativePlatform();
+  }
+
+  const platform = typeof cap.getPlatform === "function"
+    ? cap.getPlatform()
+    : "";
+
+  return platform === "android" || platform === "ios";
+}
+
 function resolveApiBase() {
 
   const envUrl = (import.meta?.env?.VITE_API_URL || "").trim();
 
   if (envUrl) return envUrl.replace(/\/+$/, "");
+
+  // Capacitor native (APK / iOS) — bypass same-host discovery and go
+  // straight to the LAN server. The phone must be on the same WiFi
+  // as the ERP server (192.168.1.10) for this to reach.
+  if (isCapacitorNative()) {
+
+    return PROD_BACKEND_URL;
+  }
 
   if (typeof window !== "undefined" && window.location?.hostname) {
 
