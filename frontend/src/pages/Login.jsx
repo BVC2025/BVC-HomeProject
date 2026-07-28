@@ -19,12 +19,30 @@ import API from "../services/api";
 // =====================================================================
 function AnimatedWelcomePanel() {
   const [videoError, setVideoError] = useState(false);
+  const videoRef = useRef(null);
+
+  // playbackRate is not a video attribute — it must be set on the
+  // element after it mounts. 1.75x feels natural: robot walks briskly
+  // and the panel push lands quickly without looking sped-up.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const apply = () => { v.playbackRate = 1.75; };
+    apply();
+    v.addEventListener("loadedmetadata", apply);
+    v.addEventListener("play", apply);
+    return () => {
+      v.removeEventListener("loadedmetadata", apply);
+      v.removeEventListener("play", apply);
+    };
+  }, []);
 
   return (
     <div className={styles.welcomeWrap}>
 
       {!videoError && (
         <video
+          ref={videoRef}
           className={styles.introVideo}
           src="/robot-login.mp4"
           autoPlay
