@@ -370,61 +370,30 @@
     min-height: 0;
   }
 
+  /* Mobile hero — video stays visible, panel is capped at 380px so it
+     doesn't devour the phone viewport. The video's own base rules
+     (object-fit: cover, object-position: right center) work at this
+     aspect: robot on the left, full red banner + text on the right. */
   .left {
     flex: none;
-    min-height: auto;   /* drop the 540px hero height on mobile */
+    min-height: 380px;
+    max-height: 380px;
     padding: 0;
+    background: #eceff2;
   }
 
   .welcomeWrap {
-    height: auto;       /* size to content, not 100% of a phantom parent */
+    height: 380px;
   }
 
-  /* On mobile the video is hidden — the still branded panel is the hero.
-     Same effect as showing a compact desktop-fallback panel, without the
-     tall aspect ratio issues. */
-  .introVideo {
-    display: none;
-  }
-
+  /* DOM branded panel is the fallback path only; on mobile the video
+     is the hero, so keep the DOM copy hidden to avoid duplicated text. */
   .panel {
-    position: relative;   /* flow with content (was absolute inset:0) */
-    padding: 26px var(--sp-6) 24px;
-  }
-
-  .ringA,
-  .ringB {
     display: none;
-  }
-
-  .brandLogo {
-    width: 60px;
-    height: 60px;
-    margin-bottom: 12px;
-  }
-
-  .welcomeTitle {
-    font-size: 22px;
-  }
-
-  .welcomeSub {
-    font-size: 13px;
-    margin-top: 4px;
-  }
-
-  .tagline {
-    font-size: 13px;
-    margin-top: 8px;
   }
 
   .brandSpacer {
     display: none;
-  }
-
-  .brandName {
-    margin-top: 10px;
-    font-size: 12px;
-    letter-spacing: 0.5px;
   }
 
   .right {
@@ -433,8 +402,8 @@
   }
 }
 
-/* Very narrow phones — drop padding further, shrink hero so the form
-   stays above the keyboard on small Android devices. */
+/* Very narrow phones — shorten the video hero so the form stays above
+   the keyboard on small Android devices. */
 @media (max-width: 420px) {
   .page {
     padding: 12px;
@@ -445,21 +414,13 @@
   }
 
   .left {
-    padding: 22px 18px;
+    min-height: 320px;
+    max-height: 320px;
+    padding: 0;
   }
 
-  .brandLogo {
-    width: 64px;
-    height: 64px;
-    margin-bottom: 14px;
-  }
-
-  .welcomeTitle {
-    font-size: 24px;
-  }
-
-  .welcomeSub {
-    font-size: 12px;
+  .welcomeWrap {
+    height: 320px;
   }
 
   .right {
