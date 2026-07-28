@@ -110,19 +110,18 @@ function LoginRobot() {
 // returning users don't wait.
 // =====================================================================
 function AnimatedWelcomePanel() {
-  const KEY = "login_intro_played";
-  const skip = typeof window !== "undefined" && sessionStorage.getItem(KEY);
-  const [phase, setPhase] = useState(skip ? "done" : "start");
+  // Play the animation on EVERY fresh mount of the login page. Users
+  // don't refresh /login often, so a 4s intro on each visit is a
+  // signature moment, not annoying.
+  const [robotDone, setRobotDone] = useState(false);
 
   useEffect(() => {
-    if (skip) return;
-    // At the end of the sequence, mark as played so refresh skips.
-    const t = setTimeout(() => {
-      sessionStorage.setItem(KEY, "1");
-      setPhase("done");
-    }, 3600);
+    // Remove any legacy session flag from earlier builds
+    try { sessionStorage.removeItem("login_intro_played"); } catch { /* ignore */ }
+    // Hide the robot after the walk-out is complete
+    const t = setTimeout(() => setRobotDone(true), 4200);
     return () => clearTimeout(t);
-  }, [skip]);
+  }, []);
 
   return (
     <div className={styles.welcomeWrap}>
@@ -130,52 +129,49 @@ function AnimatedWelcomePanel() {
       {/* Red panel — slides in from off-screen left */}
       <motion.div
         className={styles.panel}
-        initial={skip ? { x: 0 } : { x: "-105%" }}
+        initial={{ x: "-105%" }}
         animate={{ x: 0 }}
         transition={{
-          delay: skip ? 0 : 0.8,
-          duration: skip ? 0 : 1.2,
-          ease: [0.22, 0.9, 0.28, 1],   // custom ease-out, physical feel
+          delay: 1.0,
+          duration: 1.5,
+          ease: [0.22, 0.9, 0.28, 1],
         }}
       >
-        {/* Decorative rings */}
         <div className={styles.ringA} />
         <div className={styles.ringB} />
 
-        {/* Brand logo — fades in after panel arrives */}
         <motion.img
           src="/logo.webp"
           alt="Bharath Vending Corporation"
           className={styles.brandLogo}
-          initial={skip ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: skip ? 0 : 2.3, duration: 0.6 }}
+          transition={{ delay: 2.8, duration: 0.6 }}
         />
 
-        {/* Text stack — fades in line-by-line */}
         <motion.h1
           className={styles.welcomeTitle}
-          initial={skip ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: skip ? 0 : 2.4, duration: 0.55 }}
+          transition={{ delay: 3.0, duration: 0.55 }}
         >
           Welcome Back
         </motion.h1>
 
         <motion.p
           className={styles.welcomeSub}
-          initial={skip ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: skip ? 0 : 2.7, duration: 0.55 }}
+          transition={{ delay: 3.3, duration: 0.55 }}
         >
           Access your ERP dashboard.
         </motion.p>
 
         <motion.p
           className={styles.tagline}
-          initial={skip ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: skip ? 0 : 3.0, duration: 0.55 }}
+          transition={{ delay: 3.6, duration: 0.55 }}
         >
           Automate. Optimize. <span className={styles.taglineAccent}>Accelerate with AI.</span>
         </motion.p>
@@ -184,30 +180,30 @@ function AnimatedWelcomePanel() {
 
         <motion.p
           className={styles.brandName}
-          initial={skip ? { opacity: 1 } : { opacity: 0 }}
+          initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: skip ? 0 : 3.3, duration: 0.5 }}
+          transition={{ delay: 3.9, duration: 0.5 }}
         >
           Bharath Vending Corporation
         </motion.p>
       </motion.div>
 
-      {/* Robot — only shown during the intro. Walks in from right,
-          pushes panel, then exits right off-screen. */}
+      {/* Robot — walks in from right, pushes panel, exits left */}
       <AnimatePresence>
-        {!skip && phase !== "done" && (
+        {!robotDone && (
           <motion.div
             className={styles.robotHolder}
-            initial={{ x: "180%" }}
+            initial={{ x: "220%", y: 0 }}
             animate={{
-              x: ["180%", "50%", "10%", "-20%", "-150%"],
+              x: ["220%", "80%", "35%", "-20%", "-180%"],
+              y: [0, -6, -3, -6, 0],
             }}
             transition={{
-              times:    [0,       0.28,   0.55,   0.75,   1],
-              duration: 3.4,
+              times:    [0, 0.25, 0.55, 0.80, 1],
+              duration: 4.0,
               ease:     "easeInOut",
             }}
-            exit={{ opacity: 0, transition: { duration: 0.3 } }}
+            exit={{ opacity: 0, transition: { duration: 0.4 } }}
           >
             <LoginRobot />
           </motion.div>
