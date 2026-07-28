@@ -372,17 +372,65 @@
 
   .left {
     flex: none;
-    padding: var(--sp-8) var(--sp-6);
+    min-height: auto;   /* drop the 540px hero height on mobile */
+    padding: 0;
+  }
+
+  .welcomeWrap {
+    height: auto;       /* size to content, not 100% of a phantom parent */
+  }
+
+  /* On mobile the video is hidden — the still branded panel is the hero.
+     Same effect as showing a compact desktop-fallback panel, without the
+     tall aspect ratio issues. */
+  .introVideo {
+    display: none;
+  }
+
+  .panel {
+    position: relative;   /* flow with content (was absolute inset:0) */
+    padding: 26px var(--sp-6) 24px;
+  }
+
+  .ringA,
+  .ringB {
+    display: none;
+  }
+
+  .brandLogo {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 12px;
+  }
+
+  .welcomeTitle {
+    font-size: 22px;
+  }
+
+  .welcomeSub {
+    font-size: 13px;
+    margin-top: 4px;
+  }
+
+  .tagline {
+    font-size: 13px;
+    margin-top: 8px;
   }
 
   .brandSpacer {
     display: none;
   }
 
-  .right {
-    padding: var(--sp-8) var(--sp-6);
+  .brandName {
+    margin-top: 10px;
+    font-size: 12px;
+    letter-spacing: 0.5px;
   }
 
+  .right {
+    padding: var(--sp-8) var(--sp-6);
+    flex: 1;
+  }
 }
 
 /* Very narrow phones — drop padding further, shrink hero so the form

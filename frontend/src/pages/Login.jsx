@@ -53,30 +53,33 @@ function AnimatedWelcomePanel() {
         />
       )}
 
-      {videoError && (
-        <motion.div
-          className={styles.panel}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.7, ease: "easeOut" }}
-        >
-          <div className={styles.ringA} />
-          <div className={styles.ringB} />
-          <img
-            src="/logo.webp"
-            alt="Bharath Vending Corporation"
-            className={styles.brandLogo}
-          />
-          <h1 className={styles.welcomeTitle}>Welcome Back</h1>
-          <p className={styles.welcomeSub}>Access your ERP dashboard.</p>
-          <p className={styles.tagline}>
-            Automate. Optimize.{" "}
-            <span className={styles.taglineAccent}>Accelerate with AI.</span>
-          </p>
-          <div className={styles.brandSpacer} />
-          <p className={styles.brandName}>Bharath Vending Corporation</p>
-        </motion.div>
-      )}
+      {/* Branded panel — always rendered.
+          • Desktop: sits behind the video (z-index 2 vs 5); the video
+            covers it. Doubles as fallback if the video errors out.
+          • Mobile: video is hidden via CSS; this panel becomes the
+            compact hero above the credentials form. */}
+      <motion.div
+        className={styles.panel}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
+        <div className={styles.ringA} />
+        <div className={styles.ringB} />
+        <img
+          src="/logo.webp"
+          alt="Bharath Vending Corporation"
+          className={styles.brandLogo}
+        />
+        <h1 className={styles.welcomeTitle}>Welcome Back</h1>
+        <p className={styles.welcomeSub}>Access your ERP dashboard.</p>
+        <p className={styles.tagline}>
+          Automate. Optimize.{" "}
+          <span className={styles.taglineAccent}>Accelerate with AI.</span>
+        </p>
+        <div className={styles.brandSpacer} />
+        <p className={styles.brandName}>Bharath Vending Corporation</p>
+      </motion.div>
     </div>
   );
 }
