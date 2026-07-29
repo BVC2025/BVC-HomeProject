@@ -27,6 +27,7 @@ import app.models.supplier_models    # noqa: F401 — registers supplier/procure
 import app.models.email_models       # noqa: F401 — registers vendor_email_config table
 import app.models.lead_models        # noqa: F401 — registers lead_polling_config, lead, lead_polling_log tables
 import app.models.project_quotation_models  # noqa: F401 — registers project_quotation_template table
+import app.models.rag_models         # noqa: F401 — registers ai_modules, ai_documents, ai_chat_history, ai_training_job tables
 from app.routes.users import router as users_router
 from app.routes.auth import router as auth_router
 from app.routes.vendor import router as vendor_router
@@ -79,6 +80,8 @@ from app.routes.holiday import router as holiday_router    # Phase 2 Holiday Cal
 from app.routes.chatbot_ai import router as chatbot_ai_router  # AI chatbot v1 (Gemini)
 from app.routes.work_center import router as work_center_router  # Mfg Phase 1 — Work Centers
 from app.routes.custom_fields import router as custom_fields_router  # Custom Fields System
+from app.routes.rag import router as rag_router  # Common Enterprise RAG AI Platform
+from app.routes.speech import router as speech_router  # Offline Piper TTS
 # ── New Inventory & Supplier Procurement Module ──────────────────────
 from app.routes.supplier_onboarding import router as supplier_onboarding_router
 from app.routes.supplier_products import router as supplier_products_router
@@ -229,6 +232,8 @@ _STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 (_STATIC_DIR / "quotation").mkdir(parents=True, exist_ok=True)
 
+(_STATIC_DIR / "ai-documents").mkdir(parents=True, exist_ok=True)
+
 app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
 
@@ -295,7 +300,32 @@ def _drop_legacy_lead_tables():
         print(f"[startup] legacy lead table cleanup skipped: {exc}")
 
 
+def _drop_legacy_lead_tables():
+    """One-time cleanup: the Lead Management module was renamed/restructured
+    (IndiamartConfig/IndiamartLead -> LeadPollingConfig/Lead/LeadPollingLog,
+    with a changed schema — CONFIG_ID removed from the lead table, columns
+    renamed, unique constraints changed). The old tables held no production
+    data (pre-launch scaffolding only), so they're dropped here rather than
+    migrated in place; create_all() below then creates the new tables fresh.
+    Guarded and idempotent — a no-op once the old tables are gone.
+    """
+    from sqlalchemy import text, inspect
+    insp = inspect(engine)
+    existing = set(insp.get_table_names())
+    try:
+        with engine.begin() as conn:
+            if "indiamart_lead" in existing:
+                conn.execute(text("DROP TABLE IF EXISTS `indiamart_lead`"))
+                print("[startup] Dropped legacy 'indiamart_lead' table")
+            if "indiamart_config" in existing:
+                conn.execute(text("DROP TABLE IF EXISTS `indiamart_config`"))
+                print("[startup] Dropped legacy 'indiamart_config' table")
+    except Exception as exc:
+        print(f"[startup] legacy lead table cleanup skipped: {exc}")
+
+
 _rename_legacy_project_table()
+_drop_legacy_lead_tables()
 _drop_legacy_lead_tables()
 
 Base.metadata.create_all(bind=engine)
@@ -1336,6 +1366,55 @@ def _auto_seed_defaults():
 
 _auto_seed_defaults()
 
+
+def _auto_seed_ai_modules():
+    """Seeds the first AI_MODULES row (Lead AI Assistant) so the RAG
+    platform has something to onboard against on a fresh install. Follows
+    the same idempotent shape as the other _auto_seed_* functions above:
+    own session, try/except/log.warning, safe to re-run any number of
+    times."""
+
+    import logging
+    from sqlalchemy.orm import sessionmaker
+    from app.models.rag_models import AIModule
+    from app.rag_modules.core.llm_client import DEFAULT_MODEL as RAG_DEFAULT_LLM_MODEL
+
+    log = logging.getLogger("uvicorn")
+    Session = sessionmaker(bind=engine)
+    db = Session()
+
+    try:
+        existing = db.query(AIModule).filter(AIModule.MODULE_CODE == "lead").first()
+
+        if existing is None:
+            db.add(AIModule(
+                MODULE_NAME="Lead AI Assistant",
+                MODULE_CODE="lead",
+                DESCRIPTION=(
+                    "Answers questions about the lead management process "
+                    "from uploaded SOPs/FAQs."
+                ),
+                VECTOR_COLLECTION_NAME="lead_rag_collection",
+                EMBEDDING_MODEL="BAAI/bge-small-en-v1.5",
+                LLM_MODEL=RAG_DEFAULT_LLM_MODEL,
+                IS_ACTIVE=True,
+            ))
+            db.commit()
+            log.info("auto-seed-ai-modules: 'lead' module created")
+
+    except Exception as exc:
+        db.rollback()
+        log.warning("auto-seed-ai-modules skipped: %s", exc)
+
+    finally:
+        db.close()
+
+
+_auto_seed_ai_modules()
+
+from app.services.speech_service import speech_service  # noqa: E402
+speech_service.initialize()  # non-blocking — Piper models load on a background thread
+
 from app.scheduler import start_scheduler  # noqa: E402 — started after seeding, before routers
 start_scheduler()
 
@@ -1396,6 +1475,8 @@ app.include_router(custom_fields_router, tags=["Custom Fields"])
 app.include_router(email_config_router, tags=["Email Configuration"])
 app.include_router(email_templates_router, tags=["Email Templates"])
 app.include_router(lead_management_router, tags=["Lead Management"])
+app.include_router(rag_router, tags=["AI Platform"])
+app.include_router(speech_router, tags=["Speech (TTS)"])
 
 # ── Inventory & Supplier Procurement Module ───────────────────────────────
 app.include_router(supplier_onboarding_router, prefix="/api")
