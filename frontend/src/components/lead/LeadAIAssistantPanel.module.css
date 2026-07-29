@@ -1,0 +1,157 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.panel {
+  width: 420px;
+  max-width: 100%;
+  height: 100%;
+  background: var(--card-bg);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.title {
+  font-size: var(--font-base);
+  font-weight: var(--fw-semi);
+  color: var(--text-primary);
+}
+
+.subtitle {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.closeBtn {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--font-lg);
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.closeBtn:hover {
+  color: var(--text-primary);
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.hint {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.userBubble {
+  align-self: flex-end;
+  max-width: 85%;
+  background: var(--clr-primary);
+  color: var(--text-inverse);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-sm);
+  white-space: pre-wrap;
+}
+
+.botBubble {
+  align-self: flex-start;
+  max-width: 90%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-sm);
+  white-space: pre-wrap;
+}
+
+.errorBubble {
+  composes: botBubble;
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+  color: var(--danger);
+}
+
+.cursor {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  margin-left: 2px;
+  background: var(--text-secondary);
+  animation: blink 1s step-start infinite;
+  vertical-align: text-bottom;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+.inputBar {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--border);
+}
+
+.input {
+  flex: 1;
+  height: 36px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--clr-primary);
+}
+
+.sendBtn {
+  height: 36px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--radius);
+  border: none;
+  background: var(--clr-primary);
+  color: var(--text-inverse);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semi);
+  cursor: pointer;
+}
+
+.sendBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
