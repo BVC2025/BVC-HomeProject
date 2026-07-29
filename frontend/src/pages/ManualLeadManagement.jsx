@@ -7,6 +7,7 @@ import {
 } from "../components/pm";
 import { leadService } from "../services/leadService";
 import { LeadDetailModal } from "../components/lead/LeadDetailModal";
+import LeadAIAssistantPanel from "../components/lead/LeadAIAssistantPanel";
 import { departmentService } from "../services/departmentService";
 import { roleService } from "../services/roleService";
 import { employeeService } from "../services/employeeService";
@@ -97,6 +98,7 @@ export default function ManualLeadManagement() {
   const [leadDetailModal, setLeadDetailModal] = useState(null);
 
   const [cfOpen, setCfOpen] = useState(false);
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [bulkModal, setBulkModal] = useState(false);
   const [bulkFile, setBulkFile] = useState(null);
   const [bulkUploading, setBulkUploading] = useState(false);
@@ -498,12 +500,13 @@ export default function ManualLeadManagement() {
             <PMButton variant="outline" onClick={openBulk}>Bulk Upload</PMButton>
             <PMButton variant="ghost" onClick={() => setCfOpen(true)}>Custom Fields</PMButton>
             <ExportButton onClick={handleExport} disabled={exporting || total === 0} />
+            <PMButton variant="outline" onClick={() => setAiPanelOpen(true)}>Ask AI Assistant</PMButton>
             <PMButton variant="primary" onClick={openAdd}>Add Lead</PMButton>
           </>
         }
       />
 
-      <StatsRow stats={stats} />
+      < StatsRow stats={stats} />
 
       <div className={styles.filterBar}>
         <div className={styles.filterGroup}>
@@ -905,11 +908,14 @@ export default function ManualLeadManagement() {
       <PMConfirmModal
         open={!!confirmModal}
         onClose={() => setConfirmModal(null)}
-        onConfirm={confirmModal?.onConfirm ?? (() => {})}
+        onConfirm={confirmModal?.onConfirm ?? (() => { })}
         title={confirmModal?.title}
         description={confirmModal?.description}
         confirmLabel="Delete"
       />
-    </div>
+
+      {/* Lead AI Assistant — purely additive, module_code="lead" */}
+      <LeadAIAssistantPanel open={aiPanelOpen} onClose={() => setAiPanelOpen(false)} />
+    </div >
   );
 }
