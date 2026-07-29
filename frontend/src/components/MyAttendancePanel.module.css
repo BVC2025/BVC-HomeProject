@@ -348,6 +348,40 @@
 
 
 /* ==================================================================
+   Geofence recheck row — shown only when the pre-check locked Check In
+   ================================================================== */
+
+.geoRecheckRow {
+  display: flex;
+  justify-content: center;
+  margin: -6px 0 8px 0;
+}
+
+.geoRecheckBtn {
+  padding: 8px 18px;
+  border: 1px solid var(--border-strong);
+  background: var(--card-bg);
+  color: var(--clr-primary);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.geoRecheckBtn:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: var(--clr-primary);
+}
+
+.geoRecheckBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+
+/* ==================================================================
    Biometric hint footer
    ================================================================== */
 

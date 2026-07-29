@@ -169,6 +169,20 @@ export default function MyAttendancePanel({ employeeId }) {
   const [toast, setToast] = useState("");
   const [tick, setTick] = useState(0);      // triggers hourly re-render
 
+  // ---- Live geofence gate ------------------------------------------
+  //   'checking' — GPS+validate in flight; keep tile enabled meanwhile
+  //   'inside'   — server confirmed inside the fence
+  //   'outside'  — server rejected; distance is set
+  //   'unknown'  — geofence disabled by admin, GPS blocked, or server
+  //                error. We DON'T lock the tile in this state — the
+  //                backend still enforces on click, so worst case the
+  //                user gets the toast fallback.
+  const [geo, setGeo] = useState({
+    status: "checking",
+    distance: null,   // metres from office (when outside)
+    radius: null,     // configured radius (when outside)
+  });
+
   // ---- Refresh today's row ----
   const refreshToday = useCallback(async () => {
     if (!employeeId) return;
@@ -199,6 +213,83 @@ export default function MyAttendancePanel({ employeeId }) {
     const id = setTimeout(() => setToast(""), 3200);
     return () => clearTimeout(id);
   }, [toast]);
+
+
+  // -------------------------------------------------------------
+  // Live geofence pre-check — runs on mount and on demand (e.g. when
+  // the employee taps "Recheck location"). Decides whether to show
+  // Check In as ready or locked BEFORE the click hits the backend.
+  //
+  //   1. Ask the server whether geofence enforcement is ON at all.
+  //      If OFF, mark status 'unknown' (backend won't reject).
+  //   2. Ask the browser for GPS. If blocked / unavailable, we
+  //      keep 'unknown' — no client-side lock, backend still rules.
+  //   3. POST /geofence/validate to check distance against radius.
+  //      allowed = true  → 'inside'
+  //      allowed = false → 'outside' (record distance/radius)
+  // -------------------------------------------------------------
+  const checkGeofence = useCallback(async () => {
+
+    setGeo((g) => ({ ...g, status: "checking" }));
+
+    try {
+
+      const cfg = await API.get("/geofence/settings").then((r) => r.data || {});
+
+      if (!cfg?.IS_ACTIVE) {
+
+        setGeo({ status: "unknown", distance: null, radius: null });
+
+        return;
+      }
+
+    } catch {
+      // settings unreachable → don't lock the user out, backend still enforces
+      setGeo({ status: "unknown", distance: null, radius: null });
+      return;
+    }
+
+    const { coords } = await getPositionSilent();
+
+    if (!coords) {
+
+      setGeo({ status: "unknown", distance: null, radius: null });
+
+      return;
+    }
+
+    try {
+
+      const r = await API.post("/geofence/validate", {
+        LATITUDE: coords.latitude,
+        LONGITUDE: coords.longitude,
+        VENDOR_ID: 1,
+      });
+
+      if (r.data?.allowed) {
+
+        setGeo({
+          status: "inside",
+          distance: r.data.distance_meters ?? null,
+          radius: r.data.radius_meters ?? null,
+        });
+
+      } else {
+
+        setGeo({
+          status: "outside",
+          distance: r.data?.distance_meters ?? null,
+          radius: r.data?.radius_meters ?? null,
+        });
+      }
+
+    } catch {
+
+      setGeo({ status: "unknown", distance: null, radius: null });
+    }
+  }, []);
+
+  useEffect(() => { checkGeofence(); }, [checkGeofence]);
 
 
   // -------------------------------------------------------------
@@ -512,9 +603,20 @@ export default function MyAttendancePanel({ employeeId }) {
           <ActionTile
             icon={I.clockIn}
             title="Check In"
-            ready={!hasCheckedIn}
+            ready={!hasCheckedIn && geo.status !== "outside"}
             done={hasCheckedIn}
             doneAt={today?.CHECK_IN}
+            lockedHint={
+              geo.status === "outside"
+                ? `Outside office · ${
+                    geo.distance != null
+                      ? `${Math.round(geo.distance)}m away (radius ${geo.radius ?? 50}m)`
+                      : "move closer to check in"
+                  }`
+                : geo.status === "checking" && !hasCheckedIn
+                  ? "Locating you…"
+                  : null
+            }
             busy={busy}
             onClick={doCheckIn}
           />
@@ -551,6 +653,22 @@ export default function MyAttendancePanel({ employeeId }) {
             onClick={doOtCheckOut}
           />
         </div>
+
+        {/* Geofence recheck — visible when the pre-check locked out
+            Check In. One tap re-reads GPS + revalidates, so the moment
+            the employee walks inside the radius the tile unlocks. */}
+        {geo.status === "outside" && !hasCheckedIn && (
+          <div className={styles.geoRecheckRow}>
+            <button
+              type="button"
+              className={styles.geoRecheckBtn}
+              onClick={checkGeofence}
+              disabled={busy}
+            >
+              Recheck location
+            </button>
+          </div>
+        )}
 
         {/* ================ 5. BIOMETRIC HINT ================ */}
         <div className={styles.bioHint}>
