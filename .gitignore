@@ -91,6 +91,11 @@ tmp/
 backend/qdrant-storage/
 
 # =========================
+# TTS MODELS (large binaries — copy manually, see backend/tts/README.md)
+# =========================
+backend/tts/models/
+
+# =========================
 # IDE
 # =========================
 .vscode/

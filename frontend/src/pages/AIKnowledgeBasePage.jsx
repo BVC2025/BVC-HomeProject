@@ -44,6 +44,7 @@ export default function AIKnowledgeBasePage() {
   const replaceFileRef = useRef();
 
   const [confirmModal, setConfirmModal] = useState(null);
+  const [togglingId, setTogglingId] = useState(null);
 
   const toast = useToast();
   const fetchedRef = useRef(false);
@@ -180,6 +181,7 @@ export default function AIKnowledgeBasePage() {
   }, [replaceTarget, toast, load]);
 
   const handleToggleActive = useCallback(async (doc) => {
+    setTogglingId(doc.ID);
     try {
       if (doc.IS_ACTIVE) await aiDocumentService.deactivate(doc.ID);
       else await aiDocumentService.activate(doc.ID);
@@ -187,6 +189,8 @@ export default function AIKnowledgeBasePage() {
       load(true);
     } catch (e) {
       toast.showError(e?.response?.data?.detail || "Update failed");
+    } finally {
+      setTogglingId(null);
     }
   }, [toast, load]);
 
@@ -354,8 +358,13 @@ export default function AIKnowledgeBasePage() {
                         <button className={styles.iconBtn} title="Download" onClick={() => handleDownload(d)}>⬇</button>
                         <button className={styles.iconBtn} title="Replace file" onClick={() => { setReplaceTarget(d); replaceFileRef.current?.click(); }}>⇄</button>
                         <button className={styles.iconBtn} title="Retrain" onClick={() => handleRetrain(d)}>↻</button>
-                        <button className={styles.iconBtn} title={d.IS_ACTIVE ? "Deactivate" : "Activate"} onClick={() => handleToggleActive(d)}>
-                          {d.IS_ACTIVE ? "⏸" : "▶"}
+                        <button
+                          className={d.IS_ACTIVE ? styles.toggleBtnActive : styles.toggleBtn}
+                          onClick={() => handleToggleActive(d)}
+                          disabled={togglingId === d.ID}
+                          title={d.IS_ACTIVE ? "Deactivate" : "Activate"}
+                        >
+                          {togglingId === d.ID ? "…" : d.IS_ACTIVE ? "Deactivate" : "Activate"}
                         </button>
                         <button className={styles.iconBtnDanger} title="Delete" onClick={() => handleDelete(d)}>🗑</button>
                       </div>
