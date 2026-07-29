@@ -94,6 +94,12 @@ const ProjectPage = lazy(() => import("./ProjectPage"));
 const LeadManagementConfig = lazy(() => import("./LeadManagementConfig"));
 const LiveLeadViewer = lazy(() => import("./LiveLeadViewer"));
 const ManualLeadManagement = lazy(() => import("./ManualLeadManagement"));
+const AIModulesPage = lazy(() => import("./AIModulesPage"));
+const AIKnowledgeBasePage = lazy(() => import("./AIKnowledgeBasePage"));
+const AITrainingJobsPage = lazy(() => import("./AITrainingJobsPage"));
+const AIChatHistoryPage = lazy(() => import("./AIChatHistoryPage"));
+const AIPlaygroundPage = lazy(() => import("./AIPlaygroundPage"));
+const AISettingsPage = lazy(() => import("./AISettingsPage"));
 const PollingActivityLog = lazy(() => import("./PollingActivityLog"));
 const TaskTemplatePage = lazy(() => import("./TaskTemplatePage"));
 const ProjectQuotationManagement = lazy(() => import("./ProjectQuotationManagement"));
@@ -1566,11 +1572,56 @@ function SidebarIcon({ name }) {
           <path d="M3 7l9 7 9-7" />
         </svg>
       );
+
     case "helpdesk":
       return (
         <svg {...props}>
           <path d="M20 12a3 3 0 0 1 0-6V4H4v2a3 3 0 0 1 0 6 3 3 0 0 1 0 6v2h16v-2a3 3 0 0 1 0-6z" />
           <path d="M13 6v2M13 12v2M13 18v-2" />
+        </svg>
+      );
+    case "ai-modules":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
+        </svg>
+      );
+    case "ai-kb":
+      return (
+        <svg {...props}>
+          <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5v-16z" />
+          <path d="M4 5.5v16M9 8h7M9 12h7" />
+        </svg>
+      );
+    case "ai-jobs":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+          <path d="M8 3l2 2M16 3l-2 2" />
+        </svg>
+      );
+    case "ai-history":
+      return (
+        <svg {...props}>
+          <path d="M21 12a9 9 0 1 1-3-6.7" />
+          <path d="M21 4v5h-5" />
+          <path d="M12 8v4l3 2" />
+        </svg>
+      );
+    case "ai-playground":
+      return (
+        <svg {...props}>
+          <path d="M9 2v6L4 20a1 1 0 0 0 1 2h14a1 1 0 0 0 1-2L15 8V2" />
+          <path d="M9 2h6M8 15h8" />
+        </svg>
+      );
+    case "ai-settings":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.36a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.64 15a1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.64 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.64a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.64a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.36 9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z" />
         </svg>
       );
     default:
@@ -1593,7 +1644,7 @@ const NAV_GROUPS = [
     label: "HRMS",
     items: [
 
-      // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
+      // {to: "/roles",             icon: <SidebarIcon name="roles" />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
       { to: "/rbac", icon: <SidebarIcon name="rbac" />, label: "RBAC" },
       { to: "/employees", icon: <SidebarIcon name="employees" />, label: "Employees" },
       { to: "/memos", icon: <SidebarIcon name="memos" />, label: "Memos" },
@@ -1608,10 +1659,10 @@ const NAV_GROUPS = [
       { to: "/onboarding", icon: <SidebarIcon name="employees" />, label: "Onboarding" },
       { to: "/hr-automation", icon: <SidebarIcon name="approvals" />, label: "HR Automation" },
       { to: "/monthly-reports", icon: <SidebarIcon name="payroll" />, label: "Monthly Reports" },
-      // { to: "/workforce-analytics", icon: <SidebarIcon name="star"      />, label: "Workforce Analytics" }  // temporarily hidden per request
+      // {to: "/workforce-analytics", icon: <SidebarIcon name="star" />, label: "Workforce Analytics" }  // temporarily hidden per request
       { to: "/help-desk", icon: <SidebarIcon name="helpdesk" />, label: "Help Desk" },
       { to: "/approvals", icon: <SidebarIcon name="approvals" />, label: "Approval Center" },
-      // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
+      // {to: "/roles",             icon: <SidebarIcon name="roles" />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
       { to: "/departments", icon: <SidebarIcon name="departments" />, label: "Department Management" },
       { to: "/org-roles", icon: <SidebarIcon name="org-roles" />, label: "Role Management" },
 
@@ -1638,6 +1689,18 @@ const NAV_GROUPS = [
       { to: "/lead-management/live-leads", icon: <SidebarIcon name="live-leads" />, label: "Live Lead Viewer" },
       { to: "/lead-management/leads", icon: <SidebarIcon name="lead-records" />, label: "Lead Records" },
       { to: "/lead-management/polling-activity", icon: <SidebarIcon name="polling-activity" />, label: "Polling Activity" }
+    ]
+  },
+  {
+    key: "ai-platform",
+    label: "AI Platform",
+    items: [
+      { to: "/ai-platform/modules", icon: <SidebarIcon name="ai-modules" />, label: "AI Modules" },
+      { to: "/ai-platform/knowledge-base", icon: <SidebarIcon name="ai-kb" />, label: "Knowledge Base" },
+      { to: "/ai-platform/training-jobs", icon: <SidebarIcon name="ai-jobs" />, label: "AI Training Jobs" },
+      { to: "/ai-platform/chat-history", icon: <SidebarIcon name="ai-history" />, label: "AI Chat History" },
+      { to: "/ai-platform/playground", icon: <SidebarIcon name="ai-playground" />, label: "AI Playground" },
+      { to: "/ai-platform/settings", icon: <SidebarIcon name="ai-settings" />, label: "AI Settings" }
     ]
   },
   // {
@@ -2004,8 +2067,8 @@ function Dashboard() {
             <Route path="/star-performance" element={<StarPerformance />} />
             <Route path="/payroll" element={<Payroll />} />
             <Route path="/payslip-generator" element={<PayslipGenerator />} />
-            <Route path="/payroll-records"   element={<PayrollRecords />} />
-            <Route path="/help-desk"         element={<HelpDeskAdmin />} />
+            <Route path="/payroll-records" element={<PayrollRecords />} />
+            <Route path="/help-desk" element={<HelpDeskAdmin />} />
           </Route>
 
           <Route
@@ -2131,6 +2194,12 @@ function Dashboard() {
           <Route path="/lead-management/configuration" element={<Suspense fallback={null}><LeadManagementConfig /></Suspense>} />
           <Route path="/lead-management/live-leads" element={<Suspense fallback={null}><LiveLeadViewer /></Suspense>} />
           <Route path="/lead-management/leads" element={<Suspense fallback={null}><ManualLeadManagement /></Suspense>} />
+          <Route path="/ai-platform/modules" element={<Suspense fallback={null}><AIModulesPage /></Suspense>} />
+          <Route path="/ai-platform/knowledge-base" element={<Suspense fallback={null}><AIKnowledgeBasePage /></Suspense>} />
+          <Route path="/ai-platform/training-jobs" element={<Suspense fallback={null}><AITrainingJobsPage /></Suspense>} />
+          <Route path="/ai-platform/chat-history" element={<Suspense fallback={null}><AIChatHistoryPage /></Suspense>} />
+          <Route path="/ai-platform/playground" element={<Suspense fallback={null}><AIPlaygroundPage /></Suspense>} />
+          <Route path="/ai-platform/settings" element={<Suspense fallback={null}><AISettingsPage /></Suspense>} />
           <Route path="/lead-management/polling-activity" element={<Suspense fallback={null}><PollingActivityLog /></Suspense>} />
 
           {/* Company Profile */}
@@ -2156,8 +2225,8 @@ function Dashboard() {
         employeeId={
           typeof window !== "undefined"
             ? (localStorage.getItem("employee_id")
-                || localStorage.getItem("employee_code")
-                || "")
+              || localStorage.getItem("employee_code")
+              || "")
             : ""
         }
       />
