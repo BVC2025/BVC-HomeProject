@@ -1,0 +1,12 @@
+# BVC24 ERP — Offline Text-to-Speech (Piper) dependency.
+# Install with:  pip install -r requirements-tts.txt
+#
+# Heavy/optional add-on, kept separate from requirements.txt (same pattern as
+# requirements-ai.txt / requirements-rag.txt) so the core app stays light to
+# install.
+#
+# Model files are NOT included here — see backend/tts/README.md to obtain
+# them (they are git-ignored; ~123MB of binary .onnx files must never be
+# committed).
+
+piper-tts
