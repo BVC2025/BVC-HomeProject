@@ -418,10 +418,10 @@ function Attendance() {
              both.
           =================================================================== */}
       <div className={styles.kpiGrid}>
-        <KpiTile label="Present Today" value={presentCount}       tint="green" icon={KpiIcons.check} />
-        <KpiTile label="Late Today"    value={lateCount}          tint="amber" icon={KpiIcons.clock} />
-        <KpiTile label="Absent Today"  value={absentCount}        tint="red"   icon={KpiIcons.x} />
-        <KpiTile label="Total Employees" value={employees.length} tint="blue"  icon={KpiIcons.users} />
+        <KpiTile label="Present Today" value={presentCount} tint="green" icon={KpiIcons.check} />
+        <KpiTile label="Late Today" value={lateCount} tint="amber" icon={KpiIcons.clock} />
+        <KpiTile label="Absent Today" value={absentCount} tint="red" icon={KpiIcons.x} />
+        <KpiTile label="Total Employees" value={employees.length} tint="blue" icon={KpiIcons.users} />
       </div>
 
 
@@ -522,241 +522,241 @@ function Attendance() {
       </div>
 
 
-          <div className="tabs">
-            <button
-              className={"tab-btn" + (view === "board" ? " tab-active" : "")}
-              onClick={() => setView("board")}
-            >
-              🖥️ Live Floor Board
-            </button>
+      <div className="tabs">
+        <button
+          className={"tab-btn" + (view === "board" ? " tab-active" : "")}
+          onClick={() => setView("board")}
+        >
+          🖥️ Live Floor Board
+        </button>
 
-            <button
-              className={"tab-btn" + (view === "today" ? " tab-active" : "")}
-              onClick={() => setView("today")}
-            >
-              Today
-            </button>
+        <button
+          className={"tab-btn" + (view === "today" ? " tab-active" : "")}
+          onClick={() => setView("today")}
+        >
+          Today
+        </button>
 
-            <button
-              className={"tab-btn" + (view === "all" ? " tab-active" : "")}
-              onClick={() => setView("all")}
-            >
-              All Records
-            </button>
+        <button
+          className={"tab-btn" + (view === "all" ? " tab-active" : "")}
+          onClick={() => setView("all")}
+        >
+          All Records
+        </button>
 
-            <button
-              className={"tab-btn" + (view === "report" ? " tab-active" : "")}
-              onClick={() => setView("report")}
-            >
-              Report
-            </button>
+        <button
+          className={"tab-btn" + (view === "report" ? " tab-active" : "")}
+          onClick={() => setView("report")}
+        >
+          Report
+        </button>
 
-            <button
-              className={"tab-btn" + (view === "tracking" ? " tab-active" : "")}
-              onClick={() => setView("tracking")}
+        <button
+          className={"tab-btn" + (view === "tracking" ? " tab-active" : "")}
+          onClick={() => setView("tracking")}
+        >
+          Employee Tracking
+        </button>
+      </div>
+
+      {view === "board" && <LiveFloorBoard />}
+
+      {/* ===== History filter bar — only on the All Records view ===== */}
+      {view === "all" && (
+        <div className={styles.historyFilters}>
+          <div className={styles.filterField}>
+            <label>From</label>
+            <input
+              type="date"
+              value={historyFilters.start_date}
+              onChange={(e) => {
+                setPage(1);
+                setHistoryFilters({
+                  ...historyFilters,
+                  start_date: e.target.value,
+                });
+              }}
+            />
+          </div>
+          <div className={styles.filterField}>
+            <label>To</label>
+            <input
+              type="date"
+              value={historyFilters.end_date}
+              onChange={(e) => {
+                setPage(1);
+                setHistoryFilters({
+                  ...historyFilters,
+                  end_date: e.target.value,
+                });
+              }}
+            />
+          </div>
+          <div className={styles.filterField}>
+            <label>Employee</label>
+            <select
+              value={historyFilters.employee_id}
+              onChange={(e) => {
+                setPage(1);
+                setHistoryFilters({
+                  ...historyFilters,
+                  employee_id: e.target.value,
+                });
+              }}
             >
-              Employee Tracking
-            </button>
+              <option value="">All employees</option>
+              {employees.map((emp) => (
+                <option key={emp.ID} value={emp.ID}>
+                  {emp.NAME} ({emp.EMPLOYEE_CODE || "—"})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className={styles.filterField}>
+            <label>Status</label>
+            <div className={styles.statusChips}>
+              {["", "PRESENT", "LATE", "ABSENT", "HALF_DAY"].map((s) => (
+                <button
+                  key={s || "ALL"}
+                  type="button"
+                  onClick={() => {
+                    setPage(1);
+                    setHistoryFilters({ ...historyFilters, status: s });
+                  }}
+                  className={
+                    `${styles.statusChip} ` +
+                    (historyFilters.status === s
+                      ? styles.statusChipActive
+                      : "")
+                  }
+                >
+                  {s || "ALL"}
+                </button>
+              ))}
+            </div>
+          </div>
+          {(historyFilters.start_date ||
+            historyFilters.end_date ||
+            historyFilters.employee_id ||
+            historyFilters.status) && (
+              <button
+                type="button"
+                className={styles.filterClear}
+                onClick={() => {
+                  setPage(1);
+                  setHistoryFilters({
+                    start_date: "",
+                    end_date: "",
+                    employee_id: "",
+                    status: "",
+                  });
+                }}
+              >
+                ✕ Clear filters
+              </button>
+            )}
+          <div className={styles.filterResultCount}>
+            {historyLoading
+              ? "Loading…"
+              : `${historyTotal} record${historyTotal === 1 ? "" : "s"}`}
+          </div>
+        </div>
+      )}
+
+      {view === "report" && <AttendanceReport employees={employees} />}
+      {view === "tracking" && <EmployeeTracking employees={employees} />}
+
+      {(view === "today" || view === "all") && (
+        <>
+          <div className="table-wrapper">
+            <table className="employee-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Employee</th>
+                  <th>Check In</th>
+                  <th>Check Out</th>
+                  <th>Hours</th>
+                  <th>Status</th>
+                  <th>Check-In Location</th>
+                  <th>Check-Out Location</th>
+                  <th>Distance</th>
+                  <th>Geofence</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {rows.length === 0 ? (
+                  <tr>
+                    <td colSpan="11" className={styles.emptyCell}>
+                      No attendance records
+                    </td>
+                  </tr>
+                ) : (
+                  pagedRows.map((row) => (
+                    <tr key={row.ID}>
+                      <td>{row.DATE}</td>
+                      <td>{row.EMPLOYEE_NAME || row.EMPLOYEE_ID}</td>
+                      <td>{formatTime(row.CHECK_IN)}</td>
+                      <td>{formatTime(row.CHECK_OUT)}</td>
+                      <td>
+                        {row.WORKED_HOURS !== null &&
+                          row.WORKED_HOURS !== undefined
+                          ? `${row.WORKED_HOURS} h`
+                          : "—"}
+                      </td>
+                      <td>{statusBadge(row.STATUS, row.LATE_MINUTES)}</td>
+                      <td>
+                        {coordCell(
+                          row.CHECKIN_LATITUDE,
+                          row.CHECKIN_LONGITUDE,
+                          row.GEOFENCE_STATUS
+                        )}
+                      </td>
+                      <td>
+                        {coordCell(
+                          row.CHECKOUT_LATITUDE,
+                          row.CHECKOUT_LONGITUDE,
+                          row.GEOFENCE_STATUS
+                        )}
+                      </td>
+                      <td>
+                        {row.CHECKIN_DISTANCE != null ? (
+                          `${Math.round(row.CHECKIN_DISTANCE)} m`
+                        ) : row.GEOFENCE_STATUS === "UNKNOWN" ? (
+                          <span className={styles.gpsSkip}>GPS skipped</span>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td>{geofenceBadge(row.GEOFENCE_STATUS)}</td>
+                      <td>
+                        <IconButton
+                          variant="delete"
+                          onClick={() => deleteRecord(row.ID)}
+                          title="Delete attendance record"
+                        />
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
 
-          {view === "board" && <LiveFloorBoard />}
-
-          {/* ===== History filter bar — only on the All Records view ===== */}
-          {view === "all" && (
-            <div className={styles.historyFilters}>
-              <div className={styles.filterField}>
-                <label>From</label>
-                <input
-                  type="date"
-                  value={historyFilters.start_date}
-                  onChange={(e) => {
-                    setPage(1);
-                    setHistoryFilters({
-                      ...historyFilters,
-                      start_date: e.target.value,
-                    });
-                  }}
-                />
-              </div>
-              <div className={styles.filterField}>
-                <label>To</label>
-                <input
-                  type="date"
-                  value={historyFilters.end_date}
-                  onChange={(e) => {
-                    setPage(1);
-                    setHistoryFilters({
-                      ...historyFilters,
-                      end_date: e.target.value,
-                    });
-                  }}
-                />
-              </div>
-              <div className={styles.filterField}>
-                <label>Employee</label>
-                <select
-                  value={historyFilters.employee_id}
-                  onChange={(e) => {
-                    setPage(1);
-                    setHistoryFilters({
-                      ...historyFilters,
-                      employee_id: e.target.value,
-                    });
-                  }}
-                >
-                  <option value="">All employees</option>
-                  {employees.map((emp) => (
-                    <option key={emp.ID} value={emp.ID}>
-                      {emp.NAME} ({emp.EMPLOYEE_CODE || "—"})
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className={styles.filterField}>
-                <label>Status</label>
-                <div className={styles.statusChips}>
-                  {["", "PRESENT", "LATE", "ABSENT", "HALF_DAY"].map((s) => (
-                    <button
-                      key={s || "ALL"}
-                      type="button"
-                      onClick={() => {
-                        setPage(1);
-                        setHistoryFilters({ ...historyFilters, status: s });
-                      }}
-                      className={
-                        `${styles.statusChip} ` +
-                        (historyFilters.status === s
-                          ? styles.statusChipActive
-                          : "")
-                      }
-                    >
-                      {s || "ALL"}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {(historyFilters.start_date ||
-                historyFilters.end_date ||
-                historyFilters.employee_id ||
-                historyFilters.status) && (
-                  <button
-                    type="button"
-                    className={styles.filterClear}
-                    onClick={() => {
-                      setPage(1);
-                      setHistoryFilters({
-                        start_date: "",
-                        end_date: "",
-                        employee_id: "",
-                        status: "",
-                      });
-                    }}
-                  >
-                    ✕ Clear filters
-                  </button>
-                )}
-              <div className={styles.filterResultCount}>
-                {historyLoading
-                  ? "Loading…"
-                  : `${historyTotal} record${historyTotal === 1 ? "" : "s"}`}
-              </div>
-            </div>
-          )}
-
-          {view === "report" && <AttendanceReport employees={employees} />}
-          {view === "tracking" && <EmployeeTracking employees={employees} />}
-
-          {(view === "today" || view === "all") && (
-            <>
-              <div className="table-wrapper">
-                <table className="employee-table">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Employee</th>
-                      <th>Check In</th>
-                      <th>Check Out</th>
-                      <th>Hours</th>
-                      <th>Status</th>
-                      <th>Check-In Location</th>
-                      <th>Check-Out Location</th>
-                      <th>Distance</th>
-                      <th>Geofence</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {rows.length === 0 ? (
-                      <tr>
-                        <td colSpan="11" className={styles.emptyCell}>
-                          No attendance records
-                        </td>
-                      </tr>
-                    ) : (
-                      pagedRows.map((row) => (
-                        <tr key={row.ID}>
-                          <td>{row.DATE}</td>
-                          <td>{row.EMPLOYEE_NAME || row.EMPLOYEE_ID}</td>
-                          <td>{formatTime(row.CHECK_IN)}</td>
-                          <td>{formatTime(row.CHECK_OUT)}</td>
-                          <td>
-                            {row.WORKED_HOURS !== null &&
-                              row.WORKED_HOURS !== undefined
-                              ? `${row.WORKED_HOURS} h`
-                              : "—"}
-                          </td>
-                          <td>{statusBadge(row.STATUS, row.LATE_MINUTES)}</td>
-                          <td>
-                            {coordCell(
-                              row.CHECKIN_LATITUDE,
-                              row.CHECKIN_LONGITUDE,
-                              row.GEOFENCE_STATUS
-                            )}
-                          </td>
-                          <td>
-                            {coordCell(
-                              row.CHECKOUT_LATITUDE,
-                              row.CHECKOUT_LONGITUDE,
-                              row.GEOFENCE_STATUS
-                            )}
-                          </td>
-                          <td>
-                            {row.CHECKIN_DISTANCE != null ? (
-                              `${Math.round(row.CHECKIN_DISTANCE)} m`
-                            ) : row.GEOFENCE_STATUS === "UNKNOWN" ? (
-                              <span className={styles.gpsSkip}>GPS skipped</span>
-                            ) : (
-                              "—"
-                            )}
-                          </td>
-                          <td>{geofenceBadge(row.GEOFENCE_STATUS)}</td>
-                          <td>
-                            <IconButton
-                              variant="delete"
-                              onClick={() => deleteRecord(row.ID)}
-                              title="Delete attendance record"
-                            />
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <TablePagination
-                total={totalRows}
-                page={page}
-                pageSize={pageSize}
-                onPageChange={setPage}
-                onPageSizeChange={(n) => {
-                  setPageSize(n);
-                  setPage(1);
-                }}
-              />
-            </>
-          )}
+          <TablePagination
+            total={totalRows}
+            page={page}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={(n) => {
+              setPageSize(n);
+              setPage(1);
+            }}
+          />
+        </>
+      )}
     </div>
   );
 }
@@ -856,77 +856,10 @@ function LiveFloorBoard() {
           <div className={styles.boardEmpty}>
             No active employees. Run /demo/seed-bvc24 to populate.
           </div>
-          );
-  }
-
-          if (!data) {
-
-    return (
-          <div className={styles.boardError}>
-            Could not load board. Check backend.
-          </div>
-          );
-  }
-
-          const s = data.summary || { };
-
-          return (
-
-          <div className={styles.boardPad}>
-
-            {/* Summary tiles */}
-            <div className={styles.boardSummaryGrid}>
-
-              <SummaryTile
-                label="Active Employees"
-                value={s.total_active ?? 0}
-                color="#3b82f6"
-              />
-
-              <SummaryTile
-                label="In Office Now"
-                value={s.in_office ?? 0}
-                sub="checked-in, not yet out"
-                color="#10b981"
-              />
-
-              <SummaryTile
-                label="Checked Out"
-                value={s.checked_out ?? 0}
-                sub="done for the day"
-                color="#94a3b8"
-              />
-
-              <SummaryTile
-                label="Not Checked In"
-                value={s.not_checked_in ?? 0}
-                sub="absent / late"
-                color="#ef4444"
-              />
-            </div>
-
-            {/* Auto-refresh note */}
-            <div className={styles.boardRefreshNote}>
-              Auto-refreshing every 10s · as of {data.as_of?.slice(11, 19)}
-            </div>
-
-            {/* Employee tile grid */}
-            <div className={styles.boardTileGrid}>
-
-              {(data.employees || []).map((emp) => (
-
-                <EmployeeTile key={emp.EMPLOYEE_ID} emp={emp} tick={tick} />
-              ))}
-
-              {(data.employees || []).length === 0 && (
-
-                <div className={styles.boardEmpty}>
-                  No active employees. Run /demo/seed-bvc24 to populate.
-                </div>
-              )}
-            </div>
-          </div>
-          );
+        )}
+      </div>
+    </div>
+  );
 }
 
 function SummaryTile({ label, value, sub, color }) {
@@ -945,7 +878,7 @@ function liveWorkedHours(checkInIso, checkOutIso) {
   const start = istEpoch(checkInIso);
   const end = checkOutIso ? istEpoch(checkOutIso) : Date.now();
 
-          if (start == null) return null;
+  if (start == null) return null;
 
   const ms = end - start;
   if (ms < 0) return "0:00:00";
@@ -993,10 +926,10 @@ function EmployeeTile({ emp, tick }) {
     }
   }
 
-          // re-read tick so this re-renders every second for live counter
-          void tick;
+  // re-read tick so this re-renders every second for live counter
+  void tick;
 
-          const liveHours = liveWorkedHours(emp.CHECK_IN, emp.CHECK_OUT);
+  const liveHours = liveWorkedHours(emp.CHECK_IN, emp.CHECK_OUT);
 
   return (
     <div className={styles.empTile} style={{ borderLeftColor: accent }}>
@@ -1006,102 +939,25 @@ function EmployeeTile({ emp, tick }) {
           {(emp.NAME || "?").charAt(0).toUpperCase()}
         </div>
 
-              <div className={styles.empMeta}>
-                <div className={styles.empTileName}>{emp.NAME}</div>
-                <div className={styles.empTileCode}>
-                  {emp.EMPLOYEE_CODE}
-                  {emp.DEPARTMENT_CODE && <span> · {emp.DEPARTMENT_CODE}</span>}
-                </div>
-              </div>
-
-              <span
-                className={styles.statePill}
-                style={{ background: stateBg, color: stateFg }}
-              >
-                {stateLabel}
-              </span>
-            </div>
-
-            {/* Clock row: CHECK_IN | CHECK_OUT */}
-            <div className={styles.clockRow}>
-
-              <div className={styles.clockCell}>
-                <div className={styles.clockCellLabel}>Check-In</div>
-                <div
-                  className={styles.clockCellTime}
-                  style={{ color: emp.CHECK_IN ? "#10b981" : "#cbd5e1" }}
-                >
-                  {emp.CHECK_IN ? formatISTTime(emp.CHECK_IN) : "—:—"}
-                </div>
-              </div>
-
-              <div className={styles.clockCell}>
-                <div className={styles.clockCellLabel}>Check-Out</div>
-                <div
-                  className={styles.clockCellTime}
-                  style={{ color: emp.CHECK_OUT ? "#ef4444" : "#cbd5e1" }}
-                >
-                  {emp.CHECK_OUT ? formatISTTime(emp.CHECK_OUT) : "—:—"}
-                </div>
-              </div>
-            </div>
-
-            {/* Live worked-hours counter when checked in */}
-            {isCheckedIn && (
-              <div
-                className={styles.liveCounter}
-                style={{
-                  background: isCheckedOut ? "#f1f5f9" : "#ecfdf5",
-                  borderColor: isCheckedOut ? "#cbd5e1" : "#a7f3d0"
-                }}
-              >
-                <div className={styles.liveCounterLabel}>
-                  {isCheckedOut ? "Worked" : "Live ⏱"}
-                </div>
-                <div
-                  className={styles.liveCounterValue}
-                  style={{ color: isCheckedOut ? "#475569" : "#047857" }}
-                >
-                  {liveHours}
-                </div>
-              </div>
-            )}
-
-            {/* Current task or completed-today summary */}
-            {emp.CURRENT_TASK_NAME ? (
-              <div className={`${styles.taskCard} ${styles.taskCardActive}`}>
-                <div className={styles.taskLabel}>Now Working On</div>
-                <div className={styles.taskName}>{emp.CURRENT_TASK_NAME}</div>
-                {emp.CURRENT_PROJECT && (
-                  <div className={styles.taskProject}>{emp.CURRENT_PROJECT}</div>
-                )}
-                <div className={styles.taskStatus}>Status: {emp.CURRENT_TASK_STATUS}</div>
-              </div>
-            ) : isCheckedIn ? (
-              <div className={`${styles.taskCard} ${styles.taskCardEmpty}`}>
-                No active task
-              </div>
-            ) : null}
-
-            {/* Tasks completed today badge */}
-            {emp.TASKS_COMPLETED_TODAY > 0 && (
-              <div className={styles.tasksDoneRow}>
-                <span>Tasks done today</span>
-                <span className={styles.tasksDoneBadge}>
-                  ✓ {emp.TASKS_COMPLETED_TODAY}
-                </span>
-              </div>
-            )}
+        <div className={styles.empMeta}>
+          <div className={styles.empTileName}>{emp.NAME}</div>
+          <div className={styles.empTileCode}>
+            {emp.EMPLOYEE_CODE}
+            {emp.DEPARTMENT_CODE && <span> · {emp.DEPARTMENT_CODE}</span>}
           </div>
         </div>
 
-        <span className={styles.statePill} style={{ background: stateBg, color: stateFg }}>
+        <span
+          className={styles.statePill}
+          style={{ background: stateBg, color: stateFg }}
+        >
           {stateLabel}
         </span>
       </div>
 
       {/* Clock row: CHECK_IN | CHECK_OUT */}
       <div className={styles.clockRow}>
+
         <div className={styles.clockCell}>
           <div className={styles.clockCellLabel}>Check-In</div>
           <div
@@ -1129,7 +985,7 @@ function EmployeeTile({ emp, tick }) {
           className={styles.liveCounter}
           style={{
             background: isCheckedOut ? "#f1f5f9" : "#ecfdf5",
-            borderColor: isCheckedOut ? "#cbd5e1" : "#a7f3d0",
+            borderColor: isCheckedOut ? "#cbd5e1" : "#a7f3d0"
           }}
         >
           <div className={styles.liveCounterLabel}>
@@ -1155,14 +1011,18 @@ function EmployeeTile({ emp, tick }) {
           <div className={styles.taskStatus}>Status: {emp.CURRENT_TASK_STATUS}</div>
         </div>
       ) : isCheckedIn ? (
-        <div className={`${styles.taskCard} ${styles.taskCardEmpty}`}>No active task</div>
+        <div className={`${styles.taskCard} ${styles.taskCardEmpty}`}>
+          No active task
+        </div>
       ) : null}
 
       {/* Tasks completed today badge */}
       {emp.TASKS_COMPLETED_TODAY > 0 && (
         <div className={styles.tasksDoneRow}>
           <span>Tasks done today</span>
-          <span className={styles.tasksDoneBadge}>✓ {emp.TASKS_COMPLETED_TODAY}</span>
+          <span className={styles.tasksDoneBadge}>
+            ✓ {emp.TASKS_COMPLETED_TODAY}
+          </span>
         </div>
       )}
     </div>
@@ -1182,24 +1042,24 @@ function coordCell(lat, lng, status) {
         </span>
       );
     }
-          return "—";
+    return "—";
   }
   const short = (n) => Number(n).toFixed(5);
-          const url = `https://www.google.com/maps?q=${lat},${lng}`;
-          return (
-          <a
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Open in Google Maps"
-            className={styles.coordLink}
-          >
-            {short(lat)}, {short(lng)} 🗺
-          </a>
-          );
+  const url = `https://www.google.com/maps?q=${lat},${lng}`;
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      title="Open in Google Maps"
+      className={styles.coordLink}
+    >
+      {short(lat)}, {short(lng)} 🗺
+    </a>
+  );
 }
 
-          function geofenceBadge(status) {
+function geofenceBadge(status) {
   // Distinguish three states:
   //   INSIDE / OUTSIDE — GPS was captured + validated against geofence
   //   UNKNOWN          — admin clicked "Skip GPS" (legitimate but unverified)
@@ -1489,7 +1349,12 @@ function EmployeeTracking({ employees }) {
         grouped.push(current);
         current = [];
       }
-    };
+      current.push(t);
+      lastWeek = week;
+    }
+    if (current.length) grouped.push(current);
+    return grouped;
+  }, [data]);
 
   return (
     <div className={styles.trackingWrap}>
@@ -1573,12 +1438,6 @@ function EmployeeTracking({ employees }) {
               ))}
             </div>
           </div>
-          <div className={styles.filterResultCount}>
-            {loading ? "Loading…"
-              : data ? `${data.window.working_days} working days`
-                : "Select an employee"}
-          </div>
-        </div>
 
           {/* Recent records table */}
           <div className={styles.heatmapCard}>
@@ -1617,11 +1476,13 @@ function EmployeeTracking({ employees }) {
                 </tbody>
               </table>
             </div>
-          </>
-        )}
-      </div>
-    );
-  }
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 
 function HeatCell({ day }) {
   const color =
@@ -1659,32 +1520,32 @@ function LegendDot({ color, label }) {
 const KpiIcons = {
   check: (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2"
-         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M22 11.1V12a10 10 0 1 1-5.9-9.1" />
       <path d="M22 4L12 14.01l-3-3" />
     </svg>
   ),
   clock: (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2"
-         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="10" />
       <path d="M12 6v6l4 2" />
     </svg>
   ),
   x: (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2"
-         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="12" r="10" />
       <path d="M15 9l-6 6M9 9l6 6" />
     </svg>
   ),
   users: (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2"
-         strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M17 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
       <circle cx="10" cy="8" r="4" />
       <path d="M23 20v-2a4 4 0 0 0-3-3.87" />
