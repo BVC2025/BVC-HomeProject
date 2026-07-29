@@ -1684,9 +1684,6 @@ const NAV_GROUPS = [
       { to: "/task-templates", icon: <SidebarIcon name="task-tmpl" />, label: "Task Templates" },
       { to: "/project-pricing", icon: <SidebarIcon name="proj-pricing" />, label: "Project Pricing" },
       { to: "/project-quotations", icon: <SidebarIcon name="proj-quotation" />, label: "Quotation Templates" },
-      { to: "/task-templates", icon: <SidebarIcon name="task-tmpl" />, label: "Task Templates" },
-      { to: "/project-pricing", icon: <SidebarIcon name="proj-pricing" />, label: "Project Pricing" },
-      { to: "/project-quotations", icon: <SidebarIcon name="proj-quotation" />, label: "Quotation Templates" },
     ]
   },
   {
