@@ -147,6 +147,12 @@
   box-shadow: var(--shadow-xs);
 }
 
+.iconBtn img {
+  width: 15px;
+  height: 15px;
+  object-fit: contain;
+}
+
 .iconBtnDanger {
   width: 32px;
   height: 32px;
@@ -166,6 +172,60 @@
   background: var(--danger-bg);
   border-color: var(--danger-border);
   box-shadow: var(--shadow-xs);
+}
+
+.iconBtnDanger img {
+  width: 15px;
+  height: 15px;
+  object-fit: contain;
+}
+
+/* ── Activate / Deactivate toggle buttons — matches /email-config exactly ── */
+.toggleBtn {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-medium);
+  border: 1px solid rgba(22, 163, 74, 0.3);
+  background: rgba(22, 163, 74, 0.06);
+  color: #16a34a;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--ease);
+}
+
+.toggleBtn:hover:not(:disabled) {
+  background: rgba(22, 163, 74, 0.15);
+  border-color: #16a34a;
+}
+
+.toggleBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggleBtnActive {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-medium);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--ease);
+}
+
+.toggleBtnActive:hover:not(:disabled) {
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+  color: var(--danger);
+}
+
+.toggleBtnActive:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* ── Status badges ── */
@@ -394,6 +454,71 @@
   gap: var(--sp-2);
   padding: var(--sp-3) var(--sp-4);
   border-top: 1px solid var(--border);
+}
+
+/* ── Voice chat ── */
+.voiceControls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.langToggleGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.langToggleLabel {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-right: 2px;
+  white-space: nowrap;
+}
+
+.micIcon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  display: block;
+}
+
+.recordingDot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  margin-left: var(--sp-1);
+  animation: blink 1s step-start infinite;
+  vertical-align: middle;
+}
+
+.speakingBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--font-xs);
+  color: var(--clr-primary);
+  background: var(--clr-primary-light);
+  border: 1px solid var(--clr-primary-border);
+  border-radius: var(--radius-full);
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+.messageVoiceRow {
+  display: flex;
+  gap: var(--sp-1);
+  margin-top: var(--sp-2);
+}
+
+.voiceHint {
+  font-size: var(--font-xs);
+  color: var(--danger);
+  margin-top: 2px;
 }
 
 .sidePanel {

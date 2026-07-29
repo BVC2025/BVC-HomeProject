@@ -3,6 +3,7 @@ import { PageHeader, StatsRow, PMModal, EmptyState, Loader, PMButton, PMConfirmM
 import { aiModuleService } from "../services/aiModuleService";
 import { useToast } from "../hooks/useToast";
 import { formatDateTime } from "../utils/formatDateTime";
+import EditIcon from "../assets/Icons/editIcon.webp";
 import styles from "./AIPlatformShared.module.css";
 
 export default function AIModulesPage() {
@@ -123,9 +124,13 @@ export default function AIModulesPage() {
                     <td>{formatDateTime(m.CREATED_AT)}</td>
                     <td>
                       <div className={styles.rowActions}>
-                        <button className={styles.iconBtn} title="Edit" onClick={() => openEdit(m)}>✎</button>
+                        <button className={styles.iconBtn} title="Edit" onClick={() => openEdit(m)}>
+                          <img src={EditIcon} alt="Edit" />
+                        </button>
                         {m.IS_ACTIVE && (
-                          <button className={styles.iconBtnDanger} title="Deactivate" onClick={() => handleDeactivate(m)}>⏸</button>
+                          <button className={styles.toggleBtnActive} title="Deactivate" onClick={() => handleDeactivate(m)}>
+                            Deactivate
+                          </button>
                         )}
                       </div>
                     </td>

@@ -81,6 +81,7 @@ from app.routes.chatbot_ai import router as chatbot_ai_router  # AI chatbot v1 (
 from app.routes.work_center import router as work_center_router  # Mfg Phase 1 — Work Centers
 from app.routes.custom_fields import router as custom_fields_router  # Custom Fields System
 from app.routes.rag import router as rag_router  # Common Enterprise RAG AI Platform
+from app.routes.speech import router as speech_router  # Offline Piper TTS
 # ── New Inventory & Supplier Procurement Module ──────────────────────
 from app.routes.supplier_onboarding import router as supplier_onboarding_router
 from app.routes.supplier_products import router as supplier_products_router
@@ -1411,6 +1412,9 @@ def _auto_seed_ai_modules():
 
 _auto_seed_ai_modules()
 
+from app.services.speech_service import speech_service  # noqa: E402
+speech_service.initialize()  # non-blocking — Piper models load on a background thread
+
 from app.scheduler import start_scheduler  # noqa: E402 — started after seeding, before routers
 start_scheduler()
 
@@ -1472,6 +1476,7 @@ app.include_router(email_config_router, tags=["Email Configuration"])
 app.include_router(email_templates_router, tags=["Email Templates"])
 app.include_router(lead_management_router, tags=["Lead Management"])
 app.include_router(rag_router, tags=["AI Platform"])
+app.include_router(speech_router, tags=["Speech (TTS)"])
 
 # ── Inventory & Supplier Procurement Module ───────────────────────────────
 app.include_router(supplier_onboarding_router, prefix="/api")
