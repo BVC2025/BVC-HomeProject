@@ -21,6 +21,14 @@ from fastapi.staticfiles import StaticFiles
 from app.routes import employee
 from app.database.database import engine
 from app.models.models import Base
+# Register new module models into Base.metadata BEFORE create_all()
+import app.models.inventory_models   # noqa: F401 — registers inventory tables
+import app.models.supplier_models    # noqa: F401 — registers supplier/procurement tables
+import app.models.email_models       # noqa: F401 — registers vendor_email_config table
+import app.models.lead_models        # noqa: F401 — registers lead_polling_config, lead, lead_polling_log tables
+import app.models.project_quotation_models  # noqa: F401 — registers project_quotation_template table
+import app.models.rag_models         # noqa: F401 — registers ai_modules, ai_documents, ai_chat_history, ai_training_job tables
+
 from app.routes.users import router as users_router
 from app.routes.auth import router as auth_router
 from app.routes.vendor import router as vendor_router
@@ -84,9 +92,30 @@ from app.routes.monthly_reports import router as monthly_reports_router  # Auto 
 from app.routes.employee_status import router as employee_status_router  # Employee lifecycle status tracking
 from app.routes.employee_insights import router as employee_insights_router  # AI workforce analytics
 from app.routes.custom_fields import router as custom_fields_router  # Custom Fields System
+
 from app.routes.helpdesk import router as helpdesk_router  # Help Desk (employee tickets + admin triage)
 from app.routes.memo_automation import router as memo_automation_router  # Weekly warning/appreciation memo automation
 from app.voice_assistant.routes import router as voice_assistant_router  # Voice-first ERP assistant (Siri-style)
+
+
+from app.routes.helpdesk import router as helpdesk_router  # Help Desk (employee tickets + admin triage)
+from app.routes.memo_automation import router as memo_automation_router  # Weekly warning/appreciation memo automation
+from app.voice_assistant.routes import router as voice_assistant_router  # Voice-first ERP assistant (Siri-style)
+
+from app.routes.rag import router as rag_router  # Common Enterprise RAG AI Platform
+from app.routes.speech import router as speech_router  # Offline Piper TTS
+# ── New Inventory & Supplier Procurement Module ──────────────────────
+from app.routes.supplier_onboarding import router as supplier_onboarding_router
+from app.routes.supplier_products import router as supplier_products_router
+from app.routes.supplier_ranking import router as supplier_ranking_router
+from app.routes.inventory_items import router as inventory_items_router
+from app.routes.inventory_movements import router as inventory_movements_router
+from app.routes.inventory_batches import router as inventory_batches_router
+from app.routes.email_config import router as email_config_router
+from app.routes.email_templates import router as email_templates_router
+from app.routes.lead_management import router as lead_management_router
+
+
 from fastapi.middleware.cors import CORSMiddleware
 
 # Phase 3 — Audit log
@@ -225,6 +254,11 @@ _STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 (_STATIC_DIR / "company").mkdir(parents=True, exist_ok=True)
 
+
+(_STATIC_DIR / "quotation").mkdir(parents=True, exist_ok=True)
+
+(_STATIC_DIR / "ai-documents").mkdir(parents=True, exist_ok=True)
+
 app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
 
@@ -267,7 +301,61 @@ def _rename_legacy_project_table():
             print(f"[startup] sub_project_template rename skipped: {exc}")
 
 
+
 _rename_legacy_project_table()
+
+def _drop_legacy_lead_tables():
+    """One-time cleanup: the Lead Management module was renamed/restructured
+    (IndiamartConfig/IndiamartLead -> LeadPollingConfig/Lead/LeadPollingLog,
+    with a changed schema — CONFIG_ID removed from the lead table, columns
+    renamed, unique constraints changed). The old tables held no production
+    data (pre-launch scaffolding only), so they're dropped here rather than
+    migrated in place; create_all() below then creates the new tables fresh.
+    Guarded and idempotent — a no-op once the old tables are gone.
+    """
+    from sqlalchemy import text, inspect
+    insp = inspect(engine)
+    existing = set(insp.get_table_names())
+    try:
+        with engine.begin() as conn:
+            if "indiamart_lead" in existing:
+                conn.execute(text("DROP TABLE IF EXISTS `indiamart_lead`"))
+                print("[startup] Dropped legacy 'indiamart_lead' table")
+            if "indiamart_config" in existing:
+                conn.execute(text("DROP TABLE IF EXISTS `indiamart_config`"))
+                print("[startup] Dropped legacy 'indiamart_config' table")
+    except Exception as exc:
+        print(f"[startup] legacy lead table cleanup skipped: {exc}")
+
+
+def _drop_legacy_lead_tables():
+    """One-time cleanup: the Lead Management module was renamed/restructured
+    (IndiamartConfig/IndiamartLead -> LeadPollingConfig/Lead/LeadPollingLog,
+    with a changed schema — CONFIG_ID removed from the lead table, columns
+    renamed, unique constraints changed). The old tables held no production
+    data (pre-launch scaffolding only), so they're dropped here rather than
+    migrated in place; create_all() below then creates the new tables fresh.
+    Guarded and idempotent — a no-op once the old tables are gone.
+    """
+    from sqlalchemy import text, inspect
+    insp = inspect(engine)
+    existing = set(insp.get_table_names())
+    try:
+        with engine.begin() as conn:
+            if "indiamart_lead" in existing:
+                conn.execute(text("DROP TABLE IF EXISTS `indiamart_lead`"))
+                print("[startup] Dropped legacy 'indiamart_lead' table")
+            if "indiamart_config" in existing:
+                conn.execute(text("DROP TABLE IF EXISTS `indiamart_config`"))
+                print("[startup] Dropped legacy 'indiamart_config' table")
+    except Exception as exc:
+        print(f"[startup] legacy lead table cleanup skipped: {exc}")
+
+
+_rename_legacy_project_table()
+_drop_legacy_lead_tables()
+_drop_legacy_lead_tables()
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -1407,6 +1495,60 @@ def _start_memo_automation_scheduler():
 _start_memo_automation_scheduler()
 
 
+def _auto_seed_ai_modules():
+    """Seeds the first AI_MODULES row (Lead AI Assistant) so the RAG
+    platform has something to onboard against on a fresh install. Follows
+    the same idempotent shape as the other _auto_seed_* functions above:
+    own session, try/except/log.warning, safe to re-run any number of
+    times."""
+
+    import logging
+    from sqlalchemy.orm import sessionmaker
+    from app.models.rag_models import AIModule
+    from app.rag_modules.core.llm_client import DEFAULT_MODEL as RAG_DEFAULT_LLM_MODEL
+
+    log = logging.getLogger("uvicorn")
+    Session = sessionmaker(bind=engine)
+    db = Session()
+
+    try:
+        existing = db.query(AIModule).filter(AIModule.MODULE_CODE == "lead").first()
+
+        if existing is None:
+            db.add(AIModule(
+                MODULE_NAME="Lead AI Assistant",
+                MODULE_CODE="lead",
+                DESCRIPTION=(
+                    "Answers questions about the lead management process "
+                    "from uploaded SOPs/FAQs."
+                ),
+                VECTOR_COLLECTION_NAME="lead_rag_collection",
+                EMBEDDING_MODEL="BAAI/bge-small-en-v1.5",
+                LLM_MODEL=RAG_DEFAULT_LLM_MODEL,
+                IS_ACTIVE=True,
+            ))
+            db.commit()
+            log.info("auto-seed-ai-modules: 'lead' module created")
+
+    except Exception as exc:
+        db.rollback()
+        log.warning("auto-seed-ai-modules skipped: %s", exc)
+
+    finally:
+        db.close()
+
+
+_auto_seed_ai_modules()
+
+from app.services.speech_service import speech_service  # noqa: E402
+speech_service.initialize()  # non-blocking — Piper models load on a background thread
+
+from app.scheduler import start_scheduler  # noqa: E402 — started after seeding, before routers
+start_scheduler()
+
+
+
+
 app.include_router(auth_router, tags=["Auth"])
 app.include_router(organization_router, tags=["Organization"])
 app.include_router(employee.router, tags=["Employees (IAM)"])
@@ -1471,9 +1613,30 @@ app.include_router(monthly_reports_router)
 app.include_router(employee_status_router)
 app.include_router(employee_insights_router)
 app.include_router(custom_fields_router, tags=["Custom Fields"])
+
 app.include_router(helpdesk_router)
 app.include_router(memo_automation_router)
 app.include_router(voice_assistant_router)
+
+
+app.include_router(helpdesk_router)
+app.include_router(memo_automation_router)
+app.include_router(voice_assistant_router)
+
+app.include_router(email_config_router, tags=["Email Configuration"])
+app.include_router(email_templates_router, tags=["Email Templates"])
+app.include_router(lead_management_router, tags=["Lead Management"])
+app.include_router(rag_router, tags=["AI Platform"])
+app.include_router(speech_router, tags=["Speech (TTS)"])
+
+# ── Inventory & Supplier Procurement Module ───────────────────────────────
+app.include_router(supplier_onboarding_router, prefix="/api")
+app.include_router(supplier_products_router, prefix="/api")
+app.include_router(supplier_ranking_router, prefix="/api")
+app.include_router(inventory_items_router, prefix="/api")
+app.include_router(inventory_movements_router, prefix="/api")
+app.include_router(inventory_batches_router, prefix="/api")
+
 
 
 @app.get("/", tags=["Health"])

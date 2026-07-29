@@ -2391,6 +2391,15 @@ function InviteEmployeeModal({ onClose }) {
       return;
     }
 
+    const emailTrim = form.EMAIL.trim();
+
+    if (!emailTrim || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailTrim)) {
+
+      setError("A valid candidate email is required — the invite link is sent automatically.");
+
+      return;
+    }
+
     if (form.PASSWORD.trim().length < 6) {
       setError("Password must be at least 6 characters.");
       return;

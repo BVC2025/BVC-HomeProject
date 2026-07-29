@@ -20,13 +20,14 @@ import styles from "./Payroll.module.css";
 function IconArrow() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="2"
-         strokeLinecap="round" strokeLinejoin="round"
-         aria-hidden="true">
+      stroke="currentColor" strokeWidth="2"
+      strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden="true">
       <path d="M5 12h14" />
       <path d="M13 6l6 6-6 6" />
     </svg>
   );
+
 }
 
 
@@ -34,9 +35,24 @@ function IconArrow() {
 function IconPayslip() {
   return (
     <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
-         stroke="currentColor" strokeWidth="1.6"
-         strokeLinecap="round" strokeLinejoin="round"
-         aria-hidden="true">
+      stroke="currentColor" strokeWidth="1.6"
+      strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden="true">
+      <rect x="4" y="3" width="16" height="18" rx="2" />
+      <path d="M8 8h8M8 12h8M8 16h5" />
+    </svg>
+  );
+
+}
+
+
+// SVG payslip icon used in the empty-state illustration.
+function IconPayslip() {
+  return (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.6"
+      strokeLinecap="round" strokeLinejoin="round"
+      aria-hidden="true">
       <rect x="4" y="3" width="16" height="18" rx="2" />
       <path d="M8 8h8M8 12h8M8 16h5" />
     </svg>
