@@ -39,6 +39,7 @@ from app.routes.organization import router as organization_router
 from app.routes.task_approval import router as task_approval_router
 from app.routes.chatbot import router as chatbot_router
 from app.routes.biometric import router as biometric_router
+from app.routes.iclock import router as iclock_router  # ADMS Push (ZKTeco/ESSL X2008)
 from app.routes.bvc24_seed import router as bvc24_seed_router
 from app.routes.performance import router as performance_router
 from app.routes.production import router as production_router
@@ -1073,6 +1074,91 @@ def _auto_seed_holidays():
 _auto_seed_holidays()
 
 
+def _seed_essl_fingerprint_ids():
+    """
+    Stamp the ESSL X2008 device PIN onto each employee's FINGERPRINT_ID
+    so /iclock/cdata can resolve incoming punches → Employee rows.
+
+    Idempotent: only writes if the employee's FINGERPRINT_ID is empty
+    AND no other employee already claims that PIN. Safe to keep running
+    on every boot — becomes a no-op once seeded.
+
+    PIN list from the device menu (User Mgt → All Users):
+      PIN 2  → BVC002 (Nasira)
+      PIN 4  → BVC004 (Ram kumar)
+      PIN 5  → BVC005 (Harshith)
+      PIN 8  → BVC008 (Puviyarasi)
+      PIN 9  → BVC009 (Lakshminarayanan)
+      PIN 16 → BVC016 (Manoj kumar)
+      PIN 21 → BVC021 (Bharath)
+      PIN 23 → BVC023 (Hemnath)
+    """
+    from sqlalchemy.orm import sessionmaker
+    from app.models.models import Employee
+
+    mapping = {
+        "BVC002": "2",
+        "BVC004": "4",
+        "BVC005": "5",
+        "BVC008": "8",
+        "BVC009": "9",
+        "BVC016": "16",
+        "BVC021": "21",
+        "BVC023": "23",
+    }
+
+    Session = sessionmaker(bind=engine)
+
+    db = Session()
+
+    try:
+
+        for code, pin in mapping.items():
+
+            emp = (
+                db.query(Employee)
+                  .filter(Employee.EMPLOYEE_CODE == code)
+                  .first()
+            )
+
+            if not emp:
+                print(f"[startup] essl-seed: employee {code} not found — skipped")
+                continue
+
+            if emp.FINGERPRINT_ID and emp.FINGERPRINT_ID.strip() != "":
+                # Already set — respect existing value (may be a
+                # different device model / re-enrolment).
+                continue
+
+            # Guard against the unique index on FINGERPRINT_ID: refuse
+            # to write a PIN that another employee already owns.
+            clash = (
+                db.query(Employee)
+                  .filter(Employee.FINGERPRINT_ID == pin)
+                  .first()
+            )
+
+            if clash:
+                print(
+                    f"[startup] essl-seed: PIN {pin} already owned by "
+                    f"{clash.EMPLOYEE_CODE} — skipping {code}"
+                )
+                continue
+
+            emp.FINGERPRINT_ID = pin
+            print(f"[startup] essl-seed: {code} ← PIN {pin}")
+
+        db.commit()
+
+    except Exception as exc:
+        db.rollback()
+        print(f"[startup] essl-seed: failed — {exc}")
+
+    finally:
+        db.close()
+
+
+_seed_essl_fingerprint_ids()
 
 
 # Canonical Work Center catalog for a manufacturing shop. Inserted
@@ -1434,6 +1520,7 @@ app.include_router(reports_router, tags=["Reports"])
 app.include_router(settings_router, tags=["Settings"])
 app.include_router(chatbot_router, tags=["Chatbot"])
 app.include_router(biometric_router)
+app.include_router(iclock_router)  # ADMS Push (biometric device -> ERP)
 app.include_router(bvc24_seed_router)
 app.include_router(performance_router)
 app.include_router(production_router)
