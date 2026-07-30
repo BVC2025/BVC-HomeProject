@@ -189,6 +189,7 @@ def sync_config(db: Session, config: LeadPollingConfig, store: bool = True):
 
     fetched = inserted = skipped = 0
     status = None
+    new_leads = []
 
     if not ok:
         status = meta.get("error_kind") or "ERROR"
@@ -212,7 +213,9 @@ def sync_config(db: Session, config: LeadPollingConfig, store: bool = True):
                     skipped += 1
                     continue
                 kwargs = map_lead(config.VENDOR_ID, raw)
-                db.add(Lead(**kwargs, LEAD_SOURCE="INDIAMART"))
+                new_lead = Lead(**kwargs, LEAD_SOURCE="INDIAMART")
+                db.add(new_lead)
+                new_leads.append(new_lead)
                 inserted += 1
 
         status = "SUCCESS" if fetched > 0 else "NO_LEADS"
@@ -242,6 +245,11 @@ def sync_config(db: Session, config: LeadPollingConfig, store: bool = True):
         LEAD_COUNT=fetched,
     ))
     db.commit()
+
+    if new_leads:
+        from app.services.whatsapp_outbox_service import enqueue_welcome_safe
+        for lead in new_leads:
+            enqueue_welcome_safe(db, lead)
 
     return ok, message, {"fetched": fetched, "inserted": inserted, "skipped": skipped}
 

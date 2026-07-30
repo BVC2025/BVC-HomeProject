@@ -36,6 +36,7 @@ _SKIP_PATH_PREFIXES = (
     "/favicon.ico",
     "/chat/health",
     "/chat/suggestions",
+    "/whatsapp-webhook",  # high-volume Meta webhook POSTs — logged in whatsapp_webhook_event instead
 )
 
 # Skip these methods (read-only, no state change)
