@@ -385,6 +385,10 @@ def create_lead(
     _apply_lead_custom_fields(db, lead.ID, vendor_id, data.CUSTOM_FIELDS)
     db.commit()
     db.refresh(lead)
+
+    from app.services.whatsapp_outbox_service import enqueue_welcome_safe
+    enqueue_welcome_safe(db, lead)
+
     return {"message": "Lead created", **_serialize_lead(lead)}
 
 
@@ -524,6 +528,7 @@ async def bulk_upload_leads(
     employee_id = admin.get("employee_id")
     inserted = 0
     errors = []
+    created_leads = []
 
     for row_num, row in enumerate(data_rows, start=2):
         record = {headers[i].upper(): row[i] for i in range(len(headers))}
@@ -568,9 +573,15 @@ async def bulk_upload_leads(
         db.flush()
         for cf_id, val in cf_vals.items():
             _upsert_cf_bulk(lead.ID, _CF_TABLE, cf_id, val, db)
+        created_leads.append(lead)
         inserted += 1
 
     db.commit()
+
+    from app.services.whatsapp_outbox_service import enqueue_welcome_safe
+    for lead in created_leads:
+        enqueue_welcome_safe(db, lead)
+
     return {
         "message": f"Upload complete: {inserted} inserted, {len(errors)} error(s)",
         "inserted": inserted,

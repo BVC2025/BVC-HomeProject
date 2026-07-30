@@ -70,6 +70,8 @@ const OrgRoleManagement = lazy(() => import("./OrgRoleManagement"));
 const ProjectCategoryManagement = lazy(() => import("./ProjectCategoryManagement"));
 const ProjectPage = lazy(() => import("./ProjectPage"));
 const LeadManagementConfig = lazy(() => import("./LeadManagementConfig"));
+const WhatsAppConfigManagement = lazy(() => import("./WhatsAppConfigManagement"));
+const WhatsAppModuleSettingsManagement = lazy(() => import("./WhatsAppModuleSettingsManagement"));
 const LiveLeadViewer = lazy(() => import("./LiveLeadViewer"));
 const ManualLeadManagement = lazy(() => import("./ManualLeadManagement"));
 const AIModulesPage = lazy(() => import("./AIModulesPage"));
@@ -1472,6 +1474,13 @@ function SidebarIcon({ name }) {
           <path d="M12 7v5l3 2" />
         </svg>
       );
+    case "whatsapp-config":
+      return (
+        <svg {...props}>
+          <path d="M20.5 3.5a10 10 0 0 0-16.9 10.6L3 21l7.1-1.9A10 10 0 1 0 20.5 3.5z" />
+          <path d="M8.5 8.8c.2-.6.6-.6 1-.6h.6c.2 0 .5 0 .7.5.3.6.9 2 1 2.1.1.2.1.4 0 .6-.2.3-.3.4-.5.6-.2.2-.4.4-.2.7.3.5 1 1.4 2.1 2.2 1.4 1 2 1.1 2.4.9.3-.2.5-.5.7-.8.2-.2.4-.3.6-.2l1.9.9c.2.1.4.2.4.4.1.7-.1 1.5-.6 2-.5.5-1.6 1-2.9.5-2.3-.8-4.5-2.5-6.1-4.8-1.3-1.8-1.9-3.4-2-4.1 0-.6.1-1.2.5-1.6z" />
+        </svg>
+      );
     case "lead-config":
       return (
         <svg {...props}>
@@ -1720,6 +1729,8 @@ const NAV_GROUPS = [
     items: [
       { to: "/company-profile", icon: <SidebarIcon name="company" />, label: "Company Profile" },
       { to: "/email-config", icon: <SidebarIcon name="settings" />, label: "Email Config" },
+      { to: "/whatsapp-config", icon: <SidebarIcon name="whatsapp-config" />, label: "WhatsApp Configuration" },
+      { to: "/whatsapp-module-settings", icon: <SidebarIcon name="whatsapp-config" />, label: "WhatsApp Module Settings" },
       { to: "/email-templates", icon: <SidebarIcon name="mail" />, label: "Email Templates" },
       { to: "/holidays", icon: <SidebarIcon name="holidays" />, label: "Holiday Calendar" },
       { to: "/geofence", icon: <SidebarIcon name="geofence" />, label: "Geofence Settings" },
@@ -2076,6 +2087,8 @@ function Dashboard() {
 
           {/* Lead Management module (multi-source lead pipeline) */}
           <Route path="/lead-management/configuration" element={<Suspense fallback={null}><LeadManagementConfig /></Suspense>} />
+          <Route path="/whatsapp-config" element={<Suspense fallback={null}><WhatsAppConfigManagement /></Suspense>} />
+          <Route path="/whatsapp-module-settings" element={<Suspense fallback={null}><WhatsAppModuleSettingsManagement /></Suspense>} />
           <Route path="/lead-management/live-leads" element={<Suspense fallback={null}><LiveLeadViewer /></Suspense>} />
           <Route path="/lead-management/leads" element={<Suspense fallback={null}><ManualLeadManagement /></Suspense>} />
           <Route path="/ai-platform/modules" element={<Suspense fallback={null}><AIModulesPage /></Suspense>} />

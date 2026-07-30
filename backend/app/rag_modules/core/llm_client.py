@@ -12,7 +12,7 @@ env vars already configured for the rest of the app."""
 import os
 import sys
 import time
-from typing import Dict, Iterator, List, Optional
+from typing import Callable, Dict, Iterator, List, Optional
 
 GEMINI_API_KEY = (os.getenv("GEMINI_API_KEY") or "").strip()
 
@@ -43,12 +43,26 @@ def stream_answer(
     system_prompt: str,
     user_message: str,
     history: Optional[List[Dict]] = None,
+    tools: Optional[List[Dict]] = None,
+    tool_resolver: Optional[Callable[[str, Dict], Dict]] = None,
+    max_tool_rounds: int = 2,
 ) -> Iterator[Dict]:
     """Yields {"type": "text", "text": ...} chunks as they stream, then a
     final {"type": "meta", "model_name":, "prompt_tokens":,
     "completion_tokens":, "total_tokens":, "response_time": ...} dict.
     Raises RuntimeError with a descriptive message if every fallback model
-    fails (mirrors gemini_service.py's error-aggregation behaviour)."""
+    fails (mirrors gemini_service.py's error-aggregation behaviour).
+
+    tools/tool_resolver are optional, additive, backward-compatible params:
+    when tools is falsy this function's control flow is identical to before
+    they existed. When both are provided, a bounded Gemini function-calling
+    loop runs first (shape lifted from services/gemini_service.py's proven
+    stream_chat implementation) — tool_resolver(name, args) is called for
+    each requested tool and must return a JSON-safe dict; any exception it
+    raises is caught here and turned into {"error": str(exc)} so a broken
+    tool degrades the answer rather than crashing the turn. Also yields
+    {"type": "tool", "name":, "args":} frames for observability, matching
+    gemini_service.py's existing shape."""
 
     if not is_configured():
 
@@ -86,11 +100,17 @@ def stream_answer(
 
             gemini_history.append({"role": role, "parts": [text]})
 
+    model_kwargs = {"model_name": None, "system_instruction": system_prompt}
+    if tools:
+        model_kwargs["tools"] = [{"function_declarations": tools}]
+
     start = time.monotonic()
 
     attempt_errors = []
 
     response = None
+
+    chat = None
 
     used_model = None
 
@@ -98,7 +118,9 @@ def stream_answer(
 
         try:
 
-            model = genai.GenerativeModel(model_name=name, system_instruction=system_prompt)
+            model_kwargs["model_name"] = name
+
+            model = genai.GenerativeModel(**model_kwargs)
 
             chat = model.start_chat(history=gemini_history)
 
@@ -119,6 +141,56 @@ def stream_answer(
         detail = "\n  ".join(attempt_errors) or "no models tried"
 
         raise RuntimeError(f"Every Gemini model failed.\n  {detail}")
+
+    if tools and tool_resolver:
+
+        for _ in range(max(1, max_tool_rounds)):
+
+            fn_calls = []
+
+            try:
+
+                for part in response.candidates[0].content.parts:
+
+                    if part.function_call and part.function_call.name:
+
+                        fn_calls.append(part.function_call)
+
+            except (IndexError, AttributeError):
+
+                fn_calls = []
+
+            if not fn_calls:
+
+                break
+
+            tool_response_parts = []
+
+            for fc in fn_calls:
+
+                tool_name = fc.name
+
+                args = dict(fc.args) if fc.args else {}
+
+                yield {"type": "tool", "name": tool_name, "args": args}
+
+                try:
+
+                    result = tool_resolver(tool_name, args)
+
+                except Exception as e:
+
+                    result = {"error": str(e)}
+
+                tool_response_parts.append(
+                    genai.protos.Part(
+                        function_response=genai.protos.FunctionResponse(
+                            name=tool_name, response={"result": result}
+                        )
+                    )
+                )
+
+            response = chat.send_message(genai.protos.Content(parts=tool_response_parts))
 
     final_text = ""
 

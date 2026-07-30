@@ -14,7 +14,10 @@ from app.models.supplier_models import Supplier  # noqa: F401
 from app.models.email_models import VendorEmailConfig, EmailTemplate  # noqa: F401
 from app.models.lead_models import LeadPollingConfig, Lead, LeadPollingLog  # noqa: F401
 from app.models.project_quotation_models import ProjectQuotationTemplate  # noqa: F401
-__all__ = ["ProjectCategory", "Project", "TaskTemplate", "ProjectPricing", "Supplier", "VendorEmailConfig", "EmailTemplate", "LeadPollingConfig", "Lead", "LeadPollingLog", "ProjectQuotationTemplate"]  # re-exported from dedicated model files
+from app.models.whatsapp_models import (  # noqa: F401
+    VendorWhatsAppConfig, WhatsAppModuleSetting, WhatsAppConversation, WhatsAppMessage, WhatsAppWebhookEvent,
+)
+__all__ = ["ProjectCategory", "Project", "TaskTemplate", "ProjectPricing", "Supplier", "VendorEmailConfig", "EmailTemplate", "LeadPollingConfig", "Lead", "LeadPollingLog", "ProjectQuotationTemplate", "VendorWhatsAppConfig", "WhatsAppModuleSetting", "WhatsAppConversation", "WhatsAppMessage", "WhatsAppWebhookEvent"]  # re-exported from dedicated model files
 
 # ──────────────────────────────────────────────
 # Shared SQLAlchemy Enum types
@@ -71,6 +74,21 @@ class Vendor(Base):
     )
     lead_polling_logs = relationship(
         "LeadPollingLog",
+        back_populates="vendor",
+        cascade="all, delete-orphan",
+    )
+    whatsapp_configs = relationship(
+        "VendorWhatsAppConfig",
+        back_populates="vendor",
+        cascade="all, delete-orphan",
+    )
+    whatsapp_module_settings = relationship(
+        "WhatsAppModuleSetting",
+        back_populates="vendor",
+        cascade="all, delete-orphan",
+    )
+    whatsapp_conversations = relationship(
+        "WhatsAppConversation",
         back_populates="vendor",
         cascade="all, delete-orphan",
     )

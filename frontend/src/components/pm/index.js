@@ -11,6 +11,8 @@ export { default as ExportButton } from "./ExportButton";
 export { default as PMButton } from "./PMButton";
 export { default as PMSelect } from "./PMSelect";
 export { default as PMConfirmModal } from "./PMConfirmModal";
+export { default as PMEntityFormModal } from "./PMEntityFormModal";
+export { default as PMEntityDetailsModal } from "./PMEntityDetailsModal";
 export { default as SwapConfirmPortal } from "./SwapConfirmPortal";
 export { default as TimeInput12h } from "./TimeInput12h";
 export { default as DateTimeRangeFilter } from "./DateTimeRangeFilter";

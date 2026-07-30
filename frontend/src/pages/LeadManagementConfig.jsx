@@ -5,8 +5,9 @@ import {
   Loader, PMButton, PMSelect, PMConfirmModal,
 } from "../components/pm";
 import { leadPollingConfigService } from "../services/leadPollingConfigService";
+import { whatsappModuleSettingService } from "../services/whatsappModuleSettingService";
 import { useToast } from "../hooks/useToast";
-import { validateForm, clearFieldError, LEAD_POLLING_CONFIG_RULES } from "../utils/formValidation";
+import { validateForm, clearFieldError, LEAD_POLLING_CONFIG_RULES, WHATSAPP_MODULE_SETTING_RULES } from "../utils/formValidation";
 import { formatDateTime } from "../utils/formatDateTime";
 import LeadIcon from "../assets/Icons/projectIcon.webp";
 import EditIcon from "../assets/Icons/editIcon.webp";
@@ -40,6 +41,18 @@ function apiTypeLabel(value) {
   return API_TYPE_OPTIONS.find((o) => o.value === value)?.label || value || "—";
 }
 
+const WA_EMPTY_FORM = {
+  IS_ENABLED: true,
+  AUTO_TRIGGER_ENABLED: true,
+  WELCOME_TEMPLATE_NAME: "",
+  WELCOME_TEMPLATE_LANG: "en_US",
+  WELCOME_TEMPLATE_PARAMS: "",
+  REENGAGE_TEMPLATE_NAME: "",
+  REENGAGE_TEMPLATE_LANG: "en_US",
+  AI_REPLY_ENABLED: true,
+  SUPPORTED_LANGUAGES: "en",
+};
+
 export default function LeadManagementConfig() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +70,15 @@ export default function LeadManagementConfig() {
   const [filterTo, setFilterTo] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
   const [togglingId, setTogglingId] = useState(null);
+
+  // WhatsApp Automation (per-module settings — the shared Meta connection
+  // itself lives on the separate System > WhatsApp Configuration page)
+  const [waSettingId, setWaSettingId] = useState(null);
+  const [waForm, setWaForm] = useState(WA_EMPTY_FORM);
+  const [waErrors, setWaErrors] = useState({});
+  const [waLoading, setWaLoading] = useState(true);
+  const [waSaving, setWaSaving] = useState(false);
+  const waFetchedRef = useRef(false);
 
   const toast = useToast();
   const fetchedRef = useRef(false);
@@ -80,6 +102,81 @@ export default function LeadManagementConfig() {
     fetchedRef.current = true;
     load();
   }, [load]);
+
+  const loadWaSetting = useCallback(async () => {
+    setWaLoading(true);
+    try {
+      const res = await whatsappModuleSettingService.getForLeadModule();
+      const row = res.data?.row;
+      if (row) {
+        setWaSettingId(row.ID);
+        setWaForm({
+          IS_ENABLED: row.IS_ENABLED ?? true,
+          AUTO_TRIGGER_ENABLED: row.AUTO_TRIGGER_ENABLED ?? true,
+          WELCOME_TEMPLATE_NAME: row.WELCOME_TEMPLATE_NAME || "",
+          WELCOME_TEMPLATE_LANG: row.WELCOME_TEMPLATE_LANG || "en_US",
+          WELCOME_TEMPLATE_PARAMS: row.WELCOME_TEMPLATE_PARAMS || "",
+          REENGAGE_TEMPLATE_NAME: row.REENGAGE_TEMPLATE_NAME || "",
+          REENGAGE_TEMPLATE_LANG: row.REENGAGE_TEMPLATE_LANG || "en_US",
+          AI_REPLY_ENABLED: row.AI_REPLY_ENABLED ?? true,
+          SUPPORTED_LANGUAGES: row.SUPPORTED_LANGUAGES || "en",
+        });
+      } else {
+        setWaSettingId(null);
+        setWaForm(WA_EMPTY_FORM);
+      }
+    } catch {
+      toast.showError("Failed to load WhatsApp automation settings");
+    } finally {
+      setWaLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (waFetchedRef.current) return;
+    waFetchedRef.current = true;
+    loadWaSetting();
+  }, [loadWaSetting]);
+
+  const handleWaFormChange = useCallback((field, val) => {
+    setWaForm((prev) => ({ ...prev, [field]: val }));
+    clearFieldError(setWaErrors, field);
+  }, []);
+
+  const handleWaSave = useCallback(async () => {
+    const { errors: formErrors } = validateForm(WHATSAPP_MODULE_SETTING_RULES, waForm);
+    if (Object.keys(formErrors).length > 0) {
+      setWaErrors(formErrors);
+      toast.showWarning("Please fix the highlighted fields");
+      return;
+    }
+
+    setWaSaving(true);
+    try {
+      const payload = {
+        IS_ENABLED: waForm.IS_ENABLED,
+        AUTO_TRIGGER_ENABLED: waForm.AUTO_TRIGGER_ENABLED,
+        WELCOME_TEMPLATE_NAME: waForm.WELCOME_TEMPLATE_NAME.trim() || null,
+        WELCOME_TEMPLATE_LANG: waForm.WELCOME_TEMPLATE_LANG.trim() || "en_US",
+        WELCOME_TEMPLATE_PARAMS: waForm.WELCOME_TEMPLATE_PARAMS.trim() || null,
+        REENGAGE_TEMPLATE_NAME: waForm.REENGAGE_TEMPLATE_NAME.trim() || null,
+        REENGAGE_TEMPLATE_LANG: waForm.REENGAGE_TEMPLATE_LANG.trim() || "en_US",
+        AI_REPLY_ENABLED: waForm.AI_REPLY_ENABLED,
+        SUPPORTED_LANGUAGES: waForm.SUPPORTED_LANGUAGES.trim() || "en",
+      };
+      if (waSettingId) {
+        await whatsappModuleSettingService.update(waSettingId, payload);
+      } else {
+        await whatsappModuleSettingService.create(payload);
+      }
+      toast.showSuccess("WhatsApp automation settings saved");
+      loadWaSetting();
+    } catch (e) {
+      toast.showError(e?.response?.data?.detail || "Save failed");
+    } finally {
+      setWaSaving(false);
+    }
+  }, [waForm, waSettingId, loadWaSetting, toast]);
 
   const handleRefresh = useCallback(() => load(true), [load]);
 
@@ -388,6 +485,121 @@ export default function LeadManagementConfig() {
           onPageChange={setPage}
           onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
         />
+      </div>
+
+      {/* WhatsApp Automation — Lead Management's own per-module settings.
+          The shared Meta connection itself is configured separately, on the
+          System > WhatsApp Configuration page. */}
+      <div className={styles.tableSection}>
+        <h3>WhatsApp Automation</h3>
+        <p className={styles.hint}>
+          Controls how the Lead AI Assistant uses WhatsApp — welcome message, re-engagement, and AI auto-reply.
+          The Meta account connection itself is managed under System → WhatsApp Configuration.
+        </p>
+        {waLoading ? (
+          <Loader />
+        ) : (
+          <div className={styles.formGrid}>
+            <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  className={styles.checkbox}
+                  checked={waForm.IS_ENABLED}
+                  onChange={(e) => handleWaFormChange("IS_ENABLED", e.target.checked)}
+                />
+                Enabled — Lead Management participates in WhatsApp at all
+              </label>
+            </div>
+            <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  className={styles.checkbox}
+                  checked={waForm.AUTO_TRIGGER_ENABLED}
+                  onChange={(e) => handleWaFormChange("AUTO_TRIGGER_ENABLED", e.target.checked)}
+                />
+                Send an automatic WhatsApp welcome message when a new Lead is created
+              </label>
+            </div>
+            <div className={styles.formGroup}>
+              <label>
+                Welcome Template Name {waForm.AUTO_TRIGGER_ENABLED && <span className={styles.req}>*</span>}
+              </label>
+              <input
+                className={`${styles.input}${waErrors.WELCOME_TEMPLATE_NAME ? " " + styles.inputError : ""}`}
+                value={waForm.WELCOME_TEMPLATE_NAME}
+                onChange={(e) => handleWaFormChange("WELCOME_TEMPLATE_NAME", e.target.value)}
+                placeholder="e.g. lead_welcome"
+              />
+              {waErrors.WELCOME_TEMPLATE_NAME && <span className={styles.fieldError}>{waErrors.WELCOME_TEMPLATE_NAME}</span>}
+              <span className={styles.hint}>Must be an approved template in Meta Business Manager</span>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Welcome Template Language</label>
+              <input
+                className={styles.input}
+                value={waForm.WELCOME_TEMPLATE_LANG}
+                onChange={(e) => handleWaFormChange("WELCOME_TEMPLATE_LANG", e.target.value)}
+                placeholder="en_US"
+              />
+            </div>
+            <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+              <label>Welcome Template Parameters</label>
+              <input
+                className={styles.input}
+                value={waForm.WELCOME_TEMPLATE_PARAMS}
+                onChange={(e) => handleWaFormChange("WELCOME_TEMPLATE_PARAMS", e.target.value)}
+                placeholder="e.g. CONTACT_NAME"
+              />
+              <span className={styles.hint}>Comma-separated Lead field names mapped to the template's {"{{1}}, {{2}}..."} placeholders</span>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Re-engagement Template Name</label>
+              <input
+                className={styles.input}
+                value={waForm.REENGAGE_TEMPLATE_NAME}
+                onChange={(e) => handleWaFormChange("REENGAGE_TEMPLATE_NAME", e.target.value)}
+              />
+              <span className={styles.hint}>Used when an AI reply is ready but the customer's 24-hour window has closed</span>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Re-engagement Template Language</label>
+              <input
+                className={styles.input}
+                value={waForm.REENGAGE_TEMPLATE_LANG}
+                onChange={(e) => handleWaFormChange("REENGAGE_TEMPLATE_LANG", e.target.value)}
+                placeholder="en_US"
+              />
+            </div>
+            <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  className={styles.checkbox}
+                  checked={waForm.AI_REPLY_ENABLED}
+                  onChange={(e) => handleWaFormChange("AI_REPLY_ENABLED", e.target.checked)}
+                />
+                AI Auto-Reply Enabled — let the Lead AI Assistant answer incoming WhatsApp messages
+              </label>
+            </div>
+            <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+              <label>Supported Languages</label>
+              <input
+                className={styles.input}
+                value={waForm.SUPPORTED_LANGUAGES}
+                onChange={(e) => handleWaFormChange("SUPPORTED_LANGUAGES", e.target.value)}
+                placeholder="en,ta"
+              />
+              <span className={styles.hint}>Comma-separated language codes offered on first contact — informational; the AI mirrors any language the customer actually uses</span>
+            </div>
+            <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+              <PMButton variant="primary" onClick={handleWaSave} disabled={waSaving}>
+                {waSaving ? "Saving…" : "Save WhatsApp Automation Settings"}
+              </PMButton>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add / Edit / View Modal */}

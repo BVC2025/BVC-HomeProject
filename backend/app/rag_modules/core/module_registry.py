@@ -45,3 +45,22 @@ def get_tools(module_code: str) -> List:
     except ModuleNotFoundError:
 
         return []
+
+
+def get_tool_resolver(module_code: str):
+    """The module's resolve(name, args, db, context) dispatch function, if
+    it has one — None if the module has no tools.py or no resolve()
+    defined (e.g. the internal "lead" module, whose tools.py is
+    intentionally still TOOLS = [] with no resolve())."""
+
+    try:
+
+        mod = importlib.import_module(
+            f"app.rag_modules.{module_code}_rag_module.tools"
+        )
+
+        return getattr(mod, "resolve", None)
+
+    except ModuleNotFoundError:
+
+        return None

@@ -3,7 +3,7 @@ channel (WhatsApp, email, voice) calls run_chat(). It is a plain generator
 with no HTTP/SSE assumptions baked in; the route layer wraps it in a
 StreamingResponse, a future webhook handler would just drain it directly."""
 
-from typing import Dict, Iterator, List, Optional
+from typing import Callable, Dict, Iterator, List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -47,6 +47,9 @@ def run_chat(
     user_id: Optional[str] = None,
     history: Optional[List[Dict]] = None,
     verbose: bool = False,
+    tools: Optional[List[Dict]] = None,
+    tool_resolver: Optional[Callable[[str, Dict], Dict]] = None,
+    system_prompt_override: Optional[str] = None,
 ) -> Iterator[dict]:
     """Yields SSE-frame-shaped dicts:
       {"type": "chunks", "chunks": [...]}   (verbose only)
@@ -101,7 +104,7 @@ def run_chat(
             ],
         }
 
-    system_prompt = get_system_prompt(module_code)
+    system_prompt = system_prompt_override or get_system_prompt(module_code)
 
     full_prompt = _build_context_prompt(system_prompt, chunks)
 
@@ -111,7 +114,10 @@ def run_chat(
 
     try:
 
-        for event in llm_client.stream_answer(full_prompt, user_message, history=history):
+        for event in llm_client.stream_answer(
+            full_prompt, user_message, history=history,
+            tools=tools, tool_resolver=tool_resolver,
+        ):
 
             if event["type"] == "text":
 
@@ -122,6 +128,10 @@ def run_chat(
             elif event["type"] == "meta":
 
                 meta = event
+
+            elif event["type"] == "tool":
+
+                yield event
 
     except Exception as e:
 
