@@ -105,10 +105,13 @@ const FONT_HEAD = "var(--font, 'Segoe UI', system-ui, -apple-system, sans-serif)
 // Reusable atoms
 // =====================================================================
 
-function Card({ children, style = {}, padding = 22 }) {
+function Card({ children, style = {}, padding }) {
 
   return (
-    <div className={styles.card} style={{ padding, ...style }}>
+    <div
+      className={styles.card}
+      style={{ ...(padding !== undefined ? { padding } : {}), ...style }}
+    >
       {children}
     </div>
   );
@@ -263,7 +266,7 @@ function Sparkline({ color, data }) {
 
   const series = data && data.length ? data : [4, 6, 5, 8, 7, 9, 6, 10, 8, 11];
 
-  const w = 90;
+  const w = 64;
 
   const h = 36;
 
@@ -372,59 +375,19 @@ function ExecKPI({ label, value, accent, iconName, trend, onClick }) {
   return (
     <div
       onClick={onClick}
-      style={{
-        background: T.card,
-        border: `1px solid ${T.border}`,
-        borderRadius: 14,
-        padding: "18px 20px",
-        cursor: onClick ? "pointer" : "default",
-        transition: "transform 0.15s, box-shadow 0.15s",
-        display: "flex",
-        alignItems: "center",
-        gap: 14
-      }}
-      onMouseEnter={(e) => {
-        if (!onClick) return;
-        e.currentTarget.style.boxShadow = "0 10px 26px rgba(11,36,71,0.10)";
-        e.currentTarget.style.transform = "translateY(-2px)";
-      }}
-      onMouseLeave={(e) => {
-        if (!onClick) return;
-        e.currentTarget.style.boxShadow = "none";
-        e.currentTarget.style.transform = "translateY(0)";
-      }}
+      className={`${styles.execKpiCard}${onClick ? ` ${styles.clickable}` : ""}`}
     >
       {/* Left — circular tinted icon */}
-      <div style={{
-        width: 44, height: 44, borderRadius: 22,
-        background: accent + "1a",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        flexShrink: 0
-      }}>
+      <div className={styles.execKpiIconWrap} style={{ background: accent + "1a" }}>
         <KpiIcon name={iconName} color={accent} />
       </div>
 
       {/* Middle — label + big value */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: 1.2,
-          color: T.muted,
-          textTransform: "uppercase",
-          fontFamily: FONT_BODY,
-          marginBottom: 4
-        }}>
+      <div className={styles.execKpiBody}>
+        <div className={styles.execKpiLabel}>
           {label}
         </div>
-        <div style={{
-          fontSize: 26,
-          fontWeight: 800,
-          color: T.text,
-          letterSpacing: -0.5,
-          fontFamily: FONT_HEAD,
-          lineHeight: 1
-        }}>
+        <div className={styles.execKpiValue}>
           {value}
         </div>
       </div>
@@ -828,7 +791,7 @@ function HealthGauge({ health }) {
       <div className={styles.healthGaugeWrap}>
 
         <div className={styles.healthGaugeSvgCol}>
-          <svg width="260" height="170" viewBox="0 0 260 170">
+          <svg width="100%" height="170" viewBox="0 0 260 170" style={{ maxWidth: 260 }}>
             <path d={bgArc} stroke={T.borderS} strokeWidth="20" fill="none" strokeLinecap="round" />
             <path d={filledArc} stroke={color} strokeWidth="20" fill="none" strokeLinecap="round" />
             <text x={cx} y={cy + 12} textAnchor="middle" fontSize="42" fontWeight="800"

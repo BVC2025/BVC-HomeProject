@@ -12,6 +12,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
+  padding: 24px;
 }
 
 /* ------------------------------------------------------------------
@@ -211,6 +212,9 @@
   overflow: hidden;
   transition: transform 0.15s, box-shadow 0.15s;
   cursor: default;
+  display: flex;
+  align-items: center;
+  gap: 14px;
 }
 
 .execKpiCard.clickable {
@@ -231,6 +235,21 @@
   border-radius: 0 3px 3px 0;
 }
 
+.execKpiIconWrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.execKpiBody {
+  flex: 1;
+  min-width: 0;
+}
+
 .execKpiLabel {
   font-size: 11px;
   font-weight: 600;
@@ -238,10 +257,11 @@
   color: var(--text-muted);
   text-transform: uppercase;
   margin-bottom: 12px;
+  line-height: 1.3;
 }
 
 .execKpiValue {
-  font-size: 32px;
+  font-size: 26px;
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.6px;
@@ -273,7 +293,7 @@
    Business Health Grid
    ------------------------------------------------------------------ */
 .businessHealthSection {
-  margin-bottom: 22px;
+  margin-bottom: var(--sp-6);
 }
 
 .businessHealthGrid {
@@ -1197,7 +1217,7 @@
 .twoColGrid {
   display: grid;
   gap: 14px;
-  margin-bottom: 22px;
+  margin-bottom: var(--sp-6);
 }
 
 .twoColGrid12 {
@@ -1209,145 +1229,308 @@
 }
 
 .singleColSection {
-  margin-bottom: 22px;
-
+  margin-bottom: var(--sp-6);
 }
 
 /* ==================================================================
-   MOBILE responsive additions (auto-generated safety block)
-   Targets common class names used across the ERP.
+   RESPONSIVE — tablet tier (matches Attendance/Employees breakpoint)
    ================================================================== */
 @media (max-width: 900px) {
 
-  .page,
-  .container,
-  .wrapper,
-  .shell {
-    padding: 14px;
+  .pageShell {
+    padding: 16px 18px 64px;
   }
 
-  .pageHead,
-  .header,
-  .toolbar,
-  .headerRow {
-    flex-wrap: wrap;
-    gap: 10px;
+  .card {
+    padding: 18px;
   }
 
-  .filterCard,
-  .filterRow,
-  .filters,
-  .filterBar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
+  /* Hero bar */
+  .heroBar {
+    padding: 20px 22px;
   }
 
-  .searchInput,
-  .filterSelect,
-  .searchWrap {
-    width: 100%;
+  .heroInner {
+    gap: 18px;
   }
 
-  .kpiRow,
-  .statRow,
-  .statsGrid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
+  .heroStats {
+    justify-content: flex-start;
+    gap: 20px;
   }
 
-  .cardGrid,
-  .cardsGrid,
-  .tileGrid {
+  /* Executive KPI row: 4 -> 2 columns */
+  .execKpiGrid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
 
-  .twoCol,
-  .splitPanel,
-  .detailGrid,
-  .formGrid {
+  .execKpiCard {
+    padding: 16px 18px;
+  }
+
+  .execKpiValue {
+    font-size: 22px;
+  }
+
+  /* Business health: 4 -> 2 columns */
+  .businessHealthGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  /* Health gauge + Factory floor: stack, shrink fixed gauge column */
+  .twoColGrid.twoColGrid12 {
     grid-template-columns: 1fr;
   }
 
-  .actionRow,
-  .btnRow,
-  .formActions {
-    flex-wrap: wrap;
-    gap: 8px;
+  .healthGaugeWrap {
+    grid-template-columns: 200px 1fr;
+    gap: 18px;
   }
 
-  .tableCard,
-  .tableWrap,
-  .tblWrap {
-    overflow-x: auto;
-  }
-
-  .modalPanel,
-  .modalContent {
-    max-width: calc(100vw - 24px);
-    max-height: calc(100vh - 40px);
-    overflow-y: auto;
-  }
-}
-
-@media (max-width: 640px) {
-
-  .page,
-  .container,
-  .wrapper,
-  .shell {
-    padding: 10px;
-  }
-
-  .kpiRow,
-  .statRow,
-  .statsGrid {
+  .factoryMachineGrid {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .cardGrid,
-  .cardsGrid,
-  .tileGrid {
+  /* Approval center + CRM funnel: stack, 5 -> 3 columns */
+  .twoColGrid.twoColGrid12x1 {
     grid-template-columns: 1fr;
   }
 
-  .kpiValue,
-  .statValue,
-  .tileValue {
-    font-size: 20px;
+  .approvalGrid {
+    grid-template-columns: repeat(3, 1fr);
   }
 
-  h1 {
-    font-size: 20px;
+  .funnelStageLabel {
+    width: 84px;
+    font-size: 10px;
   }
 
-  h2 {
-    font-size: 17px;
+  .funnelConvLabel {
+    width: 44px;
+    font-size: 10px;
   }
 
-  h3 {
-    font-size: 15px;
-  }
-
-  table th,
-  table td {
-    padding: 8px 10px;
-    font-size: 12.5px;
+  /* Inventory command: 5 -> 3 columns */
+  .inventoryMetaGrid {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
-@media (max-width: 480px) {
+/* ==================================================================
+   RESPONSIVE — phone tier
+   ================================================================== */
+@media (max-width: 640px) {
 
-  .modalPanel,
-  .modalContent {
-    max-width: 100vw;
-    border-radius: 0;
-    margin: 0;
-    max-height: 100vh;
+  .pageShell {
+    padding: 12px 12px 56px;
   }
 
-  .modalOverlay {
-    padding: 0;
+  .card {
+    padding: 14px;
   }
+
+  .sectionTitleWrap {
+    margin-bottom: 10px;
+  }
+
+  /* Hero bar */
+  .heroBar {
+    padding: 16px 16px;
+    border-radius: 12px;
+  }
+
+  .heroLogoWrap {
+    width: 42px;
+    height: 48px;
+  }
+
+  .heroWelcome {
+    font-size: 16px;
+  }
+
+  .heroDateLine {
+    font-size: 11px;
+  }
+
+  .heroCompanyTag {
+    font-size: 10px;
+    letter-spacing: 1.6px;
+  }
+
+  .heroInner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .heroLeft {
+    flex: none;
+    width: 100%;
+  }
+
+  .heroStats {
+    width: 100%;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .heroStatItem {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+
+  .heroStatItem+.heroStatItem {
+    padding-left: 10px;
+  }
+
+  .heroStatValue {
+    font-size: 16px;
+  }
+
+  .heroStatLabel {
+    font-size: 8px;
+    letter-spacing: 1px;
+  }
+
+  /* Executive KPI row: -> 1 column */
+  .execKpiGrid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .execKpiCard {
+    padding: 14px 16px;
+  }
+
+  .execKpiIconWrap {
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+  }
+
+  /* Business health: -> 1 column */
+  .businessHealthGrid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .healthQuadCard {
+    padding: 16px;
+  }
+
+  .healthQuadDataGrid {
+    gap: 10px;
+  }
+
+  /* Health gauge: drop fixed column, center */
+  .healthGaugeWrap {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .healthGaugeSvgCol {
+    align-items: center;
+  }
+
+  .factoryMachineGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  /* Approval center + CRM funnel: -> 2 columns */
+  .approvalGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .approvalItem {
+    padding: 10px;
+  }
+
+  .funnelStageLabel {
+    width: 64px;
+    font-size: 9.5px;
+  }
+
+  .funnelConvLabel {
+    width: 34px;
+    font-size: 9.5px;
+  }
+
+  .funnelBarTrack {
+    height: 22px;
+  }
+
+  /* Inventory command: -> 2 columns */
+  .inventoryMetaGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .inventoryMetaTile {
+    padding: 10px;
+  }
+
+  .inventoryMetaValue {
+    font-size: 18px;
+  }
+
+  .inventoryLowStockRow {
+    padding: 6px 10px;
+  }
+}
+
+/* ------------------------------------------------------------------
+   DARK MODE — explicit overrides (mirrors Attendance.module.css)
+   ------------------------------------------------------------------ */
+:global(html[data-theme="dark"]) .card,
+:global(html[data-theme="dark"]) .heroBar,
+:global(html[data-theme="dark"]) .execKpiCard,
+:global(html[data-theme="dark"]) .healthQuadCard,
+:global(html[data-theme="dark"]) .approvalItem,
+:global(html[data-theme="dark"]) .inventoryMetaTile,
+:global(html[data-theme="dark"]) .factoryMachineTile {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.20);
+}
+
+:global(html[data-theme="dark"]) .sectionTitle,
+:global(html[data-theme="dark"]) .heroWelcome,
+:global(html[data-theme="dark"]) .execKpiValue,
+:global(html[data-theme="dark"]) .healthQuadTitle,
+:global(html[data-theme="dark"]) .inventoryMetaValue,
+:global(html[data-theme="dark"]) .approvalItemLabel,
+:global(html[data-theme="dark"]) .factoryMachineTileValue,
+:global(html[data-theme="dark"]) .healthQuadMetricValue {
+  color: #f1f5f9;
+}
+
+:global(html[data-theme="dark"]) .sectionEyebrow,
+:global(html[data-theme="dark"]) .execKpiLabel,
+:global(html[data-theme="dark"]) .healthQuadMetricLabel,
+:global(html[data-theme="dark"]) .inventoryMetaLabel,
+:global(html[data-theme="dark"]) .funnelStageLabel,
+:global(html[data-theme="dark"]) .funnelConvLabel,
+:global(html[data-theme="dark"]) .heroDateLine,
+:global(html[data-theme="dark"]) .heroCompanyTag,
+:global(html[data-theme="dark"]) .factoryMachineTileLabel {
+  color: #94a3b8;
+}
+
+:global(html[data-theme="dark"]) .healthSubScoreBarTrack,
+:global(html[data-theme="dark"]) .factoryBarTrack,
+:global(html[data-theme="dark"]) .inventoryLowStockRow,
+:global(html[data-theme="dark"]) .lbStat {
+  background: #0f172a;
+}
+
+:global(html[data-theme="dark"]) .approvalBtn,
+:global(html[data-theme="dark"]) .fabActionBtn {
+  background: #0f172a;
+  color: #e2e8f0;
 }
