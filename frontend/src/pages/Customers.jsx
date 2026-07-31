@@ -53,6 +53,17 @@ const STATUS_THEMES = {
 };
 
 
+// Status filter chip row — mirrors the STATUS_THEMES colours so a chip's
+// accent matches the pill shown on cards of that status.
+const STATUS_FILTERS = [
+  { key: "", label: "All", countKey: "ALL", color: "#0f172a" },
+  { key: "ACTIVE", label: "Active", countKey: "ACTIVE", color: "#059669" },
+  { key: "PROSPECT", label: "Prospect", countKey: "PROSPECT", color: "#1d4ed8" },
+  { key: "LEAD", label: "Lead", countKey: "LEAD", color: "#f59e0b" },
+  { key: "INACTIVE", label: "Inactive", countKey: "INACTIVE", color: "#94a3b8" }
+];
+
+
 // Inline SVGs — keep them tiny so the cards stay light.
 const Icon = {
   search: (p) => (
@@ -150,6 +161,17 @@ const Icon = {
       <circle cx="12" cy="12" r="9" /><path d="M12 8v.01" /><path d="M11 12h1v4h1" />
     </svg>
   ),
+  kebab: (p) => (
+    <svg width={p?.size || 16} height={p?.size || 16} viewBox="0 0 24 24" fill="currentColor" {...p}>
+      <circle cx="12" cy="5" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="12" cy="19" r="1.8" />
+    </svg>
+  ),
+  chevronRight: (p) => (
+    <svg width={p?.size || 12} height={p?.size || 12} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <polyline points="9 6 15 12 9 18" />
+    </svg>
+  ),
 };
 
 
@@ -161,12 +183,13 @@ function StatTile({ label, value, sub, color, icon }) {
 
   return (
 
-    <div
-      className={styles.statTile}
-      style={{ borderTop: `3px solid ${color}` }}
-    >
+    <div className={styles.statTile}>
+
       {icon && (
-        <div className={styles.statTileIcon} style={{ color }}>
+        <div
+          className={styles.statTileIconWrap}
+          style={{ background: `${color}1a`, color }}
+        >
           {icon}
         </div>
       )}
@@ -246,6 +269,8 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
 
   const [deleting, setDeleting] = useState(false);
 
+  const [menuOpen, setMenuOpen] = useState(false);
+
   const handleDelete = async (e) => {
 
     e.stopPropagation();
@@ -297,36 +322,71 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
         style={{ background: theme.color }}
       />
 
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onGenerateQuote?.(customer);
-        }}
-        title="Auto-generate quotation from this customer's requirements"
-        className={styles.cardBtnQuote}
-      >
-        <Icon.doc size={14} />
-      </button>
+      <div className={styles.cardMenuWrap}>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setMenuOpen((v) => !v);
+          }}
+          title="Actions"
+          className={styles.cardMenuBtn}
+        >
+          <Icon.kebab size={16} />
+        </button>
 
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onEdit?.(customer);
-        }}
-        title="Edit customer"
-        className={styles.cardBtnEdit}
-      >
-        <Icon.pencil size={14} />
-      </button>
+        {menuOpen && (
+          <>
+            <div
+              className={styles.cardMenuBackdrop}
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen(false);
+              }}
+            />
 
-      <button
-        onClick={handleDelete}
-        disabled={deleting}
-        title="Delete customer"
-        className={styles.cardBtnDelete}
-      >
-        <Icon.trash size={14} />
-      </button>
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className={styles.cardMenuDropdown}
+            >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onGenerateQuote?.(customer);
+                }}
+                className={styles.cardMenuItem}
+              >
+                <Icon.doc size={14} />
+                Generate quote
+              </button>
+
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onEdit?.(customer);
+                }}
+                className={styles.cardMenuItem}
+              >
+                <Icon.pencil size={14} />
+                Edit
+              </button>
+
+              <button
+                onClick={(e) => {
+                  setMenuOpen(false);
+                  handleDelete(e);
+                }}
+                disabled={deleting}
+                className={`${styles.cardMenuItem} ${styles.cardMenuItemDanger}`}
+              >
+                <Icon.trash size={14} />
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
 
       <div className={styles.cardHeader}>
 
@@ -376,11 +436,11 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
         </div>
       )}
 
-      <div className={styles.contactBlock}>
+      <div className={styles.contactList}>
         {customer.CONTACT_PERSON && (
-          <div className={styles.contactName}>
+          <div className={styles.contactListRow}>
             <Icon.user />
-            <span>
+            <span className={styles.contactName}>
               {customer.CONTACT_PERSON}
               {customer.DESIGNATION && (
                 <span className={styles.contactDesignation}>
@@ -390,16 +450,16 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
             </span>
           </div>
         )}
-        <div className={styles.contactRow}>
+        <div className={styles.contactListRow}>
           <Icon.phone />
           <span>{customer.PHONE || "—"}</span>
         </div>
-        <div className={styles.contactRowTruncate}>
+        <div className={`${styles.contactListRow} ${styles.contactListRowTruncate}`}>
           <Icon.mail />
           <span>{customer.EMAIL || "—"}</span>
         </div>
         {(customer.CITY || customer.STATE) && (
-          <div className={styles.contactLocation}>
+          <div className={styles.contactListRow}>
             <Icon.pin />
             <span>{[customer.CITY, customer.STATE].filter(Boolean).join(", ")}</span>
           </div>
@@ -425,7 +485,8 @@ function CustomerCard({ customer, onOpen, onDelete, onEdit, onGenerateQuote }) {
       </div>
 
       <div className={styles.cardFooter}>
-        View profile &rarr;
+        View profile
+        <Icon.chevronRight size={12} />
       </div>
     </div>
   );
@@ -2120,6 +2181,21 @@ function Customers() {
 
   }, [customers]);
 
+  const statusCounts = useMemo(() => {
+
+    const counts = { ALL: customers.length, ACTIVE: 0, PROSPECT: 0, LEAD: 0, INACTIVE: 0 };
+
+    customers.forEach((c) => {
+
+      const s = c.STATUS || "ACTIVE";
+
+      if (counts[s] !== undefined) counts[s] += 1;
+    });
+
+    return counts;
+
+  }, [customers]);
+
   return (
 
     <div className={styles.pageWrapper}>
@@ -2215,17 +2291,29 @@ function Customers() {
           ))}
         </select>
 
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className={styles.filterSelect}
-        >
-          <option value="">All statuses</option>
-          <option value="ACTIVE">Active</option>
-          <option value="PROSPECT">Prospect</option>
-          <option value="LEAD">Lead</option>
-          <option value="INACTIVE">Inactive</option>
-        </select>
+        <div className={styles.chipRow}>
+          {STATUS_FILTERS.map((f) => {
+
+            const active = statusFilter === f.key;
+
+            return (
+              <button
+                key={f.key || "all"}
+                type="button"
+                onClick={() => setStatusFilter(f.key)}
+                className={`${styles.chip}${active ? ` ${styles.chipActive}` : ""}`}
+              >
+                <span>{f.label}</span>
+                <span
+                  className={`${styles.chipBadge}${active ? ` ${styles.chipBadgeActive}` : ""}`}
+                  style={!active ? { background: `${f.color}20`, color: f.color } : undefined}
+                >
+                  {statusCounts[f.countKey]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
         <div className={styles.filterCount}>
           {filtered.length} of {customers.length}
@@ -2241,9 +2329,34 @@ function Customers() {
 
       {!loading && filtered.length === 0 && (
         <div className={styles.emptyState}>
-          {customers.length === 0
-            ? "No customers yet. Click + Add Customer to create the first one."
-            : "No customers match these filters."}
+          <div className={styles.emptyStateIcon}>
+            {customers.length === 0
+              ? <Icon.users size={40} />
+              : <Icon.search size={36} />}
+          </div>
+
+          <div className={styles.emptyStateTitle}>
+            {customers.length === 0
+              ? "No customers yet"
+              : "No matches for these filters"}
+          </div>
+
+          <div className={styles.emptyStateSub}>
+            {customers.length === 0
+              ? "Add your first customer to start building the pipeline."
+              : "Try a different search term, or clear the status/industry filters."}
+          </div>
+
+          {customers.length === 0 && (
+            <button
+              type="button"
+              onClick={() => setEditing({})}
+              className={styles.emptyStateBtn}
+            >
+              <Icon.plus size={13} />
+              Add Customer
+            </button>
+          )}
         </div>
       )}
 
