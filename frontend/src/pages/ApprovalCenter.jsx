@@ -144,8 +144,8 @@ const BUCKET_META = {
     label: "Permission Requests",
     kind: "permission",
     icon: "permission",
-    color: "#F97316",
-    accent: "#FED7AA",
+    color: "#DC2626",
+    accent: "#FECACA",
   },
   quotations: {
     label: "Quotations",
