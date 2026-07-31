@@ -37,15 +37,15 @@
 .hero {
   background: var(--clr-primary);
   color: #fff;
-  padding: 20px 28px;
+  padding: var(--sp-5) var(--sp-6);
   border-radius: var(--radius-lg);
-  margin-bottom: 22px;
+  margin-bottom: var(--sp-6);
   box-shadow: var(--shadow-md);
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: var(--sp-4);
 }
 
 .heroLabel {
@@ -125,18 +125,20 @@
 .statTile {
   background: var(--card-bg);
   padding: 18px 20px;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
   position: relative;
   overflow: hidden;
 }
 
-.statTileIcon {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  opacity: 0.6;
+.statTileIconWrap {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-lg);
   display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
 }
 
 .statTileLabel {
@@ -215,6 +217,53 @@
   margin-left: 6px;
 }
 
+/* Status filter chips (replaces the old status <select>) */
+.chipRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chipActive {
+  background: var(--clr-primary);
+  color: #fff;
+  border-color: var(--clr-primary);
+  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.28);
+}
+
+.chipBadge {
+  margin-left: 2px;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: var(--fw-extrabold);
+  min-width: 20px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.06);
+  color: inherit;
+}
+
+.chipBadgeActive {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
 /* ------------------------------------------------------------------ */
 /* Cards grid + empty states                                            */
 /* ------------------------------------------------------------------ */
@@ -232,12 +281,53 @@
 }
 
 .emptyState {
-  padding: 50px;
+  padding: 50px 24px;
   text-align: center;
-  color: var(--text-muted);
   background: var(--card-bg);
   border-radius: var(--radius-lg);
   border: 1px dashed var(--border);
+}
+
+.emptyStateIcon {
+  display: flex;
+  justify-content: center;
+  color: var(--text-muted);
+  opacity: 0.6;
+  margin-bottom: 14px;
+}
+
+.emptyStateTitle {
+  font-size: var(--font-lg);
+  font-weight: var(--fw-black);
+  color: var(--text-primary);
+}
+
+.emptyStateSub {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: 6px;
+}
+
+.emptyStateBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 18px;
+  padding: 10px 20px;
+  background: var(--clr-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.25);
+  transition: box-shadow 0.15s;
+}
+
+.emptyStateBtn:hover {
+  box-shadow: 0 8px 22px rgba(220, 38, 38, 0.32);
 }
 
 /* ------------------------------------------------------------------ */
@@ -270,34 +360,15 @@
   height: 4px;
 }
 
-/* Card action buttons */
-.cardBtnQuote {
+/* Card actions — single kebab trigger + dropdown (replaces 3 floating buttons) */
+.cardMenuWrap {
   position: absolute;
   top: 10px;
-  right: 78px;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius);
-  border: 1px solid #fecaca;
-  background: #fef2f2;
-  color: #dc2626;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
+  right: 10px;
   z-index: 5;
-  transition: background 0.15s;
 }
 
-.cardBtnQuote:hover {
-  background: #fee2e2;
-}
-
-.cardBtnEdit {
-  position: absolute;
-  top: 10px;
-  right: 44px;
+.cardMenuBtn {
   width: 28px;
   height: 28px;
   border-radius: var(--radius);
@@ -309,41 +380,70 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  z-index: 5;
   transition: background 0.15s;
 }
 
-.cardBtnEdit:hover {
+.cardMenuBtn:hover {
   background: var(--border);
 }
 
-.cardBtnDelete {
+.cardMenuBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  cursor: default;
+}
+
+.cardMenuDropdown {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius);
-  border: 1px solid #fecaca;
-  background: #fef2f2;
-  color: #b91c1c;
-  cursor: pointer;
+  top: 34px;
+  right: 0;
+  z-index: 11;
+  min-width: 170px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, var(--radius));
+  box-shadow: var(--shadow-lg, 0 12px 30px rgba(15, 23, 42, 0.18));
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: custFadeIn 0.15s ease-out both;
+}
+
+.cardMenuItem {
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0;
-  z-index: 5;
-  transition: background 0.15s;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  font-family: var(--font);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 0.12s;
 }
 
-.cardBtnDelete:hover {
-  background: #fee2e2;
-}
-
-.cardBtnDelete:disabled {
+.cardMenuItem:hover:not(:disabled) {
   background: var(--surface);
+}
+
+.cardMenuItem:disabled {
   color: var(--text-muted);
   cursor: default;
+}
+
+.cardMenuItemDanger {
+  color: #b91c1c;
+}
+
+.cardMenuItemDanger:hover:not(:disabled) {
+  background: #fef2f2;
 }
 
 /* Avatar header row */
@@ -429,52 +529,46 @@
   border: 1px solid #fde68a;
 }
 
-/* Contact info block */
-.contactBlock {
-  background: var(--surface);
-  border-radius: 10px;
-  padding: 10px 12px;
-  margin-bottom: 10px;
+/* Contact info — plain list, no shaded box */
+.contactList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 0 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border-light, var(--border));
   font-size: 12px;
   color: var(--text-secondary);
-  line-height: 1.6;
+}
+
+.contactListRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.contactListRow svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.contactListRowTruncate span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .contactName {
   color: var(--text-primary);
   font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
-.contactRow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.contactRowTruncate {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.contactRowTruncate span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.contactLocation {
-  font-size: var(--font-xs);
+.contactDesignation {
   color: var(--text-muted);
-  margin-top: 2px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  font-weight: var(--fw-normal, 400);
 }
 
 /* Tag chips row */
@@ -514,22 +608,23 @@
   font-family: ui-monospace, monospace;
 }
 
-/* View profile footer */
+/* View profile footer — light text+chevron affordance, not a shaded bar */
 .cardFooter {
-  padding: 8px 12px;
-  background: var(--surface);
-  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding-top: 4px;
   font-size: var(--font-xs);
-  color: var(--text-secondary);
+  color: var(--text-muted);
   font-weight: var(--fw-bold);
-  text-align: center;
   letter-spacing: 0.4px;
-  border: 1px solid var(--border);
-  transition: background 0.15s;
+  transition: color 0.15s, gap 0.15s;
 }
 
 .card:hover .cardFooter {
-  background: var(--border);
+  color: var(--clr-primary);
+  gap: 7px;
 }
 
 /* ------------------------------------------------------------------ */
@@ -1897,126 +1992,88 @@
 
 
 /* ==================================================================
-   MOBILE responsive additions (auto-generated safety block)
-   Targets common class names used across the ERP.
+   MOBILE responsive — tailored to this page's actual layout
    ================================================================== */
 @media (max-width: 900px) {
 
-  .page,
-  .container,
-  .wrapper,
-  .shell {
-    padding: 14px;
+  .pageWrapper {
+    padding: 16px;
   }
 
-  .pageHead,
-  .header,
-  .toolbar,
-  .headerRow {
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .filterCard,
-  .filterRow,
-  .filters,
-  .filterBar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-  }
-
-  .searchInput,
-  .filterSelect,
-  .searchWrap {
-    width: 100%;
-  }
-
-  .kpiRow,
-  .statRow,
   .statsGrid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-  }
-
-  .cardGrid,
-  .cardsGrid,
-  .tileGrid {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
 
-  .twoCol,
-  .splitPanel,
-  .detailGrid,
-  .formGrid {
-    grid-template-columns: 1fr;
+  .filterBar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
   }
 
-  .actionRow,
-  .btnRow,
-  .formActions {
-    flex-wrap: wrap;
-    gap: 8px;
+  .searchWrap {
+    min-width: 0;
+    width: 100%;
   }
 
-  .tableCard,
-  .tableWrap,
-  .tblWrap {
-    overflow-x: auto;
+  .chipRow {
+    width: 100%;
   }
 
-  .modalPanel,
-  .modalContent {
-    max-width: calc(100vw - 24px);
-    max-height: calc(100vh - 40px);
-    overflow-y: auto;
+  .filterSelect {
+    width: 100%;
+  }
+
+  .filterCount {
+    margin-left: 0;
+  }
+
+  .card {
+    padding: 16px;
   }
 }
 
 @media (max-width: 640px) {
 
-  .page,
-  .container,
-  .wrapper,
-  .shell {
-    padding: 10px;
+  .pageWrapper {
+    padding: 12px;
   }
 
-  .kpiRow,
-  .statRow,
-  .statsGrid {
-    grid-template-columns: repeat(2, 1fr);
+  .hero {
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--sp-4) var(--sp-5);
   }
 
-  .cardGrid,
-  .cardsGrid,
-  .tileGrid {
-    grid-template-columns: 1fr;
+  .heroTitle {
+    font-size: 19px;
   }
 
-  .kpiValue,
-  .statValue,
-  .tileValue {
-    font-size: 20px;
+  .heroActions {
+    flex-direction: column;
   }
 
-  h1 {
-    font-size: 20px;
+  .heroBtnOutline,
+  .heroBtnSolid {
+    width: 100%;
+    text-align: center;
   }
 
-  h2 {
-    font-size: 17px;
+  .statTile {
+    padding: 14px 16px;
   }
 
-  h3 {
-    font-size: 15px;
+  .statTileValue {
+    font-size: 22px;
   }
 
-  table th,
-  table td {
-    padding: 8px 10px;
-    font-size: 12.5px;
+  .cardsGrid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+  }
+
+  .card {
+    padding: 14px;
   }
 }
 
@@ -2033,4 +2090,53 @@
   .modalOverlay {
     padding: 0;
   }
+}
+
+/* ==================================================================
+   Dark mode — mirrors the pattern in Attendance.module.css
+   ================================================================== */
+:global(html[data-theme="dark"]) .statTile,
+:global(html[data-theme="dark"]) .filterBar,
+:global(html[data-theme="dark"]) .card,
+:global(html[data-theme="dark"]) .emptyState {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+}
+
+:global(html[data-theme="dark"]) .statTileLabel,
+:global(html[data-theme="dark"]) .filterCount,
+:global(html[data-theme="dark"]) .cardCode,
+:global(html[data-theme="dark"]) .contactList,
+:global(html[data-theme="dark"]) .emptyStateSub {
+  color: #94a3b8;
+}
+
+:global(html[data-theme="dark"]) .statTileValue,
+:global(html[data-theme="dark"]) .cardName,
+:global(html[data-theme="dark"]) .contactName,
+:global(html[data-theme="dark"]) .emptyStateTitle,
+:global(html[data-theme="dark"]) .cardMenuItem {
+  color: #f1f5f9;
+}
+
+:global(html[data-theme="dark"]) .searchInput,
+:global(html[data-theme="dark"]) .filterSelect,
+:global(html[data-theme="dark"]) .chip {
+  background: #0f172a;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #f1f5f9;
+}
+
+:global(html[data-theme="dark"]) .contactList {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+:global(html[data-theme="dark"]) .cardMenuDropdown {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+:global(html[data-theme="dark"]) .cardMenuItem:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
 }
