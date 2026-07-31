@@ -120,6 +120,9 @@
   border-radius: var(--radius-md);
   font-size: var(--font-sm);
   margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* ─── Toast ─────────────────────────────────────────────────── */
@@ -157,7 +160,8 @@
 }
 
 .allClearIcon {
-  font-size: 56px;
+  display: flex;
+  justify-content: center;
 }
 
 .allClearTitle {
@@ -294,12 +298,22 @@
   gap: var(--sp-2);
 }
 
+.rowMetaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .rowActions {
   display: flex;
   gap: var(--sp-2);
 }
 
 .rejectBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: var(--sp-2) 14px;
   background: var(--card-bg);
   color: var(--danger);
@@ -322,6 +336,10 @@
 }
 
 .approveBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: var(--sp-2) 16px;
   background: var(--success);
   color: var(--text-inverse);
