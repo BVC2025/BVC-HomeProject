@@ -17,6 +17,21 @@ const TTS_MODES = [
   { code: "ta", label: "Tamil" },
 ];
 
+const URL_PATTERN = /(https?:\/\/[^\s]+)/g;
+
+// Chat bubbles render plain text (no HTML), so a URL the assistant shares
+// (e.g. a quotation PDF link) is otherwise inert — split it out into a real
+// clickable link without pulling in a markdown renderer for one case.
+function renderWithLinks(text) {
+  // split() with a capturing group returns [text, url, text, url, ...] —
+  // odd indices are always the captured URLs, no separate regex test needed.
+  return text.split(URL_PATTERN).map((part, i) =>
+    i % 2 === 1
+      ? <a key={i} href={part} target="_blank" rel="noopener noreferrer">{part}</a>
+      : part
+  );
+}
+
 export default function AIPlaygroundPage() {
   const [modules, setModules] = useState([]);
   const [moduleCode, setModuleCode] = useState("");
@@ -168,9 +183,13 @@ export default function AIPlaygroundPage() {
               const isLastBot = m.from === "bot" && i === messages.length - 1;
               return (
                 <div key={i} className={m.from === "user" ? styles.userBubble : (m.error ? styles.errorBubble : styles.botBubble)}>
-                  {m.error ? `⚠️ ${m.error}` : m.text}
+                  {m.error
+                    ? `⚠️ ${m.error}`
+                    : m.text
+                      ? renderWithLinks(m.text)
+                      : (m.streaming ? "" : "No response received.")}
                   {m.streaming && <span className={styles.cursor} />}
-                  {isLastBot && !m.streaming && !m.error && speech.ttsSupported && (
+                  {isLastBot && !m.streaming && !m.error && m.text && m.text.trim() && speech.ttsSupported && (
                     <div className={styles.messageVoiceRow}>
                       {speech.isSpeaking ? (
                         <PMButton size="sm" variant="ghost" onClick={speech.stopSpeaking}>⏸ Stop</PMButton>
