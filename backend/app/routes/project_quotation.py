@@ -4,7 +4,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, File
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -114,7 +114,10 @@ def update_project_quotation(project_id: str, data: ProjectQuotationUpdate, db: 
 
 
 @router.get("/projects/{project_id}/quotation/pdf")
-def download_project_quotation_pdf(project_id: str, db: Session = Depends(get_db)):
+def download_project_quotation_pdf(
+    project_id: str, db: Session = Depends(get_db),
+    filename: Optional[str] = Query(None, description="Override the downloaded file's name (e.g. a customer-friendly name); defaults to the quotation number"),
+):
     row = _get_or_create_quotation(db, project_id)
     project = _get_project_or_404(db, project_id)
     company = get_company_settings(db, project.VENDOR_ID)
@@ -124,7 +127,7 @@ def download_project_quotation_pdf(project_id: str, db: Session = Depends(get_db
     if pdf_bytes is None:
         raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {error}")
 
-    filename = f"{row.QUOTATION_NUMBER.replace('/', '-')}.pdf"
+    filename = f"{filename.strip()}.pdf" if filename and filename.strip() else f"{row.QUOTATION_NUMBER.replace('/', '-')}.pdf"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",

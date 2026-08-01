@@ -3,6 +3,7 @@ channel (WhatsApp, email, voice) calls run_chat(). It is a plain generator
 with no HTTP/SSE assumptions baked in; the route layer wraps it in a
 StreamingResponse, a future webhook handler would just drain it directly."""
 
+import logging
 from typing import Callable, Dict, Iterator, List, Optional
 
 from sqlalchemy.orm import Session
@@ -12,7 +13,21 @@ from app.rag_modules.core.retrieval_service import retrieve
 from app.rag_modules.core.module_registry import get_system_prompt
 from app.rag_modules.core import llm_client
 
+log = logging.getLogger(__name__)
+
 TOP_K = 5
+
+
+def _friendly_error(raw: str) -> str:
+    """Maps a raw internal exception string to a short, user-facing message
+    — callers never see model names, HTTP status codes, or SDK exception
+    text; the raw detail is logged server-side instead (see call sites)."""
+    low = raw.lower()
+    if "quota" in low or "429" in raw or "resourceexhausted" in low:
+        return "Our AI assistant is temporarily busy — please try again in a moment."
+    if "every gemini model failed" in low or "notfound" in low or "404" in raw:
+        return "Our AI assistant is temporarily unavailable — please try again shortly."
+    return "Something went wrong generating a reply — please try again."
 
 
 def _build_context_prompt(system_prompt: str, chunks) -> str:
@@ -34,7 +49,10 @@ def _build_context_prompt(system_prompt: str, chunks) -> str:
     return (
         f"{system_prompt}\n\n"
         "Use the following retrieved context to answer the user's question. "
-        "Cite which source document(s) you used when relevant.\n\n"
+        "Cite which source document(s) you used when relevant. This background "
+        "is general context only — for any specific project name, price, spec, "
+        "or quotation, your tools are always the source of truth, even if this "
+        "background also happens to mention pricing or policies.\n\n"
         f"--- CONTEXT ---\n{context_block}\n--- END CONTEXT ---"
     )
 
@@ -83,7 +101,9 @@ def run_chat(
 
     except Exception as e:
 
-        yield {"type": "error", "message": f"Retrieval failed: {e}"}
+        log.error("Retrieval failed for module %s: %s", module_code, e, exc_info=True)
+
+        yield {"type": "error", "message": _friendly_error(str(e))}
 
         yield {"type": "done"}
 
@@ -135,7 +155,9 @@ def run_chat(
 
     except Exception as e:
 
-        yield {"type": "error", "message": str(e)}
+        log.error("LLM call failed for module %s: %s", module_code, e, exc_info=True)
+
+        yield {"type": "error", "message": _friendly_error(str(e))}
 
         yield {"type": "done"}
 

@@ -9,18 +9,28 @@ constants+loop shape avoids a cross-cutting dependency between two
 otherwise-unrelated systems. Reuses the same GEMINI_API_KEY/GEMINI_MODEL
 env vars already configured for the rest of the app."""
 
+import logging
 import os
 import sys
 import time
 from typing import Callable, Dict, Iterator, List, Optional
 
+log = logging.getLogger(__name__)
+
 GEMINI_API_KEY = (os.getenv("GEMINI_API_KEY") or "").strip()
 
 GEMINI_MODEL_FALLBACKS = [
     "gemini-2.5-flash",
-    "gemini-2.5-flash-lite",
     "gemini-2.0-flash",
     "gemini-flash-latest",
+    # "-lite" models measurably struggle with this assistant's core job —
+    # calling a pricing/lookup tool instead of asking another clarifying
+    # question, even when the prompt explicitly says not to (confirmed via
+    # AIChatHistory.MODEL_NAME on real failing turns: every one was served
+    # by a "-lite" model, never a full one). Kept last, not removed, so a
+    # customer still gets an answer on a day every full model is exhausted
+    # rather than no answer at all.
+    "gemini-2.5-flash-lite",
 ]
 
 _user_model = (os.getenv("GEMINI_MODEL", "") or "").strip()
@@ -32,6 +42,91 @@ if _user_model:
     )
 
 DEFAULT_MODEL = GEMINI_MODEL_FALLBACKS[0]
+
+# Self-healing safety net: if every hardcoded model above fails (e.g. Google
+# deprecates/renames one), ask the live API what this key can actually use
+# right now instead of just giving up. Cached for a while so this never adds
+# latency to the common case — it only runs once every static model has
+# already failed.
+_DISCOVERY_CACHE_TTL = 3600  # seconds
+_discovery_cache = {"models": None, "fetched_at": 0.0}
+
+
+def _discover_available_models():
+
+    now = time.monotonic()
+
+    if _discovery_cache["models"] is not None and (now - _discovery_cache["fetched_at"]) < _DISCOVERY_CACHE_TTL:
+
+        return _discovery_cache["models"]
+
+    try:
+
+        import google.generativeai as genai
+
+        genai.configure(api_key=GEMINI_API_KEY)
+
+        # Names to reject outright even though they'd otherwise pass the
+        # flash/pro substring test below — these support generateContent but
+        # are specialized non-text-chat variants (TTS, image generation,
+        # computer-use/robotics agents, tool-calling experiments) wrong for
+        # this assistant.
+        _EXCLUDED_SUBSTRINGS = ("-tts", "-image", "-computer-use", "-robotics-er", "-customtools")
+
+        discovered = []
+
+        for m in genai.list_models():
+
+            methods = getattr(m, "supported_generation_methods", None) or []
+
+            if "generateContent" not in methods:
+
+                continue
+
+            name = m.name.split("/")[-1]
+
+            if not name.startswith("gemini-"):
+
+                continue  # excludes gemma/lyria/nano-banana/deep-research/antigravity, etc.
+
+            if any(bad in name for bad in _EXCLUDED_SUBSTRINGS):
+
+                continue
+
+            if "flash" in name or "pro" in name:
+
+                discovered.append(name)
+
+        # Prefer stable, full-capability models over reduced/experimental
+        # ones — under quota pressure some flagship models may be
+        # unavailable, but whatever IS available should be tried in order of
+        # capability, not raw catalog order.
+        discovered.sort(key=lambda n: ("-preview" in n, "-lite" in n))
+
+        _discovery_cache["models"] = discovered
+
+        _discovery_cache["fetched_at"] = now
+
+        return discovered
+
+    except Exception:
+
+        return []
+
+
+def _try_model(genai, name, model_kwargs, gemini_history, user_message):
+    """One attempt against one model name. Returns (chat, response) on
+    success; raises on failure (caller decides how to record/continue)."""
+
+    model_kwargs = dict(model_kwargs, model_name=name)
+
+    model = genai.GenerativeModel(**model_kwargs)
+
+    chat = model.start_chat(history=gemini_history)
+
+    response = chat.send_message(user_message)
+
+    return chat, response
 
 
 def is_configured() -> bool:
@@ -45,7 +140,7 @@ def stream_answer(
     history: Optional[List[Dict]] = None,
     tools: Optional[List[Dict]] = None,
     tool_resolver: Optional[Callable[[str, Dict], Dict]] = None,
-    max_tool_rounds: int = 2,
+    max_tool_rounds: int = 4,
 ) -> Iterator[Dict]:
     """Yields {"type": "text", "text": ...} chunks as they stream, then a
     final {"type": "meta", "model_name":, "prompt_tokens":,
@@ -62,7 +157,15 @@ def stream_answer(
     raises is caught here and turned into {"error": str(exc)} so a broken
     tool degrades the answer rather than crashing the turn. Also yields
     {"type": "tool", "name":, "args":} frames for observability, matching
-    gemini_service.py's existing shape."""
+    gemini_service.py's existing shape.
+
+    max_tool_rounds counts sequential dispatch BATCHES, not individual tool
+    calls (Gemini can request several tools in one batch) — default 4 gives
+    headroom for one lookup-recovery round (e.g. a name that needs a
+    did_you_mean retry) plus the two-step resolve-then-act business chain
+    plus one round of the model's own multi-tool chaining habits, while
+    costing nothing extra in the common single-tool-call turn (the loop
+    still breaks the instant a response has no pending function calls)."""
 
     if not is_configured():
 
@@ -114,17 +217,15 @@ def stream_answer(
 
     used_model = None
 
+    tried = set()
+
     for name in GEMINI_MODEL_FALLBACKS:
+
+        tried.add(name)
 
         try:
 
-            model_kwargs["model_name"] = name
-
-            model = genai.GenerativeModel(**model_kwargs)
-
-            chat = model.start_chat(history=gemini_history)
-
-            response = chat.send_message(user_message)
+            chat, response = _try_model(genai, name, model_kwargs, gemini_history, user_message)
 
             used_model = name
 
@@ -138,9 +239,39 @@ def stream_answer(
 
     if response is None:
 
+        # Every hardcoded model failed — ask the live API what this key can
+        # actually use right now rather than giving up (see
+        # _discover_available_models's docstring above).
+        for name in _discover_available_models():
+
+            if name in tried:
+
+                continue
+
+            tried.add(name)
+
+            try:
+
+                chat, response = _try_model(genai, name, model_kwargs, gemini_history, user_message)
+
+                used_model = name
+
+                break
+
+            except Exception as e:
+
+                attempt_errors.append(f"{name}: {type(e).__name__}: {e}")
+
+                continue
+
+    if response is None:
+
         detail = "\n  ".join(attempt_errors) or "no models tried"
 
-        raise RuntimeError(f"Every Gemini model failed.\n  {detail}")
+        raise RuntimeError(
+            f"Every Gemini model failed.\n  {detail}\n\n"
+            "Update GEMINI_MODEL in backend/.env, or check GEMINI_API_KEY / quota."
+        )
 
     if tools and tool_resolver:
 
@@ -192,6 +323,17 @@ def stream_answer(
 
             response = chat.send_message(genai.protos.Content(parts=tool_response_parts))
 
+        else:
+
+            # Loop exhausted every round with a function call still pending —
+            # response.text below will likely be empty. Log it so this
+            # failure mode is never silently invisible behind the generic
+            # apology again.
+            log.warning(
+                "Gemini tool-calling loop exhausted %s round(s) with a function "
+                "call still pending for model %s", max_tool_rounds, used_model
+            )
+
     final_text = ""
 
     try:
@@ -201,6 +343,16 @@ def stream_answer(
     except Exception:
 
         final_text = ""
+
+    if not final_text:
+
+        # Gemini can complete "successfully" with no usable text (e.g. an
+        # aborted/malformed function-call attempt) — never let that reach
+        # the caller as a silent empty reply.
+        final_text = (
+            "I'm sorry, I couldn't come up with an answer for that just now — "
+            "could you try rephrasing, or ask something else?"
+        )
 
     for i in range(0, len(final_text), 4):
 
