@@ -22,7 +22,7 @@ from app.models.rag_models import AIChatHistory, AIModule
 from app.models.whatsapp_models import VendorWhatsAppConfig, WhatsAppConversation, WhatsAppMessage, WhatsAppWebhookEvent
 from app.services import whatsapp_config_service, whatsapp_outbox_service, whatsapp_lead_matcher
 from app.utils.datetime_utils import now_ist
-from app.utils.whatsapp_language_utils import resolve_language_from_button_title, language_display_name
+from app.utils.whatsapp_language_utils import resolve_language_from_button_title
 
 log = logging.getLogger(__name__)
 
@@ -388,24 +388,24 @@ def run_ai_turn(db: Session, conv: WhatsAppConversation, turn_text: str,
     # but later types in Tamil is still followed naturally; this just gives
     # the model a confirmed starting point instead of guessing from scratch
     # every turn (and losing the signal entirely once history truncates).
-    system_prompt_override = None
-    if conv.PREFERRED_LANGUAGE:
-        label = language_display_name(conv.PREFERRED_LANGUAGE)
-        system_prompt_override = get_system_prompt(module_code) + (
-            f"\n\nThe customer has confirmed their preferred language is {label} "
-            f"(selected via the welcome message's language button). Reply in {label} "
-            f"by default — but if the customer clearly writes in a different language, "
-            f"follow their lead and reply in that language instead, exactly as you "
-            f"already do today."
-        )
+    system_prompt_override = get_system_prompt(module_code, conv.PREFERRED_LANGUAGE) if conv.PREFERRED_LANGUAGE else None
 
     tools = get_tools(module_code)
     resolver_fn = get_tool_resolver(module_code)
-    # Generic key name — this dict is built here in the shared inbound
+    # Generic key names — this dict is built here in the shared inbound
     # service, so it shouldn't hardcode Lead's vocabulary. Each module's own
     # tools.py interprets source_record_id according to its own MODULE_CODE
-    # (for "lead_module" it's a Lead.ID).
-    tool_context = {"vendor_id": conv.VENDOR_ID, "source_record_id": conv.SOURCE_RECORD_ID, "conversation_id": conv.ID}
+    # (for "lead_module" it's a Lead.ID). session_id/module_code let any
+    # module's tool delegate to the shared negotiation_engine (or other
+    # per-session state) keyed generically, without depending on
+    # conversation_id (which is WhatsApp-specific and absent in other channels).
+    tool_context = {
+        "vendor_id": conv.VENDOR_ID,
+        "source_record_id": conv.SOURCE_RECORD_ID,
+        "conversation_id": conv.ID,
+        "session_id": conv.SESSION_ID,
+        "module_code": module_code,
+    }
     tool_resolver = (lambda name, args: resolver_fn(name, args, db, tool_context)) if resolver_fn else None
 
     parts: List[str] = []

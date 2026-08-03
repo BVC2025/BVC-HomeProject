@@ -18,9 +18,9 @@ import wave
 
 from piper import PiperVoice
 
-logger = logging.getLogger("uvicorn")
+from app.rag_modules.core.language_registry import SUPPORTED_LANGUAGES
 
-SUPPORTED_LANGUAGES = ("en", "ta")
+logger = logging.getLogger("uvicorn")
 
 
 class SpeechServiceUnavailable(Exception):

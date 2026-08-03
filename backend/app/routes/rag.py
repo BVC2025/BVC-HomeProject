@@ -722,8 +722,17 @@ def _stream_and_log(db: Session, module_code: str, message: str, session_id: str
         # No WhatsApp conversation/lead backs an HTTP/Playground chat, so
         # these stay None — each tool already degrades gracefully when
         # they're absent (e.g. send_quotation_pdf returns a clear "no
-        # active conversation to send to" instead of erroring).
-        tool_context = {"vendor_id": vendor_id, "source_record_id": None, "conversation_id": None}
+        # active conversation to send to" instead of erroring). session_id
+        # is still real (client-generated per Playground session) and lets
+        # tools that need per-session state (e.g. the negotiation engine)
+        # work identically here as on the WhatsApp channel.
+        tool_context = {
+            "vendor_id": vendor_id,
+            "source_record_id": None,
+            "conversation_id": None,
+            "session_id": session_id,
+            "module_code": module_code,
+        }
 
         tool_resolver = lambda name, args: resolver_fn(name, args, db, tool_context)
 

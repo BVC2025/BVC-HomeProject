@@ -7,6 +7,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from app.auth.auth_bearer import get_current_user
+from app.rag_modules.core.language_registry import LANGUAGE_PATTERN
 from app.services.speech_service import speech_service, SpeechServiceUnavailable
 
 router = APIRouter(prefix="/speech", tags=["Speech (TTS)"])
@@ -14,7 +15,7 @@ router = APIRouter(prefix="/speech", tags=["Speech (TTS)"])
 
 class SpeakRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=4000)
-    language: str = Field(..., pattern="^(en|ta)$")
+    language: str = Field(..., pattern=LANGUAGE_PATTERN)
 
 
 @router.post("/speak", dependencies=[Depends(get_current_user)])
