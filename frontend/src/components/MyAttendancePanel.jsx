@@ -345,11 +345,27 @@ export default function MyAttendancePanel({ employeeId }) {
       await refreshToday();
     } catch (err) {
       const status = err?.response?.status;
-      const detail = (err?.response?.data?.detail || "").toLowerCase();
+      const rawDetail = err?.response?.data?.detail || "";
+      const detail = rawDetail.toLowerCase();
       if (status === 400 && detail.includes("already")) {
         setToast("You're already checked in today.");
       } else if (status === 403 || detail.includes("geofence") || detail.includes("outside")) {
-        setToast("You need to be at the office to check in.");
+        // Backend sends the exact distance + office name — use it
+        // verbatim so the employee can see how far off they are and
+        // whether the office coords in DB match reality.
+        // Also record it into the tile so 'Recheck location' shows
+        // the same number without needing another click.
+        const m = rawDetail.match(/(\d+(?:\.\d+)?)\s*m/i);
+        const meters = m ? Number(m[1]) : null;
+        if (Number.isFinite(meters)) {
+          setGeo((g) => ({
+            ...g,
+            status: "outside",
+            distance: meters,
+            radius: g.radius || 50,
+          }));
+        }
+        setToast(rawDetail || "You need to be at the office to check in.");
       } else if (status === 401) {
         setToast("Your session has expired. Please log in again.");
       } else if (!err?.response) {
@@ -382,9 +398,10 @@ export default function MyAttendancePanel({ employeeId }) {
       await refreshToday();
     } catch (err) {
       const status = err?.response?.status;
-      const detail = (err?.response?.data?.detail || "").toLowerCase();
+      const rawDetail = err?.response?.data?.detail || "";
+      const detail = rawDetail.toLowerCase();
       if (status === 403 || detail.includes("geofence") || detail.includes("outside")) {
-        setToast("You need to be at the office to check out.");
+        setToast(rawDetail || "You need to be at the office to check out.");
       } else if (status === 400 && detail.includes("already")) {
         setToast("You've already checked out today.");
       } else if (status === 400 && detail.includes("has not checked in")) {
