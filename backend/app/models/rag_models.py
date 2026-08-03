@@ -1,6 +1,6 @@
 from sqlalchemy import (
     Column, String, Integer, Boolean, DateTime, Text, Numeric,
-    Index, ForeignKey
+    Index, ForeignKey, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 from app.database.database import Base
@@ -167,3 +167,36 @@ class AITrainingJob(Base):
 
     module   = relationship("AIModule", back_populates="training_jobs")
     document = relationship("AIDocument", back_populates="training_jobs")
+
+
+class AINegotiationState(Base):
+    """Server-side, per-conversation negotiation memory — deterministic
+    round/counter tracking so the LLM never has to infer negotiation
+    history from raw chat text (weaker fallback models have already shown
+    themselves unreliable at multi-step bookkeeping). Generic and
+    module-agnostic by design: keyed by (SESSION_ID, MODULE_CODE,
+    ENTITY_ID) rather than any WhatsApp-specific id, so a Playground test
+    chat and any future module's own negotiable entity (a project, a SKU,
+    ...) can all reuse this same table/engine with zero new code here."""
+
+    __tablename__ = "ai_negotiation_state"
+
+    __table_args__ = (
+        UniqueConstraint("SESSION_ID", "MODULE_CODE", "ENTITY_ID", name="uq_negstate_session_module_entity"),
+        Index("ix_negstate_session", "SESSION_ID"),
+    )
+
+    ID          = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    SESSION_ID  = Column(String(36), nullable=False)   # WhatsApp conv.SESSION_ID or Playground session_id
+    MODULE_CODE = Column(String(50), nullable=False)   # "lead_module", future "sales_module", ...
+    ENTITY_ID   = Column(String(36), nullable=False)   # Project.ID today; any negotiable entity for a future module
+
+    ROUND_NUMBER            = Column(Integer, nullable=False, default=0)
+    LIST_PRICE_SNAPSHOT     = Column(Numeric(14, 2), nullable=True)  # round-0 basis, frozen for the conversation
+    LAST_OFFERED_PRICE      = Column(Numeric(14, 2), nullable=True)  # customer's most recent offer (replay-guard key)
+    LAST_COUNTER_EXACT      = Column(Numeric(14, 2), nullable=True)  # unrounded, compounding basis for next round
+    LAST_DISPLAYED_COUNTER  = Column(Numeric(14, 2), nullable=True)  # human-rounded number actually sent to customer
+    LAST_ACCEPTABLE         = Column(Boolean, nullable=True)         # outcome of the last evaluated offer (replay-guard value)
+
+    CREATED_AT = Column(DateTime, default=now_ist)
+    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)

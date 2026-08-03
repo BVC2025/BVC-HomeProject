@@ -1,0 +1,177 @@
+/* Generic schema-driven Add/Edit modal — form-input primitives copied
+   verbatim from WhatsAppConfigManagement.module.css for pixel parity with
+   every hand-rolled form already in the app. Grid scaffold composed from
+   the shared PMFormLayout.module.css so it's defined in exactly one place. */
+
+.formGrid {
+  composes: formGrid from "./PMFormLayout.module.css";
+}
+
+.fullWidth {
+  composes: fullWidth from "./PMFormLayout.module.css";
+}
+
+.sectionTitle {
+  composes: sectionTitle from "./PMFormLayout.module.css";
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.formGroup label {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+.req {
+  color: var(--danger);
+}
+
+.hint {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  font-weight: var(--fw-regular);
+}
+
+.input {
+  height: 36px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  outline: none;
+  width: 100%;
+  box-shadow: var(--shadow-xs);
+  transition: border-color var(--ease), box-shadow var(--ease);
+}
+
+.input:focus {
+  border-color: var(--clr-primary);
+  box-shadow: var(--shadow-xs), 0 0 0 3px var(--clr-primary-muted);
+}
+
+.input:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.inputError {
+  border-color: var(--danger) !important;
+}
+
+.fieldError {
+  font-size: var(--font-xs);
+  color: var(--danger);
+}
+
+.passwordWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.inputPassword {
+  height: 36px;
+  padding: 0 72px 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  outline: none;
+  width: 100%;
+  box-shadow: var(--shadow-xs);
+  transition: border-color var(--ease), box-shadow var(--ease);
+}
+
+.inputPassword:focus {
+  border-color: var(--clr-primary);
+  box-shadow: var(--shadow-xs), 0 0 0 3px var(--clr-primary-muted);
+}
+
+.inputPassword:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.showPasswordBtn {
+  position: absolute;
+  right: 8px;
+  padding: 2px 8px;
+  font-size: var(--font-xs);
+  font-weight: var(--fw-medium);
+  color: var(--clr-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  opacity: 0.8;
+  transition: opacity var(--ease);
+}
+
+.showPasswordBtn:hover {
+  opacity: 1;
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--clr-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.textarea {
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  outline: none;
+  width: 100%;
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+  box-shadow: var(--shadow-xs);
+  transition: border-color var(--ease), box-shadow var(--ease);
+}
+
+.textarea:focus {
+  border-color: var(--clr-primary);
+  box-shadow: var(--shadow-xs), 0 0 0 3px var(--clr-primary-muted);
+}
+
+.textarea:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  align-items: center;
+  width: 100%;
+}
+
+.footerExtra {
+  margin-right: auto;
+}

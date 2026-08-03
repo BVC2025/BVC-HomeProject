@@ -2151,104 +2151,66 @@ function Employees() {
           </div>
         </div>
 
-          <div className={styles.pageBannerActions}>
-            <button
-              type="button"
-              onClick={() => setShowInvite(true)}
-              className={styles.bannerInviteBtn}
+        <div className={styles.pageBannerActions}>
+          <button
+            type="button"
+            onClick={() => setShowInvite(true)}
+            className={styles.bannerInviteBtn}
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                <polyline points="22,6 12,13 2,6" />
-              </svg>
-              Invite via Onboarding
-            </button>
-            <button type="button" onClick={() => setShowAdd(true)} className={styles.bannerAddBtn}>
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              Add Employee
-            </button>
-          </div>
-
-          <div className={styles.statsGrid}>
-            <StatTile label="Total Employees" value={stats.total} color="#6366f1" />
-            <StatTile label="Active" value={stats.active} sub="working" color="#10b981" />
-            <StatTile label="Freshers" value={stats.freshers} sub="new joinees" color="#06b6d4" />
-            <StatTile
-              label="Avg Experience"
-              value={`${stats.avgExp} yr`}
-              sub="across team"
-              color="var(--text-secondary)"
-            />
-          </div>
-
-          <div className={styles.filterBar}>
-            <input
-              type="text"
-              placeholder="🔍 Search by name, code, email, skill, qualification..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className={styles.filterInput}
-            />
-            <select
-              value={deptFilter}
-              onChange={(e) => setDeptFilter(e.target.value)}
-              className={styles.filterSelect}
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+              <polyline points="22,6 12,13 2,6" />
+            </svg>
+            Invite via Onboarding
+          </button>
+          <button type="button" onClick={() => setShowAdd(true)} className={styles.bannerAddBtn}>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <option value="">All departments</option>
-              {departments.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-            <div className={styles.filterCount}>
-              {filtered.length} of {employees.length}
-            </div>
-          </div>
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Add Employee
+          </button>
         </div>
       </div>
 
-      {loading && <div className={styles.loadingState}>Loading employees…</div>}
+      <div className={styles.statsGrid}>
+        <StatTile label="Total Employees" value={stats.total} color="#6366f1" />
+        <StatTile label="Active" value={stats.active} sub="working" color="#10b981" />
+        <StatTile label="Freshers" value={stats.freshers} sub="new joinees" color="#06b6d4" />
+        <StatTile
+          label="Avg Experience"
+          value={`${stats.avgExp} yr`}
+          sub="across team"
+          color="var(--text-secondary)"
+        />
+      </div>
 
       <div className={styles.filterBar}>
-        <div className={styles.filterSearchWrap}>
-          <span className={styles.filterSearchIcon} aria-hidden="true">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" strokeWidth="2.2"
-                 strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m21 21-4.3-4.3" />
-            </svg>
-          </span>
-          <input
-            type="text"
-            placeholder="Search by name, code, email, skill…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className={styles.filterInput}
-          />
-        </div>
+        <input
+          type="text"
+          placeholder="🔍 Search by name, code, email, skill, qualification..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className={styles.filterInput}
+        />
         <select
           value={deptFilter}
           onChange={(e) => setDeptFilter(e.target.value)}
@@ -2256,10 +2218,17 @@ function Employees() {
         >
           <option value="">All departments</option>
           {departments.map((d) => (
-            <option key={d} value={d}>{d}</option>
+            <option key={d} value={d}>
+              {d}
+            </option>
           ))}
+        </select>
+        <div className={styles.filterCount}>
+          {filtered.length} of {employees.length}
         </div>
-      )}
+      </div>
+
+      {loading && <div className={styles.loadingState}>Loading employees…</div>}
 
       {showAdd && (
         <AddEmployeeModal
@@ -2379,24 +2348,6 @@ function InviteEmployeeModal({ onClose }) {
     }
     if (!form.EMPLOYEE_CODE.trim()) {
       setError("Employee ID is required.");
-      return;
-    }
-
-    const emailTrim = form.EMAIL.trim();
-
-    if (!emailTrim || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailTrim)) {
-
-      setError("A valid candidate email is required — the invite link is sent automatically.");
-
-      return;
-    }
-
-    const emailTrim = form.EMAIL.trim();
-
-    if (!emailTrim || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailTrim)) {
-
-      setError("A valid candidate email is required — the invite link is sent automatically.");
-
       return;
     }
 
