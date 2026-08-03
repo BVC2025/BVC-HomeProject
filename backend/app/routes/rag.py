@@ -690,6 +690,51 @@ def _sse(payload: dict) -> str:
 
 def _stream_and_log(db: Session, module_code: str, message: str, session_id: str,
                      user_id: Optional[str], history, verbose: bool):
+    """Wires up this module's tools exactly like the WhatsApp channel does
+    (see whatsapp_inbound_service.run_ai_turn) so an HTTP/Playground chat
+    gets the same database-backed answers a customer would — previously
+    this route never passed tools/tool_resolver at all, so any module with
+    tools.py lookups (pricing, project details, ...) could only ever answer
+    from retrieved document text here, never from the database. Modules
+    with no tools.py (get_tools returns []) are unaffected — tools stays
+    falsy and run_chat's tool-calling branch never activates, exactly as
+    before this change."""
+    from app.models.models import Employee
+    from app.rag_modules.core.module_registry import get_tools, get_tool_resolver
+
+    tools = get_tools(module_code)
+    resolver_fn = get_tool_resolver(module_code)
+
+    tool_resolver = None
+
+    if resolver_fn:
+
+        vendor_id = 1  # established fallback convention across this codebase (see e.g. production._resolve_vendor_id)
+
+        if user_id:
+
+            emp = db.query(Employee).filter(Employee.ID == user_id).first()
+
+            if emp:
+
+                vendor_id = emp.VENDOR_ID or 1
+
+        # No WhatsApp conversation/lead backs an HTTP/Playground chat, so
+        # these stay None — each tool already degrades gracefully when
+        # they're absent (e.g. send_quotation_pdf returns a clear "no
+        # active conversation to send to" instead of erroring). session_id
+        # is still real (client-generated per Playground session) and lets
+        # tools that need per-session state (e.g. the negotiation engine)
+        # work identically here as on the WhatsApp channel.
+        tool_context = {
+            "vendor_id": vendor_id,
+            "source_record_id": None,
+            "conversation_id": None,
+            "session_id": session_id,
+            "module_code": module_code,
+        }
+
+        tool_resolver = lambda name, args: resolver_fn(name, args, db, tool_context)
 
     def generate():
 
@@ -700,6 +745,7 @@ def _stream_and_log(db: Session, module_code: str, message: str, session_id: str
         for event in run_chat(
             db, module_code, message, session_id,
             user_id=user_id, history=history, verbose=verbose,
+            tools=tools, tool_resolver=tool_resolver,
         ):
 
             if event["type"] == "text":

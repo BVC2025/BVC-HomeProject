@@ -1,12 +1,5 @@
-<<<<<<< HEAD
-﻿import { useEffect, useRef, useState } from "react";
-=======
-
-
-
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 
->>>>>>> 41fd8ef5d1ecd13d5af32a9f324f2f7769fc82e1
 
 import {
   Link,
@@ -51,12 +44,8 @@ import EmployeeOnboardingReview from "./EmployeeOnboardingReview";
 import Customers from "./Customers";
 import Quotations from "./Quotations";
 import SalesOrders from "./SalesOrders";
-<<<<<<< HEAD
 import InvoiceOrder from "./InvoiceOrder";
-import PurchaseOrders from "./PurchaseOrders";
 import Projects from "./Projects";
-=======
->>>>>>> 41fd8ef5d1ecd13d5af32a9f324f2f7769fc82e1
 import Inventory from "./Inventory";
 import Attendance from "./Attendance";
 import Machines from "./Machines";
@@ -82,9 +71,7 @@ import ApprovalCenter from "./ApprovalCenter";
 import Payroll from "./Payroll";
 import StarPerformance from "./StarPerformance";
 import Allowances from "./Allowances";
-<<<<<<< HEAD
 import ChatBot from "../components/ChatBot";
-=======
 import EmployeeProfile from "./EmployeeProfile";
 import Recruitment from "./Recruitment";
 import PayslipGenerator from "./PayslipGenerator";
@@ -105,6 +92,8 @@ const OrgRoleManagement = lazy(() => import("./OrgRoleManagement"));
 const ProjectCategoryManagement = lazy(() => import("./ProjectCategoryManagement"));
 const ProjectPage = lazy(() => import("./ProjectPage"));
 const LeadManagementConfig = lazy(() => import("./LeadManagementConfig"));
+const WhatsAppConfigManagement = lazy(() => import("./WhatsAppConfigManagement"));
+const WhatsAppModuleSettingsManagement = lazy(() => import("./WhatsAppModuleSettingsManagement"));
 const LiveLeadViewer = lazy(() => import("./LiveLeadViewer"));
 const ManualLeadManagement = lazy(() => import("./ManualLeadManagement"));
 
@@ -126,8 +115,6 @@ const InventoryItemsPage = lazy(() => import("./InventoryItemsPage"));
 const CompanyProfilePage = lazy(() => import("./CompanyProfilePage"));
 const EmailConfigManagement = lazy(() => import("./EmailConfigManagement"));
 const EmailTemplatePage = lazy(() => import("./EmailTemplatePage"));
-
->>>>>>> 41fd8ef5d1ecd13d5af32a9f324f2f7769fc82e1
 
 import styles from "./Dashboard.module.css";
 import {
@@ -1491,8 +1478,6 @@ function SidebarIcon({ name }) {
           <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1c.5.5 1.2.6 1.8.3.7-.3 1.1-1 1.1-1.7V3a2 2 0 0 1 4 0v.1c0 .7.4 1.4 1 1.7.6.3 1.3.2 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8c.3.6 1 1 1.7 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
         </svg>
       );
-<<<<<<< HEAD
-=======
     case "departments":
       return (
         <svg {...props}>
@@ -1515,6 +1500,42 @@ function SidebarIcon({ name }) {
           <path d="M4 7h16M4 12h10M4 17h7" />
           <circle cx="19" cy="16" r="3" />
           <path d="M19 13v3l2 1" />
+        </svg>
+      );
+    case "lead-config":
+      return (
+        <svg {...props}>
+          <path d="M4 5h16l-6 7v6l-4 2v-8L4 5z" />
+        </svg>
+      );
+    case "live-leads":
+      return (
+        <svg {...props}>
+          <rect x="3" y="4" width="18" height="14" rx="2" />
+          <path d="M3 9h18M9 4v14" />
+        </svg>
+      );
+    case "lead-records":
+      return (
+        <svg {...props}>
+          <circle cx="9" cy="8" r="3" />
+          <path d="M4 20v-1a5 5 0 0 1 5-5h0a5 5 0 0 1 5 5v1" />
+          <path d="M16 4.5a3 3 0 0 1 0 6" />
+          <path d="M19 20v-1a5 5 0 0 0-3-4.6" />
+        </svg>
+      );
+    case "polling-activity":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+      );
+    case "whatsapp-config":
+      return (
+        <svg {...props}>
+          <path d="M20.5 3.5a10 10 0 0 0-16.9 10.6L3 21l7.1-1.9A10 10 0 1 0 20.5 3.5z" />
+          <path d="M8.5 8.8c.2-.6.6-.6 1-.6h.6c.2 0 .5 0 .7.5.3.6.9 2 1 2.1.1.2.1.4 0 .6-.2.3-.3.4-.5.6-.2.2-.4.4-.2.7.3.5 1 1.4 2.1 2.2 1.4 1 2 1.1 2.4.9.3-.2.5-.5.7-.8.2-.2.4-.3.6-.2l1.9.9c.2.1.4.2.4.4.1.7-.1 1.5-.6 2-.5.5-1.6 1-2.9.5-2.3-.8-4.5-2.5-6.1-4.8-1.3-1.8-1.9-3.4-2-4.1 0-.6.1-1.2.5-1.6z" />
         </svg>
       );
     case "lead-config":
@@ -1644,7 +1665,6 @@ function SidebarIcon({ name }) {
         </svg>
       );
 
->>>>>>> 41fd8ef5d1ecd13d5af32a9f324f2f7769fc82e1
     default:
       return (
         <svg {...props}>
@@ -1723,8 +1743,6 @@ const NAV_GROUPS = [
 
     ]
   },
-<<<<<<< HEAD
-=======
   // {
   //   key: "organization",
   //   label: "Org Structure",
@@ -1742,19 +1760,13 @@ const NAV_GROUPS = [
       { to: "/task-templates", icon: <SidebarIcon name="task-tmpl" />, label: "Task Templates" },
       { to: "/project-pricing", icon: <SidebarIcon name="proj-pricing" />, label: "Project Pricing" },
       { to: "/project-quotations", icon: <SidebarIcon name="proj-quotation" />, label: "Quotation Templates" },
-
     ]
   },
->>>>>>> 41fd8ef5d1ecd13d5af32a9f324f2f7769fc82e1
   {
     key: "manufacturing",
     label: "Project & Manufacturing",
     items: [
       { to: "/projects", icon: <SidebarIcon name="projects" />, label: "Projects" },
-<<<<<<< HEAD
-=======
-
->>>>>>> 41fd8ef5d1ecd13d5af32a9f324f2f7769fc82e1
       { to: "/machines", icon: <SidebarIcon name="machines" />, label: "Machines" },
       { to: "/work-centers", icon: <SidebarIcon name="workcenters" />, label: "Work Centers" },
       { to: "/production", icon: <SidebarIcon name="production" />, label: "Production & BOM" },
@@ -1793,6 +1805,8 @@ const NAV_GROUPS = [
 
       { to: "/company-profile", icon: <SidebarIcon name="company" />, label: "Company Profile" },
       { to: "/email-config", icon: <SidebarIcon name="settings" />, label: "Email Config" },
+      { to: "/whatsapp-config", icon: <SidebarIcon name="whatsapp-config" />, label: "WhatsApp Configuration" },
+      { to: "/whatsapp-module-settings", icon: <SidebarIcon name="whatsapp-config" />, label: "WhatsApp Module Settings" },
       { to: "/email-templates", icon: <SidebarIcon name="mail" />, label: "Email Templates" },
 
       { to: "/holidays", icon: <SidebarIcon name="holidays" />, label: "Holiday Calendar" },
@@ -2211,9 +2225,6 @@ function Dashboard() {
             path="/settings"
             element={<Settings />}
           />
-
-<<<<<<< HEAD
-=======
           {/* Organization & Project Management module */}
           <Route path="/departments" element={<Suspense fallback={null}><DepartmentManagement /></Suspense>} />
           <Route path="/org-roles" element={<Suspense fallback={null}><OrgRoleManagement /></Suspense>} />
@@ -2224,6 +2235,8 @@ function Dashboard() {
 
           {/* Lead Management module (multi-source lead pipeline) */}
           <Route path="/lead-management/configuration" element={<Suspense fallback={null}><LeadManagementConfig /></Suspense>} />
+          <Route path="/whatsapp-config" element={<Suspense fallback={null}><WhatsAppConfigManagement /></Suspense>} />
+          <Route path="/whatsapp-module-settings" element={<Suspense fallback={null}><WhatsAppModuleSettingsManagement /></Suspense>} />
           <Route path="/lead-management/live-leads" element={<Suspense fallback={null}><LiveLeadViewer /></Suspense>} />
           <Route path="/lead-management/leads" element={<Suspense fallback={null}><ManualLeadManagement /></Suspense>} />
 
@@ -2250,8 +2263,6 @@ function Dashboard() {
           <Route path="/product-master" element={<Suspense fallback={null}><ProductMasterPage /></Suspense>} />
           <Route path="/supplier-management" element={<Suspense fallback={null}><SupplierManagementPage /></Suspense>} />
           <Route path="/inventory-items" element={<Suspense fallback={null}><InventoryItemsPage /></Suspense>} />
-
->>>>>>> 41fd8ef5d1ecd13d5af32a9f324f2f7769fc82e1
         </Routes>
 
       </div>

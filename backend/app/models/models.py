@@ -1,15 +1,112 @@
-from sqlalchemy import Column, String, Integer, ForeignKey, Float, Date, Time, Text, UniqueConstraint
+from sqlalchemy import (
+    Column, String, Integer, ForeignKey, Float, Date, Time, Text, UniqueConstraint,
+    DateTime, Boolean, JSON, Numeric, Enum as SAEnum,
+)
 from sqlalchemy.orm import relationship
 from app.database.database import Base
 from datetime import datetime, time
-from sqlalchemy import DateTime
 import uuid
+from app.utils.datetime_utils import now_ist
+
+from app.models.project_models import ProjectCategory, Project, TaskTemplate, ProjectPricing  # noqa: F401
+from app.models.supplier_models import Supplier  # noqa: F401
+from app.models.email_models import VendorEmailConfig, EmailTemplate  # noqa: F401
+from app.models.lead_models import LeadPollingConfig, Lead, LeadPollingLog  # noqa: F401
+from app.models.project_quotation_models import ProjectQuotationTemplate  # noqa: F401
+from app.models.whatsapp_models import (  # noqa: F401
+    VendorWhatsAppConfig, WhatsAppModuleSetting, WhatsAppConversation, WhatsAppMessage, WhatsAppWebhookEvent,
+)
+__all__ = ["ProjectCategory", "Project", "TaskTemplate", "ProjectPricing", "Supplier", "VendorEmailConfig", "EmailTemplate", "LeadPollingConfig", "Lead", "LeadPollingLog", "ProjectQuotationTemplate", "VendorWhatsAppConfig", "WhatsAppModuleSetting", "WhatsAppConversation", "WhatsAppMessage", "WhatsAppWebhookEvent"]  # re-exported from dedicated model files
+
+# ──────────────────────────────────────────────
+# Shared SQLAlchemy Enum types
+# ──────────────────────────────────────────────
+FIELD_TYPE_ENUM = SAEnum(
+    "TEXT", "NUMBER", "DATE", "DATETIME", "CHECKBOX",
+    "RADIO", "SELECT", "TEXTAREA", "EMAIL", "PHONE",
+    name="field_type_enum", create_constraint=True
+)
+UNIT_ENUM = SAEnum(
+    "PCS", "KG", "GRAM", "LITER", "ML",
+    "METER", "CM", "BOX", "PACK", "SET",
+    name="unit_enum", create_constraint=True
+)
+DURATION_UNIT_ENUM = SAEnum(
+    "HOURS", "DAYS", "WEEKS", "MONTHS", "YEARS",
+    name="duration_unit_enum", create_constraint=True
+)
+TASK_STATUS_ENUM = SAEnum(
+    "PENDING", "IN_PROGRESS", "COMPLETED", "EXTENDED", "OVERDUE",
+    name="task_status_enum", create_constraint=True
+)
+ASSIGNMENT_MODE_ENUM = SAEnum(
+    "PARALLEL", "SEQUENTIAL",
+    name="assignment_mode_enum", create_constraint=True
+)
 
 class Vendor(Base):
     __tablename__ = "vendor"
 
     ID = Column(Integer, primary_key=True)
     VENDOR_NAME = Column(String(100))
+
+    root_users = relationship("RootUser", back_populates="vendor")
+    email_configurations = relationship(
+        "VendorEmailConfig",
+        back_populates="vendor",
+        cascade="all, delete-orphan",
+    )
+    email_templates = relationship(
+        "EmailTemplate",
+        back_populates="vendor",
+        cascade="all, delete-orphan",
+    )
+    lead_polling_configs = relationship(
+        "LeadPollingConfig",
+        back_populates="vendor",
+        cascade="all, delete-orphan",
+    )
+    leads = relationship(
+        "Lead",
+        back_populates="vendor",
+        cascade="all, delete-orphan",
+    )
+    lead_polling_logs = relationship(
+        "LeadPollingLog",
+        back_populates="vendor",
+        cascade="all, delete-orphan",
+    )
+    whatsapp_configs = relationship(
+        "VendorWhatsAppConfig",
+        back_populates="vendor",
+        cascade="all, delete-orphan",
+    )
+    whatsapp_module_settings = relationship(
+        "WhatsAppModuleSetting",
+        back_populates="vendor",
+        cascade="all, delete-orphan",
+    )
+    whatsapp_conversations = relationship(
+        "WhatsAppConversation",
+        back_populates="vendor",
+        cascade="all, delete-orphan",
+    )
+
+class RootUser(Base):
+    __tablename__ = "root_user"
+
+    ID = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    EMAIL = Column(String(100), unique=True)
+
+    PASSWORD = Column(String(255))
+
+    STATUS = Column(String(20), default="ACTIVE")
+    
+
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID"))
+
+    vendor = relationship("Vendor", back_populates="root_users")
 
 
 class Employee(Base):
@@ -629,35 +726,6 @@ class CustomerRequirement(Base):
         index=True,
         nullable=True
     )
-
-
-class ProjectCategory(Base):
-
-    __tablename__ = "project_category"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    SECTION = Column(
-        String(30),
-        index=True
-    )
-
-    NAME = Column(
-        String(100),
-        unique=True
-    )
-
-    DESCRIPTION = Column(
-        String(255),
-        nullable=True
-    )
-
-
 class SubProjectTemplate(Base):
 
     __tablename__ = "sub_project_template"
@@ -688,95 +756,6 @@ class SubProjectTemplate(Base):
         Integer,
         default=30
     )
-
-
-class Project(Base):
-
-    __tablename__ = "project"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        index=True
-    )
-
-    PROJECT_NAME = Column(
-        String(200)
-    )
-
-    DESCRIPTION = Column(
-        String(2000)
-    )
-
-    STATUS = Column(
-        String(50),
-        default="PENDING"
-    )
-
-    SUB_PROJECT_TEMPLATE_ID = Column(
-        Integer,
-        ForeignKey("sub_project_template.ID"),
-        nullable=True,
-        index=True
-    )
-
-    DEPARTMENT_ID = Column(
-        Integer,
-        ForeignKey("department.ID"),
-        nullable=True,
-        index=True
-    )
-
-    CUSTOMER_ID = Column(
-        Integer,
-        ForeignKey("customer.ID")
-    )
-
-    SKILLS_REQUIRED = Column(
-        String(500),
-        nullable=True
-    )
-    # comma-separated skill tags this project needs;
-    # used by allocation_service for skill-overlap scoring.
-
-    PRIORITY = Column(
-        String(20),
-        default="MEDIUM"
-    )
-    # HIGH / MEDIUM / LOW — weights into allocation score.
-
-    # ---- NEW: Product-as-source linkage --------------------------
-    # A Project is now an *instance* of a Product (Machine Model)
-    # being built for a Customer. The product's BOM + stages flow
-    # into the project's task graph automatically when the project
-    # is created via the /projects/from-product endpoint.
-
-    PRODUCT_MODEL_ID = Column(
-        Integer,
-        ForeignKey("product_model.ID"),
-        nullable=True,
-        index=True
-    )
-
-    QUANTITY = Column(
-        Integer,
-        default=1
-    )
-    # How many units of the product this project will deliver.
-
-    TARGET_DATE = Column(
-        Date,
-        nullable=True
-    )
-    # When the project should be completed by.
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID")
-    )
-
-
-
 class Task(Base):
     START_TIME = Column(DateTime, nullable=True)
 
@@ -1546,99 +1525,6 @@ class WorkOrder(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow
     )
-
-
-class Supplier(Base):
-    """
-    Supplier master — companies BVC24 buys raw materials,
-    components or services from. Distinct from `Vendor`, which
-    in this codebase represents the *tenant* (BVC24 itself).
-
-    Mirrors Employee master: full contact + KYC details so PO
-    workflow doesn't need to re-prompt. One row per supplier,
-    scoped to a tenant via VENDOR_ID.
-    """
-
-    __tablename__ = "supplier"
-
-    __table_args__ = (
-        UniqueConstraint(
-            "VENDOR_ID", "SUPPLIER_CODE",
-            name="uq_supplier_vendor_code"
-        ),
-    )
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    SUPPLIER_CODE = Column(
-        String(30),
-        index=True
-    )
-    # short SKU-style code per tenant, e.g. "SUP-SHEET-01"
-
-    COMPANY_NAME = Column(String(150))
-
-    CONTACT_PERSON = Column(String(100), nullable=True)
-
-    PHONE = Column(String(30), nullable=True)
-
-    EMAIL = Column(String(120), nullable=True)
-
-    ADDRESS_LINE1 = Column(String(200), nullable=True)
-
-    ADDRESS_LINE2 = Column(String(200), nullable=True)
-
-    CITY = Column(String(80), nullable=True)
-
-    STATE = Column(String(80), nullable=True)
-
-    PINCODE = Column(String(15), nullable=True)
-
-    GST_NUMBER = Column(String(20), nullable=True, index=True)
-
-    PAN_NUMBER = Column(String(15), nullable=True)
-
-    BANK_NAME = Column(String(100), nullable=True)
-
-    ACCOUNT_NUMBER = Column(String(40), nullable=True)
-
-    IFSC_CODE = Column(String(20), nullable=True)
-
-    CATEGORY = Column(String(60), nullable=True, index=True)
-    # e.g. "Sheet Metal", "Electronics", "Motors", "Display",
-    # "Payment Hardware", "Refrigeration", "Packaging"
-
-    PAYMENT_TERMS = Column(String(60), nullable=True)
-    # e.g. "NET 30", "Advance 50%", "COD"
-
-    STATUS = Column(
-        String(20),
-        default="ACTIVE"
-    )
-    # ACTIVE / INACTIVE / BLACKLISTED
-
-    NOTES = Column(String(500), nullable=True)
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID"),
-        index=True
-    )
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-
-    UPDATED_AT = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
-
-
 class ProcessStage(Base):
     """
     One manufacturing step in the per-machine production flow.
@@ -4946,37 +4832,6 @@ class CustomFieldTableValue(Base):
     UPDATED_AT         = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     field = relationship("CustomField", back_populates="values")
-
-
-# ──────────────────────────────────────────────
-# Task Template
-# ──────────────────────────────────────────────
-
-class TaskTemplate(Base):
-    __tablename__ = "task_template"
-
-    ID              = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    PROJECT_ID      = Column(String(36), ForeignKey("project.ID", ondelete="RESTRICT"), nullable=False, index=True)
-    VENDOR_ID       = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
-    NAME            = Column(String(100), nullable=False)
-    DESCRIPTION     = Column(Text, nullable=True)
-    DURATION_VALUE  = Column(Numeric(7, 2), default=1.0, nullable=False)
-    DURATION_UNIT   = Column(DURATION_UNIT_ENUM, default="DAYS", nullable=False)
-    SEQUENCE_NUMBER = Column(Integer, nullable=False, default=0)
-    DEPARTMENT_ID   = Column(Integer, ForeignKey("department.ID", ondelete="SET NULL"), nullable=True, index=True)
-    ROLE_ID         = Column(Integer, ForeignKey("role.ID",       ondelete="SET NULL"), nullable=True, index=True)
-    CREATED_AT      = Column(DateTime, default=datetime.utcnow)
-    UPDATED_AT      = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    project    = relationship("Project", back_populates="task_templates")
-    department = relationship("Department", foreign_keys=[DEPARTMENT_ID])
-    role       = relationship("Role",       foreign_keys=[ROLE_ID])
-
-
-# =====================================================================
-# Help Desk — employee-submitted tickets
-# =====================================================================
-
 class HelpDeskTicket(Base):
     """One employee-raised ticket. Admins triage, assign, and resolve."""
 

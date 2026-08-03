@@ -14,8 +14,14 @@ import { speechService } from "../services/speechService";
 // <audio> element; the backend's only job is synthesis (text -> WAV bytes).
 
 const TAMIL_RANGE = /[஀-௿]/;
+const HINDI_RANGE = /[ऀ-ॿ]/;      // Devanagari
+const MALAYALAM_RANGE = /[ഀ-ൿ]/;
 
 export function detectSpokenLang(text) {
+
+  if (MALAYALAM_RANGE.test(text || "")) return "ml-IN";
+
+  if (HINDI_RANGE.test(text || "")) return "hi-IN";
 
   return TAMIL_RANGE.test(text || "") ? "ta-IN" : "en-IN";
 }
@@ -136,9 +142,9 @@ export function useSpeech({ sttLang = "en-IN", ttsLangMode = "auto", onFinalResu
     const mode = ttsLangModeRef.current;
 
     const lang = langOverride
-      || (mode === "auto" ? detectSpokenLang(text) : mode === "ta" ? "ta-IN" : "en-IN");
+      || (mode === "auto" ? detectSpokenLang(text) : `${mode}-IN`);
 
-    const backendLang = lang.startsWith("ta") ? "ta" : "en";
+    const backendLang = lang.split("-")[0];
 
     setIsLoadingSpeech(true);
 
