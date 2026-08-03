@@ -42,7 +42,7 @@ from __future__ import annotations
 from datetime import datetime, date, time
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, UploadFile, File, Form, HTTPException
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
@@ -448,3 +448,65 @@ def _write_biometric_event(
         VENDOR_ID=1,
     )
     db.add(ev)
+
+
+# =====================================================================
+# USB-import fallback — when the device can't push over network.
+#
+# Workflow the admin follows:
+#   1. Insert a USB pen drive into the ESSL X2008.
+#   2. Menu → USB Manager → Download → Attendance Data
+#      (device writes something like `1_attlog.dat` or `attlog.txt`).
+#   3. Remove USB, plug into PC, open ERP admin page.
+#   4. Choose the file → Upload.
+#
+# We accept both the plain-text ATTLOG format the ADMS Push uses AND
+# the alternative "|"-separated format some ESSL firmwares export.
+# Same PIN → Employee lookup, same dedup, same Attendance rules.
+# =====================================================================
+@router.post("/import-attlog")
+async def import_attlog_file(
+    file: UploadFile = File(...),
+    device_sn: str = Form("MANUAL_USB"),
+    db: Session = Depends(get_db),
+):
+    """
+    Upload an attendance log exported from the biometric device via
+    USB. Returns the number of records that landed vs. were skipped
+    as duplicates vs. were mapped to unknown PINs.
+    """
+    raw = await file.read()
+
+    if not raw:
+        raise HTTPException(status_code=400, detail="Empty file")
+
+    # ESSL exports are usually latin-1; some newer firmwares are utf-8.
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        text = raw.decode("latin-1", errors="replace")
+
+    # Normalise: some devices use "|" as separator, others use tab.
+    # Convert any "|" runs to "\t" so _handle_attlog works uniformly.
+    normalised = text.replace("|", "\t")
+
+    # Count DB rows before we start so we can report a delta accurately.
+    before = db.query(BiometricEvent).filter(
+        BiometricEvent.DEVICE_ID == device_sn
+    ).count()
+
+    processed = _handle_attlog(db, device_sn, normalised)
+
+    after = db.query(BiometricEvent).filter(
+        BiometricEvent.DEVICE_ID == device_sn
+    ).count()
+
+    inserted = after - before
+
+    return {
+        "filename": file.filename,
+        "device_sn": device_sn,
+        "records_seen": processed,
+        "rows_inserted": inserted,
+        "rows_skipped_as_duplicate": max(0, processed - inserted),
+    }

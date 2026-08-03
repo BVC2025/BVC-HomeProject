@@ -66,6 +66,7 @@ import RbacPermissions from "./RbacPermissions";
 import HolidayCalendar from "./HolidayCalendar";
 import WorkCenters from "./WorkCenters";
 import GeofenceSettings from "./GeofenceSettings";
+import BiometricImport from "./BiometricImport";
 import EmployeeMemos from "./EmployeeMemos";
 import ApprovalCenter from "./ApprovalCenter";
 // AICommandCenter + Workflow removed Phase 2 — were placeholder stubs
@@ -1598,6 +1599,7 @@ const NAV_GROUPS = [
       { to: "/employees", icon: <SidebarIcon name="employees" />, label: "Employees" },
       { to: "/memos", icon: <SidebarIcon name="memos" />, label: "Memos" },
       { to: "/attendance", icon: <SidebarIcon name="attendance" />, label: "Attendance" },
+      { to: "/biometric-import", icon: <SidebarIcon name="attendance" />, label: "Biometric Import (USB)" },
       { to: "/shifts", icon: <SidebarIcon name="attendance" />, label: "Shift Management" },
       { to: "/leave-management", icon: <SidebarIcon name="leaves" />, label: "Leave Management" },
       { to: "/payroll", icon: <SidebarIcon name="payroll" />, label: "Payroll" },
@@ -1971,6 +1973,7 @@ function Dashboard() {
 
           <Route path="/holidays" element={<HolidayCalendar />} />
           <Route path="/geofence" element={<GeofenceSettings />} />
+          <Route path="/biometric-import" element={<BiometricImport />} />
           <Route path="/approvals" element={<ApprovalCenter />} />
 
           {/* Legacy dashboard kept reachable for reference */}
