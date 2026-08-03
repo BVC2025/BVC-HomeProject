@@ -497,8 +497,11 @@ function EmployeeDashboardBody() {
   const fetchProductionStages = async () => {
     if (!employeeId) return;
     try {
-      const res = await API.get(`/employee/${employeeId}/production-stages`);
-      setProductionStages(res.data?.stages || []);
+      // Endpoint lives under the /process router prefix — without it,
+      // this call 404s and floods the console.
+      const res = await API.get(`/process/employee/${employeeId}/production-stages`);
+      // Endpoint returns the array directly, not an object with .stages
+      setProductionStages(Array.isArray(res.data) ? res.data : (res.data?.stages || []));
     } catch { /* non-critical */ }
   };
 
