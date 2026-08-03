@@ -1,0 +1,520 @@
+/* ==================================================================
+   PayslipPreview — Zoho-style letterhead HTML preview
+   ================================================================== */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: rgba(15, 23, 42, 0.55);
+  overflow-y: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 24px 16px;
+  animation: fadeIn 0.15s ease-out;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, sans-serif;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.container {
+  width: 100%;
+  max-width: 960px;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.30);
+  overflow: hidden;
+  animation: slideUp 0.22s ease-out;
+  color: #1e293b;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+
+/* ==================================================================
+   Header — title + Go Back / Download buttons
+   ================================================================== */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.headerTitle {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: #0f172a;
+}
+
+.headerActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btnGhost,
+.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, filter 0.15s ease;
+}
+
+.btnGhost {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #cbd5e1;
+}
+.btnGhost:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.btnPrimary {
+  background: #dc2626;
+  color: #ffffff;
+  border: 1px solid #dc2626;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.28);
+}
+.btnPrimary:hover:not(:disabled) { background: #b91c1c; }
+.btnPrimary:disabled {
+  background: #e2e8f0;
+  color: #94a3b8;
+  border-color: #e2e8f0;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btnClose {
+  display: none;
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.btnClose:hover { background: #f8fafc; }
+
+
+/* ==================================================================
+   Loading / error state
+   ================================================================== */
+
+.stateWrap {
+  padding: 60px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  color: #64748b;
+}
+
+.spinner {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 3px solid #e2e8f0;
+  border-top-color: #dc2626;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.stateText { font-size: 13.5px; font-weight: 500; }
+
+.errorBox {
+  padding: 14px 18px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+
+/* ==================================================================
+   Document frame — dark backdrop, white letterhead inside.
+   Matches the Zoho reference where the payslip sits on a
+   dark-navy frame to lift it off the page.
+   ================================================================== */
+
+.docFrame {
+  padding: 22px 26px 26px;
+  background: #0f172a;
+}
+
+.doc {
+  background: #ffffff;
+  padding: 32px 34px 30px;
+  border-radius: 6px;
+  color: #1e293b;
+}
+
+
+/* ==================================================================
+   Document — company header row
+   ================================================================== */
+
+.docHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 24px;
+}
+
+.companyName {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.2px;
+  margin-bottom: 2px;
+}
+
+.companyLoc {
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.docPeriod {
+  text-align: right;
+}
+
+.periodLabel {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+  margin-bottom: 3px;
+}
+
+.periodValue {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.2px;
+}
+
+
+/* ==================================================================
+   Summary row — employee box + net-pay card
+   ================================================================== */
+
+.summaryRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 24px;
+  align-items: stretch;
+  margin-bottom: 26px;
+}
+
+.empBox { min-width: 0; }
+
+.empHead {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 14px;
+}
+
+/* Rows: label / colon / value in a fixed grid so ':' lines up */
+.sumRow,
+.sumRowCompact {
+  display: grid;
+  grid-template-columns: 128px 12px 1fr;
+  gap: 6px;
+  align-items: baseline;
+  padding: 6px 0;
+  font-size: 13px;
+}
+.sumRowCompact { padding: 2px 0; }
+
+.sumLabel {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.sumColon {
+  color: #94a3b8;
+}
+
+.sumValue {
+  color: #0f172a;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+
+/* Net-pay card — soft green with left rail, like Zoho's design */
+.netBox {
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-left: 4px solid #10b981;
+  border-radius: 10px;
+  padding: 20px 22px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.netValue {
+  font-size: 26px;
+  font-weight: 800;
+  color: #047857;
+  letter-spacing: -0.6px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 4px;
+}
+
+.netLabel {
+  font-size: 12.5px;
+  color: #059669;
+  font-weight: 600;
+}
+
+.netDivider {
+  height: 1px;
+  background: #a7f3d0;
+  margin: 18px 0 14px;
+}
+
+.netMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Inside the netBox, override label colour for readability */
+.netBox .sumLabel { color: #059669; }
+.netBox .sumColon { color: #10b981; }
+.netBox .sumValue { color: #064e3b; }
+
+
+/* ==================================================================
+   Earnings + Deductions two-column table
+   ================================================================== */
+
+.tableFrame {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.tableCol {
+  min-width: 0;
+  border-right: 1px solid #e2e8f0;
+}
+.tableCol:last-child { border-right: none; }
+
+.tableHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #475569;
+}
+.tableHead span:last-child { color: #94a3b8; }
+
+.tableRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 20px;
+  border-bottom: 1px dashed #eef2f7;
+  font-size: 13px;
+  color: #334155;
+}
+.tableRow:last-child { border-bottom: none; }
+
+.tableTotal {
+  background: #f8fafc;
+  font-weight: 700;
+  color: #0f172a;
+  border-top: 1px solid #e2e8f0;
+  border-bottom: none;
+}
+
+.amt {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
+  font-weight: 500;
+}
+.tableTotal .amt { font-weight: 700; }
+
+
+/* ==================================================================
+   Net Payable bar
+   ================================================================== */
+
+.netBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 18px;
+}
+
+.netBarLeft {
+  padding: 12px 20px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.netBarLabel {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #0f172a;
+  margin-bottom: 2px;
+}
+
+.netBarHint {
+  font-size: 11.5px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.netBarValue {
+  padding: 14px 22px;
+  background: #ecfdf5;
+  border-radius: 8px;
+  color: #047857;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  font-variant-numeric: tabular-nums;
+  border: 1px solid #a7f3d0;
+  white-space: nowrap;
+}
+
+
+/* ==================================================================
+   Amount in words + footer
+   ================================================================== */
+
+.words {
+  text-align: right;
+  font-size: 12.5px;
+  color: #64748b;
+  padding-top: 4px;
+  margin-bottom: 14px;
+}
+
+.wordsLabel { font-weight: 600; color: #475569; }
+.wordsValue { font-weight: 700; color: #0f172a; margin-left: 6px; }
+
+.footer {
+  padding-top: 14px;
+  border-top: 1px solid #e2e8f0;
+  text-align: center;
+  font-size: 11px;
+  color: #94a3b8;
+  letter-spacing: 0.5px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+
+/* ==================================================================
+   MOBILE
+   ================================================================== */
+
+@media (max-width: 720px) {
+  .overlay { padding: 0; }
+  .container { border-radius: 0; max-width: 100%; min-height: 100vh; }
+
+  .header { padding: 14px 16px; gap: 8px; }
+  .headerTitle { font-size: 16px; }
+
+  /* Hide long button labels on very small screens */
+  .btnGhost span,
+  .btnPrimary span { display: inline; }
+  .btnGhost, .btnPrimary { padding: 9px 14px; font-size: 12.5px; }
+  .btnClose { display: inline-flex; }
+
+  .docFrame { padding: 12px; }
+  .doc { padding: 22px 18px 20px; }
+
+  .docHead {
+    flex-direction: column;
+    gap: 8px;
+    padding-bottom: 16px;
+    margin-bottom: 18px;
+  }
+  .docPeriod { text-align: left; }
+
+  .summaryRow {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+
+  .netBox { padding: 16px 18px; }
+  .netValue { font-size: 22px; }
+
+  /* Earnings + Deductions stack vertically on phones */
+  .tableFrame {
+    grid-template-columns: 1fr;
+  }
+  .tableCol {
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .tableCol:last-child { border-bottom: none; }
+
+  .tableRow, .tableHead { padding: 11px 14px; }
+
+  .netBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .netBarValue {
+    text-align: right;
+    padding: 12px 18px;
+  }
+
+  .words { text-align: left; }
+
+  /* Hide "Go Back" label to save room; the small X close button
+     handles the same action */
+  .btnGhost span { display: none; }
+}

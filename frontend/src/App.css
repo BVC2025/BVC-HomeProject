@@ -63,6 +63,13 @@
   --radius-xl: 14px;
   --radius-2xl: 18px;
   --radius-full: 9999px;
+<<<<<<< HEAD
+=======
+
+
+  --radius-round: 50%;
+>>>>>>> 41fd8ef5d1ecd13d5af32a9f324f2f7769fc82e1
+
 
   /* ── Status ───────────────────────────────────────────────────── */
   --success: #16a34a;
@@ -144,6 +151,12 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+
+}
+
+html {
+  height: 100%;
+
 }
 
 body {
@@ -152,13 +165,19 @@ body {
   color: var(--text-primary);
   background: var(--layout-bg);
   width: 100%;
+  height: 100%;
+  /* Lock the body so the page itself never scrolls. Only inner
+     content regions (.main-content, .zMainContent) scroll. */
+  overflow: hidden;
   min-height: 100vh;
   line-height: var(--lh);
 }
 
 #root {
   width: 100%;
+  height: 100%;
   min-height: 100vh;
+
 }
 
 
@@ -788,7 +807,10 @@ body {
 .dashboard {
   display: flex;
   width: 100%;
+  height: 100vh;
+  overflow: hidden;
   min-height: 100vh;
+
 }
 
 .menu-toggle {
@@ -1210,6 +1232,8 @@ body {
   flex: 1;
   padding: 26px 30px 40px;
   overflow-y: auto;
+  overflow-x: hidden;
+  height: 100vh;
   min-width: 0;
   background: var(--layout-bg);
 }
@@ -1574,6 +1598,8 @@ body {
   position: absolute;
   top: 38px;
   right: 38px;
+  top: 10px;
+  right: 10px;
   display: flex;
   align-items: center;
   margin: 0;
@@ -2567,4 +2593,1384 @@ body {
     width: 85%;
     max-width: 280px;
   }
+
+
+}
+
+
+/* ================================================================
+   GLOBAL RESPONSIVE UTILITIES — phase 1
+   ----------------------------------------------------------------
+   These rules apply across every page in the app without per-page
+   CSS edits. They work by:
+     1. Shrinking the design-token scale on small screens, so any
+        component that uses var(--sp-*) / var(--font-*) auto-shrinks.
+     2. Targeting raw HTML elements inside .main-content so tables,
+        forms, inputs, and buttons get sensible mobile defaults
+        regardless of which CSS-module wrote them.
+     3. Wildcard attribute selectors that match CSS-module class
+        names like Projects_modalPanel__abc123 — catches every
+        modal in the app without touching their individual modules.
+   ================================================================ */
+
+@media (max-width: 768px) {
+
+  /* ---- 1. Shrink the design-token scale ---- */
+  :root {
+    --sp-5: 14px;
+    --sp-6: 18px;
+    --sp-8: 22px;
+    --sp-10: 28px;
+    --font-base: 13px;
+    --font-md: 14px;
+    --font-lg: 16px;
+    --font-xl: 18px;
+    --font-2xl: 22px;
+    --font-3xl: 26px;
+  }
+
+  /* ---- 2. HTML elements inside main-content ---- */
+
+  /* Tables — block + horizontal scroll so they never blow out the
+     viewport. Cells keep their layout; the table itself scrolls. */
+  .main-content table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+    white-space: nowrap;
+  }
+
+  /* Form fields claim full width on mobile */
+  .main-content input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  .main-content select,
+  .main-content textarea {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Buttons get adequate touch target height */
+  .main-content button {
+    min-height: 36px;
+  }
+
+  /* Headings scale down */
+  .main-content h1 {
+    font-size: 22px;
+    line-height: 1.25;
+  }
+
+  .main-content h2 {
+    font-size: 18px;
+    line-height: 1.3;
+  }
+
+  .main-content h3 {
+    font-size: 16px;
+  }
+
+  /* ---- 3. Generic grid collapsers ---- */
+  /* Any class containing "Grid" with grid-template-columns set
+     by the module collapses to a single column. The !important
+     is needed to override module-scoped grid-template-columns. */
+  [class*="formGrid"],
+  [class*="FormGrid"],
+  [class*="statsGrid"],
+  [class*="StatsGrid"],
+  [class*="kpiGrid"],
+  [class*="KpiGrid"],
+  [class*="cardsGrid"],
+  [class*="CardsGrid"] {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  /* Settings rows and any flex group meant to be horizontal but
+     gets cramped — collapse to vertical. */
+  [class*="formRow"]:not([class*="formRowKeep"]),
+  [class*="filterBar"],
+  [class*="FilterBar"] {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  /* When a flex-row container is flipped to column, the children's
+     `flex: x x BASIS` shorthand gets re-interpreted with BASIS as
+     height, so a 240px-basis select becomes 240px TALL. Reset every
+     direct child to natural height + full width to stop that. */
+  [class*="formRow"]:not([class*="formRowKeep"])>*,
+  [class*="filterBar"]>*,
+  [class*="FilterBar"]>* {
+    flex: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* ---- 4. Modal panels (catches every CSS-module modal) ---- */
+  [class*="modalPanel"],
+  [class*="ModalPanel"],
+  [class*="modal-panel"] {
+    max-width: 96vw !important;
+    width: 96vw !important;
+    max-height: 92vh !important;
+    margin: 12px auto !important;
+    border-radius: 12px !important;
+    overflow-y: auto !important;
+  }
+
+  [class*="modalOverlay"],
+  [class*="ModalOverlay"],
+  [class*="modal-overlay"] {
+    padding: 4vh 2vw !important;
+  }
+
+  /* Modal close button — make sure it stays tappable */
+  [class*="modalCloseBtn"],
+  [class*="ModalCloseBtn"] {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  /* ---- 5. Recently-built Projects kanban ---- */
+  /* Each project column gets nearly full-width on mobile so the
+     user can read tasks; the board scrolls horizontally between
+     columns. The right-side donut chart already drops below the
+     board at 900px via Projects.module.css. */
+  [class*="kColumn"]:not([class*="kColumnHead"]):not([class*="kColumnTitle"]):not([class*="kColumnAction"]):not([class*="kColumnBody"]):not([class*="kColumnEmpty"]):not([class*="kColumnCount"]):not([class*="kColumnMenu"]) {
+    flex: 0 0 86vw !important;
+    max-width: 360px;
+  }
+
+  [class*="kToolbar"]:not([class*="kToolbarTitle"]) {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  [class*="kSearch"] {
+    flex: 1 1 100% !important;
+    max-width: none !important;
+  }
+
+  /* ---- 6. Recently-built EmployeeDashboard Zoho shell ---- */
+  [class*="zHeader"]:not([class*="zHeaderLeft"]):not([class*="zHeaderRight"]) {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  [class*="zHeaderRight"] {
+    flex-wrap: wrap !important;
+    justify-content: flex-end !important;
+  }
+
+  /* Tab strip becomes horizontal scroll if it overflows */
+  [class*="zTabStrip"] {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Z-tasks page table — already has overflow-x:auto on wrapper.
+     Make the cells less padded on mobile. */
+  [class*="zTable"] td,
+  [class*="zTable"] th {
+    padding: 9px 10px !important;
+  }
+}
+
+
+@media (max-width: 480px) {
+
+  /* ---- Tighter token scale on phones ---- */
+  :root {
+    --sp-4: 11px;
+    --sp-5: 12px;
+    --sp-6: 14px;
+    --sp-8: 18px;
+    --font-base: 13px;
+    --font-md: 13px;
+  }
+
+  .main-content {
+    padding: 56px 11px 11px !important;
+  }
+
+  /* Modal panels go nearly edge-to-edge on phones */
+  [class*="modalPanel"],
+  [class*="ModalPanel"] {
+    max-width: 98vw !important;
+    width: 98vw !important;
+    margin: 8px auto !important;
+    border-radius: 10px !important;
+  }
+
+  /* Section titles / heroes shrink further */
+  [class*="hero"] h1,
+  [class*="Hero"] h1,
+  [class*="heroAltTitle"],
+  [class*="heroTitle"] {
+    font-size: 19px !important;
+  }
+
+  /* Two-column action rows (Cancel + Submit pairs) stack */
+  [class*="formActions"],
+  [class*="FormActions"] {
+    flex-direction: column !important;
+  }
+
+  [class*="formActions"]>button,
+  [class*="FormActions"]>button {
+    width: 100% !important;
+  }
+
+  /* Status pills / chips stay readable */
+  [class*="pill"],
+  [class*="Pill"],
+  [class*="chip"]:not([class*="chipRow"]),
+  [class*="Chip"]:not([class*="ChipRow"]) {
+    white-space: nowrap;
+  }
+
+  /* Stat tiles on phones go single-column with smaller numbers */
+  [class*="statTile"] [class*="statTileValue"],
+  [class*="StatTile"] [class*="StatTileValue"] {
+    font-size: 22px !important;
+  }
+}
+
+/* =====================================================================
+   ULTRA-WIDE MOBILE CATCH-ALL — targets CSS-Module classes by substring
+   ---------------------------------------------------------------------
+   CSS Modules append a hash to class names ("Employees_filterCard__ab12"),
+   but preserve the original identifier as a substring. Attribute
+   selectors like [class*="filterCard"] therefore reach EVERY page that
+   uses a class called "filterCard" without touching each module.css.
+   Rules are grouped by common pattern; each block is intentionally
+   defensive (uses `!important` sparingly, only where module rules
+   otherwise win).
+   ===================================================================== */
+
+
+/* ---------- 900 px : tablet portrait & below ---------- */
+@media (max-width: 900px) {
+
+  /* Prevent horizontal page scroll under any circumstance */
+  html,
+  body,
+  #root {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  /* Every <table> that isn't already wrapped in an overflow container
+     gets one auto — its parent's overflow is forced to horizontal-scroll.
+     Safe because we only touch parents that directly hold a table. */
+  [class*="tableCard"],
+  [class*="tableWrap"],
+  [class*="tblWrap"],
+  [class*="table-container"],
+  [class*="tableContainer"] {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Fallback: any bare table not inside an overflow parent */
+  main table,
+  form table,
+  section table {
+    max-width: 100%;
+  }
+
+  /* --- Filter rows (search + dropdowns + button) --- */
+  [class*="filterCard"],
+  [class*="filterRow"],
+  [class*="filterBar"],
+  [class*="filters"]:not([class*="Filtered"]) {
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+
+  [class*="filterField"],
+  [class*="filterSelect"],
+  [class*="searchInput"],
+  [class*="searchWrap"] {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100%;
+  }
+
+  /* --- KPI / stat rows go 3-col at 900px --- */
+  [class*="kpiRow"],
+  [class*="statRow"],
+  [class*="statsGrid"] {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  /* --- Two-column layouts (form/detail panels) stack --- */
+  [class*="twoCol"],
+  [class*="splitPanel"],
+  [class*="detailGrid"],
+  [class*="formGrid"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* --- Action rows (row of buttons) go wrap --- */
+  [class*="actionRow"],
+  [class*="btnRow"],
+  [class*="formActions"] {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* --- Modals on mobile: full width with side gutters --- */
+  [class*="modalPanel"],
+  [class*="modalContent"] {
+    max-width: calc(100vw - 24px) !important;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+  }
+
+  /* --- Toolbar / action button rows tighten --- */
+  [class*="pageHeader"],
+  [class*="pageTitle"] {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  /* --- Modal / drawer close spacing --- */
+  [class*="pager"],
+  [class*="Pagination"] {
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+  }
+}
+
+
+/* ---------- 640 px : phone landscape ---------- */
+@media (max-width: 640px) {
+
+  /* KPI/stat rows go 2-col */
+  [class*="kpiRow"],
+  [class*="statRow"],
+  [class*="statsGrid"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Any 3+ column grid drops to 2 */
+  [class*="cardGrid"],
+  [class*="cardsGrid"],
+  [class*="tileGrid"],
+  [class*="Grid3"],
+  [class*="Grid4"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  /* Page padding tighter */
+  [class*="page"]:not([class*="pageHead"]):not([class*="Pagination"]):not([class*="pager"]) {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  /* Headings compress */
+  h1 {
+    font-size: 20px;
+  }
+
+  h2 {
+    font-size: 17px;
+  }
+
+  h3 {
+    font-size: 15px;
+  }
+
+  /* Table cells + font */
+  table th,
+  table td {
+    padding: 8px 10px !important;
+    font-size: 12.5px !important;
+  }
+
+  /* Buttons stay tappable but don't blow up */
+  button,
+  .btn,
+  [class*="btnPrimary"],
+  [class*="btnSecondary"] {
+    min-height: 36px;
+  }
+}
+
+
+/* ---------- 480 px : phone portrait ---------- */
+@media (max-width: 480px) {
+
+  /* Single column for stats/KPIs */
+  [class*="kpiRow"],
+  [class*="statRow"],
+  [class*="statsGrid"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Card grids single column */
+  [class*="cardGrid"],
+  [class*="cardsGrid"],
+  [class*="tileGrid"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Page container padding minimal */
+  [class*="page"]:not([class*="pageHead"]):not([class*="Pagination"]):not([class*="pager"]) {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  /* Modals full screen */
+  [class*="modalPanel"],
+  [class*="modalContent"] {
+    max-width: 100vw !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    max-height: 100vh !important;
+  }
+
+  /* Modal overlay padding removed */
+  [class*="modalOverlay"] {
+    padding: 0 !important;
+  }
+
+  /* Form inputs default to full width */
+  form input:not([type="checkbox"]):not([type="radio"]),
+  form select,
+  form textarea {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Number values in stat tiles smaller */
+  [class*="kpiValue"],
+  [class*="statValue"],
+  [class*="TileValue"] {
+    font-size: 20px !important;
+  }
+}
+
+
+/* ====================================================================
+   DARK MODE
+   Activated by <html data-theme="dark"> — main.jsx applies this before
+   the app renders (using localStorage.theme) and MySettingsPanel's
+   toggle updates it live.
+
+   Strategy
+   --------
+   1. Flip the token variables that App.css already reads (--layout-bg,
+      --card-bg, --border, --text-primary, --sidebar-*, etc.). Anything
+      that consumes the token gets dark automatically.
+   2. Set html + body backgrounds directly — some pages have hard-coded
+      backgrounds; this at least gives them a dark canvas underneath.
+   3. Attribute-selector overrides for the newer CSS-Modules that hard-
+      code #ffffff / #e2e8f0. Vite hashes class names as
+      `<Module>_<class>__<hash>`, so `[class*="_card"]` catches them
+      broadly. We keep the overrides scoped under [data-theme="dark"]
+      so light mode is untouched.
+   ==================================================================== */
+
+html[data-theme="dark"] {
+
+  color-scheme: dark;
+
+  /* ---- Brand / Primary (softened for dark surfaces) ---- */
+  --clr-primary-light: rgba(220, 38, 38, 0.14);
+  --clr-primary-muted: rgba(220, 38, 38, 0.14);
+  --clr-primary-border: rgba(220, 38, 38, 0.35);
+
+  /* ---- Layout ---- */
+  --layout-bg: #0b1220;
+  --surface: #111827;
+  --card-bg: #1e293b;
+
+  /* ---- Text ---- */
+  --text-primary: #e2e8f0;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+
+  /* ---- Border ---- */
+  --border: #334155;
+  --border-light: #1f2937;
+  --border-strong: #475569;
+
+  /* ---- Sidebar ---- */
+  --sidebar-bg: #0f172a;
+  --sidebar-bg-deep: #0b1220;
+  --sidebar-border: #1f2937;
+  --sidebar-shadow: 1px 0 0 #1f2937;
+  --sidebar-text: #cbd5e1;
+  --sidebar-text-dim: #64748b;
+  --sidebar-active-bg: rgba(220, 38, 38, 0.14);
+  --sidebar-active-text: #f87171;
+  --sidebar-hover-bg: #1e293b;
+  --sidebar-hover-text: #f1f5f9;
+  --sidebar-icon-color: #94a3b8;
+  --sidebar-icon-active: #f87171;
+
+  /* ---- Neutral surface (pale pill / user card in light mode) ---- */
+  --neutral-bg: #1e293b;
+  --neutral-border: #334155;
+  --neutral: #94a3b8;
+
+  /* ---- Danger tokens (softened for dark) ---- */
+  --danger-bg: rgba(220, 38, 38, 0.14);
+  --danger-border: rgba(220, 38, 38, 0.32);
+  --danger: #fca5a5;
+}
+
+
+html[data-theme="dark"],
+html[data-theme="dark"] body {
+  background: #0b1220;
+  color: #e2e8f0;
+}
+
+
+/* Native form controls — pick up dark scheme for the browser's own
+   dropdown chrome, date pickers, scroll bars. */
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select {
+  color-scheme: dark;
+}
+
+
+/* --------------------------------------------------------------------
+   CSS-Modules overrides.
+   These hit the redesigned employee panels (Attendance, Leave,
+   Permission, Tasks, Home, Memos, Documents, Announcements, Assets,
+   HelpDesk, Settings, Payslips, Preview) whose class names include
+   the substring `_wrap`, `_card`, `_head`, `_section` etc. after
+   Vite's CSS-Modules hashing.
+   -------------------------------------------------------------------- */
+
+/* Any white card-like surface → dark surface */
+html[data-theme="dark"] [class*="_card"],
+html[data-theme="dark"] [class*="_head"],
+html[data-theme="dark"] [class*="_panel"],
+html[data-theme="dark"] [class*="_section"],
+html[data-theme="dark"] [class*="_hero"],
+html[data-theme="dark"] [class*="_row"]:not([class*="_headRow"]),
+html[data-theme="dark"] [class*="_stat"]:not([class*="_statLabel"]):not([class*="_statValue"]):not([class*="_statSub"]),
+html[data-theme="dark"] [class*="_slip"]:not([class*="_slipNet"]):not([class*="_slipStat"]) {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+/* Table + list wrappers */
+html[data-theme="dark"] [class*="_list"] {
+  color: #e2e8f0 !important;
+}
+
+/* Search + text inputs inside module cards */
+html[data-theme="dark"] [class*="_searchBox"],
+html[data-theme="dark"] [class*="_input"],
+html[data-theme="dark"] [class*="_select"],
+html[data-theme="dark"] [class*="_textarea"] {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme="dark"] [class*="_input"]::placeholder,
+html[data-theme="dark"] [class*="_searchBox"] input::placeholder,
+html[data-theme="dark"] [class*="_textarea"]::placeholder {
+  color: #64748b !important;
+}
+
+/* Muted / subtitle text — flip the hardcoded slate-400 / slate-500 */
+html[data-theme="dark"] [class*="_sub"],
+html[data-theme="dark"] [class*="_meta"],
+html[data-theme="dark"] [class*="_hint"],
+html[data-theme="dark"] [class*="_label"]:not([class*="_labelReq"]) {
+  color: #94a3b8 !important;
+}
+
+/* Title-like text stays high-contrast white in dark mode */
+html[data-theme="dark"] [class*="_title"],
+html[data-theme="dark"] [class*="_Title"],
+html[data-theme="dark"] [class*="_value"],
+html[data-theme="dark"] [class*="_Value"] {
+  color: #f1f5f9 !important;
+}
+
+/* Ghost / secondary buttons — inherit dark surface */
+html[data-theme="dark"] [class*="btnGhost"],
+html[data-theme="dark"] [class*="_actionGhost"],
+html[data-theme="dark"] [class*="_chipBtn"]:not([class*="_active"]) {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme="dark"] [class*="btnGhost"]:hover,
+html[data-theme="dark"] [class*="_actionGhost"]:hover {
+  background: #0f172a !important;
+}
+
+/* Cream / soft-slate panels (f8fafc, f1f5f9) inside cards */
+html[data-theme="dark"] [class*="_metaGrid"],
+html[data-theme="dark"] [class*="_dates"],
+html[data-theme="dark"] [class*="_stepper"]:not([class*="_stepper_rejected"]),
+html[data-theme="dark"] [class*="_descBlock"] {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+/* Empty / loading dashed cards */
+html[data-theme="dark"] [class*="_empty"],
+html[data-theme="dark"] [class*="_loading"] {
+  background: #111827 !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
+}
+
+/* Keep coloured chips readable — bring background alpha down so the
+   dark surface shows through and the coloured text still pops. */
+html[data-theme="dark"] [class*="_chip_success"],
+html[data-theme="dark"] [class*="_chip_issued"],
+html[data-theme="dark"] [class*="_chip_resolved"] {
+  background: rgba(16, 185, 129, 0.18) !important;
+  color: #a7f3d0 !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+html[data-theme="dark"] [class*="_chip_warning"],
+html[data-theme="dark"] [class*="_chip_warn"],
+html[data-theme="dark"] [class*="_chip_progress"],
+html[data-theme="dark"] [class*="_chip_pending"] {
+  background: rgba(245, 158, 11, 0.18) !important;
+  color: #fcd34d !important;
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+
+html[data-theme="dark"] [class*="_chip_danger"],
+html[data-theme="dark"] [class*="_chip_late"],
+html[data-theme="dark"] [class*="_chip_rejected"] {
+  background: rgba(239, 68, 68, 0.18) !important;
+  color: #fecaca !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+html[data-theme="dark"] [class*="_chip_info"] {
+  background: rgba(59, 130, 246, 0.18) !important;
+  color: #bfdbfe !important;
+  border-color: rgba(59, 130, 246, 0.35) !important;
+}
+
+html[data-theme="dark"] [class*="_chip_muted"],
+html[data-theme="dark"] [class*="_chip_closed"] {
+  background: rgba(148, 163, 184, 0.18) !important;
+  color: #cbd5e1 !important;
+  border-color: rgba(148, 163, 184, 0.35) !important;
+}
+
+/* Primary red buttons stay red — no override needed */
+
+
+/* --------------------------------------------------------------------
+   Broad text-colour flip.
+   The module CSS often hard-codes dark-slate text (#0f172a / #1e293b
+   / #334155) directly on class names our substring selectors above
+   don't match — e.g. `.cardName`, `.slipMonth`, `.historyTitle`,
+   `.rowMain`. Rather than enumerate every one, force every basic
+   text element inside a module wrap/card/panel/section/hero to the
+   dark-mode text colour. `:where()` doesn't add specificity, so a
+   chip/pill/button `!important` rule set earlier still wins.
+   -------------------------------------------------------------------- */
+html[data-theme="dark"] [class*="_wrap"] :where(div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em),
+html[data-theme="dark"] [class*="_card"] :where(div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em),
+html[data-theme="dark"] [class*="_panel"] :where(div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em),
+html[data-theme="dark"] [class*="_section"] :where(div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em),
+html[data-theme="dark"] [class*="_hero"] :where(div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em),
+html[data-theme="dark"] [class*="_row"] :where(div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em),
+html[data-theme="dark"] [class*="_head"] :where(div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em),
+html[data-theme="dark"] [class*="_body"] :where(div, span, p, li, ul, ol, a, td, th, dt, dd,
+  h1, h2, h3, h4, h5, h6, label, small, strong, b, em) {
+  color: #e2e8f0;
+}
+
+/* Root titles inside the same wrappers also lift to off-white */
+html[data-theme="dark"] [class*="_wrap"],
+html[data-theme="dark"] [class*="_card"],
+html[data-theme="dark"] [class*="_panel"],
+html[data-theme="dark"] [class*="_section"],
+html[data-theme="dark"] [class*="_hero"],
+html[data-theme="dark"] [class*="_head"],
+html[data-theme="dark"] [class*="_body"],
+html[data-theme="dark"] [class*="_row"] {
+  color: #e2e8f0;
+}
+
+/* Restore muted secondary text after the broad flip. Anything with
+   `_sub`, `_meta`, `_hint`, `_note`, `_desc` / `Description`,
+   `_label` (except required-marker), or `_num` sub-text falls to
+   slate-400 so the hierarchy is preserved. */
+html[data-theme="dark"] [class*="_sub"],
+html[data-theme="dark"] [class*="_meta"],
+html[data-theme="dark"] [class*="_hint"],
+html[data-theme="dark"] [class*="_note"],
+html[data-theme="dark"] [class*="_desc"],
+html[data-theme="dark"] [class*="_muted"],
+html[data-theme="dark"] [class*="_helpText"],
+html[data-theme="dark"] [class*="_placeholder"],
+html[data-theme="dark"] [class*="_dot"] {
+  color: #94a3b8 !important;
+}
+
+/* Titles / values / high-contrast text stay off-white */
+html[data-theme="dark"] [class*="_title"],
+html[data-theme="dark"] [class*="Title"],
+html[data-theme="dark"] [class*="_value"],
+html[data-theme="dark"] [class*="Value"],
+html[data-theme="dark"] [class*="_name"],
+html[data-theme="dark"] [class*="Name"],
+html[data-theme="dark"] [class*="_num"]:not([class*="_number"]):not([class*="Number"]),
+html[data-theme="dark"] [class*="_month"],
+html[data-theme="dark"] [class*="_year"],
+html[data-theme="dark"] [class*="_date"]:not([class*="_dateLabel"]),
+html[data-theme="dark"] [class*="_day"] {
+  color: #f1f5f9 !important;
+}
+
+/* Monospace ticket / payslip numbers — soft slate, not bright white */
+html[data-theme="dark"] [class*="ticketNumber"],
+html[data-theme="dark"] [class*="_number"],
+html[data-theme="dark"] [class*="Number"],
+html[data-theme="dark"] [class*="_serial"],
+html[data-theme="dark"] [class*="_filename"] {
+  color: #94a3b8 !important;
+}
+
+/* Coloured status badges that live outside the chip block —
+   overdue / late / danger / urgent text should stay red-ish, not
+   flip to white. */
+html[data-theme="dark"] [class*="_overdue"],
+html[data-theme="dark"] [class*="_dueOverdue"],
+html[data-theme="dark"] [class*="_lateNote"],
+html[data-theme="dark"] [class*="_notReturned"] {
+  color: #fca5a5 !important;
+}
+
+html[data-theme="dark"] [class*="_deduction"] {
+  color: #f87171 !important;
+}
+
+html[data-theme="dark"] [class*="_slipNetValue"],
+html[data-theme="dark"] [class*="_slipNetLabel"] {
+  color: #6ee7b7 !important;
+}
+
+/* Native form controls text */
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea,
+html[data-theme="dark"] select {
+  color: #e2e8f0 !important;
+}
+
+
+/* --------------------------------------------------------------------
+   Catch-all overrides for anything the substring selectors above
+   missed.
+
+   Key discovery: Vite in PRODUCTION hashes CSS-Modules classes as
+   `_<name>_<hash>` (single underscore). The double-underscore form
+   `<Module>_<local>__<hash>` only shows up in dev. So earlier rules
+   using `[class*="__"]` matched nothing in the built bundle. All
+   rules below anchor on `_` (single underscore), the pattern that
+   actually survives the build.
+   -------------------------------------------------------------------- */
+
+/* 1. Every heading tag goes light. Non-negotiable. */
+html[data-theme="dark"] h1,
+html[data-theme="dark"] h2,
+html[data-theme="dark"] h3,
+html[data-theme="dark"] h4,
+html[data-theme="dark"] h5,
+html[data-theme="dark"] h6 {
+  color: #f1f5f9 !important;
+}
+
+/* 2. Every text-carrying tag whose class contains an underscore
+   (i.e. any CSS-Modules-hashed class) inherits light text. Buttons,
+   chips and accent colours still win via their own `!important`. */
+html[data-theme="dark"] body :is(div, span, p, li, td, th, dd, dt, a, small, strong, b, em, label, button)[class*="_"] {
+  color: #e2e8f0;
+}
+
+/* Subtitle / caption / eyebrow / meta / hint keep the muted tone
+   so hierarchy is preserved. Case-insensitive `i` flag matches
+   Subtitle / subtitle / HeadSub / etc. */
+html[data-theme="dark"] [class*="subtitle" i],
+html[data-theme="dark"] [class*="_sub_" i],
+html[data-theme="dark"] [class*="caption" i],
+html[data-theme="dark"] [class*="eyebrow" i],
+html[data-theme="dark"] [class*="_meta" i],
+html[data-theme="dark"] [class*="_hint" i] {
+  color: #94a3b8 !important;
+}
+
+
+/* --------------------------------------------------------------------
+   Specific class-name overrides for the panels whose pale-tinted
+   backgrounds still swallow their text after the generic flip above.
+   These are the exact class fragments used by MyAnnouncementsPanel,
+   MyMemosPanel, MyDocumentsPanel, etc.
+   -------------------------------------------------------------------- */
+
+/* Pale-white pills (year chips, tabs) → dark surface */
+html[data-theme="dark"] [class*="_yearChip"]:not([class*="_active"]),
+html[data-theme="dark"] [class*="_tab_"]:not([class*="_active"]),
+html[data-theme="dark"] [class*="_tab"]:not([class*="_active"]):not([class*="_tabs"]):not([class*="_tabIcon"]):not([class*="_tabCount"]) {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  color: #cbd5e1 !important;
+}
+
+html[data-theme="dark"] [class*="_tabCount"] {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #94a3b8 !important;
+}
+
+/* Pale date tiles (holidays) — red-tinted in light mode, keep the
+   red accent but on a dark backing so the numbers pop. */
+html[data-theme="dark"] [class*="_dateTile"]:not([class*="_dateTileDay"]):not([class*="_dateTileMon"]) {
+  background: rgba(220, 38, 38, 0.14) !important;
+  border-color: rgba(220, 38, 38, 0.28) !important;
+}
+
+html[data-theme="dark"] [class*="_dateTileDay"],
+html[data-theme="dark"] [class*="_dateTileMon"] {
+  color: #fca5a5 !important;
+}
+
+/* Holiday / notice row titles — dark navy in the module CSS, must
+   flip to off-white against the dark card. */
+html[data-theme="dark"] [class*="_holTitle"],
+html[data-theme="dark"] [class*="_noticeTitle"],
+html[data-theme="dark"] [class*="_docTitle"],
+html[data-theme="dark"] [class*="_memoTitle"],
+html[data-theme="dark"] [class*="_assetTitle"],
+html[data-theme="dark"] [class*="_ticketSubject"],
+html[data-theme="dark"] [class*="_rowTitle"] {
+  color: #f1f5f9 !important;
+}
+
+/* Holiday / notice row meta + notes — muted */
+html[data-theme="dark"] [class*="_holMeta"],
+html[data-theme="dark"] [class*="_noticeMeta"],
+html[data-theme="dark"] [class*="_holNotes"],
+html[data-theme="dark"] [class*="_noticeDesc"],
+html[data-theme="dark"] [class*="_rowMeta"] {
+  color: #94a3b8 !important;
+}
+
+/* Tinted category icons on rows */
+html[data-theme="dark"] [class*="_noticeIcon"] {
+  background: rgba(29, 78, 216, 0.20) !important;
+  color: #93c5fd !important;
+}
+
+/* Small pills (NATIONAL / etc.) — pale in light mode, tint them for
+   dark mode so the label is legible. */
+html[data-theme="dark"] [class*="_tinyPill_slate"] {
+  background: rgba(148, 163, 184, 0.14) !important;
+  border-color: rgba(148, 163, 184, 0.30) !important;
+  color: #cbd5e1 !important;
+}
+
+html[data-theme="dark"] [class*="_tinyPill_amber"] {
+  background: rgba(251, 191, 36, 0.14) !important;
+  border-color: rgba(251, 191, 36, 0.35) !important;
+  color: #fbbf24 !important;
+}
+
+/* Row separators between holiday/notice items become invisible on
+   a dark card because the light-mode `#f1f5f9` border matches
+   nothing on dark navy. Give them a subtle luminous line. */
+html[data-theme="dark"] [class*="_holRow"],
+html[data-theme="dark"] [class*="_noticeRow"] {
+  border-top-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* Welcome hero on the home dashboard */
+html[data-theme="dark"] [class*="_welcomeTitle"] {
+  color: #f1f5f9 !important;
+}
+
+html[data-theme="dark"] [class*="_welcomeSubtitle"],
+html[data-theme="dark"] [class*="_welcomeDate"] {
+  color: #94a3b8 !important;
+}
+
+
+/* ====================================================================
+   UNIVERSAL DARK MODE — pattern-based overrides that apply to EVERY
+   employee-portal module (Announcements, Memos, Tasks, Salary,
+   Assets, Help Desk, Documents, Settings, Home, Performance, etc.)
+   without me enumerating each module by name.
+
+   All the panels follow the same naming convention:
+     - wrappers:  .card / .head / .hero / .panel / .section / .box
+                  .row / .tile / .modal / .item / .container / .field
+     - pills:     .pill / .chip / .tab / .btn / .action / .toggle
+     - text:      .title / .value / .name / .amount / .count / .badge
+     - muted:     .sub / .meta / .hint / .desc / .label / .caption
+                  .note / .helper / .footnote / .eyebrow / .placeholder
+
+   So one set of substring selectors flips them all.
+   ==================================================================== */
+
+/* ---- 1. WRAPPERS — anything that had a white/pale card bg ---------- */
+html[data-theme="dark"] [class*="_card"]:not([class*="_cardTitle"]):not([class*="_cardHead"]):not([class*="_cardSub"]),
+html[data-theme="dark"] [class*="_head"]:not([class*="_headTitle"]):not([class*="_headSub"]):not([class*="_headEyebrow"]):not([class*="_header"]),
+html[data-theme="dark"] [class*="_hero"]:not([class*="_heroScore"]):not([class*="_heroLabel"]):not([class*="_heroSub"]):not([class*="_heroValue"]):not([class*="_heroTitle"]),
+html[data-theme="dark"] [class*="_panel"]:not([class*="_panelTitle"]):not([class*="_panelHead"]),
+html[data-theme="dark"] [class*="_section"]:not([class*="_sectionTitle"]):not([class*="_sectionHead"]),
+html[data-theme="dark"] [class*="_container"],
+html[data-theme="dark"] [class*="_box"]:not([class*="_boxTitle"]):not([class*="_boxLabel"]),
+html[data-theme="dark"] [class*="_modal"]:not([class*="_modalTitle"]):not([class*="_modalHead"]):not([class*="_modalBody"]),
+html[data-theme="dark"] [class*="_dialog"],
+html[data-theme="dark"] [class*="_field"]:not([class*="_fieldLabel"]):not([class*="_fieldHint"]),
+html[data-theme="dark"] [class*="_group"]:not([class*="_groupTitle"]):not([class*="_groupLabel"]),
+html[data-theme="dark"] [class*="_bar"]:not([class*="_barLabel"]):not([class*="_barValue"]):not([class*="_barFill"]) {
+  background-color: #131c2c !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ---- 2. ROWS / TILES / ITEMS — usually inside a card, so translucent
+   surfaces on the dark card rather than solid dark navy ------------- */
+html[data-theme="dark"] [class*="_row"]:not([class*="_rowTitle"]):not([class*="_rowMeta"]):not([class*="_rowLabel"]):not([class*="_rowValue"]):not([class*="_rowActions"]):not([class*="_rowHead"]) {
+  background-color: transparent !important;
+  border-top-color: rgba(255, 255, 255, 0.06) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+html[data-theme="dark"] [class*="_tile"]:not([class*="_tileDay"]):not([class*="_tileMon"]):not([class*="_tileLabel"]):not([class*="_tileValue"]) {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+}
+
+html[data-theme="dark"] [class*="_item"]:not([class*="_itemTitle"]):not([class*="_itemMeta"]):not([class*="_itemLabel"]):not([class*="_itemValue"]) {
+  background-color: transparent !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+/* ---- 3. PILLS / CHIPS / TABS / TOGGLES — inactive pale bg ---------- */
+html[data-theme="dark"] [class*="_pill"]:not([class*="_active"]):not([class*="_primary"]):not([class*="_pillLabel"]):not([class*="_pillIcon"]):not([class*="_tinyPill"]):not([class*="_categoryPill"]):not([class*="_priorityPill"]):not([class*="_pill_warning"]):not([class*="_pill_appreciation"]):not([class*="_pill_notice"]):not([class*="_pill_high"]):not([class*="_pill_medium"]):not([class*="_pill_low"]),
+html[data-theme="dark"] [class*="_chip"]:not([class*="_active"]):not([class*="_primary"]):not([class*="_chipLabel"]):not([class*="_chipIcon"]):not([class*="_filterChip_active"]):not([class*="_yearChip"]),
+html[data-theme="dark"] [class*="_toggle"]:not([class*="_toggleLabel"]):not([class*="_toggleTrack_on"]):not([class*="_active"]) {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  color: #cbd5e1 !important;
+}
+
+/* ---- 4. GHOST BUTTONS — the ones with a white bg in light mode ---- */
+html[data-theme="dark"] [class*="_btnGhost"],
+html[data-theme="dark"] [class*="_actionGhost"],
+html[data-theme="dark"] [class*="_btnSecondary"]:not([class*="_active"]),
+html[data-theme="dark"] [class*="_btnOutline"]:not([class*="_active"]) {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme="dark"] [class*="_btnGhost"]:hover,
+html[data-theme="dark"] [class*="_actionGhost"]:hover,
+html[data-theme="dark"] [class*="_btnSecondary"]:hover,
+html[data-theme="dark"] [class*="_btnOutline"]:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ---- 5. STRONG TEXT — titles, values, names, amounts → off-white -- */
+html[data-theme="dark"] [class*="_title" i],
+html[data-theme="dark"] [class*="_value" i],
+html[data-theme="dark"] [class*="_amount" i],
+html[data-theme="dark"] [class*="_subject" i],
+html[data-theme="dark"] [class*="_heading" i] {
+  color: #f1f5f9 !important;
+}
+
+/* ---- 6. MUTED TEXT — meta, sub, hint, desc, label, note, footnote,
+   caption, eyebrow, placeholder ----------------------------------- */
+html[data-theme="dark"] [class*="_desc" i]:not([class*="_description" i]),
+html[data-theme="dark"] [class*="_note" i]:not([class*="_notReturned"]):not([class*="_notified"]),
+html[data-theme="dark"] [class*="_helper" i],
+html[data-theme="dark"] [class*="_footnote" i],
+html[data-theme="dark"] [class*="_placeholder" i],
+html[data-theme="dark"] [class*="_small" i] {
+  color: #94a3b8 !important;
+}
+
+/* ---- 7. NUMBERS / DAYS / DATES on tiles keep their accent ---------- */
+html[data-theme="dark"] [class*="_tileDay"],
+html[data-theme="dark"] [class*="_tileMon"],
+html[data-theme="dark"] [class*="_dateDay"],
+html[data-theme="dark"] [class*="_dateMon"],
+html[data-theme="dark"] [class*="_calDay"],
+html[data-theme="dark"] [class*="_calMon"] {
+  color: #fca5a5 !important;
+}
+
+/* ---- 8. STEPPER STEPS (help desk status flow) — inactive circles - */
+html[data-theme="dark"] [class*="_stepCircle"]:not([class*="_stepCircle_active"]):not([class*="_stepCircle_done"]) {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  color: #94a3b8 !important;
+}
+
+html[data-theme="dark"] [class*="_stepConnector"]:not([class*="_stepConnector_done"]) {
+  background-color: rgba(255, 255, 255, 0.10) !important;
+}
+
+/* ---- 9. iOS-style toggle track (settings notifications) ----------- */
+html[data-theme="dark"] [class*="_toggleTrack"]:not([class*="_toggleTrack_on"]) {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+html[data-theme="dark"] [class*="_toggleThumb"] {
+  background-color: #f1f5f9 !important;
+}
+
+/* ---- 10. SEARCH BOX / INPUT / SELECT / TEXTAREA border fixes ------ */
+html[data-theme="dark"] [class*="_searchBox"] input,
+html[data-theme="dark"] [class*="_searchBox"] {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  color: #e2e8f0 !important;
+}
+
+/* ---- 11. EMPTY STATES — dashed pale card in light mode ------------ */
+html[data-theme="dark"] [class*="_empty"]:not([class*="_emptyTitle"]):not([class*="_emptyBody"]):not([class*="_emptyIcon"]) {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #94a3b8 !important;
+}
+
+html[data-theme="dark"] [class*="_emptyIcon"] {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: #94a3b8 !important;
+}
+
+/* ---- 12. LOADING SKELETONS / SHIMMER ------------------------------- */
+html[data-theme="dark"] [class*="_skeleton"],
+html[data-theme="dark"] [class*="_shimmer"] {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+}
+
+/* ---- 13. Universal dividers / hr ---------------------------------- */
+html[data-theme="dark"] hr,
+html[data-theme="dark"] [class*="_divider"],
+html[data-theme="dark"] [class*="_sep"] {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ---- 14. Ghost icons (grey tinted round backgrounds) — keep the
+   accent hue but on a dark tint. All modules follow the same pattern:
+   `_someIcon` for a coloured 40×40 rounded icon before a row title. -- */
+html[data-theme="dark"] [class*="Icon"]:not([class*="tabIcon"]):not([class*="btnIcon"]):not([class*="Ghost"]) {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+
+/* ====================================================================
+   Attendance-specific: action button grid + biometric hint. These
+   use `.action` / `.action_locked` / `.action_done` / `.bioHint`
+   class names that don't fit the generic wrapper patterns above.
+   ==================================================================== */
+
+/* Locked action buttons (Check Out / OT Check In / OT Check Out
+   before their pre-req step) — pale slate `#f8fafc` in light mode. */
+html[data-theme="dark"] [class*="_action_locked"] {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #64748b !important;
+}
+
+html[data-theme="dark"] [class*="_action_locked"] [class*="_actionTitle"] {
+  color: #94a3b8 !important;
+}
+
+html[data-theme="dark"] [class*="_action_locked"] [class*="_actionHint"] {
+  color: #64748b !important;
+}
+
+html[data-theme="dark"] [class*="_action_locked"] [class*="_actionIcon"] {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  color: #94a3b8 !important;
+}
+
+/* Done state — green in module CSS, keep the emerald tone in dark. */
+html[data-theme="dark"] [class*="_action_done"]:not([class*="_action_ot"]) {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+  border-color: rgba(16, 185, 129, 0.32) !important;
+  color: #6ee7b7 !important;
+}
+
+html[data-theme="dark"] [class*="_action_done"]:not([class*="_action_ot"]) [class*="_actionTitle"],
+html[data-theme="dark"] [class*="_action_done"]:not([class*="_action_ot"]) [class*="_actionHint"] {
+  color: #6ee7b7 !important;
+}
+
+html[data-theme="dark"] [class*="_action_done"]:not([class*="_action_ot"]) [class*="_actionIcon"] {
+  background-color: rgba(16, 185, 129, 0.20) !important;
+  color: #34d399 !important;
+}
+
+/* Done state — OT variant (purple). */
+html[data-theme="dark"] [class*="_action_ot"][class*="_action_done"] {
+  background-color: rgba(124, 58, 237, 0.15) !important;
+  border-color: rgba(124, 58, 237, 0.35) !important;
+  color: #c4b5fd !important;
+}
+
+html[data-theme="dark"] [class*="_action_ot"][class*="_action_done"] [class*="_actionTitle"],
+html[data-theme="dark"] [class*="_action_ot"][class*="_action_done"] [class*="_actionHint"] {
+  color: #c4b5fd !important;
+}
+
+html[data-theme="dark"] [class*="_action_ot"][class*="_action_done"] [class*="_actionIcon"] {
+  background-color: rgba(124, 58, 237, 0.25) !important;
+  color: #ddd6fe !important;
+}
+
+/* Ready state keeps the vivid red / purple button — no override
+   needed. Ensure text inside stays white. */
+html[data-theme="dark"] [class*="_action_ready"] [class*="_actionTitle"],
+html[data-theme="dark"] [class*="_action_ready"] [class*="_actionHint"] {
+  color: #ffffff !important;
+}
+
+/* Biometric footer hint — pale slate box in light mode. */
+html[data-theme="dark"] [class*="_bioHint"]:not([class*="_bioHintIcon"]) {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  color: #94a3b8 !important;
+}
+
+html[data-theme="dark"] [class*="_bioHintIcon"] {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #94a3b8 !important;
+}
+
+/* Attendance status chips at the header — `_chip_present` (green),
+   `_chip_late` (amber), `_chip_absent` (red). Keep the accent but
+   restage on a dark tint. */
+html[data-theme="dark"] [class*="_chip_present"] {
+  background-color: rgba(16, 185, 129, 0.14) !important;
+  border-color: rgba(16, 185, 129, 0.32) !important;
+  color: #6ee7b7 !important;
+}
+
+html[data-theme="dark"] [class*="_chip_late"] {
+  background-color: rgba(251, 191, 36, 0.14) !important;
+  border-color: rgba(251, 191, 36, 0.35) !important;
+  color: #fbbf24 !important;
+}
+
+html[data-theme="dark"] [class*="_chip_absent"] {
+  background-color: rgba(239, 68, 68, 0.14) !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+  color: #fca5a5 !important;
+}
+
+html[data-theme="dark"] [class*="_statValueOt"] {
+  color: #c4b5fd !important;
+}
+
+/* OT block header + total pill on Attendance page */
+html[data-theme="dark"] [class*="_otBlock"] {
+  background-color: rgba(124, 58, 237, 0.10) !important;
+  border-color: rgba(124, 58, 237, 0.28) !important;
+}
+
+html[data-theme="dark"] [class*="_otTotalPill"] {
+  background-color: rgba(124, 58, 237, 0.22) !important;
+  border-color: rgba(124, 58, 237, 0.40) !important;
+  color: #ddd6fe !important;
+}
+
+html[data-theme="dark"] [class*="_otEyebrow"] {
+  color: #c4b5fd !important;
+}
+
+
+/* ====================================================================
+   Cross-cutting pale-bg containers that keep slipping through. Any
+   class name matching one of these substrings is a light-mode pale
+   box and always needs a dark tint in dark mode.
+
+   `bioHint` above is one example; the same pattern shows up in
+   Memos (banner), Tasks (reminder), Salary (year strip), Documents
+   (upload zone), Help Desk (status stripe). All use pale-slate
+   `#f8fafc` or pale-primary `#eff6ff` — flip them uniformly.
+   ==================================================================== */
+html[data-theme="dark"] [class*="_banner"]:not([class*="_bannerTitle"]):not([class*="_bannerText"]):not([class*="_bannerIcon"]):not([class*="_bannerAction"]),
+html[data-theme="dark"] [class*="_reminderBanner"]:not([class*="_reminderText"]),
+html[data-theme="dark"] [class*="_callout"]:not([class*="_calloutTitle"]):not([class*="_calloutText"]),
+html[data-theme="dark"] [class*="_hint"]:not([class*="_hintText"]):not([class*="_bioHintIcon"]):not([class*="_actionHint"]),
+html[data-theme="dark"] [class*="_uploadZone"],
+html[data-theme="dark"] [class*="_dropZone"],
+html[data-theme="dark"] [class*="_pickerRow"],
+html[data-theme="dark"] [class*="_summaryRow"],
+html[data-theme="dark"] [class*="_topStrip"],
+html[data-theme="dark"] [class*="_infoBox"]:not([class*="_infoBoxTitle"]) {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  color: #cbd5e1 !important;
+}
+
+
+/* ====================================================================
+   CAMEL-CASE PILL / CHIP FIX — CSS attribute selectors are
+   case-sensitive by default, so `[class*="_chip"]` never matched
+   `_filterChip` / `_yearChip` / `_presetChip` / `_breakdownPill` /
+   `_categoryPill` etc. Adding the `i` flag makes these all match.
+
+   Then targeted overrides for Tasks, Leave, Memos, Announcements.
+   ==================================================================== */
+
+/* Case-insensitive catch for every "chip / pill / tab" naming
+   convention. Includes _filterChip, _yearChip, _presetChip,
+   _breakdownPill, _categoryPill, _priorityPill etc. */
+html[data-theme="dark"] [class*="Chip" i]:not([class*="active"] i):not([class*="danger" i]):not([class*="primary" i]):not([class*="ChipIcon" i]):not([class*="ChipLabel" i]):not([class*="ChipHint" i]),
+html[data-theme="dark"] [class*="Pill" i]:not([class*="active" i]):not([class*="primary" i]):not([class*="PillIcon" i]):not([class*="PillLabel" i]):not([class*="Pill_warning" i]):not([class*="Pill_appreciation" i]):not([class*="Pill_notice" i]):not([class*="Pill_high" i]):not([class*="Pill_medium" i]):not([class*="Pill_low" i]):not([class*="Pill_amber" i]):not([class*="Pill_slate" i]):not([class*="Pill_casual" i]):not([class*="Pill_sick" i]):not([class*="Pill_earned" i]):not([class*="Pill_unpaid" i]) {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+  color: #cbd5e1 !important;
+}
+
+/* The count badge inside a chip / pill (e.g. "0" next to "Today") */
+html[data-theme="dark"] [class*="filterCount" i],
+html[data-theme="dark"] [class*="chipCount" i],
+html[data-theme="dark"] [class*="pillCount" i],
+html[data-theme="dark"] [class*="tabCount" i] {
+  background-color: rgba(255, 255, 255, 0.10) !important;
+  color: #cbd5e1 !important;
+}
+
+
+/* ---- Leave page: balance card, sub-choice buttons, computed strip ---- */
+
+/* Balance card — the white pill at the top with "LEAVE BALANCE / 0 days available" */
+html[data-theme="dark"] [class*="_balance"]:not([class*="_balanceHead"]):not([class*="_balanceIcon"]):not([class*="_balanceTitle"]):not([class*="_balanceValue"]):not([class*="_balanceBreakdown"]):not([class*="_breakdownPill"]) {
+  background-color: #131c2c !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+html[data-theme="dark"] [class*="_balanceTitle"] {
+  color: #94a3b8 !important;
+}
+
+html[data-theme="dark"] [class*="_balanceValue"] {
+  color: #f1f5f9 !important;
+}
+
+html[data-theme="dark"] [class*="_balanceIcon"] {
+  background-color: rgba(220, 38, 38, 0.20) !important;
+  color: #fca5a5 !important;
+}
+
+/* Full day / Half day toggle — `.subChoice` is the pill container,
+   `.subChoiceBtn` is each button, `.subChoiceBtn_active` is the
+   red-filled active one. */
+html[data-theme="dark"] [class*="_subChoice"]:not([class*="_subChoiceBtn"]) {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.10) !important;
+}
+
+html[data-theme="dark"] [class*="_subChoiceBtn"]:not([class*="_active"]) {
+  background-color: transparent !important;
+  color: #94a3b8 !important;
+  border-color: transparent !important;
+}
+
+html[data-theme="dark"] [class*="_subChoiceBtn_active"] {
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+  border-color: #dc2626 !important;
+}
+
+/* Computed stripe — "You're applying for 1 day of Casual leave." */
+html[data-theme="dark"] [class*="_computed"] {
+  background-color: rgba(59, 130, 246, 0.10) !important;
+  border-color: rgba(59, 130, 246, 0.28) !important;
+  color: #93c5fd !important;
+}
+
+html[data-theme="dark"] [class*="_computed"] b,
+html[data-theme="dark"] [class*="_computed"] strong {
+  color: #dbeafe !important;
+}
+
+/* Section head divider (Apply for leave / History / etc.) */
+html[data-theme="dark"] [class*="_sectionHead"] {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+html[data-theme="dark"] [class*="_sectionTitle"] {
+  color: #f1f5f9 !important;
+}
+
+html[data-theme="dark"] [class*="_sectionSub"] {
+  color: #94a3b8 !important;
+}
+
+/* Form field label + hint */
+html[data-theme="dark"] [class*="_label"]:not([class*="_labelRequired"]):not([class*="_labelReq"]),
+html[data-theme="dark"] [class*="_submitNote"] {
+  color: #94a3b8 !important;
+}
+
+/* Reminder banner (Tasks page: amber-tinted overdue banner) */
+html[data-theme="dark"] [class*="_reminder"]:not([class*="_reminderTitle"]):not([class*="_reminderSub"]):not([class*="_reminderIcon"]):not([class*="_reminderBtn"]):not([class*="_reminderClose"]):not([class*="_reminderBody"]) {
+  background-color: rgba(251, 191, 36, 0.10) !important;
+  border-color: rgba(251, 191, 36, 0.30) !important;
+}
+
+html[data-theme="dark"] [class*="_reminderTitle"] {
+  color: #fbbf24 !important;
+}
+
+html[data-theme="dark"] [class*="_reminderSub"] {
+  color: #fcd34d !important;
+}
+
+html[data-theme="dark"] [class*="_reminderIcon"] {
+  background-color: rgba(251, 191, 36, 0.20) !important;
+  color: #fbbf24 !important;
+}
+
+/* History rows / list rows in Leave / Assets / Memos */
+html[data-theme="dark"] [class*="_historyRow"]:not([class*="_historyTitle"]):not([class*="_historyMeta"]):not([class*="_historyBadge"]):not([class*="_historyBody"]) {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+html[data-theme="dark"] [class*="_historyTitle"] {
+  color: #f1f5f9 !important;
+}
+
+html[data-theme="dark"] [class*="_historyMeta"] {
+  color: #94a3b8 !important;
 }

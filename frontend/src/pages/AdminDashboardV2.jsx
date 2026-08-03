@@ -489,7 +489,7 @@ const KPI_DEFS = [
   { key: "active_projects",         label: "Active Projects",       icon: "🏗️", tone: "warn",    format: "int",   href: "/projects" },
   { key: "production_active",       label: "Production Running",    icon: "🏭", tone: "primary", format: "int",   href: "/production" },
   { key: "inventory_value",         label: "Inventory Value",       icon: "🏷️", tone: "ok",      format: "money", href: "/inventory" },
-  { key: "purchase_orders",         label: "Purchase Orders",       icon: "📦", tone: "info",    format: "int",   href: "/purchase-orders" },
+  { key: "purchase_orders",         label: "Purchase Orders",       icon: "📦", tone: "info",    format: "int"   },
   { key: "pending_payments",        label: "Pending Payments",      icon: "💳", tone: "warn",    format: "money", href: "/sales-orders" },
   { key: "employees_present_today", label: "Employees Present",     icon: "🟢", tone: "ok",      format: "int",   href: "/attendance" },
   { key: "leave_requests_pending",  label: "Leave Requests",        icon: "🌴", tone: "purple",  format: "int",   href: "/approvals" },
@@ -2587,7 +2587,6 @@ const QUICK_ACTIONS = [
   { icon: "📋", label: "Quotation",      href: "/quotations",      tone: "info"   },
   { icon: "🛒", label: "Sales Order",    href: "/sales-orders",    tone: "ok"     },
   { icon: "🏗️", label: "Project",        href: "/projects",        tone: "warn"   },
-  { icon: "📦", label: "Purchase Order", href: "/purchase-orders", tone: "info"   },
   { icon: "👤", label: "Employee",       href: "/employees",       tone: "purple" },
   { icon: "💰", label: "Payroll",        href: "/payroll",         tone: "ok"     },
 ];
@@ -2774,8 +2773,9 @@ export default function AdminDashboardV2() {
   return (
     <ThemeProvider>
       <AdminDashboardV2Inner />
-      <AIAssistantFAB openSignal={aiOpenSignal} />
-      <QuickActionsFAB onLaunchAI={launchAI} />
+      {/* AIAssistantFAB + QuickActionsFAB removed — the VoiceAssistant
+          mounted at the Dashboard-layout level now owns the bottom-right
+          floating slot. */}
     </ThemeProvider>
   );
 }

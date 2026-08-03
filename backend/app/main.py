@@ -21,6 +21,14 @@ from fastapi.staticfiles import StaticFiles
 from app.routes import employee
 from app.database.database import engine
 from app.models.models import Base
+# Register new module models into Base.metadata BEFORE create_all()
+import app.models.inventory_models   # noqa: F401 — registers inventory tables
+import app.models.supplier_models    # noqa: F401 — registers supplier/procurement tables
+import app.models.email_models       # noqa: F401 — registers vendor_email_config table
+import app.models.lead_models        # noqa: F401 — registers lead_polling_config, lead, lead_polling_log tables
+import app.models.project_quotation_models  # noqa: F401 — registers project_quotation_template table
+import app.models.rag_models         # noqa: F401 — registers ai_modules, ai_documents, ai_chat_history, ai_training_job tables
+
 from app.routes.users import router as users_router
 from app.routes.auth import router as auth_router
 from app.routes.vendor import router as vendor_router
@@ -73,6 +81,41 @@ from app.routes.holiday import router as holiday_router    # Phase 2 Holiday Cal
 from app.routes.chatbot_ai import router as chatbot_ai_router  # AI chatbot v1 (Gemini)
 from app.routes.work_center import router as work_center_router  # Mfg Phase 1 — Work Centers
 from app.routes.allowance import router as allowance_router  # Employee expense claims
+from app.routes.leave_agent import router as leave_agent_router  # AI Leave Agent
+from app.routes.hr_chat import router as hr_chat_router          # Unified HR Assistant
+from app.routes.recruitment import router as recruitment_router  # Phase 2 — AI Recruitment Assistant
+from app.routes.employee_payslips import router as my_payslips_router  # Employee self-service payslips
+from app.routes.onboarding_checklist import router as onboarding_checklist_router  # Post-joining onboarding
+from app.routes.attendance_ai import router as attendance_ai_router  # Attendance Automation (Phase 1)
+from app.routes.leave_decisions import router as leave_decisions_router  # Leave Automation (Phase 1)
+from app.routes.monthly_reports import router as monthly_reports_router  # Auto monthly attendance + payroll reports
+from app.routes.employee_status import router as employee_status_router  # Employee lifecycle status tracking
+from app.routes.employee_insights import router as employee_insights_router  # AI workforce analytics
+from app.routes.custom_fields import router as custom_fields_router  # Custom Fields System
+
+from app.routes.helpdesk import router as helpdesk_router  # Help Desk (employee tickets + admin triage)
+from app.routes.memo_automation import router as memo_automation_router  # Weekly warning/appreciation memo automation
+from app.voice_assistant.routes import router as voice_assistant_router  # Voice-first ERP assistant (Siri-style)
+
+
+from app.routes.helpdesk import router as helpdesk_router  # Help Desk (employee tickets + admin triage)
+from app.routes.memo_automation import router as memo_automation_router  # Weekly warning/appreciation memo automation
+from app.voice_assistant.routes import router as voice_assistant_router  # Voice-first ERP assistant (Siri-style)
+
+from app.routes.rag import router as rag_router  # Common Enterprise RAG AI Platform
+from app.routes.speech import router as speech_router  # Offline Piper TTS
+# ── New Inventory & Supplier Procurement Module ──────────────────────
+from app.routes.supplier_onboarding import router as supplier_onboarding_router
+from app.routes.supplier_products import router as supplier_products_router
+from app.routes.supplier_ranking import router as supplier_ranking_router
+from app.routes.inventory_items import router as inventory_items_router
+from app.routes.inventory_movements import router as inventory_movements_router
+from app.routes.inventory_batches import router as inventory_batches_router
+from app.routes.email_config import router as email_config_router
+from app.routes.email_templates import router as email_templates_router
+from app.routes.lead_management import router as lead_management_router
+
+
 from fastapi.middleware.cors import CORSMiddleware
 
 # Phase 3 — Audit log
@@ -211,7 +254,108 @@ _STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 (_STATIC_DIR / "company").mkdir(parents=True, exist_ok=True)
 
+
+(_STATIC_DIR / "quotation").mkdir(parents=True, exist_ok=True)
+
+(_STATIC_DIR / "ai-documents").mkdir(parents=True, exist_ok=True)
+
 app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+
+
+def _rename_legacy_project_table():
+    """Archive legacy tables that have been superseded by new ORM models.
+
+    - old 'project'           (customer-facing projects, INTEGER PK)  → 'project_legacy'
+    - old 'sub_project_template' (old template model, INTEGER PK)     → 'sub_project_template_legacy'
+
+    Both renames are idempotent: they are skipped when the source table is
+    absent or when the target already exists.  Errors are caught per-table
+    so one failure never blocks the other rename or startup.
+    """
+    from sqlalchemy import text, inspect
+    insp = inspect(engine)
+    existing = set(insp.get_table_names())
+
+    # ── 1. Rename old customer-project table ──────────────────────────────────
+    if "project" in existing and "project_legacy" not in existing:
+        try:
+            cols = {c["name"] for c in insp.get_columns("project")}
+            if "PROJECT_NAME" in cols:          # old customer-project signature
+                with engine.connect() as conn:
+                    conn.execute(text("RENAME TABLE `project` TO `project_legacy`"))
+                    conn.commit()
+                print("[startup] Renamed legacy 'project' → 'project_legacy'")
+        except Exception as exc:
+            print(f"[startup] project rename skipped: {exc}")
+
+    # ── 2. Archive old sub_project_template table ─────────────────────────────
+    if "sub_project_template" in existing and "sub_project_template_legacy" not in existing:
+        try:
+            with engine.connect() as conn:
+                conn.execute(
+                    text("RENAME TABLE `sub_project_template` TO `sub_project_template_legacy`")
+                )
+                conn.commit()
+            print("[startup] Renamed legacy 'sub_project_template' → 'sub_project_template_legacy'")
+        except Exception as exc:
+            print(f"[startup] sub_project_template rename skipped: {exc}")
+
+
+
+_rename_legacy_project_table()
+
+def _drop_legacy_lead_tables():
+    """One-time cleanup: the Lead Management module was renamed/restructured
+    (IndiamartConfig/IndiamartLead -> LeadPollingConfig/Lead/LeadPollingLog,
+    with a changed schema — CONFIG_ID removed from the lead table, columns
+    renamed, unique constraints changed). The old tables held no production
+    data (pre-launch scaffolding only), so they're dropped here rather than
+    migrated in place; create_all() below then creates the new tables fresh.
+    Guarded and idempotent — a no-op once the old tables are gone.
+    """
+    from sqlalchemy import text, inspect
+    insp = inspect(engine)
+    existing = set(insp.get_table_names())
+    try:
+        with engine.begin() as conn:
+            if "indiamart_lead" in existing:
+                conn.execute(text("DROP TABLE IF EXISTS `indiamart_lead`"))
+                print("[startup] Dropped legacy 'indiamart_lead' table")
+            if "indiamart_config" in existing:
+                conn.execute(text("DROP TABLE IF EXISTS `indiamart_config`"))
+                print("[startup] Dropped legacy 'indiamart_config' table")
+    except Exception as exc:
+        print(f"[startup] legacy lead table cleanup skipped: {exc}")
+
+
+def _drop_legacy_lead_tables():
+    """One-time cleanup: the Lead Management module was renamed/restructured
+    (IndiamartConfig/IndiamartLead -> LeadPollingConfig/Lead/LeadPollingLog,
+    with a changed schema — CONFIG_ID removed from the lead table, columns
+    renamed, unique constraints changed). The old tables held no production
+    data (pre-launch scaffolding only), so they're dropped here rather than
+    migrated in place; create_all() below then creates the new tables fresh.
+    Guarded and idempotent — a no-op once the old tables are gone.
+    """
+    from sqlalchemy import text, inspect
+    insp = inspect(engine)
+    existing = set(insp.get_table_names())
+    try:
+        with engine.begin() as conn:
+            if "indiamart_lead" in existing:
+                conn.execute(text("DROP TABLE IF EXISTS `indiamart_lead`"))
+                print("[startup] Dropped legacy 'indiamart_lead' table")
+            if "indiamart_config" in existing:
+                conn.execute(text("DROP TABLE IF EXISTS `indiamart_config`"))
+                print("[startup] Dropped legacy 'indiamart_config' table")
+    except Exception as exc:
+        print(f"[startup] legacy lead table cleanup skipped: {exc}")
+
+
+_rename_legacy_project_table()
+_drop_legacy_lead_tables()
+_drop_legacy_lead_tables()
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -374,6 +518,34 @@ def _auto_migrate():
         ("attendance", "DEVICE_INFO",        "VARCHAR(255) NULL"),
         ("attendance", "BROWSER_INFO",       "VARCHAR(255) NULL"),
         ("attendance", "IP_ADDRESS",         "VARCHAR(60) NULL"),
+        # Explicit OT session timestamps (overtime is now tracked as a
+        # separate check-in/check-out, never auto-derived from regular hours)
+        ("attendance", "OT_CHECK_IN",        "DATETIME NULL"),
+        ("attendance", "OT_CHECK_OUT",       "DATETIME NULL"),
+        # ---- Project Management Module (2026-06) ----
+        ("department", "UPDATED_AT",         "DATETIME NULL"),
+        ("role",       "DEPARTMENT_ID",      "INT NULL"),
+        ("role",       "CREATED_AT",         "DATETIME NULL"),
+        ("role",       "UPDATED_AT",         "DATETIME NULL"),
+        # ---- Help Desk (2026-07): new columns added when the module
+        # was rebuilt after the ram-development merge deleted it.
+        ("helpdesk_ticket", "INTERNAL_NOTES", "TEXT NULL"),
+        ("helpdesk_ticket", "CLOSED_AT",      "DATETIME NULL"),
+        # ---- Memo automation (2026-07): system-generated warning /
+        # appreciation memos + per-employee notification targeting.
+        ("employee_memos", "IS_AUTOMATED",   "INT NULL DEFAULT 0"),
+        ("employee_memos", "AUTOMATION_KEY", "VARCHAR(80) NULL"),
+        ("notification",   "EMPLOYEE_ID",    "VARCHAR(36) NULL"),
+        ("notification",   "REF_TYPE",       "VARCHAR(30) NULL"),
+        ("notification",   "REF_ID",         "INT NULL"),
+    ]
+
+    # Columns to rename. Old names from legacy schema that the model has
+    # since replaced. Each entry: (table, old_col, new_col, new_ddl).
+    # Idempotent: if old_col is absent (already renamed) we skip.
+    rename_columns = [
+        ("department", "CODE",      "DEPARTMENT_CODE", "VARCHAR(20) NULL"),
+        ("role",       "ROLE_NAME", "NAME",            "VARCHAR(100) NOT NULL DEFAULT ''"),
     ]
 
     # Indexes / unique constraints that earlier model versions
@@ -1261,6 +1433,261 @@ def _auto_seed_sales_order_settings():
 _auto_seed_sales_order_settings()
 
 
+def _auto_seed_defaults():
+    """Seed the single default Vendor → Department → Role → Employee
+    chain on first boot.  Each step is guarded by a name/code lookup:
+    if the record already exists it is reused so a partial seed can be
+    completed without creating duplicates."""
+
+    import logging
+    import uuid
+    from datetime import date, time as dtime
+    from sqlalchemy.orm import sessionmaker
+    from app.models.models import Vendor, Department, Role, Employee
+    from app.services.auth_service import hash_password
+
+    log = logging.getLogger("uvicorn")
+    Session = sessionmaker(bind=engine)
+    db = Session()
+
+    try:
+        # ── 1. Vendor ─────────────────────────────────────────────────
+        vendor = (
+            db.query(Vendor)
+              .filter(Vendor.VENDOR_NAME == "Bharath Vending Corporation")
+              .first()
+        )
+        if vendor is None:
+            vendor = Vendor(VENDOR_NAME="Bharath Vending Corporation")
+            db.add(vendor)
+            db.flush()
+            log.info("auto-seed-defaults: vendor created (ID=%s)", vendor.ID)
+
+        # ── 2. Department ─────────────────────────────────────────────
+        dept = (
+            db.query(Department)
+              .filter(
+                  Department.VENDOR_ID == vendor.ID,
+                  Department.DEPARTMENT_CODE == "HRD",
+              )
+              .first()
+        )
+        if dept is None:
+            dept = Department(
+                VENDOR_ID=vendor.ID,
+                DEPARTMENT_CODE="HRD",
+                NAME="HR",
+                DESCRIPTION=(
+                    "Human Resources department responsible for employee "
+                    "recruitment, onboarding, payroll, and compliance."
+                ),
+            )
+            db.add(dept)
+            db.flush()
+            log.info("auto-seed-defaults: department created (ID=%s)", dept.ID)
+
+        # ── 3. Role ───────────────────────────────────────────────────
+        role = (
+            db.query(Role)
+              .filter(
+                  Role.VENDOR_ID == vendor.ID,
+                  Role.NAME == "SUPER_ADMIN",
+              )
+              .first()
+        )
+        if role is None:
+            role = Role(
+                VENDOR_ID=vendor.ID,
+                DEPARTMENT_ID=dept.ID,
+                NAME="SUPER_ADMIN",
+                DESCRIPTION=(
+                    "Super Administrator role with full access to all modules, "
+                    "settings, and system configuration."
+                ),
+            )
+            db.add(role)
+            db.flush()
+            log.info("auto-seed-defaults: role created (ID=%s)", role.ID)
+
+        # ── 4. Employee ───────────────────────────────────────────────
+        emp = (
+            db.query(Employee)
+              .filter(
+                  Employee.VENDOR_ID == vendor.ID,
+                  Employee.EMPLOYEE_CODE == "SA001",
+              )
+              .first()
+        )
+        if emp is None:
+            emp = Employee(
+                ID=str(uuid.uuid4()),
+                EMPLOYEE_CODE="SA001",
+                NAME="SUPERADMIN",
+                PASSWORD=hash_password("SuperAdmin@123"),
+                DEPARTMENT_ID=dept.ID,
+                ROLE_ID=role.ID,
+                VENDOR_ID=vendor.ID,
+                JOINING_DATE=date.today(),
+                SALARY=0.0,
+                SHIFT_START=dtime(10, 0),
+                SHIFT_END=dtime(18, 0),
+                STATUS="ACTIVE",
+                PROFILE_SUBMITTED=0,
+            )
+            db.add(emp)
+            log.info("auto-seed-defaults: employee created (CODE=SA001)")
+
+        db.commit()
+
+    except Exception as exc:
+        db.rollback()
+        log.warning("auto-seed-defaults skipped: %s", exc)
+
+    finally:
+        db.close()
+
+
+_auto_seed_defaults()
+
+
+# =====================================================================
+# Weekly memo-automation scheduler
+# ---------------------------------------------------------------------
+# Fires once every Monday at 06:00 local server time. Idempotent — each
+# memo is keyed on ISO week + employee + type via AUTOMATION_KEY, so a
+# duplicate wake-up (server restart mid-morning, manual admin trigger
+# earlier, etc.) never issues the same memo twice.
+# =====================================================================
+def _start_memo_automation_scheduler():
+
+    import logging
+    import threading
+    import time as _time
+    from datetime import datetime, timedelta
+    from sqlalchemy.orm import sessionmaker
+
+    log = logging.getLogger("uvicorn")
+
+    RUN_HOUR   = 6      # 06:00
+    RUN_WEEKDAY = 0     # Monday
+    POLL_SECONDS = 60 * 30   # check every 30 minutes
+
+    SessionLocal = sessionmaker(bind=engine)
+
+    def _last_run_at(db):
+        """Return the datetime of the previous automation run, or None."""
+        from app.models.models import Setting
+        row = db.query(Setting).filter(
+            Setting.KEY == "memo_automation.last_run"
+        ).first()
+        if not row or not row.VALUE:
+            return None
+        try:
+            import json
+            payload = json.loads(row.VALUE)
+            return datetime.fromisoformat(payload.get("ran_at"))
+        except Exception:
+            return None
+
+    def _tick():
+        while True:
+            try:
+                now = datetime.now()
+                # Only fire on Monday, at or after 06:00
+                if now.weekday() == RUN_WEEKDAY and now.hour >= RUN_HOUR:
+                    db = SessionLocal()
+                    try:
+                        last = _last_run_at(db)
+                        # If we already ran within the last 48h, skip —
+                        # this covers manual runs and server restarts.
+                        if not last or (now - last) > timedelta(hours=48):
+                            log.info(
+                                "memo-automation: weekly scheduler firing at %s",
+                                now.isoformat(timespec="seconds"),
+                            )
+                            from app.services.memo_automation import run_weekly_automation
+                            from app.routes.memo_automation import _store_last_run
+                            summary = run_weekly_automation(db)
+                            _store_last_run(db, summary)
+                            log.info(
+                                "memo-automation: created %d warnings, %d appreciations "
+                                "(skipped %d already-issued)",
+                                summary.warnings_created,
+                                summary.appreciations_created,
+                                summary.skipped_existing,
+                            )
+                    finally:
+                        db.close()
+            except Exception as exc:
+                log.warning("memo-automation scheduler tick failed: %s", exc)
+            _time.sleep(POLL_SECONDS)
+
+    t = threading.Thread(
+        target=_tick,
+        name="memo-automation-scheduler",
+        daemon=True,
+    )
+    t.start()
+    log.info("memo-automation scheduler started (weekly, Monday 06:00)")
+
+
+_start_memo_automation_scheduler()
+
+
+def _auto_seed_ai_modules():
+    """Seeds the first AI_MODULES row (Lead AI Assistant) so the RAG
+    platform has something to onboard against on a fresh install. Follows
+    the same idempotent shape as the other _auto_seed_* functions above:
+    own session, try/except/log.warning, safe to re-run any number of
+    times."""
+
+    import logging
+    from sqlalchemy.orm import sessionmaker
+    from app.models.rag_models import AIModule
+    from app.rag_modules.core.llm_client import DEFAULT_MODEL as RAG_DEFAULT_LLM_MODEL
+
+    log = logging.getLogger("uvicorn")
+    Session = sessionmaker(bind=engine)
+    db = Session()
+
+    try:
+        existing = db.query(AIModule).filter(AIModule.MODULE_CODE == "lead").first()
+
+        if existing is None:
+            db.add(AIModule(
+                MODULE_NAME="Lead AI Assistant",
+                MODULE_CODE="lead",
+                DESCRIPTION=(
+                    "Answers questions about the lead management process "
+                    "from uploaded SOPs/FAQs."
+                ),
+                VECTOR_COLLECTION_NAME="lead_rag_collection",
+                EMBEDDING_MODEL="BAAI/bge-small-en-v1.5",
+                LLM_MODEL=RAG_DEFAULT_LLM_MODEL,
+                IS_ACTIVE=True,
+            ))
+            db.commit()
+            log.info("auto-seed-ai-modules: 'lead' module created")
+
+    except Exception as exc:
+        db.rollback()
+        log.warning("auto-seed-ai-modules skipped: %s", exc)
+
+    finally:
+        db.close()
+
+
+_auto_seed_ai_modules()
+
+from app.services.speech_service import speech_service  # noqa: E402
+speech_service.initialize()  # non-blocking — Piper models load on a background thread
+
+from app.scheduler import start_scheduler  # noqa: E402 — started after seeding, before routers
+start_scheduler()
+
+
+
+
 app.include_router(auth_router, tags=["Auth"])
 app.include_router(organization_router, tags=["Organization"])
 app.include_router(employee.router, tags=["Employees (IAM)"])
@@ -1314,6 +1741,41 @@ app.include_router(holiday_router)
 app.include_router(chatbot_ai_router)
 app.include_router(work_center_router)
 app.include_router(allowance_router, tags=["Allowances"])
+app.include_router(leave_agent_router)
+app.include_router(hr_chat_router)
+app.include_router(recruitment_router)
+app.include_router(my_payslips_router)
+app.include_router(onboarding_checklist_router)
+app.include_router(attendance_ai_router)
+app.include_router(leave_decisions_router)
+app.include_router(monthly_reports_router)
+app.include_router(employee_status_router)
+app.include_router(employee_insights_router)
+app.include_router(custom_fields_router, tags=["Custom Fields"])
+
+app.include_router(helpdesk_router)
+app.include_router(memo_automation_router)
+app.include_router(voice_assistant_router)
+
+
+app.include_router(helpdesk_router)
+app.include_router(memo_automation_router)
+app.include_router(voice_assistant_router)
+
+app.include_router(email_config_router, tags=["Email Configuration"])
+app.include_router(email_templates_router, tags=["Email Templates"])
+app.include_router(lead_management_router, tags=["Lead Management"])
+app.include_router(rag_router, tags=["AI Platform"])
+app.include_router(speech_router, tags=["Speech (TTS)"])
+
+# ── Inventory & Supplier Procurement Module ───────────────────────────────
+app.include_router(supplier_onboarding_router, prefix="/api")
+app.include_router(supplier_products_router, prefix="/api")
+app.include_router(supplier_ranking_router, prefix="/api")
+app.include_router(inventory_items_router, prefix="/api")
+app.include_router(inventory_movements_router, prefix="/api")
+app.include_router(inventory_batches_router, prefix="/api")
+
 
 
 @app.get("/", tags=["Health"])

@@ -1,0 +1,1 @@
+function e(e){if(!e)return`—`;let t=new Date(e);if(isNaN(t.getTime()))return`—`;let n=String(t.getDate()).padStart(2,`0`),r=String(t.getMonth()+1).padStart(2,`0`),i=t.getFullYear(),a=t.getHours(),o=String(t.getMinutes()).padStart(2,`0`),s=a>=12?`PM`:`AM`;return`${n}/${r}/${i} ${String(a%12||12).padStart(2,`0`)}:${o} ${s}`}export{e as t};

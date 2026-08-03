@@ -8,7 +8,7 @@ if defined _OLD_CODEPAGE (
     "%SystemRoot%\System32\chcp.com" 65001 > nul
 )
 
-set "VIRTUAL_ENV=D:\PUVI-DOC\Vendor-based Manufacturing ERP\backend\venv"
+set "VIRTUAL_ENV=D:\Ram-Productions\React_Web_Application\BVC-HOME-PROJECT\HOME_PROJECT_NEW\backend\venv"
 
 if not defined PROMPT set PROMPT=$P$G
 

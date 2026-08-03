@@ -254,6 +254,43 @@ export default function ChatBot() {
       });
     };
 
+    // -----------------------------------------------------------
+    // PHASE 1 — try the deterministic intent router FIRST.
+    // Sub-200 ms responses for the top 10 employee questions
+    // (leave balance / next shift / payslip / attendance / tasks /
+    // holidays / manager / profile / documents). Zero LLM cost.
+    // If the router doesn't match, we fall through to the legacy
+    // /chat/stream (rule-based + leave workflow) unchanged.
+    // -----------------------------------------------------------
+    try {
+
+      const ai = await API.post("/ai/chat", { message: text });
+
+      if (ai?.data?.matched) {
+
+        appendToBot({ text: ai.data.reply });
+
+        if (ai.data.suggestions?.length) {
+
+          appendToBot({ suggestions: ai.data.suggestions });
+        }
+
+        appendToBot({ source: "intent_router", done: true });
+
+        setLoading(false);
+
+        return;
+      }
+
+    } catch (err) {
+
+      // Non-fatal — a 401 (session expired) or network hiccup drops
+      // us into the streaming fallback below, which surfaces the
+      // real error to the user in its own error frame.
+      // eslint-disable-next-line no-console
+      console.warn("[ai/chat] pre-check skipped:", err?.message || err);
+    }
+
     try {
 
       // Build absolute URL using axios baseURL so streaming works

@@ -1,0 +1,513 @@
+/* ==================================================================
+   MyTasksPanel — card-based tasks view
+   Cream page background, elevated white cards, priority-coloured
+   left rail, restrained accent colours.
+   ================================================================== */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 4px 2px 32px;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, sans-serif;
+  color: #1e293b;
+}
+
+
+/* ==================================================================
+   HEADER
+   ================================================================== */
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.headTitle {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.3px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.headCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 8px;
+  background: #f1f5f9;
+  color: #475569;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid #e2e8f0;
+}
+
+.searchBox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  min-width: 240px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.searchBox:focus-within {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
+}
+
+.searchIcon {
+  color: #94a3b8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.searchBox input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  color: #0f172a;
+  width: 100%;
+  min-width: 0;
+}
+.searchBox input::placeholder { color: #94a3b8; }
+
+
+/* ==================================================================
+   FILTER CHIPS
+   ================================================================== */
+
+.filters {
+  display: flex;
+  gap: 8px;
+  padding: 4px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.filters::-webkit-scrollbar { display: none; }
+
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #475569;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0;
+}
+.filterChip:hover:not(.filterChip_active) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.filterChip_active {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.22);
+}
+
+.filterCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.filterChip_active .filterCount {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+/* Delay chip when overdue > 0 — amber-outlined so it stands out
+   from the neutral chips without competing with the red active chip. */
+.filterChip_danger:not(.filterChip_active) {
+  border-color: #fcd34d;
+  background: #fffbeb;
+  color: #b45309;
+}
+.filterChip_danger:not(.filterChip_active) .filterCount {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+
+/* ==================================================================
+   Auto reminder banner — shown when any tasks are overdue
+   ================================================================== */
+
+.reminder {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px 18px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-left: 4px solid #b45309;
+  border-radius: 12px;
+  color: #78350f;
+}
+
+.reminderIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #fef3c7;
+  color: #b45309;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.reminderBody { min-width: 0; }
+
+.reminderTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: #78350f;
+  letter-spacing: -0.1px;
+  margin-bottom: 2px;
+}
+
+.reminderSub {
+  font-size: 12px;
+  color: #92400e;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.reminderBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  background: #b45309;
+  color: #ffffff;
+  border: 1px solid #b45309;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  white-space: nowrap;
+}
+.reminderBtn:hover { background: #92400e; }
+
+.reminderClose {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #b45309;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.reminderClose:hover { background: #fef3c7; }
+
+
+@media (max-width: 640px) {
+  .reminder {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "icon body close"
+      "btn  btn  btn";
+    gap: 10px 12px;
+  }
+  .reminderIcon  { grid-area: icon; }
+  .reminderBody  { grid-area: body; }
+  .reminderClose { grid-area: close; }
+  .reminderBtn {
+    grid-area: btn;
+    justify-content: center;
+    padding: 10px 14px;
+  }
+}
+
+
+/* ==================================================================
+   TASK LIST
+   ================================================================== */
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+
+/* ---- Card ---- */
+
+.card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 20px;
+  align-items: center;
+  padding: 14px 18px 14px 18px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-left-width: 4px;
+  border-radius: 12px;
+  transition: box-shadow 0.15s ease, transform 0.08s ease, border-color 0.15s ease;
+}
+.card:hover {
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+  border-color: #cbd5e1;
+}
+
+/* Priority-coloured left rail */
+.prio_high   { border-left-color: #dc2626; }
+.prio_medium { border-left-color: #f59e0b; }
+.prio_low    { border-left-color: #cbd5e1; }
+
+
+/* ---- Card body ---- */
+
+.cardMain {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cardTitle {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #0f172a;
+  letter-spacing: -0.15px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.cardMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cardProject {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+  padding-right: 4px;
+}
+
+
+/* ---- Chips (status + priority tags) ---- */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.chip_pending   { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+.chip_progress  { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.chip_hold      { background: #fffbeb; color: #b45309; border-color: #fcd34d; }
+.chip_done      { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+
+.chip_prio_high   { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.chip_prio_medium { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+.chip_prio_low    { background: #f1f5f9; color: #64748b; border-color: #cbd5e1; }
+
+
+/* ---- Card right side (due + actions) ---- */
+
+.cardRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.due {
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.due_neutral { background: #f1f5f9; color: #475569; }
+.due_today   { background: #fffbeb; color: #b45309; }
+.due_overdue { background: #fef2f2; color: #b91c1c; }
+
+
+/* ---- Action buttons ---- */
+
+.actions {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.08s ease, background 0.15s ease;
+  white-space: nowrap;
+}
+.actionBtn:disabled { opacity: 0.55; cursor: not-allowed; }
+.actionBtn:active:not(:disabled) { transform: translateY(1px); }
+
+.action_primary {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.22);
+}
+.action_primary:hover:not(:disabled) { background: #b91c1c; }
+
+.action_warn {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fcd34d;
+}
+.action_warn:hover:not(:disabled) { background: #fef3c7; }
+
+.action_success {
+  background: #ecfdf5;
+  color: #047857;
+  border-color: #a7f3d0;
+}
+.action_success:hover:not(:disabled) { background: #d1fae5; }
+
+
+/* ==================================================================
+   EMPTY STATE
+   ================================================================== */
+
+.empty {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 32px 24px;
+  background: #ffffff;
+  border: 1px dashed #e2e8f0;
+  border-radius: 14px;
+  color: #64748b;
+}
+
+.emptyIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: #f1f5f9;
+  color: #94a3b8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.emptyTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 3px;
+}
+.emptyBody {
+  font-size: 12.5px;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+
+/* ==================================================================
+   MOBILE
+   ================================================================== */
+
+@media (max-width: 768px) {
+  .wrap { gap: 12px; padding: 4px 0 32px; }
+
+  .head { gap: 12px; }
+  .headTitle { font-size: 18px; }
+  .searchBox { min-width: 0; flex: 1 1 auto; }
+
+  /* Card stacks — main on top, right column (due + actions) below */
+  .card {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+  .cardRight {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .due { align-self: flex-start; }
+  .actions { justify-content: flex-start; }
+
+  .empty { padding: 24px 18px; gap: 12px; }
+  .emptyIcon { width: 44px; height: 44px; }
+}
+
+
+@media (max-width: 420px) {
+  .headTitle { font-size: 17px; }
+  .cardTitle { font-size: 14px; }
+
+  .actionBtn { padding: 7px 12px; font-size: 12px; }
+}
