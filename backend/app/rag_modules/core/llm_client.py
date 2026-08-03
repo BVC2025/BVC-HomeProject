@@ -129,6 +129,58 @@ def _try_model(genai, name, model_kwargs, gemini_history, user_message):
     return chat, response
 
 
+def _send_with_fallback(genai, model_kwargs, chat, tried, used_model, content):
+    """Sends `content` on the given (already-established) chat session; if
+    that raises, retries on each remaining untried fallback model — a NEW
+    chat session seeded with the current chat's accumulated history
+    (`chat.history`), so the pending function-call/response exchange can
+    still be correctly continued on a different model.
+
+    This exists because the tool-calling loop's follow-up send_message()
+    calls (after the first message) used to have no fallback protection at
+    all, unlike the first message — if the model pinned to `chat` ran out
+    of quota or hit a transient error mid-conversation, the whole turn
+    failed with no retry, even though other fallback models still had
+    quota. Returns (chat, response, used_model), any of which may change if
+    a fallback model took over; raises RuntimeError only if every
+    remaining model also fails (identical worst-case behavior to today —
+    still caught by the caller's existing safety net)."""
+
+    try:
+
+        return chat, chat.send_message(content), used_model
+
+    except Exception as e:
+
+        errors = [f"{used_model}: {type(e).__name__}: {e}"]
+
+    candidates = [n for n in GEMINI_MODEL_FALLBACKS if n not in tried]
+    candidates += [n for n in _discover_available_models() if n not in tried]
+
+    for name in candidates:
+
+        tried.add(name)
+
+        try:
+
+            new_chat = genai.GenerativeModel(**dict(model_kwargs, model_name=name)).start_chat(history=chat.history)
+
+            response = new_chat.send_message(content)
+
+            return new_chat, response, name
+
+        except Exception as e:
+
+            errors.append(f"{name}: {type(e).__name__}: {e}")
+
+            continue
+
+    raise RuntimeError(
+        "Every Gemini model failed while continuing a tool-calling turn.\n  "
+        + "\n  ".join(errors)
+    )
+
+
 def is_configured() -> bool:
 
     return bool(GEMINI_API_KEY)
@@ -321,7 +373,10 @@ def stream_answer(
                     )
                 )
 
-            response = chat.send_message(genai.protos.Content(parts=tool_response_parts))
+            chat, response, used_model = _send_with_fallback(
+                genai, model_kwargs, chat, tried, used_model,
+                genai.protos.Content(parts=tool_response_parts),
+            )
 
         else:
 

@@ -9,12 +9,16 @@ import styles from "./AIPlatformShared.module.css";
 const STT_LANGUAGES = [
   { code: "en-IN", label: "EN" },
   { code: "ta-IN", label: "TA" },
+  { code: "hi-IN", label: "HI" },
+  { code: "ml-IN", label: "ML" },
 ];
 
 const TTS_MODES = [
   { code: "auto", label: "Auto" },
   { code: "en", label: "English" },
   { code: "ta", label: "Tamil" },
+  { code: "hi", label: "Hindi" },
+  { code: "ml", label: "Malayalam" },
 ];
 
 const URL_PATTERN = /(https?:\/\/[^\s]+)/g;

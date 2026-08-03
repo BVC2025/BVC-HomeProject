@@ -25,6 +25,7 @@ from app.models.project_models import Project, ProjectCategory, ProjectPricing
 from app.models.project_quotation_models import ProjectQuotationTemplate
 from app.models.whatsapp_models import WhatsAppConversation
 from app.models.models import CompanyMaster
+from app.rag_modules.core import negotiation_engine
 
 # ── Generic, catalog-agnostic project-name resolution ───────────────────────
 # Replaces a naive NAME.ilike('%name%') lookup (which requires the model's
@@ -297,24 +298,29 @@ def tool_check_price_offer(db: Session, context: dict, project_name: str,
             "list_price": list_price,
         }
 
-    min_price = float(pricing.MINIMUM_NEGOTIATION_PRICE) if pricing.MINIMUM_NEGOTIATION_PRICE is not None else 0.0
-    pct_floor = float(pricing.ORIGINAL_PRICE or 0) * (1 - float(pricing.NEGOTIATION_PERCENT or 0) / 100.0) * max(1, quantity)
-    floor = max(min_price, pct_floor)
-
     try:
         offered = float(offered_price)
     except (TypeError, ValueError):
         return {"error": "offered_price must be a number"}
 
-    acceptable = offered >= floor
-    counter = None if acceptable else round(max(floor, offered) / 100.0) * 100.0
+    min_price = float(pricing.MINIMUM_NEGOTIATION_PRICE) if pricing.MINIMUM_NEGOTIATION_PRICE is not None else 0.0
+
+    # Deterministic, server-side round/counter tracking — never inferred
+    # from raw chat history, never left to the LLM to remember. See
+    # negotiation_engine.evaluate_offer's docstring for the full algorithm
+    # (compounding reduction, floor clamp, natural rounding, monotonic
+    # never-increase guarantee).
+    result = negotiation_engine.evaluate_offer(
+        db, context.get("session_id"), context.get("module_code", "lead_module"), project.ID,
+        list_price, min_price, pricing.NEGOTIATION_PERCENT, offered,
+    )
 
     return {
         "project_name": project.NAME,
         "currency": pricing.CURRENCY,
         "list_price": list_price,
-        "acceptable": acceptable,
-        "counter_price": None if acceptable else counter,
+        "acceptable": result["acceptable"],
+        "counter_price": result["counter_price"],
     }
 
 

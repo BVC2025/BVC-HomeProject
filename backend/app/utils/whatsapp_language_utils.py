@@ -1,13 +1,18 @@
 """Language-selection support for the WhatsApp welcome flow's quick-reply
-buttons (e.g. "English" / "தமிழ்" on the lead_welcome template). Deliberately
-a small, standalone map rather than baked into whatsapp_inbound_service.py —
-adding a new supported language is one entry in each dict below, nothing
-else in the codebase needs to change.
+buttons (e.g. "English" / "தமிழ்" / "Hindi" / "Malayalam" on the
+lead_welcome template). Deliberately a small, standalone map rather than
+baked into whatsapp_inbound_service.py — adding a new supported language is
+one entry in LANGUAGE_BUTTON_LABELS below (plus a display name in the
+shared app.rag_modules.core.language_registry), nothing else in the
+codebase needs to change.
 
 This module only maps an already-tapped button's title text to a language
 code; it never guesses a language from free-typed text (see
 whatsapp_inbound_service._store_inbound_message for why: a button tap is a
-100%-reliable explicit signal, free text is not)."""
+100%-reliable explicit signal, free text is not). Display names themselves
+live in language_registry.py (the single source of truth shared with TTS
+and the /speech/speak endpoint) — this module only owns the WhatsApp/Meta-
+specific detail of which button title text maps to which code."""
 
 from typing import Optional
 
@@ -16,13 +21,8 @@ from typing import Optional
 LANGUAGE_BUTTON_LABELS = {
     "english": "en",
     "தமிழ்": "ta",
-}
-
-# Language code -> human-readable name, used only to phrase the AI's
-# soft-default language instruction (see whatsapp_inbound_service.run_ai_turn).
-LANGUAGE_DISPLAY_NAMES = {
-    "en": "English",
-    "ta": "Tamil",
+    "hindi": "hi",
+    "malayalam": "ml",
 }
 
 
@@ -33,12 +33,3 @@ def resolve_language_from_button_title(title: Optional[str]) -> Optional[str]:
     if not title:
         return None
     return LANGUAGE_BUTTON_LABELS.get(title.strip().lower())
-
-
-def language_display_name(code: Optional[str]) -> Optional[str]:
-    """Human-readable name for a stored language code, falling back to the
-    raw code itself if it's not in the display-name map (e.g. a code was
-    added to LANGUAGE_BUTTON_LABELS but not yet given a display name)."""
-    if not code:
-        return None
-    return LANGUAGE_DISPLAY_NAMES.get(code, code)
