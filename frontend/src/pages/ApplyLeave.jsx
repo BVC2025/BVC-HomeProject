@@ -3,6 +3,10 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import API from "../services/api";
+
+import ConfirmDialog from "../components/ConfirmDialog";
+
+
 import styles from "./ApplyLeave.module.css";
 
 
@@ -721,6 +725,8 @@ function ApplyLeave() {
 
   const [loading, setLoading] = useState(false);
 
+  const [logoutOpen, setLogoutOpen] = useState(false);
+
   const fetchEmployees = async () => {
 
     try {
@@ -849,13 +855,9 @@ function ApplyLeave() {
 
                 if (isEmployeeAuth) {
 
-                  // Real logout — clear the whole session and bounce
-                  // to the login screen.
-                  if (!window.confirm("Logout?")) return;
-
-                  localStorage.clear();
-
-                  navigate("/login", { replace: true });
+                  // Real logout — open the confirm modal. The actual
+                  // clear + navigate runs on Confirm below.
+                  setLogoutOpen(true);
 
                 } else {
 
@@ -897,6 +899,20 @@ function ApplyLeave() {
           </>
         )}
       </div>
+
+      <ConfirmDialog
+        open={logoutOpen}
+        title="Are you sure you want to log out?"
+        confirmLabel="Log Out"
+        cancelLabel="Continue"
+        danger
+        onCancel={() => setLogoutOpen(false)}
+        onConfirm={() => {
+          setLogoutOpen(false);
+          localStorage.clear();
+          navigate("/login", { replace: true });
+        }}
+      />
     </div>
   );
 }

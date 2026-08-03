@@ -1,0 +1,1 @@
+var e=`/assets/departmentIcon-BHU_duNX.webp`;export{e as t};

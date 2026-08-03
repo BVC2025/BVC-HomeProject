@@ -1,249 +1,1293 @@
-/* Payroll page — scoped styles */
+/* =====================================================================
+   Payroll — unified page (combines old Payroll list + PayslipGenerator)
+
+   Tokens come from index.css :root — but most decorative values are
+   inline here because the reference design uses precise hex shades.
+   ===================================================================== */
 
 .page {
-  padding: var(--sp-6);
+  padding: 22px 26px;
+  background: var(--layout-bg, #f1f5f9);
+  min-height: 100%;
 }
 
-/* ─── Hero ──────────────────────────────────────────────────── */
 
-.hero {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--clr-primary);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow);
-  padding: var(--sp-5) var(--sp-6);
-  margin-bottom: 22px;
+/* ───────────────────────────────────────────────────────────────────
+   1.  KPI ROW
+   ─────────────────────────────────────────────────────────────────── */
+
+.kpiRow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.kpiCard {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 18px 20px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: var(--sp-4);
+  gap: 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
-.heroEyebrow {
-  font-size: var(--font-xs);
-  letter-spacing: 2px;
-  color: var(--clr-primary);
-  font-weight: var(--fw-bold);
-  text-transform: uppercase;
+.kpiIcon {
+  width: 50px;
+  height: 50px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.heroTitle {
-  font-size: var(--font-2xl);
-  font-weight: var(--fw-bold);
-  color: var(--text-primary);
-  margin: var(--sp-1) 0 0;
-  line-height: 1.2;
-  letter-spacing: -0.3px;
-}
-
-/* ─── Controls bar ──────────────────────────────────────────── */
-
-.controls {
-  background: var(--card-bg);
-  padding: var(--sp-4);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border);
-  margin-bottom: 18px;
-  display: flex;
-  gap: var(--sp-3);
-  flex-wrap: wrap;
-  align-items: flex-end;
-}
-
-.pickerLabel {
-  font-size: var(--font-xs);
-  color: var(--text-secondary);
-  margin-bottom: var(--sp-1);
-  font-weight: var(--fw-bold);
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-}
-
-.picker {
-  padding: var(--sp-2) var(--sp-3);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-strong);
-  min-width: 130px;
-  font-size: var(--font-sm);
-  font-family: var(--font);
-  background: var(--card-bg);
-  color: var(--text-primary);
-  outline: none;
-}
-
-.picker:focus {
-  border-color: var(--clr-primary);
-}
-
-.generateBtn {
-  background: var(--clr-primary);
-  color: var(--text-inverse);
-  border: none;
-  padding: var(--sp-2) 22px;
-  border-radius: var(--radius-md);
-  font-weight: var(--fw-black);
-  font-size: var(--font-sm);
-  font-family: var(--font);
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: background var(--ease);
-}
-
-.generateBtn:disabled {
-  background: var(--slate-400);
-  cursor: default;
-}
-
-.controlsHint {
-  font-size: var(--font-xs);
-  color: var(--text-muted);
+.kpiBody {
   flex: 1;
-  min-width: 200px;
-  line-height: var(--lh);
+  min-width: 0;
 }
 
-/* ─── Body panel ────────────────────────────────────────────── */
-
-.body {
-  background: var(--card-bg);
-  padding: var(--sp-5);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border);
+.kpiLabel {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
 }
 
-.loadingText {
-  color: var(--text-muted);
-  padding: 20px;
+.kpiValue {
+  font-size: 26px;
+  font-weight: 800;
+  color: #0f172a;
+  margin-top: 2px;
+  line-height: 1.1;
+  letter-spacing: -0.4px;
 }
 
-.errorText {
-  color: var(--danger-dark);
-  background: var(--danger-bg);
-  padding: var(--sp-3);
-  border-radius: var(--radius-md);
-  font-size: var(--font-sm);
+.kpiSub {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 4px;
+  font-weight: 500;
 }
 
-.emptyText {
-  padding: 36px;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: var(--font-sm);
+
+/* ───────────────────────────────────────────────────────────────────
+   2.  FILTER BAR
+   ─────────────────────────────────────────────────────────────────── */
+
+.filterCard {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  display: grid;
+  grid-template-columns:
+    minmax(180px, 2fr) minmax(150px, 1fr) minmax(120px, 1fr) minmax(110px, 1fr) minmax(140px, 1fr) auto;
+  gap: 16px;
+  align-items: end;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
 }
 
-/* ─── Table meta row ────────────────────────────────────────── */
-
-.tableMeta {
+.filterField {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: var(--sp-2);
-  flex-wrap: wrap;
-  gap: var(--sp-2);
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
 }
 
-.tableMetaTitle {
-  font-size: var(--font-sm);
-  font-weight: var(--fw-black);
-  color: var(--text-primary);
-  letter-spacing: 0.3px;
+.filterField label {
+  font-size: 12px;
+  color: #475569;
+  font-weight: 500;
 }
 
-.tableMetaSub {
-  font-size: var(--font-xs);
-  color: var(--text-secondary);
+.searchWrap {
+  position: relative;
 }
 
-/* ─── Payroll table ─────────────────────────────────────────── */
+.searchIcon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  display: inline-flex;
+  pointer-events: none;
+}
 
-.table {
+.searchInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 12px 9px 34px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: var(--font);
+  outline: none;
+  background: white;
+  color: #0f172a;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.searchInput:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.filterSelect {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: var(--font);
+  outline: none;
+  background: white;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.filterSelect:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.runBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+  white-space: nowrap;
+  height: 38px;
+}
+
+.runBtn:hover:not(:disabled) {
+  background: #1d4ed8;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.runBtn:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+
+/* ───────────────────────────────────────────────────────────────────
+   3.  ACTION ROW (above table)
+   ─────────────────────────────────────────────────────────────────── */
+
+.actionRow {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: background 0.15s, transform 0.1s;
+}
+
+.actionBtnBlue {
+  border: 1px solid #93c5fd;
+  color: #2563eb;
+}
+
+.actionBtnBlue:hover {
+  background: #eff6ff;
+}
+
+.actionBtnGreen {
+  border: 1px solid #86efac;
+  color: #16a34a;
+}
+
+.actionBtnGreen:hover {
+  background: #f0fdf4;
+}
+
+.actionBtnRed {
+  border: 1px solid #fca5a5;
+  color: #dc2626;
+}
+
+.actionBtnRed:hover {
+  background: #fef2f2;
+}
+
+
+/* ───────────────────────────────────────────────────────────────────
+   4.  TABLE
+   ─────────────────────────────────────────────────────────────────── */
+
+.tableCard {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.tbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--font-sm);
+  font-size: 13px;
 }
 
-.thead {
-  background: var(--surface);
-  color: var(--slate-600);
-  font-size: var(--font-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+.tbl thead {
+  background: #f8fafc;
 }
 
-.th {
-  padding: var(--sp-2) var(--sp-2);
+.tbl thead th {
   text-align: left;
-  font-weight: var(--fw-bold);
-  border-bottom: 1px solid var(--border);
+  padding: 14px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.thRight  { text-align: right;  padding: var(--sp-2) var(--sp-2); font-weight: var(--fw-bold); border-bottom: 1px solid var(--border); }
-.thCenter { text-align: center; padding: var(--sp-2) var(--sp-2); font-weight: var(--fw-bold); border-bottom: 1px solid var(--border); }
-
-.tr {
-  border-bottom: 1px solid var(--border-light);
+.thMuted {
+  font-size: 11px;
+  font-weight: 400;
+  color: #94a3b8;
 }
 
-.trPaid {
-  background: var(--success-bg);
+.thCheck {
+  width: 44px;
+  text-align: center !important;
+  padding-left: 18px !important;
+  padding-right: 0 !important;
 }
 
-.td     { padding: var(--sp-3) var(--sp-2); text-align: left; }
-.tdRight  { padding: var(--sp-3) var(--sp-2); text-align: right; font-weight: var(--fw-bold); color: var(--text-primary); }
-.tdCenter { padding: var(--sp-3) var(--sp-2); text-align: center; }
-
-.empName { font-weight: var(--fw-bold); color: var(--text-primary); }
-.empCode { font-size: var(--font-xs); color: var(--text-muted); }
-
-.starRating {
-  color: #D4A017;
-  font-weight: var(--fw-black);
+.thEmp {
+  min-width: 200px;
 }
 
-.bonusCell {
-  padding: var(--sp-3) var(--sp-2);
-  text-align: right;
+.thNum {
+  text-align: left !important;
+  white-space: nowrap;
+}
+
+.thAct {
+  width: 50px;
+}
+
+.thPresent {
+  color: #16a34a;
+}
+
+.thAbsent {
+  color: #dc2626;
+}
+
+.thPermission {
+  color: #f59e0b;
+}
+
+.thTotal {
+  color: #2563eb;
+}
+
+.tbl tbody tr {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.tbl tbody tr:hover {
+  background: #fafbfc;
+}
+
+.trSelected {
+  background: #eff6ff !important;
+}
+
+.tdCheck {
+  text-align: center;
+  padding: 10px 0 10px 18px;
+}
+
+.tdEmp {
+  padding: 12px 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tdNum {
+  padding: 12px 10px;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.tdTotal {
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.tdAct {
+  padding: 12px 10px;
+  position: relative;
+  text-align: center;
+}
+
+/* checkbox styling */
+.tbl input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #2563eb;
+}
+
+.empName {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.empCode {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+
+/* Pills (Present / Absent / Permission) */
+.pill {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  min-width: 32px;
+  text-align: center;
+}
+
+.pillGreen {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.pillRed {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.pillAmber {
+  background: #fef3c7;
   color: #92400e;
 }
 
-.netPay {
-  padding: var(--sp-3) var(--sp-2);
-  text-align: right;
-  font-weight: var(--fw-black);
-  color: #065f46;
-}
-
-.paidBadge {
+.pillMuted {
   display: inline-block;
-  padding: 5px var(--sp-3);
-  border-radius: var(--radius-full);
-  font-size: var(--font-xs);
-  font-weight: var(--fw-black);
-  color: #065f46;
-  background: #d1fae5;
-  letter-spacing: 0.4px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  background: #f1f5f9;
+  min-width: 32px;
+  text-align: center;
 }
 
-.markPaidBtn {
-  background: var(--clr-primary);
-  color: var(--text-inverse);
-  border: none;
-  padding: 6px 14px;
-  border-radius: var(--radius);
-  font-size: var(--font-xs);
-  font-weight: var(--fw-bold);
+.tdDeduction {
+  color: #dc2626 !important;
+  font-weight: 600;
+}
+
+/* Inline increment dropdown in the table */
+.incrementSelect {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 12px;
   font-family: var(--font);
-  letter-spacing: 0.6px;
-  text-transform: uppercase;
+  background: white;
+  color: #0f172a;
   cursor: pointer;
-  transition: background var(--ease);
+  min-width: 110px;
 }
 
-.markPaidBtn:hover {
-  background: var(--clr-primary-dark);
+.incrementSelect:focus {
+  border-color: #2563eb;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
+
+
+/* Row 3-dot menu */
+.menuBtn {
+  background: transparent;
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  color: #475569;
+}
+
+.menuBtn:hover {
+  background: #f1f5f9;
+}
+
+.rowMenu {
+  position: absolute;
+  right: 16px;
+  top: 36px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15);
+  z-index: 10;
+  min-width: 180px;
+  overflow: hidden;
+}
+
+.rowMenu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: white;
+  border: none;
+  padding: 9px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #0f172a;
+  font-family: var(--font);
+}
+
+.rowMenu button:hover {
+  background: #f8fafc;
+}
+
+
+/* Avatar */
+.avatarImg,
+.avatarInitials {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.avatarInitials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.2px;
+}
+
+
+.loadingRow,
+.emptyRow {
+  padding: 40px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+  font-style: italic;
+}
+
+
+/* ───────────────────────────────────────────────────────────────────
+   5.  PAGINATION
+   ─────────────────────────────────────────────────────────────────── */
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding: 0 4px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pagerLeft {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.pagerCenter {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pagerArrow,
+.pagerNum {
+  background: white;
+  border: 1px solid #e2e8f0;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #475569;
+  cursor: pointer;
+  font-family: var(--font);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+}
+
+.pagerArrow:hover:not(:disabled),
+.pagerNum:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.pagerArrow:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pagerNumActive {
+  background: white;
+  border-color: #2563eb;
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.pagerDots {
+  color: #94a3b8;
+  padding: 0 2px;
+}
+
+.pageSizeSelect {
+  padding: 7px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 12px;
+  background: white;
+  color: #0f172a;
+  font-family: var(--font);
+  cursor: pointer;
+}
+
+
+/* ───────────────────────────────────────────────────────────────────
+   Responsive — collapse filter grid + KPI grid on narrow screens
+   ─────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+  .kpiRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filterCard {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .filterCard>button {
+    grid-column: span 2;
+    justify-self: stretch;
+  }
+}
+
+@media (max-width: 640px) {
+  .kpiRow {
+    grid-template-columns: 1fr;
+  }
+
+  .filterCard {
+    grid-template-columns: 1fr;
+  }
+
+  .filterCard>button {
+    grid-column: span 1;
+  }
+
+  .actionRow {
+    flex-direction: column;
+  }
+
+  .actionBtn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+
+/* ───────────────────────────────────────────────────────────────────
+   6.  RULES STRIP (always visible — keeps HR aware of the policy)
+   ─────────────────────────────────────────────────────────────────── */
+
+.rulesStrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 8px 14px;
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: #78350f;
+}
+
+.rulesStrip strong {
+  color: #92400e;
+  font-weight: 700;
+}
+
+
+/* ───────────────────────────────────────────────────────────────────
+   7.  SALARY SUMMARY MODAL
+   ─────────────────────────────────────────────────────────────────── */
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modalPanel {
+  background: white;
+  border-radius: 12px;
+  width: min(560px, 100%);
+  max-height: calc(100vh - 60px);
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.25);
+}
+
+.modalHeader {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.modalEyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  color: #2563eb;
+  text-transform: uppercase;
+}
+
+.modalTitle {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+  margin-top: 4px;
+  letter-spacing: -0.3px;
+}
+
+.modalSub {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.modalClose {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  color: #94a3b8;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+
+.modalClose:hover {
+  color: #0f172a;
+}
+
+.modalBody {
+  padding: 20px 24px;
+}
+
+.summaryGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.summaryLabel {
+  color: #475569;
+}
+
+.summaryValue {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.summaryWarn {
+  color: #b45309;
+}
+
+.summaryBad {
+  color: #b91c1c;
+}
+
+.summaryGood {
+  color: #15803d;
+}
+
+.summaryDivider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 16px 0;
+}
+
+.summaryNet {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  border-radius: 10px;
+  padding: 14px 18px;
+}
+
+.summaryNetLabel {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #1e40af;
+  text-transform: uppercase;
+}
+
+.summaryNetValue {
+  font-size: 24px;
+  font-weight: 800;
+  color: #1e3a8a;
+}
+
+.summaryNote {
+  margin-top: 14px;
+  padding: 10px 14px;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #78350f;
+}
+
+.modalFooter {
+  padding: 16px 24px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.modalDoneBtn {
+  background: #2563eb;
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--font);
+}
+
+.modalDoneBtn:hover {
+  background: #1d4ed8;
+}
+
+
+/* Additional mobile polish for Payroll — action row + increment select */
+@media (max-width: 900px) {
+  .actionRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .actionBtn {
+    justify-content: center;
+  }
+
+  .incrementSelect {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .rulesStrip {
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .runBtn {
+    width: 100%;
+  }
+
+  .tbl th,
+  .tbl td {
+    padding: 8px 8px;
+    font-size: 11.5px;
+  }
+
+  .empName {
+    font-size: 13px;
+  }
+
+  .empCode {
+    font-size: 10px;
+  }
+
+  /* Payroll page — scoped styles */
+
+  .page {
+    padding: var(--sp-6);
+  }
+
+  /* ─── Hero ──────────────────────────────────────────────────── */
+
+  .hero {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--clr-primary);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow);
+    padding: var(--sp-5) var(--sp-6);
+    margin-bottom: 22px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--sp-4);
+  }
+
+  .heroEyebrow {
+    font-size: var(--font-xs);
+    letter-spacing: 2px;
+    color: var(--clr-primary);
+    font-weight: var(--fw-bold);
+    text-transform: uppercase;
+  }
+
+  .heroTitle {
+    font-size: var(--font-2xl);
+    font-weight: var(--fw-bold);
+    color: var(--text-primary);
+    margin: var(--sp-1) 0 0;
+    line-height: 1.2;
+    letter-spacing: -0.3px;
+  }
+
+  /* ─── Controls bar ──────────────────────────────────────────── */
+
+  .controls {
+    background: var(--card-bg);
+    padding: var(--sp-4);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border);
+    margin-bottom: 18px;
+    display: flex;
+    gap: var(--sp-3);
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+
+  .pickerLabel {
+    font-size: var(--font-xs);
+    color: var(--text-secondary);
+    margin-bottom: var(--sp-1);
+    font-weight: var(--fw-bold);
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+  }
+
+  .picker {
+    padding: var(--sp-2) var(--sp-3);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-strong);
+    min-width: 130px;
+    font-size: var(--font-sm);
+    font-family: var(--font);
+    background: var(--card-bg);
+    color: var(--text-primary);
+    outline: none;
+  }
+
+  .picker:focus {
+    border-color: var(--clr-primary);
+  }
+
+  .generateBtn {
+    background: var(--clr-primary);
+    color: var(--text-inverse);
+    border: none;
+    padding: var(--sp-2) 22px;
+    border-radius: var(--radius-md);
+    font-weight: var(--fw-black);
+    font-size: var(--font-sm);
+    font-family: var(--font);
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background var(--ease);
+  }
+
+  .generateBtn:disabled {
+    background: var(--slate-400);
+    cursor: default;
+  }
+
+  .controlsHint {
+    font-size: var(--font-xs);
+    color: var(--text-muted);
+    flex: 1;
+    min-width: 200px;
+    line-height: var(--lh);
+  }
+
+  /* ─── Body panel ────────────────────────────────────────────── */
+
+  .body {
+    background: var(--card-bg);
+    padding: var(--sp-5);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border);
+  }
+
+  .loadingText {
+    color: var(--text-muted);
+    padding: 20px;
+  }
+
+  .errorText {
+    color: var(--danger-dark);
+    background: var(--danger-bg);
+    padding: var(--sp-3);
+    border-radius: var(--radius-md);
+    font-size: var(--font-sm);
+  }
+
+  .emptyText {
+    padding: 36px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: var(--font-sm);
+  }
+
+  /* ─── Table meta row ────────────────────────────────────────── */
+
+  .tableMeta {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: var(--sp-2);
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+  }
+
+  .tableMetaTitle {
+    font-size: var(--font-sm);
+    font-weight: var(--fw-black);
+    color: var(--text-primary);
+    letter-spacing: 0.3px;
+  }
+
+  .tableMetaSub {
+    font-size: var(--font-xs);
+    color: var(--text-secondary);
+  }
+
+  /* ─── Payroll table ─────────────────────────────────────────── */
+
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-sm);
+  }
+
+  .thead {
+    background: var(--surface);
+    color: var(--slate-600);
+    font-size: var(--font-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .th {
+    padding: var(--sp-2) var(--sp-2);
+    text-align: left;
+    font-weight: var(--fw-bold);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .thRight {
+    text-align: right;
+    padding: var(--sp-2) var(--sp-2);
+    font-weight: var(--fw-bold);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .thCenter {
+    text-align: center;
+    padding: var(--sp-2) var(--sp-2);
+    font-weight: var(--fw-bold);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tr {
+    border-bottom: 1px solid var(--border-light);
+  }
+
+  .trPaid {
+    background: var(--success-bg);
+  }
+
+  .td {
+    padding: var(--sp-3) var(--sp-2);
+    text-align: left;
+  }
+
+  .tdRight {
+    padding: var(--sp-3) var(--sp-2);
+    text-align: right;
+    font-weight: var(--fw-bold);
+    color: var(--text-primary);
+  }
+
+  .tdCenter {
+    padding: var(--sp-3) var(--sp-2);
+    text-align: center;
+  }
+
+  .empName {
+    font-weight: var(--fw-bold);
+    color: var(--text-primary);
+  }
+
+  .empCode {
+    font-size: var(--font-xs);
+    color: var(--text-muted);
+  }
+
+  .starRating {
+    color: #D4A017;
+    font-weight: var(--fw-black);
+  }
+
+  .bonusCell {
+    padding: var(--sp-3) var(--sp-2);
+    text-align: right;
+    color: #92400e;
+  }
+
+  .netPay {
+    padding: var(--sp-3) var(--sp-2);
+    text-align: right;
+    font-weight: var(--fw-black);
+    color: #065f46;
+  }
+
+  .paidBadge {
+    display: inline-block;
+    padding: 5px var(--sp-3);
+    border-radius: var(--radius-full);
+    font-size: var(--font-xs);
+    font-weight: var(--fw-black);
+    color: #065f46;
+    background: #d1fae5;
+    letter-spacing: 0.4px;
+  }
+
+  .markPaidBtn {
+    background: var(--clr-primary);
+    color: var(--text-inverse);
+    border: none;
+    padding: 6px 14px;
+    border-radius: var(--radius);
+    font-size: var(--font-xs);
+    font-weight: var(--fw-bold);
+    font-family: var(--font);
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background var(--ease);
+  }
+
+  .markPaidBtn:hover {
+    background: var(--clr-primary-dark);
+
+  }
+}
+
+
+/* ==================================================================
+   LANDING PAGE — new single-CTA design.
+   The rules above are legacy (kept so existing utility classes still
+   resolve). Everything below drives the current /payroll layout.
+   ================================================================== */
+
+.landingPage {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 20px;
+  min-height: calc(100vh - 120px);
+  background: transparent;
+}
+
+.landingInner {
+  width: 100%;
+  max-width: 640px;
+}
+
+.landingCard {
+  background: #ffffff;
+  border: 1px solid #dc2626;
+  border-radius: 16px;
+  padding: 40px 36px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, sans-serif;
+}
+
+.landingIcon {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: rgba(220, 38, 38, 0.10);
+  color: #dc2626;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  border: 1px solid rgba(220, 38, 38, 0.20);
+}
+
+.landingTitle {
+  margin: 0 0 10px;
+  font-size: 26px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.5px;
+}
+
+.landingDesc {
+  margin: 0 0 24px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #64748b;
+  max-width: 480px;
+}
+
+.landingCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 26px;
+  background: #dc2626;
+  color: #ffffff;
+  border: 1px solid #dc2626;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.25);
+  transition: background 0.15s ease, transform 0.08s ease, box-shadow 0.15s ease;
+}
+.landingCta:hover {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  box-shadow: 0 10px 22px rgba(220, 38, 38, 0.32);
+}
+.landingCta:active { transform: translateY(1px); }
+
+.landingBullets {
+  margin-top: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  width: 100%;
+  max-width: 480px;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 20px;
+}
+
+.landingBullet {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.45;
+}
+
+.landingBulletDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #dc2626;
+  flex-shrink: 0;
+}
+
+
+/* ---- Dark mode ---------------------------------------------------- */
+:global(html[data-theme="dark"]) .landingCard {
+  background: #131c2c;
+  border-color: #dc2626;
+  box-shadow: 0 8px 24px rgba(220, 38, 38, 0.20);
+}
+:global(html[data-theme="dark"]) .landingIcon {
+  background: rgba(220, 38, 38, 0.18);
+  border-color: rgba(220, 38, 38, 0.32);
+  color: #fca5a5;
+}
+:global(html[data-theme="dark"]) .landingTitle { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .landingDesc  { color: #94a3b8; }
+:global(html[data-theme="dark"]) .landingBullets {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .landingBullet { color: #cbd5e1; }

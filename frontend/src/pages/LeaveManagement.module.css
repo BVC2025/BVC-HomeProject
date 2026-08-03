@@ -1,166 +1,278 @@
-/* LeaveManagement page — scoped styles */
+/* =====================================================================
+   LeaveManagement — page styles.
+   Rewritten as one clean, non-duplicated block. Rules match the rest
+   of the ERP (Employees / Attendance / Memos / Payroll Records):
+     - white card + red left rail on the page banner
+     - 5 uniform KPI tiles with a coloured top rail + tinted body
+     - subtle pill-style tabs (active gets a soft red fill, not a shout)
+     - understated filter row
+   ===================================================================== */
 
-/* ─── Page wrapper ──────────────────────────────────────────── */
-
+/* ---- Page wrapper — flex column, fixed height so the table scrolls
+        inside its card instead of the whole page bouncing. ---------- */
 .page {
-  padding: var(--sp-6);
-  background: var(--layout-bg);
-  min-height: 100%;
-}
-
-.header {
-  margin-bottom: var(--sp-5);
-}
-
-.pageTitle {
-  font-size: var(--font-2xl);
-  font-weight: var(--fw-bold);
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.pageSub {
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
-  margin-top: var(--sp-1);
-}
-
-/* ─── Policy banner ─────────────────────────────────────────── */
-
-.policyBanner {
-  background: var(--info-bg);
-  border: 1px solid var(--info-border);
-  border-left: 4px solid var(--info);
-  border-radius: var(--radius-lg);
-  padding: var(--sp-4);
-  margin-bottom: var(--sp-5);
+  padding: 26px 22px 32px;
+  background: var(--layout-bg, #f1f5f9);
+  height: calc(100vh - 80px);
   display: flex;
-  gap: var(--sp-3);
+  flex-direction: column;
+  overflow: hidden;
+  box-sizing: border-box;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, sans-serif;
+  color: #1e293b;
+}
+
+.tabContent {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+
+/* ---- 1. Header banner ------------------------------------------- */
+.pageBanner {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #dc2626;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 14px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   flex-wrap: wrap;
+  gap: 16px;
+  flex-shrink: 0;
 }
 
-.policyLabel {
-  font-size: var(--font-xs);
-  font-weight: var(--fw-bold);
-  letter-spacing: 1px;
-  color: var(--info);
+.pageBannerLeft {
+  display: flex;
+  flex-direction: column;
+  min-width: 240px;
+  gap: 4px;
+}
+
+.pageBannerEyebrow {
+  font-size: 10.5px;
+  letter-spacing: 1.4px;
+  color: #dc2626;
+  font-weight: 700;
   text-transform: uppercase;
-  flex-basis: 100%;
+  margin-bottom: 2px;
 }
 
-.policyItem {
-  flex: 1;
-  min-width: 260px;
+.pageBannerTitle {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.2;
+  color: #0f172a;
+  letter-spacing: -0.4px;
 }
 
-.policyItemTitle {
-  font-size: var(--font-sm);
-  font-weight: var(--fw-bold);
-  color: var(--text-primary);
-  margin-bottom: var(--sp-1);
+.pageBannerSub {
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.5;
+  max-width: 560px;
 }
 
-.policyItemText {
-  font-size: var(--font-sm);
-  color: var(--text-secondary);
-  line-height: var(--lh);
+.pageBannerActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
-/* ─── KPI tiles grid ────────────────────────────────────────── */
+/* Info hint on the right side of the banner — quiet, informational
+   (not a warning). Slate tones so it reads as guidance rather than an
+   alert the admin needs to dismiss. */
+.bannerHint {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  max-width: 520px;
+  line-height: 1.5;
+}
+.bannerHint svg {
+  flex-shrink: 0;
+  color: #64748b;
+  margin-top: 2px;
+}
 
+
+/* ---- 2. KPI tiles — 5-up grid, consistent with other pages ----- */
 .tilesGrid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 14px;
-  margin-bottom: var(--sp-5);
+  margin-bottom: 14px;
+  flex-shrink: 0;
 }
 
 .tile {
-  background: var(--card-bg);
-  padding: var(--sp-5);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  border-top: 3px solid var(--tile-color, var(--border));
+  position: relative;
+  background: #ffffff;
+  padding: 16px 18px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.tile:hover {
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  border-color: #cbd5e1;
+}
+
+/* Coloured top rail — colour comes from the inline `--tile-color`
+   CSS variable set by the Tile component. */
+.tile::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--tile-color, #e2e8f0);
 }
 
 .tileLabel {
-  font-size: var(--font-xs);
-  font-weight: var(--fw-bold);
-  letter-spacing: 1px;
-  color: var(--text-secondary);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: #64748b;
   text-transform: uppercase;
+  margin-bottom: 8px;
 }
 
 .tileValue {
-  font-size: 28px;
-  font-weight: var(--fw-bold);
-  color: var(--text-primary);
-  margin-top: 6px;
+  font-size: 26px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
 }
 
 .tileSub {
-  font-size: var(--font-sm);
-  color: var(--text-muted);
-  margin-top: 2px;
+  font-size: 11.5px;
+  color: #94a3b8;
+  margin-top: 6px;
+  font-weight: 500;
+  letter-spacing: 0.1px;
 }
 
-/* ─── Tab bar ───────────────────────────────────────────────── */
 
+/* ---- 3. Tab bar — subtle pill container, one bordered strip ---- */
 .tabBar {
-  display: flex;
-  gap: var(--sp-1);
-  margin-bottom: var(--sp-5);
-  border-bottom: 1px solid var(--border);
+  display: inline-flex;
+  gap: 2px;
+  margin-bottom: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  flex-shrink: 0;
+  align-self: flex-start;
 }
 
 .tab {
   border: none;
   background: transparent;
-  padding: var(--sp-2) var(--sp-5);
-  font-size: var(--font-base);
-  font-weight: var(--fw-semi);
-  font-family: var(--font);
-  color: var(--text-secondary);
+  padding: 8px 16px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
   cursor: pointer;
-  border-bottom: 3px solid transparent;
-  margin-bottom: -1px;
-  transition: color var(--ease), border-color var(--ease);
+  border-radius: 8px;
+  transition: color 0.15s ease, background 0.15s ease;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+}
+.tab:hover {
+  color: #0f172a;
+  background: #f8fafc;
+}
+.tabActive,
+.tabActive:hover {
+  color: #dc2626;
+  background: #fef2f2;
+  font-weight: 700;
+  box-shadow: none;
 }
 
-.tabActive {
-  color: var(--info);
-  border-bottom-color: var(--info);
-}
-
-/* ─── Filter row ────────────────────────────────────────────── */
-
+/* ---- 4. Filter row — search + result count ---------------------- */
 .filterRow {
+  background: #ffffff;
+  padding: 10px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: 12px;
   margin-bottom: 14px;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .searchWrap {
   position: relative;
-  flex: 0 0 300px;
+  flex: 1 1 320px;
   max-width: 100%;
 }
 
 .searchIcon {
   position: absolute;
+
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  color: var(--text-muted, #94a3b8);
+
   left: 11px;
   top: 50%;
   transform: translateY(-50%);
   font-size: var(--font-sm);
   color: var(--text-muted);
+
   pointer-events: none;
 }
 
 .searchInput {
   width: 100%;
   box-sizing: border-box;
+
+  padding: 8px 30px 8px 32px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: var(--font);
+  outline: none;
+  background: white;
+  color: var(--text-primary, #0f172a);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.searchInput:focus {
+  border-color: var(--clr-primary, #C8102E);
+  box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.08);
+
   padding: 9px 30px 9px 32px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -174,6 +286,7 @@
 
 .searchInput:focus {
   border-color: var(--clr-primary);
+
 }
 
 .clearBtn {
@@ -184,21 +297,62 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  color: var(--text-muted);
+
+  color: var(--text-muted, #94a3b8);
+
   font-size: 14px;
   line-height: 1;
   padding: 4px;
 }
 
 .filterResult {
+
+  font-size: 12px;
+  color: var(--text-secondary, #475569);
+  font-weight: 600;
+
   font-size: var(--font-sm);
   color: var(--text-secondary);
+
 }
 
 /* ─── Status filter buttons ─────────────────────────────────── */
 
 .statusFilterRow {
   display: flex;
+
+  gap: 6px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.statusBtn {
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--card-bg, white);
+  color: var(--text-secondary, #475569);
+  padding: 6px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: var(--fw-bold, 700);
+  font-family: var(--font);
+  transition: all 0.15s;
+  letter-spacing: 0.1px;
+}
+
+.statusBtn:hover {
+  border-color: var(--clr-primary, #C8102E);
+  color: var(--clr-primary, #C8102E);
+}
+
+.statusBtnActive,
+.statusBtnActive:hover {
+  background: var(--clr-primary, #C8102E);
+  color: white;
+  border-color: var(--clr-primary, #C8102E);
+  box-shadow: 0 1px 2px rgba(200, 16, 46, 0.25);
+
   gap: var(--sp-2);
   margin-bottom: 14px;
   flex-wrap: wrap;
@@ -221,6 +375,7 @@
   background: var(--info);
   color: var(--text-inverse);
   border-color: var(--info);
+
 }
 
 /* ─── Leave table ───────────────────────────────────────────── */
@@ -231,10 +386,24 @@
   overflow: hidden;
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border);
+
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tableScroll {
+  overflow-y: auto;
+  overflow-x: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+
 }
 
 .tableScroll {
   overflow: auto;
+
 }
 
 .tableEl {
@@ -249,6 +418,13 @@
   font-size: var(--font-xs);
   letter-spacing: 0.8px;
   text-transform: uppercase;
+
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  box-shadow: 0 1px 0 var(--border);
+
+
 }
 
 .th {
@@ -320,28 +496,47 @@
   justify-content: flex-end;
 }
 
+/* Approve / Reject actions in the table row.
+   Small, refined pill buttons that don't shout — the table itself
+   is the important thing on this page, not the action buttons. */
 .approveBtn {
-  border: none;
-  background: var(--success);
-  color: var(--text-inverse);
-  padding: 5px var(--sp-3);
-  border-radius: var(--radius);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #86efac;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: var(--font-sm);
-  font-weight: var(--fw-semi);
-  font-family: var(--font);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.approveBtn:hover {
+  background: #d1fae5;
+  border-color: #34d399;
 }
 
 .rejectBtn {
-  border: none;
-  background: var(--clr-primary);
-  color: var(--text-inverse);
-  padding: 5px var(--sp-3);
-  border-radius: var(--radius);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: var(--font-sm);
-  font-weight: var(--fw-semi);
-  font-family: var(--font);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.rejectBtn:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
 }
 
 .emptyCell {
@@ -434,4 +629,695 @@
 .dialogSubmitBtn:disabled {
   background: var(--slate-400);
   cursor: not-allowed;
+}
+
+
+
+/* ===================================================================
+   History tab — filter bar + pagination
+   =================================================================== */
+.historyFilterBar {
+  background: var(--card-bg, white);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-lg, 10px);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  flex-shrink: 0;
+}
+
+.histField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 140px;
+}
+
+.histField label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-muted, #64748b);
+}
+
+.histField input,
+.histField select {
+  padding: 7px 10px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  font-size: 13px;
+  background: white;
+  color: var(--text-primary, #0f172a);
+  font-family: var(--font);
+}
+
+.histField input:focus,
+.histField select:focus {
+  outline: none;
+  border-color: var(--clr-primary, #C8102E);
+  box-shadow: 0 0 0 3px var(--clr-primary-muted, rgba(200, 16, 46, 0.10));
+}
+
+.histClear {
+  padding: 7px 12px;
+  background: white;
+  color: var(--text-muted, #64748b);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.histClear:hover {
+  color: var(--clr-primary, #C8102E);
+  border-color: var(--clr-primary, #C8102E);
+}
+
+.histCount {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-muted, #64748b);
+  font-weight: 700;
+  padding: 7px 12px;
+  background: var(--surface, #f8fafc);
+  border-radius: var(--radius-md, 8px);
+  white-space: nowrap;
+}
+
+/* Pagination */
+.histPager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px;
+  flex-shrink: 0;
+}
+
+.histPagerBtn {
+  padding: 8px 16px;
+  background: white;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--text-primary, #0f172a);
+}
+
+.histPagerBtn:hover:not(:disabled) {
+  border-color: var(--clr-primary, #C8102E);
+  color: var(--clr-primary, #C8102E);
+}
+
+.histPagerBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.histPagerInfo {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted, #64748b);
+}
+
+
+/* ===================================================================
+   Balance overview tab
+   =================================================================== */
+.balanceTabRoot {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.balanceHeaderRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.balanceYearSwitcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: white;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 999px;
+  padding: 2px;
+}
+
+.balanceYearBtn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #64748b);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.balanceYearBtn:hover {
+  background: var(--clr-primary-light, #fef2f2);
+  color: var(--clr-primary, #C8102E);
+}
+
+.balanceYearLabel {
+  padding: 0 12px;
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--text-primary, #0f172a);
+}
+
+.balanceTableWrap {
+  background: white;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-lg, 10px);
+  overflow-y: auto;
+  overflow-x: auto;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.balanceTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.balanceTable th {
+  background: var(--surface, #f8fafc);
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: var(--text-muted, #64748b);
+  text-transform: uppercase;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  box-shadow: 0 1px 0 var(--border, #e2e8f0);
+}
+
+.balanceTable td {
+  padding: 12px 14px;
+  border-top: 1px solid var(--border-light, #f1f5f9);
+  vertical-align: top;
+}
+
+.balanceRowLow {
+  background: #fff7ed;
+}
+
+.balanceEmpty {
+  text-align: center;
+  padding: 30px;
+  color: var(--text-muted, #94a3b8);
+  font-style: italic;
+}
+
+.balanceEmpName {
+  font-weight: 800;
+  color: var(--text-primary, #0f172a);
+}
+
+.balanceEmpCode {
+  font-size: 11px;
+  color: var(--text-muted, #94a3b8);
+  margin-top: 2px;
+}
+
+.balanceCellEmpty {
+  color: var(--text-muted, #cbd5e1);
+  font-size: 18px;
+  vertical-align: middle;
+}
+
+.balanceCellLine {
+  font-size: 14px;
+  color: var(--text-primary, #0f172a);
+}
+
+.balanceCellLine b {
+  font-weight: 800;
+}
+
+.balanceCellTotal {
+  font-size: 11px;
+  color: var(--text-muted, #94a3b8);
+  font-weight: 600;
+}
+
+.balanceBar {
+  height: 4px;
+  background: #f1f5f9;
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 4px 0 2px;
+  width: 90px;
+}
+
+.balanceBarFill {
+  height: 100%;
+  transition: width 0.2s;
+}
+
+.balanceBar_low {
+  background: #16a34a;
+}
+
+.balanceBar_mid {
+  background: #d97706;
+}
+
+.balanceBar_high {
+  background: #dc2626;
+}
+
+.balanceCellUsed {
+  font-size: 10px;
+  color: var(--text-muted, #94a3b8);
+}
+
+.balanceAdjustBtn {
+  padding: 7px 14px;
+  background: white;
+  color: var(--clr-primary, #C8102E);
+  border: 1px solid var(--clr-primary, #C8102E);
+  border-radius: var(--radius-md, 8px);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.balanceAdjustBtn:hover {
+  background: var(--clr-primary, #C8102E);
+  color: white;
+}
+
+
+/* ===================================================================
+   Adjustment modal
+   =================================================================== */
+.adjOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.adjPanel {
+  background: white;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 92dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+}
+
+.adjHeader {
+  background: linear-gradient(135deg, var(--clr-primary-darker, #7A1022), var(--clr-primary, #C8102E));
+  color: white;
+  padding: 16px 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.adjEyebrow {
+  font-size: 11px;
+  letter-spacing: 2px;
+  opacity: 0.85;
+  font-weight: 700;
+}
+
+.adjTitle {
+  font-size: 18px;
+  font-weight: 800;
+  margin-top: 2px;
+}
+
+.adjSub {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+.adjClose {
+  background: rgba(255, 255, 255, 0.18);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.adjBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px;
+}
+
+.adjField {
+  margin-bottom: 12px;
+}
+
+.adjField label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  color: var(--text-muted, #64748b);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.adjField input,
+.adjField select,
+.adjField textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  font-size: 14px;
+  background: white;
+  color: var(--text-primary, #0f172a);
+  font-family: inherit;
+}
+
+.adjField textarea {
+  resize: vertical;
+}
+
+.adjField input:focus,
+.adjField select:focus,
+.adjField textarea:focus {
+  outline: none;
+  border-color: var(--clr-primary, #C8102E);
+  box-shadow: 0 0 0 3px var(--clr-primary-muted, rgba(200, 16, 46, 0.10));
+}
+
+.adjError {
+  padding: 9px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-md, 8px);
+  color: #991b1b;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.adjHistory {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+
+.adjHistoryHeader {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--text-muted, #64748b);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.adjHistoryRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  font-size: 12px;
+  color: var(--text-secondary, #475569);
+  border-bottom: 1px solid var(--border-light, #f1f5f9);
+}
+
+.adjHistoryDelta {
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.adjDeltaPos {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.adjDeltaNeg {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.adjHistoryType {
+  font-weight: 700;
+  color: var(--text-primary, #0f172a);
+  font-size: 11px;
+}
+
+.adjHistoryReason {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adjHistoryDate {
+  font-size: 11px;
+  color: var(--text-muted, #94a3b8);
+  white-space: nowrap;
+}
+
+.adjFooter {
+  padding: 14px 22px;
+  border-top: 1px solid var(--border, #e2e8f0);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.adjCancelBtn {
+  padding: 9px 16px;
+  background: white;
+  color: var(--clr-primary, #C8102E);
+  border: 1px solid var(--clr-primary, #C8102E);
+  border-radius: var(--radius-md, 8px);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.adjSubmitBtn {
+  padding: 9px 18px;
+  background: var(--clr-primary, #C8102E);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.adjSubmitBtn:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}
+
+
+/* ==================================================================
+   MOBILE responsive additions
+   ================================================================== */
+@media (max-width: 900px) {
+
+  .page,
+  .container,
+  .wrapper {
+    padding: 14px;
+  }
+
+  .pageHead,
+  .header,
+  .toolbar {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .filterCard,
+  .filterRow,
+  .filters {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .searchInput,
+  .filterSelect,
+  .searchWrap,
+  input,
+  select {
+    width: 100%;
+  }
+
+  .kpiRow,
+  .statRow,
+  .statsGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+
+  .cardGrid,
+  .cardsGrid,
+  .tileGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .twoCol,
+  .splitPanel,
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .tableCard,
+  .tableWrap,
+  .tblWrap {
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 640px) {
+
+  .page,
+  .container,
+  .wrapper {
+    padding: 10px;
+  }
+
+  .kpiRow,
+  .statRow,
+  .statsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cardGrid,
+  .cardsGrid,
+  .tileGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .kpiValue,
+  .statValue {
+    font-size: 20px;
+  }
+
+  h1 {
+    font-size: 20px;
+  }
+
+  h2 {
+    font-size: 17px;
+  }
+}
+
+
+/* =====================================================================
+   Dark mode — module-scoped overrides for the redesigned top block.
+   Mirrors the pattern used on Employees / Payroll / Memos / Attendance.
+   ===================================================================== */
+:global(html[data-theme="dark"]) .page { color: #e2e8f0; }
+
+:global(html[data-theme="dark"]) .pageBanner {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+  border-left-color: #dc2626;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.20);
+}
+:global(html[data-theme="dark"]) .pageBannerEyebrow { color: #fca5a5; }
+:global(html[data-theme="dark"]) .pageBannerTitle   { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .pageBannerSub     { color: #94a3b8; }
+:global(html[data-theme="dark"]) .bannerHint {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: #cbd5e1;
+}
+:global(html[data-theme="dark"]) .bannerHint svg { color: #94a3b8; }
+
+:global(html[data-theme="dark"]) .tile {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .tile:hover {
+  border-color: rgba(255, 255, 255, 0.20);
+}
+:global(html[data-theme="dark"]) .tileLabel { color: #94a3b8; }
+:global(html[data-theme="dark"]) .tileValue { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .tileSub   { color: #64748b; }
+
+:global(html[data-theme="dark"]) .tabBar {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .tab { color: #94a3b8; }
+:global(html[data-theme="dark"]) .tab:hover {
+  color: #f1f5f9;
+  background: rgba(255, 255, 255, 0.05);
+}
+:global(html[data-theme="dark"]) .tabActive,
+:global(html[data-theme="dark"]) .tabActive:hover {
+  color: #fca5a5;
+  background: rgba(220, 38, 38, 0.15);
+}
+
+:global(html[data-theme="dark"]) .filterRow {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+:global(html[data-theme="dark"]) .approveBtn {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #6ee7b7;
+}
+:global(html[data-theme="dark"]) .approveBtn:hover {
+  background: rgba(16, 185, 129, 0.22);
+  border-color: rgba(16, 185, 129, 0.50);
+}
+:global(html[data-theme="dark"]) .rejectBtn {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+}
+:global(html[data-theme="dark"]) .rejectBtn:hover {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: rgba(239, 68, 68, 0.50);
 }

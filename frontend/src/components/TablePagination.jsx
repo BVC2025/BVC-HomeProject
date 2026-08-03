@@ -1,5 +1,9 @@
 import styles from "./TablePagination.module.css";
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 41fd8ef5d1ecd13d5af32a9f324f2f7769fc82e1
 /**
  * Shared pagination footer for any table.
  *
@@ -12,8 +16,12 @@ import styles from "./TablePagination.module.css";
  *   />
  */
 
+<<<<<<< HEAD
 const DEFAULT_PAGE_SIZES = [5, 10, 25, 50, 100];
 
+=======
+const DEFAULT_PAGE_SIZES = [5, 10, 25, 50, 100, 0]; // 0 = All
+>>>>>>> 41fd8ef5d1ecd13d5af32a9f324f2f7769fc82e1
 
 function TablePagination({
   total,

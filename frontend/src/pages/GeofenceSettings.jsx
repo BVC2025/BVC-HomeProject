@@ -57,7 +57,17 @@ export default function GeofenceSettings() {
     OFFICE_NAME: "Head Office",
     LATITUDE: DEFAULT_LAT,
     LONGITUDE: DEFAULT_LNG,
-    RADIUS_METERS: DEFAULT_RADIUS,
+    // Auto-checkin radius (default 30m) — inside this ring, the employee
+    // portal fires a silent check-in on load. Between this and
+    // MAX_RADIUS is a "grace band" where the manual button is shown.
+    RADIUS_METERS:      DEFAULT_RADIUS,
+    // Hard block radius (default 50m). Beyond this, check-in is refused
+    // outright and the attempt gets logged.
+    MAX_RADIUS_METERS:  50,
+    // CSV of the company's public IP addresses / CIDR blocks. When set,
+    // the auto-checkin also requires the browser to be connecting from
+    // one of these — effectively "must be on office WiFi".
+    OFFICE_WIFI_IPS:    "",
     IS_ACTIVE: true,
     VENDOR_ID: 1
   });
@@ -84,12 +94,14 @@ export default function GeofenceSettings() {
         const d = s.data || {};
 
         setForm({
-          OFFICE_NAME:   d.OFFICE_NAME || "Head Office",
-          LATITUDE:      d.LATITUDE ?? DEFAULT_LAT,
-          LONGITUDE:     d.LONGITUDE ?? DEFAULT_LNG,
-          RADIUS_METERS: d.RADIUS_METERS ?? DEFAULT_RADIUS,
-          IS_ACTIVE:     d.IS_ACTIVE !== false,
-          VENDOR_ID:     d.VENDOR_ID ?? 1
+          OFFICE_NAME:        d.OFFICE_NAME || "Head Office",
+          LATITUDE:           d.LATITUDE ?? DEFAULT_LAT,
+          LONGITUDE:          d.LONGITUDE ?? DEFAULT_LNG,
+          RADIUS_METERS:      d.RADIUS_METERS ?? DEFAULT_RADIUS,
+          MAX_RADIUS_METERS:  d.MAX_RADIUS_METERS ?? 50,
+          OFFICE_WIFI_IPS:    d.OFFICE_WIFI_IPS ?? "",
+          IS_ACTIVE:          d.IS_ACTIVE !== false,
+          VENDOR_ID:          d.VENDOR_ID ?? 1
         });
 
         setRecent(logs.data || []);
@@ -156,12 +168,14 @@ export default function GeofenceSettings() {
     try {
 
       await API.put("/geofence/settings", {
-        OFFICE_NAME:   form.OFFICE_NAME || "Head Office",
-        LATITUDE:      Number(form.LATITUDE),
-        LONGITUDE:     Number(form.LONGITUDE),
-        RADIUS_METERS: Number(form.RADIUS_METERS) || DEFAULT_RADIUS,
-        IS_ACTIVE:     !!form.IS_ACTIVE,
-        VENDOR_ID:     form.VENDOR_ID || 1
+        OFFICE_NAME:       form.OFFICE_NAME || "Head Office",
+        LATITUDE:          Number(form.LATITUDE),
+        LONGITUDE:         Number(form.LONGITUDE),
+        RADIUS_METERS:     Number(form.RADIUS_METERS) || DEFAULT_RADIUS,
+        MAX_RADIUS_METERS: Number(form.MAX_RADIUS_METERS) || 50,
+        OFFICE_WIFI_IPS:   (form.OFFICE_WIFI_IPS || "").trim(),
+        IS_ACTIVE:         !!form.IS_ACTIVE,
+        VENDOR_ID:         form.VENDOR_ID || 1
       });
 
       setSavedAt(new Date());
@@ -251,15 +265,43 @@ export default function GeofenceSettings() {
             />
           </Field>
 
-          <Field label="Radius (meters)">
+          <Field label="Auto Check-in Radius (m)" hint="Inside this ring — silent auto check-in on login. Default 30.">
             <input
               type="number"
               min={10}
               max={10000}
-              step={10}
+              step={5}
               value={form.RADIUS_METERS}
               onChange={set("RADIUS_METERS")}
               className={styles.input}
+            />
+          </Field>
+        </Row>
+
+        <Row>
+          <Field label="Max Radius (m) — hard block" hint="Beyond this, check-in is refused. Must be ≥ auto radius. Default 50.">
+            <input
+              type="number"
+              min={10}
+              max={10000}
+              step={5}
+              value={form.MAX_RADIUS_METERS}
+              onChange={set("MAX_RADIUS_METERS")}
+              className={styles.input}
+            />
+          </Field>
+
+          <Field
+            label="Office Wi-Fi IPs (comma-separated)"
+            hint="Company public IP(s) or CIDR blocks. When set, auto check-in also requires the browser to connect from one of these IPs. Leave blank to skip Wi-Fi check."
+          >
+            <input
+              type="text"
+              placeholder="e.g. 203.0.113.10, 203.0.113.11"
+              value={form.OFFICE_WIFI_IPS}
+              onChange={set("OFFICE_WIFI_IPS")}
+              className={styles.input}
+              spellCheck={false}
             />
           </Field>
         </Row>
@@ -410,7 +452,7 @@ function Row({ children }) {
 }
 
 
-function Field({ label, span, children }) {
+function Field({ label, span, hint, children }) {
 
   return (
     <div style={{ gridColumn: span ? `span ${span}` : undefined }}>
@@ -418,6 +460,16 @@ function Field({ label, span, children }) {
         {label}
       </label>
       {children}
+      {hint && (
+        <div style={{
+          fontSize: 11.5,
+          color: "#64748b",
+          marginTop: 4,
+          lineHeight: 1.4,
+        }}>
+          {hint}
+        </div>
+      )}
     </div>
   );
 }

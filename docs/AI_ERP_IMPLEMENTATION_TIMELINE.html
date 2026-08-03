@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>AI-Driven ERP Implementation Timeline — BVC24</title>
+<style>
+  @page { size: A4; margin: 0.85in; }
+
+  html, body {
+    margin: 0; padding: 0; background: #fff; color: #1a1a1a;
+    font-family: "Calibri", "Segoe UI", Arial, sans-serif;
+    font-size: 10.5pt; line-height: 1.5;
+  }
+  .doc { max-width: 7.5in; margin: 0 auto; padding: 0.5in 0.6in; }
+
+  /* ---- Cover ---- */
+  .cover {
+    text-align: center; padding: 1.2in 0 0.8in;
+    border-bottom: 4px solid #C8102E; margin-bottom: 0.4in;
+    page-break-after: always;
+  }
+  .cover .eyebrow {
+    font-size: 10pt; letter-spacing: 4pt; color: #7A1022;
+    font-weight: 700; text-transform: uppercase;
+  }
+  .cover h1 {
+    font-size: 32pt; margin: 18pt 0 6pt; font-weight: 800;
+    line-height: 1.1; letter-spacing: -1pt;
+  }
+  .cover .sub {
+    font-size: 13pt; color: #4a4a4a; margin: 0 0 36pt; font-weight: 400;
+  }
+  .cover .meta {
+    margin-top: 0.8in; font-size: 10pt; color: #6a6a6a; line-height: 1.8;
+  }
+  .cover .brand {
+    margin-top: 1in; font-weight: 800; font-size: 11pt;
+    color: #C8102E; letter-spacing: 1pt;
+  }
+
+  /* ---- Headings ---- */
+  h1, h2, h3, h4 { page-break-after: avoid; }
+  h1 {
+    font-size: 20pt; margin: 28pt 0 12pt; padding-bottom: 6pt;
+    border-bottom: 3px solid #C8102E; page-break-before: always;
+    font-weight: 800; letter-spacing: -0.5pt;
+  }
+  h1:first-of-type { page-break-before: auto; }
+  h2 {
+    font-size: 14pt; margin: 20pt 0 10pt; color: #7A1022; font-weight: 700;
+  }
+  h3 {
+    font-size: 12pt; margin: 14pt 0 6pt; color: #1a1a1a; font-weight: 700;
+  }
+  h4 {
+    font-size: 10.5pt; margin: 10pt 0 4pt; color: #C8102E;
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.5pt;
+  }
+
+  /* ---- Body ---- */
+  p { margin: 0 0 8pt; }
+  ul, ol { margin: 4pt 0 10pt 22pt; padding: 0; }
+  li { margin-bottom: 3pt; }
+
+  /* ---- Tables ---- */
+  table {
+    width: 100%; border-collapse: collapse;
+    margin: 10pt 0 14pt; page-break-inside: avoid; font-size: 10pt;
+  }
+  th, td {
+    border: 1px solid #d0d0d0; padding: 7pt 9pt;
+    text-align: left; vertical-align: top;
+  }
+  th { background: #C8102E; color: #fff; font-weight: 700; }
+  tr:nth-child(even) td { background: #fafafa; }
+  td.center { text-align: center; }
+  td.num    { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* ---- Phase header card ---- */
+  .phase-card {
+    background: #fff; border: 1px solid #d0d0d0; border-top: 4px solid #C8102E;
+    padding: 14pt 16pt; margin: 14pt 0; page-break-inside: avoid;
+  }
+  .phase-card .label {
+    font-size: 9pt; color: #7A1022; font-weight: 800;
+    letter-spacing: 2pt; text-transform: uppercase; margin-bottom: 4pt;
+  }
+  .phase-card .title {
+    font-size: 13pt; font-weight: 700; margin-bottom: 4pt; color: #1a1a1a;
+  }
+  .phase-card .duration {
+    font-size: 10pt; color: #4a4a4a; font-style: italic;
+  }
+
+  /* ---- Callouts ---- */
+  .callout {
+    background: #fef4f5; border-left: 4px solid #C8102E;
+    padding: 10pt 12pt; margin: 10pt 0 14pt; page-break-inside: avoid;
+    font-size: 10pt;
+  }
+  .callout .title {
+    font-weight: 700; color: #7A1022; margin-bottom: 4pt;
+    font-size: 9.5pt; letter-spacing: 0.4pt; text-transform: uppercase;
+  }
+
+  /* ---- Milestone diamonds ---- */
+  .milestone {
+    background: #fff8e1; border-left: 4px solid #F4B324;
+    padding: 9pt 12pt; margin: 8pt 0; font-size: 10pt;
+  }
+  .milestone .ms-label {
+    font-weight: 800; color: #7c5500; letter-spacing: 0.4pt;
+    font-size: 9pt; text-transform: uppercase; margin-bottom: 2pt;
+  }
+
+  /* ---- Gantt chart (CSS-only) ---- */
+  .gantt {
+    width: 100%; border-collapse: collapse; margin: 12pt 0 16pt;
+    font-size: 9pt; page-break-inside: avoid;
+  }
+  .gantt th, .gantt td {
+    border: 1px solid #d0d0d0; padding: 4pt 6pt; height: 18pt;
+    vertical-align: middle;
+  }
+  .gantt th {
+    background: #f5f5f5; color: #1a1a1a; font-weight: 700;
+    text-align: center; font-size: 8.5pt;
+  }
+  .gantt th.qhead {
+    background: #C8102E; color: #fff;
+  }
+  .gantt td.label {
+    text-align: left; font-weight: 600; background: #fafafa; width: 24%;
+  }
+  .gantt td.bar-p1 { background: #C8102E; }
+  .gantt td.bar-p2 { background: #f4b324; }
+  .gantt td.bar-p3 { background: #16a34a; }
+  .gantt td.bar-p4 { background: #1d4ed8; }
+  .gantt td.empty  { background: #fff; }
+
+  /* ---- TOC ---- */
+  .toc {
+    background: #fafafa; border: 1px solid #e0e0e0;
+    padding: 14pt 20pt; margin: 0 0 24pt; page-break-after: always;
+  }
+  .toc h2 { margin-top: 0; color: #C8102E; }
+  .toc ol { margin: 8pt 0 0 0; padding: 0; counter-reset: tocitem; list-style: none; }
+  .toc li {
+    counter-increment: tocitem; padding: 3pt 0;
+    border-bottom: 1px dotted #d0d0d0; font-size: 10.5pt;
+  }
+  .toc li::before {
+    content: counter(tocitem) "."; display: inline-block;
+    width: 22pt; color: #C8102E; font-weight: 700;
+  }
+
+  /* ---- Screen hint ---- */
+  .screen-hint {
+    background: #fef4f5; border: 1px solid #C8102E; color: #7A1022;
+    padding: 10pt 14pt; margin-bottom: 20pt;
+    font-size: 10pt; border-radius: 4pt;
+  }
+  @media print { .screen-hint { display: none; } .doc { padding: 0; } }
+</style>
+</head>
+<body>
+
+<div class="doc">
+
+  <div class="screen-hint">
+    <strong>How to download as Word:</strong>
+    open this file in Microsoft Word (File &rarr; Open &rarr; All Files &rarr;
+    pick this .html). Word converts it to a fully editable document. For PDF,
+    press <strong>Ctrl + P</strong> &rarr; Save as PDF.
+  </div>
+
+  <!-- ============ COVER ============ -->
+  <div class="cover">
+    <div class="eyebrow">Implementation Timeline</div>
+    <h1>AI-Driven ERP / CRM Platform</h1>
+    <div class="sub">Complete week-by-week build plan &mdash; 9-month delivery to a full agentic enterprise system</div>
+    <div class="meta">
+      Document Version: 1.0<br/>
+      Companion to: AI-Driven ERP Platform Roadmap<br/>
+      Prepared for: Bharath Vending Corporation (BVC24)
+    </div>
+    <div class="brand">BVC24 &middot; BHARATH VENDING CORPORATION</div>
+  </div>
+
+  <!-- ============ TOC ============ -->
+  <div class="toc">
+    <h2>Table of Contents</h2>
+    <ol>
+      <li>Executive Summary</li>
+      <li>Assumptions &amp; Constraints</li>
+      <li>Visual Timeline (Gantt)</li>
+      <li>Phase 1 &mdash; AI Employee Agent (Weeks 1&ndash;12)</li>
+      <li>Phase 2 &mdash; AI CRM Agent (Weeks 13&ndash;20)</li>
+      <li>Phase 3 &mdash; AI Operations Agent (Weeks 21&ndash;28)</li>
+      <li>Phase 4 &mdash; Full Agentic ERP (Weeks 29&ndash;38)</li>
+      <li>Milestones &amp; Decision Gates</li>
+      <li>Resource Plan</li>
+      <li>Risk Register</li>
+      <li>Cost Estimates</li>
+      <li>Success Criteria per Phase</li>
+      <li>Change-Management Plan</li>
+    </ol>
+  </div>
+
+  <!-- ============ 1. EXECUTIVE SUMMARY ============ -->
+  <h1>1. Executive Summary</h1>
+
+  <p>
+    This timeline lays out the complete 38-week build of an AI-driven ERP and CRM
+    platform, delivered in four phases. Each phase produces a working, demonstrable
+    agent that can be put in front of real users before the next phase begins &mdash;
+    a deliberately incremental approach that derisks the program and lets the
+    business start capturing value from Week 12 onward.
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 14%;">Phase</th>
+        <th style="width: 26%;">Focus</th>
+        <th style="width: 14%;">Weeks</th>
+        <th style="width: 22%;">First user value</th>
+        <th>Headline deliverable</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Phase 1</strong></td>
+        <td>AI Employee Agent (HR)</td>
+        <td class="center">1 &ndash; 12</td>
+        <td>Self-service leave, attendance, payslip</td>
+        <td>Conversational HR assistant in production</td>
+      </tr>
+      <tr>
+        <td><strong>Phase 2</strong></td>
+        <td>AI CRM Agent (Sales)</td>
+        <td class="center">13 &ndash; 20</td>
+        <td>Faster lead-to-quote cycle</td>
+        <td>Lead, quote, follow-up agent</td>
+      </tr>
+      <tr>
+        <td><strong>Phase 3</strong></td>
+        <td>AI Operations Agent</td>
+        <td class="center">21 &ndash; 28</td>
+        <td>Touchless procurement / inventory</td>
+        <td>Procurement &amp; inventory agent</td>
+      </tr>
+      <tr>
+        <td><strong>Phase 4</strong></td>
+        <td>Full Agentic ERP</td>
+        <td class="center">29 &ndash; 38</td>
+        <td>Cross-module workflows, voice everywhere</td>
+        <td>Unified AI-first enterprise OS</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <div class="title">Delivery Philosophy</div>
+    Each phase ships a usable agent. We do not wait until Week 38 to launch.
+    By Week 12 employees are already using the HR agent in production while
+    the CRM agent is being built in parallel.
+  </div>
+
+  <!-- ============ 2. ASSUMPTIONS ============ -->
+  <h1>2. Assumptions &amp; Constraints</h1>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 30%;">Area</th>
+        <th>Assumption</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Team size</strong></td><td>1 senior full-stack engineer + part-time HR/sales SME (~0.25 FTE) for requirements clarification</td></tr>
+      <tr><td><strong>Working hours</strong></td><td>~30 productive hours/week on this program</td></tr>
+      <tr><td><strong>Tech stack</strong></td><td>FastAPI + Python + MySQL (existing) &middot; React + Vite + Inter (existing) &middot; Pydantic AI &middot; Gemini 2.5 Flash as primary LLM &middot; Ollama (Llama 3.1 8B) as fallback in Phase 4</td></tr>
+      <tr><td><strong>LLM cost</strong></td><td>~&#8377;3,000/month at 50 active users on Gemini Flash</td></tr>
+      <tr><td><strong>Hosting</strong></td><td>Office PC in Phase 1&ndash;3; named Cloudflare tunnel goes live in Phase 4</td></tr>
+      <tr><td><strong>Data residency</strong></td><td>All employee + customer PII stays in MySQL on the office machine; only short prompts go to Gemini API</td></tr>
+      <tr><td><strong>Existing modules</strong></td><td>HRMS, CRM, Procurement, Inventory tables already exist &mdash; this program adds an AI layer on top, additive only</td></tr>
+      <tr><td><strong>No-go items</strong></td><td>No schema-breaking changes to existing tables; no module decommissioning until Phase 4 stabilisation</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ============ 3. GANTT ============ -->
+  <h1>3. Visual Timeline (Gantt)</h1>
+
+  <p style="font-size: 10pt; color: #555;">
+    Bars span the weeks each workstream is active. Phase 1 in red, Phase 2 in
+    gold, Phase 3 in green, Phase 4 in blue.
+  </p>
+
+  <table class="gantt">
+    <thead>
+      <tr>
+        <th rowspan="2" style="width: 24%;">Workstream</th>
+        <th colspan="3" class="qhead">Q1 (W1&ndash;13)</th>
+        <th colspan="3" class="qhead">Q2 (W14&ndash;26)</th>
+        <th colspan="3" class="qhead">Q3 (W27&ndash;38)</th>
+      </tr>
+      <tr>
+        <th>W1&ndash;4</th><th>W5&ndash;9</th><th>W10&ndash;13</th>
+        <th>W14&ndash;17</th><th>W18&ndash;22</th><th>W23&ndash;26</th>
+        <th>W27&ndash;30</th><th>W31&ndash;34</th><th>W35&ndash;38</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="label">Phase 1 Foundation + Leave agent</td>
+        <td class="bar-p1"></td><td class="bar-p1"></td><td class="empty"></td>
+        <td class="empty"></td><td class="empty"></td><td class="empty"></td>
+        <td class="empty"></td><td class="empty"></td><td class="empty"></td>
+      </tr>
+      <tr>
+        <td class="label">Phase 1 Attendance + Payroll + Onboarding agents</td>
+        <td class="empty"></td><td class="bar-p1"></td><td class="bar-p1"></td>
+        <td class="empty"></td><td class="empty"></td><td class="empty"></td>
+        <td class="empty"></td><td class="empty"></td><td class="empty"></td>
+      </tr>
+      <tr>
+        <td class="label">Phase 2 CRM Agent (Leads, Quotes, Follow-up)</td>
+        <td class="empty"></td><td class="empty"></td><td class="empty"></td>
+        <td class="bar-p2"></td><td class="bar-p2"></td><td class="empty"></td>
+        <td class="empty"></td><td class="empty"></td><td class="empty"></td>
+      </tr>
+      <tr>
+        <td class="label">Phase 3 Operations Agent (Procurement, Inventory)</td>
+        <td class="empty"></td><td class="empty"></td><td class="empty"></td>
+        <td class="empty"></td><td class="empty"></td><td class="bar-p3"></td>
+        <td class="bar-p3"></td><td class="empty"></td><td class="empty"></td>
+      </tr>
+      <tr>
+        <td class="label">Phase 4 Cross-module orchestration + voice</td>
+        <td class="empty"></td><td class="empty"></td><td class="empty"></td>
+        <td class="empty"></td><td class="empty"></td><td class="empty"></td>
+        <td class="empty"></td><td class="bar-p4"></td><td class="bar-p4"></td>
+      </tr>
+      <tr>
+        <td class="label">Continuous: testing, audit log, security, polish</td>
+        <td class="bar-p1"></td><td class="bar-p1"></td><td class="bar-p1"></td>
+        <td class="bar-p2"></td><td class="bar-p2"></td><td class="bar-p3"></td>
+        <td class="bar-p3"></td><td class="bar-p4"></td><td class="bar-p4"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ============ 4. PHASE 1 ============ -->
+  <h1>4. Phase 1 &mdash; AI Employee Agent (Weeks 1&ndash;12)</h1>
+
+  <div class="phase-card">
+    <div class="label">Phase 1</div>
+    <div class="title">AI Employee Agent &mdash; HR automation</div>
+    <div class="duration">Duration: 12 weeks (~3 months) &middot; Outcome: production HR assistant covering leave, attendance, payroll, onboarding</div>
+  </div>
+
+  <h2>Weeks 1&ndash;2 &mdash; Foundation</h2>
+  <ul>
+    <li>Install Pydantic AI in the existing FastAPI backend</li>
+    <li>Set up <code>app/agents/</code> folder + base <code>Agent</code> dependency injection container</li>
+    <li>Define the first five tools as Python wrappers over existing routes: <code>get_employee</code>, <code>get_leave_balance</code>, <code>apply_leave</code>, <code>get_attendance</code>, <code>get_payslip</code></li>
+    <li>Add <code>/agent/chat</code> endpoint with the base agent (single-agent, no routing yet)</li>
+    <li>Audit-log table extended with <code>triggered_by_agent</code> flag</li>
+    <li>Confirmation pattern: every state-changing tool returns a draft, requires explicit user "yes"</li>
+  </ul>
+
+  <h2>Weeks 3&ndash;4 &mdash; Leave Agent (production)</h2>
+  <ul>
+    <li>Build the leave-request agent on top of the existing leave module (already started)</li>
+    <li>Intent classification + entity extraction via Gemini structured output</li>
+    <li>Balance/quota validation against existing <code>leave_balance</code> table</li>
+    <li>Confirmation prompt with full summary</li>
+    <li>Submit creates an existing <code>leave_request</code> row; manager email approval flow remains unchanged</li>
+    <li>Employee Portal Leave tab: chat widget + live status panel</li>
+  </ul>
+
+  <div class="milestone">
+    <div class="ms-label">Milestone M1 (Week 4)</div>
+    First production agent. 5 employees use it daily for a week without intervention.
+  </div>
+
+  <h2>Weeks 5&ndash;6 &mdash; Attendance + Payroll Q&amp;A</h2>
+  <ul>
+    <li>Read-only agents (cannot modify attendance/payroll &mdash; safer first launch)</li>
+    <li>Sample queries: "How many late marks this month?", "Send me my last 3 payslips", "What's my net pay this month?"</li>
+    <li>Payslip download tool: agent calls existing PDF generator</li>
+    <li>Permission-scoping: employee sees only own records; HR sees team</li>
+  </ul>
+
+  <h2>Weeks 7&ndash;9 &mdash; Onboarding Agent</h2>
+  <ul>
+    <li>Conversational onboarding for HR: "Create profile for Aniket, joins 1 July, Sales, reports to Ram"</li>
+    <li>Document collection step: Aadhaar / PAN / Resume upload through chat</li>
+    <li>OCR extraction stub (full OCR comes in Phase 4)</li>
+    <li>Cross-checks: duplicate phone/email, manager existence, department validation</li>
+    <li>Auto-creates employee + sends welcome email through existing email service</li>
+  </ul>
+
+  <h2>Weeks 10&ndash;11 &mdash; RAG memory + voice</h2>
+  <ul>
+    <li>Add Chroma as embedded vector store</li>
+    <li>Backfill embeddings for: employees, HR policies, leave rules, holiday calendar</li>
+    <li>Retrieval tool <code>recall_about(topic)</code> available to all Phase 1 agents</li>
+    <li>Voice input via Web Speech API (Indian English, Tamil, Hindi)</li>
+    <li>Text-to-speech for agent replies (browser SpeechSynthesis)</li>
+  </ul>
+
+  <h2>Week 12 &mdash; Hardening &amp; Phase 1 launch</h2>
+  <ul>
+    <li>Per-user daily token budget + cost alarms</li>
+    <li>Rate limiting at FastAPI middleware</li>
+    <li>Hallucination guardrails: all numerical facts (balance, hours, salary) rendered from DB, never from LLM</li>
+    <li>End-to-end UAT with full HR team (5 days)</li>
+    <li>Production cut-over; legacy form-based screens remain as fallback for 30 days</li>
+  </ul>
+
+  <div class="milestone">
+    <div class="ms-label">Milestone M2 (Week 12)</div>
+    Phase 1 GA. Entire employee population can self-serve via chat or voice.
+    HR ticket volume target: down 60%.
+  </div>
+
+  <!-- ============ 5. PHASE 2 ============ -->
+  <h1>5. Phase 2 &mdash; AI CRM Agent (Weeks 13&ndash;20)</h1>
+
+  <div class="phase-card">
+    <div class="label">Phase 2</div>
+    <div class="title">AI CRM Agent &mdash; Sales automation</div>
+    <div class="duration">Duration: 8 weeks (~2 months) &middot; Outcome: lead-to-quote cycle compressed from days to minutes</div>
+  </div>
+
+  <h2>Weeks 13&ndash;14 &mdash; Lead Agent</h2>
+  <ul>
+    <li>"Create a lead from this conversation" &mdash; agent extracts contact info, qualifies BANT, schedules follow-up</li>
+    <li>Bulk lead import via natural language ("Add these 30 contacts from yesterday's expo")</li>
+    <li>Customer 360 mini-view: agent surfaces full history when asked about a known account</li>
+    <li>Tools: <code>create_lead</code>, <code>find_customer</code>, <code>schedule_follow_up</code>, <code>log_interaction</code></li>
+  </ul>
+
+  <h2>Weeks 15&ndash;16 &mdash; Quotation Generation Agent</h2>
+  <ul>
+    <li>"Quote Apollo Hospitals for 5 units of C 608 R1 with 10% margin" &mdash; agent looks up BOM, applies pricing rules, generates quotation</li>
+    <li>Multi-line item conversational entry: "add 3 more of model X"</li>
+    <li>Approval routing: above &#8377;5L auto-routes to MD via existing email flow</li>
+    <li>PDF generation reuses existing quotation template + company master settings</li>
+  </ul>
+
+  <h2>Weeks 17&ndash;18 &mdash; Follow-up &amp; Pipeline Intelligence</h2>
+  <ul>
+    <li>Daily morning brief: "3 leads going stale, 2 quotes expiring tomorrow, follow-ups due today"</li>
+    <li>Smart suggestions: "Apollo hasn't responded in 14 days &mdash; want to send a follow-up?"</li>
+    <li>Sentiment tracking: tags conversations as warm / cold / negotiating based on last interaction</li>
+    <li>RAG over CRM history: "What did we discuss with Apollo last quarter?"</li>
+  </ul>
+
+  <h2>Weeks 19&ndash;20 &mdash; UAT &amp; rollout</h2>
+  <ul>
+    <li>Sales team UAT (2 weeks, 5 reps)</li>
+    <li>Tune prompts for sales language (industry jargon, abbreviations)</li>
+    <li>Pipeline accuracy spot-checks vs Salesforce-like baselines</li>
+    <li>Phase 2 GA with full sales team</li>
+  </ul>
+
+  <div class="milestone">
+    <div class="ms-label">Milestone M3 (Week 20)</div>
+    Phase 2 GA. Average lead-to-quote time target: under 15 minutes (vs ~4 hours baseline).
+  </div>
+
+  <!-- ============ 6. PHASE 3 ============ -->
+  <h1>6. Phase 3 &mdash; AI Operations Agent (Weeks 21&ndash;28)</h1>
+
+  <div class="phase-card">
+    <div class="label">Phase 3</div>
+    <div class="title">AI Operations Agent &mdash; Procurement &amp; inventory</div>
+    <div class="duration">Duration: 8 weeks (~2 months) &middot; Outcome: touchless purchase &amp; stock workflows</div>
+  </div>
+
+  <h2>Weeks 21&ndash;23 &mdash; Procurement Agent</h2>
+  <ul>
+    <li>"Raise a PO for 200 units of SMPS 24V 10A from Steel Mart" &mdash; agent drafts PO, checks vendor master, routes for approval</li>
+    <li>Bulk RFQ generation: "Send RFQ for these 15 items to our 3 preferred suppliers"</li>
+    <li>Three-way matching support: PO vs GRN vs Invoice flagged on mismatch</li>
+    <li>Vendor performance summaries on demand</li>
+  </ul>
+
+  <h2>Weeks 24&ndash;25 &mdash; Inventory Agent</h2>
+  <ul>
+    <li>"What's running low?" &mdash; agent lists items below reorder threshold</li>
+    <li>"Move 50 units of glass door from Coimbatore to Chennai" &mdash; auto-creates transfer note</li>
+    <li>Cycle-count guidance: "Which 20 SKUs should we count this week based on movement?"</li>
+    <li>Stock-aging insights for finance</li>
+  </ul>
+
+  <h2>Weeks 26&ndash;27 &mdash; Vendor Management &amp; Approvals</h2>
+  <ul>
+    <li>Vendor onboarding conversational flow (similar to employee onboarding)</li>
+    <li>Multi-level approval router: PR &rarr; PO &rarr; payment with policy-driven escalation</li>
+    <li>Spend analytics on demand: "How much did we spend on electronics this quarter?"</li>
+  </ul>
+
+  <h2>Week 28 &mdash; Phase 3 UAT + launch</h2>
+
+  <div class="milestone">
+    <div class="ms-label">Milestone M4 (Week 28)</div>
+    Phase 3 GA. Touchless PO &amp; transfer workflows live across procurement &amp; warehouse.
+  </div>
+
+  <!-- ============ 7. PHASE 4 ============ -->
+  <h1>7. Phase 4 &mdash; Full Agentic ERP (Weeks 29&ndash;38)</h1>
+
+  <div class="phase-card">
+    <div class="label">Phase 4</div>
+    <div class="title">Full Agentic ERP &mdash; cross-module orchestration</div>
+    <div class="duration">Duration: 10 weeks (~2.5 months) &middot; Outcome: unified AI-first enterprise OS</div>
+  </div>
+
+  <h2>Weeks 29&ndash;31 &mdash; Cross-module orchestration</h2>
+  <ul>
+    <li>Single global AI command palette (Ctrl+K) on every screen</li>
+    <li>Intent router: classifies each message into command vs query vs navigate vs answer, then dispatches to the right sub-agent</li>
+    <li>Multi-agent flows: "Apollo wants a quote and a 30-day credit line" &mdash; CRM agent + finance agent collaborate</li>
+    <li>Customer 360 unified view (already designed) &mdash; agent answers any question about any customer</li>
+  </ul>
+
+  <h2>Weeks 32&ndash;33 &mdash; Predictive analytics</h2>
+  <ul>
+    <li>Daily executive brief generated by AI at 8 AM: revenue, pipeline, inventory alerts, employee alerts</li>
+    <li>Anomaly detection: "Spending on raw materials up 22% MoM &mdash; want a breakdown?"</li>
+    <li>Cash-flow forecast based on PO + invoice + payment data</li>
+    <li>Customer churn-risk flagging</li>
+  </ul>
+
+  <h2>Weeks 34&ndash;35 &mdash; Voice &amp; local LLM fallback</h2>
+  <ul>
+    <li>Install Ollama with Llama 3.1 8B on a dedicated GPU box or office workstation</li>
+    <li>Classifier rule: sensitive queries (salary, bank details, KYC) auto-route to local model; rest goes to Gemini</li>
+    <li>Voice everywhere: every chat surface accepts voice input + reads back replies</li>
+    <li>Multilingual: Tamil + Hindi + English Indian + Tanglish all natively supported</li>
+  </ul>
+
+  <h2>Weeks 36&ndash;37 &mdash; OCR &amp; document understanding</h2>
+  <ul>
+    <li>Self-hosted OCR (Tesseract) for Aadhaar, PAN, GST certificates, invoices</li>
+    <li>Document upload &rarr; auto-classify &rarr; auto-extract fields &rarr; pre-fill the next agent action</li>
+    <li>Invoice three-way match becomes single-conversation operation</li>
+  </ul>
+
+  <h2>Week 38 &mdash; Stabilisation &amp; production GA</h2>
+  <ul>
+    <li>Cloudflare named tunnel (<code>erp.bvc24.com</code>) replaces quick tunnel</li>
+    <li>Backup &amp; disaster recovery rehearsed</li>
+    <li>Compliance review (DPDP Act audit)</li>
+    <li>Documentation: user guide, admin guide, API reference</li>
+    <li>Full production launch</li>
+  </ul>
+
+  <div class="milestone">
+    <div class="ms-label">Milestone M5 (Week 38)</div>
+    Phase 4 GA. AI-first ERP fully live. Employees, managers, sales,
+    procurement &amp; finance all use natural-language interfaces by default.
+  </div>
+
+  <!-- ============ 8. MILESTONES ============ -->
+  <h1>8. Milestones &amp; Decision Gates</h1>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 10%;">ID</th>
+        <th style="width: 12%;">Week</th>
+        <th>Milestone</th>
+        <th style="width: 26%;">Decision Gate</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>M1</strong></td>
+        <td class="center">W4</td>
+        <td>Leave agent live; 5 employees use it daily for a week</td>
+        <td>Proceed to attendance / payroll agents?</td>
+      </tr>
+      <tr>
+        <td><strong>M2</strong></td>
+        <td class="center">W12</td>
+        <td>Phase 1 GA &mdash; HR agent rolled out company-wide</td>
+        <td>Start Phase 2 (CRM)?</td>
+      </tr>
+      <tr>
+        <td><strong>M3</strong></td>
+        <td class="center">W20</td>
+        <td>Phase 2 GA &mdash; CRM agent in production</td>
+        <td>Start Phase 3 (Operations)?</td>
+      </tr>
+      <tr>
+        <td><strong>M4</strong></td>
+        <td class="center">W28</td>
+        <td>Phase 3 GA &mdash; Procurement &amp; Inventory agents live</td>
+        <td>Start Phase 4 (unified platform)?</td>
+      </tr>
+      <tr>
+        <td><strong>M5</strong></td>
+        <td class="center">W38</td>
+        <td>Phase 4 GA &mdash; Full agentic ERP live with voice &amp; cross-module orchestration</td>
+        <td>Steady-state operations / next program</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ============ 9. RESOURCE PLAN ============ -->
+  <h1>9. Resource Plan</h1>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 30%;">Role</th>
+        <th style="width: 14%;">FTE</th>
+        <th>Responsibility</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Lead engineer (full-stack)</td><td class="center">1.0</td><td>Architecture, agent development, integrations, devops</td></tr>
+      <tr><td>HR subject-matter expert</td><td class="center">0.25</td><td>Phase 1 requirements, UAT, policy validation</td></tr>
+      <tr><td>Sales SME</td><td class="center">0.25</td><td>Phase 2 requirements, UAT, sales language tuning</td></tr>
+      <tr><td>Operations / Procurement SME</td><td class="center">0.25</td><td>Phase 3 requirements, vendor master validation</td></tr>
+      <tr><td>MD / Approver (review &amp; gates)</td><td class="center">0.10</td><td>Milestone gate sign-off, approval policy definition</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ============ 10. RISK REGISTER ============ -->
+  <h1>10. Risk Register</h1>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 22%;">Risk</th>
+        <th style="width: 12%;">Likelihood</th>
+        <th style="width: 12%;">Impact</th>
+        <th>Mitigation</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>LLM provider pricing or T&amp;Cs change</td>
+        <td class="center">Medium</td><td class="center">Medium</td>
+        <td>Pydantic AI is provider-agnostic; swap to Claude / Ollama in one config line. Local fallback ready by Week 34.</td>
+      </tr>
+      <tr>
+        <td>Hallucinated facts cause wrong actions</td>
+        <td class="center">High (initial)</td><td class="center">High</td>
+        <td>All numerical/identifying data rendered from DB, never from LLM. Tool-call required for any state change. Confirmation prompt before every write.</td>
+      </tr>
+      <tr>
+        <td>Users distrust the AI</td>
+        <td class="center">High</td><td class="center">Medium</td>
+        <td>Confirmation step + complete audit trail visible to user. Legacy forms kept as fallback for 30 days after each Phase GA.</td>
+      </tr>
+      <tr>
+        <td>Internal PII leaks via cloud LLM logs</td>
+        <td class="center">Medium</td><td class="center">High</td>
+        <td>Strip PII from prompts; route sensitive queries to local Ollama after Phase 4 Week 34.</td>
+      </tr>
+      <tr>
+        <td>Vendor outage (Gemini / Anthropic / OpenAI)</td>
+        <td class="center">Low-Med</td><td class="center">Medium</td>
+        <td>Provider chain in Pydantic AI: Flash &rarr; Pro &rarr; Ollama &rarr; graceful "try again" message.</td>
+      </tr>
+      <tr>
+        <td>Cost spirals with adoption</td>
+        <td class="center">Medium</td><td class="center">Medium</td>
+        <td>Per-user daily token budget + cost alerts at 80%. Hard cap at 100% with friendly error.</td>
+      </tr>
+      <tr>
+        <td>Single-developer dependency</td>
+        <td class="center">High</td><td class="center">High</td>
+        <td>Documented architecture, simple frameworks, small surface area. Onboard a second engineer by Phase 3.</td>
+      </tr>
+      <tr>
+        <td>Scope creep extending timeline</td>
+        <td class="center">High</td><td class="center">High</td>
+        <td>Strict phase gates. New asks parked for the next phase, never inserted mid-phase.</td>
+      </tr>
+      <tr>
+        <td>Voice STT accuracy poor for regional accents</td>
+        <td class="center">Medium</td><td class="center">Low</td>
+        <td>Web Speech API tested in Phase 1; if quality insufficient, fall back to text-only and revisit with Whisper / Google STT in Phase 4.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ============ 11. COST ESTIMATES ============ -->
+  <h1>11. Cost Estimates</h1>
+
+  <h2>Recurring operational costs (per month)</h2>
+  <table>
+    <thead>
+      <tr><th>Item</th><th class="num" style="width: 24%;">&#8377; / month</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Gemini Flash usage (50 users)</td><td class="num">2,500&ndash;5,000</td><td>Scales with adoption. Token budget caps at &#8377;6,000.</td></tr>
+      <tr><td>Resend email (already in use)</td><td class="num">0</td><td>Free tier sufficient until 3000+ mails/month.</td></tr>
+      <tr><td>Cloudflare named tunnel</td><td class="num">0</td><td>Free for this scale.</td></tr>
+      <tr><td>Office PC compute</td><td class="num">~500</td><td>Already running; incremental power only.</td></tr>
+      <tr><td><strong>Total (Phase 1-3)</strong></td><td class="num"><strong>3,000&ndash;6,000</strong></td><td>Per month</td></tr>
+      <tr><td>+ Ollama GPU hardware (Phase 4)</td><td class="num">60,000</td><td>One-time hardware (RTX 4070 12GB)</td></tr>
+    </tbody>
+  </table>
+
+  <h2>One-time engineering effort</h2>
+  <table>
+    <thead>
+      <tr><th>Phase</th><th class="num" style="width: 20%;">Engineer-hours</th><th>Equivalent at &#8377;1,500/hr</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Phase 1 (12 weeks &times; 30h)</td><td class="num">360</td><td class="num">&#8377; 5.4 L</td></tr>
+      <tr><td>Phase 2 (8 weeks &times; 30h)</td><td class="num">240</td><td class="num">&#8377; 3.6 L</td></tr>
+      <tr><td>Phase 3 (8 weeks &times; 30h)</td><td class="num">240</td><td class="num">&#8377; 3.6 L</td></tr>
+      <tr><td>Phase 4 (10 weeks &times; 30h)</td><td class="num">300</td><td class="num">&#8377; 4.5 L</td></tr>
+      <tr><td><strong>Total program</strong></td><td class="num"><strong>1,140</strong></td><td class="num"><strong>&#8377; 17.1 L</strong></td></tr>
+    </tbody>
+  </table>
+
+  <p style="font-size: 9.5pt; color: #555;">
+    Notional rate-card used only for budgeting comparison. In-house effort is
+    bundled into existing salary cost.
+  </p>
+
+  <!-- ============ 12. SUCCESS CRITERIA ============ -->
+  <h1>12. Success Criteria per Phase</h1>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 12%;">Phase</th>
+        <th style="width: 36%;">Quantitative target</th>
+        <th>Qualitative target</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Phase 1</strong></td>
+        <td>HR ticket volume down 60% &middot; Leave application time under 60s end-to-end &middot; 80% of leave applications via chat by Week 12</td>
+        <td>Employees prefer chat over the form. HR team reports time freed for strategic work.</td>
+      </tr>
+      <tr>
+        <td><strong>Phase 2</strong></td>
+        <td>Lead-to-quote time under 15 min &middot; Quote-creation effort &minus;70% &middot; Follow-up adherence up to 90%</td>
+        <td>Sales reps trust the agent for routine quote prep. Managers see better pipeline hygiene without chasing reps.</td>
+      </tr>
+      <tr>
+        <td><strong>Phase 3</strong></td>
+        <td>PO draft &lt; 2 min &middot; Stock-out incidents &minus;40% &middot; Vendor onboarding under 24 hr</td>
+        <td>Procurement team uses chat as their primary tool. Three-way mismatch surfaced before payment.</td>
+      </tr>
+      <tr>
+        <td><strong>Phase 4</strong></td>
+        <td>80% of all ERP interactions through AI &middot; Daily executive brief read by MD &middot; 90% voice STT accuracy in Indian English</td>
+        <td>MD makes decisions from the AI brief without opening other pages. Cross-module workflows handled in single conversations.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ============ 13. CHANGE MANAGEMENT ============ -->
+  <h1>13. Change-Management Plan</h1>
+
+  <h2>Communication</h2>
+  <ul>
+    <li>Week -1 of each phase: town-hall preview to affected users</li>
+    <li>Weekly status email to leadership</li>
+    <li>Anonymous feedback form open throughout the program</li>
+  </ul>
+
+  <h2>Training</h2>
+  <ul>
+    <li>Phase 1 launch: 30-min hands-on session for all employees</li>
+    <li>Phase 2 launch: deep dive for sales (90 min)</li>
+    <li>Phase 3 launch: workshops for procurement &amp; warehouse</li>
+    <li>Phase 4: short YouTube-style explainer videos (3&ndash;5 min each) for self-service learning</li>
+  </ul>
+
+  <h2>Fallback &amp; Coexistence</h2>
+  <ul>
+    <li>Existing form-based screens remain accessible throughout the program</li>
+    <li>Each phase has a 30-day "shadow mode" where the AI and the form both work, then AI becomes primary</li>
+    <li>Power users always retain the option to use the legacy forms for edge cases</li>
+  </ul>
+
+  <h2>Adoption metrics monitored weekly</h2>
+  <ul>
+    <li>Daily active agent users / total employees</li>
+    <li>Tasks completed via chat vs forms</li>
+    <li>User satisfaction (in-product thumbs up / down on every reply)</li>
+    <li>Error rate &amp; "I gave up" rate (conversations abandoned without completion)</li>
+  </ul>
+
+  <div class="callout">
+    <div class="title">Final Note</div>
+    The timeline is deliberately aggressive but realistic for a focused
+    single-engineer program with strong SME support. Each phase gate is a
+    decision point &mdash; the program can pause, accelerate, or re-scope at
+    any of the five milestones without leaving the business in an unusable
+    state.
+  </div>
+
+  <hr style="margin-top: 36pt; border: none; border-top: 1px solid #d0d0d0;" />
+  <p style="font-size: 9pt; color: #888; text-align: center; margin-top: 12pt;">
+    BVC24 &middot; Bharath Vending Corporation &middot; AI-Driven ERP Implementation Timeline
+    &middot; Document Version 1.0
+  </p>
+
+</div>
+
+</body>
+</html>

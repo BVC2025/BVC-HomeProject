@@ -1,0 +1,1 @@
+var e=`/assets/bomIcon-C7c8LX8z.webp`;export{e as t};

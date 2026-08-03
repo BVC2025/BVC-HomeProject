@@ -21,15 +21,15 @@ import styles from "./RbacPermissions.module.css";
 
 export default function RbacPermissions() {
 
-  const [roles, setRoles]               = useState([]);
+  const [roles, setRoles] = useState([]);
   const [groupedPerms, setGroupedPerms] = useState([]);
   const [selectedRoleId, setSelectedRoleId] = useState(null);
-  const [grantedSet, setGrantedSet]     = useState(new Set());
-  const [originalSet, setOriginalSet]   = useState(new Set());
-  const [loading, setLoading]           = useState(false);
-  const [saving, setSaving]             = useState(false);
-  const [notice, setNotice]             = useState(null);
-  const [search, setSearch]             = useState("");
+  const [grantedSet, setGrantedSet] = useState(new Set());
+  const [originalSet, setOriginalSet] = useState(new Set());
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState(null);
+  const [search, setSearch] = useState("");
 
   void loading;
 
@@ -154,7 +154,7 @@ export default function RbacPermissions() {
       setNotice({
         type: "ok",
         text: `Saved. +${res.data?.added || 0} added, -${res.data?.removed || 0} removed. ` +
-              `Members must re-login to pick up the change.`
+          `Members must re-login to pick up the change.`
       });
     } catch (err) {
       const detail = err?.response?.data?.detail || err?.message || "Save failed";
@@ -169,7 +169,20 @@ export default function RbacPermissions() {
     <div className={styles.page}>
 
       <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>🔐 RBAC Permissions</h1>
+        <h1 className={styles.pageTitle}>
+          <svg
+            className={styles.pageTitleIcon}
+            width="26" height="26" viewBox="0 0 24 24"
+            fill="none" stroke="currentColor" strokeWidth="2"
+            strokeLinecap="round" strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3z" />
+            <path d="M9 12h6" />
+            <path d="M12 9v6" />
+          </svg>
+          RBAC Permissions
+        </h1>
         <p className={styles.pageDesc}>
           Choose a role on the left, then check or uncheck permissions to
           control exactly what members of that role can do. Members will

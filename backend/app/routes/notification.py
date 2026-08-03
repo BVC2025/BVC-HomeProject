@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from typing import Optional
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from datetime import datetime, time
 
@@ -113,12 +115,38 @@ def create_notification(
 
 @router.get("/notifications")
 def list_notifications(
+    employee_id: Optional[str] = Query(
+        None,
+        description=(
+            "If set, returns notifications targeted at this employee "
+            "PLUS global (EMPLOYEE_ID IS NULL) broadcasts. "
+            "If omitted, returns every notification (admin/legacy view)."
+        ),
+    ),
     db: Session = Depends(get_db)
 ):
 
-    rows = db.query(Notification).order_by(
-        Notification.CREATED_AT.desc()
-    ).limit(100).all()
+    q = db.query(Notification)
+
+    if employee_id:
+        # Resolve UUID or EMPLOYEE_CODE → UUID
+        emp = (
+            db.query(Employee)
+            .filter(
+                (Employee.ID == employee_id)
+                | (Employee.EMPLOYEE_CODE == employee_id)
+            )
+            .first()
+        )
+        target_id = emp.ID if emp else employee_id
+        q = q.filter(
+            or_(
+                Notification.EMPLOYEE_ID == target_id,
+                Notification.EMPLOYEE_ID.is_(None),
+            )
+        )
+
+    rows = q.order_by(Notification.CREATED_AT.desc()).limit(100).all()
 
     return [
         {
@@ -127,6 +155,9 @@ def list_notifications(
             "MESSAGE": n.MESSAGE,
             "TYPE": n.TYPE,
             "IS_READ": bool(n.IS_READ),
+            "EMPLOYEE_ID": n.EMPLOYEE_ID,
+            "REF_TYPE": n.REF_TYPE,
+            "REF_ID": n.REF_ID,
             "CREATED_AT": (
                 n.CREATED_AT.isoformat()
                 if n.CREATED_AT else None
@@ -142,14 +173,30 @@ def list_notifications(
 
 @router.get("/notifications/unread-count")
 def unread_count(
+    employee_id: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
 
-    count = db.query(Notification).filter(
-        Notification.IS_READ == 0
-    ).count()
+    q = db.query(Notification).filter(Notification.IS_READ == 0)
 
-    return {"count": count}
+    if employee_id:
+        emp = (
+            db.query(Employee)
+            .filter(
+                (Employee.ID == employee_id)
+                | (Employee.EMPLOYEE_CODE == employee_id)
+            )
+            .first()
+        )
+        target_id = emp.ID if emp else employee_id
+        q = q.filter(
+            or_(
+                Notification.EMPLOYEE_ID == target_id,
+                Notification.EMPLOYEE_ID.is_(None),
+            )
+        )
+
+    return {"count": q.count()}
 
 
 # =========================

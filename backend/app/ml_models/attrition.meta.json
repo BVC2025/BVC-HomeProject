@@ -1,0 +1,24 @@
+{
+  "name": "attrition",
+  "algo": "XGBoost",
+  "version": "1.0-synthetic-bootstrap",
+  "trained_at": "2026-06-24T05:19:05.850936",
+  "training_samples": 2400,
+  "features": [
+    "rising_late_count",
+    "high_leave_utilisation",
+    "performance_decline",
+    "long_tenure_no_promotion",
+    "no_recent_overtime",
+    "absent_pattern",
+    "tenure_months",
+    "late_count_30d",
+    "leave_used_pct",
+    "tasks_completed_30d"
+  ],
+  "metrics": {
+    "accuracy": 0.7283,
+    "roc_auc": 0.6747,
+    "positive_rate_train": 0.2575
+  }
+}
