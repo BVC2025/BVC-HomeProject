@@ -46,6 +46,7 @@ from fastapi import APIRouter, Depends, Query, Request, UploadFile, File, Form, 
 from fastapi.responses import PlainTextResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
+from sqlalchemy.exc import IntegrityError
 
 from app.database.database import get_db
 from app.models.models import Employee, Attendance, BiometricEvent
@@ -205,76 +206,138 @@ def _handle_attlog(db: Session, device_sn: str, body: str) -> int:
 
     for line in lines:
 
-        parts = line.split("\t")
-
-        if len(parts) < 2:
-            continue
-
-        pin = parts[0].strip()
-
-        raw_ts = parts[1].strip()
-
         try:
-            event_time = datetime.strptime(raw_ts, "%Y-%m-%d %H:%M:%S")
-        except ValueError:
-            # Malformed timestamp — log the raw event but don't touch
-            # attendance. Prevents a corrupt row from stopping the batch.
-            _write_biometric_event(
-                db, device_sn, pin, None,
-                verify_mode="ERR", result="BAD_TIMESTAMP",
-                raw=line, event_time=datetime.utcnow(),
-            )
+            _process_one_attlog_line(db, device_sn, line)
+            # Commit after each record so one bad line can't roll back
+            # a whole batch — critical when a device dumps months of
+            # backlogged punches on first successful push.
+            db.commit()
             processed += 1
-            continue
 
-        status_raw = parts[2].strip() if len(parts) >= 3 else "0"
-        verify_raw = parts[3].strip() if len(parts) >= 4 else "1"
+        except IntegrityError:
+            # Almost always the (EMPLOYEE_ID, DATE) unique constraint —
+            # we're trying to insert a second Attendance row for the
+            # same employee on the same day. Roll back the failed
+            # add, then update the existing row instead.
+            db.rollback()
+            try:
+                _retry_attlog_line_as_update(db, device_sn, line)
+                db.commit()
+                processed += 1
+            except Exception:
+                db.rollback()
+                # Give up on this specific line but keep going — return
+                # "OK" to the device so it doesn't resend forever.
+                processed += 1
 
-        verify_mode = _verify_label(verify_raw)
-
-        # Resolve PIN → Employee (FINGERPRINT_ID column stores the
-        # device PIN — see seed_essl_users.py for the seed step).
-        emp = (
-            db.query(Employee)
-              .filter(Employee.FINGERPRINT_ID == pin)
-              .first()
-        )
-
-        emp_id = emp.ID if emp else None
-
-        # Idempotency — same device, same PIN, same second = same
-        # physical punch. Devices often re-send after a network hiccup.
-        already = (
-            db.query(BiometricEvent)
-              .filter(
-                  BiometricEvent.DEVICE_ID == device_sn,
-                  BiometricEvent.FINGERPRINT_ID == pin,
-                  BiometricEvent.EVENT_TIME == event_time,
-              )
-              .first()
-        )
-
-        if already:
+        except Exception:
+            db.rollback()
+            # Any other failure — skip the line so one weird record
+            # doesn't kill the whole batch. Device retries handle it.
             processed += 1
-            continue
-
-        _write_biometric_event(
-            db, device_sn, pin, emp_id,
-            verify_mode=verify_mode,
-            result="SUCCESS" if emp else "UNKNOWN_USER",
-            raw=line,
-            event_time=event_time,
-        )
-
-        if emp:
-            _apply_to_attendance(db, emp, event_time, status_raw)
-
-        processed += 1
-
-    if processed:
-        db.commit()
 
     return processed
+
+
+def _process_one_attlog_line(db: Session, device_sn: str, line: str) -> None:
+    """Parse a single ATTLOG record and apply it to BiometricEvent +
+    Attendance. Caller handles commit/rollback."""
+
+    parts = line.split("\t")
+
+    if len(parts) < 2:
+        return
+
+    pin = parts[0].strip()
+    raw_ts = parts[1].strip()
+
+    try:
+        event_time = datetime.strptime(raw_ts, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        _write_biometric_event(
+            db, device_sn, pin, None,
+            verify_mode="ERR", result="BAD_TIMESTAMP",
+            raw=line, event_time=datetime.utcnow(),
+        )
+        return
+
+    status_raw = parts[2].strip() if len(parts) >= 3 else "0"
+    verify_raw = parts[3].strip() if len(parts) >= 4 else "1"
+    verify_mode = _verify_label(verify_raw)
+
+    emp = (
+        db.query(Employee)
+          .filter(Employee.FINGERPRINT_ID == pin)
+          .first()
+    )
+    emp_id = emp.ID if emp else None
+
+    already = (
+        db.query(BiometricEvent)
+          .filter(
+              BiometricEvent.DEVICE_ID == device_sn,
+              BiometricEvent.FINGERPRINT_ID == pin,
+              BiometricEvent.EVENT_TIME == event_time,
+          )
+          .first()
+    )
+
+    if already:
+        return
+
+    _write_biometric_event(
+        db, device_sn, pin, emp_id,
+        verify_mode=verify_mode,
+        result="SUCCESS" if emp else "UNKNOWN_USER",
+        raw=line,
+        event_time=event_time,
+    )
+
+    if emp:
+        _apply_to_attendance(db, emp, event_time, status_raw)
+
+
+def _retry_attlog_line_as_update(db: Session, device_sn: str, line: str) -> None:
+    """Re-run a single ATTLOG line after an IntegrityError, assuming the
+    Attendance row for (employee, day) already exists — so we UPDATE it
+    instead of INSERTing. BiometricEvent write is retried too, since the
+    session was rolled back."""
+
+    parts = line.split("\t")
+    if len(parts) < 2:
+        return
+
+    pin = parts[0].strip()
+    try:
+        event_time = datetime.strptime(parts[1].strip(), "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return
+
+    status_raw = parts[2].strip() if len(parts) >= 3 else "0"
+    verify_raw = parts[3].strip() if len(parts) >= 4 else "1"
+
+    emp = (
+        db.query(Employee)
+          .filter(Employee.FINGERPRINT_ID == pin)
+          .first()
+    )
+    if not emp:
+        return
+
+    # Write the BiometricEvent (audit) — safe on retry, has no unique
+    # constraint other than the primary key.
+    _write_biometric_event(
+        db, device_sn, pin, emp.ID,
+        verify_mode=_verify_label(verify_raw),
+        result="SUCCESS",
+        raw=line,
+        event_time=event_time,
+    )
+
+    # Now apply to the *existing* Attendance row. Because we've flushed
+    # the previous batch and rolled back the failed insert, a fresh
+    # query will find the row that was already there before this batch.
+    _apply_to_attendance(db, emp, event_time, status_raw)
 
 
 def _apply_to_attendance(
@@ -313,6 +376,11 @@ def _apply_to_attendance(
             STATUS="PRESENT",
         )
         db.add(row)
+        # Flush so a subsequent query in the same session sees this
+        # row. Without this, two ATTLOG lines for the same
+        # (employee, day) both try to INSERT and the second violates
+        # uq_attendance_employee_date.
+        db.flush()
 
     # Decide what this punch means.
     action = _decide_action(row, status_code)
