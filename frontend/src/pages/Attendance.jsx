@@ -557,6 +557,13 @@ function Attendance() {
             >
               Employee Tracking
             </button>
+
+            <button
+              className={"tab-btn" + (view === "download" ? " tab-active" : "")}
+              onClick={() => setView("download")}
+            >
+              Download
+            </button>
           </div>
 
           {view === "board" && <LiveFloorBoard />}
@@ -665,6 +672,7 @@ function Attendance() {
 
           {view === "report" && <AttendanceReport employees={employees} />}
           {view === "tracking" && <EmployeeTracking employees={employees} />}
+          {view === "download" && <DownloadAttendance employees={employees} />}
 
           {(view === "today" || view === "all") && (
             <>
@@ -1626,5 +1634,301 @@ function TrackingStatus({ status }) {
     </span>
   );
 }
+
+// =====================================================================
+// DownloadAttendance — one-click monthly Excel export.
+//
+// Renders a small card with a month picker (defaults to current month),
+// an optional employee filter, and a Download button. Hits
+// GET /attendance/export.xlsx?month=YYYY-MM&employee_id=... and streams
+// the file back as a real browser download.
+// =====================================================================
+function DownloadAttendance({ employees }) {
+
+  // Default to the current month in YYYY-MM.
+  const now = new Date();
+  const defaultMonth =
+    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  const [month, setMonth] = useState(defaultMonth);
+  const [employeeId, setEmployeeId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [lastDownload, setLastDownload] = useState(null);
+
+  const download = async () => {
+
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+      setError("Pick a month first (YYYY-MM).");
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+
+    try {
+
+      const res = await API.get("/attendance/export.xlsx", {
+        params: {
+          month,
+          ...(employeeId ? { employee_id: employeeId } : {}),
+        },
+        responseType: "blob",
+      });
+
+      // Trigger a real browser download.
+      const blob = new Blob([res.data], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+      const url = window.URL.createObjectURL(blob);
+
+      const filename = employeeId
+        ? `attendance-${month}-${employeeId.slice(0, 8)}.xlsx`
+        : `attendance-${month}.xlsx`;
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      setLastDownload({
+        filename,
+        at: new Date().toLocaleTimeString(),
+      });
+
+    } catch (e) {
+
+      // If the server returned an error blob, decode it so we can show
+      // the actual message instead of "[object Blob]".
+      let msg = "Download failed. Try again.";
+
+      if (e?.response?.data instanceof Blob) {
+        try {
+          const text = await e.response.data.text();
+          const j = JSON.parse(text);
+          msg = j.detail || msg;
+        } catch { /* ignore parse failure */ }
+      } else if (e?.response?.data?.detail) {
+        msg = e.response.data.detail;
+      }
+
+      setError(msg);
+
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Human label for the picked month.
+  const monthLabel = (() => {
+    if (!/^\d{4}-\d{2}$/.test(month)) return month;
+    const [y, m] = month.split("-").map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString("en-IN", {
+      month: "long",
+      year: "numeric",
+    });
+  })();
+
+  return (
+    <div style={dl.wrap}>
+
+      <div style={dl.card}>
+
+        <div style={dl.eyebrow}>Attendance · Admin</div>
+
+        <h2 style={dl.title}>Download Attendance</h2>
+
+        <p style={dl.lede}>
+          Export a month's attendance rows as an Excel file. Includes
+          check-in / check-out times, worked and OT hours, status,
+          late-by minutes, and the source (biometric device or web).
+        </p>
+
+        <div style={dl.field}>
+          <label style={dl.label}>Month</label>
+          <input
+            type="month"
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            style={dl.input}
+          />
+          <div style={dl.hint}>
+            Selected: <b>{monthLabel}</b>
+          </div>
+        </div>
+
+        <div style={dl.field}>
+          <label style={dl.label}>Employee (optional)</label>
+          <select
+            value={employeeId}
+            onChange={(e) => setEmployeeId(e.target.value)}
+            style={dl.input}
+          >
+            <option value="">All employees</option>
+            {(employees || []).map((emp) => (
+              <option key={emp.ID} value={emp.ID}>
+                {emp.NAME} ({emp.EMPLOYEE_CODE || "—"})
+              </option>
+            ))}
+          </select>
+          <div style={dl.hint}>
+            Leave blank to export the whole company. Pick one employee
+            to export just their month.
+          </div>
+        </div>
+
+        <button
+          onClick={download}
+          disabled={busy}
+          style={{ ...dl.btn, opacity: busy ? 0.6 : 1 }}
+        >
+          {busy ? "Preparing file…" : "⬇ Download Excel"}
+        </button>
+
+        {error && (
+          <div style={dl.error}>
+            <b>Error:</b> {error}
+          </div>
+        )}
+
+        {lastDownload && !error && (
+          <div style={dl.success}>
+            ✓ Downloaded <b>{lastDownload.filename}</b> at {lastDownload.at}
+          </div>
+        )}
+
+        <div style={dl.help}>
+          <div style={dl.helpTitle}>What's in the file</div>
+          <ul style={dl.helpList}>
+            <li>Employee code, name, date, day-of-week</li>
+            <li>Check-in / check-out / OT check-in / OT check-out times</li>
+            <li>Worked hours + OT hours (decimal)</li>
+            <li>Status (PRESENT / LATE / ABSENT / HALF_DAY)</li>
+            <li>Late-by minutes (0 if on time)</li>
+            <li>Source (ESSL_ADMS = biometric, else web/manual)</li>
+            <li>Any admin remarks</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+
+const dl = {
+  wrap: {
+    padding: "16px 0",
+  },
+  card: {
+    maxWidth: 640,
+    background: "#fff",
+    borderRadius: 14,
+    padding: 28,
+    boxShadow: "0 6px 20px rgba(15,23,42,0.06)",
+    border: "1px solid #e2e8f0",
+  },
+  eyebrow: {
+    fontSize: 11,
+    fontWeight: 800,
+    color: "#dc2626",
+    letterSpacing: 1.6,
+    textTransform: "uppercase",
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: 800,
+    margin: "6px 0 8px 0",
+    color: "#0f172a",
+    letterSpacing: -0.3,
+  },
+  lede: {
+    fontSize: 13,
+    color: "#475569",
+    lineHeight: 1.55,
+    margin: "0 0 20px 0",
+  },
+  field: {
+    marginBottom: 16,
+  },
+  label: {
+    display: "block",
+    fontSize: 11,
+    fontWeight: 800,
+    letterSpacing: 0.6,
+    textTransform: "uppercase",
+    color: "#475569",
+    marginBottom: 6,
+  },
+  input: {
+    width: "100%",
+    padding: "10px 12px",
+    border: "1px solid #cbd5e1",
+    borderRadius: 8,
+    fontSize: 14,
+    fontFamily: "inherit",
+    boxSizing: "border-box",
+  },
+  hint: {
+    fontSize: 12,
+    color: "#64748b",
+    marginTop: 4,
+  },
+  btn: {
+    marginTop: 6,
+    padding: "12px 22px",
+    border: "none",
+    borderRadius: 10,
+    background: "#dc2626",
+    color: "#fff",
+    fontWeight: 800,
+    fontSize: 14,
+    letterSpacing: 0.4,
+    cursor: "pointer",
+    fontFamily: "inherit",
+  },
+  error: {
+    marginTop: 16,
+    padding: "10px 14px",
+    background: "#fef2f2",
+    border: "1px solid #fecaca",
+    color: "#991b1b",
+    borderRadius: 8,
+    fontSize: 13,
+  },
+  success: {
+    marginTop: 16,
+    padding: "10px 14px",
+    background: "#ecfdf5",
+    border: "1px solid #a7f3d0",
+    color: "#065f46",
+    borderRadius: 8,
+    fontSize: 13,
+  },
+  help: {
+    marginTop: 22,
+    padding: 14,
+    background: "#f8fafc",
+    borderRadius: 10,
+    border: "1px solid #e2e8f0",
+  },
+  helpTitle: {
+    fontSize: 12,
+    fontWeight: 800,
+    color: "#0f172a",
+    marginBottom: 6,
+  },
+  helpList: {
+    margin: 0,
+    paddingLeft: 20,
+    fontSize: 12.5,
+    lineHeight: 1.7,
+    color: "#475569",
+  },
+};
+
 
 export default Attendance;

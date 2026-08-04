@@ -1075,3 +1075,178 @@ def employee_attendance_tracking(
         },
         "timeline": timeline,
     }
+
+
+# =====================================================================
+# GET /attendance/export.xlsx
+#
+# Downloads a month's Attendance rows as an .xlsx file. Columns include
+# both edges of the day, worked/OT hours, status, late-by, and the
+# source (biometric device vs. web check-in). Optional filters:
+#
+#   month=YYYY-MM       (required) — e.g. 2026-08
+#   employee_id=<uuid>  optional   — restrict to one employee
+#   department_id=<int> optional   — restrict to one department
+#
+# Access is gated the same way as the /attendance list view (view.all).
+# =====================================================================
+from io import BytesIO
+
+
+@router.get(
+    "/attendance/export.xlsx",
+    dependencies=[Depends(require("attendance.view.all"))],
+)
+def export_attendance_excel(
+    month: str = Query(..., description="YYYY-MM, e.g. 2026-08"),
+    employee_id: Optional[str] = Query(None),
+    department_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Stream an .xlsx of the requested month's attendance rows."""
+
+    # Lazy imports so the module stays cheap when the endpoint isn't hit.
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from fastapi.responses import StreamingResponse
+
+    # ---- Parse month + compute range -------------------------------
+    try:
+        year_str, mon_str = month.split("-")
+        year, mon = int(year_str), int(mon_str)
+        start_date = date(year, mon, 1)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="month must be YYYY-MM")
+
+    # Last day of the month, computed without dateutil
+    if mon == 12:
+        end_date = date(year + 1, 1, 1)
+    else:
+        end_date = date(year, mon + 1, 1)
+
+    # ---- Query attendance rows for the range -----------------------
+    q = (
+        db.query(Attendance, Employee)
+          .join(Employee, Employee.ID == Attendance.EMPLOYEE_ID)
+          .filter(Attendance.DATE >= start_date, Attendance.DATE < end_date)
+    )
+
+    if employee_id:
+        q = q.filter(Attendance.EMPLOYEE_ID == employee_id)
+
+    if department_id:
+        q = q.filter(Employee.DEPARTMENT_ID == department_id)
+
+    rows = q.order_by(Employee.EMPLOYEE_CODE, Attendance.DATE).all()
+
+    # ---- Build the workbook ----------------------------------------
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f"Attendance {month}"
+
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_fill = PatternFill(start_color="DC2626", end_color="DC2626", fill_type="solid")
+    header_align = Alignment(horizontal="center", vertical="center")
+    thin_border = Border(
+        left=Side(style="thin", color="E5E7EB"),
+        right=Side(style="thin", color="E5E7EB"),
+        top=Side(style="thin", color="E5E7EB"),
+        bottom=Side(style="thin", color="E5E7EB"),
+    )
+    alt_fill = PatternFill(start_color="FEF2F2", end_color="FEF2F2", fill_type="solid")
+
+    headers = [
+        "Employee Code",
+        "Name",
+        "Date",
+        "Day",
+        "Check In",
+        "Check Out",
+        "OT Check In",
+        "OT Check Out",
+        "Worked Hours",
+        "OT Hours",
+        "Status",
+        "Late By (min)",
+        "Source",
+        "Remarks",
+    ]
+
+    ws.append(headers)
+
+    for col_idx, _ in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col_idx)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_align
+        cell.border = thin_border
+
+    # ---- Row-by-row data -------------------------------------------
+    WORK_START = time(9, 15)  # match attendance.py's cutoff
+
+    def fmt_time(dt):
+        return dt.strftime("%H:%M") if dt else ""
+
+    def compute_late_by(check_in):
+        """Minutes late past 09:15. 0 if on-time or missing."""
+        if not check_in:
+            return 0
+        cutoff = datetime.combine(check_in.date(), WORK_START)
+        delta = (check_in - cutoff).total_seconds() / 60.0
+        return max(0, round(delta))
+
+    for i, (att, emp) in enumerate(rows, start=2):
+
+        row_data = [
+            emp.EMPLOYEE_CODE or "",
+            emp.NAME or "",
+            att.DATE.strftime("%d-%m-%Y") if att.DATE else "",
+            att.DATE.strftime("%A") if att.DATE else "",
+            fmt_time(att.CHECK_IN),
+            fmt_time(att.CHECK_OUT),
+            fmt_time(att.OT_CHECK_IN),
+            fmt_time(att.OT_CHECK_OUT),
+            round(att.WORKED_HOURS or 0, 2),
+            round(att.OVERTIME_HOURS or 0, 2),
+            att.STATUS or "",
+            compute_late_by(att.CHECK_IN),
+            att.DEVICE_INFO or "",
+            att.REMARKS or "",
+        ]
+
+        ws.append(row_data)
+
+        for col_idx in range(1, len(headers) + 1):
+            cell = ws.cell(row=i, column=col_idx)
+            cell.border = thin_border
+            if i % 2 == 0:
+                cell.fill = alt_fill
+
+    # If no rows, drop a friendly note in row 2 so the file isn't empty.
+    if not rows:
+        ws.cell(row=2, column=1, value=f"No attendance rows for {month}.")
+
+    # ---- Column widths ---------------------------------------------
+    widths = [15, 22, 12, 11, 11, 11, 12, 13, 13, 10, 12, 13, 15, 30]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+    ws.freeze_panes = "A2"
+
+    # ---- Stream as download ----------------------------------------
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    filename = f"attendance-{month}.xlsx"
+    if employee_id:
+        filename = f"attendance-{month}-{employee_id[:8]}.xlsx"
+
+    return StreamingResponse(
+        buf,
+        media_type=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
