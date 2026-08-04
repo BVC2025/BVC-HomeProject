@@ -58,9 +58,14 @@ from app.schemas.sales_order_schema import (
 )
 
 from app.services.email_service import send_alert_email
+from app.auth.auth_bearer import require
 
 
 router = APIRouter()
+
+_SO_VIEW_DEP = Depends(require("sales_order.view"))
+_SO_MANAGE_DEP = Depends(require("sales_order.manage"))
+_PAYMENT_DEP = Depends(require("payment.record"))
 
 
 # =========================
@@ -711,7 +716,7 @@ def _send_so_email(db: Session, so: SalesOrder) -> tuple:
 # SO CRUD
 # =========================
 
-@router.post("/sales-orders")
+@router.post("/sales-orders", dependencies=[_SO_MANAGE_DEP])
 def create_so(
     data: SalesOrderCreate,
     db: Session = Depends(get_db)
@@ -815,7 +820,7 @@ def create_so(
 # fixed "_settings" path isn't captured by the dynamic id route).
 # ----------------------------------------------------------------
 
-@router.get("/sales-orders/_settings")
+@router.get("/sales-orders/_settings", dependencies=[_SO_VIEW_DEP])
 def get_so_settings(db: Session = Depends(get_db)):
     """Return the current SO automation flags so a future admin UI
     can read + toggle them. Defaults applied when row missing."""
@@ -830,7 +835,7 @@ def get_so_settings(db: Session = Depends(get_db)):
     }
 
 
-@router.patch("/sales-orders/_settings")
+@router.patch("/sales-orders/_settings", dependencies=[_SO_MANAGE_DEP])
 def update_so_settings(
     payload: dict,
     db: Session = Depends(get_db)
@@ -867,7 +872,7 @@ def update_so_settings(
     return get_so_settings(db)
 
 
-@router.get("/sales-orders")
+@router.get("/sales-orders", dependencies=[_SO_VIEW_DEP])
 def list_sos(
     status: Optional[str] = Query(None),
     customer_id: Optional[int] = Query(None),
@@ -894,7 +899,7 @@ def list_sos(
     return [_serialize_so(db, r, include_lines=False) for r in rows]
 
 
-@router.get("/sales-orders/{so_id}")
+@router.get("/sales-orders/{so_id}", dependencies=[_SO_VIEW_DEP])
 def get_so(
     so_id: int,
     db: Session = Depends(get_db)
@@ -909,7 +914,7 @@ def get_so(
     return _serialize_so(db, so, include_lines=True)
 
 
-@router.patch("/sales-orders/{so_id}")
+@router.patch("/sales-orders/{so_id}", dependencies=[_SO_MANAGE_DEP])
 def update_so(
     so_id: int,
     data: SalesOrderUpdate,
@@ -944,7 +949,7 @@ def update_so(
     return {"message": "SO updated", "sales_order": _serialize_so(db, so)}
 
 
-@router.delete("/sales-orders/{so_id}")
+@router.delete("/sales-orders/{so_id}", dependencies=[_SO_MANAGE_DEP])
 def delete_so(
     so_id: int,
     force: bool = False,
@@ -1000,7 +1005,7 @@ def delete_so(
 # Line CRUD
 # =========================
 
-@router.post("/sales-orders/{so_id}/lines")
+@router.post("/sales-orders/{so_id}/lines", dependencies=[_SO_MANAGE_DEP])
 def add_line(
     so_id: int,
     data: SOLineCreate,
@@ -1048,7 +1053,7 @@ def add_line(
     return {"message": "Line added", "line": _serialize_line(line)}
 
 
-@router.patch("/sales-orders/{so_id}/lines/{line_id}")
+@router.patch("/sales-orders/{so_id}/lines/{line_id}", dependencies=[_SO_MANAGE_DEP])
 def update_line(
     so_id: int,
     line_id: int,
@@ -1084,7 +1089,7 @@ def update_line(
     return {"message": "Line updated", "line": _serialize_line(line)}
 
 
-@router.delete("/sales-orders/{so_id}/lines/{line_id}")
+@router.delete("/sales-orders/{so_id}/lines/{line_id}", dependencies=[_SO_MANAGE_DEP])
 def delete_line(
     so_id: int,
     line_id: int,
@@ -1117,7 +1122,7 @@ def delete_line(
 # Workflow
 # =========================
 
-@router.post("/sales-orders/{so_id}/confirm")
+@router.post("/sales-orders/{so_id}/confirm", dependencies=[_SO_MANAGE_DEP])
 def confirm_so(
     so_id: int,
     db: Session = Depends(get_db)
@@ -1204,7 +1209,7 @@ def confirm_so(
     }
 
 
-@router.post("/sales-orders/{so_id}/start-production")
+@router.post("/sales-orders/{so_id}/start-production", dependencies=[_SO_MANAGE_DEP])
 def start_production(
     so_id: int,
     db: Session = Depends(get_db)
@@ -1333,7 +1338,7 @@ def start_production(
     }
 
 
-@router.post("/sales-orders/{so_id}/ship")
+@router.post("/sales-orders/{so_id}/ship", dependencies=[_SO_MANAGE_DEP])
 def ship_so(
     so_id: int,
     db: Session = Depends(get_db)
@@ -1365,7 +1370,7 @@ def ship_so(
     return {"message": "SO marked as shipped", "sales_order": _serialize_so(db, so, False)}
 
 
-@router.post("/sales-orders/{so_id}/deliver")
+@router.post("/sales-orders/{so_id}/deliver", dependencies=[_SO_MANAGE_DEP])
 def deliver_so(
     so_id: int,
     db: Session = Depends(get_db)
@@ -1397,7 +1402,7 @@ def deliver_so(
     return {"message": "SO marked as delivered", "sales_order": _serialize_so(db, so, False)}
 
 
-@router.post("/sales-orders/{so_id}/close")
+@router.post("/sales-orders/{so_id}/close", dependencies=[_SO_MANAGE_DEP])
 def close_so(
     so_id: int,
     db: Session = Depends(get_db)
@@ -1429,7 +1434,7 @@ def close_so(
     return {"message": "SO closed", "sales_order": _serialize_so(db, so, False)}
 
 
-@router.post("/sales-orders/{so_id}/cancel")
+@router.post("/sales-orders/{so_id}/cancel", dependencies=[_SO_MANAGE_DEP])
 def cancel_so(
     so_id: int,
     data: SOCancellation,
@@ -1467,7 +1472,7 @@ def cancel_so(
     return {"message": "SO cancelled", "sales_order": _serialize_so(db, so, False)}
 
 
-@router.post("/sales-orders/{so_id}/payment")
+@router.post("/sales-orders/{so_id}/payment", dependencies=[_PAYMENT_DEP])
 def record_payment(
     so_id: int,
     data: SOPaymentRecord,
@@ -1645,7 +1650,7 @@ def record_payment(
 # From-Quotation
 # =========================
 
-@router.post("/sales-orders/from-quotation")
+@router.post("/sales-orders/from-quotation", dependencies=[_SO_MANAGE_DEP])
 def sales_order_from_quotation(
     data: SOFromQuotation,
     db: Session = Depends(get_db)
@@ -1799,7 +1804,7 @@ def sales_order_from_quotation(
 # Activity
 # =========================
 
-@router.get("/sales-orders/{so_id}/activity")
+@router.get("/sales-orders/{so_id}/activity", dependencies=[_SO_VIEW_DEP])
 def get_activity(
     so_id: int,
     db: Session = Depends(get_db)
@@ -1822,7 +1827,7 @@ def get_activity(
     ]
 
 
-@router.delete("/sales-orders/{so_id}/activity/{activity_id}")
+@router.delete("/sales-orders/{so_id}/activity/{activity_id}", dependencies=[_SO_MANAGE_DEP])
 def delete_activity_row(
     so_id: int,
     activity_id: int,

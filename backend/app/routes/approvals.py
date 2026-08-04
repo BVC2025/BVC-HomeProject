@@ -36,7 +36,15 @@ from app.models.models import (
 )
 
 
+from app.auth.auth_bearer import require
+
 router = APIRouter(prefix="/admin/approvals", tags=["Approval Center"])
+
+# RBAC sweep: one coarse code across all 6 approval "kinds" for now — a
+# deliberate simplification (per-kind codes are a clean follow-up once
+# this proves out). If you can decide, you can see the queue, so /pending
+# gets the same gate as approve/reject.
+_APPROVAL_DEP = Depends(require("approval.decide"))
 
 
 # ---- Serializers ---------------------------------------------------
@@ -206,7 +214,7 @@ def _serialize_discount(db: Session, dr: DiscountRequest):
 
 # ---- Pending feed --------------------------------------------------
 
-@router.get("/pending")
+@router.get("/pending", dependencies=[_APPROVAL_DEP])
 def list_pending_approvals(db: Session = Depends(get_db)):
     """Returns all 6 buckets in one call. Each bucket is an array of
     items shaped uniformly so the frontend can render one card per
@@ -294,7 +302,7 @@ def _admin_id_from_request() -> Optional[str]:
     return None
 
 
-@router.post("/{kind}/{item_id}/approve")
+@router.post("/{kind}/{item_id}/approve", dependencies=[_APPROVAL_DEP])
 def approve_item(
     kind: str,
     item_id: int,
@@ -453,7 +461,7 @@ def approve_item(
     raise HTTPException(status_code=400, detail=f"Unknown approval kind: {kind}")
 
 
-@router.post("/{kind}/{item_id}/reject")
+@router.post("/{kind}/{item_id}/reject", dependencies=[_APPROVAL_DEP])
 def reject_item(
     kind: str,
     item_id: int,
@@ -613,7 +621,7 @@ class SupplierPaymentCreate(BaseModel):
     NOTES: Optional[str] = None
 
 
-@router.post("/supplier-payments")
+@router.post("/supplier-payments", dependencies=[_APPROVAL_DEP])
 def create_supplier_payment(
     body: SupplierPaymentCreate,
     db: Session = Depends(get_db)
@@ -672,7 +680,7 @@ class DiscountRequestCreate(BaseModel):
     BOT_ACTION: Optional[str] = "ESCALATE"
 
 
-@router.post("/discount-requests")
+@router.post("/discount-requests", dependencies=[_APPROVAL_DEP])
 def create_discount_request(
     body: DiscountRequestCreate,
     db: Session = Depends(get_db)

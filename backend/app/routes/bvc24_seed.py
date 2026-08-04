@@ -45,7 +45,13 @@ from app.models.models import (
 )
 
 
+from app.auth.auth_bearer import require
+
 router = APIRouter(prefix="/demo", tags=["BVC24 Demo Seed"])
+
+# One-shot demo-data creator (also echoes employee FINGERPRINT_IDs) —
+# never granted to operational roles by default (see seed_permissions.py).
+_DESTRUCTIVE_DEP = Depends(require("system.destructive.manage"))
 
 
 BVC24_DEPARTMENTS = [
@@ -1256,7 +1262,7 @@ def _seed_sample_inspection(
     return 1
 
 
-@router.post("/seed-bvc24")
+@router.post("/seed-bvc24", dependencies=[_DESTRUCTIVE_DEP])
 def seed_bvc24(db: Session = Depends(get_db)):
 
     vendor = _get_or_create_vendor(db)

@@ -4,15 +4,22 @@ from sqlalchemy.orm import Session
 from app.database.database import get_db
 from app.models.models import Vendor
 from app.schemas.vendor_schema import VendorCreate
+from app.auth.auth_bearer import require
 
 router = APIRouter()
+
+# RBAC sweep: Vendor is the tenant itself — creating/listing tenants is
+# platform-level, not a normal admin action. vendor.manage is deliberately
+# not granted to any operational role (see seed_permissions.py), so only
+# the existing top-tier ALL-wildcard roles can call this.
+_VENDOR_MANAGE_DEP = Depends(require("vendor.manage"))
 
 
 # =========================
 # CREATE VENDOR
 # =========================
 
-@router.post("/create-vendor")
+@router.post("/create-vendor", dependencies=[_VENDOR_MANAGE_DEP])
 def create_vendor(
     data: VendorCreate,
     db: Session = Depends(get_db)
@@ -49,7 +56,7 @@ def create_vendor(
 # GET ALL VENDORS
 # =========================
 
-@router.get("/vendors")
+@router.get("/vendors", dependencies=[_VENDOR_MANAGE_DEP])
 def get_vendors(
     db: Session = Depends(get_db)
 ):

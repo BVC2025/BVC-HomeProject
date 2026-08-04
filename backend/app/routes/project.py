@@ -50,7 +50,21 @@ from app.services.project_from_product_service import (
     backfill_project_tasks
 )
 
+from app.auth.auth_bearer import require
+
 router = APIRouter()
+
+# RBAC sweep: this file owns both the live Customer/CRM API (/customers*)
+# and the legacy project endpoints (/create-project, /projects*,
+# /delete-project) — separate permission codes per concern, matching the
+# existing catalogue. /projects/wipe-all gets system.destructive.manage
+# instead of project.manage since it's a destructive reset, not a normal
+# management action.
+_CUSTOMER_VIEW_DEP = Depends(require("customer.view"))
+_CUSTOMER_MANAGE_DEP = Depends(require("customer.manage"))
+_PROJECT_VIEW_DEP = Depends(require("project.view"))
+_PROJECT_MANAGE_DEP = Depends(require("project.manage"))
+_DESTRUCTIVE_DEP = Depends(require("system.destructive.manage"))
 
 
 # =========================
@@ -302,7 +316,7 @@ def _build_customer_profile_email_html(
 """
 
 
-@router.post("/create-customer")
+@router.post("/create-customer", dependencies=[_CUSTOMER_MANAGE_DEP])
 def create_customer(
     data: CustomerCreate,
     db: Session = Depends(get_db)
@@ -576,7 +590,7 @@ def create_customer(
         )
 
 
-@router.patch("/customers/{customer_id}")
+@router.patch("/customers/{customer_id}", dependencies=[_CUSTOMER_MANAGE_DEP])
 def update_customer(
     customer_id: int,
     data: CustomerUpdate,
@@ -616,7 +630,7 @@ def update_customer(
 # CREATE PROJECT
 # =========================
 
-@router.post("/create-project")
+@router.post("/create-project", dependencies=[_PROJECT_MANAGE_DEP])
 def create_project(
     data: ProjectCreate,
     db: Session = Depends(get_db)
@@ -839,7 +853,7 @@ def create_project(
 # CREATE PROJECT FROM PRODUCT (the new BVC24 way)
 # =========================
 
-@router.post("/projects/from-product")
+@router.post("/projects/from-product", dependencies=[_PROJECT_MANAGE_DEP])
 def create_project_from_product_route(
     data: ProjectFromProductRequest,
     db: Session = Depends(get_db)
@@ -884,7 +898,7 @@ def create_project_from_product_route(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/projects/{project_id}/backfill-tasks")
+@router.post("/projects/{project_id}/backfill-tasks", dependencies=[_PROJECT_MANAGE_DEP])
 def backfill_project_tasks_route(
     project_id: int,
     db: Session = Depends(get_db)
@@ -931,7 +945,7 @@ class ProjectStatusUpdate(BaseModel):
     STATUS: str
 
 
-@router.patch("/projects/{project_id}/status")
+@router.patch("/projects/{project_id}/status", dependencies=[_PROJECT_MANAGE_DEP])
 def update_project_status(
     project_id: int,
     data: ProjectStatusUpdate,
@@ -1037,7 +1051,7 @@ def _serialize_customer(c: Customer, sales_name: str = None) -> dict:
     }
 
 
-@router.get("/customers")
+@router.get("/customers", dependencies=[_CUSTOMER_VIEW_DEP])
 def get_customers(
     db: Session = Depends(get_db)
 ):
@@ -1076,7 +1090,7 @@ def get_customers(
 # Phase 1 — Lead Pipeline endpoints
 # ====================================================================
 
-@router.post("/customers/enquiry")
+@router.post("/customers/enquiry", dependencies=[_CUSTOMER_MANAGE_DEP])
 def quick_enquiry(
     data: EnquiryCreate,
     db: Session = Depends(get_db)
@@ -1139,7 +1153,7 @@ def quick_enquiry(
     }
 
 
-@router.patch("/customers/{customer_id}/lead-status")
+@router.patch("/customers/{customer_id}/lead-status", dependencies=[_CUSTOMER_MANAGE_DEP])
 def update_lead_status(
     customer_id: int,
     data: LeadStatusUpdate,
@@ -1238,7 +1252,7 @@ def update_lead_status(
     }
 
 
-@router.post("/customers/{customer_id}/contacts")
+@router.post("/customers/{customer_id}/contacts", dependencies=[_CUSTOMER_MANAGE_DEP])
 def add_contact(
     customer_id: int,
     data: ContactCreate,
@@ -1280,7 +1294,7 @@ def add_contact(
     }
 
 
-@router.get("/customers/{customer_id}/contacts")
+@router.get("/customers/{customer_id}/contacts", dependencies=[_CUSTOMER_VIEW_DEP])
 def list_contacts(
     customer_id: int,
     db: Session = Depends(get_db)
@@ -1311,7 +1325,7 @@ def list_contacts(
     ]
 
 
-@router.delete("/customers/{customer_id}/contacts/{contact_id}")
+@router.delete("/customers/{customer_id}/contacts/{contact_id}", dependencies=[_CUSTOMER_MANAGE_DEP])
 def delete_contact(
     customer_id: int,
     contact_id: int,
@@ -1368,7 +1382,7 @@ def _serialize_requirement(r) -> dict:
     }
 
 
-@router.post("/customers/{customer_id}/requirements")
+@router.post("/customers/{customer_id}/requirements", dependencies=[_CUSTOMER_MANAGE_DEP])
 def add_requirement(
     customer_id: int,
     data: RequirementCreate,
@@ -1416,7 +1430,7 @@ def add_requirement(
     }
 
 
-@router.get("/customers/{customer_id}/requirements")
+@router.get("/customers/{customer_id}/requirements", dependencies=[_CUSTOMER_VIEW_DEP])
 def list_requirements(
     customer_id: int,
     db: Session = Depends(get_db)
@@ -1433,7 +1447,7 @@ def list_requirements(
     return [_serialize_requirement(r) for r in rows]
 
 
-@router.patch("/customers/{customer_id}/requirements/{req_id}")
+@router.patch("/customers/{customer_id}/requirements/{req_id}", dependencies=[_CUSTOMER_MANAGE_DEP])
 def update_requirement(
     customer_id: int,
     req_id: int,
@@ -1474,7 +1488,7 @@ def update_requirement(
     }
 
 
-@router.delete("/customers/{customer_id}/requirements/{req_id}")
+@router.delete("/customers/{customer_id}/requirements/{req_id}", dependencies=[_CUSTOMER_MANAGE_DEP])
 def delete_requirement(
     customer_id: int,
     req_id: int,
@@ -1505,7 +1519,7 @@ def delete_requirement(
 # DELETE CUSTOMER
 # =========================
 
-@router.delete("/delete-customer/{customer_id}")
+@router.delete("/delete-customer/{customer_id}", dependencies=[_CUSTOMER_MANAGE_DEP])
 def delete_customer(
     customer_id: int,
     db: Session = Depends(get_db)
@@ -1708,7 +1722,7 @@ def delete_customer(
 # GET PROJECTS
 # =========================
 
-@router.get("/projects")
+@router.get("/projects", dependencies=[_PROJECT_VIEW_DEP])
 def get_projects(
     db: Session = Depends(get_db)
 ):
@@ -1800,7 +1814,7 @@ def get_projects(
 # BACKFILL — AUTO-ASSIGN MISSING TASKS
 # =========================
 
-@router.post("/projects/auto-assign-missing")
+@router.post("/projects/auto-assign-missing", dependencies=[_PROJECT_MANAGE_DEP])
 def auto_assign_missing(
     db: Session = Depends(get_db)
 ):
@@ -1998,7 +2012,7 @@ def auto_assign_missing(
 # DELETE PROJECT
 # =========================
 
-@router.delete("/delete-project/{project_id}")
+@router.delete("/delete-project/{project_id}", dependencies=[_PROJECT_MANAGE_DEP])
 def delete_project(
     project_id: int,
     db: Session = Depends(get_db)
@@ -2143,7 +2157,7 @@ def delete_project(
     }
 
 
-@router.post("/projects/wipe-all")
+@router.post("/projects/wipe-all", dependencies=[_DESTRUCTIVE_DEP])
 def wipe_all_projects(
     db: Session = Depends(get_db)
 ):
@@ -2257,7 +2271,7 @@ def wipe_all_projects(
 # approval path).
 # =====================================================================
 
-@router.post("/customers/{customer_id}/requirements/{req_id}/to-project")
+@router.post("/customers/{customer_id}/requirements/{req_id}/to-project", dependencies=[_CUSTOMER_MANAGE_DEP])
 def requirement_to_project(
     customer_id: int,
     req_id: int,

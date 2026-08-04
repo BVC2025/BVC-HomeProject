@@ -57,6 +57,13 @@ from app.services.bom_catalog import (
 
 router = APIRouter(prefix="/production", tags=["Production & BOM"])
 
+# RBAC sweep (partial — this file's other endpoints are documented
+# roadmap, not gated this pass): the two destructive reset-and-seed
+# endpoints below never get granted to operational roles by default
+# (see seed_permissions.py).
+from app.auth.auth_bearer import require
+_DESTRUCTIVE_DEP = Depends(require("system.destructive.manage"))
+
 
 VALID_WO_STATUSES = {
     "PLANNED",
@@ -719,7 +726,7 @@ def seed_default_bom_route(
     }
 
 
-@router.post("/bom/reset-and-seed")
+@router.post("/bom/reset-and-seed", dependencies=[_DESTRUCTIVE_DEP])
 def reset_and_seed_bom(
     payload: dict = Body(default_factory=dict),
     db: Session = Depends(get_db)
@@ -909,7 +916,7 @@ def reset_and_seed_bom(
         )
 
 
-@router.post("/stages/reset-and-seed")
+@router.post("/stages/reset-and-seed", dependencies=[_DESTRUCTIVE_DEP])
 def reset_and_seed_stages(
     payload: dict = Body(default_factory=dict),
     db: Session = Depends(get_db)

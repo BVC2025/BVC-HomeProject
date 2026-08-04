@@ -43,6 +43,19 @@ load_dotenv(_ROOT / ".env")
 from app.database.database import SessionLocal
 from app.models.models import Role, Permission, RolePermission
 
+# Vendor (in models.py) has string-referenced relationships into these
+# satellite modules (email_models.VendorEmailConfig, lead_models.Lead,
+# etc.) — SQLAlchemy needs every module imported before it can configure
+# any mapper, even though this script only queries Role/Permission/
+# RolePermission. Mirrors the registration block at the top of main.py.
+import app.models.inventory_models   # noqa: F401
+import app.models.supplier_models    # noqa: F401
+import app.models.email_models       # noqa: F401
+import app.models.lead_models        # noqa: F401
+import app.models.project_quotation_models  # noqa: F401
+import app.models.rag_models         # noqa: F401
+import app.models.crm_models         # noqa: F401
+
 
 # =====================================================================
 # CATALOGUE
@@ -129,8 +142,18 @@ CATALOGUE = [
     ("customer.manage",     "Manage customers",     "Sales", "Create/edit/delete"),
     ("sales_order.view",    "View sales orders",    "Sales", None),
     ("sales_order.manage",  "Manage sales orders",  "Sales", "Create, edit, cancel, record payments"),
+    ("quotation.view",      "View quotations",      "Sales", None),
     ("quotation.manage",    "Manage quotations",    "Sales", "Create and approve"),
     ("payment.record",      "Record payments",      "Finance", None),
+
+    # ---- CRM Leads (Phase 1 of the CRM & Sales workflow redesign) ----
+    ("crm_lead.view",   "View CRM leads",   "Sales", "Pre-customer pipeline: enquiries, leads, follow-ups"),
+    ("crm_lead.manage", "Manage CRM leads", "Sales", "Create/update/convert/delete leads, log activities"),
+
+    # ---- Approvals ----
+    ("approval.decide", "Decide in Approval Center", "Approvals",
+     "Approve/reject leave, permission, quotation, purchase order, "
+     "supplier payment, and discount-request items"),
 
     # ---- Procurement ----
     ("supplier.manage",       "Manage suppliers",        "Procurement", None),
@@ -149,6 +172,13 @@ CATALOGUE = [
     ("audit.export",          "Export audit log",       "System", "CSV download for compliance"),
     ("report.export",         "Export reports",         "Reports","PDF / Excel exports"),
     ("notification.broadcast","Broadcast notifications","System", "Send to all staff"),
+
+    # ---- Dangerous / platform-level — intentionally NOT added to any
+    # operational role's DEFAULT_GRANTS list below. They only reach the
+    # existing top-tier ALL-wildcard roles (SUPER_ADMIN/ADMIN/
+    # MANAGING_DIRECTOR/Software Developer), same as employee.wipe above. ----
+    ("vendor.manage",             "Manage tenant/vendor",     "System", "Create/list tenants — platform-level, not normal admin use"),
+    ("system.destructive.manage", "Destructive resets/wipes", "System", "Wipe-all / reset-and-seed endpoints — irreversible data loss"),
 
     # ---- AI Platform (common Enterprise RAG platform) ----
     ("rag.module.manage",   "Manage AI modules",         "AI Platform", "Create/edit/deactivate AI_MODULES rows"),
@@ -225,13 +255,13 @@ DEFAULT_GRANTS = {
         "task.qc.approve", "task.qc.reject",
         "leave.view.all", "leave.approve", "leave.reject", "leave.decide",
         "attendance.view.team", "memo.view.all",
-        "org.view",
+        "org.view", "approval.decide",
     ],
     "PRODUCTION_HEAD": SELF + [
         "employee.view", "task.view.team", "task.view.all", "task.assign",
         "task.qc.approve", "task.qc.reject", "machine.view", "machine.update.stage",
         "leave.approve", "leave.reject", "leave.decide",
-        "attendance.view.team", "org.view",
+        "attendance.view.team", "org.view", "approval.decide",
     ],
 
     "PRODUCTION_MANAGER": SELF + [
@@ -239,19 +269,22 @@ DEFAULT_GRANTS = {
         "task.qc.approve", "task.qc.reject", "machine.view", "machine.update.stage",
         "leave.approve", "leave.reject", "leave.decide",
         "attendance.view.team", "org.view", "inventory.view", "inventory.consume",
+        "approval.decide",
     ],
 
     "SALES_MANAGER": SELF + [
         "employee.view", "customer.view", "customer.manage",
-        "sales_order.view", "sales_order.manage", "quotation.manage",
+        "crm_lead.view", "crm_lead.manage",
+        "sales_order.view", "sales_order.manage", "quotation.view", "quotation.manage",
         "leave.approve", "leave.reject", "attendance.view.team", "org.view",
-        "rag.query",
+        "rag.query", "approval.decide",
     ],
 
     "PURCHASE_MANAGER": SELF + [
         "employee.view", "supplier.manage",
         "purchase_order.view", "purchase_order.manage",
         "leave.approve", "leave.reject", "attendance.view.team", "org.view",
+        "approval.decide",
     ],
 
     "INVENTORY_MANAGER": SELF + [
@@ -263,7 +296,7 @@ DEFAULT_GRANTS = {
         "employee.view", "accounts.view", "payment.record",
         "payroll.view",
         "leave.approve", "leave.reject", "attendance.view.team", "org.view",
-        "report.export",
+        "report.export", "approval.decide",
     ],
 
     # Shop-floor and QC inspectors
@@ -314,7 +347,7 @@ def _ensure_catalogue(db) -> dict:
 def _apply_grants(db, code_to_id: dict) -> tuple[int, int]:
     """Insert any missing role grants. Returns (grants_added, roles_touched)."""
 
-    roles_by_name = {r.ROLE_NAME: r for r in db.query(Role).all()}
+    roles_by_name = {r.NAME: r for r in db.query(Role).all()}
 
     existing_grants = {
         (rp.ROLE_ID, rp.PERMISSION_ID)

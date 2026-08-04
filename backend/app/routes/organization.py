@@ -47,14 +47,28 @@ class OrgRoleUpdate(BaseModel):
     DESCRIPTION: Optional[str] = None
 
 
+from app.auth.auth_bearer import require
+
 router = APIRouter()
+
+# RBAC sweep: this whole router had zero auth of any kind, including
+# PUT /roles/{id}/permissions — anyone could grant any role any
+# permission with no login required. Department/Designation endpoints use
+# the existing org.view/org.manage codes (already broadly granted to
+# manager-tier roles for dropdown pickers elsewhere); Role/OrgRole/
+# permission-assignment endpoints use role.manage — the exact code
+# rbac.py's own equivalent endpoints already use, and the one that
+# actually matters for the privilege-escalation fix.
+_ORG_VIEW_DEP = Depends(require("org.view"))
+_ORG_MANAGE_DEP = Depends(require("org.manage"))
+_ROLE_MANAGE_DEP = Depends(require("role.manage"))
 
 
 # =========================
 # DEPARTMENTS
 # =========================
 
-@router.get("/departments")
+@router.get("/departments", dependencies=[_ORG_VIEW_DEP])
 def list_departments(
     vendor_id: Optional[int] = Query(None),
     search: Optional[str] = Query(None),
@@ -88,7 +102,7 @@ def list_departments(
     ]
 
 
-@router.post("/departments")
+@router.post("/departments", dependencies=[_ORG_MANAGE_DEP])
 def create_department(
     data: DepartmentCreate,
     db: Session = Depends(get_db)
@@ -122,7 +136,7 @@ def create_department(
     return {"message": "Department created", "ID": dept.ID}
 
 
-@router.put("/departments/{dept_id}")
+@router.put("/departments/{dept_id}", dependencies=[_ORG_MANAGE_DEP])
 def update_department(
     dept_id: int,
     data: DepartmentUpdate,
@@ -151,7 +165,7 @@ def update_department(
     return {"message": "Department updated"}
 
 
-@router.delete("/departments/{dept_id}")
+@router.delete("/departments/{dept_id}", dependencies=[_ORG_MANAGE_DEP])
 def delete_department(
     dept_id: int,
     db: Session = Depends(get_db)
@@ -190,7 +204,7 @@ def delete_department(
 # DESIGNATIONS
 # =========================
 
-@router.get("/designations")
+@router.get("/designations", dependencies=[_ORG_VIEW_DEP])
 def list_designations(
     department_id: Optional[int] = Query(None),
     vendor_id: Optional[int] = Query(None),
@@ -226,7 +240,7 @@ def list_designations(
     ]
 
 
-@router.post("/designations")
+@router.post("/designations", dependencies=[_ORG_MANAGE_DEP])
 def create_designation(
     data: DesignationCreate,
     db: Session = Depends(get_db)
@@ -260,7 +274,7 @@ def create_designation(
     return {"message": "Designation created", "ID": des.ID}
 
 
-@router.put("/designations/{des_id}")
+@router.put("/designations/{des_id}", dependencies=[_ORG_MANAGE_DEP])
 def update_designation(
     des_id: int,
     data: DesignationUpdate,
@@ -292,7 +306,7 @@ def update_designation(
     return {"message": "Designation updated"}
 
 
-@router.delete("/designations/{des_id}")
+@router.delete("/designations/{des_id}", dependencies=[_ORG_MANAGE_DEP])
 def delete_designation(
     des_id: int,
     db: Session = Depends(get_db)
@@ -317,7 +331,7 @@ def delete_designation(
 # PERMISSIONS (read-only)
 # =========================
 
-@router.get("/permissions")
+@router.get("/permissions", dependencies=[_ROLE_MANAGE_DEP])
 def list_permissions(
     db: Session = Depends(get_db)
 ):
@@ -343,7 +357,7 @@ def list_permissions(
 # ROLES (per-vendor)
 # =========================
 
-@router.get("/roles")
+@router.get("/roles", dependencies=[_ROLE_MANAGE_DEP])
 def list_roles(
     vendor_id: Optional[int] = Query(None),
     db: Session = Depends(get_db)
@@ -380,7 +394,7 @@ def list_roles(
     return out
 
 
-@router.post("/roles")
+@router.post("/roles", dependencies=[_ROLE_MANAGE_DEP])
 def create_role(
     data: RoleCreate,
     db: Session = Depends(get_db)
@@ -401,7 +415,7 @@ def create_role(
     return {"message": "Role created", "ID": role.ID}
 
 
-@router.delete("/roles/{role_id}")
+@router.delete("/roles/{role_id}", dependencies=[_ROLE_MANAGE_DEP])
 def delete_role(
     role_id: int,
     db: Session = Depends(get_db)
@@ -424,7 +438,7 @@ def delete_role(
     return {"message": "Role deleted"}
 
 
-@router.put("/roles/{role_id}/permissions")
+@router.put("/roles/{role_id}/permissions", dependencies=[_ROLE_MANAGE_DEP])
 def set_role_permissions(
     role_id: int,
     data: RolePermissionsSet,
@@ -632,7 +646,7 @@ def do_seed_org(db: Session, preset_key: str, vendor_id: int) -> dict:
     }
 
 
-@router.post("/seed-org")
+@router.post("/seed-org", dependencies=[_ROLE_MANAGE_DEP])
 def seed_org(
     preset: str = Query("MANUFACTURING"),
     vendor_id: int = Query(1),
@@ -658,7 +672,7 @@ def seed_org(
     return {"message": f"Seeded {result['preset']} org structure", **result}
 
 
-@router.get("/org-presets")
+@router.get("/org-presets", dependencies=[_ROLE_MANAGE_DEP])
 def list_presets():
 
     return [
@@ -671,7 +685,7 @@ def list_presets():
 # Admin Module 2 — BVC24 9-role catalogue
 # =========================
 
-@router.post("/roles/seed-bvc24-catalogue")
+@router.post("/roles/seed-bvc24-catalogue", dependencies=[_ROLE_MANAGE_DEP])
 def seed_bvc24_role_catalogue(
     vendor_id: int = Query(1),
     db: Session = Depends(get_db)
@@ -942,7 +956,7 @@ _ROLE_STD_COLS = {"ROLE NAME", "DEPARTMENT NAME", "DESCRIPTION", "S.NO", "S.N", 
 # DEPARTMENT BULK UPLOAD
 # =========================
 
-@router.post("/departments/bulk-upload")
+@router.post("/departments/bulk-upload", dependencies=[_ORG_MANAGE_DEP])
 async def bulk_upload_departments(
     vendor_id: int = Query(1),
     file: UploadFile = File(...),
@@ -1033,7 +1047,7 @@ async def bulk_upload_departments(
 # ORG ROLES (job-function roles, separate from RBAC)
 # =========================
 
-@router.get("/org-roles")
+@router.get("/org-roles", dependencies=[_ROLE_MANAGE_DEP])
 def list_org_roles(
     vendor_id: Optional[int] = Query(None),
     dept_id: Optional[int] = Query(None),
@@ -1064,7 +1078,7 @@ def list_org_roles(
     ]
 
 
-@router.post("/org-roles")
+@router.post("/org-roles", dependencies=[_ROLE_MANAGE_DEP])
 def create_org_role(
     data: OrgRoleCreate,
     db: Session = Depends(get_db)
@@ -1087,7 +1101,7 @@ def create_org_role(
     return {"message": "Role created", "ID": role.ID}
 
 
-@router.put("/org-roles/{role_id}")
+@router.put("/org-roles/{role_id}", dependencies=[_ROLE_MANAGE_DEP])
 def update_org_role(
     role_id: int,
     data: OrgRoleUpdate,
@@ -1106,7 +1120,7 @@ def update_org_role(
     return {"message": "Role updated"}
 
 
-@router.delete("/org-roles/{role_id}")
+@router.delete("/org-roles/{role_id}", dependencies=[_ROLE_MANAGE_DEP])
 def delete_org_role(
     role_id: int,
     db: Session = Depends(get_db)
@@ -1129,7 +1143,7 @@ def delete_org_role(
     return {"message": "Role deleted"}
 
 
-@router.post("/org-roles/bulk-upload")
+@router.post("/org-roles/bulk-upload", dependencies=[_ROLE_MANAGE_DEP])
 async def bulk_upload_org_roles(
     vendor_id: int = Query(1),
     file: UploadFile = File(...),

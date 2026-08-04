@@ -31,10 +31,16 @@ from app.services.vending_seed_data import (
 )
 
 
+from app.auth.auth_bearer import require
+
 router = APIRouter()
 
+# Destructive one-shot reset/reseed — never granted to operational roles
+# by default (see seed_permissions.py).
+_DESTRUCTIVE_DEP = Depends(require("system.destructive.manage"))
 
-@router.post("/procurement/reset-and-seed")
+
+@router.post("/procurement/reset-and-seed", dependencies=[_DESTRUCTIVE_DEP])
 def reset_and_seed(
     wipe: bool = Query(True, description="Delete existing data first"),
     vendor_id: int = Query(1),
