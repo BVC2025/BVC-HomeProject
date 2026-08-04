@@ -79,6 +79,7 @@ AUTO_DECIDE_ON_UNKNOWN_STATUS = True
 # the device to push each punch immediately (no batching).
 # ---------------------------------------------------------------------
 @router.get("/cdata", response_class=PlainTextResponse)
+@router.get("/cdata.aspx", response_class=PlainTextResponse)
 def iclock_handshake(
     SN: str = Query(""),
     options: str = Query("all"),
@@ -111,6 +112,7 @@ def iclock_handshake(
 # devices that send extended chars for user names.
 # ---------------------------------------------------------------------
 @router.post("/cdata", response_class=PlainTextResponse)
+@router.post("/cdata.aspx", response_class=PlainTextResponse)
 async def iclock_push(
     request: Request,
     SN: str = Query(""),
@@ -147,6 +149,7 @@ async def iclock_push(
 # by returning e.g. `C:1:REBOOT` or `C:2:DATA UPDATE USERINFO PIN=1...`
 # ---------------------------------------------------------------------
 @router.get("/getrequest", response_class=PlainTextResponse)
+@router.get("/getrequest.aspx", response_class=PlainTextResponse)
 def iclock_get_command(
     SN: str = Query(""),
     INFO: Optional[str] = Query(None),
@@ -160,6 +163,7 @@ def iclock_get_command(
 # is happy.
 # ---------------------------------------------------------------------
 @router.post("/devicecmd", response_class=PlainTextResponse)
+@router.post("/devicecmd.aspx", response_class=PlainTextResponse)
 async def iclock_command_result(request: Request, SN: str = Query("")):
     return "OK"
 
@@ -168,6 +172,7 @@ async def iclock_command_result(request: Request, SN: str = Query("")):
 # GET /iclock/ping — heartbeat.
 # ---------------------------------------------------------------------
 @router.get("/ping", response_class=PlainTextResponse)
+@router.get("/ping.aspx", response_class=PlainTextResponse)
 def iclock_ping(SN: str = Query("")):
     return "OK"
 
