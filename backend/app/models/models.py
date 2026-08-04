@@ -40,6 +40,12 @@ class Vendor(Base):
     ID = Column(Integer, primary_key=True)
     VENDOR_NAME = Column(String(100))
 
+    email_configurations = relationship("VendorEmailConfig", back_populates="vendor")
+    email_templates = relationship("EmailTemplate", back_populates="vendor")
+    lead_polling_configs = relationship("LeadPollingConfig", back_populates="vendor")
+    leads = relationship("Lead", back_populates="vendor")
+    lead_polling_logs = relationship("LeadPollingLog", back_populates="vendor")
+
 
 class Employee(Base):
     """
@@ -699,6 +705,10 @@ class Project(Base):
         "TaskTemplate", back_populates="project",
         order_by="TaskTemplate.SEQUENCE_NUMBER",
         cascade="all, delete-orphan"
+    )
+    quotation_template = relationship(
+        "ProjectQuotationTemplate", back_populates="project",
+        uselist=False, cascade="all, delete-orphan"
     )
 
 

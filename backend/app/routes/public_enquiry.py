@@ -1,14 +1,16 @@
 """
 Public Customer Enquiry — no auth required.
 
-Customers fill the chatbot at /enquiry and submit their requirements
-in one shot. Each submission creates a Customer + CustomerRequirement
-record that the admin sees in the Customer 360° view.
+Customers fill the chatbot at /enquiry and submit their requirements in
+one shot. This is the "Enquiry" stage of the CRM pipeline (see the CRM &
+Sales redesign plan) — each submission creates a CrmLead (STATUS='NEW'),
+NOT a Customer directly. The lead only becomes a real Customer once
+someone on the sales side moves it through the pipeline to Won via
+POST /crm/leads/{id}/convert.
 
   POST /public/enquiry/submit   — no auth, single payload, returns thanks
 """
 
-from datetime import date, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -16,7 +18,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
-from app.models.models import Customer, CustomerRequirement
+from app.models.crm_models import CrmLead, CrmActivity
 
 
 router = APIRouter(prefix="/public/enquiry", tags=["Public Enquiry"])
@@ -58,54 +60,44 @@ class EnquirySubmit(BaseModel):
 
 # ---- Helpers -------------------------------------------------------
 
-def _next_customer_code(db: Session, vendor_id: int) -> str:
-    """Vendor-scoped CUST-NNN sequence."""
+def _next_lead_code(db: Session, vendor_id: int) -> str:
+    """Vendor-scoped LEAD-NNN sequence."""
 
     last = (
-        db.query(Customer)
-        .filter(Customer.VENDOR_ID == vendor_id)
-        .order_by(Customer.ID.desc())
+        db.query(CrmLead)
+        .filter(CrmLead.VENDOR_ID == vendor_id)
+        .order_by(CrmLead.ID.desc())
         .first()
     )
 
     n = 1
 
-    if last and last.CUSTOMER_CODE:
+    if last and last.LEAD_CODE:
 
         try:
 
-            n = int(last.CUSTOMER_CODE.split("-")[-1]) + 1
+            n = int(last.LEAD_CODE.split("-")[-1]) + 1
 
         except Exception:
 
             n = (last.ID or 0) + 1
 
-    return f"CUST-{n:03d}"
-
-
-def _parse_iso_date(s: Optional[str]) -> Optional[date]:
-
-    if not s:
-
-        return None
-
-    try:
-
-        return datetime.fromisoformat(s).date()
-
-    except Exception:
-
-        return None
+    return f"LEAD-{n:03d}"
 
 
 # ---- Public endpoint ----------------------------------------------
 
 @router.post("/submit")
 def submit_enquiry(payload: EnquirySubmit, db: Session = Depends(get_db)):
-    """Public — no auth. Accepts the full chatbot intake and persists
-    a new Customer + their first CustomerRequirement in one transaction.
+    """Public — no auth. Accepts the full chatbot intake and persists a
+    new CrmLead (the Enquiry stage of the CRM pipeline) in one
+    transaction. Structured requirement details (machine category,
+    quantity, target price, etc.) are folded into REQUIREMENT_NOTES as a
+    readable summary — pre-conversion requirements are a text summary,
+    not the structured multi-row CustomerRequirement table (that only
+    starts existing once the lead is Won and becomes a real Customer).
 
-    Returns the customer code so the customer sees a friendly receipt.
+    Returns the lead code so the customer sees a friendly receipt.
     """
 
     c = payload.company
@@ -120,66 +112,70 @@ def submit_enquiry(payload: EnquirySubmit, db: Session = Depends(get_db)):
 
         raise HTTPException(status_code=400, detail="Phone number is required.")
 
-    code = _next_customer_code(db, payload.VENDOR_ID)
+    code = _next_lead_code(db, payload.VENDOR_ID)
 
     address_parts = [p for p in (c.CITY, c.STATE) if p]
 
     address = ", ".join(address_parts) if address_parts else None
 
-    customer = Customer(
-        CUSTOMER_CODE=code,
-        CUSTOMER_NAME=c.CUSTOMER_NAME.strip(),
-        CONTACT_PERSON=(c.CONTACT_PERSON or "").strip() or None,
-        DESIGNATION=(c.DESIGNATION or "").strip() or None,
-        PHONE=c.PHONE.strip(),
-        EMAIL=(c.EMAIL or "").strip() or None,
-        ADDRESS=address,
-        CITY=(c.CITY or "").strip() or None,
-        STATE=(c.STATE or "").strip() or None,
-        INDUSTRY=(c.INDUSTRY or "").strip() or None,
-        STATUS="LEAD",
-        VENDOR_ID=payload.VENDOR_ID,
-        # Lead/intake fields
-        LEAD_SOURCE="WEBSITE",
-        LEAD_STATUS="NEW",
-        LEAD_PRIORITY="MEDIUM",
-        LEAD_CREATED_DATE=date.today(),
-        REQUIREMENT_NOTES=(payload.free_text_summary or "").strip() or None
-    )
-
-    db.add(customer)
-
-    db.flush()           # gives us customer.ID without committing yet
-
-    # Only create a requirement if at least one machine field was filled
     has_req = any([
         r.MACHINE_CATEGORY, r.MACHINE_NAME, r.QUANTITY,
         r.CAPACITY, r.TARGET_UNIT_PRICE, r.TARGET_DELIVERY_DATE,
         r.INSTALLATION_SITE, r.SPECIAL_NOTES
     ])
 
+    notes_parts = []
+
+    if payload.free_text_summary and payload.free_text_summary.strip():
+        notes_parts.append(payload.free_text_summary.strip())
+
     if has_req:
+        req_bits = [
+            f"Machine: {r.MACHINE_NAME or r.MACHINE_CATEGORY}",
+            f"Qty: {r.QUANTITY or 1}",
+        ]
+        if r.CAPACITY:
+            req_bits.append(f"Capacity: {r.CAPACITY}")
+        if r.TARGET_UNIT_PRICE:
+            req_bits.append(f"Target price: ₹{r.TARGET_UNIT_PRICE}/unit")
+        if r.TARGET_DELIVERY_DATE:
+            req_bits.append(f"Needed by: {r.TARGET_DELIVERY_DATE}")
+        if r.INSTALLATION_SITE:
+            req_bits.append(f"Install site: {r.INSTALLATION_SITE}")
+        if r.SPECIAL_NOTES:
+            req_bits.append(f"Notes: {r.SPECIAL_NOTES}")
+        notes_parts.append(" · ".join(req_bits))
 
-        req = CustomerRequirement(
-            CUSTOMER_ID=customer.ID,
-            MACHINE_CATEGORY=(r.MACHINE_CATEGORY or "").strip() or None,
-            MACHINE_NAME=(r.MACHINE_NAME or "").strip() or None,
-            QUANTITY=r.QUANTITY or 1,
-            CAPACITY=(r.CAPACITY or "").strip() or None,
-            TARGET_UNIT_PRICE=r.TARGET_UNIT_PRICE,
-            TARGET_DELIVERY_DATE=_parse_iso_date(r.TARGET_DELIVERY_DATE),
-            INSTALLATION_SITE=(r.INSTALLATION_SITE or "").strip() or None,
-            PRIORITY="MEDIUM",
-            STATUS="DRAFT",
-            SPECIAL_NOTES=(r.SPECIAL_NOTES or "").strip() or None,
-            VENDOR_ID=payload.VENDOR_ID
-        )
+    lead = CrmLead(
+        LEAD_CODE=code,
+        COMPANY_NAME=c.CUSTOMER_NAME.strip(),
+        CONTACT_PERSON=(c.CONTACT_PERSON or "").strip() or None,
+        DESIGNATION=(c.DESIGNATION or "").strip() or None,
+        PHONE=c.PHONE.strip(),
+        EMAIL=(c.EMAIL or "").strip() or None,
+        CITY=(c.CITY or "").strip() or None,
+        STATE=(c.STATE or "").strip() or None,
+        SOURCE="WEBSITE",
+        STATUS="NEW",
+        PRIORITY="MEDIUM",
+        REQUIREMENT_NOTES="\n".join(notes_parts) or None,
+        VENDOR_ID=payload.VENDOR_ID,
+    )
 
-        db.add(req)
+    db.add(lead)
+
+    db.flush()           # gives us lead.ID without committing yet
+
+    db.add(CrmActivity(
+        CRM_LEAD_ID=lead.ID,
+        EVENT_TYPE="CREATED",
+        EVENT_DETAIL="Submitted via public website enquiry form",
+        ACTOR_TYPE="SYSTEM",
+    ))
 
     db.commit()
 
-    db.refresh(customer)
+    db.refresh(lead)
 
     # Fire-and-forget WhatsApp alert to MD (same pattern as enquiry route)
     try:
@@ -188,17 +184,16 @@ def submit_enquiry(payload: EnquirySubmit, db: Session = Depends(get_db)):
 
         msg = (
             f"🌐 *New Website Enquiry — BVC24*\n\n"
-            f"👤 *{customer.CUSTOMER_NAME}*\n"
-            f"📞 {customer.PHONE}\n"
-            + (f"📧 {customer.EMAIL}\n" if customer.EMAIL else "")
-            + (f"🏢 {customer.INDUSTRY}\n" if customer.INDUSTRY else "")
+            f"👤 *{lead.COMPANY_NAME}*\n"
+            f"📞 {lead.PHONE}\n"
+            + (f"📧 {lead.EMAIL}\n" if lead.EMAIL else "")
             + (f"📍 {address}\n" if address else "")
             + (
                 f"\n🤖 {r.MACHINE_CATEGORY or 'machine'}"
                 f" × {r.QUANTITY or 1}"
                 if has_req else ""
             )
-            + f"\n\nCode: {customer.CUSTOMER_CODE}"
+            + f"\n\nLead: {lead.LEAD_CODE}"
         )
 
         notify_md_safe(msg)
@@ -210,11 +205,15 @@ def submit_enquiry(payload: EnquirySubmit, db: Session = Depends(get_db)):
     return {
         "success": True,
         "message": (
-            f"Thanks {customer.CONTACT_PERSON or customer.CUSTOMER_NAME}! "
+            f"Thanks {lead.CONTACT_PERSON or lead.COMPANY_NAME}! "
             f"We've recorded your enquiry. Our team will get in touch within 24 hours."
         ),
-        "customer_code": customer.CUSTOMER_CODE,
-        "customer_id": customer.ID
+        "lead_code": lead.LEAD_CODE,
+        "lead_id": lead.ID,
+        # Kept for the existing PublicEnquiry.jsx reference-number display,
+        # which reads `result.customer_code` — same value, new meaning.
+        "customer_code": lead.LEAD_CODE,
+        "customer_id": lead.ID,
     }
 
 

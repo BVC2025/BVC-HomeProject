@@ -1,0 +1,830 @@
+/* CrmLeads page — scoped styles, mirrors Customers.module.css's
+   established patterns (icon-badge stat tiles, chip filters, kebab-free
+   cards, plain contact list, icon+heading empty states) for visual
+   consistency across the CRM/Sales/Customer surface. */
+
+@keyframes leadFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Page + hero ───────────────────────────────────────────── */
+
+.pageWrapper {
+  padding: 26px;
+  background: var(--layout-bg);
+  min-height: 100%;
+}
+
+.hero {
+  background: var(--clr-primary);
+  color: #fff;
+  padding: var(--sp-5) var(--sp-6);
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--sp-6);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+
+.heroLabel {
+  font-size: var(--font-xs);
+  letter-spacing: 2px;
+  color: #f59e0b;
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+}
+
+.heroTitle {
+  font-size: 22px;
+  font-weight: var(--fw-bold);
+  margin: 4px 0 0;
+  line-height: 1.2;
+  color: #fff;
+  letter-spacing: -0.3px;
+}
+
+.heroActions {
+  display: flex;
+  gap: 10px;
+}
+
+.heroBtnSolid {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card-bg);
+  color: #dc2626;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-weight: var(--fw-extrabold);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: box-shadow 0.15s;
+}
+
+.heroBtnSolid:hover {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+}
+
+/* ─── Stat tiles ────────────────────────────────────────────── */
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.statTile {
+  background: var(--card-bg);
+  padding: 18px 20px;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.statTileIconWrap {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.statTileLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.statTileValue {
+  font-size: 28px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  margin-top: 4px;
+  letter-spacing: -0.5px;
+}
+
+.statTileSub {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ─── Filter bar ────────────────────────────────────────────── */
+
+.filterBar {
+  background: var(--card-bg);
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.searchWrap {
+  position: relative;
+  flex: 1;
+  min-width: 260px;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  display: flex;
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 10px 14px 10px 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  box-sizing: border-box;
+}
+
+.filterCount {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: 6px;
+}
+
+.chipRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.chipActive {
+  background: var(--clr-primary);
+  color: #fff;
+  border-color: var(--clr-primary);
+  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.28);
+}
+
+.chipBadge {
+  margin-left: 2px;
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: var(--fw-extrabold);
+  min-width: 20px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.06);
+  color: inherit;
+}
+
+.chipBadgeActive {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+/* ─── Cards grid + empty states ─────────────────────────────── */
+
+.cardsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 18px;
+}
+
+.loadingMsg {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.emptyState {
+  padding: 50px 24px;
+  text-align: center;
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--border);
+}
+
+.emptyStateIcon {
+  display: flex;
+  justify-content: center;
+  color: var(--text-muted);
+  opacity: 0.6;
+  margin-bottom: 14px;
+}
+
+.emptyStateTitle {
+  font-size: var(--font-lg);
+  font-weight: var(--fw-black);
+  color: var(--text-primary);
+}
+
+.emptyStateSub {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: 6px;
+}
+
+.emptyStateBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 18px;
+  padding: 10px 20px;
+  background: var(--clr-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.25);
+}
+
+/* ─── Lead card ─────────────────────────────────────────────── */
+
+.card {
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  padding: 18px;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  animation: leadFadeIn 0.35s ease-out both;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.14);
+}
+
+.cardAccentBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.cardAvatar {
+  width: 46px;
+  height: 46px;
+  border-radius: var(--radius-lg);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: var(--fw-extrabold);
+  flex-shrink: 0;
+}
+
+.cardMeta {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardCode {
+  font-size: var(--font-xs);
+  font-family: ui-monospace, monospace;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+.cardName {
+  font-size: 15px;
+  font-weight: var(--fw-extrabold);
+  color: var(--text-primary);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cardBadgeRow {
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.highPriorityBadge {
+  font-size: 9px;
+  font-weight: var(--fw-extrabold);
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  background: #fee2e2;
+  color: #991b1b;
+  letter-spacing: 0.4px;
+}
+
+.salesOwnerBanner {
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+  background: var(--surface);
+  padding: 5px 10px;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--border);
+}
+
+.contactList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 0 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.contactListRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.contactListRow svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.contactListRowTruncate span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.tagSource {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.tagLocation {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--text-secondary);
+}
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding-top: 4px;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.4px;
+  transition: color 0.15s, gap 0.15s;
+}
+
+.card:hover .cardFooter {
+  color: var(--clr-primary);
+  gap: 7px;
+}
+
+/* ─── Status pill ───────────────────────────────────────────── */
+
+.statusPill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* ─── Modal / drawer shells (mirrors Customers.jsx editor overlay) ── */
+
+.editorOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.editorPanel {
+  background: var(--card-bg);
+  width: min(520px, 100vw);
+  max-height: 100vh;
+  overflow-y: auto;
+  padding: var(--sp-6);
+  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.2);
+}
+
+.drawerPanel {
+  background: var(--card-bg);
+  width: min(560px, 100vw);
+  max-height: 100vh;
+  overflow-y: auto;
+  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.2);
+}
+
+.editorHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: var(--sp-5) var(--sp-6);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--card-bg);
+  z-index: 2;
+}
+
+.editorHeaderLabel {
+  font-size: var(--font-xs);
+  font-family: ui-monospace, monospace;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+.editorHeaderTitle {
+  font-size: var(--font-xl);
+  font-weight: var(--fw-black);
+  color: var(--text-primary);
+}
+
+.editorCloseBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.editorForm {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fieldLabel {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 12px 0 4px;
+  display: block;
+}
+
+.input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  font-family: var(--font);
+  box-sizing: border-box;
+  background: var(--card-bg);
+  color: var(--text-primary);
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 12px;
+}
+
+.editorActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.cancelBtn {
+  padding: 9px 18px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+}
+
+.saveBtn {
+  padding: 9px 20px;
+  background: var(--clr-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+}
+
+/* ─── Lead drawer body ──────────────────────────────────────── */
+
+.drawerBody {
+  padding: var(--sp-5) var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.drawerSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drawerSectionTitle {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-bold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.convertedNote {
+  font-size: var(--font-sm);
+  color: var(--success, #059669);
+  font-weight: var(--fw-bold);
+  margin-left: 8px;
+}
+
+.statusChipRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.statusChip {
+  padding: 6px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.statusChip:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.statusChipActive {
+  background: var(--clr-primary);
+  color: #fff;
+  border-color: var(--clr-primary);
+}
+
+.statusChipDanger {
+  color: #dc2626;
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.convertBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin-top: 6px;
+  padding: 10px 18px;
+  background: #059669;
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.25);
+}
+
+.convertBtn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+  font-size: var(--font-sm);
+  color: var(--text-primary);
+}
+
+.detailLabel {
+  display: block;
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.reqNotes {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+.activityForm {
+  display: grid;
+  grid-template-columns: 130px 1fr auto;
+  gap: 8px;
+}
+
+.logBtn {
+  padding: 9px 16px;
+  background: var(--clr-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-weight: var(--fw-bold);
+  cursor: pointer;
+}
+
+.logBtn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.timelineRow {
+  display: flex;
+  gap: 10px;
+}
+
+.timelineDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--clr-primary);
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.timelineEvent {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  text-transform: capitalize;
+}
+
+.timelineActor {
+  font-weight: var(--fw-normal, 400);
+  color: var(--text-muted);
+  text-transform: none;
+}
+
+.timelineDetail {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.timelineTime {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+/* ─── Responsive ────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .pageWrapper { padding: 16px; }
+  .statsGrid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .filterBar { flex-direction: column; align-items: stretch; gap: 12px; }
+  .searchWrap { min-width: 0; width: 100%; }
+  .chipRow { width: 100%; }
+  .card { padding: 16px; }
+  .activityForm { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .pageWrapper { padding: 12px; }
+  .hero { flex-direction: column; align-items: stretch; padding: var(--sp-4) var(--sp-5); }
+  .heroBtnSolid { width: 100%; justify-content: center; }
+  .cardsGrid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  .card { padding: 14px; }
+  .grid2 { grid-template-columns: 1fr; }
+  .detailGrid { grid-template-columns: 1fr; }
+  .editorPanel, .drawerPanel { width: 100vw; }
+}
+
+/* ─── Dark mode ─────────────────────────────────────────────── */
+
+:global(html[data-theme="dark"]) .statTile,
+:global(html[data-theme="dark"]) .filterBar,
+:global(html[data-theme="dark"]) .card,
+:global(html[data-theme="dark"]) .emptyState,
+:global(html[data-theme="dark"]) .editorPanel,
+:global(html[data-theme="dark"]) .drawerPanel,
+:global(html[data-theme="dark"]) .editorHeader {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+:global(html[data-theme="dark"]) .statTileLabel,
+:global(html[data-theme="dark"]) .filterCount,
+:global(html[data-theme="dark"]) .cardCode,
+:global(html[data-theme="dark"]) .contactList,
+:global(html[data-theme="dark"]) .emptyStateSub {
+  color: #94a3b8;
+}
+
+:global(html[data-theme="dark"]) .statTileValue,
+:global(html[data-theme="dark"]) .cardName,
+:global(html[data-theme="dark"]) .emptyStateTitle,
+:global(html[data-theme="dark"]) .editorHeaderTitle,
+:global(html[data-theme="dark"]) .detailGrid {
+  color: #f1f5f9;
+}
+
+:global(html[data-theme="dark"]) .searchInput,
+:global(html[data-theme="dark"]) .input,
+:global(html[data-theme="dark"]) .chip,
+:global(html[data-theme="dark"]) .statusChip {
+  background: #0f172a;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #f1f5f9;
+}
+
+:global(html[data-theme="dark"]) .contactList {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}

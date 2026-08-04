@@ -91,6 +91,7 @@ const DepartmentManagement = lazy(() => import("./DepartmentManagement"));
 const OrgRoleManagement = lazy(() => import("./OrgRoleManagement"));
 const ProjectCategoryManagement = lazy(() => import("./ProjectCategoryManagement"));
 const ProjectPage = lazy(() => import("./ProjectPage"));
+const CrmLeads = lazy(() => import("./CrmLeads"));
 const LeadManagementConfig = lazy(() => import("./LeadManagementConfig"));
 const LiveLeadViewer = lazy(() => import("./LiveLeadViewer"));
 const ManualLeadManagement = lazy(() => import("./ManualLeadManagement"));
@@ -1359,6 +1360,12 @@ function SidebarIcon({ name }) {
           <line x1="17.5" y1="16.5" x2="19" y2="18" />
         </svg>
       );
+    case "crm-leads":
+      return (
+        <svg {...props}>
+          <path d="M4 4h16l-6 8v7l-4-2v-5z" />
+        </svg>
+      );
     case "customers":
       return (
         <svg {...props}>
@@ -1669,6 +1676,13 @@ const NAV_GROUPS = [
 
 
 
+    ]
+  },
+  {
+    key: "crm-pipeline",
+    label: "CRM",
+    items: [
+      { to: "/crm/leads", icon: <SidebarIcon name="crm-leads" />, label: "Leads" }
     ]
   },
   {
@@ -2074,6 +2088,11 @@ function Dashboard() {
           <Route
             path="/employee-onboarding"
             element={<EmployeeOnboardingReview />}
+          />
+
+          <Route
+            path="/crm/leads"
+            element={<Suspense fallback={null}><CrmLeads /></Suspense>}
           />
 
           <Route

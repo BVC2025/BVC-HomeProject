@@ -1611,6 +1611,15 @@ def delete_customer(
             synchronize_session=False
         )
 
+        from app.models.crm_models import CrmLead
+
+        crm_leads_unlinked = db.query(CrmLead).filter(
+            CrmLead.CONVERTED_CUSTOMER_ID == customer_id
+        ).update(
+            {CrmLead.CONVERTED_CUSTOMER_ID: None},
+            synchronize_session=False
+        )
+
         # Finally delete the customer itself
         db.delete(customer)
 
@@ -1673,6 +1682,10 @@ def delete_customer(
 
         parts.append(f"{onboarding_unlinked} onboarding session(s) unlinked")
 
+    if crm_leads_unlinked:
+
+        parts.append(f"{crm_leads_unlinked} CRM lead(s) unlinked (kept, no longer marked converted)")
+
     summary = " · ".join(parts) if parts else "no related rows"
 
     return {
@@ -1686,7 +1699,8 @@ def delete_customer(
         "projects_unlinked": projects_unlinked or 0,
         "quotations_unlinked": quotes_unlinked or 0,
         "sales_orders_unlinked": sos_unlinked or 0,
-        "onboarding_unlinked": onboarding_unlinked or 0
+        "onboarding_unlinked": onboarding_unlinked or 0,
+        "crm_leads_unlinked": crm_leads_unlinked or 0
     }
 
 

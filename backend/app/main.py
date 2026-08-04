@@ -28,6 +28,7 @@ import app.models.email_models       # noqa: F401 — registers vendor_email_con
 import app.models.lead_models        # noqa: F401 — registers lead_polling_config, lead, lead_polling_log tables
 import app.models.project_quotation_models  # noqa: F401 — registers project_quotation_template table
 import app.models.rag_models         # noqa: F401 — registers ai_modules, ai_documents, ai_chat_history, ai_training_job tables
+import app.models.crm_models         # noqa: F401 — registers crm_lead, crm_activity tables
 
 from app.routes.users import router as users_router
 from app.routes.auth import router as auth_router
@@ -43,6 +44,16 @@ from app.routes.reports import router as reports_router
 from app.routes.settings import router as settings_router
 from app.routes.employee_task import router as employee_task_router
 from app.routes.project_template import router as project_template_router
+# project.py has been repurposed since the "removed" note below was written —
+# it now also owns the live Customer/CRM API (/customers, /create-customer,
+# /customers/{id}/requirements, etc.) that Customers.jsx depends on. Its
+# handful of pre-existing /projects*, /create-project legacy routes operate
+# on the old `project_legacy` table (CustomerProject model) and are
+# registered AFTER project_template_router below so the newer router wins
+# on the one colliding path (GET/POST /projects) — first-registered match
+# wins in Starlette routing.
+from app.routes.project import router as project_router
+from app.routes.crm_leads import router as crm_leads_router
 from app.routes.organization import router as organization_router
 from app.routes.task_approval import router as task_approval_router
 from app.routes.chatbot import router as chatbot_router
@@ -1548,8 +1559,13 @@ app.include_router(employee.router, tags=["Employees (IAM)"])
 app.include_router(employee_task_router, tags=["Employee Workflow"])
 app.include_router(task_approval_router, tags=["Task Approval"])
 app.include_router(task_router, tags=["Project Tasks"])
-# app.include_router(project_router, tags=["Projects"])  # removed — customer projects replaced by Project template hierarchy
 app.include_router(project_template_router, tags=["Project Templates"])
+# Registered AFTER project_template_router (see import-time comment above) —
+# owns /customers* (live CRM API) plus legacy /projects*, /create-project
+# routes that operate on the old project_legacy table and are shadowed on
+# the one path (/projects) project_template_router already serves.
+app.include_router(project_router, tags=["Customers"])
+app.include_router(crm_leads_router, tags=["CRM Leads"])
 app.include_router(users_router, tags=["Users"])
 app.include_router(vendor_router, tags=["Vendors"])
 app.include_router(inventory_router, tags=["Inventory"])
