@@ -1668,7 +1668,7 @@ function DownloadAttendance({ employees }) {
 
     try {
 
-      const res = await API.get("/attendance/export.xlsx", {
+      const res = await API.get("/attendance/download/xlsx", {
         params: {
           month,
           ...(employeeId ? { employee_id: employeeId } : {}),

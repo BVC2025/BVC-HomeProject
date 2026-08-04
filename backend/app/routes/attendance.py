@@ -1094,7 +1094,7 @@ from io import BytesIO
 
 
 @router.get(
-    "/attendance/export.xlsx",
+    "/attendance/download/xlsx",
     dependencies=[Depends(require("attendance.view.all"))],
 )
 def export_attendance_excel(
