@@ -559,6 +559,13 @@ function Attendance() {
             </button>
 
             <button
+              className={"tab-btn" + (view === "monthly" ? " tab-active" : "")}
+              onClick={() => setView("monthly")}
+            >
+              Monthly Summary
+            </button>
+
+            <button
               className={"tab-btn" + (view === "download" ? " tab-active" : "")}
               onClick={() => setView("download")}
             >
@@ -672,6 +679,7 @@ function Attendance() {
 
           {view === "report" && <AttendanceReport employees={employees} />}
           {view === "tracking" && <EmployeeTracking employees={employees} />}
+          {view === "monthly" && <MonthlySummary />}
           {view === "download" && <DownloadAttendance employees={employees} />}
 
           {(view === "today" || view === "all") && (
@@ -1634,6 +1642,248 @@ function TrackingStatus({ status }) {
     </span>
   );
 }
+
+// =====================================================================
+// MonthlySummary — HR admin roll-up of a whole month's attendance.
+//
+// One row per active employee: present/late/absent counts, late
+// minutes, OT hours, memo eligibility flags, star-score breakdown.
+// Company-wide totals shown as tiles at the top.
+// =====================================================================
+function MonthlySummary() {
+
+  const now = new Date();
+  // Default to LAST month — current month is incomplete and the memo
+  // engine also evaluates the previous month.
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const defaultMonth =
+    `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, "0")}`;
+
+  const [month, setMonth] = useState(defaultMonth);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [filter, setFilter] = useState("all");
+  // filter: all | warning | appreciation | absent | late
+
+  const load = async () => {
+    if (!/^\d{4}-\d{2}$/.test(month)) return;
+    setLoading(true);
+    setError("");
+    try {
+      const res = await API.get("/attendance/summary/monthly", { params: { month } });
+      setData(res.data);
+    } catch (e) {
+      setError(e?.response?.data?.detail || "Failed to load monthly summary");
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [month]);
+
+  const rows = (data?.employees || []).filter((r) => {
+    if (filter === "warning") return r.memo_flags?.will_get_warning;
+    if (filter === "appreciation") return r.memo_flags?.will_get_appreciation;
+    if (filter === "absent") return r.unpaid_absences > 0;
+    if (filter === "late") return r.late_arrivals >= 3;
+    return true;
+  });
+
+  return (
+    <div style={ms.wrap}>
+
+      {/* Header — month picker + label */}
+      <div style={ms.head}>
+        <div>
+          <div style={ms.eyebrow}>Attendance · Monthly Summary</div>
+          <h2 style={ms.title}>{data?.month_label || month}</h2>
+        </div>
+        <input
+          type="month"
+          value={month}
+          onChange={(e) => setMonth(e.target.value)}
+          style={ms.monthInput}
+        />
+      </div>
+
+      {/* Loading / error */}
+      {loading && <div style={ms.info}>Loading monthly summary…</div>}
+      {error && <div style={ms.error}><b>Error:</b> {error}</div>}
+
+      {/* Company-wide totals */}
+      {data?.totals && !loading && (
+        <div style={ms.tiles}>
+          <Tile label="Employees" value={data.totals.employees} />
+          <Tile label="Total Presents" value={data.totals.days_present} tone="ok" />
+          <Tile label="Unpaid Absences" value={data.totals.unpaid_absences} tone={data.totals.unpaid_absences ? "warn" : "muted"} />
+          <Tile label="Late Arrivals" value={data.totals.late_arrivals} tone={data.totals.late_arrivals ? "warn" : "muted"} />
+          <Tile label="OT Hours" value={data.totals.total_ot_hours + "h"} tone="info" />
+          <Tile label="Missed Check-outs" value={data.totals.missed_checkouts} tone={data.totals.missed_checkouts ? "warn" : "muted"} />
+          <Tile label="Will get Warning" value={data.totals.will_get_warning} tone={data.totals.will_get_warning ? "danger" : "muted"} />
+          <Tile label="Will get Appreciation" value={data.totals.will_get_appreciation} tone="ok" />
+        </div>
+      )}
+
+      {/* Filter chips */}
+      {data && !loading && (
+        <div style={ms.chipRow}>
+          {[
+            ["all", "All"],
+            ["warning", "Warning-eligible"],
+            ["appreciation", "Appreciation-eligible"],
+            ["absent", "Any Unpaid Absence"],
+            ["late", "3+ Late"],
+          ].map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setFilter(k)}
+              style={{
+                ...ms.chip,
+                background: filter === k ? "#dc2626" : "#fff",
+                color: filter === k ? "#fff" : "#475569",
+                borderColor: filter === k ? "#dc2626" : "#cbd5e1",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+          <span style={ms.chipCount}>
+            {rows.length} of {data.employees.length}
+          </span>
+        </div>
+      )}
+
+      {/* Grid */}
+      {data && !loading && (
+        <div style={ms.tableWrap}>
+          <table style={ms.table}>
+            <thead>
+              <tr style={ms.trHead}>
+                <th style={ms.th}>Code</th>
+                <th style={ms.th}>Name</th>
+                <th style={ms.thN}>Present</th>
+                <th style={ms.thN}>Absent</th>
+                <th style={ms.thN}>Leave</th>
+                <th style={ms.thN}>Late</th>
+                <th style={ms.thN}>Late min</th>
+                <th style={ms.thN}>Missed C-Out</th>
+                <th style={ms.thN}>Worked hrs</th>
+                <th style={ms.thN}>OT hrs</th>
+                <th style={ms.thN}>CL avail</th>
+                <th style={ms.thN}>Star (a)</th>
+                <th style={ms.th}>Memo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.employee_id} style={ms.tr}>
+                  <td style={ms.td}>{r.employee_code}</td>
+                  <td style={ms.td}><b>{r.name}</b></td>
+                  <td style={ms.tdN}>{r.days_present}</td>
+                  <td style={{ ...ms.tdN, color: r.unpaid_absences ? "#b91c1c" : "#0f172a", fontWeight: r.unpaid_absences ? 700 : 400 }}>
+                    {r.unpaid_absences}
+                  </td>
+                  <td style={ms.tdN}>{r.days_on_leave}</td>
+                  <td style={{ ...ms.tdN, color: r.late_arrivals >= 5 ? "#b91c1c" : (r.late_arrivals >= 3 ? "#d97706" : "#0f172a"), fontWeight: r.late_arrivals >= 5 ? 700 : 400 }}>
+                    {r.late_arrivals}
+                  </td>
+                  <td style={ms.tdN}>{r.total_late_minutes}</td>
+                  <td style={ms.tdN}>{r.missed_checkouts}</td>
+                  <td style={ms.tdN}>{r.total_worked_hours}</td>
+                  <td style={ms.tdN}>{r.total_ot_hours}</td>
+                  <td style={ms.tdN}>
+                    {r.leave_balance?.casual?.available ?? "—"}
+                  </td>
+                  <td style={ms.tdN}><b>{r.star_score_attendance}</b>/80</td>
+                  <td style={ms.td}>
+                    {r.memo_flags?.will_get_warning && (
+                      <span style={ms.badgeWarn}>⚠ Warning</span>
+                    )}
+                    {r.memo_flags?.will_get_appreciation && (
+                      <span style={ms.badgeOk}>★ Appreciation</span>
+                    )}
+                    {!r.memo_flags?.will_get_warning && !r.memo_flags?.will_get_appreciation && (
+                      <span style={ms.badgeMuted}>—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={13} style={{ ...ms.td, textAlign: "center", padding: 28, color: "#64748b" }}>
+                    No employees match the current filter.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Legend / rules */}
+      {data && !loading && (
+        <div style={ms.legend}>
+          <b>Memo rules:</b> Warning if <b>5+ late</b> OR <b>1+ unpaid absence</b> OR <b>5+ missed check-outs</b>.
+          Appreciation if <b>0 late</b> AND <b>0 unpaid absences</b> (and at least one day present).
+          Unpaid absence = no check-in and no approved leave on a working day.
+        </div>
+      )}
+
+    </div>
+  );
+}
+
+
+function Tile({ label, value, tone = "muted" }) {
+  const colors = {
+    ok:     { bg: "#ecfdf5", fg: "#065f46", border: "#a7f3d0" },
+    warn:   { bg: "#fffbeb", fg: "#92400e", border: "#fde68a" },
+    danger: { bg: "#fef2f2", fg: "#991b1b", border: "#fecaca" },
+    info:   { bg: "#eff6ff", fg: "#1e40af", border: "#bfdbfe" },
+    muted:  { bg: "#f8fafc", fg: "#334155", border: "#e2e8f0" },
+  };
+  const c = colors[tone] || colors.muted;
+  return (
+    <div style={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: 10, padding: "10px 14px", minWidth: 130 }}>
+      <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: c.fg, opacity: 0.85 }}>
+        {label}
+      </div>
+      <div style={{ fontSize: 22, fontWeight: 800, color: c.fg, marginTop: 2 }}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+
+const ms = {
+  wrap: { padding: "10px 0" },
+  head: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 },
+  eyebrow: { fontSize: 11, fontWeight: 800, color: "#dc2626", letterSpacing: 1.6, textTransform: "uppercase" },
+  title: { fontSize: 22, fontWeight: 800, color: "#0f172a", margin: "4px 0 0 0" },
+  monthInput: { padding: "9px 12px", border: "1px solid #cbd5e1", borderRadius: 8, fontSize: 14, fontFamily: "inherit" },
+  info: { padding: 14, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, color: "#475569" },
+  error: { padding: 12, background: "#fef2f2", border: "1px solid #fecaca", color: "#991b1b", borderRadius: 8, marginBottom: 12 },
+  tiles: { display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 },
+  chipRow: { display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" },
+  chip: { padding: "6px 12px", border: "1px solid #cbd5e1", borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" },
+  chipCount: { fontSize: 12, color: "#64748b", marginLeft: "auto" },
+  tableWrap: { overflowX: "auto", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 10 },
+  table: { width: "100%", borderCollapse: "collapse", fontSize: 13, fontFamily: "inherit" },
+  trHead: { background: "#f8fafc" },
+  th: { padding: "10px 12px", textAlign: "left", fontSize: 11, fontWeight: 800, color: "#475569", letterSpacing: 0.4, textTransform: "uppercase", borderBottom: "1px solid #e2e8f0" },
+  thN: { padding: "10px 12px", textAlign: "center", fontSize: 11, fontWeight: 800, color: "#475569", letterSpacing: 0.4, textTransform: "uppercase", borderBottom: "1px solid #e2e8f0" },
+  tr: { borderBottom: "1px solid #f1f5f9" },
+  td: { padding: "10px 12px", color: "#0f172a" },
+  tdN: { padding: "10px 12px", textAlign: "center", color: "#0f172a" },
+  badgeWarn: { display: "inline-block", padding: "3px 10px", borderRadius: 20, background: "#fef2f2", color: "#991b1b", border: "1px solid #fecaca", fontSize: 11, fontWeight: 800 },
+  badgeOk: { display: "inline-block", padding: "3px 10px", borderRadius: 20, background: "#ecfdf5", color: "#065f46", border: "1px solid #a7f3d0", fontSize: 11, fontWeight: 800 },
+  badgeMuted: { display: "inline-block", padding: "3px 10px", borderRadius: 20, background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0", fontSize: 11, fontWeight: 800 },
+  legend: { marginTop: 12, padding: 12, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12, color: "#475569", lineHeight: 1.6 },
+};
+
 
 // =====================================================================
 // DownloadAttendance — one-click monthly Excel export.

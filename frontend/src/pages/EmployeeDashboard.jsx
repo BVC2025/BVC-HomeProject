@@ -8,6 +8,7 @@ import LeaveChatbot from "../components/LeaveChatbot";
 import LeaveAgentChat from "../components/LeaveAgentChat";
 import MyLeaveStatus from "../components/MyLeaveStatus";
 import MyAttendancePanel from "../components/MyAttendancePanel";
+import MyMonthlyAttendance from "../components/MyMonthlyAttendance";
 import MyTasksPanel from "../components/MyTasksPanel";
 import MyAllowanceSection from "../components/MyAllowanceSection";
 import MyPayslipsPanel from "../components/MyPayslipsPanel";
@@ -909,7 +910,10 @@ function EmployeeDashboardBody() {
           )}
 
           {mainTab === "attendance" && (
-            <MyAttendancePanel employeeId={employeeId} />
+            <>
+              <MyAttendancePanel employeeId={employeeId} />
+              <MyMonthlyAttendance employeeId={employeeId} />
+            </>
           )}
 
           {mainTab === "tasks" && (

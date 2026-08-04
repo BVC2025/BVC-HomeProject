@@ -1250,3 +1250,117 @@ def export_attendance_excel(
         ),
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# =====================================================================
+# GET /attendance/monthly-summary
+#
+# HR admin: returns one row per employee for the requested month, with
+# every metric the Monthly Summary tab renders (present/late/absent
+# counts, late minutes, OT hours, memo eligibility, star-score
+# breakdown, etc.). Gated by attendance.view.all so employees can't
+# read the whole company.
+# =====================================================================
+@router.get(
+    "/attendance/summary/monthly",
+    dependencies=[Depends(require("attendance.view.all"))],
+)
+def monthly_summary_all(
+    month: str = Query(..., description="YYYY-MM"),
+    department_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+):
+    from app.services.monthly_attendance import compute_monthly_summary
+
+    try:
+        year_str, mon_str = month.split("-")
+        year, mon = int(year_str), int(mon_str)
+        # Validate the month is a real calendar month
+        date(year, mon, 1)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="month must be YYYY-MM")
+
+    q = db.query(Employee).filter(Employee.STATUS == "ACTIVE")
+    if department_id:
+        q = q.filter(Employee.DEPARTMENT_ID == department_id)
+
+    employees = q.order_by(Employee.EMPLOYEE_CODE).all()
+
+    rows = [
+        compute_monthly_summary(db, emp, year, mon, include_days=False)
+        for emp in employees
+    ]
+
+    # Aggregate roll-up so the HR view can show company-wide numbers
+    # (e.g. "18 late arrivals across the org this month") without a
+    # second call.
+    totals = {
+        "employees": len(rows),
+        "days_present": sum(r["days_present"] for r in rows),
+        "days_absent": sum(r["days_absent"] for r in rows),
+        "unpaid_absences": sum(r["unpaid_absences"] for r in rows),
+        "late_arrivals": sum(r["late_arrivals"] for r in rows),
+        "missed_checkouts": sum(r["missed_checkouts"] for r in rows),
+        "total_ot_hours": round(sum(r["total_ot_hours"] for r in rows), 2),
+        "will_get_warning": sum(1 for r in rows if r["memo_flags"]["will_get_warning"]),
+        "will_get_appreciation": sum(1 for r in rows if r["memo_flags"]["will_get_appreciation"]),
+    }
+
+    return {
+        "month": f"{year}-{mon:02d}",
+        "month_label": date(year, mon, 1).strftime("%B %Y"),
+        "totals": totals,
+        "employees": rows,
+    }
+
+
+# =====================================================================
+# GET /attendance/summary/my
+#
+# Employee self-service. Returns the same summary but for the caller
+# only, plus a `days` array so the portal can render a calendar grid.
+# No admin role needed — the endpoint identifies the caller from the
+# JWT and returns their own data only. Employees passing someone
+# else's employee_id get a 403.
+# =====================================================================
+@router.get("/attendance/summary/my")
+def monthly_summary_mine(
+    month: str = Query(..., description="YYYY-MM"),
+    employee_id: Optional[str] = Query(
+        None,
+        description="Optional — admin can pass another employee's ID"
+    ),
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
+):
+    from app.services.monthly_attendance import compute_monthly_summary
+
+    try:
+        year_str, mon_str = month.split("-")
+        year, mon = int(year_str), int(mon_str)
+        date(year, mon, 1)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="month must be YYYY-MM")
+
+    # Resolve who we're querying. Employees can only fetch themselves.
+    caller_id = payload.get("sub") or payload.get("employee_id") or ""
+    role = (payload.get("role") or "").upper()
+
+    target_id = employee_id or caller_id
+
+    # Allow admins/HR to pass another employee's id; block regular staff
+    if employee_id and employee_id != caller_id and role not in ADMIN_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only view your own attendance summary."
+        )
+
+    # Normalise UUID vs EMPLOYEE_CODE
+    target_id = resolve_employee_uuid(db, target_id)
+
+    emp = db.query(Employee).filter(Employee.ID == target_id).first()
+
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    return compute_monthly_summary(db, emp, year, mon, include_days=True)
