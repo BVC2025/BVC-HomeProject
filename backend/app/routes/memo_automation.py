@@ -23,6 +23,7 @@ from app.database.database import get_db
 from app.models.models import Setting
 from app.auth.auth_bearer import get_current_admin
 from app.services.memo_automation import run_weekly_automation, RunSummary
+from app.services.monthly_memo_automation import run_monthly_evaluation
 
 
 router = APIRouter(prefix="/memos/automation", tags=["Memo Automation"])
@@ -84,6 +85,73 @@ def last_run(
     _admin: dict = Depends(get_current_admin),
 ):
     row = db.query(Setting).filter(Setting.KEY == LAST_RUN_KEY).first()
+    if not row or not row.VALUE:
+        return {"last_run": None}
+    try:
+        return {"last_run": json.loads(row.VALUE)}
+    except Exception:
+        return {"last_run": None}
+
+
+# =====================================================================
+# Monthly evaluator — writes personalised AI memos using the same rules
+# the HR Monthly Summary tab flags. Idempotent by month + type +
+# employee, so repeated runs never duplicate memos.
+# =====================================================================
+
+LAST_MONTHLY_RUN_KEY = "memo_automation.last_monthly_run"
+
+
+class MonthlyRunRequest(BaseModel):
+    month: str      # "YYYY-MM"
+
+
+@router.post("/run-monthly")
+def run_monthly(
+    body: MonthlyRunRequest,
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(get_current_admin),
+):
+    """Evaluate every ACTIVE employee for the given month and issue
+    AI-generated WARNING / APPRECIATION memos. Existing manual memos
+    are untouched. Rerunning the same month is a no-op — memos already
+    issued via the monthly automation are skipped."""
+
+    try:
+        year_str, mon_str = body.month.split("-")
+        year, mon = int(year_str), int(mon_str)
+        date(year, mon, 1)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="month must be YYYY-MM")
+
+    result = run_monthly_evaluation(db, year, mon)
+
+    # Persist a summary of the run so the UI can show 'last run at X'.
+    payload = json.dumps({
+        **result.as_dict(),
+        "ran_at": datetime.utcnow().isoformat(),
+    })
+    row = db.query(Setting).filter(Setting.KEY == LAST_MONTHLY_RUN_KEY).first()
+    if row:
+        row.VALUE = payload
+        row.UPDATED_AT = datetime.utcnow()
+    else:
+        db.add(Setting(
+            KEY=LAST_MONTHLY_RUN_KEY,
+            VALUE=payload,
+            UPDATED_AT=datetime.utcnow(),
+        ))
+    db.commit()
+
+    return result.as_dict()
+
+
+@router.get("/last-monthly-run")
+def last_monthly_run(
+    db: Session = Depends(get_db),
+    _admin: dict = Depends(get_current_admin),
+):
+    row = db.query(Setting).filter(Setting.KEY == LAST_MONTHLY_RUN_KEY).first()
     if not row or not row.VALUE:
         return {"last_run": None}
     try:

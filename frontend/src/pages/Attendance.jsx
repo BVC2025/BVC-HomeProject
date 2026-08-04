@@ -1666,6 +1666,11 @@ function MonthlySummary() {
   const [filter, setFilter] = useState("all");
   // filter: all | warning | appreciation | absent | late
 
+  // AI memo automation trigger state
+  const [aiRunBusy, setAiRunBusy] = useState(false);
+  const [aiRunResult, setAiRunResult] = useState(null);
+  const [aiRunError, setAiRunError] = useState("");
+
   const load = async () => {
     if (!/^\d{4}-\d{2}$/.test(month)) return;
     setLoading(true);
@@ -1678,6 +1683,28 @@ function MonthlySummary() {
       setData(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const runAiMemos = async () => {
+    if (!/^\d{4}-\d{2}$/.test(month)) return;
+    if (!window.confirm(
+      `Generate AI-personalised memos for ${data?.month_label || month}?\n\n`
+      + `Every employee flagged as warning-eligible or appreciation-eligible will `
+      + `receive a written memo AND a notification. Already-issued memos are skipped.`
+    )) return;
+    setAiRunBusy(true);
+    setAiRunError("");
+    setAiRunResult(null);
+    try {
+      const res = await API.post("/memos/automation/run-monthly", { month });
+      setAiRunResult(res.data);
+      // Reload the summary so memo-count columns refresh
+      await load();
+    } catch (e) {
+      setAiRunError(e?.response?.data?.detail || "Memo generation failed");
+    } finally {
+      setAiRunBusy(false);
     }
   };
 
@@ -1752,6 +1779,48 @@ function MonthlySummary() {
           <span style={ms.chipCount}>
             {rows.length} of {data.employees.length}
           </span>
+        </div>
+      )}
+
+      {/* AI Memo Automation panel */}
+      {data && !loading && (
+        <div style={ms.aiPanel}>
+          <div style={{ flex: 1 }}>
+            <div style={ms.aiTitle}>AI Memo Automation</div>
+            <div style={ms.aiDesc}>
+              Generates AI-personalised memos for every employee flagged
+              above. Warnings for {data.totals.will_get_warning} employee(s),
+              appreciations for {data.totals.will_get_appreciation}. Already-
+              issued memos are skipped. Employees also get a bell
+              notification. Manual memo entry is unaffected.
+            </div>
+          </div>
+          <button
+            onClick={runAiMemos}
+            disabled={aiRunBusy}
+            style={{ ...ms.aiBtn, opacity: aiRunBusy ? 0.6 : 1 }}
+          >
+            {aiRunBusy ? "Generating…" : "✨ Generate Monthly Memos"}
+          </button>
+        </div>
+      )}
+
+      {aiRunError && (
+        <div style={ms.error}><b>Error:</b> {aiRunError}</div>
+      )}
+
+      {aiRunResult && (
+        <div style={ms.aiResult}>
+          <b>✓ Run complete for {aiRunResult.month}:</b>
+          {" "}{aiRunResult.warnings_created} warning(s),
+          {" "}{aiRunResult.appreciations_created} appreciation(s),
+          {" "}{aiRunResult.skipped_already_issued} skipped (already issued),
+          {" "}{aiRunResult.errors?.length || 0} error(s).
+          {aiRunResult.errors?.length > 0 && (
+            <ul style={{ margin: "6px 0 0 18px", fontSize: 12 }}>
+              {aiRunResult.errors.slice(0, 5).map((e, i) => (<li key={i}>{e}</li>))}
+            </ul>
+          )}
         </div>
       )}
 
@@ -1882,6 +1951,11 @@ const ms = {
   badgeOk: { display: "inline-block", padding: "3px 10px", borderRadius: 20, background: "#ecfdf5", color: "#065f46", border: "1px solid #a7f3d0", fontSize: 11, fontWeight: 800 },
   badgeMuted: { display: "inline-block", padding: "3px 10px", borderRadius: 20, background: "#f1f5f9", color: "#64748b", border: "1px solid #e2e8f0", fontSize: 11, fontWeight: 800 },
   legend: { marginTop: 12, padding: 12, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12, color: "#475569", lineHeight: 1.6 },
+  aiPanel: { display: "flex", gap: 14, alignItems: "center", padding: 14, background: "linear-gradient(135deg, #fef2f2 0%, #fffbeb 100%)", border: "1px solid #fecaca", borderRadius: 10, marginBottom: 12, flexWrap: "wrap" },
+  aiTitle: { fontSize: 14, fontWeight: 800, color: "#991b1b", marginBottom: 4 },
+  aiDesc: { fontSize: 12.5, color: "#78350f", lineHeight: 1.5 },
+  aiBtn: { padding: "10px 20px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 8, fontWeight: 800, fontSize: 13, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" },
+  aiResult: { marginBottom: 12, padding: 12, background: "#ecfdf5", border: "1px solid #a7f3d0", color: "#065f46", borderRadius: 8, fontSize: 13 },
 };
 
 

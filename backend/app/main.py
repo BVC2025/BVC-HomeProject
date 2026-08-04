@@ -1501,6 +1501,120 @@ def _start_memo_automation_scheduler():
 _start_memo_automation_scheduler()
 
 
+# =====================================================================
+# Monthly memo-automation scheduler
+# ---------------------------------------------------------------------
+# Fires on the 1st of each month at 06:00, evaluates the PREVIOUS month
+# for every ACTIVE employee, and issues AI-personalised WARNING /
+# APPRECIATION memos. Idempotent per (year, month, type, employee)
+# via AUTOMATION_KEY. HR can also trigger runs on demand from the UI —
+# both paths call the same run_monthly_evaluation() function.
+# =====================================================================
+def _start_monthly_memo_scheduler():
+
+    import logging
+    import threading
+    import time as _time
+    from datetime import datetime, timedelta
+    from sqlalchemy.orm import sessionmaker
+
+    log = logging.getLogger("uvicorn")
+
+    RUN_HOUR = 6           # 06:00
+    RUN_DAY_OF_MONTH = 1   # the 1st
+    POLL_SECONDS = 60 * 30
+
+    SessionLocal = sessionmaker(bind=engine)
+
+    def _last_monthly_run_at(db):
+        from app.models.models import Setting
+        row = db.query(Setting).filter(
+            Setting.KEY == "memo_automation.last_monthly_run"
+        ).first()
+        if not row or not row.VALUE:
+            return None
+        try:
+            import json
+            payload = json.loads(row.VALUE)
+            return datetime.fromisoformat(payload.get("ran_at"))
+        except Exception:
+            return None
+
+    def _previous_month(today: datetime) -> tuple[int, int]:
+        """Return (year, month) of the calendar month BEFORE today's."""
+        y, m = today.year, today.month
+        if m == 1:
+            return y - 1, 12
+        return y, m - 1
+
+    def _tick():
+        while True:
+            try:
+                now = datetime.now()
+                if now.day == RUN_DAY_OF_MONTH and now.hour >= RUN_HOUR:
+                    db = SessionLocal()
+                    try:
+                        last = _last_monthly_run_at(db)
+                        # Skip if we already ran within the last 20 days
+                        # (covers manual runs + restarts within the month).
+                        if not last or (now - last) > timedelta(days=20):
+                            year, month = _previous_month(now)
+                            log.info(
+                                "monthly-memo-automation: firing for %04d-%02d at %s",
+                                year, month, now.isoformat(timespec="seconds"),
+                            )
+                            from app.services.monthly_memo_automation import (
+                                run_monthly_evaluation,
+                            )
+                            result = run_monthly_evaluation(db, year, month)
+
+                            # Persist last-run marker
+                            import json
+                            from app.models.models import Setting
+                            payload = json.dumps({
+                                **result.as_dict(),
+                                "ran_at": now.isoformat(),
+                            })
+                            row = db.query(Setting).filter(
+                                Setting.KEY == "memo_automation.last_monthly_run"
+                            ).first()
+                            if row:
+                                row.VALUE = payload
+                                row.UPDATED_AT = now
+                            else:
+                                db.add(Setting(
+                                    KEY="memo_automation.last_monthly_run",
+                                    VALUE=payload,
+                                    UPDATED_AT=now,
+                                ))
+                            db.commit()
+
+                            log.info(
+                                "monthly-memo-automation: %d warnings, %d appreciations "
+                                "(skipped %d already-issued, %d errors)",
+                                result.warnings_created,
+                                result.appreciations_created,
+                                result.skipped_already_issued,
+                                len(result.errors),
+                            )
+                    finally:
+                        db.close()
+            except Exception as exc:
+                log.warning("monthly-memo-automation tick failed: %s", exc)
+            _time.sleep(POLL_SECONDS)
+
+    t = threading.Thread(
+        target=_tick,
+        name="monthly-memo-automation-scheduler",
+        daemon=True,
+    )
+    t.start()
+    log.info("monthly-memo-automation scheduler started (1st of month, 06:00)")
+
+
+_start_monthly_memo_scheduler()
+
+
 app.include_router(auth_router, tags=["Auth"])
 app.include_router(organization_router, tags=["Organization"])
 app.include_router(employee.router, tags=["Employees (IAM)"])
