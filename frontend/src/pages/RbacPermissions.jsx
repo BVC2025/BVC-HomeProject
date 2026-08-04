@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import API from "../services/api";
 import styles from "./RbacPermissions.module.css";
 
@@ -13,10 +13,34 @@ import styles from "./RbacPermissions.module.css";
 // UX:
 //   - Left column: list of roles with member + permission count
 //   - Right column: when a role is selected, the full permission
-//     catalogue grouped by category, each with a checkbox showing
-//     whether the role currently has it.
+//     catalogue grouped by category, each with a tri-state checkbox
+//     (checked/unchecked/indeterminate) toggling every permission in
+//     that category, plus a global "Select All Permissions" checkbox
+//     covering every category at once.
 //   - Click checkboxes, then "Save changes" to PATCH the role's grants.
 // =====================================================================
+
+
+// Native <input type="checkbox"> has no JSX prop for the indeterminate
+// (tri-state) visual — it has to be set imperatively via a ref. This is
+// the standard React pattern for it.
+function TriCheckbox({ checked, indeterminate, onChange, className }) {
+  const ref = useRef(null);
+
+  useLayoutEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      className={className}
+    />
+  );
+}
 
 
 export default function RbacPermissions() {
@@ -101,6 +125,16 @@ export default function RbacPermissions() {
     [grantedSet, originalSet]
   );
   const isDirty = dirtyAdds.length > 0 || dirtyRemoves.length > 0;
+
+  // Deliberately over ALL of groupedPerms, not filteredGroups — "Select
+  // All Permissions" should always mean every permission everywhere,
+  // regardless of the current search filter.
+  const allCodes = useMemo(
+    () => groupedPerms.flatMap((g) => g.permissions.map((p) => p.CODE)),
+    [groupedPerms]
+  );
+  const allOnGlobal = allCodes.length > 0 && allCodes.every((c) => grantedSet.has(c));
+  const someOnGlobal = allCodes.some((c) => grantedSet.has(c));
 
   const filteredGroups = useMemo(() => {
     const s = search.trim().toLowerCase();
@@ -265,6 +299,18 @@ export default function RbacPermissions() {
             </div>
           </div>
 
+          {selectedRoleId && allCodes.length > 0 && (
+            <label className={styles.selectAllRow}>
+              <TriCheckbox
+                checked={allOnGlobal}
+                indeterminate={someOnGlobal && !allOnGlobal}
+                onChange={() => bulkSet(allCodes, !allOnGlobal)}
+                className={styles.permCheckbox}
+              />
+              Select All Permissions
+            </label>
+          )}
+
           <input
             type="text"
             placeholder="Filter permissions by code, name or description…"
@@ -279,16 +325,19 @@ export default function RbacPermissions() {
             filteredGroups.map((g) => {
               const codes = g.permissions.map((p) => p.CODE);
               const allOn = codes.every((c) => grantedSet.has(c));
+              const someOn = codes.some((c) => grantedSet.has(c));
               return (
                 <div key={g.category} className={styles.permGroup}>
                   <div className={styles.permGroupHeader}>
-                    <span className={styles.permGroupLabel}>{g.category}</span>
-                    <button
-                      onClick={() => bulkSet(codes, !allOn)}
-                      className={styles.miniBtn}
-                    >
-                      {allOn ? "Revoke all in group" : "Grant all in group"}
-                    </button>
+                    <label className={styles.permGroupLabel}>
+                      <TriCheckbox
+                        checked={allOn}
+                        indeterminate={someOn && !allOn}
+                        onChange={() => bulkSet(codes, !allOn)}
+                        className={styles.permCheckbox}
+                      />
+                      {g.category}
+                    </label>
                   </div>
 
                   <div className={styles.permGrid}>

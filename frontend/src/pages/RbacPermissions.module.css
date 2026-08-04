@@ -151,6 +151,21 @@
   gap: 8px;
 }
 
+/* ─── Select-all-permissions row ────────────────────────────────── */
+
+.selectAllRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  cursor: pointer;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--border);
+}
+
 /* ─── Search input ───────────────────────────────────────────── */
 
 .searchInput {
@@ -187,22 +202,14 @@
 }
 
 .permGroupLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: var(--font-xs);
   font-weight: var(--fw-black);
   text-transform: uppercase;
   letter-spacing: 1.2px;
   color: var(--danger-dark);
-}
-
-.miniBtn {
-  padding: 4px 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--card-bg);
-  color: var(--text-primary);
-  font-size: var(--font-xs);
-  font-weight: var(--fw-bold);
-  font-family: var(--font);
   cursor: pointer;
 }
 
