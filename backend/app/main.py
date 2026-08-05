@@ -416,6 +416,7 @@ def _auto_migrate():
         # Per-slip payment tracking — lets the UI mark each employee
         # Paid independently instead of finalising a whole run.
         ("payroll_slip", "STATUS",                "VARCHAR(20) NULL DEFAULT 'PENDING'"),
+        ("payroll_slip", "SUBMITTED_AT",          "DATETIME NULL"),
         ("payroll_slip", "PAID_AT",               "DATETIME NULL"),
         # Permission hours used by the employee in this pay period
         # (LeaveRequest rows where TYPE='PERMISSION', summed).

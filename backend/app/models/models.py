@@ -2458,10 +2458,14 @@ class PayrollSlip(Base):
 
     NOTES = Column(String(500), nullable=True)
 
-    # Per-slip payment workflow (simpler than run-level statuses).
-    # 'PENDING' on generation; flips to 'PAID' when the admin clicks
-    # Mark Paid against this employee's row.
+    # Per-slip payment workflow. Transitions:
+    #   PENDING   → default on generation (draft, HR still editing)
+    #   SUBMITTED → HR clicked "Submit" on PayslipGenerator; the slip
+    #               is now visible in Payroll Records and locked from
+    #               further edits by the employee-facing side.
+    #   PAID      → admin clicked "Mark Paid" against this row.
     STATUS = Column(String(20), default="PENDING")
+    SUBMITTED_AT = Column(DateTime, nullable=True)
     PAID_AT = Column(DateTime, nullable=True)
 
     # Sum of LeaveRequest.DURATION_HOURS for TYPE='PERMISSION' rows

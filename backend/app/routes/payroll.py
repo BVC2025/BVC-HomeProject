@@ -158,6 +158,7 @@ def _serialize_slip(slip: PayrollSlip, employee: Optional[Employee] = None) -> d
         "NET_PAY": slip.NET_PAY,
         "NOTES": slip.NOTES,
         "STATUS": slip.STATUS or "PENDING",
+        "SUBMITTED_AT": slip.SUBMITTED_AT.isoformat() if slip.SUBMITTED_AT else None,
         "PAID_AT": slip.PAID_AT.isoformat() if slip.PAID_AT else None,
         "PERMISSION_HOURS": slip.PERMISSION_HOURS or 0.0,
         "PERFORMANCE_STARS": slip.PERFORMANCE_STARS or 0.0,
@@ -748,6 +749,47 @@ def mark_slip_paid(slip_id: int, db: Session = Depends(get_db)):
     return {
         "message": "Slip marked PAID.",
         "slip": _serialize_slip(slip, employee)
+    }
+
+
+@router.patch("/slips/{slip_id}/submit")
+def submit_slip(slip_id: int, db: Session = Depends(get_db)):
+    """Publish a draft slip to Payroll Records.
+
+    Flow:
+      PENDING (draft, HR editing) → SUBMITTED (visible to employee /
+      admin as an official record) → PAID (via /mark-paid).
+
+    Idempotent: submitting an already-SUBMITTED slip returns the
+    existing SUBMITTED_AT so the UI's 'Already submitted' state
+    stays consistent. Submitting a slip that's already PAID leaves
+    its status untouched but still returns the SUBMITTED_AT stamp.
+    """
+
+    slip = db.query(PayrollSlip).filter(PayrollSlip.ID == slip_id).first()
+
+    if not slip:
+        raise HTTPException(status_code=404, detail="Payroll slip not found")
+
+    now = datetime.utcnow()
+
+    # First submission — stamp SUBMITTED_AT and flip status (unless
+    # the slip is already PAID, in which case keep PAID as the
+    # authoritative state but still record when it was submitted).
+    if not slip.SUBMITTED_AT:
+        slip.SUBMITTED_AT = now
+        if slip.STATUS not in ("PAID",):
+            slip.STATUS = "SUBMITTED"
+        db.commit()
+
+    employee = db.query(Employee).filter(
+        Employee.ID == slip.EMPLOYEE_ID
+    ).first()
+
+    return {
+        "message": "Slip submitted to Payroll Records.",
+        "submitted_at": slip.SUBMITTED_AT.isoformat() if slip.SUBMITTED_AT else None,
+        "slip": _serialize_slip(slip, employee),
     }
 
 
