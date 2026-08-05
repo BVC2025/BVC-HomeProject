@@ -9,11 +9,13 @@ import { inventoryItemService } from "../services/inventoryItemService";
 import { useToast } from "../hooks/useToast";
 import { useCustomFields, useTableCfValues } from "../hooks/useCustomFields";
 import { exportToExcel, downloadTemplate as dlTemplate } from "../utils/exportExcel";
+import { formatDateTime } from "../utils/formatDateTime";
 import InventoryIcon from "../assets/Icons/inventoryIcon.webp";
 import EditIcon from "../assets/Icons/editIcon.webp";
 import DeleteIcon from "../assets/Icons/deleteIcon.webp";
 import UploadIcon from "../assets/Icons/uploadIcon.webp";
 import styles from "./InventoryItemsPage.module.css";
+import { validateForm, clearFieldError, ITEM_RULES, BATCH_RULES, BATCH_EDIT_RULES } from "../utils/formValidation";
 
 const MOVEMENT_TYPES = [
   { value: "STOCK_IN", label: "Stock In" },
@@ -93,6 +95,7 @@ export default function InventoryItemsPage() {
   const [modal, setModal] = useState(null); // null | "add" | "edit"
   const [selectedItem, setSelectedItem] = useState(null);
   const [itemForm, setItemForm] = useState(ITEM_EMPTY_FORM);
+  const [itemErrors, setItemErrors] = useState({});
   const [itemSaving, setItemSaving] = useState(false);
   const [cfOpen, setCfOpen] = useState(false);
   const [bulkModal, setBulkModal] = useState(false);
@@ -101,6 +104,8 @@ export default function InventoryItemsPage() {
   const [uploadResult, setUploadResult] = useState(null);
   const fileRef = useRef();
   const [confirmModal, setConfirmModal] = useState(null);
+  const [itemFilterFrom, setItemFilterFrom] = useState("");
+  const [itemFilterTo, setItemFilterTo] = useState("");
 
   // Stock operation
   const [stockModal, setStockModal] = useState(null); // { type, item }
@@ -122,6 +127,7 @@ export default function InventoryItemsPage() {
   const [batchModal, setBatchModal] = useState(null); // null | "add" | "edit"
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [batchForm, setBatchForm] = useState(BATCH_EMPTY_FORM);
+  const [batchErrors, setBatchErrors] = useState({});
   const [batchSaving, setBatchSaving] = useState(false);
 
   const toast = useToast();
@@ -140,8 +146,9 @@ export default function InventoryItemsPage() {
   const loadItems = useCallback(async (silent = false) => {
     if (!silent) setItemsLoading(true); else setItemsRefreshing(true);
     try {
-      const res = await inventoryItemService.getAll();
-      setItems(res.data || []);
+      const res = await inventoryItemService.getAll({ page_size: 5000 });
+      const d = res.data;
+      setItems(Array.isArray(d) ? d : (d?.items || []));
     } catch {
       toast.showError("Failed to load inventory items");
     } finally {
@@ -153,8 +160,9 @@ export default function InventoryItemsPage() {
   const loadMovements = useCallback(async () => {
     setMovLoading(true);
     try {
-      const res = await inventoryItemService.getMovements();
-      setMovements(res.data || []);
+      const res = await inventoryItemService.getMovements({ page_size: 5000 });
+      const d = res.data;
+      setMovements(Array.isArray(d) ? d : (d?.items || []));
     } catch {
       toast.showError("Failed to load movements");
     } finally {
@@ -167,8 +175,9 @@ export default function InventoryItemsPage() {
     try {
       const res = showExpiringSoon
         ? await inventoryItemService.getExpiringBatches(30)
-        : await inventoryItemService.getBatches();
-      setBatches(res.data || []);
+        : await inventoryItemService.getBatches({ page_size: 5000 });
+      const d = res.data;
+      setBatches(Array.isArray(d) ? d : (d?.items || []));
     } catch {
       toast.showError("Failed to load batches");
     } finally {
@@ -220,8 +229,19 @@ export default function InventoryItemsPage() {
           (i.LOCATION || "").toLowerCase().includes(t)
       );
     }
+    if (itemFilterFrom || itemFilterTo) {
+      const from = itemFilterFrom ? new Date(itemFilterFrom) : null;
+      const to = itemFilterTo ? new Date(itemFilterTo) : null;
+      list = list.filter((i) => {
+        if (!i.CREATED_AT) return false;
+        const d = new Date(i.CREATED_AT);
+        if (from && d < from) return false;
+        if (to && d > to) return false;
+        return true;
+      });
+    }
     return list;
-  }, [items, itemSearch, filterStatus]);
+  }, [items, itemSearch, filterStatus, itemFilterFrom, itemFilterTo]);
 
   const itemsPaginated = useMemo(
     () => itemPageSize === 0 ? filteredItems : filteredItems.slice((itemPage - 1) * itemPageSize, itemPage * itemPageSize),
@@ -285,10 +305,27 @@ export default function InventoryItemsPage() {
   const closeModal = useCallback(() => {
     setModal(null);
     setSelectedItem(null);
+    setItemErrors({});
+  }, []);
+
+  const handleItemFormChange = useCallback((field, val) => {
+    setItemForm((prev) => ({ ...prev, [field]: val }));
+    clearFieldError(setItemErrors, field);
+  }, []);
+
+  const handleBatchFormChange = useCallback((field, val) => {
+    setBatchForm((prev) => ({ ...prev, [field]: val }));
+    clearFieldError(setBatchErrors, field);
   }, []);
 
   const handleSaveItem = useCallback(async () => {
-    if (!itemForm.PRODUCT_ID) { toast.showWarning("Product is required"); return; }
+    const { isValid: itemValid, errors: itemValidErrors } = validateForm(ITEM_RULES, itemForm);
+    if (!itemValid) {
+      const errCopy = { ...itemValidErrors };
+      if (errCopy._STOCK_LEVELS) { delete errCopy._STOCK_LEVELS; errCopy._stockCrossField = itemValidErrors._STOCK_LEVELS; }
+      setItemErrors(errCopy);
+      return;
+    }
     const cfError = validateCf();
     if (cfError) { toast.showWarning(cfError); return; }
     setItemSaving(true);
@@ -428,10 +465,9 @@ export default function InventoryItemsPage() {
 
   // ── Batches ────────────────────────────────────────────────────────────
   const handleSaveBatch = useCallback(async () => {
-    if (!batchForm.INVENTORY_ITEM_ID || !batchForm.BATCH_NUMBER) {
-      toast.showWarning("Item and batch number are required");
-      return;
-    }
+    const batchRules = batchModal === "add" ? BATCH_RULES : BATCH_EDIT_RULES;
+    const { isValid: batchValid, errors: batchValidErrors } = validateForm(batchRules, batchForm);
+    if (!batchValid) { setBatchErrors(batchValidErrors); return; }
     setBatchSaving(true);
     try {
       if (batchModal === "add") {
@@ -527,15 +563,24 @@ export default function InventoryItemsPage() {
               onChange={(v) => { setItemSearch(v); setItemPage(1); }}
               placeholder="Search by product name, code, location…"
             />
-            <PMSelect
-              value={filterStatus}
-              onChange={(v) => { setFilterStatus(v); setItemPage(1); }}
-              options={STATUS_OPTIONS}
-              placeholder="All Statuses"
-            />
+            <div className={styles.filterSelect}>
+              <PMSelect
+                value={filterStatus}
+                onChange={(v) => { setFilterStatus(v); setItemPage(1); }}
+                options={STATUS_OPTIONS}
+                placeholder="All Statuses"
+              />
+            </div>
             {filterStatus && (
               <button className={styles.clearFilter} onClick={() => setFilterStatus("")}>✕ Clear</button>
             )}
+            <div className={styles.dateFilters}>
+              <label className={styles.dateLabel}>From</label>
+              <input type="datetime-local" className={styles.dateInput} value={itemFilterFrom} onChange={(e) => { setItemFilterFrom(e.target.value); setItemPage(1); }} />
+              <label className={styles.dateLabel}>To</label>
+              <input type="datetime-local" className={styles.dateInput} value={itemFilterTo} onChange={(e) => { setItemFilterTo(e.target.value); setItemPage(1); }} />
+              {(itemFilterFrom || itemFilterTo) && <button className={styles.clearFilter} onClick={() => { setItemFilterFrom(""); setItemFilterTo(""); }}>✕</button>}
+            </div>
             <span className={styles.count}>{filteredItems.length} item{filteredItems.length !== 1 ? "s" : ""}</span>
           </div>
 
@@ -551,16 +596,17 @@ export default function InventoryItemsPage() {
                   <th>Unit Cost</th>
                   <th>Reorder Lvl</th>
                   <th>Status</th>
+                  <th>Created Date</th>
                   {cfFields.map((f) => <th key={f.ID}>{f.FIELD_NAME}</th>)}
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {itemsLoading ? (
-                  <tr><td colSpan={9 + cfFields.length}><Loader /></td></tr>
+                  <tr><td colSpan={10 + cfFields.length}><Loader /></td></tr>
                 ) : itemsPaginated.length === 0 ? (
                   <tr>
-                    <td colSpan={9 + cfFields.length}>
+                    <td colSpan={10 + cfFields.length}>
                       <EmptyState
                         icon={InventoryIcon}
                         iconAlt="Inventory"
@@ -590,6 +636,7 @@ export default function InventoryItemsPage() {
                             {status.replace("_", " ")}
                           </span>
                         </td>
+                        <td>{formatDateTime(item.CREATED_AT)}</td>
                         {cfFields.map((f) => {
                           const val = cfValuesMap[String(item.ID)]?.[f.ID];
                           return (
@@ -638,12 +685,14 @@ export default function InventoryItemsPage() {
               onChange={(v) => { setMovSearch(v); setMovPage(1); }}
               placeholder="Search by product or reference…"
             />
-            <PMSelect
-              value={movTypeFilter}
-              onChange={(v) => { setMovTypeFilter(v); setMovPage(1); }}
-              options={[{ value: "", label: "All Types" }, ...MOVEMENT_TYPES]}
-              placeholder="All Types"
-            />
+            <div className={styles.filterSelect}>
+              <PMSelect
+                value={movTypeFilter}
+                onChange={(v) => { setMovTypeFilter(v); setMovPage(1); }}
+                options={[{ value: "", label: "All Types" }, ...MOVEMENT_TYPES]}
+                placeholder="All Types"
+              />
+            </div>
             <span className={styles.count}>{filteredMovements.length} movement{filteredMovements.length !== 1 ? "s" : ""}</span>
           </div>
 
@@ -807,27 +856,34 @@ export default function InventoryItemsPage() {
         <div className={styles.formGrid}>
           <div className={`${styles.formGroup} ${styles.fullWidth}`}>
             <label>Product ID <span className={styles.req}>*</span></label>
-            <input className={styles.input} value={itemForm.PRODUCT_ID} onChange={(e) => setItemForm((p) => ({ ...p, PRODUCT_ID: e.target.value }))} placeholder="Product ID (UUID)" />
+            <input className={`${styles.input}${itemErrors.PRODUCT_ID ? " " + styles.inputError : ""}`} value={itemForm.PRODUCT_ID} onChange={(e) => handleItemFormChange("PRODUCT_ID", e.target.value)} placeholder="Product ID (UUID)" />
+            {itemErrors.PRODUCT_ID && <span className={styles.fieldError}>{itemErrors.PRODUCT_ID}</span>}
           </div>
           <div className={`${styles.formGroup} ${styles.fullWidth}`}>
             <label>Location</label>
-            <input className={styles.input} value={itemForm.LOCATION} onChange={(e) => setItemForm((p) => ({ ...p, LOCATION: e.target.value }))} placeholder="e.g. Warehouse A, Shelf 3B" />
+            <input className={`${styles.input}${itemErrors.LOCATION ? " " + styles.inputError : ""}`} value={itemForm.LOCATION} onChange={(e) => handleItemFormChange("LOCATION", e.target.value)} placeholder="e.g. Warehouse A, Shelf 3B" />
+            {itemErrors.LOCATION && <span className={styles.fieldError}>{itemErrors.LOCATION}</span>}
           </div>
           <div className={styles.formGroup}>
             <label>Reorder Level</label>
-            <input className={styles.input} type="number" min={0} value={itemForm.REORDER_LEVEL} onChange={(e) => setItemForm((p) => ({ ...p, REORDER_LEVEL: parseFloat(e.target.value) || 0 }))} />
+            <input className={`${styles.input}${itemErrors.REORDER_LEVEL ? " " + styles.inputError : ""}`} type="number" min={0} value={itemForm.REORDER_LEVEL} onChange={(e) => handleItemFormChange("REORDER_LEVEL", parseFloat(e.target.value) || 0)} />
+            {itemErrors.REORDER_LEVEL && <span className={styles.fieldError}>{itemErrors.REORDER_LEVEL}</span>}
           </div>
           <div className={styles.formGroup}>
             <label>Reorder Qty</label>
-            <input className={styles.input} type="number" min={0} value={itemForm.REORDER_QTY} onChange={(e) => setItemForm((p) => ({ ...p, REORDER_QTY: parseFloat(e.target.value) || 0 }))} />
+            <input className={`${styles.input}${itemErrors.REORDER_QTY ? " " + styles.inputError : ""}`} type="number" min={0} value={itemForm.REORDER_QTY} onChange={(e) => handleItemFormChange("REORDER_QTY", parseFloat(e.target.value) || 0)} />
+            {itemErrors.REORDER_QTY && <span className={styles.fieldError}>{itemErrors.REORDER_QTY}</span>}
           </div>
           <div className={styles.formGroup}>
             <label>Safety Stock</label>
-            <input className={styles.input} type="number" min={0} value={itemForm.SAFETY_STOCK} onChange={(e) => setItemForm((p) => ({ ...p, SAFETY_STOCK: parseFloat(e.target.value) || 0 }))} />
+            <input className={`${styles.input}${itemErrors.SAFETY_STOCK ? " " + styles.inputError : ""}`} type="number" min={0} value={itemForm.SAFETY_STOCK} onChange={(e) => handleItemFormChange("SAFETY_STOCK", parseFloat(e.target.value) || 0)} />
+            {itemErrors.SAFETY_STOCK && <span className={styles.fieldError}>{itemErrors.SAFETY_STOCK}</span>}
           </div>
           <div className={styles.formGroup}>
             <label>Max Stock</label>
-            <input className={styles.input} type="number" min={0} value={itemForm.MAX_STOCK} onChange={(e) => setItemForm((p) => ({ ...p, MAX_STOCK: parseFloat(e.target.value) || 0 }))} />
+            <input className={`${styles.input}${itemErrors.MAX_STOCK ? " " + styles.inputError : ""}`} type="number" min={0} value={itemForm.MAX_STOCK} onChange={(e) => handleItemFormChange("MAX_STOCK", parseFloat(e.target.value) || 0)} />
+            {itemErrors.MAX_STOCK && <span className={styles.fieldError}>{itemErrors.MAX_STOCK}</span>}
+            {itemErrors._stockCrossField && <span className={styles.fieldError}>{itemErrors._stockCrossField}</span>}
           </div>
           <div className={styles.formGroup}>
             <label>Batch Tracking</label>
@@ -901,12 +957,12 @@ export default function InventoryItemsPage() {
       {/* ── Add/Edit Batch Modal ── */}
       <PMModal
         open={!!batchModal}
-        onClose={() => setBatchModal(null)}
+        onClose={() => { setBatchModal(null); setBatchErrors({}); }}
         title={batchModal === "add" ? "Add Batch" : "Edit Batch"}
         size="sm"
         footer={
           <>
-            <PMButton variant="outline" onClick={() => setBatchModal(null)}>Cancel</PMButton>
+            <PMButton variant="outline" onClick={() => { setBatchModal(null); setBatchErrors({}); }}>Cancel</PMButton>
             <PMButton variant="primary" onClick={handleSaveBatch} disabled={batchSaving}>
               {batchSaving ? "Saving…" : batchModal === "add" ? "Create Batch" : "Save"}
             </PMButton>
@@ -917,12 +973,14 @@ export default function InventoryItemsPage() {
           {batchModal === "add" && (
             <div className={`${styles.formGroup} ${styles.fullWidth}`}>
               <label>Inventory Item ID <span className={styles.req}>*</span></label>
-              <input className={styles.input} value={batchForm.INVENTORY_ITEM_ID} onChange={(e) => setBatchForm((p) => ({ ...p, INVENTORY_ITEM_ID: e.target.value }))} placeholder="Item ID" />
+              <input className={`${styles.input}${batchErrors.INVENTORY_ITEM_ID ? " " + styles.inputError : ""}`} value={batchForm.INVENTORY_ITEM_ID} onChange={(e) => handleBatchFormChange("INVENTORY_ITEM_ID", e.target.value)} placeholder="Item ID" />
+              {batchErrors.INVENTORY_ITEM_ID && <span className={styles.fieldError}>{batchErrors.INVENTORY_ITEM_ID}</span>}
             </div>
           )}
           <div className={styles.formGroup}>
             <label>Batch Number <span className={styles.req}>*</span></label>
-            <input className={styles.input} value={batchForm.BATCH_NUMBER} onChange={(e) => setBatchForm((p) => ({ ...p, BATCH_NUMBER: e.target.value }))} placeholder="BATCH-001" />
+            <input className={`${styles.input}${batchErrors.BATCH_NUMBER ? " " + styles.inputError : ""}`} value={batchForm.BATCH_NUMBER} onChange={(e) => handleBatchFormChange("BATCH_NUMBER", e.target.value)} placeholder="BATCH-001" />
+            {batchErrors.BATCH_NUMBER && <span className={styles.fieldError}>{batchErrors.BATCH_NUMBER}</span>}
           </div>
           <div className={styles.formGroup}>
             <label>Lot Number</label>
@@ -930,19 +988,23 @@ export default function InventoryItemsPage() {
           </div>
           <div className={styles.formGroup}>
             <label>MFG Date</label>
-            <input className={styles.input} type="date" value={batchForm.MFG_DATE} onChange={(e) => setBatchForm((p) => ({ ...p, MFG_DATE: e.target.value }))} />
+            <input className={`${styles.input}${batchErrors.MFG_DATE ? " " + styles.inputError : ""}`} type="date" value={batchForm.MFG_DATE} onChange={(e) => handleBatchFormChange("MFG_DATE", e.target.value)} />
+            {batchErrors.MFG_DATE && <span className={styles.fieldError}>{batchErrors.MFG_DATE}</span>}
           </div>
           <div className={styles.formGroup}>
             <label>Expiry Date</label>
-            <input className={styles.input} type="date" value={batchForm.EXPIRY_DATE} onChange={(e) => setBatchForm((p) => ({ ...p, EXPIRY_DATE: e.target.value }))} />
+            <input className={`${styles.input}${batchErrors.EXPIRY_DATE ? " " + styles.inputError : ""}`} type="date" value={batchForm.EXPIRY_DATE} onChange={(e) => handleBatchFormChange("EXPIRY_DATE", e.target.value)} />
+            {batchErrors.EXPIRY_DATE && <span className={styles.fieldError}>{batchErrors.EXPIRY_DATE}</span>}
           </div>
           <div className={styles.formGroup}>
             <label>Qty Received</label>
-            <input className={styles.input} type="number" min={0} value={batchForm.QTY_RECEIVED} onChange={(e) => setBatchForm((p) => ({ ...p, QTY_RECEIVED: parseFloat(e.target.value) || 0 }))} />
+            <input className={`${styles.input}${batchErrors.QTY_RECEIVED ? " " + styles.inputError : ""}`} type="number" min={0} value={batchForm.QTY_RECEIVED} onChange={(e) => handleBatchFormChange("QTY_RECEIVED", parseFloat(e.target.value) || 0)} />
+            {batchErrors.QTY_RECEIVED && <span className={styles.fieldError}>{batchErrors.QTY_RECEIVED}</span>}
           </div>
           <div className={styles.formGroup}>
             <label>Unit Cost (₹)</label>
-            <input className={styles.input} type="number" min={0} step={0.01} value={batchForm.UNIT_COST} onChange={(e) => setBatchForm((p) => ({ ...p, UNIT_COST: parseFloat(e.target.value) || 0 }))} />
+            <input className={`${styles.input}${batchErrors.UNIT_COST ? " " + styles.inputError : ""}`} type="number" min={0} step={0.01} value={batchForm.UNIT_COST} onChange={(e) => handleBatchFormChange("UNIT_COST", parseFloat(e.target.value) || 0)} />
+            {batchErrors.UNIT_COST && <span className={styles.fieldError}>{batchErrors.UNIT_COST}</span>}
           </div>
         </div>
       </PMModal>
