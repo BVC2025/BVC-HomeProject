@@ -63,11 +63,21 @@ router = APIRouter(prefix="/iclock", tags=["ADMS Biometric"])
 # attendance.py / biometric.py so all three code paths agree.
 WORK_START = time(9, 15)
 
-# If the device sends any status code we don't understand, we auto-
-# decide based on today's Attendance row:
-#   no CHECK_IN yet  →  treat as check-in
-#   CHECK_IN present →  treat as check-out (updates each subsequent scan)
-AUTO_DECIDE_ON_UNKNOWN_STATUS = True
+# Regular shift ends at 6:00 PM. Work past this time is overtime and
+# gets moved to OVERTIME_HOURS / OT_CHECK_IN / OT_CHECK_OUT.
+OFFICE_END = time(18, 0)
+
+# Punches strictly before this time-of-day are treated as morning
+# arrivals (CHECK_IN candidates). Punches at or after are treated as
+# departures (CHECK_OUT). Prevents an accidental verify-scan at
+# 09:41 from being recorded as CHECK_OUT the same day the employee
+# arrived at 09:20 — the bug the user reported.
+MORNING_CUTOFF = time(13, 0)      # 1:00 PM
+
+# Ignore biometric scans that arrive within this many seconds of the
+# most recent edge for the same employee. Protects against ESSL's
+# common "verify + real punch" double-tap that arrives 5–20s apart.
+DEDUP_WINDOW_SECONDS = 60
 
 
 # ---------------------------------------------------------------------
@@ -382,78 +392,127 @@ def _apply_to_attendance(
         # uq_attendance_employee_date.
         db.flush()
 
-    # Decide what this punch means.
-    action = _decide_action(row, status_code)
+    # Decide what this punch means, based on time-of-day (not device
+    # status). ESSL devices commonly send status=0 for every punch,
+    # so trusting the code caused accidental double-scans in the
+    # morning to be recorded as CHECK_OUT. See MORNING_CUTOFF for
+    # the rule.
+    action = _decide_action(row, event_time)
+
+    if action is None:
+        # Duplicate / debounced — this punch is ignored, keep the
+        # existing edges intact.
+        row.DEVICE_INFO = "ESSL_ADMS"
+        return
 
     if action == "CHECK_IN":
 
         row.CHECK_IN = event_time
-
         row.STATUS = "LATE" if event_time.time() > WORK_START else "PRESENT"
 
     elif action == "CHECK_OUT":
 
         row.CHECK_OUT = event_time
 
-        # Recompute worked hours if we have both edges.
-        if row.CHECK_IN and row.CHECK_OUT and row.CHECK_OUT > row.CHECK_IN:
-            row.WORKED_HOURS = round(
-                (row.CHECK_OUT - row.CHECK_IN).total_seconds() / 3600.0, 2
-            )
-
-    elif action == "OT_IN":
-
-        row.OT_CHECK_IN = event_time
-
-    elif action == "OT_OUT":
-
-        row.OT_CHECK_OUT = event_time
-
-        if row.OT_CHECK_IN and row.OT_CHECK_OUT and row.OT_CHECK_OUT > row.OT_CHECK_IN:
-            row.OVERTIME_HOURS = round(
-                (row.OT_CHECK_OUT - row.OT_CHECK_IN).total_seconds() / 3600.0, 2
-            )
+        # Split into regular hours + OT if the employee stayed past
+        # 6:00 PM. This is the whole point of the OT feature the user
+        # requested — WORKED_HOURS stores the "up to 6 PM" portion,
+        # OVERTIME_HOURS the "past 6 PM" portion, and OT_CHECK_IN /
+        # OT_CHECK_OUT capture the OT session edges (6 PM → actual
+        # punch-out) for payroll audit.
+        _recompute_hours_with_ot(row, event_time)
 
     row.DEVICE_INFO = "ESSL_ADMS"
 
 
-def _decide_action(row: Attendance, status_code: str) -> str:
+def _decide_action(row: Attendance, event_time: datetime) -> Optional[str]:
     """
-    Return one of CHECK_IN / CHECK_OUT / OT_IN / OT_OUT.
+    Return 'CHECK_IN' / 'CHECK_OUT' / None (ignore).
 
-    Devices differ: some send accurate status codes (0/1/4/5), others
-    always send status=0 for every punch. Prefer the device code when
-    it's a known value; otherwise auto-decide from row state so a
-    'dumb' device still produces a correct check-in → check-out row.
+    Time-of-day rules (independent of device status code):
+      • Punch before MORNING_CUTOFF (13:00)
+          → CHECK_IN if none recorded yet.
+          → Ignore if CHECK_IN already set within DEDUP_WINDOW_SECONDS
+            (accidental verify + real punch).
+          → Otherwise still ignore — a second morning punch after the
+            debounce window is treated as duplicate, NOT as check-out.
+            (This is what fixes the "09:25 → 09:41 EARLY_EXIT" bug.)
+      • Punch at or after MORNING_CUTOFF
+          → CHECK_OUT (latest wins; a later punch overrides an earlier
+            check-out on the same day, so a 6:15 PM punch replaces a
+            2:00 PM lunch-time punch).
+          → Ignored if it arrives within DEDUP_WINDOW_SECONDS of the
+            currently-recorded CHECK_OUT.
     """
-    if status_code == "0":
-        # Explicit check-in from device. But if today's CHECK_IN is
-        # already set, treat the SAME code as check-out — this is
-        # the 'dumb device' fallback where status is always 0.
+
+    is_morning = event_time.time() < MORNING_CUTOFF
+
+    if is_morning:
+
         if row.CHECK_IN is None:
             return "CHECK_IN"
-        return "CHECK_OUT"
 
-    if status_code == "1":
-        return "CHECK_OUT"
+        # Second morning punch — treat as duplicate scan, not exit.
+        # (The user's bug: double-punch in the morning was recorded
+        # as CHECK_OUT and marked EARLY_EXIT.)
+        return None
 
-    if status_code == "4":
-        return "OT_IN"
+    # Afternoon / evening punch — this is the departure.
+    if row.CHECK_OUT is not None:
+        delta = abs((event_time - row.CHECK_OUT).total_seconds())
+        if delta < DEDUP_WINDOW_SECONDS:
+            return None
+        # Otherwise the LATEST evening punch wins — someone who
+        # punched at 2 PM (lunch outing) and again at 6:30 PM should
+        # have CHECK_OUT = 6:30 PM.
 
-    if status_code == "5":
-        return "OT_OUT"
+    return "CHECK_OUT"
 
-    if not AUTO_DECIDE_ON_UNKNOWN_STATUS:
-        return "CHECK_OUT"
 
-    # Unknown status — infer from row state.
-    if row.CHECK_IN is None:
-        return "CHECK_IN"
-    if row.CHECK_OUT is None:
-        return "CHECK_OUT"
-    if row.OT_CHECK_IN is None:
-        return "OT_IN"
-    return "OT_OUT"
+def _recompute_hours_with_ot(row: Attendance, punch_out: datetime) -> None:
+    """
+    Fill WORKED_HOURS (regular) and OVERTIME_HOURS (past 6 PM) on the
+    Attendance row from the current CHECK_IN → punch_out range.
+
+    Payroll consumes both fields:
+      WORKED_HOURS   → base salary calculation
+      OVERTIME_HOURS → OT payout at the OT rate
+      OT_CHECK_IN    → 6:00 PM anchor of the OT session
+      OT_CHECK_OUT   → actual punch-out
+    """
+    if not row.CHECK_IN or not punch_out or punch_out <= row.CHECK_IN:
+        return
+
+    office_end_dt = datetime.combine(punch_out.date(), OFFICE_END)
+
+    if punch_out <= office_end_dt:
+        # Left at or before 6 PM — no OT this day.
+        worked = (punch_out - row.CHECK_IN).total_seconds() / 3600.0
+        row.WORKED_HOURS = round(max(0.0, worked), 2)
+        row.OVERTIME_HOURS = 0.0
+        row.OT_CHECK_IN = None
+        row.OT_CHECK_OUT = None
+        return
+
+    # CHECK_OUT is past 6 PM: split into regular + OT.
+    # Regular = CHECK_IN → 6 PM (or CHECK_IN → punch_out if arrived
+    # after 6 PM, which we clamp to zero regular hours).
+    if row.CHECK_IN < office_end_dt:
+        regular = (office_end_dt - row.CHECK_IN).total_seconds() / 3600.0
+        ot_start = office_end_dt
+    else:
+        # Arrived after 6 PM (unusual — maybe a night shift). Treat
+        # the whole thing as OT so the regular column doesn't carry
+        # a hostile negative.
+        regular = 0.0
+        ot_start = row.CHECK_IN
+
+    ot_hours = (punch_out - ot_start).total_seconds() / 3600.0
+
+    row.WORKED_HOURS = round(max(0.0, regular), 2)
+    row.OVERTIME_HOURS = round(max(0.0, ot_hours), 2)
+    row.OT_CHECK_IN = ot_start
+    row.OT_CHECK_OUT = punch_out
 
 
 # =====================================================================

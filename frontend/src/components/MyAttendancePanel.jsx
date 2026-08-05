@@ -160,6 +160,45 @@ function ActionTile({
 
 
 // ==================================================================
+// StatusTile — READ-ONLY sibling of ActionTile. Employees can no
+// longer manually check in / out from the portal (attendance is
+// biometric-only), so these tiles just DISPLAY today's state. When a
+// punch lands on the ESSL, the tile flips to 'done' with the time.
+// ==================================================================
+function StatusTile({
+  icon,
+  title,
+  done,
+  doneAt,
+  waitingHint,
+  variant = "primary",
+  valueSuffix = "",
+}) {
+  const mode = done ? "done" : "locked";
+
+  const cls = [
+    styles.action,
+    styles[`action_${mode}`],
+    variant === "ot" ? styles.action_ot : "",
+  ].filter(Boolean).join(" ");
+
+  return (
+    <div className={cls}>
+      <span className={styles.actionIcon}>{icon}</span>
+      <span className={styles.actionBody}>
+        <span className={styles.actionTitle}>{title}</span>
+        <span className={styles.actionHint}>
+          {done && doneAt
+            ? `Recorded · ${formatISTTime(doneAt)}${valueSuffix}`
+            : waitingHint}
+        </span>
+      </span>
+    </div>
+  );
+}
+
+
+// ==================================================================
 // Main component
 // ==================================================================
 export default function MyAttendancePanel({ employeeId }) {
@@ -585,84 +624,60 @@ export default function MyAttendancePanel({ employeeId }) {
           </div>
         )}
 
-        {/* ================ 4. LIFECYCLE ACTIONS ================ */}
+        {/* ================ 4. STATUS CARDS (read-only) ================
+            Attendance is recorded by the biometric device only —
+            portal login/logout is NOT check-in. These four cards
+            show today's status pulled from the biometric row. To
+            record attendance, punch a finger on the ESSL device at
+            the entrance. */}
         <div className={styles.actionGrid}>
-          <ActionTile
+          <StatusTile
             icon={I.clockIn}
             title="Check In"
-            ready={!hasCheckedIn && geo.status !== "outside"}
             done={hasCheckedIn}
             doneAt={today?.CHECK_IN}
-            lockedHint={
-              geo.status === "outside"
-                ? `Outside office · ${
-                    geo.distance != null
-                      ? `${Math.round(geo.distance)}m away (radius ${geo.radius ?? 50}m)`
-                      : "move closer to check in"
-                  }`
-                : geo.status === "checking" && !hasCheckedIn
-                  ? "Locating you…"
-                  : null
-            }
-            busy={busy}
-            onClick={doCheckIn}
+            waitingHint="Punch a finger at the biometric to record"
           />
-          <ActionTile
+          <StatusTile
             icon={I.clockOut}
             title="Check Out"
-            ready={hasCheckedIn && !hasCheckedOut}
             done={hasCheckedOut}
             doneAt={today?.CHECK_OUT}
-            lockedHint={!hasCheckedIn ? "After Check In" : null}
-            busy={busy}
-            onClick={doCheckOut}
+            waitingHint={
+              hasCheckedIn
+                ? "Punch again in the evening to record"
+                : "After biometric check-in"
+            }
           />
-          <ActionTile
+          <StatusTile
             icon={I.overtime}
-            title="OT Check In"
-            ready={hasCheckedOut && !hasOtIn}
-            done={hasOtIn}
+            title="OT Session"
+            done={overtimeHours > 0}
             doneAt={today?.OT_CHECK_IN}
-            lockedHint={!hasCheckedOut ? "After Check Out" : null}
-            busy={busy}
+            waitingHint="Auto-recorded when you stay past 6:00 PM"
             variant="ot"
-            onClick={doOtCheckIn}
+            valueSuffix={
+              overtimeHours > 0 ? ` · ${fmtWorkedHours(overtimeHours)}` : ""
+            }
           />
-          <ActionTile
+          <StatusTile
             icon={I.overtime}
-            title="OT Check Out"
-            ready={hasOtIn && !hasOtOut}
+            title="OT Ended"
             done={hasOtOut}
             doneAt={today?.OT_CHECK_OUT}
-            lockedHint={!hasOtIn ? "After OT Check In" : null}
-            busy={busy}
+            waitingHint="Set when you punch out"
             variant="ot"
-            onClick={doOtCheckOut}
           />
         </div>
-
-        {/* Geofence recheck — visible when the pre-check locked out
-            Check In. One tap re-reads GPS + revalidates, so the moment
-            the employee walks inside the radius the tile unlocks. */}
-        {geo.status === "outside" && !hasCheckedIn && (
-          <div className={styles.geoRecheckRow}>
-            <button
-              type="button"
-              className={styles.geoRecheckBtn}
-              onClick={checkGeofence}
-              disabled={busy}
-            >
-              Recheck location
-            </button>
-          </div>
-        )}
 
         {/* ================ 5. BIOMETRIC HINT ================ */}
         <div className={styles.bioHint}>
           <span className={styles.bioHintIcon}>{I.finger}</span>
           <span>
-            Fingerprint attendance will be automatic once the biometric
-            device is on the office network.
+            Attendance is recorded ONLY from your biometric fingerprint
+            at the office device. Portal login / logout does not record
+            attendance. Regular hours end at 6:00 PM — any time past
+            that is automatically recorded as overtime.
           </span>
         </div>
 
