@@ -152,6 +152,7 @@ def _serialize_slip(slip: PayrollSlip, employee: Optional[Employee] = None) -> d
         "ESI_EMPLOYEE": slip.ESI_EMPLOYEE,
         "ESI_EMPLOYER": slip.ESI_EMPLOYER,
         "PROFESSIONAL_TAX": slip.PROFESSIONAL_TAX,
+        "ABSENCE_DEDUCTION": slip.ABSENCE_DEDUCTION or 0,
         "OTHER_DEDUCTIONS": slip.OTHER_DEDUCTIONS,
         "GROSS_PAY": slip.GROSS_PAY,
         "TOTAL_DEDUCTIONS": slip.TOTAL_DEDUCTIONS,
@@ -335,16 +336,30 @@ def generate_for_employee(
     slip.LATE_PENALTY     = f("LATE_PENALTY", 0)
     slip.OTHER_DEDUCTIONS = f("OTHER_DEDUCTIONS", 0)
 
-    # Note: ABSENCE_DEDUCTION posted by the generator is NOT persisted
-    # into TOTAL_DEDUCTIONS here — the absent-day loss is already
-    # baked into EARNED_BASIC (basic × present ÷ working). Storing it
-    # AGAIN as a deduction would double-count against NET_PAY.
-    # The employee payslip preview computes it presentationally (see
-    # /my-payslips/{id}), so HR sees an "Absent Day Deduction" line
-    # in the printout without breaking Payroll Records' NET math.
+    # ABSENCE_DEDUCTION: the frontend generator computes this as
+    # (Basic ÷ Working Days) × unpaid_absent_days and posts it. The
+    # frontend also posts BASIC = full contractual salary (NOT reduced
+    # for absence), so we're NOT double-counting when we add
+    # ABSENCE_DEDUCTION to TOTAL_DEDUCTIONS — the reduction only
+    # happens on the deductions side. Without this, TOTAL_DEDUCTIONS
+    # was silently 0 even when the generator showed thousands.
+    if "ABSENCE_DEDUCTION" in body and body.get("ABSENCE_DEDUCTION") not in (None, ""):
+        slip.ABSENCE_DEDUCTION = f("ABSENCE_DEDUCTION", 0)
+    else:
+        # Fallback: if not posted, derive from basic × ratio.
+        wd = float(slip.WORKING_DAYS or 0)
+        absent = float(slip.ABSENT_DAYS or 0)
+        if wd > 0 and absent > 0:
+            slip.ABSENCE_DEDUCTION = round(
+                (float(slip.EARNED_BASIC or 0) / wd) * absent, 2
+            )
+        else:
+            slip.ABSENCE_DEDUCTION = 0.0
+
     deductions = (
         slip.PF_EMPLOYEE + slip.ESI_EMPLOYEE + slip.PROFESSIONAL_TAX
         + slip.LATE_PENALTY + slip.OTHER_DEDUCTIONS
+        + (slip.ABSENCE_DEDUCTION or 0)
     )
 
     slip.GROSS_PAY        = round(gross, 2)

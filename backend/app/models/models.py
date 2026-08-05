@@ -2430,6 +2430,12 @@ class PayrollSlip(Base):
 
     LATE_PENALTY = Column(Float, default=0.0)
 
+    ABSENCE_DEDUCTION = Column(Float, default=0.0)
+    # Auto-computed by the generator UI as (Basic ÷ Working Days) ×
+    # unpaid_absent_days. Persisted here so it flows into
+    # TOTAL_DEDUCTIONS and shows on the payslip preview as a line
+    # item. Was previously silently dropped on save.
+
     OTHER_DEDUCTIONS = Column(Float, default=0.0)
     # legacy placeholder; the typed columns below replaced it
 

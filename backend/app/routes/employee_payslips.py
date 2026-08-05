@@ -151,27 +151,17 @@ def get_payslip_detail(
         if de:
             desig_name = getattr(de, "DESIGNATION_NAME", None) or getattr(de, "NAME", None)
 
-    # ------------------------------------------------------------------
-    # Payslip presentation math (the fix for "Total Deductions = 0")
-    # ------------------------------------------------------------------
-    # The generator stores EARNED_BASIC (basic × present ÷ working), so
-    # the absent-day loss is silently baked into earnings and never
-    # shows as a deduction. Payslips traditionally show the FULL base
-    # in Earnings and the loss as a separate Absent-Day-Deduction line.
-    # We do the math here so:
-    #     shown_gross      = FULL_BASE + allowances
-    #     shown_total_ded  = statutory + absent_deduction
-    #     shown_net        = shown_gross - shown_total_ded
-    # and shown_net == slip.NET_PAY (both sides gain the same delta,
-    # so the payable amount doesn't change).
-    base       = float(slip.BASE_SALARY   or 0)
-    earned     = float(slip.EARNED_BASIC  or 0)
-    absent_ded = max(0.0, round(base - earned, 2))
+    # Absent-day / LOP deduction — read from slip.ABSENCE_DEDUCTION
+    # (set by the save endpoint) with a fallback to BASE − EARNED_BASIC
+    # for legacy slips that were saved before ABSENCE_DEDUCTION was a
+    # column.
+    absent_ded = float(slip.ABSENCE_DEDUCTION or 0)
+    if not absent_ded:
+        implicit = float(slip.BASE_SALARY or 0) - float(slip.EARNED_BASIC or 0)
+        absent_ded = max(0.0, round(implicit, 2))
 
     earnings_map = [
-        # Show the FULL contractual basic — the loss due to absent days
-        # is captured on the deductions side as an explicit line.
-        ("Basic Salary",        base),
+        ("Basic Salary",        float(slip.EARNED_BASIC or 0)),
         ("HRA",                 float(slip.HRA or 0)),
         ("DA",                  float(slip.DA or 0)),
         ("Conveyance",          float(slip.CONVEYANCE_ALLOWANCE or 0)),
@@ -186,8 +176,6 @@ def get_payslip_detail(
     ]
 
     deductions_map = [
-        # New: absent-day / LOP deduction. Only surfaces when there's
-        # an actual gap between contractual basic and earned basic.
         ("Absent Day Deduction", absent_ded),
         ("Provident Fund (PF)",  float(slip.PF_EMPLOYEE or 0)),
         ("ESI",                  float(slip.ESI_EMPLOYEE or 0)),
@@ -196,15 +184,12 @@ def get_payslip_detail(
         ("Other Deductions",     float(slip.OTHER_DEDUCTIONS or 0)),
     ]
 
-    # Adjusted totals for the display (see comment block above).
-    # Compute total_ded_shown from individual components rather than
-    # trusting slip.TOTAL_DEDUCTIONS — the save endpoint recently
-    # started including absence_deduction, so older slips have it
-    # excluded and newer slips have it included. Recomputing is
-    # deterministic across both.
-    statutory = sum(amt for lbl, amt in deductions_map if lbl != "Absent Day Deduction")
-    total_ded_shown = statutory + absent_ded
-    gross_shown = float(slip.GROSS_PAY or 0) + absent_ded
+    # The frontend generator posts BASIC = full contractual salary,
+    # so slip.GROSS_PAY = EARNED_BASIC + allowances already represents
+    # the full pre-deduction figure. Absent-day deduction is a real
+    # deduction line — subtracted, not added.
+    gross_shown = float(slip.GROSS_PAY or 0)
+    total_ded_shown = sum(amt for _, amt in deductions_map)
 
     company = _company_full(db)
 
@@ -217,7 +202,10 @@ def get_payslip_detail(
     elif slip.SUBMITTED_AT:
         pay_date = slip.SUBMITTED_AT.strftime("%d %b %Y")
 
-    net_pay = float(slip.NET_PAY or 0)
+    # Compute net freshly from the shown gross + total_ded so old
+    # slips (saved before absent-deduction was stored) still display
+    # the correct final payable.
+    net_pay = round(gross_shown - total_ded_shown, 2)
 
     return {
         "ID":                slip.ID,
