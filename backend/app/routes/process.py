@@ -579,7 +579,7 @@ def employee_production_stages(
     )
 
     # Enrich each row with customer + project name (one shared lookup)
-    from app.models.models import Project, Customer
+    from app.models.models import CustomerProject as Project, Customer
 
     project_ids = {wo.PROJECT_ID for _, _, wo, _ in rows if wo.PROJECT_ID}
 

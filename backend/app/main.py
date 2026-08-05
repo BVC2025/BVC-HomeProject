@@ -1323,11 +1323,15 @@ def _auto_seed_org():
     tables are actually empty so existing tenant data is never
     overwritten."""
 
+    import logging
+
     from sqlalchemy.orm import sessionmaker
 
     from app.models.models import Department, Role, Designation
 
     from app.routes.organization import do_seed_org
+
+    log = logging.getLogger("uvicorn")
 
     SessionLocal = sessionmaker(bind=engine)
 

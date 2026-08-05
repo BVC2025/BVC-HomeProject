@@ -64,24 +64,24 @@ def _materials_cost_for_bom(
 
         return 0.0
 
-    material_ids = [r.MATERIAL_ID for r in rows if r.MATERIAL_ID]
+    material_ids = [r.PRODUCT_ID for r in rows if r.PRODUCT_ID]
 
     price_by_mat = {}
 
     if material_ids:
 
         invs = db.query(Inventory).filter(
-            Inventory.MATERIAL_ID.in_(material_ids),
+            Inventory.PRODUCT_ID.in_(material_ids),
             Inventory.VENDOR_ID == vendor_id
         ).all()
 
         for inv in invs:
 
-            current = price_by_mat.get(inv.MATERIAL_ID, 0.0)
+            current = price_by_mat.get(inv.PRODUCT_ID, 0.0)
 
             if (inv.UNIT_PRICE or 0) > current:
 
-                price_by_mat[inv.MATERIAL_ID] = inv.UNIT_PRICE or 0.0
+                price_by_mat[inv.PRODUCT_ID] = inv.UNIT_PRICE or 0.0
 
     total = 0.0
 
@@ -89,7 +89,7 @@ def _materials_cost_for_bom(
 
         qty = float(r.QUANTITY or 0)
 
-        price = price_by_mat.get(r.MATERIAL_ID, 0.0) if r.MATERIAL_ID else 0.0
+        price = price_by_mat.get(r.PRODUCT_ID, 0.0) if r.PRODUCT_ID else 0.0
 
         total += qty * price
 

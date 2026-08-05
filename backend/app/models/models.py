@@ -726,36 +726,27 @@ class CustomerRequirement(Base):
         index=True,
         nullable=True
     )
-class SubProjectTemplate(Base):
+class CustomerProject(Base):
+    """Legacy customer-project records — table renamed to project_legacy by _rename_legacy_project_table()."""
 
-    __tablename__ = "sub_project_template"
+    __tablename__ = "project_legacy"
+    __table_args__ = {"extend_existing": True}
 
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
+    ID = Column(Integer, primary_key=True, index=True)
+    PROJECT_NAME = Column(String(200))
+    DESCRIPTION = Column(String(2000))
+    STATUS = Column(String(50), default="PENDING")
+    SUB_PROJECT_TEMPLATE_ID = Column(Integer, nullable=True, index=True)  # historical ref; old sub_project_template table archived to sub_project_template_legacy
+    DEPARTMENT_ID = Column(Integer, ForeignKey("department.ID"), nullable=True, index=True)
+    CUSTOMER_ID = Column(Integer, ForeignKey("customer.ID"))
+    SKILLS_REQUIRED = Column(String(500), nullable=True)
+    PRIORITY = Column(String(20), default="MEDIUM")
+    PRODUCT_MODEL_ID = Column(Integer, ForeignKey("product_model.ID"), nullable=True, index=True)
+    QUANTITY = Column(Integer, default=1)
+    TARGET_DATE = Column(Date, nullable=True)
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID"))
 
-    CATEGORY_ID = Column(
-        Integer,
-        ForeignKey("project_category.ID"),
-        index=True
-    )
 
-    NAME = Column(
-        String(100)
-    )
-
-    DESCRIPTION = Column(
-        String(500),
-        nullable=True
-    )
-
-    ESTIMATED_TOTAL_DAYS = Column(
-        Integer,
-        default=30
-    )
 class Task(Base):
     START_TIME = Column(DateTime, nullable=True)
 
@@ -789,7 +780,7 @@ class Task(Base):
 
     PROJECT_ID = Column(
         Integer,
-        ForeignKey("project.ID")
+        ForeignKey("project_legacy.ID")
     )
 
     ASSIGNED_TO = Column(
@@ -803,46 +794,6 @@ class Task(Base):
     )
 
 
-class MaterialCatalog(Base):
-
-    __tablename__ = "material_catalog"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    MATERIAL_NAME = Column(
-        String(100),
-        unique=True,
-        index=True
-    )
-
-
-class MaterialDepartment(Base):
-    """
-    Many-to-many: which departments can see / use which
-    materials. A material with no rows here is treated as
-    "unclassified" — visible only to admins / managers.
-    """
-
-    __tablename__ = "material_department"
-
-    MATERIAL_ID = Column(
-        Integer,
-        ForeignKey("material_catalog.ID"),
-        primary_key=True
-    )
-
-    DEPARTMENT_ID = Column(
-        Integer,
-        ForeignKey("department.ID"),
-        primary_key=True
-    )
-
-
 class Inventory(Base):
 
     __tablename__ = "inventory"
@@ -853,9 +804,9 @@ class Inventory(Base):
         index=True
     )
 
-    MATERIAL_ID = Column(
-        Integer,
-        ForeignKey("material_catalog.ID"),
+    PRODUCT_ID = Column(
+        String(36),
+        ForeignKey("product_master.ID", ondelete="SET NULL"),
         nullable=True,
         index=True
     )
@@ -1404,16 +1355,16 @@ class BOMItem(Base):
         index=True
     )
 
-    MATERIAL_ID = Column(
-        Integer,
-        ForeignKey("material_catalog.ID"),
+    PRODUCT_ID = Column(
+        String(36),
+        ForeignKey("product_master.ID", ondelete="SET NULL"),
         nullable=True,
         index=True
     )
 
     MATERIAL_NAME = Column(String(150))
     # denormalized for fast list rendering even when the
-    # material catalog entry is missing.
+    # product entry is missing.
 
     QUANTITY = Column(Float, default=1.0)
 
@@ -2960,7 +2911,7 @@ class PurchaseOrder(Base):
 
 class PurchaseOrderLine(Base):
     """
-    One line on a PO. Links to MaterialCatalog when possible (so we
+    One line on a PO. Links to ProductMaster when possible (so we
     can update Inventory on receipt). QUANTITY_RECEIVED is the
     rolling sum across GRNs — when it reaches QUANTITY, the line is
     fully received.
@@ -2981,9 +2932,9 @@ class PurchaseOrderLine(Base):
         index=True
     )
 
-    MATERIAL_ID = Column(
-        Integer,
-        ForeignKey("material_catalog.ID"),
+    PRODUCT_ID = Column(
+        String(36),
+        ForeignKey("product_master.ID", ondelete="SET NULL"),
         nullable=True,
         index=True
     )

@@ -30,7 +30,7 @@ from app.models.models import (
     Role,
     Employee,
     Customer,
-    Project,
+    CustomerProject,
     ProjectCategory,
     ProductModel,
     BOMItem,
@@ -676,9 +676,9 @@ def _seed_projects(
 
     for spec in BVC24_PROJECTS:
 
-        existing = db.query(Project).filter(
-            Project.PROJECT_NAME == spec["PROJECT_NAME"],
-            Project.VENDOR_ID == vendor.ID
+        existing = db.query(CustomerProject).filter(
+            CustomerProject.PROJECT_NAME == spec["PROJECT_NAME"],
+            CustomerProject.VENDOR_ID == vendor.ID
         ).first()
 
         if existing:
@@ -704,7 +704,7 @@ def _seed_projects(
 
             continue
 
-        project = Project(
+        project = CustomerProject(
             PROJECT_NAME=spec["PROJECT_NAME"],
             DESCRIPTION=spec["DESCRIPTION"],
             STATUS=spec["STATUS"],

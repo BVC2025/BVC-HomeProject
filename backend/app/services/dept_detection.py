@@ -11,11 +11,7 @@ admin doesn't explicitly pick a department.
 
 from sqlalchemy.orm import Session
 
-from app.models.models import (
-    Department,
-    ProjectCategory,
-    SubProjectTemplate
-)
+from app.models.models import Department
 
 
 # Map category names -> the most likely department.
@@ -113,33 +109,12 @@ def _find_department(db: Session, name: str):
 
 def _detect_from_template(db: Session, sub_template_id):
     """
-    If a sub-project template was picked, look up its
-    category and map that to a department.
+    Sub-project templates were retired along with the old Project
+    schema — this tier of detection has no data source anymore, so it
+    always falls through to keyword matching / the default department.
     """
 
-    if not sub_template_id:
-
-        return None
-
-    template = db.query(SubProjectTemplate).filter(
-        SubProjectTemplate.ID == sub_template_id
-    ).first()
-
-    if not template:
-
-        return None
-
-    category = db.query(ProjectCategory).filter(
-        ProjectCategory.ID == template.CATEGORY_ID
-    ).first()
-
-    if not category:
-
-        return None
-
-    target_dept_name = CATEGORY_TO_DEPT.get(category.NAME)
-
-    return _find_department(db, target_dept_name)
+    return None
 
 
 def _detect_from_text(db: Session, text: str):
