@@ -115,6 +115,178 @@ def payslip_summary(
 # PDF
 # ============================================================
 
+# ============================================================
+# DETAIL (JSON) — used by the on-screen PayslipPreview modal.
+# Same shape the PDF renderer consumes internally, exposed as
+# structured JSON so React can lay it out without needing the PDF.
+# ============================================================
+@router.get("/{slip_id}")
+def get_payslip_detail(
+    slip_id: int,
+    db: Session = Depends(get_db),
+):
+    pair = (
+        db.query(PayrollSlip, PayrollRun)
+        .join(PayrollRun, PayrollSlip.PAYROLL_RUN_ID == PayrollRun.ID)
+        .filter(PayrollSlip.ID == slip_id)
+        .first()
+    )
+    if not pair:
+        raise HTTPException(status_code=404, detail="Payslip not found")
+    slip, run = pair
+
+    emp = db.query(Employee).filter(Employee.ID == slip.EMPLOYEE_ID).first()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found for this slip")
+
+    dept_name = None
+    if getattr(emp, "DEPARTMENT_ID", None):
+        d = db.query(Department).filter(Department.ID == emp.DEPARTMENT_ID).first()
+        if d:
+            dept_name = getattr(d, "DEPARTMENT_NAME", None) or getattr(d, "NAME", None)
+
+    desig_name = None
+    if getattr(emp, "DESIGNATION_ID", None):
+        de = db.query(Designation).filter(Designation.ID == emp.DESIGNATION_ID).first()
+        if de:
+            desig_name = getattr(de, "DESIGNATION_NAME", None) or getattr(de, "NAME", None)
+
+    # Build the same earnings + deductions arrays the PDF uses, but
+    # as [{ label, amount }] so React can .map() over them without a
+    # per-key switch. Empty rows are dropped so the printout is clean.
+    earnings_map = [
+        ("Basic Salary",        float(slip.EARNED_BASIC or 0)),
+        ("HRA",                 float(slip.HRA or 0)),
+        ("DA",                  float(slip.DA or 0)),
+        ("Conveyance",          float(slip.CONVEYANCE_ALLOWANCE or 0)),
+        ("Medical Allowance",   float(slip.MEDICAL_ALLOWANCE or 0)),
+        ("Special Allowance",   float(slip.SPECIAL_ALLOWANCE or 0)),
+        ("Other Allowances",    float(slip.OTHER_ALLOWANCES or 0)),
+        ("Bonus",               float(slip.ANNUAL_BONUS or 0)),
+        ("Incentives",          float(slip.INCENTIVES or 0)),
+        ("Task Bonus",          float(slip.TASK_BONUS or 0)),
+        ("Overtime",            float(slip.OT_PAY or 0)),
+        ("Star Bonus",          float(slip.STAR_BONUS or 0)),
+    ]
+    deductions_map = [
+        ("Provident Fund (PF)", float(slip.PF_EMPLOYEE or 0)),
+        ("ESI",                 float(slip.ESI_EMPLOYEE or 0)),
+        ("Professional Tax",    float(slip.PROFESSIONAL_TAX or 0)),
+        ("Late Penalty",        float(slip.LATE_PENALTY or 0)),
+        ("Other Deductions",    float(slip.OTHER_DEDUCTIONS or 0)),
+    ]
+
+    company = _company_full(db)
+
+    payslip_number = _payslip_number(slip, run)
+    pay_period_label = f"{_month_name(run.PAY_MONTH)} {run.PAY_YEAR}"
+
+    pay_date = None
+    if slip.PAID_AT:
+        pay_date = slip.PAID_AT.strftime("%d %b %Y")
+    elif slip.SUBMITTED_AT:
+        pay_date = slip.SUBMITTED_AT.strftime("%d %b %Y")
+
+    net_pay = float(slip.NET_PAY or 0)
+
+    return {
+        "ID":                slip.ID,
+        "PAYSLIP_NUMBER":    payslip_number,
+        "PAY_PERIOD_LABEL":  pay_period_label,
+        "PAY_DATE":          pay_date or "—",
+        "STATUS":            slip.STATUS or "PENDING",
+        "COMPANY": {
+            "NAME":      company.get("NAME"),
+            "LOCATION":  company.get("LOCATION") or company.get("ADDRESS"),
+        },
+        "EMPLOYEE": {
+            "NAME":          emp.NAME,
+            "CODE":          emp.EMPLOYEE_CODE,
+            "DEPARTMENT":    dept_name,
+            "DESIGNATION":   desig_name,
+            "JOINING_DATE":  emp.JOINING_DATE.isoformat() if emp.JOINING_DATE else None,
+            "BANK_ACCOUNT":  _mask_account(getattr(emp, "BANK_ACCOUNT_NUMBER", None)),
+            "PAN":           getattr(emp, "PAN_NUMBER", None),
+        },
+        "DAYS": {
+            "WORKING":  slip.WORKING_DAYS,
+            "PRESENT":  slip.DAYS_PRESENT,
+            "LATE":     slip.DAYS_LATE,
+            "PAID":     float(slip.PAID_LEAVE_DAYS or 0),
+            "LOP":      float(slip.UNPAID_LEAVE_DAYS or 0),
+            "ABSENT":   float(slip.ABSENT_DAYS or 0),
+            "OT_HOURS": float(slip.OT_HOURS or 0),
+        },
+        "EARNINGS":         [{"label": lbl, "amount": amt} for lbl, amt in earnings_map if amt],
+        "DEDUCTIONS":       [{"label": lbl, "amount": amt} for lbl, amt in deductions_map if amt],
+        "GROSS_PAY":        float(slip.GROSS_PAY or 0),
+        "TOTAL_DEDUCTIONS": float(slip.TOTAL_DEDUCTIONS or 0),
+        "NET_PAY":          net_pay,
+        "NET_PAY_IN_WORDS": _amount_in_words(net_pay),
+    }
+
+
+def _amount_in_words(amount: float) -> str:
+    """Indian-English rupees-in-words. Handles paise. Kept inline so
+    we don't add a new dependency on num2words for one string."""
+    if amount is None:
+        return ""
+    try:
+        rupees = int(amount)
+        paise = int(round((float(amount) - rupees) * 100))
+    except (TypeError, ValueError):
+        return ""
+
+    def _in_words(n: int) -> str:
+        ones = [
+            "", "One", "Two", "Three", "Four", "Five", "Six", "Seven",
+            "Eight", "Nine", "Ten", "Eleven", "Twelve", "Thirteen",
+            "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen",
+        ]
+        tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty",
+                "Sixty", "Seventy", "Eighty", "Ninety"]
+
+        def two(n: int) -> str:
+            if n < 20:
+                return ones[n]
+            return tens[n // 10] + (" " + ones[n % 10] if n % 10 else "")
+
+        def three(n: int) -> str:
+            if n < 100:
+                return two(n)
+            return ones[n // 100] + " Hundred" + (
+                " " + two(n % 100) if n % 100 else ""
+            )
+
+        if n == 0:
+            return "Zero"
+
+        parts = []
+        crore = n // 10000000
+        n %= 10000000
+        lakh = n // 100000
+        n %= 100000
+        thousand = n // 1000
+        n %= 1000
+        rest = n
+
+        if crore:
+            parts.append(three(crore) + " Crore")
+        if lakh:
+            parts.append(three(lakh) + " Lakh")
+        if thousand:
+            parts.append(three(thousand) + " Thousand")
+        if rest:
+            parts.append(three(rest))
+
+        return " ".join(parts).strip()
+
+    rupees_text = _in_words(rupees)
+    if paise:
+        return f"Indian Rupees {rupees_text} and {_in_words(paise)} Paise Only"
+    return f"Indian Rupees {rupees_text} Only"
+
+
 @router.get("/{slip_id}/pdf")
 def get_payslip_pdf(
     slip_id: int,
