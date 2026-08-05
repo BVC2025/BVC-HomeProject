@@ -151,11 +151,27 @@ def get_payslip_detail(
         if de:
             desig_name = getattr(de, "DESIGNATION_NAME", None) or getattr(de, "NAME", None)
 
-    # Build the same earnings + deductions arrays the PDF uses, but
-    # as [{ label, amount }] so React can .map() over them without a
-    # per-key switch. Empty rows are dropped so the printout is clean.
+    # ------------------------------------------------------------------
+    # Payslip presentation math (the fix for "Total Deductions = 0")
+    # ------------------------------------------------------------------
+    # The generator stores EARNED_BASIC (basic × present ÷ working), so
+    # the absent-day loss is silently baked into earnings and never
+    # shows as a deduction. Payslips traditionally show the FULL base
+    # in Earnings and the loss as a separate Absent-Day-Deduction line.
+    # We do the math here so:
+    #     shown_gross      = FULL_BASE + allowances
+    #     shown_total_ded  = statutory + absent_deduction
+    #     shown_net        = shown_gross - shown_total_ded
+    # and shown_net == slip.NET_PAY (both sides gain the same delta,
+    # so the payable amount doesn't change).
+    base       = float(slip.BASE_SALARY   or 0)
+    earned     = float(slip.EARNED_BASIC  or 0)
+    absent_ded = max(0.0, round(base - earned, 2))
+
     earnings_map = [
-        ("Basic Salary",        float(slip.EARNED_BASIC or 0)),
+        # Show the FULL contractual basic — the loss due to absent days
+        # is captured on the deductions side as an explicit line.
+        ("Basic Salary",        base),
         ("HRA",                 float(slip.HRA or 0)),
         ("DA",                  float(slip.DA or 0)),
         ("Conveyance",          float(slip.CONVEYANCE_ALLOWANCE or 0)),
@@ -168,13 +184,21 @@ def get_payslip_detail(
         ("Overtime",            float(slip.OT_PAY or 0)),
         ("Star Bonus",          float(slip.STAR_BONUS or 0)),
     ]
+
     deductions_map = [
-        ("Provident Fund (PF)", float(slip.PF_EMPLOYEE or 0)),
-        ("ESI",                 float(slip.ESI_EMPLOYEE or 0)),
-        ("Professional Tax",    float(slip.PROFESSIONAL_TAX or 0)),
-        ("Late Penalty",        float(slip.LATE_PENALTY or 0)),
-        ("Other Deductions",    float(slip.OTHER_DEDUCTIONS or 0)),
+        # New: absent-day / LOP deduction. Only surfaces when there's
+        # an actual gap between contractual basic and earned basic.
+        ("Absent Day Deduction", absent_ded),
+        ("Provident Fund (PF)",  float(slip.PF_EMPLOYEE or 0)),
+        ("ESI",                  float(slip.ESI_EMPLOYEE or 0)),
+        ("Professional Tax",     float(slip.PROFESSIONAL_TAX or 0)),
+        ("Late Penalty",         float(slip.LATE_PENALTY or 0)),
+        ("Other Deductions",     float(slip.OTHER_DEDUCTIONS or 0)),
     ]
+
+    # Adjusted totals for the display (see comment block above).
+    gross_shown = float(slip.GROSS_PAY or 0) + absent_ded
+    total_ded_shown = float(slip.TOTAL_DEDUCTIONS or 0) + absent_ded
 
     company = _company_full(db)
 
@@ -219,8 +243,8 @@ def get_payslip_detail(
         },
         "EARNINGS":         [{"label": lbl, "amount": amt} for lbl, amt in earnings_map if amt],
         "DEDUCTIONS":       [{"label": lbl, "amount": amt} for lbl, amt in deductions_map if amt],
-        "GROSS_PAY":        float(slip.GROSS_PAY or 0),
-        "TOTAL_DEDUCTIONS": float(slip.TOTAL_DEDUCTIONS or 0),
+        "GROSS_PAY":        round(gross_shown, 2),
+        "TOTAL_DEDUCTIONS": round(total_ded_shown, 2),
         "NET_PAY":          net_pay,
         "NET_PAY_IN_WORDS": _amount_in_words(net_pay),
     }
