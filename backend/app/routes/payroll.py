@@ -869,6 +869,197 @@ def delete_run(run_id: int, db: Session = Depends(get_db)):
 
 
 # ====================================================================
+# Payroll Records — flat list view of every slip in the system.
+# The Payroll Records admin page (/payroll-records) hits these three
+# endpoints. They join PayrollSlip + PayrollRun + Employee (+ dept +
+# designation) and return a paginated slice + a summary tile block.
+# ====================================================================
+
+@router.get("/records")
+def payroll_records_list(
+    q: Optional[str]           = Query(None),
+    department_id: Optional[int] = Query(None),
+    year:  Optional[int]       = Query(None),
+    month: Optional[int]       = Query(None),
+    status: Optional[str]      = Query(None),
+    date_from: Optional[str]   = Query(None),
+    date_to:   Optional[str]   = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    """Flat list of every payroll slip with employee + run context.
+    Powers the admin Payroll Records page."""
+
+    from app.models.models import Designation
+
+    qy = (
+        db.query(PayrollSlip, PayrollRun, Employee)
+          .join(PayrollRun, PayrollSlip.PAYROLL_RUN_ID == PayrollRun.ID)
+          .join(Employee,   Employee.ID == PayrollSlip.EMPLOYEE_ID)
+    )
+
+    if q:
+        needle = f"%{q.strip()}%"
+        qy = qy.filter(
+            (Employee.NAME.like(needle))
+            | (Employee.EMPLOYEE_CODE.like(needle))
+        )
+    if department_id:
+        qy = qy.filter(Employee.DEPARTMENT_ID == department_id)
+    if year:
+        qy = qy.filter(PayrollRun.PAY_YEAR == year)
+    if month:
+        qy = qy.filter(PayrollRun.PAY_MONTH == month)
+    if status:
+        qy = qy.filter(PayrollSlip.STATUS == status.upper())
+    if date_from:
+        try:
+            df = datetime.strptime(date_from, "%Y-%m-%d").date()
+            qy = qy.filter(PayrollSlip.PAID_AT >= df)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            dt = datetime.strptime(date_to, "%Y-%m-%d").date()
+            qy = qy.filter(PayrollSlip.PAID_AT <= dt)
+        except ValueError:
+            pass
+
+    total = qy.count()
+
+    rows = (
+        qy.order_by(
+            PayrollRun.PAY_YEAR.desc(),
+            PayrollRun.PAY_MONTH.desc(),
+            Employee.EMPLOYEE_CODE.asc(),
+        )
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+
+    # Resolve dept + designation names once per unique ID (small N)
+    dept_ids = {emp.DEPARTMENT_ID for _, _, emp in rows if emp.DEPARTMENT_ID}
+    desig_ids = {emp.DESIGNATION_ID for _, _, emp in rows if emp.DESIGNATION_ID}
+
+    dept_map = {}
+    if dept_ids:
+        for d in db.query(Department).filter(Department.ID.in_(dept_ids)).all():
+            dept_map[d.ID] = getattr(d, "DEPARTMENT_NAME", None) or getattr(d, "NAME", None)
+
+    desig_map = {}
+    if desig_ids:
+        for de in db.query(Designation).filter(Designation.ID.in_(desig_ids)).all():
+            desig_map[de.ID] = getattr(de, "DESIGNATION_NAME", None) or getattr(de, "NAME", None)
+
+    def _pay_date(slip, run):
+        if slip.PAID_AT:
+            return slip.PAID_AT.strftime("%Y-%m-%d")
+        if slip.SUBMITTED_AT:
+            return slip.SUBMITTED_AT.strftime("%Y-%m-%d")
+        return None
+
+    def _payslip_no(slip, run):
+        return f"PS-{run.PAY_YEAR}-{run.PAY_MONTH:02d}-{slip.ID:04d}"
+
+    payload = []
+    for slip, run, emp in rows:
+        gross = float(slip.GROSS_PAY or 0)
+        deductions = float(slip.TOTAL_DEDUCTIONS or 0)
+        net = float(slip.NET_PAY or 0)
+
+        payload.append({
+            "PAYROLL_ID":       slip.ID,
+            "PAYSLIP_NUMBER":   _payslip_no(slip, run),
+            "EMPLOYEE_ID":      emp.ID,
+            "EMPLOYEE_CODE":    emp.EMPLOYEE_CODE,
+            "EMPLOYEE_NAME":    emp.NAME,
+            "DEPARTMENT":       dept_map.get(emp.DEPARTMENT_ID),
+            "DESIGNATION":      desig_map.get(emp.DESIGNATION_ID),
+            "PAY_YEAR":         run.PAY_YEAR,
+            "PAY_MONTH":        run.PAY_MONTH,
+            "PAY_DATE":         _pay_date(slip, run),
+            "BASIC_SALARY":     float(slip.EARNED_BASIC or 0),
+            "TOTAL_EARNINGS":   gross,
+            "TOTAL_DEDUCTIONS": deductions,
+            "NET_SALARY":       net,
+            "STATUS":           slip.STATUS or "PENDING",
+            "GENERATED_BY":     "System",
+            "GENERATED_DATE":   (
+                slip.CREATED_AT.strftime("%Y-%m-%d")
+                if slip.CREATED_AT else None
+            ),
+        })
+
+    return {
+        "rows": payload,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
+
+
+@router.get("/records/summary")
+def payroll_records_summary(
+    year:  Optional[int] = Query(None),
+    month: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Four-tile dashboard for the Payroll Records page:
+    total_records / total_amount / employees_paid / pending."""
+
+    qy = (
+        db.query(PayrollSlip, PayrollRun)
+          .join(PayrollRun, PayrollSlip.PAYROLL_RUN_ID == PayrollRun.ID)
+    )
+    if year:
+        qy = qy.filter(PayrollRun.PAY_YEAR == year)
+    if month:
+        qy = qy.filter(PayrollRun.PAY_MONTH == month)
+
+    rows = qy.all()
+
+    total_records = len(rows)
+    total_amount = round(sum(float(s.NET_PAY or 0) for s, _ in rows), 2)
+    employees_paid = sum(1 for s, _ in rows if (s.STATUS or "").upper() == "PAID")
+    pending = sum(
+        1 for s, _ in rows
+        if (s.STATUS or "").upper() not in ("PAID",)
+    )
+
+    return {
+        "total_records":   total_records,
+        "total_amount":    total_amount,
+        "employees_paid":  employees_paid,
+        "pending":         pending,
+    }
+
+
+@router.delete("/slips/{slip_id}")
+def delete_slip(slip_id: int, db: Session = Depends(get_db)):
+    """Delete a single payslip row. PAID slips are protected —
+    the admin must first un-pay via a direct DB action if they
+    really need to remove one."""
+
+    slip = db.query(PayrollSlip).filter(PayrollSlip.ID == slip_id).first()
+
+    if not slip:
+        raise HTTPException(status_code=404, detail="Payroll slip not found")
+
+    if (slip.STATUS or "").upper() == "PAID":
+        raise HTTPException(
+            status_code=409,
+            detail="Paid slips cannot be deleted. Undo the payment first.",
+        )
+
+    db.delete(slip)
+    db.commit()
+
+    return {"message": f"Slip {slip_id} deleted."}
+
+
+# ====================================================================
 # Phase E — Salary Structure CRUD
 # ====================================================================
 
