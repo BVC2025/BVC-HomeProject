@@ -335,6 +335,13 @@ def generate_for_employee(
     slip.LATE_PENALTY     = f("LATE_PENALTY", 0)
     slip.OTHER_DEDUCTIONS = f("OTHER_DEDUCTIONS", 0)
 
+    # Note: ABSENCE_DEDUCTION posted by the generator is NOT persisted
+    # into TOTAL_DEDUCTIONS here — the absent-day loss is already
+    # baked into EARNED_BASIC (basic × present ÷ working). Storing it
+    # AGAIN as a deduction would double-count against NET_PAY.
+    # The employee payslip preview computes it presentationally (see
+    # /my-payslips/{id}), so HR sees an "Absent Day Deduction" line
+    # in the printout without breaking Payroll Records' NET math.
     deductions = (
         slip.PF_EMPLOYEE + slip.ESI_EMPLOYEE + slip.PROFESSIONAL_TAX
         + slip.LATE_PENALTY + slip.OTHER_DEDUCTIONS

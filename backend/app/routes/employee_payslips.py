@@ -197,8 +197,14 @@ def get_payslip_detail(
     ]
 
     # Adjusted totals for the display (see comment block above).
+    # Compute total_ded_shown from individual components rather than
+    # trusting slip.TOTAL_DEDUCTIONS — the save endpoint recently
+    # started including absence_deduction, so older slips have it
+    # excluded and newer slips have it included. Recomputing is
+    # deterministic across both.
+    statutory = sum(amt for lbl, amt in deductions_map if lbl != "Absent Day Deduction")
+    total_ded_shown = statutory + absent_ded
     gross_shown = float(slip.GROSS_PAY or 0) + absent_ded
-    total_ded_shown = float(slip.TOTAL_DEDUCTIONS or 0) + absent_ded
 
     company = _company_full(db)
 
