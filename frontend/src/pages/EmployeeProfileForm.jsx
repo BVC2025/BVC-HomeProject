@@ -426,6 +426,26 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
         {/* Welcome hero */}
         <div className={styles.hero}>
           <div className={styles.heroRing} />
+
+          {/* Actions row sits at the top so on narrow screens the
+              buttons never overlap the title. Desktop CSS floats it
+              to the top-right; mobile CSS lets it wrap below the
+              text. */}
+          <div className={styles.heroActions}>
+            <button
+              type="button"
+              onClick={() => window.__profileGreet && window.__profileGreet()}
+              className={styles.greetBtn}
+              title="Hear welcome message"
+              aria-label="Hear welcome message"
+            >
+              {Icons.speaker} <span>Play welcome</span>
+            </button>
+            <button onClick={onLogout} className={styles.logoutBtn}>
+              {Icons.logout} <span>Logout</span>
+            </button>
+          </div>
+
           <div className={styles.heroEyebrow}>BVC24 · ONE-TIME REGISTRATION</div>
           <h1 className={styles.heroTitle}>
             Welcome, {employee.NAME || employee.EMPLOYEE_CODE}!
@@ -436,18 +456,6 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
             only admin can change these details.
             Verify everything carefully before submitting.
           </div>
-          <button
-            type="button"
-            onClick={() => window.__profileGreet && window.__profileGreet()}
-            className={styles.greetBtn}
-            title="Hear welcome message"
-            aria-label="Hear welcome message"
-          >
-            {Icons.speaker} <span>Play welcome</span>
-          </button>
-          <button onClick={onLogout} className={styles.logoutBtn}>
-            {Icons.logout} <span>Logout</span>
-          </button>
         </div>
 
         {error && (

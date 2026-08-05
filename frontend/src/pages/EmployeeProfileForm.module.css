@@ -74,28 +74,22 @@
   max-width: 700px;
 }
 
-.logoutBtn {
+/* Actions row that holds Play-welcome + Logout at the top of the hero.
+   On desktop it floats to the top-right corner via absolute positioning
+   inside the hero (no overlap with the title because it hugs the right
+   edge). On mobile it flips to relative + right-aligned flex, sitting
+   ABOVE the eyebrow / title so it never covers them. */
+.heroActions {
   position: absolute;
-  top: 16px;
-  right: 18px;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  color: var(--text-inverse);
-  padding: 6px 14px;
-  border-radius: var(--radius-md);
-  font-size: var(--font-xs);
-  font-weight: var(--fw-bold);
-  font-family: var(--font);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  top: 14px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+  z-index: 2;
 }
 
+.logoutBtn,
 .greetBtn {
-  position: absolute;
-  top: 16px;
-  right: 140px;
   background: rgba(255, 255, 255, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.4);
   color: var(--text-inverse);
@@ -109,12 +103,49 @@
   align-items: center;
   gap: 6px;
   transition: background 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
 }
+
+.logoutBtn:hover,
 .greetBtn:hover {
   background: rgba(255, 255, 255, 0.3);
   border-color: rgba(255, 255, 255, 0.6);
 }
-.greetBtn:active { transform: translateY(1px); }
+
+.logoutBtn:active,
+.greetBtn:active {
+  transform: translateY(1px);
+}
+
+/* Mobile / narrow screens — stop absolute-positioning the actions row
+   so it can no longer overlap the welcome title. It becomes a normal
+   flow element that sits ABOVE the eyebrow, right-aligned so the
+   buttons still feel like "top-right" but with room to breathe. */
+@media (max-width: 720px) {
+  .heroActions {
+    position: relative;
+    top: auto;
+    right: auto;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+}
+
+/* Very small phones — hide the "Play welcome" and "Logout" text
+   labels, keep only the icons so both buttons fit in one row without
+   pushing the title down. */
+@media (max-width: 420px) {
+  .logoutBtn span,
+  .greetBtn span {
+    display: none;
+  }
+
+  .logoutBtn,
+  .greetBtn {
+    padding: 8px 10px;
+  }
+}
 
 /* ─── Error banner ───────────────────────────────────────────── */
 
