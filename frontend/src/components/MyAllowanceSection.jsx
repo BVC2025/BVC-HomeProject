@@ -242,10 +242,9 @@ export default function MyAllowanceSection({ employeeId }) {
   return (
     <div style={{ display: "grid", gap: 16 }}>
 
-      {/* Hero — white card, red border only. Text uses the standard
-          dark-slate / red-accent palette used across the rest of the
-          ERP. Theme-aware via `pal` so dark mode gets a dark-navy card
-          with the same red border. */}
+      {/* Hero — white card, red border only. On mobile the "this month"
+          sidebar stacks below the pitch text (flex-wrap). On desktop it
+          sits to the right with a divider between. */}
       <div style={{
         background: pal.cardBg,
         borderRadius: 14,
@@ -255,12 +254,12 @@ export default function MyAllowanceSection({ employeeId }) {
         boxShadow: "0 4px 14px rgba(15,23,42,0.05)",
         position: "relative",
         overflow: "hidden",
-        display: "grid",
-        gridTemplateColumns: summary ? "1fr auto" : "1fr",
+        display: "flex",
+        flexWrap: "wrap",
         gap: 22,
         alignItems: "center",
       }}>
-        <div style={{ position: "relative", zIndex: 1, minWidth: 0 }}>
+        <div style={{ position: "relative", zIndex: 1, minWidth: 0, flex: "1 1 260px" }}>
           <div style={{
             fontSize: 10.5, fontWeight: 700, letterSpacing: 1.6,
             color: BVC_RED, textTransform: "uppercase",
@@ -287,7 +286,8 @@ export default function MyAllowanceSection({ employeeId }) {
             paddingLeft: 22,
             borderLeft: `1px solid ${pal.cardBorder}`,
             textAlign: "right",
-            minWidth: 180,
+            minWidth: 160,
+            flex: "0 1 auto",
           }}>
             <div style={{
               fontSize: 10.5, fontWeight: 700, letterSpacing: 1.4,
@@ -306,11 +306,13 @@ export default function MyAllowanceSection({ employeeId }) {
         )}
       </div>
 
-      {/* Summary tiles */}
+      {/* Summary tiles — wraps 4/3/2/1 columns via auto-fit based on
+          available width. minmax(140px, 1fr) keeps each tile at least
+          readable at mobile widths. */}
       {summary && (
         <div style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
+          gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
           gap: 12,
         }}>
           <Tile pal={pal} label="Total claims" value={summary.total}     color="#1d4ed8" tintKey="blue"  icon="📋" />
@@ -343,7 +345,7 @@ export default function MyAllowanceSection({ employeeId }) {
 
         <div style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
+          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
           gap: 12,
           marginBottom: 12,
         }}>
@@ -407,12 +409,20 @@ export default function MyAllowanceSection({ employeeId }) {
           </div>
         )}
 
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <div
+          className="bvc-allowance-submit-row"
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            flexWrap: "wrap",
+          }}
+        >
           <button
             type="submit"
             disabled={submitting}
+            className="bvc-allowance-submit"
             style={{
-              padding: "10px 22px",
+              padding: "11px 24px",
               background: submitting ? "#94a3b8" : `linear-gradient(135deg, ${BVC_RED}, ${BVC_DARK})`,
               color: "white",
               border: "none",
@@ -421,11 +431,18 @@ export default function MyAllowanceSection({ employeeId }) {
               fontSize: 13,
               cursor: submitting ? "wait" : "pointer",
               boxShadow: "0 6px 18px rgba(200,16,46,0.30)",
+              minWidth: 180,
             }}
           >
             {submitting ? "Submitting..." : "Submit for approval"}
           </button>
         </div>
+        <style>{`
+          @media (max-width: 640px) {
+            .bvc-allowance-submit-row { justify-content: stretch !important; }
+            .bvc-allowance-submit { width: 100%; }
+          }
+        `}</style>
       </form>
 
       {/* History */}
