@@ -38,7 +38,9 @@ import {
   isVoiceEnabled,
   setVoiceEnabled,
   speak,
-  stopSpeaking
+  stopSpeaking,
+  getLastSeenId,
+  setLastSeenId
 } from "../services/voiceAlerts";
 
 
@@ -459,7 +461,11 @@ function EmployeeDashboardBody() {
   const [permissionHistory, setPermissionHistory] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const lastNotifIdRef = useRef(0);
+  // Seed from localStorage so a genuinely-new notification issued
+  // between yesterday's logout and today's login still triggers a
+  // toast + voice on this fresh session. Refs skip re-renders — we
+  // just need the value on the next poll comparison.
+  const lastNotifIdRef = useRef(getLastSeenId());
   // When a notification deep-links to a memo, MyMemosPanel opens this ID.
   const [focusMemoId, setFocusMemoId] = useState(null);
   // WhatsApp-style toast for freshly-arrived notifications. Shows at
@@ -559,17 +565,17 @@ function EmployeeDashboardBody() {
       setUnreadCount(countRes.data?.count ?? countRes.data?.unread ?? 0);
       if (items.length > 0) {
         const newest = items[0];
-        // Only react on FRESH arrivals — skip the initial load so we
-        // don't announce every unread item the employee already knew
-        // about.
-        const isFresh =
-          lastNotifIdRef.current !== 0
-          && newest.ID > lastNotifIdRef.current;
+        // Fresh arrival = notification ID higher than what we last
+        // saw (persisted in localStorage across sessions). This fires
+        // both on freshly-issued items DURING the session AND on
+        // login for items issued between logouts — matching the
+        // WhatsApp behaviour the user asked for.
+        const isFresh = newest.ID > lastNotifIdRef.current;
 
         if (isFresh) {
-          // Brief, HR-branded voice announcement. Deliberately does
-          // NOT read the memo body — reading long text is noisy and
-          // employees can read it themselves inside the app.
+          // Brief, HR-branded voice announcement. Does NOT read the
+          // memo body — that would be too long. Employees can read
+          // the details inside the app after clicking.
           if (voiceOn) {
             speak("You have received a new notification from HR.");
           }
@@ -580,6 +586,9 @@ function EmployeeDashboardBody() {
             message: newest.MESSAGE || "",
             type: (newest.TYPE || "INFO").toUpperCase(),
           });
+
+          // Persist so tomorrow's login won't re-announce today's item.
+          setLastSeenId(newest.ID);
         }
         lastNotifIdRef.current = Math.max(lastNotifIdRef.current, newest.ID || 0);
       }
