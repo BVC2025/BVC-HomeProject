@@ -891,7 +891,7 @@ def payroll_records_list(
     """Flat list of every payroll slip with employee + run context.
     Powers the admin Payroll Records page."""
 
-    from app.models.models import Designation
+    from app.models.models import Department, Designation
 
     qy = (
         db.query(PayrollSlip, PayrollRun, Employee)
