@@ -112,7 +112,8 @@ export default function MyPayslipsPanel({ employeeId }) {
   const [statutory, setStatutory] = useState(null);  // CTC + YTD PF/ESI/Tax/Bonus
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
-  const [year, setYear]       = useState("");   // "" = all years
+  // monthKey format: "YYYY-MM" (e.g. "2026-06"); "" means show every payslip.
+  const [monthKey, setMonthKey] = useState("");
   const [busyId, setBusyId]   = useState(null);
   const [previewId, setPreviewId] = useState(null);  // slip currently being previewed
 
@@ -149,15 +150,36 @@ export default function MyPayslipsPanel({ employeeId }) {
   }, [employeeId]);
 
   // ---- Filter / derived ----
-  const years = useMemo(() => {
-    const set = new Set(rows.map((r) => r.YEAR));
-    return Array.from(set).sort((a, b) => b - a);
+
+  // One dropdown option per distinct YEAR-MONTH combo present in the
+  // history. Newest first. Each option carries a stable key
+  // ("YYYY-MM") plus its display label ("June 2026").
+  const monthOptions = useMemo(() => {
+    const seen = new Map();
+    for (const r of rows) {
+      const y = Number(r.YEAR);
+      const m = Number(r.MONTH);
+      if (!y || !m) continue;
+      const key = `${y}-${String(m).padStart(2, "0")}`;
+      if (!seen.has(key)) {
+        seen.set(key, {
+          key,
+          year: y,
+          month: m,
+          label: `${r.MONTH_NAME || key} ${y}`,
+        });
+      }
+    }
+    return Array.from(seen.values()).sort((a, b) => (b.key < a.key ? -1 : 1));
   }, [rows]);
 
   const filtered = useMemo(() => {
-    if (!year) return rows;
-    return rows.filter((r) => String(r.YEAR) === String(year));
-  }, [rows, year]);
+    if (!monthKey) return rows;
+    const [y, m] = monthKey.split("-");
+    return rows.filter(
+      (r) => String(r.YEAR) === y && String(r.MONTH).padStart(2, "0") === m
+    );
+  }, [rows, monthKey]);
 
 
   // ---- Actions ----
@@ -272,28 +294,24 @@ export default function MyPayslipsPanel({ employeeId }) {
       )}
 
 
-      {/* ---------- 3. YEAR FILTER ---------- */}
-      {years.length > 0 && (
+      {/* ---------- 3. MONTH FILTER ---------- */}
+      {monthOptions.length > 0 && (
         <section className={styles.filterRow}>
           <span className={styles.filterLabel}>Filter</span>
           <div className={styles.filterChips}>
-            <button
-              type="button"
-              className={`${styles.chipBtn} ${year === "" ? styles.chipBtn_active : ""}`}
-              onClick={() => setYear("")}
+            <select
+              className={styles.monthSelect}
+              value={monthKey}
+              onChange={(e) => setMonthKey(e.target.value)}
+              aria-label="Filter payslips by month"
             >
-              All years
-            </button>
-            {years.map((y) => (
-              <button
-                key={y}
-                type="button"
-                className={`${styles.chipBtn} ${String(year) === String(y) ? styles.chipBtn_active : ""}`}
-                onClick={() => setYear(String(y))}
-              >
-                {y}
-              </button>
-            ))}
+              <option value="">All months</option>
+              {monthOptions.map((opt) => (
+                <option key={opt.key} value={opt.key}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           </div>
           <span className={styles.filterCount}>
             {filtered.length} of {rows.length}
