@@ -23,7 +23,7 @@
 //   GET /my-payslips/{id}/pdf                 — PDF (View / Download)
 // =====================================================================
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import API from "../services/api";
 import PayslipPreview from "./PayslipPreview";
@@ -114,6 +114,8 @@ export default function MyPayslipsPanel({ employeeId }) {
   const [error, setError]     = useState("");
   // monthKey format: "YYYY-MM" (e.g. "2026-06"); "" means show every payslip.
   const [monthKey, setMonthKey] = useState("");
+  const [monthOpen, setMonthOpen] = useState(false);
+  const monthRef = useRef(null);
   const [busyId, setBusyId]   = useState(null);
   const [previewId, setPreviewId] = useState(null);  // slip currently being previewed
 
@@ -149,28 +151,64 @@ export default function MyPayslipsPanel({ employeeId }) {
     return () => { cancelled = true; };
   }, [employeeId]);
 
+  // Close the custom month dropdown when the user clicks anywhere
+  // outside it. Attached only while the dropdown is open so we don't
+  // leak listeners.
+  useEffect(() => {
+    if (!monthOpen) return undefined;
+    const onDocClick = (e) => {
+      if (monthRef.current && !monthRef.current.contains(e.target)) {
+        setMonthOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [monthOpen]);
+
+
   // ---- Filter / derived ----
 
-  // Dropdown lists all 12 months for every year that has at least one
-  // payslip (plus the current calendar year, so a brand-new employee
-  // sees this year's calendar even before HR has cut a slip). Newest
-  // month/year first so June-2026 shows above Dec-2025.
+  // Dropdown lists every month up to today (no future months —
+  // 'Sep 2026' is not selectable in Aug 2026 because no payslip could
+  // exist for it yet). For the current calendar year we emit months
+  // Jan..currentMonth; every earlier year that has at least one
+  // payslip gets all 12 months. Newest first.
+  //
+  // Each option also carries `hasData` — true when a payslip exists
+  // for that year+month. The dropdown appends a subtle ✓ so employees
+  // can spot months with actual data.
   const monthOptions = useMemo(() => {
     const monthNames = [
       "January", "February", "March", "April", "May", "June",
       "July", "August", "September", "October", "November", "December",
     ];
+    const now = new Date();
+    const nowYear = now.getFullYear();
+    const nowMonth = now.getMonth() + 1;
+
+    const dataKeys = new Set(
+      rows.map((r) => {
+        const y = Number(r.YEAR);
+        const m = Number(r.MONTH);
+        return y && m ? `${y}-${String(m).padStart(2, "0")}` : "";
+      }).filter(Boolean)
+    );
+
     const years = new Set(rows.map((r) => Number(r.YEAR)).filter(Boolean));
-    years.add(new Date().getFullYear());
+    years.add(nowYear);
     const sortedYears = Array.from(years).sort((a, b) => b - a);
+
     const opts = [];
     for (const y of sortedYears) {
-      for (let m = 12; m >= 1; m -= 1) {
+      const startMonth = y === nowYear ? nowMonth : 12;
+      for (let m = startMonth; m >= 1; m -= 1) {
+        const key = `${y}-${String(m).padStart(2, "0")}`;
         opts.push({
-          key: `${y}-${String(m).padStart(2, "0")}`,
+          key,
           year: y,
           month: m,
           label: `${monthNames[m - 1]} ${y}`,
+          hasData: dataKeys.has(key),
         });
       }
     }
@@ -303,19 +341,63 @@ export default function MyPayslipsPanel({ employeeId }) {
         <section className={styles.filterRow}>
           <span className={styles.filterLabel}>Filter</span>
           <div className={styles.filterChips}>
-            <select
-              className={styles.monthSelect}
-              value={monthKey}
-              onChange={(e) => setMonthKey(e.target.value)}
-              aria-label="Filter payslips by month"
-            >
-              <option value="">All months</option>
-              {monthOptions.map((opt) => (
-                <option key={opt.key} value={opt.key}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+            <div className={styles.monthPicker} ref={monthRef}>
+              <button
+                type="button"
+                className={styles.monthTrigger}
+                onClick={() => setMonthOpen((v) => !v)}
+                aria-haspopup="listbox"
+                aria-expanded={monthOpen}
+              >
+                <span>
+                  {monthKey
+                    ? monthOptions.find((o) => o.key === monthKey)?.label || "All months"
+                    : "All months"}
+                </span>
+                <svg
+                  width="12" height="12" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2.4"
+                  strokeLinecap="round" strokeLinejoin="round"
+                  aria-hidden="true"
+                  style={{ transform: monthOpen ? "rotate(180deg)" : undefined }}
+                >
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {monthOpen && (
+                <ul className={styles.monthMenu} role="listbox">
+                  <li
+                    role="option"
+                    aria-selected={monthKey === ""}
+                    className={
+                      `${styles.monthItem}${monthKey === "" ? " " + styles.monthItem_active : ""}`
+                    }
+                    onClick={() => { setMonthKey(""); setMonthOpen(false); }}
+                  >
+                    All months
+                  </li>
+                  {monthOptions.map((opt) => (
+                    <li
+                      key={opt.key}
+                      role="option"
+                      aria-selected={monthKey === opt.key}
+                      className={
+                        `${styles.monthItem}`
+                        + (monthKey === opt.key ? " " + styles.monthItem_active : "")
+                        + (opt.hasData ? " " + styles.monthItem_hasData : "")
+                      }
+                      onClick={() => { setMonthKey(opt.key); setMonthOpen(false); }}
+                    >
+                      <span>{opt.label}</span>
+                      {opt.hasData && (
+                        <span className={styles.monthDot} aria-hidden="true" />
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
           <span className={styles.filterCount}>
             {filtered.length} of {rows.length}
@@ -344,7 +426,7 @@ export default function MyPayslipsPanel({ employeeId }) {
             </div>
             <div className={styles.emptyBody}>
               {monthKey
-                ? "Try a different month, or clear the filter to see everything."
+                ? "HR hasn't cut a payslip for you in this month. Months with a payslip show a red dot in the dropdown."
                 : "New payslips appear here as soon as HR generates them for you."}
             </div>
           </div>

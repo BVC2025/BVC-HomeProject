@@ -231,27 +231,77 @@
   white-space: nowrap;
 }
 
-.monthSelect {
-  padding: 7px 28px 7px 12px;
-  background: #0f172a;
-  color: #ffffff;
-  border: 1px solid #0f172a;
+/* ---- Custom month picker ---- */
+
+.monthPicker {
+  position: relative;
+  display: inline-block;
+}
+
+.monthTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px 7px 16px;
+  background: #ffffff;
+  color: #dc2626;
+  border: 1.5px solid #dc2626;
   border-radius: 999px;
   font-family: inherit;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  width: auto;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.monthSelect:hover  { background-color: #1e293b; border-color: #1e293b; }
-.monthSelect:focus  { outline: none; box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.15); }
-.monthSelect option { color: #0f172a; background: #ffffff; }
+.monthTrigger:hover  { background: #fef2f2; }
+.monthTrigger:focus  { outline: none; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15); }
+.monthTrigger svg    { transition: transform 0.15s ease; }
+
+.monthMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 180px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+  padding: 4px;
+  margin: 0;
+  list-style: none;
+  z-index: 40;
+}
+
+.monthItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+.monthItem:hover        { background: #fef2f2; color: #b91c1c; }
+.monthItem_active       { background: #dc2626; color: #ffffff; font-weight: 700; }
+.monthItem_active:hover { background: #b91c1c; color: #ffffff; }
+.monthItem_hasData      { font-weight: 600; color: #0f172a; }
+.monthItem_hasData:hover { color: #b91c1c; }
+.monthItem_hasData.monthItem_active { color: #ffffff; }
+
+.monthDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #dc2626;
+  flex-shrink: 0;
+}
+.monthItem_active .monthDot { background: #ffffff; }
 
 
 /* ==================================================================
@@ -629,15 +679,22 @@
   color: #ffffff;
 }
 :global(html[data-theme="dark"]) .filterCount { color: #94a3b8; }
-:global(html[data-theme="dark"]) .monthSelect {
-  background-color: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.14);
-  color: #f1f5f9;
+:global(html[data-theme="dark"]) .monthTrigger {
+  background: transparent;
+  color: #fca5a5;
+  border-color: #dc2626;
 }
-:global(html[data-theme="dark"]) .monthSelect option {
+:global(html[data-theme="dark"]) .monthTrigger:hover {
+  background: rgba(220, 38, 38, 0.10);
+}
+:global(html[data-theme="dark"]) .monthMenu {
   background: #131c2c;
-  color: #f1f5f9;
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
 }
+:global(html[data-theme="dark"]) .monthItem         { color: #cbd5e1; }
+:global(html[data-theme="dark"]) .monthItem:hover   { background: rgba(220, 38, 38, 0.14); color: #fca5a5; }
+:global(html[data-theme="dark"]) .monthItem_hasData { color: #f1f5f9; }
 
 /* Slip row card */
 :global(html[data-theme="dark"]) .slip {
