@@ -232,7 +232,7 @@
 }
 
 .monthSelect {
-  padding: 7px 30px 7px 14px;
+  padding: 7px 28px 7px 12px;
   background: #0f172a;
   color: #ffffff;
   border: 1px solid #0f172a;
@@ -241,7 +241,7 @@
   font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
-  min-width: 140px;
+  width: auto;
   appearance: none;
   -webkit-appearance: none;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");

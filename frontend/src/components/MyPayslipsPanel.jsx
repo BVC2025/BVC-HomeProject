@@ -151,26 +151,30 @@ export default function MyPayslipsPanel({ employeeId }) {
 
   // ---- Filter / derived ----
 
-  // One dropdown option per distinct YEAR-MONTH combo present in the
-  // history. Newest first. Each option carries a stable key
-  // ("YYYY-MM") plus its display label ("June 2026").
+  // Dropdown lists all 12 months for every year that has at least one
+  // payslip (plus the current calendar year, so a brand-new employee
+  // sees this year's calendar even before HR has cut a slip). Newest
+  // month/year first so June-2026 shows above Dec-2025.
   const monthOptions = useMemo(() => {
-    const seen = new Map();
-    for (const r of rows) {
-      const y = Number(r.YEAR);
-      const m = Number(r.MONTH);
-      if (!y || !m) continue;
-      const key = `${y}-${String(m).padStart(2, "0")}`;
-      if (!seen.has(key)) {
-        seen.set(key, {
-          key,
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December",
+    ];
+    const years = new Set(rows.map((r) => Number(r.YEAR)).filter(Boolean));
+    years.add(new Date().getFullYear());
+    const sortedYears = Array.from(years).sort((a, b) => b - a);
+    const opts = [];
+    for (const y of sortedYears) {
+      for (let m = 12; m >= 1; m -= 1) {
+        opts.push({
+          key: `${y}-${String(m).padStart(2, "0")}`,
           year: y,
           month: m,
-          label: `${r.MONTH_NAME || key} ${y}`,
+          label: `${monthNames[m - 1]} ${y}`,
         });
       }
     }
-    return Array.from(seen.values()).sort((a, b) => (b.key < a.key ? -1 : 1));
+    return opts;
   }, [rows]);
 
   const filtered = useMemo(() => {
@@ -333,9 +337,15 @@ export default function MyPayslipsPanel({ employeeId }) {
         <div className={styles.empty}>
           <span className={styles.emptyIcon}>{I.empty}</span>
           <div>
-            <div className={styles.emptyTitle}>No payslips yet</div>
+            <div className={styles.emptyTitle}>
+              {monthKey
+                ? `No payslip for ${monthOptions.find((o) => o.key === monthKey)?.label || "this month"}`
+                : "No payslips yet"}
+            </div>
             <div className={styles.emptyBody}>
-              New payslips appear here as soon as HR generates them for you.
+              {monthKey
+                ? "Try a different month, or clear the filter to see everything."
+                : "New payslips appear here as soon as HR generates them for you."}
             </div>
           </div>
         </div>
