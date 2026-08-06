@@ -3927,7 +3927,7 @@ function MyMemoDetail({ memo, onClose, onAcknowledge, ackBusy }) {
 
           {memo.ATTACHMENT_URL && (
             <div className={styles.modalAttachRow}>
-              <a href={memo.ATTACHMENT_URL} target="_blank" rel="noreferrer"
+              <a href={resolveMemoAsset(memo.ATTACHMENT_URL)} target="_blank" rel="noreferrer"
                 className={styles.modalAttachLink}>
                 📎 {memo.ATTACHMENT_NAME || "Download attachment"}
               </a>

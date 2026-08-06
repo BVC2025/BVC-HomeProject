@@ -16,8 +16,21 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import API from "../services/api";
+import API, { API_BASE_URL } from "../services/api";
 import styles from "./MyMemosPanel.module.css";
+
+
+// Turn a memo's ATTACHMENT_URL into a full URL the browser can open.
+// The DB stores paths like "/static/memos/xxxx.pdf" which are served
+// by the BACKEND (port 8001). If we just use the relative path, the
+// browser resolves it against the FRONTEND (port 4173/5173) — the SPA
+// router then matches nothing and bounces the user to the profile
+// page. Prepending API_BASE_URL fixes that.
+function resolveMemoAsset(url) {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  return `${API_BASE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
+}
 
 
 // ------------------------------------------------------------------
@@ -340,10 +353,16 @@ function MemoCard({ memo, onView, onAcknowledge, ackBusy }) {
           {memo.ATTACHMENT_URL && (
             <>
               <span className={styles.metaDot}>·</span>
-              <span className={styles.attach}>
+              <a
+                className={styles.attach}
+                href={resolveMemoAsset(memo.ATTACHMENT_URL)}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {I.paperclip}
                 <span>Attachment</span>
-              </span>
+              </a>
             </>
           )}
         </div>
@@ -448,7 +467,7 @@ function MemoDetailModal({ memo, onClose, onAcknowledge, ackBusy }) {
           {memo.ATTACHMENT_URL && (
             <a
               className={styles.modalAttach}
-              href={memo.ATTACHMENT_URL}
+              href={resolveMemoAsset(memo.ATTACHMENT_URL)}
               target="_blank"
               rel="noreferrer"
             >
