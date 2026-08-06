@@ -108,8 +108,8 @@ export default function MyPermissionRequest({ employeeId, onSubmitted }) {
   // ---- Form state ----
   const [preset,    setPreset]    = useState("1H");
   const [date,      setDate]      = useState(todayISO());
-  const [startTime, setStartTime] = useState("14:00");
-  const [endTime,   setEndTime]   = useState("15:00");
+  const [startTime, setStartTime] = useState("00:00");
+  const [endTime,   setEndTime]   = useState("00:00");
   const [reason,    setReason]    = useState("");
 
   // ---- Async state ----
