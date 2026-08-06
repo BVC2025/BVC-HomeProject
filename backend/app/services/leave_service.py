@@ -40,8 +40,11 @@ DEFAULT_QUOTAS = {
 
 # Leave types that draw from balance. UNPAID / LOP don't.
 QUOTA_BACKED_TYPES = {"CASUAL", "SICK", "EARNED", "MATERNITY"}
+# "OTHERS" is a catch-all bucket for miscellaneous leaves the employee
+# has no fixed quota for (bereavement, jury duty, personal reasons that
+# don't fit CL/SL/EL). Treated like UNPAID for balance purposes.
 
-VALID_LEAVE_TYPES = {"CASUAL", "SICK", "EARNED", "MATERNITY", "UNPAID", "LOP"}
+VALID_LEAVE_TYPES = {"CASUAL", "SICK", "EARNED", "MATERNITY", "UNPAID", "LOP", "OTHERS"}
 
 
 # ---- Policy lookup --------------------------------------------------

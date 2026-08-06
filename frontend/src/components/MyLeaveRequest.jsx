@@ -52,7 +52,15 @@ const LEAVE_TYPES = [
   { value: "EARNED",    label: "Earned leave" },
   { value: "MATERNITY", label: "Maternity leave" },
   { value: "UNPAID",    label: "Unpaid leave" },
+  { value: "OTHERS",    label: "Others" },
 ];
+
+// Types where days are deducted from the employee's quota. Used to
+// decide when to warn the employee that this request will eat their
+// remaining balance.
+const BALANCE_DEDUCTING_TYPES = new Set([
+  "CASUAL", "SICK", "EARNED", "MATERNITY",
+]);
 
 const STATUS_META = {
   PENDING:   { label: "Pending",   cls: "chip_pending"   },
@@ -115,6 +123,9 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
   const [error,   setError]   = useState("");
   const [success, setSuccess] = useState("");
 
+  // ---- UI: balance-deduction confirmation modal ----
+  const [showBalanceConfirm, setShowBalanceConfirm] = useState(false);
+
   // ---- Load balance + history on mount / employee change ----
   const refresh = useCallback(async () => {
     if (!employeeId) return;
@@ -165,6 +176,25 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
     return rows;
   }, [balance]);
 
+  // Days already consumed this calendar month from balance-backed leaves
+  // (approved + still-pending count against balance). Used to gate the
+  // "you have already taken leave" confirmation popup.
+  const daysUsedThisMonth = useMemo(() => {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    return history.reduce((sum, r) => {
+      const type = (r.LEAVE_TYPE || "").toUpperCase();
+      if (!BALANCE_DEDUCTING_TYPES.has(type)) return sum;
+      const status = (r.STATUS || "").toUpperCase();
+      if (status !== "APPROVED" && status !== "PENDING") return sum;
+      const start = r.START_DATE ? new Date(r.START_DATE) : null;
+      if (!start || isNaN(start)) return sum;
+      if (start < monthStart || start >= monthEnd) return sum;
+      return sum + (Number(r.DAYS) || 0);
+    }, 0);
+  }, [history]);
+
 
   // ---- Validation ----
   const validationError = (() => {
@@ -172,17 +202,14 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
     if (!endDate)   return "Please choose an end date.";
     if (new Date(endDate) < new Date(startDate)) return "End date must be on or after the start date.";
     if (halfDay && startDate !== endDate) return "Half-day leave must be a single date.";
-    if (dayCount > 2 && !reason.trim()) return "Leaves longer than 2 days need a reason for your manager.";
+    if (!reason.trim()) return "Please provide a reason for your leave request.";
     return null;
   })();
 
 
-  // ---- Submit ----
-  const submit = useCallback(async (e) => {
-    e.preventDefault();
-    if (validationError) { setError(validationError); return; }
-    if (!employeeId)     { setError("Employee not identified — please log in again."); return; }
-
+  // Actual API call — kept separate so the balance-confirmation modal
+  // can call it on OK without having to re-run form validation.
+  const doSubmit = useCallback(async () => {
     setError("");
     setSuccess("");
     setSaving(true);
@@ -213,9 +240,36 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
       setSaving(false);
     }
   }, [
-    validationError, employeeId, leaveType, startDate, endDate,
+    employeeId, leaveType, startDate, endDate,
     halfDay, dayCount, reason, onSubmitted, refresh,
   ]);
+
+  // ---- Submit ----
+  const submit = useCallback((e) => {
+    e.preventDefault();
+    if (validationError) { setError(validationError); return; }
+    if (!employeeId)     { setError("Employee not identified — please log in again."); return; }
+
+    // Confirmation popup — fires when the employee already used at
+    // least one balance-backed leave day this month AND is now asking
+    // for two or more additional days from a balance-consuming type.
+    // Purely informational; a confirmation click proceeds normally.
+    const willDeduct = BALANCE_DEDUCTING_TYPES.has(leaveType);
+    if (willDeduct && daysUsedThisMonth >= 1 && dayCount >= 2) {
+      setShowBalanceConfirm(true);
+      return;
+    }
+
+    doSubmit();
+  }, [
+    validationError, employeeId, leaveType,
+    daysUsedThisMonth, dayCount, doSubmit,
+  ]);
+
+  const confirmAndSubmit = useCallback(() => {
+    setShowBalanceConfirm(false);
+    doSubmit();
+  }, [doSubmit]);
 
 
   // ==================================================================
@@ -357,21 +411,15 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
           </div>
 
           <div className={styles.field}>
-            <label
-              className={`${styles.label} ${dayCount > 2 ? styles.labelRequired : ""}`}
-            >
-              Reason {dayCount > 2 ? "" : "(optional)"}
+            <label className={`${styles.label} ${styles.labelRequired}`}>
+              Reason
             </label>
             <textarea
               className={styles.textarea}
               rows={3}
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder={
-                dayCount > 2
-                  ? "Reason is required for leaves longer than 2 days"
-                  : "A short note helps your manager approve faster"
-              }
+              placeholder="Explain the reason for your leave — your manager sees this"
             />
             <div className={styles.hint}>
               This goes to your manager along with the request. Submitting sends an approval email to your reporting manager.
@@ -446,6 +494,73 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
           </ul>
         )}
       </section>
+
+      {/* -------- Balance-deduction confirmation modal -------- */}
+      {showBalanceConfirm && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setShowBalanceConfirm(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 10000,
+            background: "rgba(15, 23, 42, 0.55)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 16,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#ffffff",
+              borderRadius: 14,
+              maxWidth: 400,
+              width: "100%",
+              padding: "22px 22px 18px",
+              boxShadow: "0 30px 60px rgba(15,23,42,0.35)",
+              fontFamily: "inherit",
+              color: "#1e293b",
+            }}
+          >
+            <div style={{
+              fontSize: 15, fontWeight: 800, marginBottom: 8, color: "#0f172a",
+            }}>
+              Balance deduction
+            </div>
+            <div style={{
+              fontSize: 13.5, color: "#475569", lineHeight: 1.55, marginBottom: 18,
+            }}>
+              You have already taken leave. This leave will be deducted from your leave balance.
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => setShowBalanceConfirm(false)}
+                style={{
+                  padding: "9px 16px", borderRadius: 8, cursor: "pointer",
+                  fontFamily: "inherit", fontWeight: 600, fontSize: 13,
+                  background: "#ffffff", color: "#475569",
+                  border: "1px solid #e2e8f0",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmAndSubmit}
+                autoFocus
+                style={{
+                  padding: "9px 18px", borderRadius: 8, cursor: "pointer",
+                  fontFamily: "inherit", fontWeight: 700, fontSize: 13,
+                  background: "#dc2626", color: "#ffffff",
+                  border: "1px solid #dc2626",
+                }}
+              >
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
