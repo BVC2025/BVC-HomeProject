@@ -136,8 +136,13 @@ def require(*permission_codes: str):
 
     def _checker(payload: dict = Depends(get_current_user)):
 
-        # Super admin bypass
-        if payload.get("role") == "SUPER_ADMIN":
+        # Full-admin bypass — the ADMIN and SUPER_ADMIN roles hold
+        # every permission implicitly. Everyone else (HR_MANAGER,
+        # SALES_MANAGER, etc.) needs the specific code granted via
+        # RBAC role → permission mapping. This matches what the
+        # System Administrator user expects: "I'm the admin, I can
+        # do anything".
+        if payload.get("role") in ("ADMIN", "SUPER_ADMIN"):
 
             return payload
 
