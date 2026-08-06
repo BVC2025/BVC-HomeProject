@@ -478,6 +478,7 @@ export default function MyAllowanceSection({ employeeId }) {
           @media (max-width: 640px) {
             .bvc-allowance-submit-row { justify-content: stretch !important; }
             .bvc-allowance-submit { width: 100%; }
+            .bvc-claims-desktop-col { display: none !important; }
           }
         `}</style>
       </form>
@@ -535,23 +536,23 @@ export default function MyAllowanceSection({ employeeId }) {
                   color: pal.soft,
                   textTransform: "uppercase",
                 }}>
-                  <th style={{ ...th, borderBottomColor: pal.cardBorder, color: pal.soft }}>Submitted</th>
+                  <th className="bvc-claims-desktop-col" style={{ ...th, borderBottomColor: pal.cardBorder, color: pal.soft }}>Submitted</th>
                   <th style={{ ...th, borderBottomColor: pal.cardBorder, color: pal.soft }}>Category</th>
-                  <th style={{ ...th, borderBottomColor: pal.cardBorder, color: pal.soft }}>Expense date</th>
+                  <th className="bvc-claims-desktop-col" style={{ ...th, borderBottomColor: pal.cardBorder, color: pal.soft }}>Expense date</th>
                   <th style={{ ...th, borderBottomColor: pal.cardBorder, color: pal.soft, textAlign: "right" }}>Amount</th>
                   <th style={{ ...th, borderBottomColor: pal.cardBorder, color: pal.soft }}>Status</th>
-                  <th style={{ ...th, borderBottomColor: pal.cardBorder, color: pal.soft }}>Description / reviewer note</th>
+                  <th className="bvc-claims-desktop-col" style={{ ...th, borderBottomColor: pal.cardBorder, color: pal.soft }}>Description / reviewer note</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.ID} style={{ borderBottom: `1px solid ${pal.rowBorder}` }}>
-                    <td style={{ ...td, color: pal.body }}>{r.SUBMITTED_AT ? new Date(r.SUBMITTED_AT).toLocaleDateString("en-IN") : "-"}</td>
+                    <td className="bvc-claims-desktop-col" style={{ ...td, color: pal.body }}>{r.SUBMITTED_AT ? new Date(r.SUBMITTED_AT).toLocaleDateString("en-IN") : "-"}</td>
                     <td style={{ ...td, color: pal.body }}>{r.CATEGORY.replace(/_/g, " ")}</td>
-                    <td style={{ ...td, color: pal.body }}>{r.EXPENSE_DATE || "-"}</td>
+                    <td className="bvc-claims-desktop-col" style={{ ...td, color: pal.body }}>{r.EXPENSE_DATE || "-"}</td>
                     <td style={{ ...td, textAlign: "right", fontWeight: 700, color: pal.strong }}>{inr(r.AMOUNT)}</td>
                     <td style={td}><StatusPill status={r.STATUS} pal={pal} /></td>
-                    <td style={{ ...td, color: pal.body, fontSize: 12 }}>
+                    <td className="bvc-claims-desktop-col" style={{ ...td, color: pal.body, fontSize: 12 }}>
                       {r.DESCRIPTION || "-"}
                       {r.REVIEW_NOTES && (
                         <div style={{
