@@ -67,9 +67,15 @@ const STATUS_META = {
 // ------------------------------------------------------------------
 
 function todayISO() {
+  // Build YYYY-MM-DD from LOCAL date parts. Using toISOString() here
+  // silently converts to UTC — IST is UTC+5:30, so any local time up
+  // to 05:30 IST would report yesterday. This bug showed the date as
+  // "05-08-2026" when the actual local date was 06-08-2026.
   const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function fmtDate(value) {

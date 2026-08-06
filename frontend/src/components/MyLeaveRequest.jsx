@@ -67,9 +67,14 @@ const STATUS_META = {
 // ------------------------------------------------------------------
 
 function todayISO() {
+  // Build YYYY-MM-DD from LOCAL date parts. toISOString() would emit
+  // UTC — for IST (UTC+5:30) that means anything before 05:30 IST
+  // reports yesterday, causing the date field to pre-fill wrong.
   const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function fmtDate(value) {
