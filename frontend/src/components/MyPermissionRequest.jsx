@@ -343,14 +343,11 @@ export default function MyPermissionRequest({ employeeId, onSubmitted }) {
               placeholder="Doctor's appointment, family errand, etc."
             />
             <div className={styles.hint}>
-              This goes to your manager along with the request.
+              This goes to your manager along with the request. Free-permission cap: 4 hours per month — hours beyond that may be deducted from pay.
             </div>
           </div>
 
           <div className={styles.submitRow}>
-            <div className={styles.submitNote}>
-              Free-permission cap: 4 hours per month. Hours beyond that may be deducted from pay.
-            </div>
             <button
               type="submit"
               className={styles.submitBtn}

@@ -369,14 +369,11 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
               }
             />
             <div className={styles.hint}>
-              This goes to your manager along with the request.
+              This goes to your manager along with the request. Submitting sends an approval email to your reporting manager.
             </div>
           </div>
 
           <div className={styles.submitRow}>
-            <div className={styles.submitNote}>
-              Submitting sends an approval email to your reporting manager.
-            </div>
             <button
               type="submit"
               className={styles.submitBtn}

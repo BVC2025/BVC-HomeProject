@@ -338,19 +338,8 @@
 
 .submitRow {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 12px;
-  padding-top: 6px;
-  border-top: 1px solid #f1f5f9;
-  flex-wrap: wrap;
-}
-
-.submitNote {
-  font-size: 12px;
-  color: #64748b;
-  flex: 1 1 200px;
-  min-width: 0;
 }
 
 .submitBtn {
@@ -537,7 +526,6 @@
 
   .submitRow { flex-direction: column; align-items: stretch; }
   .submitBtn { width: 100%; justify-content: center; padding: 12px 20px; }
-  .submitNote { text-align: left; }
 
   .historyRow { grid-template-columns: 1fr; gap: 10px; padding: 12px; }
   .historyBadge { display: none; }
@@ -646,7 +634,6 @@
 :global(html[data-theme="dark"]) .computed b { color: #dbeafe; }
 
 /* Submit row */
-:global(html[data-theme="dark"]) .submitNote { color: #94a3b8; }
 
 /* Submit button — enabled stays vivid BVC red; disabled uses a
    dark-toned muted surface so it doesn't look broken on dark navy. */
