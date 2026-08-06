@@ -334,8 +334,7 @@ export default function MyPermissionRequest({ employeeId, onSubmitted }) {
           </div>
 
           <div className={styles.computed}>
-            You're requesting <b>{durationHours.toFixed(1)}h</b> of permission
-            on <b>{fmtDate(date)}</b> from <b>{startTime}</b> to <b>{endTime}</b>.
+            This goes to your manager along with the request. Free-permission cap: <b>4 hours per month</b> — hours beyond that may be deducted from pay.
           </div>
 
           {/* Reason */}
@@ -348,9 +347,6 @@ export default function MyPermissionRequest({ employeeId, onSubmitted }) {
               onChange={(e) => setReason(e.target.value)}
               placeholder="Doctor's appointment, family errand, etc."
             />
-            <div className={styles.hint}>
-              This goes to your manager along with the request. Free-permission cap: 4 hours per month — hours beyond that may be deducted from pay.
-            </div>
           </div>
 
           <div className={styles.submitRow}>
