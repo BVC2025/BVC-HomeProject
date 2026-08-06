@@ -314,9 +314,7 @@
    ================================================================== */
 
 .computed {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: block;
   padding: 10px 14px;
   background: #eff6ff;
   border: 1px solid #dbeafe;
@@ -324,11 +322,13 @@
   font-size: 12.5px;
   font-weight: 600;
   color: #1e40af;
+  line-height: 1.55;
 }
 .computed b {
   color: #1e3a8a;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 
