@@ -462,6 +462,11 @@ function EmployeeDashboardBody() {
   const lastNotifIdRef = useRef(0);
   // When a notification deep-links to a memo, MyMemosPanel opens this ID.
   const [focusMemoId, setFocusMemoId] = useState(null);
+  // WhatsApp-style toast for freshly-arrived notifications. Shows at
+  // the top of the dashboard for ~6 seconds, then auto-dismisses.
+  // Clicking it jumps to the Notifications tab.
+  const [notifToast, setNotifToast] = useState(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const [voiceOn, setVoiceOn] = useState(
     () => isVoiceSupported() && isVoiceEnabled()
@@ -554,8 +559,27 @@ function EmployeeDashboardBody() {
       setUnreadCount(countRes.data?.count ?? countRes.data?.unread ?? 0);
       if (items.length > 0) {
         const newest = items[0];
-        if (voiceOn && lastNotifIdRef.current !== 0 && newest.ID > lastNotifIdRef.current) {
-          speak(`${newest.TITLE}. ${newest.MESSAGE}`);
+        // Only react on FRESH arrivals — skip the initial load so we
+        // don't announce every unread item the employee already knew
+        // about.
+        const isFresh =
+          lastNotifIdRef.current !== 0
+          && newest.ID > lastNotifIdRef.current;
+
+        if (isFresh) {
+          // Brief, HR-branded voice announcement. Deliberately does
+          // NOT read the memo body — reading long text is noisy and
+          // employees can read it themselves inside the app.
+          if (voiceOn) {
+            speak("You have received a new notification from HR.");
+          }
+          // WhatsApp-style top toast — visual companion to the voice.
+          setNotifToast({
+            id: newest.ID,
+            title: newest.TITLE || "New notification",
+            message: newest.MESSAGE || "",
+            type: (newest.TYPE || "INFO").toUpperCase(),
+          });
         }
         lastNotifIdRef.current = Math.max(lastNotifIdRef.current, newest.ID || 0);
       }
@@ -860,9 +884,109 @@ function EmployeeDashboardBody() {
   // RENDER
   // =============================================================
 
+  // Auto-dismiss the top notification toast after 6 seconds. Also
+  // clears when the user clicks it (which jumps to the Notifications
+  // tab — see onClick below).
+  useEffect(() => {
+    if (!notifToast) return undefined;
+    const t = setTimeout(() => setNotifToast(null), 6000);
+    return () => clearTimeout(t);
+  }, [notifToast]);
+
   return (
 
     <div className={styles.zShell}>
+
+      {/* WhatsApp-style banner for freshly-arrived notifications.
+          Sits above everything else. Auto-hides after 6s, or on click
+          — a click jumps to the Notifications tab. */}
+      {notifToast && (
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => {
+            setMainTab("notifications");
+            setNotifToast(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              setMainTab("notifications");
+              setNotifToast(null);
+            }
+          }}
+          style={{
+            position: "fixed",
+            top: 16,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 9999,
+            minWidth: 320,
+            maxWidth: 460,
+            background: "#0f172a",
+            color: "#fff",
+            borderRadius: 14,
+            padding: "14px 18px",
+            display: "flex",
+            gap: 12,
+            alignItems: "flex-start",
+            boxShadow: "0 20px 40px rgba(15,23,42,0.28)",
+            cursor: "pointer",
+            fontFamily: "inherit",
+            animation: "bvcSlideDown 0.25s ease-out",
+          }}
+        >
+          <div style={{
+            width: 34, height: 34, borderRadius: 999,
+            background: notifToast.type === "WARNING" ? "#f59e0b"
+                       : notifToast.type === "ERROR"   ? "#dc2626"
+                       : notifToast.type === "SUCCESS" ? "#10b981"
+                       : "#3b82f6",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            flexShrink: 0, fontSize: 18,
+          }}>🔔</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontSize: 10.5, fontWeight: 800, letterSpacing: 0.6,
+              textTransform: "uppercase", opacity: 0.65,
+            }}>
+              New from HR
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 700, marginTop: 2 }}>
+              {notifToast.title}
+            </div>
+            {notifToast.message && (
+              <div style={{
+                fontSize: 12.5, opacity: 0.85, marginTop: 3,
+                overflow: "hidden", textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}>
+                {notifToast.message}
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setNotifToast(null);
+            }}
+            style={{
+              background: "transparent", border: "none", color: "#fff",
+              opacity: 0.6, fontSize: 20, lineHeight: 1, cursor: "pointer",
+              padding: 0, marginLeft: 4,
+            }}
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+          <style>{`
+            @keyframes bvcSlideDown {
+              from { opacity: 0; transform: translate(-50%, -20px); }
+              to   { opacity: 1; transform: translate(-50%, 0); }
+            }
+          `}</style>
+        </div>
+      )}
 
       {/* ---------- Left rail — Employee Self-Service navigation ---------- */}
       <EmployeeSidebar
