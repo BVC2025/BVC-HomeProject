@@ -13,7 +13,14 @@ export function isVoiceSupported() {
 
 export function isVoiceEnabled() {
 
-  return localStorage.getItem(VOICE_KEY) === "true";
+  // Default ON — brand-new employees hear HR announcements out of the
+  // box. One click on the header mic icon turns it off, and that
+  // choice persists per-browser via localStorage.
+  const raw = localStorage.getItem(VOICE_KEY);
+
+  if (raw === null) return true;
+
+  return raw === "true";
 }
 
 export function setVoiceEnabled(enabled) {

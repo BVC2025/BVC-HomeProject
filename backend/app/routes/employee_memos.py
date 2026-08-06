@@ -238,11 +238,20 @@ async def create_memo(
 
         from app.models.models import Notification
 
+        # Disciplinary memo types get WARNING styling in the toast so the
+        # colour band matches severity; everything else stays INFO.
+        _memo_tone = (
+            "WARNING"
+            if MEMO_TYPE in ("WARNING", "SUSPENSION", "TERMINATION")
+            else "INFO"
+        )
+
         n = Notification(
             EMPLOYEE_ID=EMPLOYEE_ID,
             TITLE=f"New {MEMO_TYPE.replace('_',' ').title()} memo",
-            BODY=f"{memo.MEMO_NUMBER} — {SUBJECT[:80]}",
-            VENDOR_ID=VENDOR_ID
+            MESSAGE=f"{memo.MEMO_NUMBER} — {SUBJECT[:120]}",
+            TYPE=_memo_tone,
+            VENDOR_ID=VENDOR_ID,
         )
 
         db.add(n)
@@ -251,7 +260,7 @@ async def create_memo(
 
     except Exception:
 
-        pass    # notifications table may not exist or differ — non-fatal
+        db.rollback()    # notifications table may not exist or differ — non-fatal
 
     return {
         "message": f"Memo {memo.MEMO_NUMBER} created for {emp.NAME}",

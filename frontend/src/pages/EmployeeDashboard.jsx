@@ -951,8 +951,18 @@ function EmployeeDashboardBody() {
                        : notifToast.type === "SUCCESS" ? "#10b981"
                        : "#3b82f6",
             display: "flex", alignItems: "center", justifyContent: "center",
-            flexShrink: 0, fontSize: 18,
-          }}>🔔</div>
+            flexShrink: 0,
+          }}>
+            <svg
+              width="18" height="18" viewBox="0 0 24 24"
+              fill="none" stroke="#fff" strokeWidth="2"
+              strokeLinecap="round" strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 01-3.46 0" />
+            </svg>
+          </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{
               fontSize: 10.5, fontWeight: 800, letterSpacing: 0.6,
