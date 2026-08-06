@@ -116,6 +116,11 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
   const [halfDaySide, setHalfDaySide] = useState("FIRST"); // FIRST or SECOND half
   const [reason,    setReason]    = useState("");
 
+  // Flip to true the first time the user clicks Submit; drives inline
+  // error visuals (red border + hint) so the form stays quiet on
+  // initial load but shouts the moment the user tries to submit blank.
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+
   // ---- Async state ----
   const [balance, setBalance] = useState(null);
   const [history, setHistory] = useState([]);
@@ -226,6 +231,7 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
       setSuccess("Leave request submitted. Your manager has been notified.");
       setReason("");
       setHalfDay(false);
+      setSubmitAttempted(false);
       onSubmitted?.();
       refresh();
     } catch (err) {
@@ -247,6 +253,7 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
   // ---- Submit ----
   const submit = useCallback((e) => {
     e.preventDefault();
+    setSubmitAttempted(true);
     if (validationError) { setError(validationError); return; }
     if (!employeeId)     { setError("Employee not identified — please log in again."); return; }
 
@@ -420,17 +427,34 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="Explain the reason for your leave — your manager sees this"
+              aria-invalid={submitAttempted && !reason.trim() ? "true" : undefined}
+              style={
+                submitAttempted && !reason.trim()
+                  ? {
+                      borderColor: "#dc2626",
+                      boxShadow: "0 0 0 3px rgba(220, 38, 38, 0.10)",
+                    }
+                  : undefined
+              }
             />
-            <div className={styles.hint}>
-              This goes to your manager along with the request. Submitting sends an approval email to your reporting manager.
-            </div>
+            {submitAttempted && !reason.trim() ? (
+              <div style={{
+                fontSize: 12, color: "#dc2626", marginTop: 4, fontWeight: 600,
+              }}>
+                Please provide a reason for your leave request.
+              </div>
+            ) : (
+              <div className={styles.hint}>
+                This goes to your manager along with the request. Submitting sends an approval email to your reporting manager.
+              </div>
+            )}
           </div>
 
           <div className={styles.submitRow}>
             <button
               type="submit"
               className={styles.submitBtn}
-              disabled={saving || !!validationError}
+              disabled={saving}
               title={validationError || undefined}
             >
               {I.send}
