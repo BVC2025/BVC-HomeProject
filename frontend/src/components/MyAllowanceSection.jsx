@@ -14,6 +14,43 @@ const BVC_RED  = "#C8102E";
 const BVC_DARK = "#8B0B1F";
 
 
+// Tile icons — inline SVGs so we stay dependency-free and match the
+// rest of the ESS pages (attendance, leave, permission, payslips) that
+// already use inline stroke SVGs instead of emoji.
+const IconSvg = ({ children, size = 16 }) => (
+  <svg
+    width={size} height={size} viewBox="0 0 24 24"
+    fill="none" stroke="currentColor" strokeWidth="2"
+    strokeLinecap="round" strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    {children}
+  </svg>
+);
+const IconClipboard = () => (
+  <IconSvg>
+    <rect x="8" y="3" width="8" height="4" rx="1" />
+    <path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+  </IconSvg>
+);
+const IconClock = () => (
+  <IconSvg>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 7v5l3 2" />
+  </IconSvg>
+);
+const IconCheck = () => (
+  <IconSvg>
+    <path d="M20 6L9 17l-5-5" />
+  </IconSvg>
+);
+const IconX = () => (
+  <IconSvg>
+    <path d="M18 6L6 18M6 6l12 12" />
+  </IconSvg>
+);
+
+
 /* Live-tracks the root `data-theme` attribute so inline-style colours
    can switch when the user toggles dark mode from Settings. */
 function useDarkMode() {
@@ -315,10 +352,10 @@ export default function MyAllowanceSection({ employeeId }) {
           gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
           gap: 12,
         }}>
-          <Tile pal={pal} label="Total claims" value={summary.total}     color="#1d4ed8" tintKey="blue"  icon="📋" />
-          <Tile pal={pal} label="Pending"      value={summary.pending}   color="#B47900" tintKey="amber" icon="⏳" sub={inr(summary.pending_amount)} />
-          <Tile pal={pal} label="Approved"     value={summary.approved}  color="#059669" tintKey="green" icon="✓" sub={inr(summary.approved_amount)} />
-          <Tile pal={pal} label="Rejected"     value={summary.rejected}  color="#991b1b" tintKey="red"   icon="✕" />
+          <Tile pal={pal} label="Total claims" value={summary.total}     color="#1d4ed8" tintKey="blue"  icon={<IconClipboard />} />
+          <Tile pal={pal} label="Pending"      value={summary.pending}   color="#B47900" tintKey="amber" icon={<IconClock />}     sub={inr(summary.pending_amount)} />
+          <Tile pal={pal} label="Approved"     value={summary.approved}  color="#059669" tintKey="green" icon={<IconCheck />}     sub={inr(summary.approved_amount)} />
+          <Tile pal={pal} label="Rejected"     value={summary.rejected}  color="#991b1b" tintKey="red"   icon={<IconX />} />
         </div>
       )}
 
