@@ -6,7 +6,6 @@
  *   • KPI tiles: days present, late arrivals, worked hours, OT hours
  *   • Absence + missed-checkout counts
  *   • Leave balance (annual — casual, sick, earned)
- *   • Memos received this month
  *   • Star performance score (attendance portion)
  *   • Day-by-day calendar grid with colour coding
  *
@@ -134,44 +133,6 @@ export default function MyMonthlyAttendance({ employeeId }) {
             </div>
           </div>
 
-          {/* Memos this month */}
-          {data.memos_this_month?.length > 0 && (
-            <div style={mm.section}>
-              <div style={mm.sectionTitle}>Memos Received This Month</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {data.memos_this_month.map((m) => (
-                  <div key={m.id} style={{
-                    padding: 12,
-                    background: m.type === "WARNING" ? "#fef2f2" : m.type === "APPRECIATION" ? "#ecfdf5" : "#f8fafc",
-                    border: `1px solid ${m.type === "WARNING" ? "#fecaca" : m.type === "APPRECIATION" ? "#a7f3d0" : "#e2e8f0"}`,
-                    borderRadius: 8,
-                  }}>
-                    <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.5, color: m.type === "WARNING" ? "#991b1b" : m.type === "APPRECIATION" ? "#065f46" : "#475569" }}>
-                      {m.type}
-                    </div>
-                    <div style={{ fontSize: 14, fontWeight: 700, marginTop: 3 }}>{m.subject}</div>
-                    {m.message && <div style={{ fontSize: 13, color: "#475569", marginTop: 4 }}>{m.message}</div>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Memo prediction — only surface if a warning is imminent */}
-          {data.memo_flags?.will_get_warning && data.memos_this_month?.filter((m) => m.type === "WARNING").length === 0 && (
-            <div style={mm.warnBox}>
-              <b>⚠ Warning memo eligible</b>
-              <ul style={{ margin: "6px 0 0 18px", padding: 0, fontSize: 13 }}>
-                {data.memo_flags.warning_reasons.map((r, i) => (
-                  <li key={i}>{r}</li>
-                ))}
-              </ul>
-              <div style={{ marginTop: 6, fontSize: 12, color: "#78350f" }}>
-                A written memo may be generated at month-end unless corrected.
-              </div>
-            </div>
-          )}
-
           {/* Calendar grid */}
           <div style={mm.section}>
             <div style={mm.sectionTitle}>Day-by-day</div>
@@ -285,7 +246,6 @@ const mm = {
   scoreBig: { fontSize: 36, fontWeight: 900, color: "#0f172a" },
   scoreOf: { fontSize: 18, fontWeight: 600, color: "#64748b" },
   scoreBreakdown: { fontSize: 13, color: "#475569", lineHeight: 1.7 },
-  warnBox: { marginTop: 16, padding: 12, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, color: "#92400e", fontSize: 13 },
   calGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(46px, 1fr))", gap: 6 },
   legend: { marginTop: 10, fontSize: 12, color: "#475569" },
   legendChip: { display: "inline-block", padding: "2px 8px", borderRadius: 6, fontSize: 11, fontWeight: 700, marginRight: 4 },
