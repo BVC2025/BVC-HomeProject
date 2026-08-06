@@ -326,66 +326,10 @@ function EmployeeMemos({ employeeIdLocked = null } = {}) {
         <StatTile label="Active Warnings" value={stats.active_warnings ?? 0} accent="#991b1b" />
       </div>
 
-      {/* FILTER BAR ------------------------------------------------- */}
-      <div className={styles.filterBar}>
-        <input
-          type="text"
-          placeholder="Search by memo number, subject, or employee"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className={styles.searchInput}
-        />
-
-        {!employeeIdLocked && (
-          <select
-            value={filterEmp}
-            onChange={(e) => setFilterEmp(e.target.value)}
-            className={styles.filterSelect}
-          >
-            <option value="">All employees</option>
-            {empOptions.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.code ? `${e.code} — ${e.name}` : e.name}
-              </option>
-            ))}
-          </select>
-        )}
-
-        <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className={styles.filterSelect}>
-          <option value="">All types</option>
-          {MEMO_TYPE_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-
-        <select value={filterSev} onChange={(e) => setFilterSev(e.target.value)} className={styles.filterSelect}>
-          <option value="">All severities</option>
-          {SEVERITY_OPTIONS.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
-
-        <select value={filterStat} onChange={(e) => setFilterStat(e.target.value)} className={styles.filterSelect}>
-          <option value="">All statuses</option>
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
-
-        <input
-          type="date"
-          value={dateFrom}
-          onChange={(e) => setDateFrom(e.target.value)}
-          className={styles.filterSelect}
-        />
-
-        <input
-          type="date"
-          value={dateTo}
-          onChange={(e) => setDateTo(e.target.value)}
-          className={styles.filterSelect}
-        />
-      </div>
+      {/* Filter bar removed by design — the memo list already renders
+          below with per-row Delete + Close actions. HR issues new
+          memos via the "+ Issue Memo" button at the top; there's no
+          need for a duplicate filtering / creation surface here. */}
 
       {/* TABLE ------------------------------------------------------ */}
       <div className={styles.tableCard}>
