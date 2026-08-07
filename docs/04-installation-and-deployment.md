@@ -62,8 +62,8 @@ The backend will:
 
 Verify:
 
-- Swagger UI: `http://127.0.0.1:8001/docs`
-- Health check: `http://127.0.0.1:8001/me` (returns 401 — that's correct without a token)
+- Swagger UI: `http:///127.0.0.1:8001/docs`
+- Health check: `http:///127.0.0.1:8001/me` (returns 401 — that's correct without a token)
 
 ### Step 4 — Seed initial data
 
@@ -88,7 +88,7 @@ npm install
 npm run dev
 ```
 
-Vite serves the app at `http://localhost:5173`. The Axios base URL is hard-coded to `http://127.0.0.1:8001` in `src/services/api.js` — change there if your backend runs elsewhere.
+Vite serves the app at `http://localhost:5173`. The Axios base URL is hard-coded to `http://192.168.1.10:8001` in `src/services/api.js` — change there if your backend runs elsewhere.
 
 ## 4.3 Production Deployment
 

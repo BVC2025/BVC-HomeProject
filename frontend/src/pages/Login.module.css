@@ -1,0 +1,443 @@
+/* ============================================================
+   Login — split-card layout (welcome panel + form)
+   All values sourced from index.css :root variables.
+   ============================================================ */
+
+.page {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+  box-sizing: border-box;
+  font-family: var(--font);
+  background: var(--login-bg);
+}
+
+/* ─── Card shell ─────────────────────────────────────────────── */
+
+.card {
+  display: flex;
+  width: min(900px, 100%);
+  min-height: 540px;
+  background: var(--card-bg);
+  border-radius: var(--radius-2xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+
+/* ─── Left welcome panel (animated) ─────────────────────────── */
+
+.left {
+  flex: 0 0 42%;
+  position: relative;
+  padding: 0;               /* AnimatedWelcomePanel handles its own padding */
+  background: transparent;  /* Panel provides its own bg — parent stays white during animation */
+  overflow: hidden;         /* Robot / panel slide from off-screen */
+  min-height: 540px;
+}
+
+.welcomeWrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Panel that slides in — this IS the red band */
+.panel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--sp-10) var(--sp-8);
+  color: var(--text-inverse);
+  background: linear-gradient(155deg, #dc2626 0%, #b91c1c 55%, #991b1b 100%);
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.06);
+  z-index: 2;
+  overflow: hidden;
+}
+
+/* Decorative rings — subtle depth */
+.ringA,
+.ringB {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  pointer-events: none;
+}
+.ringA {
+  width: 320px;
+  height: 320px;
+  bottom: -90px;
+  right: -110px;
+}
+.ringB {
+  width: 200px;
+  height: 200px;
+  top: -60px;
+  left: -60px;
+  background: radial-gradient(circle, rgba(255,255,255,0.10) 0%, transparent 70%);
+  border: none;
+}
+
+.brandLogo {
+  position: relative;
+  width: 84px;
+  height: 84px;
+  object-fit: contain;
+  padding: 10px;
+  border-radius: var(--radius-xl);
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(4px);
+  margin-bottom: var(--sp-5);
+  z-index: 3;
+}
+
+.welcomeTitle {
+  position: relative;
+  margin: 0;
+  font-size: var(--font-3xl);
+  font-weight: var(--fw-black);
+  letter-spacing: -0.3px;
+  font-family: var(--font);
+  z-index: 3;
+}
+
+.welcomeSub {
+  position: relative;
+  margin: var(--sp-2) 0 0;
+  font-size: var(--font-sm);
+  line-height: var(--lh);
+  opacity: 0.88;
+  z-index: 3;
+}
+
+.tagline {
+  position: relative;
+  margin: var(--sp-3) 0 0;
+  font-size: var(--font-sm);
+  line-height: var(--lh);
+  opacity: 0.95;
+  font-weight: var(--fw-bold);
+  z-index: 3;
+}
+.taglineAccent {
+  color: #fbbf24;
+  text-shadow: 0 0 12px rgba(251, 191, 36, 0.4);
+}
+
+.brandSpacer {
+  flex: 1;
+}
+
+.brandName {
+  position: relative;
+  margin: 0;
+  font-size: var(--font-md);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.4px;
+  opacity: 0.90;
+  z-index: 3;
+}
+
+/* Intro video — covers the left panel area during the walk-in sequence.
+   The subtle filter lifts the baked-in text so it reads brighter without
+   crushing the robot's darker tones.
+
+   object-position anchors to the right so the full red banner (and its
+   'Welcome Back' text on the far right) is always visible; the robot
+   shifts a bit toward the left edge of the panel as a consequence. */
+.introVideo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: right center;
+  z-index: 5;
+  background: #ffffff;
+  pointer-events: none;
+  filter: contrast(1.08) brightness(1.06) saturate(1.08);
+}
+
+/* ─── Right form panel ──────────────────────────────────────── */
+
+.right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--sp-10) var(--sp-8);
+}
+
+.formHeading {
+  margin: 0 0 var(--sp-1);
+  font-size: var(--font-xl);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  font-family: var(--font);
+}
+
+.formSubheading {
+  margin: 0 0 var(--sp-6);
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+}
+
+/* ─── Tabs ──────────────────────────────────────────────────── */
+
+.tabs {
+  display: flex;
+  padding: 5px;
+  margin-bottom: var(--sp-6);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+}
+
+.tab {
+  flex: 1;
+  padding: 10px 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  font-size: var(--font-base);
+  font-weight: var(--fw-semi);
+  font-family: var(--font);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--ease);
+}
+
+.tab:hover {
+  color: var(--text-primary);
+}
+
+.tabActive {
+  background: var(--clr-primary-darker);
+  color: var(--text-inverse);
+  box-shadow: 0 4px 12px var(--clr-primary-border);
+}
+
+.tabActive:hover {
+  color: var(--sidebar-bg-deep);
+}
+
+/* ─── Labels + inputs ───────────────────────────────────────── */
+
+.label {
+  display: block;
+  margin-bottom: var(--sp-2);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semi);
+  color: var(--text-secondary);
+  font-family: var(--font);
+}
+
+.inputWrap {
+  position: relative;
+  margin-bottom: var(--sp-5);
+}
+
+.icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: var(--font-md);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 13px 44px 13px 40px;
+  font-size: var(--font-base);
+  font-family: var(--font);
+  color: var(--text-primary);
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  outline: none;
+  transition: border-color var(--ease), background var(--ease);
+}
+
+.input:focus {
+  border-color: var(--clr-primary-darker);
+  background: var(--card-bg);
+  box-shadow: 0 0 0 3px var(--clr-primary-muted);
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+.eye {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 6px;
+  border: none;
+  background: transparent;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: color var(--ease);
+}
+
+.eye:hover {
+  color: var(--text-secondary);
+}
+
+/* ─── Error / banner ────────────────────────────────────────── */
+
+.error {
+  margin-bottom: var(--sp-4);
+  padding: 9px var(--sp-3);
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-md);
+  color: var(--danger);
+  font-size: var(--font-sm);
+}
+
+.onboardingBanner {
+  margin-bottom: var(--sp-4);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--clr-primary-muted);
+  border: 1px solid var(--clr-primary-border);
+  border-radius: var(--radius-md);
+  color: var(--clr-primary-dark);
+  font-size: var(--font-sm);
+  text-align: center;
+}
+
+/* ─── Submit button ─────────────────────────────────────────── */
+
+.submit {
+  width: 100%;
+  margin-top: var(--sp-2);
+  padding: 14px;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--clr-primary-darker);
+  color: var(--text-inverse);
+  font-size: var(--font-md);
+  font-weight: var(--fw-bold);
+  font-family: var(--font);
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: background var(--ease), transform var(--ease), box-shadow var(--ease);
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--clr-primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px var(--clr-primary-border);
+}
+
+.submit .submit:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* ─── Cancel link ───────────────────────────────────────────── */
+
+.cancelWrap {
+  margin-top: var(--sp-2);
+  text-align: center;
+}
+
+.cancelLink {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+  font-family: var(--font);
+}
+
+/* ─── Responsive ────────────────────────────────────────────── */
+
+@media (max-width: 720px) {
+  .card {
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  /* Mobile hero — video stays visible, panel is capped at 380px so it
+     doesn't devour the phone viewport. The video's own base rules
+     (object-fit: cover, object-position: right center) work at this
+     aspect: robot on the left, full red banner + text on the right. */
+  .left {
+    flex: none;
+    min-height: 380px;
+    max-height: 380px;
+    padding: 0;
+    background: #eceff2;
+  }
+
+  .welcomeWrap {
+    height: 380px;
+  }
+
+  /* DOM branded panel is the fallback path only; on mobile the video
+     is the hero, so keep the DOM copy hidden to avoid duplicated text. */
+  .panel {
+    display: none;
+  }
+
+  .brandSpacer {
+    display: none;
+  }
+
+  .right {
+    padding: var(--sp-8) var(--sp-6);
+    flex: 1;
+  }
+}
+
+/* Very narrow phones — shorten the video hero so the form stays above
+   the keyboard on small Android devices. */
+@media (max-width: 420px) {
+  .page {
+    padding: 12px;
+  }
+
+  .card {
+    border-radius: 16px;
+  }
+
+  .left {
+    min-height: 320px;
+    max-height: 320px;
+    padding: 0;
+  }
+
+  .welcomeWrap {
+    height: 320px;
+  }
+
+  .right {
+    padding: 22px 18px;
+  }
+
+  .formHeading {
+    font-size: 19px;
+  }
+
+  .input {
+    font-size: 16px;
+    /* keep ≥16px so iOS Safari doesn't zoom on focus */
+  }
+
+  .submit {
+    padding: 13px;
+    font-size: 14px;
+  }
+}

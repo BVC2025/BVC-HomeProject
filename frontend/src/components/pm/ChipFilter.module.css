@@ -1,0 +1,35 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.chip {
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--ease);
+}
+
+.chip:hover {
+  border-color: var(--clr-primary-border);
+  color: var(--clr-primary);
+  background: var(--clr-primary-light);
+  box-shadow: var(--shadow-xs);
+}
+
+.chip.active {
+  border-color: var(--clr-primary);
+  color: var(--clr-primary);
+  background: var(--clr-primary-light);
+  font-weight: var(--fw-semi);
+  box-shadow: var(--shadow-xs);
+}

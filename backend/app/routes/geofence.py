@@ -48,6 +48,8 @@ from app.auth.auth_bearer import (
     ADMIN_ROLES,
 )
 
+from app.utils.employee_resolver import resolve_employee_uuid
+
 
 router = APIRouter(prefix="/geofence", tags=["Geofence"])
 
@@ -304,14 +306,36 @@ def list_security_logs(
     is_admin = payload.get("role") in ADMIN_ROLES
 
     if not is_admin:
-        # Non-admins are scoped to their own failures only.
-        own_id = payload.get("employee_id")
-        if employee_id and employee_id != own_id:
-            raise HTTPException(
-                status_code=403,
-                detail="You can only view your own attendance attempts."
-            )
-        employee_id = own_id
+        # Non-admins are scoped to their own failures only. The query
+        # param may arrive as the EMPLOYEE_CODE (e.g. "EMP101") since
+        # /employee-login returns CODE under EMPLOYEE_ID — resolve to
+        # UUID before comparing against the JWT's `employee_id` claim.
+        own_uuid = payload.get("employee_id")
+        if employee_id:
+            try:
+                requested_uuid = resolve_employee_uuid(db, employee_id)
+            except HTTPException:
+                # Unknown ID — treat as forbidden (don't leak existence)
+                raise HTTPException(
+                    status_code=403,
+                    detail="You can only view your own attendance attempts."
+                )
+            if requested_uuid != own_uuid:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You can only view your own attendance attempts."
+                )
+        employee_id = own_uuid
+
+    elif employee_id:
+        # Admins can pass either UUID or CODE — normalise so the DB
+        # filter below matches the AttendanceSecurityLog.EMPLOYEE_ID
+        # column (which always stores the UUID).
+        try:
+            employee_id = resolve_employee_uuid(db, employee_id)
+        except HTTPException:
+            # Unknown employee — return empty list rather than 404
+            employee_id = "__no_such_employee__"
 
     q = (
         db.query(AttendanceSecurityLog, Employee)

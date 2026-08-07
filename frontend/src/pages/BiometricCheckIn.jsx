@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import API from "../services/api";
 
 import { formatISTTime } from "../utils/time";
+import styles from "./BiometricCheckIn.module.css";
 
 
 // ----------------------------------------------------------------
@@ -38,20 +39,13 @@ function LiveClock() {
 
   return (
 
-    <div style={{ textAlign: "center", color: "#0f172a" }}>
+    <div className={styles.clockWrap}>
 
-      <div
-        style={{
-          fontSize: 36,
-          fontWeight: 700,
-          fontFamily:
-            "ui-monospace, SFMono-Regular, Menlo, monospace"
-        }}
-      >
+      <div className={styles.clockTime}>
         {time}
       </div>
 
-      <div style={{ fontSize: 14, marginTop: 4, color: "#475569" }}>
+      <div className={styles.clockDate}>
         {date}
       </div>
     </div>
@@ -140,17 +134,8 @@ function ActionBadge({ action }) {
   return (
 
     <span
-      style={{
-        display: "inline-block",
-        padding: "4px 12px",
-        borderRadius: 999,
-        fontSize: 11,
-        fontWeight: 700,
-        letterSpacing: 0.6,
-        textTransform: "uppercase",
-        background: theme.bg,
-        color: theme.fg
-      }}
+      className={styles.actionBadge}
+      style={{ background: theme.bg, color: theme.fg }}
     >
       {theme.label}
     </span>
@@ -169,45 +154,25 @@ function CompletionSummary({ completion }) {
   return (
 
     <div
+      className={styles.completionBox}
       style={{
-        marginTop: 16,
-        padding: 14,
-        borderRadius: 10,
         background: onTime ? "#ecfdf5" : "#fef2f2",
         border: `1px solid ${onTime ? "#a7f3d0" : "#fecaca"}`
       }}
     >
 
       <div
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: 1.2,
-          textTransform: "uppercase",
-          color: onTime ? "#047857" : "#b91c1c"
-        }}
+        className={styles.completionTitle}
+        style={{ color: onTime ? "#047857" : "#b91c1c" }}
       >
         Completion Details
       </div>
 
-      <div
-        style={{
-          fontSize: 14,
-          marginTop: 6,
-          color: "#0f172a"
-        }}
-      >
+      <div className={styles.completionTaskName}>
         <strong>{completion.task_name}</strong>
       </div>
 
-      <div
-        style={{
-          fontSize: 13,
-          marginTop: 4,
-          color: "#475569",
-          lineHeight: 1.6
-        }}
-      >
+      <div className={styles.completionDetail}>
 
         Completed at{" "}
         <strong>
@@ -221,11 +186,11 @@ function CompletionSummary({ completion }) {
         <br />
 
         {onTime ? (
-          <span style={{ color: "#047857", fontWeight: 600 }}>
+          <span className={styles.completionOnTime}>
             {Math.round(mins)} min before deadline ✓
           </span>
         ) : (
-          <span style={{ color: "#b91c1c", fontWeight: 600 }}>
+          <span className={styles.completionLate}>
             {Math.round(Math.abs(mins))} min past deadline
           </span>
         )}
@@ -239,112 +204,57 @@ function ProjectBlock({ project, task, alloc }) {
 
   if (!project) return null;
 
+  // Priority badge colours are runtime-computed from data — kept inline.
+  const priorityStyle = {
+    background:
+      project.PRIORITY === "HIGH"
+        ? "#fee2e2"
+        : project.PRIORITY === "LOW"
+          ? "#f1f5f9"
+          : "#fef9c3",
+    color:
+      project.PRIORITY === "HIGH"
+        ? "#b91c1c"
+        : project.PRIORITY === "LOW"
+          ? "#475569"
+          : "#854d0e"
+  };
+
   return (
 
-    <div style={{ paddingTop: 18 }}>
+    <div className={styles.projectBlock}>
 
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: 1.2,
-          color: "#1e40af",
-          textTransform: "uppercase"
-        }}
-      >
+      <div className={styles.projectBlockLabel}>
         Project Assigned
       </div>
 
-      <div
-        style={{
-          fontSize: 18,
-          fontWeight: 700,
-          color: "#0f172a",
-          marginTop: 6
-        }}
-      >
+      <div className={styles.projectName}>
         {project.PROJECT_NAME}
       </div>
 
       {project.DESCRIPTION && (
 
-        <div
-          style={{
-            fontSize: 13,
-            color: "#475569",
-            marginTop: 4
-          }}
-        >
+        <div className={styles.projectDesc}>
           {project.DESCRIPTION}
         </div>
       )}
 
-      <div
-        style={{
-          display: "inline-block",
-          marginTop: 10,
-          padding: "3px 10px",
-          borderRadius: 999,
-          fontSize: 11,
-          fontWeight: 700,
-          background:
-            project.PRIORITY === "HIGH"
-              ? "#fee2e2"
-              : project.PRIORITY === "LOW"
-                ? "#f1f5f9"
-                : "#fef9c3",
-          color:
-            project.PRIORITY === "HIGH"
-              ? "#b91c1c"
-              : project.PRIORITY === "LOW"
-                ? "#475569"
-                : "#854d0e"
-        }}
-      >
+      <div className={styles.priorityBadge} style={priorityStyle}>
         {project.PRIORITY || "MEDIUM"} PRIORITY
       </div>
 
       {task && (
 
-        <div
-          style={{
-            marginTop: 18,
-            padding: 14,
-            borderRadius: 10,
-            background: "#f8fafc",
-            border: "1px solid #e2e8f0"
-          }}
-        >
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: 1.2,
-              color: "#7c3aed",
-              textTransform: "uppercase"
-            }}
-          >
+        <div className={styles.taskBox}>
+          <div className={styles.taskBoxLabel}>
             Your Task
           </div>
 
-          <div
-            style={{
-              fontSize: 15,
-              fontWeight: 600,
-              color: "#0f172a",
-              marginTop: 4
-            }}
-          >
+          <div className={styles.taskName}>
             {task.TASK_NAME}
           </div>
 
-          <div
-            style={{
-              fontSize: 12,
-              color: "#64748b",
-              marginTop: 4
-            }}
-          >
+          <div className={styles.taskDetails}>
             {task.TASK_DETAILS}
           </div>
         </div>
@@ -352,31 +262,17 @@ function ProjectBlock({ project, task, alloc }) {
 
       {alloc?.reason && (
 
-        <div
-          style={{
-            marginTop: 14,
-            fontSize: 12,
-            color: "#64748b",
-            fontStyle: "italic"
-          }}
-        >
+        <div className={styles.aiReason}>
           <strong>AI reason:</strong> {alloc.reason}
         </div>
       )}
 
       {alloc?.breakdown && (
 
-        <div
-          style={{
-            marginTop: 6,
-            fontSize: 11,
-            color: "#94a3b8",
-            fontFamily: "ui-monospace, monospace"
-          }}
-        >
+        <div className={styles.scoreBreakdown}>
           score: {alloc.score} ({alloc.breakdown})
           {alloc.sequence > 1 && (
-            <span style={{ marginLeft: 8, color: "#8b5cf6" }}>
+            <span className={styles.scoreSeq}>
               · task #{alloc.sequence} today
             </span>
           )}
@@ -395,135 +291,56 @@ function CheckoutSummary({ result }) {
 
   return (
 
-    <div style={{ paddingTop: 18 }}>
+    <div className={styles.checkoutBox}>
 
-      <div
-        style={{
-          padding: 16,
-          borderRadius: 12,
-          background:
-            "linear-gradient(135deg, #fff7ed 0%, #fef3c7 100%)",
-          border: "1px solid #fed7aa"
-        }}
-      >
+      <div className={styles.checkoutInner}>
 
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: 1.2,
-            color: "#b45309",
-            textTransform: "uppercase"
-          }}
-        >
+        <div className={styles.checkoutBoxTitle}>
           Day Summary
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 12,
-            marginTop: 12
-          }}
-        >
+        <div className={styles.checkoutGrid}>
 
           <div>
 
-            <div
-              style={{
-                fontSize: 11,
-                color: "#92400e",
-                textTransform: "uppercase",
-                letterSpacing: 0.6
-              }}
-            >
+            <div className={styles.checkoutStatLabel}>
               Worked Hours
             </div>
 
-            <div
-              style={{
-                fontSize: 22,
-                fontWeight: 700,
-                color: "#7c2d12",
-                marginTop: 2
-              }}
-            >
+            <div className={styles.checkoutStatValue}>
               {att.WORKED_HOURS ?? 0} h
             </div>
           </div>
 
           <div>
 
-            <div
-              style={{
-                fontSize: 11,
-                color: "#92400e",
-                textTransform: "uppercase",
-                letterSpacing: 0.6
-              }}
-            >
+            <div className={styles.checkoutStatLabel}>
               Tasks Done
             </div>
 
-            <div
-              style={{
-                fontSize: 22,
-                fontWeight: 700,
-                color: "#7c2d12",
-                marginTop: 2
-              }}
-            >
+            <div className={styles.checkoutStatValue}>
               {tasks}
             </div>
           </div>
 
           <div>
 
-            <div
-              style={{
-                fontSize: 11,
-                color: "#92400e",
-                textTransform: "uppercase",
-                letterSpacing: 0.6
-              }}
-            >
+            <div className={styles.checkoutStatLabel}>
               Check-In
             </div>
 
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: "#7c2d12",
-                marginTop: 2
-              }}
-            >
+            <div className={styles.checkoutTimeValue}>
               {att.CHECK_IN ? formatISTTime(att.CHECK_IN) : "—"}
             </div>
           </div>
 
           <div>
 
-            <div
-              style={{
-                fontSize: 11,
-                color: "#92400e",
-                textTransform: "uppercase",
-                letterSpacing: 0.6
-              }}
-            >
+            <div className={styles.checkoutStatLabel}>
               Check-Out
             </div>
 
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: "#7c2d12",
-                marginTop: 2
-              }}
-            >
+            <div className={styles.checkoutTimeValue}>
               {att.CHECK_OUT ? formatISTTime(att.CHECK_OUT) : "—"}
             </div>
           </div>
@@ -531,14 +348,7 @@ function CheckoutSummary({ result }) {
 
         {att.OVERTIME_HOURS > 0 && (
 
-          <div
-            style={{
-              marginTop: 12,
-              fontSize: 12,
-              color: "#7c2d12",
-              fontStyle: "italic"
-            }}
-          >
+          <div className={styles.overtimeNote}>
             ✨ {att.OVERTIME_HOURS}h overtime today.
           </div>
         )}
@@ -870,70 +680,27 @@ function ResultCard({ result }) {
   return (
 
     <div
-      style={{
-        background: "white",
-        borderRadius: 16,
-        padding: 28,
-        marginTop: 24,
-        boxShadow: "0 12px 40px rgba(15,23,42,0.18)",
-        maxWidth: 520,
-        width: "100%",
-        animation: "fadeIn 0.4s ease",
-        borderTop: `4px solid ${theme.accent}`
-      }}
+      className={styles.resultCard}
+      style={{ borderTop: `4px solid ${theme.accent}` }}
     >
 
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 14,
-          paddingBottom: 18,
-          borderBottom: "1px solid #e2e8f0"
-        }}
-      >
+      <div className={styles.resultCardHeader}>
 
         <div
-          style={{
-            width: 54,
-            height: 54,
-            borderRadius: "50%",
-            background: theme.bg,
-            color: theme.fg,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 26,
-            fontWeight: 700
-          }}
+          className={styles.resultAvatar}
+          style={{ background: theme.bg, color: theme.fg }}
         >
           {(emp.NAME || "?").charAt(0).toUpperCase()}
         </div>
 
-        <div style={{ flex: 1 }}>
+        <div className={styles.resultHeaderInfo}>
 
-          <div
-            style={{
-              fontSize: 20,
-              fontWeight: 700,
-              color: "#0f172a"
-            }}
-          >
+          <div className={styles.resultName}>
             {result.message}
           </div>
 
-          <div
-            style={{
-              fontSize: 13,
-              color: "#64748b",
-              marginTop: 4,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flexWrap: "wrap"
-            }}
-          >
+          <div className={styles.resultMeta}>
 
             <ActionBadge action={action} />
 
@@ -956,13 +723,11 @@ function ResultCard({ result }) {
             {att.STATUS && (
 
               <span
-                style={{
-                  color:
-                    att.STATUS === "LATE"
-                      ? "#b45309"
-                      : "#047857",
-                  fontWeight: 600
-                }}
+                className={
+                  att.STATUS === "LATE"
+                    ? styles.resultStatusLate
+                    : styles.resultStatusOnTime
+                }
               >
                 {att.STATUS}
               </span>
@@ -978,13 +743,7 @@ function ResultCard({ result }) {
 
       {action === "ALREADY_OUT" && (
 
-        <div
-          style={{
-            paddingTop: 18,
-            fontSize: 14,
-            color: "#475569"
-          }}
-        >
+        <div className={styles.alreadyOutNotice}>
           Worked {att.WORKED_HOURS ?? 0}h today. See you tomorrow.
         </div>
       )}
@@ -996,17 +755,7 @@ function ResultCard({ result }) {
 
       {action === "TASK_COMPLETED_READY_TO_LEAVE" && (
 
-        <div
-          style={{
-            marginTop: 14,
-            fontSize: 13,
-            color: "#0369a1",
-            background: "#e0f2fe",
-            padding: 12,
-            borderRadius: 8,
-            border: "1px solid #bae6fd"
-          }}
-        >
+        <div className={styles.readyToLeaveBox}>
           {result.minutes_to_shift_end > 0
             ? `~${Math.round(result.minutes_to_shift_end)} min to shift end. Scan again to check out.`
             : "Shift ended — scan again to check out."}
@@ -1028,36 +777,11 @@ function ResultCard({ result }) {
       {(action === "CHECKED_IN"
         || action === "TASK_COMPLETED_NEXT_ASSIGNED") && (
 
-        <div
-          style={{
-            marginTop: 22,
-            paddingTop: 18,
-            borderTop: "1px solid #e2e8f0",
-            display: "flex",
-            gap: 10,
-            flexWrap: "wrap"
-          }}
-        >
+        <div className={styles.actionRow}>
 
           <button
             onClick={() => printTaskSheet(result)}
-            style={{
-              flex: 1,
-              minWidth: 160,
-              border: "none",
-              background: "#1e40af",
-              color: "white",
-              padding: "12px 18px",
-              borderRadius: 10,
-              fontWeight: 700,
-              fontSize: 14,
-              cursor: "pointer",
-              boxShadow: "0 6px 18px rgba(30,64,175,0.3)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8
-            }}
+            className={styles.btnPrint}
           >
             🖨️ Print Task Sheet
           </button>
@@ -1079,16 +803,7 @@ function ResultCard({ result }) {
 
               speakAlert(text);
             }}
-            style={{
-              border: "1px solid #c7d2fe",
-              background: "#eef2ff",
-              color: "#4338ca",
-              padding: "12px 18px",
-              borderRadius: 10,
-              fontWeight: 600,
-              fontSize: 13,
-              cursor: "pointer"
-            }}
+            className={styles.btnVoice}
           >
             🔊 Voice Announcement
           </button>
@@ -1306,126 +1021,36 @@ function BiometricCheckIn() {
 
   return (
 
-    <div
-      style={{
-        minHeight: "100vh",
-        background:
-          "linear-gradient(135deg, #0b1027 0%, #1e1b4b 40%, #312e81 80%, #5b21b6 100%)",
-        backgroundSize: "200% 200%",
-        animation: "bvcGateGradient 18s ease-in-out infinite",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "stretch",
-        padding: "32px 32px 48px",
-        fontFamily: "'Segoe UI', sans-serif"
-      }}
-    >
-
-      {/* Inject animations */}
-      <style>{`
-        @keyframes bvcGateGradient {
-          0%   { background-position: 0% 50%; }
-          50%  { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        @keyframes bvcGateFadeUp {
-          from { opacity: 0; transform: translateY(10px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes bvcGatePulse {
-          0%   { box-shadow: 0 0 0 0 rgba(16,185,129,0.55); }
-          70%  { box-shadow: 0 0 0 12px rgba(16,185,129,0); }
-          100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
-        }
-      `}</style>
+    <div className={styles.page}>
 
       {/* TOP — scan column (centered) */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          maxWidth: 700,
-          margin: "0 auto",
-          width: "100%",
-          paddingBottom: 24
-        }}
-      >
+      {/* Keyframe animations are defined in BiometricCheckIn.module.css */}
+      <div className={styles.scanColumn}>
 
-        <div
-          style={{
-            background: "white",
-            padding: "10px 20px",
-            borderRadius: 12,
-            marginBottom: 24,
-            boxShadow: "0 6px 18px rgba(0,0,0,0.2)"
-          }}
-        >
+        <div className={styles.clockBox}>
           <LiveClock />
         </div>
 
-        <div
-          style={{
-            color: "white",
-            fontSize: 13,
-            letterSpacing: 1.4,
-            textTransform: "uppercase",
-            marginBottom: 8
-          }}
-        >
+        <div className={styles.brandTagline}>
           BVC24 · Bharath Vending Corporation
         </div>
 
-        <div
-          style={{
-            color: "white",
-            fontSize: 28,
-            fontWeight: 700,
-            marginBottom: 8,
-            textAlign: "center"
-          }}
-        >
+        <div className={styles.scanHeading}>
           Gate Biometric Scan
         </div>
 
-        <div
-          style={{
-            color: "rgba(255,255,255,0.7)",
-            fontSize: 13,
-            marginBottom: 28,
-            textAlign: "center",
-            maxWidth: 460
-          }}
-        >
+        <div className={styles.scanSubtitle}>
           One finger does it all — check-in, mark task complete,
           get next task, check-out at end of shift.
         </div>
 
-        <div
-          style={{
-            background:
-              "radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%)",
-            width: 220,
-            height: 220,
-            borderRadius: "50%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            marginBottom: 24
-          }}
-        >
+        <div className={styles.fpCircle}>
           <FingerprintIcon scanning={scanning} />
         </div>
 
         <form
           onSubmit={handleScan}
-          style={{
-            width: "100%",
-            maxWidth: 420,
-            display: "flex",
-            gap: 10
-          }}
+          className={styles.scanForm}
         >
 
           <input
@@ -1435,75 +1060,41 @@ function BiometricCheckIn() {
             value={fingerprintId}
             onChange={(e) => setFingerprintId(e.target.value)}
             disabled={scanning}
-            style={{
-              flex: 1,
-              padding: "14px 18px",
-              borderRadius: 10,
-              border: "none",
-              fontSize: 15,
-              outline: "none",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
-            }}
+            className={styles.fpInput}
           />
 
           <button
             type="submit"
             disabled={scanning}
-            style={{
-              padding: "14px 26px",
-              borderRadius: 10,
-              border: "none",
-              background: scanning ? "#94a3b8" : "#10b981",
-              color: "white",
-              fontWeight: 700,
-              fontSize: 15,
-              cursor: scanning ? "not-allowed" : "pointer",
-              boxShadow: "0 6px 18px rgba(16,185,129,0.4)",
-              transition: "background 0.2s"
-            }}
+            className={`${styles.btnScan} ${scanning ? styles.btnScanScanning : styles.btnScanReady}`}
           >
             {scanning ? "Scanning…" : "Scan"}
           </button>
         </form>
 
-        <div
-          style={{
-            color: "rgba(255,255,255,0.6)",
-            fontSize: 12,
-            marginTop: 14,
-            textAlign: "center"
-          }}
-        >
+        <div className={styles.deviceLabel}>
           Device · {deviceId}
         </div>
 
         {/* Auto-print / auto-voice toggles */}
-        <div
-          style={{
-            display: "flex",
-            gap: 16,
-            marginTop: 12,
-            color: "rgba(255,255,255,0.85)",
-            fontSize: 12
-          }}
-        >
+        <div className={styles.toggleRow}>
 
-          <label style={{ cursor: "pointer", userSelect: "none" }}>
+          <label className={styles.toggleLabel}>
             <input
               type="checkbox"
               checked={autoPrint}
               onChange={(e) => setAutoPrint(e.target.checked)}
-              style={{ marginRight: 6 }}
+              className={styles.toggleCheckbox}
             />
             Auto-print task sheet
           </label>
 
-          <label style={{ cursor: "pointer", userSelect: "none" }}>
+          <label className={styles.toggleLabel}>
             <input
               type="checkbox"
               checked={autoVoice}
               onChange={(e) => setAutoVoice(e.target.checked)}
-              style={{ marginRight: 6 }}
+              className={styles.toggleCheckbox}
             />
             Voice announcements + 5 PM alert
           </label>
@@ -1516,15 +1107,7 @@ function BiometricCheckIn() {
                 "Otherwise a notification email will be sent to the M D."
               )
             }
-            style={{
-              border: "1px solid rgba(255,255,255,0.3)",
-              background: "transparent",
-              color: "rgba(255,255,255,0.9)",
-              padding: "2px 10px",
-              borderRadius: 4,
-              cursor: "pointer",
-              fontSize: 11
-            }}
+            className={styles.btnTestAlert}
           >
             🔊 Test 5 PM alert
           </button>
@@ -1532,17 +1115,7 @@ function BiometricCheckIn() {
 
         {error && (
 
-          <div
-            style={{
-              marginTop: 20,
-              background: "rgba(220,38,38,0.15)",
-              color: "#fecaca",
-              padding: "10px 18px",
-              borderRadius: 10,
-              fontSize: 14,
-              border: "1px solid rgba(220,38,38,0.4)"
-            }}
-          >
+          <div className={styles.errorBanner}>
             {error}
           </div>
         )}
@@ -1607,50 +1180,19 @@ function BoardSummaryTile({ label, value, sub, color }) {
 
   return (
 
-    <div
-      style={{
-        background: "rgba(255,255,255,0.08)",
-        backdropFilter: "blur(10px)",
-        border: "1px solid rgba(255,255,255,0.12)",
-        padding: "16px 20px",
-        borderRadius: 14,
-        color: "white",
-        animation: "bvcGateFadeUp 0.5s ease-out both"
-      }}
-    >
+    <div className={styles.boardSummaryTile}>
 
-      <div
-        style={{
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: 1.4,
-          textTransform: "uppercase",
-          opacity: 0.7
-        }}
-      >
+      <div className={styles.boardTileLabel}>
         {label}
       </div>
 
-      <div
-        style={{
-          fontSize: 28,
-          fontWeight: 800,
-          marginTop: 4,
-          color
-        }}
-      >
+      <div className={styles.boardTileValue} style={{ color }}>
         {value}
       </div>
 
       {sub && (
 
-        <div
-          style={{
-            fontSize: 11,
-            opacity: 0.6,
-            marginTop: 2
-          }}
-        >
+        <div className={styles.boardTileSub}>
           {sub}
         </div>
       )}
@@ -1668,6 +1210,7 @@ function EmployeeAttendanceCard({ emp, tick, index }) {
 
   const isOut = !!emp.CHECK_OUT;
 
+  // State-derived colours are runtime-computed — kept inline.
   let stateLabel = "Not in";
 
   let stateBg = "#f1f5f9";
@@ -1715,91 +1258,33 @@ function EmployeeAttendanceCard({ emp, tick, index }) {
   return (
 
     <div
+      className={styles.empCard}
       style={{
-        background: "white",
-        borderRadius: 16,
-        padding: 18,
-        boxShadow: "0 12px 30px rgba(15,23,42,0.18)",
         borderTop: `4px solid ${accent}`,
-        animation: `bvcGateFadeUp 0.5s ease-out both`,
-        animationDelay: `${index * 50}ms`,
-        position: "relative"
+        animationDelay: `${index * 50}ms`
       }}
     >
 
       {/* Header row */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 14
-        }}
-      >
+      <div className={styles.empCardHeader}>
 
         <div
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: "50%",
-            background: isOut
-              ? "linear-gradient(135deg,#94a3b8,#64748b)"
-              : "linear-gradient(135deg,#6366f1,#8b5cf6,#ec4899)",
-            color: "white",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 20,
-            fontWeight: 800,
-            flexShrink: 0,
-            boxShadow: isOut
-              ? "0 4px 12px rgba(100,116,139,0.4)"
-              : "0 4px 14px rgba(139,92,246,0.5)",
-            position: "relative"
-          }}
+          className={`${styles.empAvatar} ${isOut ? styles.empAvatarOut : styles.empAvatarActive}`}
         >
           {(emp.NAME || "?").charAt(0).toUpperCase()}
 
           {!isOut && isIn && (
-
-            <span
-              style={{
-                position: "absolute",
-                bottom: -2,
-                right: -2,
-                width: 12,
-                height: 12,
-                borderRadius: "50%",
-                background: "#10b981",
-                border: "2px solid white",
-                animation: "bvcGatePulse 2s ease-out infinite"
-              }}
-            />
+            <span className={styles.empActiveDot} />
           )}
         </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className={styles.empInfo}>
 
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 700,
-              color: "#0f172a",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis"
-            }}
-          >
+          <div className={styles.empName}>
             {emp.NAME}
           </div>
 
-          <div
-            style={{
-              fontSize: 11,
-              color: "#94a3b8",
-              fontFamily: "ui-monospace, monospace"
-            }}
-          >
+          <div className={styles.empCode}>
             {emp.EMPLOYEE_CODE}
             {emp.DEPARTMENT_CODE && (
               <span> · {emp.DEPARTMENT_CODE}</span>
@@ -1808,94 +1293,37 @@ function EmployeeAttendanceCard({ emp, tick, index }) {
         </div>
 
         <span
-          style={{
-            background: stateBg,
-            color: stateFg,
-            padding: "3px 10px",
-            borderRadius: 999,
-            fontSize: 10,
-            fontWeight: 700,
-            letterSpacing: 0.5,
-            textTransform: "uppercase"
-          }}
+          className={styles.empStateBadge}
+          style={{ background: stateBg, color: stateFg }}
         >
           {stateLabel}
         </span>
       </div>
 
       {/* Check-in / Check-out clock pair */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 10,
-          marginBottom: 12
-        }}
-      >
+      <div className={styles.timePair}>
 
         <div
-          style={{
-            background: emp.CHECK_IN ? "#ecfdf5" : "#f8fafc",
-            border: `1px solid ${emp.CHECK_IN ? "#a7f3d0" : "#e2e8f0"}`,
-            borderRadius: 10,
-            padding: "10px 12px",
-            textAlign: "center"
-          }}
+          className={`${styles.timeCell} ${emp.CHECK_IN ? styles.timeCellIn : styles.timeCellInEmpty}`}
         >
-          <div
-            style={{
-              fontSize: 9,
-              color: "#047857",
-              fontWeight: 700,
-              letterSpacing: 1,
-              textTransform: "uppercase"
-            }}
-          >
+          <div className={`${styles.timeCellLabel} ${styles.timeCellLabelIn}`}>
             ↓ Check-In
           </div>
           <div
-            style={{
-              fontSize: 20,
-              fontWeight: 800,
-              color: emp.CHECK_IN ? "#047857" : "#cbd5e1",
-              fontFamily: "ui-monospace, monospace",
-              marginTop: 2,
-              letterSpacing: -0.5
-            }}
+            className={`${styles.timeCellValue} ${emp.CHECK_IN ? styles.timeCellValuePresent : styles.timeCellValueEmpty}`}
           >
             {emp.CHECK_IN ? formatISTTime(emp.CHECK_IN) : "—:—"}
           </div>
         </div>
 
         <div
-          style={{
-            background: emp.CHECK_OUT ? "#fef2f2" : "#f8fafc",
-            border: `1px solid ${emp.CHECK_OUT ? "#fecaca" : "#e2e8f0"}`,
-            borderRadius: 10,
-            padding: "10px 12px",
-            textAlign: "center"
-          }}
+          className={`${styles.timeCell} ${emp.CHECK_OUT ? styles.timeCellOut : styles.timeCellOutEmpty}`}
         >
-          <div
-            style={{
-              fontSize: 9,
-              color: "#b91c1c",
-              fontWeight: 700,
-              letterSpacing: 1,
-              textTransform: "uppercase"
-            }}
-          >
+          <div className={`${styles.timeCellLabel} ${styles.timeCellLabelOut}`}>
             ↑ Check-Out
           </div>
           <div
-            style={{
-              fontSize: 20,
-              fontWeight: 800,
-              color: emp.CHECK_OUT ? "#b91c1c" : "#cbd5e1",
-              fontFamily: "ui-monospace, monospace",
-              marginTop: 2,
-              letterSpacing: -0.5
-            }}
+            className={`${styles.timeCellValue} ${emp.CHECK_OUT ? styles.timeCellValueOut : styles.timeCellValueEmpty}`}
           >
             {emp.CHECK_OUT ? formatISTTime(emp.CHECK_OUT) : "—:—"}
           </div>
@@ -1906,37 +1334,15 @@ function EmployeeAttendanceCard({ emp, tick, index }) {
       {isIn && (
 
         <div
-          style={{
-            background: isOut ? "#f1f5f9" : "#eef2ff",
-            border: `1px solid ${isOut ? "#cbd5e1" : "#c7d2fe"}`,
-            borderRadius: 10,
-            padding: "8px 12px",
-            marginBottom: 10,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center"
-          }}
+          className={`${styles.liveCounter} ${isOut ? styles.liveCounterDone : styles.liveCounterActive}`}
         >
 
-          <div
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              color: "#475569",
-              textTransform: "uppercase",
-              letterSpacing: 1
-            }}
-          >
+          <div className={styles.liveCounterLabel}>
             {isOut ? "Worked Total" : "Live ⏱"}
           </div>
 
           <div
-            style={{
-              fontFamily: "ui-monospace, monospace",
-              fontSize: 16,
-              fontWeight: 800,
-              color: isOut ? "#475569" : "#4338ca"
-            }}
+            className={`${styles.liveCounterValue} ${isOut ? styles.liveCounterValueDone : styles.liveCounterValueActive}`}
           >
             {liveHours}
           </div>
@@ -1946,72 +1352,26 @@ function EmployeeAttendanceCard({ emp, tick, index }) {
       {/* Current task */}
       {emp.CURRENT_TASK_NAME ? (
 
-        <div
-          style={{
-            background: "linear-gradient(135deg, #fef2f2 0%, #fff4e6 100%)",
-            border: "1px solid #c7d2fe",
-            borderRadius: 10,
-            padding: 10
-          }}
-        >
+        <div className={styles.currentTaskBox}>
 
-          <div
-            style={{
-              fontSize: 9,
-              fontWeight: 700,
-              color: "#4338ca",
-              textTransform: "uppercase",
-              letterSpacing: 1
-            }}
-          >
+          <div className={styles.currentTaskLabel}>
             🔧 Working On
           </div>
 
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              color: "#0f172a",
-              marginTop: 2,
-              lineHeight: 1.3,
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden"
-            }}
-          >
+          <div className={styles.currentTaskName}>
             {emp.CURRENT_TASK_NAME}
           </div>
 
           {emp.CURRENT_PROJECT && (
 
-            <div
-              style={{
-                fontSize: 10,
-                color: "#64748b",
-                marginTop: 2,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis"
-              }}
-            >
+            <div className={styles.currentTaskProject}>
               {emp.CURRENT_PROJECT}
             </div>
           )}
         </div>
       ) : isIn && !isOut ? (
 
-        <div
-          style={{
-            background: "#f8fafc",
-            border: "1px dashed #cbd5e1",
-            borderRadius: 10,
-            padding: 10,
-            textAlign: "center",
-            fontSize: 11,
-            color: "#94a3b8"
-          }}
-        >
+        <div className={styles.noTaskBox}>
           No active task
         </div>
       ) : null}
@@ -2019,29 +1379,11 @@ function EmployeeAttendanceCard({ emp, tick, index }) {
       {/* Tasks done today */}
       {emp.TASKS_COMPLETED_TODAY > 0 && (
 
-        <div
-          style={{
-            marginTop: 8,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            fontSize: 11,
-            color: "#475569"
-          }}
-        >
+        <div className={styles.tasksDoneRow}>
 
           <span>Tasks done today</span>
 
-          <span
-            style={{
-              background: "#dcfce7",
-              color: "#166534",
-              padding: "2px 10px",
-              borderRadius: 999,
-              fontWeight: 800,
-              fontSize: 12
-            }}
-          >
+          <span className={styles.tasksDoneBadge}>
             ✓ {emp.TASKS_COMPLETED_TODAY}
           </span>
         </div>
@@ -2059,96 +1401,30 @@ function AttendanceBoardSection({ board, tick }) {
 
   return (
 
-    <div
-      style={{
-        marginTop: 20,
-        padding: "24px 20px",
-        background: "rgba(255,255,255,0.05)",
-        backdropFilter: "blur(8px)",
-        borderRadius: 18,
-        border: "1px solid rgba(255,255,255,0.08)"
-      }}
-    >
+    <div className={styles.boardSection}>
 
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 18,
-          flexWrap: "wrap",
-          gap: 10
-        }}
-      >
+      <div className={styles.boardHeader}>
 
         <div>
 
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: 2,
-              textTransform: "uppercase",
-              color: "rgba(255,255,255,0.6)"
-            }}
-          >
+          <div className={styles.boardHeadingLabel}>
             Today's Attendance Board
           </div>
 
-          <div
-            style={{
-              fontSize: 22,
-              fontWeight: 800,
-              color: "white",
-              marginTop: 2,
-              letterSpacing: -0.3
-            }}
-          >
+          <div className={styles.boardHeading}>
             Live Check-In / Check-Out
           </div>
         </div>
 
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-            background: "rgba(16,185,129,0.18)",
-            border: "1px solid rgba(16,185,129,0.35)",
-            padding: "5px 12px",
-            borderRadius: 999,
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: 0.8,
-            textTransform: "uppercase",
-            color: "#a7f3d0"
-          }}
-        >
-          <span
-            style={{
-              width: 7,
-              height: 7,
-              borderRadius: "50%",
-              background: "#10b981",
-              display: "inline-block",
-              boxShadow: "0 0 8px #10b981",
-              animation: "bvcGatePulse 1.6s ease-out infinite"
-            }}
-          />
+        <div className={styles.liveIndicator}>
+          <span className={styles.liveDot} />
           Auto-refreshing every 10s
         </div>
       </div>
 
       {/* Summary tiles */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 12,
-          marginBottom: 20
-        }}
-      >
+      <div className={styles.boardTilesGrid}>
 
         <BoardSummaryTile
           label="Total Active"
@@ -2179,28 +1455,11 @@ function AttendanceBoardSection({ board, tick }) {
       </div>
 
       {/* Employee cards grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))",
-          gap: 16
-        }}
-      >
+      <div className={styles.empCardsGrid}>
 
         {employees.length === 0 && (
 
-          <div
-            style={{
-              gridColumn: "1 / -1",
-              padding: 40,
-              textAlign: "center",
-              color: "rgba(255,255,255,0.5)",
-              fontSize: 14,
-              background: "rgba(255,255,255,0.04)",
-              borderRadius: 12,
-              border: "1px dashed rgba(255,255,255,0.15)"
-            }}
-          >
+          <div className={styles.emptyBoard}>
             No active employees. Run /demo/seed-bvc24 to populate.
           </div>
         )}

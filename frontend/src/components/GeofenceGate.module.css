@@ -1,0 +1,99 @@
+/* GeofenceGate.module.css
+   All colours use CSS custom-properties defined in the global theme.
+   Status card border/bg colours are intentionally hardcoded because
+   they encode semantic state (green=inside, red=outside, amber=warn).
+   No linear-gradient() used anywhere in this file.
+*/
+
+/* ── Card ────────────────────────────────────────────────────── */
+/* border and bg are passed as props (status colours) — kept inline */
+.card {
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm, 0 4px 14px rgba(15, 23, 42, 0.04));
+}
+
+.title {
+  font-size: 15px;
+  font-weight: var(--fw-extrabold, 800);
+  margin-bottom: 6px;
+}
+
+.body {
+  font-size: var(--font-sm, 13px);
+  color: var(--text-secondary, #475569);
+  line-height: 1.6;
+}
+
+/* ── Coords ──────────────────────────────────────────────────── */
+.coords {
+  margin-top: 8px;
+  font-size: var(--font-xs, 11px);
+  color: var(--text-muted, #94a3b8);
+  font-family: ui-monospace, monospace;
+}
+
+/* ── Retry button ────────────────────────────────────────────── */
+.retryWrap {
+  margin-top: 12px;
+}
+
+.retryBtn {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border, #cbd5e1);
+  padding: 8px 14px;
+  border-radius: var(--radius, 8px);
+  font-size: var(--font-sm, 12px);
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-secondary, #475569);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.retryBtn:hover {
+  background: var(--surface, #f1f5f9);
+}
+
+/* ── Action row ──────────────────────────────────────────────── */
+.actionRow {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* ── Skip button — amber accent, status chip exception ───────── */
+.skipBtn {
+  background: #f59e0b;
+  color: #ffffff;
+  border: none;
+  padding: 10px 18px;
+  border-radius: var(--radius, 8px);
+  font-weight: var(--fw-extrabold, 800);
+  font-size: var(--font-sm, 13px);
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.30);
+  transition: opacity 0.15s;
+}
+
+.skipBtn:hover {
+  opacity: 0.9;
+}
+
+/* ── Inline code (kbd) ───────────────────────────────────────── */
+.kbd {
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: ui-monospace, monospace;
+  font-size: var(--font-xs, 11px);
+}
+
+/* ── GPS link ────────────────────────────────────────────────── */
+.gpsLink {
+  color: var(--clr-primary, #6366f1);
+}

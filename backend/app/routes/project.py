@@ -9,9 +9,9 @@ from datetime import datetime, date, timedelta
 
 from app.models.models import (
     Customer,
+    CustomerProject,
     Employee,
     Project,
-    SubProjectTemplate,
     Task,
     TaskAssignment,
     Notification,
@@ -447,23 +447,20 @@ def create_customer(
 
                 db.flush()
 
-                # Seed default stages + BOM so the new product has
-                # a working manufacturing flow + materials list out
-                # of the box. Same helpers used by the Production
-                # page's create-model endpoint.
+                # Seed default stages so the new product has a
+                # working manufacturing flow out of the box. BOM is
+                # NOT auto-seeded — the admin defines each line
+                # manually via the Production & BOM page so every
+                # machine carries its real materials list.
                 from app.routes.production import (
                     seed_default_stages_for_product,
-                    seed_default_bom_for_product
                 )
 
                 stages_created = seed_default_stages_for_product(
                     db, new_product.ID
                 )
 
-                bom_created = seed_default_bom_for_product(
-                    db, new_product.ID,
-                    vendor_id=data.VENDOR_ID
-                )
+                bom_created = 0
 
                 db.commit()
 
@@ -647,8 +644,8 @@ def create_project(
 
     if data.SUB_PROJECT_TEMPLATE_ID is not None:
 
-        template = db.query(SubProjectTemplate).filter(
-            SubProjectTemplate.ID == data.SUB_PROJECT_TEMPLATE_ID
+        template = db.query(Project).filter(
+            Project.ID == data.SUB_PROJECT_TEMPLATE_ID
         ).first()
 
         if not template:
@@ -1586,10 +1583,10 @@ def delete_customer(
         ).delete(synchronize_session=False)
 
         # ---- UNLINK reference rows (preserve their audit value) ----
-        projects_unlinked = db.query(Project).filter(
-            Project.CUSTOMER_ID == customer_id
+        projects_unlinked = db.query(CustomerProject).filter(
+            CustomerProject.CUSTOMER_ID == customer_id
         ).update(
-            {Project.CUSTOMER_ID: None},
+            {CustomerProject.CUSTOMER_ID: None},
             synchronize_session=False
         )
 

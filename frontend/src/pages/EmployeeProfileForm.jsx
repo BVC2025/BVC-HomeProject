@@ -1,6 +1,103 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import API from "../services/api";
+import ConfirmDialog from "../components/ConfirmDialog";
+import styles from "./EmployeeProfileForm.module.css";
+
+// Small set surfaced during onboarding. Anything else can still be
+// uploaded later from Profile → Documents in the ESS panel.
+const DOC_TYPES = [
+  { value: "RESUME", label: "Resume / CV" },
+  { value: "AADHAAR", label: "Aadhaar" },
+  { value: "PAN", label: "PAN card" },
+  { value: "DEGREE", label: "Degree certificate" },
+  { value: "TENTH_MARKSHEET", label: "10th marksheet" },
+  { value: "TWELFTH_MARKSHEET", label: "12th marksheet" },
+  { value: "OFFER_LETTER", label: "Offer letter" },
+  { value: "BANK_PASSBOOK", label: "Bank passbook / cheque" },
+  { value: "ADDRESS_PROOF", label: "Address proof" },
+  { value: "OTHER", label: "Other" },
+];
+
+const MAX_DOC_MB = 10;
+
+// ---- Icons ----
+// Small stroke SVGs replace the emoji glyphs we used to have. Same
+// visual weight everywhere so the page reads as one thing, and
+// icons render identically across OS emoji fonts.
+const svg = (path) => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="1.8"
+    strokeLinecap="round" strokeLinejoin="round"
+    aria-hidden="true">
+    {path}
+  </svg>
+);
+
+const Icons = {
+  identity: svg(<>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <circle cx="9" cy="12" r="2.5" />
+    <path d="M14 10h4M14 14h4M6.5 16.5c0-1.4 1.1-2.5 2.5-2.5s2.5 1.1 2.5 2.5" />
+  </>),
+  camera: svg(<>
+    <path d="M4 8h3l2-2h6l2 2h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" />
+    <circle cx="12" cy="13" r="3.5" />
+  </>),
+  user: svg(<>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+  </>),
+  phone: svg(<>
+    <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8 9.6a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z" />
+  </>),
+  graduation: svg(<>
+    <path d="M22 10L12 5 2 10l10 5 10-5z" />
+    <path d="M6 12v5c3 2 9 2 12 0v-5" />
+  </>),
+  briefcase: svg(<>
+    <rect x="2" y="7" width="20" height="14" rx="2" />
+    <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <path d="M2 13h20" />
+  </>),
+  paperclip: svg(
+    <path d="M21 12.5L12.5 21a5.5 5.5 0 0 1-7.8-7.8l9-9a3.7 3.7 0 0 1 5.2 5.2l-9 9a1.8 1.8 0 0 1-2.6-2.6l7.4-7.4" />
+  ),
+  note: svg(<>
+    <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+    <path d="M14 3v6h6" />
+    <path d="M9 13h6M9 17h4" />
+  </>),
+  logout: svg(<>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <path d="M16 17l5-5-5-5" />
+    <path d="M21 12H9" />
+  </>),
+  building: svg(<>
+    <path d="M4 21V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16" />
+    <path d="M9 21V13h6v8" />
+    <path d="M8 7h2M8 10h2M14 7h2M14 10h2" />
+    <path d="M2 21h20" />
+  </>),
+  speaker: svg(<>
+    <path d="M11 5L6 9H2v6h4l5 4V5z" />
+    <path d="M15 9a3 3 0 0 1 0 6" />
+    <path d="M17.5 6.5a7 7 0 0 1 0 11" />
+  </>),
+  bank: svg(<>
+    <path d="M3 10l9-6 9 6" />
+    <path d="M4 10v8M8 10v8M12 10v8M16 10v8M20 10v8" />
+    <path d="M2 21h20" />
+  </>),
+  alert: svg(<>
+    <path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+    <path d="M12 9v4M12 17h.01" />
+  </>),
+  check: svg(<>
+    <path d="M22 11.1V12a10 10 0 1 1-5.9-9.1" />
+    <path d="M22 4L12 14.01l-3-3" />
+  </>),
+};
 
 
 // ===================================================================
@@ -18,73 +115,23 @@ import API from "../services/api";
 // ===================================================================
 
 
-function field() {
-
-  return {
-    width: "100%",
-    padding: "10px 12px",
-    border: "1px solid #cbd5e1",
-    borderRadius: 8,
-    fontSize: 13,
-    fontFamily: "inherit",
-    background: "white"
-  };
-}
-
-function readonly() {
-
-  return {
-    ...field(),
-    background: "#f1f5f9",
-    color: "#475569",
-    cursor: "not-allowed"
-  };
-}
-
-
 function Field({ label, children, hint }) {
-
   return (
     <div>
-      <label style={{
-        fontSize: 11, color: "#64748b", fontWeight: 700,
-        letterSpacing: 0.5, marginBottom: 4, display: "block",
-        textTransform: "uppercase"
-      }}>
-        {label}
-      </label>
+      <label className={styles.fieldLabel}>{label}</label>
       {children}
-      {hint && (
-        <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 4 }}>
-          {hint}
-        </div>
-      )}
+      {hint && <div className={styles.fieldHint}>{hint}</div>}
     </div>
   );
 }
 
 
 function Section({ icon, title, children }) {
-
   return (
-    <div style={{
-      background: "white",
-      borderRadius: 14,
-      padding: 22,
-      marginBottom: 18,
-      boxShadow: "0 6px 20px rgba(15,23,42,0.06)"
-    }}>
-      <div style={{
-        fontSize: 12,
-        fontWeight: 800,
-        color: "#4338ca",
-        letterSpacing: 1.6,
-        textTransform: "uppercase",
-        marginBottom: 16,
-        paddingBottom: 10,
-        borderBottom: "2px solid #e2e8f0"
-      }}>
-        {icon} {title}
+    <div className={styles.section}>
+      <div className={styles.sectionHeader}>
+        <span className={styles.sectionIcon}>{icon}</span>
+        <span>{title}</span>
       </div>
       {children}
     </div>
@@ -94,274 +141,363 @@ function Section({ icon, title, children }) {
 
 function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
 
-  // Pre-fill from the existing employee record so admin-entered
-  // basics (NAME / ROLE / DEPT) are visible.
   const [form, setForm] = useState({
+    // Personal
     NAME: employee.NAME || "",
-    EMAIL: employee.EMAIL || "",
-    PHONE: employee.PHONE || "",
     DOB: employee.DOB || "",
-    GENDER: employee.GENDER || "",
     FATHER_NAME: employee.FATHER_NAME || "",
     MOTHER_NAME: employee.MOTHER_NAME || "",
+    GENDER: employee.GENDER || "",
     MARITAL_STATUS: employee.MARITAL_STATUS || "",
     OCCUPATION: employee.OCCUPATION || "",
+    BLOOD_GROUP: employee.BLOOD_GROUP || "",
+    NATIONALITY: employee.NATIONALITY || "Indian",
+    EMERGENCY_CONTACT_NAME: employee.EMERGENCY_CONTACT_NAME || "",
+    EMERGENCY_CONTACT_PHONE: employee.EMERGENCY_CONTACT_PHONE || "",
+    EMERGENCY_CONTACT_RELATION: employee.EMERGENCY_CONTACT_RELATION || "",
+    // Contact & address
+    EMAIL: employee.EMAIL || "",
+    PHONE: employee.PHONE || "",
     ADDRESS: employee.ADDRESS || "",
     CITY: employee.CITY || "",
     STATE: employee.STATE || "Tamil Nadu",
     PINCODE: employee.PINCODE || "",
+    // Education
     QUALIFICATION: employee.QUALIFICATION || "",
     YEAR_OF_PASSING: employee.YEAR_OF_PASSING || "",
+    COLLEGE: employee.COLLEGE || "",
+    UNIVERSITY: employee.UNIVERSITY || "",
+    PERCENTAGE: employee.PERCENTAGE ?? "",
+    // Professional
     EMPLOYMENT_TYPE: employee.EMPLOYMENT_TYPE || "FRESHER",
     EXPERIENCE_YEARS: employee.EXPERIENCE_YEARS || 0,
+    PREVIOUS_COMPANY: employee.PREVIOUS_COMPANY || "",
     SKILLS: employee.SKILLS || "",
     EXPERIENCE_DETAILS: employee.EXPERIENCE_DETAILS || "",
     PAST_PROJECTS: employee.PAST_PROJECTS || "",
+    // Work details
+    CONFIRMATION_DATE: employee.CONFIRMATION_DATE || "",
+    WORK_LOCATION: employee.WORK_LOCATION || "",
+    // Bank & identity (payroll)
+    BANK_ACCOUNT_NUMBER: employee.BANK_ACCOUNT_NUMBER || "",
+    BANK_NAME: employee.BANK_NAME || "",
+    IFSC_CODE: employee.IFSC_CODE || "",
+    PAN_NUMBER: employee.PAN_NUMBER || "",
+    AADHAAR_NUMBER: employee.AADHAAR_NUMBER || "",
+    // Additional
     NOTES: employee.NOTES || ""
   });
 
   const [saving, setSaving] = useState(false);
-
   const [error, setError] = useState("");
-
   const [photoFile, setPhotoFile] = useState(null);
-
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const set = (k) => (e) =>
-    setForm((f) => ({ ...f, [k]: e.target.value }));
+  // ---- Documents ----
+  // Docs are uploaded IMMEDIATELY (not deferred to submit) using the
+  // same endpoint MyProfilePanel uses. That way if the employee closes
+  // the browser mid-form, at least their IDs are saved.
+
+  // Uploaded IMMEDIATELY (not deferred to submit). If the employee
+  // closes the browser mid-form, their IDs are already saved on
+  // the server via the /employees/{id}/documents endpoint.
+
+  const [docType, setDocType] = useState(DOC_TYPES[0].value);
+  const [docTitle, setDocTitle] = useState("");
+  const [docBusy, setDocBusy] = useState(false);
+  const [docError, setDocError] = useState("");
+  const [docs, setDocs] = useState([]);
+  const docInputRef = useRef(null);
+
+  // Load any docs already uploaded (e.g. employee re-opened the form
+  // after uploading one file yesterday).
+
+  // Rehydrate any docs already uploaded (e.g. employee re-opened the
+  // form after uploading a file earlier).
+
+  useEffect(() => {
+    if (!employee?.ID) return;
+    let cancelled = false;
+    API.get(`/employees/${encodeURIComponent(employee.ID)}/documents`)
+      .then((r) => {
+        if (cancelled) return;
+        const list = Array.isArray(r.data) ? r.data : r.data?.documents || [];
+        setDocs(list);
+      })
+      .catch(() => { /* first-time load — no docs yet, silent */ });
+    return () => { cancelled = true; };
+  }, [employee?.ID]);
+
+
+  // ----- Voice greeting on first open -----
+  // Speaks: "Welcome <Name>, please fill in your personal and work details below."
+  //
+  // Browser autoplay policy blocks speechSynthesis until AFTER a user
+  // gesture. Strategy:
+  //   1. Try to speak immediately (works when login click is a recent gesture)
+  //   2. If blocked, fire on the first click/tap/key anywhere on the page
+  //   3. User can also click the manual sound button in the hero (state below)
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    const name = (employee?.NAME || "").trim();
+    if (!name) return;
+
+    let hasSpoken = false;
+
+    const speak = () => {
+      if (hasSpoken) return;
+      try {
+        const u = new SpeechSynthesisUtterance(
+          `Welcome ${name}. Please fill in your personal and work details below.`
+        );
+        u.rate  = 0.95;
+        u.pitch = 1.0;
+        u.lang  = "en-IN";
+        const voices = window.speechSynthesis.getVoices();
+        const preferred =
+          voices.find((v) => /en[-_]IN/i.test(v.lang)) ||
+          voices.find((v) => /en/i.test(v.lang));
+        if (preferred) u.voice = preferred;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(u);
+        hasSpoken = true;
+        // eslint-disable-next-line no-console
+        console.log("[voice] greeting spoken for", name);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn("[voice] greeting failed:", err);
+      }
+    };
+
+    // Expose the speak() to the manual button (via window global so a
+    // component render doesn't hold a stale reference).
+    window.__profileGreet = speak;
+
+    const onFirstGesture = () => { speak(); cleanup(); };
+
+    const cleanup = () => {
+      document.removeEventListener("click",       onFirstGesture);
+      document.removeEventListener("touchstart",  onFirstGesture);
+      document.removeEventListener("keydown",     onFirstGesture);
+    };
+
+    document.addEventListener("click",      onFirstGesture);
+    document.addEventListener("touchstart", onFirstGesture);
+    document.addEventListener("keydown",    onFirstGesture);
+
+    // Try to speak immediately after voices ready
+    if (window.speechSynthesis.getVoices().length > 0) {
+      setTimeout(speak, 400);
+    } else {
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.onvoiceschanged = null;
+        setTimeout(speak, 200);
+      };
+    }
+
+    return () => {
+      cleanup();
+      try { window.speechSynthesis.cancel(); } catch { /* ignore */ }
+      delete window.__profileGreet;
+    };
+  }, [employee?.ID, employee?.NAME]);
+
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const handleDocPick = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_DOC_MB * 1024 * 1024) {
+      setDocError(`File must be under ${MAX_DOC_MB} MB.`);
+      if (docInputRef.current) docInputRef.current.value = "";
+      return;
+    }
+    setDocBusy(true);
+    setDocError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("doc_type", docType);
+      fd.append("title", docTitle || file.name);
+      const res = await API.post(
+        `/employees/${encodeURIComponent(employee.ID)}/documents`,
+        fd,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+      const newDoc = res.data?.document || res.data;
+      if (newDoc) setDocs((prev) => [newDoc, ...prev]);
+      setDocTitle("");
+    } catch (err) {
+      setDocError(
+        err?.response?.data?.detail ||
+        err?.message ||
+        "Upload failed."
+      );
+    } finally {
+      setDocBusy(false);
+      if (docInputRef.current) docInputRef.current.value = "";
+    }
+  };
+
+  const removeDoc = async (docId) => {
+    try {
+      await API.delete(
+        `/employees/${encodeURIComponent(employee.ID)}/documents/${docId}`
+      );
+      setDocs((prev) => prev.filter((d) => (d.ID || d.id) !== docId));
+    } catch (err) {
+      alert(err?.response?.data?.detail || "Delete failed");
+    }
+  };
 
   const handlePhoto = (e) => {
-
     const file = e.target.files?.[0];
-
     if (!file) return;
-
     setPhotoFile(file);
-
     const reader = new FileReader();
-
     reader.onload = (ev) => setPhotoPreview(ev.target.result);
-
     reader.readAsDataURL(file);
   };
 
-  const submit = async (e) => {
-
+  // Form submit is a two-step gate: the button opens a confirmation
+  // dialog; only clicking "Yes, submit" in the dialog actually POSTs.
+  // Cancel keeps the form editable.
+  const submit = (e) => {
     e?.preventDefault?.();
-
     setError("");
 
-    if (!form.NAME.trim()) {
-
-      setError("Name is required.");
-
-      return;
-    }
-
+    if (!form.NAME.trim()) { setError("Name is required."); return; }
     if (!form.PHONE.trim() || !form.EMAIL.trim()) {
-
       setError("Phone and Email are required.");
-
       return;
     }
 
+    setConfirmOpen(true);
+  };
+
+  const confirmSubmit = async () => {
+    setConfirmOpen(false);
     setSaving(true);
-
     try {
-
       const payload = {
         ...form,
+        // Dates → null if empty (backend expects date or null, not "")
         DOB: form.DOB || null,
-        YEAR_OF_PASSING: form.YEAR_OF_PASSING
-          ? Number(form.YEAR_OF_PASSING)
-          : null,
-        EXPERIENCE_YEARS: Number(form.EXPERIENCE_YEARS) || 0
+        CONFIRMATION_DATE: form.CONFIRMATION_DATE || null,
+        // Numeric coercions
+        YEAR_OF_PASSING: form.YEAR_OF_PASSING ? Number(form.YEAR_OF_PASSING) : null,
+        EXPERIENCE_YEARS: Number(form.EXPERIENCE_YEARS) || 0,
+        PERCENTAGE: form.PERCENTAGE === "" || form.PERCENTAGE == null
+          ? null
+          : Number(form.PERCENTAGE),
+        // Uppercase codes so IFSC / PAN / Aadhaar match validation
+        IFSC_CODE: (form.IFSC_CODE || "").trim().toUpperCase(),
+        PAN_NUMBER: (form.PAN_NUMBER || "").trim().toUpperCase()
       };
 
       const code = employee.EMPLOYEE_CODE;
+      await API.post(`/employees/by-code/${encodeURIComponent(code)}/submit-profile`, payload);
 
-      await API.post(
-        `/employees/by-code/${encodeURIComponent(code)}/submit-profile`,
-        payload
-      );
-
-      // Upload photo separately if present
       if (photoFile) {
-
         try {
-
           const fd = new FormData();
-
           fd.append("file", photoFile);
-
-          await API.post(
-            `/employees/${employee.ID}/upload-photo`,
-            fd,
-            { headers: { "Content-Type": "multipart/form-data" } }
-          );
-
+          await API.post(`/employees/${employee.ID}/upload-photo`, fd, {
+            headers: { "Content-Type": "multipart/form-data" }
+          });
         } catch (photoErr) {
-
-          // Non-fatal — profile is saved either way
           console.warn("Photo upload failed:", photoErr);
         }
       }
 
       onSubmitted?.();
-
     } catch (err) {
-
       setError(err?.response?.data?.detail || "Failed to submit profile");
-
     } finally {
-
       setSaving(false);
     }
   };
 
   return (
-
-    <div style={{
-      minHeight: "100vh",
-      background: "linear-gradient(135deg, #f1f5f9 0%, #e0e7ff 100%)",
-      padding: "30px 24px"
-    }}>
-
-      <div style={{ maxWidth: 980, margin: "0 auto" }}>
+    <div className={styles.page}>
+      <div className={styles.formWrapper}>
 
         {/* Welcome hero */}
-        <div style={{
-          background: "linear-gradient(135deg, #C8102E, #E63946, #F4B324)",
-          color: "white",
-          borderRadius: 18,
-          padding: "30px 32px",
-          marginBottom: 22,
-          boxShadow: "0 14px 40px rgba(99,102,241,0.35)",
-          position: "relative",
-          overflow: "hidden"
-        }}>
+        <div className={styles.hero}>
+          <div className={styles.heroRing} />
 
-          <div style={{
-            position: "absolute", right: -60, top: -60,
-            width: 220, height: 220, borderRadius: "50%",
-            background: "rgba(255,255,255,0.1)"
-          }} />
-
-          <div style={{
-            fontSize: 11, fontWeight: 800, letterSpacing: 2.5,
-            opacity: 0.9, marginBottom: 6
-          }}>
-            BVC24 · ONE-TIME REGISTRATION
+          {/* Actions row sits at the top so on narrow screens the
+              buttons never overlap the title. Desktop CSS floats it
+              to the top-right; mobile CSS lets it wrap below the
+              text. */}
+          <div className={styles.heroActions}>
+            <button
+              type="button"
+              onClick={() => window.__profileGreet && window.__profileGreet()}
+              className={styles.greetBtn}
+              title="Hear welcome message"
+              aria-label="Hear welcome message"
+            >
+              {Icons.speaker} <span>Play welcome</span>
+            </button>
+            <button onClick={onLogout} className={styles.logoutBtn}>
+              {Icons.logout} <span>Logout</span>
+            </button>
           </div>
 
-          <h1 style={{
-            fontSize: 30, fontWeight: 900, margin: 0,
-            lineHeight: 1.15, letterSpacing: -0.5
-          }}>
+          <div className={styles.heroEyebrow}>BVC24 · ONE-TIME REGISTRATION</div>
+          <h1 className={styles.heroTitle}>
             Welcome, {employee.NAME || employee.EMPLOYEE_CODE}!
           </h1>
-
-          <div style={{ fontSize: 14, opacity: 0.9, marginTop: 10, maxWidth: 700 }}>
+          <div className={styles.heroDesc}>
             Please fill in your personal and work details below.
             This is a <b>one-time submission</b> — after you save,
             only admin can change these details.
             Verify everything carefully before submitting.
           </div>
-
-          <button
-            onClick={onLogout}
-            style={{
-              position: "absolute", top: 16, right: 18,
-              background: "rgba(255,255,255,0.2)",
-              border: "1px solid rgba(255,255,255,0.4)",
-              color: "white", padding: "6px 14px",
-              borderRadius: 8, fontSize: 12, fontWeight: 700,
-              cursor: "pointer"
-            }}
-          >
-            ⏻ Logout
-          </button>
         </div>
 
         {error && (
-          <div style={{
-            background: "#fef2f2", border: "1px solid #fecaca",
-            color: "#b91c1c", padding: "12px 16px", borderRadius: 10,
-            marginBottom: 16, fontWeight: 600
-          }}>
-            ⚠ {error}
-          </div>
+          <div className={styles.errorBanner}>{Icons.alert}<span>{error}</span></div>
         )}
 
         <form onSubmit={submit}>
 
           {/* Admin-set basics (locked) */}
-          <Section icon="🪪" title="Identity (set by Admin)">
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: 14
-            }}>
+          <Section icon={Icons.identity} title="Identity (set by Admin)">
+            <div className={styles.grid3}>
               <Field label="Employee Code">
-                <input
-                  type="text"
-                  value={employee.EMPLOYEE_CODE || ""}
-                  readOnly
-                  style={readonly()}
-                />
+                <input type="text" value={employee.EMPLOYEE_CODE || ""} readOnly
+                  className={`${styles.input} ${styles.inputReadonly}`} />
               </Field>
               <Field label="Role">
-                <input
-                  type="text"
-                  value={employee.ROLE?.NAME || "—"}
-                  readOnly
-                  style={readonly()}
-                />
+                <input type="text" value={employee.ROLE?.NAME || "—"} readOnly
+                  className={`${styles.input} ${styles.inputReadonly}`} />
               </Field>
               <Field label="Department">
-                <input
-                  type="text"
-                  value={employee.DEPARTMENT?.NAME || "—"}
-                  readOnly
-                  style={readonly()}
-                />
+                <input type="text" value={employee.DEPARTMENT?.NAME || "—"} readOnly
+                  className={`${styles.input} ${styles.inputReadonly}`} />
               </Field>
               <Field label="Designation">
-                <input
-                  type="text"
-                  value={employee.DESIGNATION?.TITLE || "—"}
-                  readOnly
-                  style={readonly()}
-                />
+                <input type="text" value={employee.DESIGNATION?.TITLE || "—"} readOnly
+                  className={`${styles.input} ${styles.inputReadonly}`} />
               </Field>
             </div>
           </Section>
 
           {/* Photo */}
-          <Section icon="📷" title="Profile Photo">
-            <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-
-              <div style={{
-                width: 100, height: 100, borderRadius: "50%",
-                background: photoPreview
-                  ? `url(${photoPreview}) center/cover`
-                  : "linear-gradient(135deg, #818cf8, #c084fc)",
-                color: "white", display: "flex", alignItems: "center",
-                justifyContent: "center", fontSize: 28, fontWeight: 800,
-                boxShadow: "0 8px 24px rgba(99,102,241,0.3)"
-              }}>
+          <Section icon={Icons.camera} title="Profile Photo">
+            <div className={styles.photoRow}>
+              <div
+                className={styles.avatar}
+                style={photoPreview ? { backgroundImage: `url(${photoPreview})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+              >
                 {!photoPreview && (employee.NAME || "?").charAt(0).toUpperCase()}
               </div>
-
-              <div style={{ flex: 1 }}>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhoto}
-                  style={{ fontSize: 13 }}
-                />
-                <div style={{ fontSize: 11, color: "#64748b", marginTop: 6 }}>
+              <div className={styles.photoInputWrapper}>
+                <input type="file" accept="image/*" onChange={handlePhoto} className={styles.fileInput} />
+                <div className={styles.photoHint}>
                   PNG / JPG. Will appear on your profile card across the ERP.
                 </div>
               </div>
@@ -369,24 +505,22 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
           </Section>
 
           {/* Personal Information */}
-          <Section icon="👤" title="Personal Information">
-            <div style={{
-              display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14
-            }}>
+          <Section icon={Icons.user} title="Personal Information">
+            <div className={styles.grid2}>
               <Field label="Full Name *">
-                <input type="text" value={form.NAME} onChange={set("NAME")} style={field()} required />
+                <input type="text" value={form.NAME} onChange={set("NAME")} className={styles.input} required />
               </Field>
               <Field label="Date of Birth">
-                <input type="date" value={form.DOB} onChange={set("DOB")} style={field()} />
+                <input type="date" value={form.DOB} onChange={set("DOB")} className={styles.input} />
               </Field>
               <Field label="Father's Name">
-                <input type="text" value={form.FATHER_NAME} onChange={set("FATHER_NAME")} style={field()} />
+                <input type="text" value={form.FATHER_NAME} onChange={set("FATHER_NAME")} className={styles.input} />
               </Field>
               <Field label="Mother's Name">
-                <input type="text" value={form.MOTHER_NAME} onChange={set("MOTHER_NAME")} style={field()} />
+                <input type="text" value={form.MOTHER_NAME} onChange={set("MOTHER_NAME")} className={styles.input} />
               </Field>
               <Field label="Gender">
-                <select value={form.GENDER} onChange={set("GENDER")} style={field()}>
+                <select value={form.GENDER} onChange={set("GENDER")} className={styles.input}>
                   <option value="">— pick —</option>
                   <option value="MALE">Male</option>
                   <option value="FEMALE">Female</option>
@@ -395,7 +529,7 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
                 </select>
               </Field>
               <Field label="Marital Status">
-                <select value={form.MARITAL_STATUS} onChange={set("MARITAL_STATUS")} style={field()}>
+                <select value={form.MARITAL_STATUS} onChange={set("MARITAL_STATUS")} className={styles.input}>
                   <option value="">— pick —</option>
                   <option value="SINGLE">Single</option>
                   <option value="MARRIED">Married</option>
@@ -404,58 +538,95 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
                 </select>
               </Field>
               <Field label="Occupation">
-                <input type="text" value={form.OCCUPATION} onChange={set("OCCUPATION")} style={field()} placeholder="e.g. Mechanical Technician" />
+                <input type="text" value={form.OCCUPATION} onChange={set("OCCUPATION")} className={styles.input} placeholder="e.g. Mechanical Technician" />
+              </Field>
+              <Field label="Blood Group">
+                <select value={form.BLOOD_GROUP} onChange={set("BLOOD_GROUP")} className={styles.input}>
+                  <option value="">— pick —</option>
+                  {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Nationality">
+                <input type="text" value={form.NATIONALITY} onChange={set("NATIONALITY")} className={styles.input} placeholder="Indian" />
+              </Field>
+              <Field label="Emergency Contact Name">
+                <input type="text" value={form.EMERGENCY_CONTACT_NAME} onChange={set("EMERGENCY_CONTACT_NAME")} className={styles.input} placeholder="Spouse / Parent / Sibling" />
+              </Field>
+              <Field label="Emergency Contact Phone">
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
+                  value={form.EMERGENCY_CONTACT_PHONE}
+                  onChange={(e) => setForm((f) => ({
+                    ...f,
+                    EMERGENCY_CONTACT_PHONE: e.target.value.replace(/\D/g, "").slice(0, 10)
+                  }))}
+                  className={styles.input}
+                  placeholder="9876543210"
+                />
+              </Field>
+              <Field label="Emergency Contact Relationship">
+                <input type="text" value={form.EMERGENCY_CONTACT_RELATION} onChange={set("EMERGENCY_CONTACT_RELATION")} className={styles.input} placeholder="Father / Mother / Spouse / Sibling" />
               </Field>
             </div>
           </Section>
 
           {/* Contact + Address */}
-          <Section icon="📞" title="Contact & Address">
-            <div style={{
-              display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 14
-            }}>
+          <Section icon={Icons.phone} title="Contact & Address">
+            <div className={styles.grid2}>
               <Field label="Phone *">
-                <input type="text" value={form.PHONE} onChange={set("PHONE")} style={field()} required />
+                <input type="text" value={form.PHONE} onChange={set("PHONE")} className={styles.input} required />
               </Field>
               <Field label="Email *">
-                <input type="email" value={form.EMAIL} onChange={set("EMAIL")} style={field()} required />
+                <input type="email" value={form.EMAIL} onChange={set("EMAIL")} className={styles.input} required />
               </Field>
-              <Field label="Address (Street / House No)" >
-                <input type="text" value={form.ADDRESS} onChange={set("ADDRESS")} style={field()} />
+              <Field label="Address (Street / House No)">
+                <input type="text" value={form.ADDRESS} onChange={set("ADDRESS")} className={styles.input} />
               </Field>
               <Field label="City">
-                <input type="text" value={form.CITY} onChange={set("CITY")} style={field()} />
+                <input type="text" value={form.CITY} onChange={set("CITY")} className={styles.input} />
               </Field>
               <Field label="State">
-                <input type="text" value={form.STATE} onChange={set("STATE")} style={field()} />
+                <input type="text" value={form.STATE} onChange={set("STATE")} className={styles.input} />
               </Field>
               <Field label="Pincode">
-                <input type="text" value={form.PINCODE} onChange={set("PINCODE")} style={field()} />
+                <input type="text" value={form.PINCODE} onChange={set("PINCODE")} className={styles.input} />
               </Field>
             </div>
           </Section>
 
           {/* Education */}
-          <Section icon="🎓" title="Educational Background">
-            <div style={{
-              display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14
-            }}>
+          <Section icon={Icons.graduation} title="Educational Background">
+            <div className={styles.gridEdu}>
               <Field label="Qualification">
-                <input type="text" value={form.QUALIFICATION} onChange={set("QUALIFICATION")} style={field()} placeholder="e.g. BE Mechanical, Diploma in EEE" />
+                <input type="text" value={form.QUALIFICATION} onChange={set("QUALIFICATION")} className={styles.input} placeholder="e.g. BE Mechanical, Diploma in EEE" />
               </Field>
               <Field label="Year of Passing">
-                <input type="number" min="1950" max="2099" value={form.YEAR_OF_PASSING} onChange={set("YEAR_OF_PASSING")} style={field()} />
+                <input type="number" min="1950" max="2099" value={form.YEAR_OF_PASSING} onChange={set("YEAR_OF_PASSING")} className={styles.input} />
+              </Field>
+            </div>
+            <div className={styles.spacer} />
+            <div className={styles.grid2}>
+              <Field label="College">
+                <input type="text" value={form.COLLEGE} onChange={set("COLLEGE")} className={styles.input} placeholder="e.g. PSG College of Technology" />
+              </Field>
+              <Field label="University">
+                <input type="text" value={form.UNIVERSITY} onChange={set("UNIVERSITY")} className={styles.input} placeholder="e.g. Anna University" />
+              </Field>
+              <Field label="Percentage / CGPA">
+                <input type="number" min="0" max="100" step="0.01" value={form.PERCENTAGE} onChange={set("PERCENTAGE")} className={styles.input} placeholder="e.g. 85.5" />
               </Field>
             </div>
           </Section>
 
           {/* Professional */}
-          <Section icon="💼" title="Professional / Experience">
-            <div style={{
-              display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14
-            }}>
+          <Section icon={Icons.briefcase} title="Professional / Experience">
+            <div className={styles.grid21}>
               <Field label="Employment Type">
-                <select value={form.EMPLOYMENT_TYPE} onChange={set("EMPLOYMENT_TYPE")} style={field()}>
+                <select value={form.EMPLOYMENT_TYPE} onChange={set("EMPLOYMENT_TYPE")} className={styles.input}>
                   <option value="FRESHER">Fresher</option>
                   <option value="EXPERIENCED">Experienced</option>
                   <option value="INTERN">Intern</option>
@@ -463,88 +634,223 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
                 </select>
               </Field>
               <Field label="Total Experience (years)">
-                <input type="number" min="0" step="0.1" value={form.EXPERIENCE_YEARS} onChange={set("EXPERIENCE_YEARS")} style={field()} />
+                <input type="number" min="0" step="0.1" value={form.EXPERIENCE_YEARS} onChange={set("EXPERIENCE_YEARS")} className={styles.input} />
               </Field>
             </div>
 
-            <Field label="Skills" hint="Comma-separated (e.g. welding, assembly, electrical wiring)">
-              <input type="text" value={form.SKILLS} onChange={set("SKILLS")} style={field()} />
+            <Field label="Previous Company">
+              <input type="text" value={form.PREVIOUS_COMPANY} onChange={set("PREVIOUS_COMPANY")} className={styles.input} placeholder="e.g. ABC Manufacturing Pvt Ltd" />
             </Field>
 
-            <div style={{ height: 14 }} />
+            <div className={styles.spacer} />
+
+            <Field label="Skills" hint="Comma-separated (e.g. welding, assembly, electrical wiring)">
+              <input type="text" value={form.SKILLS} onChange={set("SKILLS")} className={styles.input} />
+            </Field>
+
+            <div className={styles.spacer} />
 
             <Field label="Work Experience Details">
-              <textarea
-                rows={4}
-                value={form.EXPERIENCE_DETAILS}
-                onChange={set("EXPERIENCE_DETAILS")}
-                style={{ ...field(), resize: "vertical" }}
-                placeholder="Previous company names, roles, durations..."
-              />
+              <textarea rows={4} value={form.EXPERIENCE_DETAILS} onChange={set("EXPERIENCE_DETAILS")} className={`${styles.input} ${styles.textarea}`} placeholder="Previous company names, roles, durations..." />
             </Field>
 
-            <div style={{ height: 14 }} />
+            <div className={styles.spacer} />
 
             <Field label="Past Projects">
-              <textarea
-                rows={3}
-                value={form.PAST_PROJECTS}
-                onChange={set("PAST_PROJECTS")}
-                style={{ ...field(), resize: "vertical" }}
-                placeholder="Major projects you've worked on..."
-              />
+              <textarea rows={3} value={form.PAST_PROJECTS} onChange={set("PAST_PROJECTS")} className={`${styles.input} ${styles.textarea}`} placeholder="Major projects you've worked on..." />
             </Field>
           </Section>
 
+          {/* Work Details — matches admin's Organization Assignment
+              minus Role/Department/Designation which are admin-only. */}
+          <Section icon={Icons.building} title="Work Details">
+            <div className={styles.grid2}>
+              <Field label="Confirmation Date (probation end)">
+                <input type="date" value={form.CONFIRMATION_DATE} onChange={set("CONFIRMATION_DATE")} className={styles.input} />
+              </Field>
+              <Field label="Work Location">
+                <input type="text" value={form.WORK_LOCATION} onChange={set("WORK_LOCATION")} className={styles.input} placeholder="Coimbatore HQ / Chennai Site / Remote" />
+              </Field>
+            </div>
+          </Section>
+
+          {/* Bank & Identity (payroll) — required for salary transfer
+              and statutory records. Aadhaar/PAN are stored securely. */}
+          <Section icon={Icons.bank} title="Bank & Identity (Payroll)">
+            <div className={styles.grid2}>
+              <Field label="Bank Account Number">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.BANK_ACCOUNT_NUMBER}
+                  onChange={(e) => setForm((f) => ({
+                    ...f,
+                    BANK_ACCOUNT_NUMBER: e.target.value.replace(/\D/g, "").slice(0, 20)
+                  }))}
+                  className={styles.input}
+                  placeholder="e.g. 50100123456789"
+                />
+              </Field>
+              <Field label="Bank Name">
+                <input type="text" value={form.BANK_NAME} onChange={set("BANK_NAME")} className={styles.input} placeholder="e.g. HDFC Bank" />
+              </Field>
+              <Field label="IFSC Code" hint="Format: 4 letters + 0 + 6 alphanumeric (e.g. HDFC0001234)">
+                <input
+                  type="text"
+                  value={form.IFSC_CODE}
+                  onChange={(e) => setForm((f) => ({
+                    ...f,
+                    IFSC_CODE: e.target.value.toUpperCase().slice(0, 11)
+                  }))}
+                  className={styles.input}
+                  placeholder="HDFC0001234"
+                />
+              </Field>
+              <Field label="PAN Number" hint="Format: 5 letters + 4 digits + 1 letter">
+                <input
+                  type="text"
+                  value={form.PAN_NUMBER}
+                  onChange={(e) => setForm((f) => ({
+                    ...f,
+                    PAN_NUMBER: e.target.value.toUpperCase().slice(0, 10)
+                  }))}
+                  className={styles.input}
+                  placeholder="ABCDE1234F"
+                />
+              </Field>
+              <Field label="Aadhaar Number" hint="12 digits">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={form.AADHAAR_NUMBER}
+                  onChange={(e) => setForm((f) => ({
+                    ...f,
+                    AADHAAR_NUMBER: e.target.value.replace(/\D/g, "").slice(0, 12)
+                  }))}
+                  className={styles.input}
+                  placeholder="123456789012"
+                />
+              </Field>
+            </div>
+          </Section>
+
+          {/* Documents */}
+          <Section icon={Icons.paperclip} title="Documents">
+
+            <div className={styles.docHint}>
+              Upload your Resume, Aadhaar, PAN and any other required ID
+              proofs. PDF or image (JPG / PNG). Max {MAX_DOC_MB} MB per file.
+            </div>
+
+            <div className={styles.docUploadRow}>
+              <Field label="Document Type">
+                <select
+                  value={docType}
+                  onChange={(e) => setDocType(e.target.value)}
+                  className={styles.input}
+                >
+                  {DOC_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Title (optional)">
+                <input
+                  type="text"
+                  value={docTitle}
+                  onChange={(e) => setDocTitle(e.target.value)}
+                  className={styles.input}
+                  placeholder="e.g. Aadhaar front side"
+                />
+              </Field>
+
+              <Field label="File">
+                <input
+                  ref={docInputRef}
+                  type="file"
+                  accept=".pdf,image/*"
+                  onChange={handleDocPick}
+                  disabled={docBusy}
+                  className={styles.input}
+                />
+              </Field>
+            </div>
+
+            {docError && (
+              <div className={styles.errorBanner}>
+                {Icons.alert}
+                <span>{docError}</span>
+              </div>
+            )}
+            {docBusy && (
+              <div className={styles.fieldHint}>Uploading…</div>
+            )}
+
+            {docs.length > 0 && (
+              <ul className={styles.docList}>
+                {docs.map((d) => {
+                  const id = d.ID || d.id;
+                  const typeLbl =
+                    DOC_TYPES.find((t) => t.value === d.DOC_TYPE)?.label
+                    || d.DOC_TYPE
+                    || "Other";
+                  return (
+                    <li key={id} className={styles.docItem}>
+                      <span className={styles.docType}>{typeLbl}</span>
+                      <span className={styles.docTitle}>
+                        {d.TITLE || d.FILE_NAME || "Untitled"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeDoc(id)}
+                        className={styles.docRemove}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Section>
+
           {/* Additional */}
-          <Section icon="📝" title="Additional Information">
+          <Section icon={Icons.note} title="Additional Information">
             <Field label="Notes / Anything else we should know">
-              <textarea
-                rows={3}
-                value={form.NOTES}
-                onChange={set("NOTES")}
-                style={{ ...field(), resize: "vertical" }}
-              />
+              <textarea rows={3} value={form.NOTES} onChange={set("NOTES")} className={`${styles.input} ${styles.textarea}`} />
             </Field>
           </Section>
 
           {/* Submit */}
-          <div style={{
-            background: "white", borderRadius: 14, padding: 22,
-            boxShadow: "0 6px 20px rgba(15,23,42,0.06)",
-            display: "flex", justifyContent: "space-between",
-            alignItems: "center", flexWrap: "wrap", gap: 12
-          }}>
-            <div style={{ fontSize: 12, color: "#64748b", flex: 1, minWidth: 220 }}>
-              ⚠ Once you submit, you <b>cannot</b> edit this form again.
-              Only admin can change your details after submission.
+          <div className={styles.submitBar}>
+            <div className={styles.submitWarning}>
+              {Icons.alert}
+              <span>
+                Once you submit, you <b>cannot</b> edit this form again.
+                Only admin can change your details after submission.
+              </span>
             </div>
-
-            <button
-              type="submit"
-              disabled={saving}
-              style={{
-                border: "none",
-                background: saving
-                  ? "#94a3b8"
-                  : "linear-gradient(135deg, #C8102E, #E63946, #F4B324)",
-                color: "white",
-                padding: "12px 32px",
-                borderRadius: 12,
-                fontWeight: 800,
-                fontSize: 14,
-                cursor: saving ? "not-allowed" : "pointer",
-                letterSpacing: 0.5,
-                boxShadow: "0 8px 22px rgba(139,92,246,0.4)"
-              }}
-            >
-              {saving ? "Submitting…" : "✓ Submit My Profile"}
+            <button type="submit" disabled={saving} className={styles.submitBtn}>
+              {saving
+                ? "Submitting…"
+                : (<>{Icons.check}<span>Submit My Profile</span></>)}
             </button>
           </div>
 
         </form>
 
       </div>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Submit your profile?"
+        message="Are you sure you want to submit the form? Once submitted you cannot edit it again — only admin can change your details."
+        confirmLabel="Yes, submit"
+        cancelLabel="Keep editing"
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={confirmSubmit}
+      />
 
     </div>
   );

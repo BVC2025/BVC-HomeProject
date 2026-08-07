@@ -1,0 +1,682 @@
+/* ==================================================================
+   Shared styles for the redesigned Leave & Permission pages.
+   Cream page bg, elevated white cards, restrained accent colours,
+   generous whitespace, Inter typography.
+   ================================================================== */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 4px 2px 32px;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, sans-serif;
+  color: #1e293b;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 20px 22px;
+}
+
+.cardWide { padding: 24px 26px; }
+
+
+/* ==================================================================
+   Balance strip (leave OR permission)
+   ================================================================== */
+
+.balance {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 22px;
+  background: linear-gradient(135deg, #ffffff 0%, #fafafb 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  flex-wrap: wrap;
+}
+
+.balanceHead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.balanceIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #dc2626;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.balanceTitle {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 2px;
+}
+
+.balanceValue {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.3px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.balanceValue small {
+  font-size: 12px;
+  font-weight: 500;
+  color: #94a3b8;
+  margin-left: 4px;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+/* Right side — per-type breakdown pills */
+.balanceBreakdown {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.breakdownPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+}
+
+.breakdownPill b {
+  font-weight: 700;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.breakdownPill_casual  b { color: #dc2626; }
+.breakdownPill_sick    b { color: #b45309; }
+.breakdownPill_earned  b { color: #047857; }
+.breakdownPill_unpaid  b { color: #475569; }
+
+
+/* ==================================================================
+   Section headers inside cards
+   ================================================================== */
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.2px;
+}
+
+.sectionSub {
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+
+/* ==================================================================
+   Form layout
+   ================================================================== */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+
+.label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.labelRequired::after {
+  content: " *";
+  color: #dc2626;
+}
+
+.hint {
+  font-size: 11.5px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+
+/* ==================================================================
+   Inputs (text / date / time / textarea / select)
+   ================================================================== */
+
+.input,
+.select,
+.textarea {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+  font-family: inherit;
+  font-size: 14px;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  font-variant-numeric: tabular-nums;
+  box-sizing: border-box;
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.10);
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 84px;
+  line-height: 1.5;
+  font-variant-numeric: normal;
+}
+
+.select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 40px;
+}
+
+
+/* ==================================================================
+   Duration preset chips (permission page)
+   ================================================================== */
+
+.presetRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.presetChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.presetChip:hover:not(.presetChip_active) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+.presetChip_active {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.22);
+}
+.presetChip_hint {
+  font-size: 10.5px;
+  font-weight: 500;
+  opacity: 0.75;
+  margin-left: 2px;
+}
+.presetChip_active .presetChip_hint { opacity: 0.9; }
+
+
+/* Half-day sub-chips */
+.subChoice {
+  display: inline-flex;
+  gap: 6px;
+  padding: 3px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  align-self: flex-start;
+}
+.subChoiceBtn {
+  padding: 5px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.subChoiceBtn_active {
+  background: #ffffff;
+  color: #dc2626;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+
+/* ==================================================================
+   Info strip — computed hours / days display
+   ================================================================== */
+
+.computed {
+  display: block;
+  padding: 10px 14px;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1e40af;
+  line-height: 1.55;
+}
+.computed b {
+  color: #1e3a8a;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+
+/* ==================================================================
+   Submit row
+   ================================================================== */
+
+.submitRow {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.submitBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 22px;
+  background: #dc2626;
+  color: #ffffff;
+  border: 1px solid #dc2626;
+  border-radius: 10px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
+  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.25);
+}
+.submitBtn:hover:not(:disabled) { background: #b91c1c; }
+.submitBtn:active:not(:disabled) { transform: translateY(1px); }
+.submitBtn:disabled {
+  background: #ffffff;
+  color: #94a3b8;
+  border-color: #dc2626;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.submitBtn:disabled svg {
+  color: #dc2626;
+  stroke: #dc2626;
+}
+
+
+/* ==================================================================
+   Feedback banners
+   ================================================================== */
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.success {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #047857;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+
+/* ==================================================================
+   History list
+   ================================================================== */
+
+.historyList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.historyRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  transition: border-color 0.15s ease;
+}
+.historyRow:hover { border-color: #cbd5e1; }
+
+.historyBadge {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.historyBody { min-width: 0; }
+
+.historyTitle {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.historyMeta {
+  font-size: 12px;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.historyRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+.chip_pending   { background: #fffbeb; color: #b45309; border-color: #fcd34d; }
+.chip_approved  { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+.chip_rejected  { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.chip_cancelled { background: #f1f5f9; color: #64748b; border-color: #cbd5e1; }
+
+
+/* ==================================================================
+   Empty state
+   ================================================================== */
+
+.empty {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 24px 20px;
+  background: #ffffff;
+  border: 1px dashed #e2e8f0;
+  border-radius: 12px;
+  color: #64748b;
+}
+.empty svg { color: #cbd5e1; flex-shrink: 0; }
+.emptyTitle { font-size: 13.5px; font-weight: 600; color: #475569; margin-bottom: 2px; }
+.emptyBody  { font-size: 12.5px; color: #94a3b8; }
+
+
+/* ==================================================================
+   MOBILE
+   ================================================================== */
+
+@media (max-width: 768px) {
+  .wrap { gap: 12px; padding: 4px 0 32px; }
+  .card, .cardWide { padding: 18px 16px; }
+  .balance { padding: 14px 16px; gap: 14px; }
+  .balanceValue { font-size: 19px; }
+
+  .grid2, .grid3 { grid-template-columns: 1fr; gap: 12px; }
+
+  .presetRow { gap: 6px; }
+  .presetChip { padding: 9px 14px; font-size: 12.5px; }
+
+  .submitRow { flex-direction: column; align-items: stretch; }
+  .submitBtn { width: 100%; justify-content: center; padding: 12px 20px; }
+
+  .historyRow { grid-template-columns: 1fr; gap: 10px; padding: 12px; }
+  .historyBadge { display: none; }
+  .historyRight { align-items: flex-start; flex-direction: row; }
+}
+
+
+/* ==================================================================
+   DARK MODE — module-scoped overrides. Using `:global(html[data-theme])`
+   so these compile against the *actual* CSS-Modules-hashed class
+   names, no substring matching, no case-sensitivity traps.
+   ================================================================== */
+
+:global(html[data-theme="dark"]) .wrap { color: #e2e8f0; }
+
+:global(html[data-theme="dark"]) .card,
+:global(html[data-theme="dark"]) .cardWide {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Balance strip (Permission page top card + Leave top card) */
+:global(html[data-theme="dark"]) .balance {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .balanceIcon {
+  background: rgba(220, 38, 38, 0.20);
+  color: #fca5a5;
+  border-color: rgba(220, 38, 38, 0.30);
+}
+:global(html[data-theme="dark"]) .balanceTitle { color: #94a3b8; }
+:global(html[data-theme="dark"]) .balanceValue { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .balanceValue small { color: #94a3b8; }
+
+/* Breakdown pills (Used / Free cap / Casual / Sick / Earned / Unpaid) */
+:global(html[data-theme="dark"]) .breakdownPill {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: #cbd5e1;
+}
+:global(html[data-theme="dark"]) .breakdownPill_casual b  { color: #fca5a5; }
+:global(html[data-theme="dark"]) .breakdownPill_sick   b  { color: #fbbf24; }
+:global(html[data-theme="dark"]) .breakdownPill_earned b  { color: #6ee7b7; }
+:global(html[data-theme="dark"]) .breakdownPill_unpaid b  { color: #94a3b8; }
+
+/* Section heading (Apply for leave / Apply for permission) */
+:global(html[data-theme="dark"]) .sectionHead {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .sectionTitle { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .sectionSub   { color: #94a3b8; }
+
+/* Field labels + hints */
+:global(html[data-theme="dark"]) .label { color: #94a3b8; }
+:global(html[data-theme="dark"]) .hint  { color: #94a3b8; }
+
+/* Inputs / selects / textareas */
+:global(html[data-theme="dark"]) .input,
+:global(html[data-theme="dark"]) .select,
+:global(html[data-theme="dark"]) .textarea {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  color-scheme: dark;
+}
+:global(html[data-theme="dark"]) .input::placeholder,
+:global(html[data-theme="dark"]) .textarea::placeholder {
+  color: #64748b;
+}
+
+/* Preset chips (Duration presets on Permission page) */
+:global(html[data-theme="dark"]) .presetChip {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: #cbd5e1;
+}
+:global(html[data-theme="dark"]) .presetChip:hover:not(.presetChip_active) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+:global(html[data-theme="dark"]) .presetChip_active {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+:global(html[data-theme="dark"]) .presetChip_hint { color: rgba(255,255,255,0.75); }
+
+/* Sub-choice — Full day / Half day */
+:global(html[data-theme="dark"]) .subChoice {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+:global(html[data-theme="dark"]) .subChoiceBtn { color: #94a3b8; }
+:global(html[data-theme="dark"]) .subChoiceBtn_active {
+  background: #dc2626;
+  color: #ffffff;
+}
+
+/* Computed stripe */
+:global(html[data-theme="dark"]) .computed {
+  background: rgba(59, 130, 246, 0.10);
+  border-color: rgba(59, 130, 246, 0.28);
+  color: #93c5fd;
+}
+:global(html[data-theme="dark"]) .computed b { color: #dbeafe; }
+
+/* Submit row */
+
+/* Submit button — enabled stays vivid BVC red; disabled uses a
+   dark-toned muted surface so it doesn't look broken on dark navy. */
+:global(html[data-theme="dark"]) .submitBtn {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.35);
+}
+:global(html[data-theme="dark"]) .submitBtn:hover:not(:disabled) {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}
+:global(html[data-theme="dark"]) .submitBtn:disabled {
+  background: transparent;
+  color: #94a3b8;
+  border-color: #dc2626;
+  box-shadow: none;
+}
+:global(html[data-theme="dark"]) .submitBtn:disabled svg {
+  color: #dc2626;
+  stroke: #dc2626;
+}
+
+/* Alert states */
+:global(html[data-theme="dark"]) .error {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.32);
+  color: #fca5a5;
+}
+:global(html[data-theme="dark"]) .success {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.32);
+  color: #6ee7b7;
+}
+
+/* History list rows */
+:global(html[data-theme="dark"]) .historyRow {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .historyRow:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+:global(html[data-theme="dark"]) .historyTitle { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .historyMeta  { color: #94a3b8; }

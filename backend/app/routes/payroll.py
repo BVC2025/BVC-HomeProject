@@ -13,7 +13,7 @@ Payroll endpoints.
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -152,17 +152,265 @@ def _serialize_slip(slip: PayrollSlip, employee: Optional[Employee] = None) -> d
         "ESI_EMPLOYEE": slip.ESI_EMPLOYEE,
         "ESI_EMPLOYER": slip.ESI_EMPLOYER,
         "PROFESSIONAL_TAX": slip.PROFESSIONAL_TAX,
+        "ABSENCE_DEDUCTION": slip.ABSENCE_DEDUCTION or 0,
         "OTHER_DEDUCTIONS": slip.OTHER_DEDUCTIONS,
         "GROSS_PAY": slip.GROSS_PAY,
         "TOTAL_DEDUCTIONS": slip.TOTAL_DEDUCTIONS,
         "NET_PAY": slip.NET_PAY,
-        "NOTES": slip.NOTES
+        "NOTES": slip.NOTES,
+        "STATUS": slip.STATUS or "PENDING",
+        "SUBMITTED_AT": slip.SUBMITTED_AT.isoformat() if slip.SUBMITTED_AT else None,
+        "PAID_AT": slip.PAID_AT.isoformat() if slip.PAID_AT else None,
+        "PERMISSION_HOURS": slip.PERMISSION_HOURS or 0.0,
+        "PERFORMANCE_STARS": slip.PERFORMANCE_STARS or 0.0,
+        "STAR_BONUS": slip.STAR_BONUS or 0.0
     }
 
 
 # ----------------------------------------------------------------
 # Endpoints
 # ----------------------------------------------------------------
+
+@router.post("/generate-for-employee")
+def generate_for_employee(
+    body: dict,
+    db: Session = Depends(get_db),
+):
+    """HR generates ONE payslip for ONE employee for a given month/year.
+
+    Body shape (all fields optional except the four required ones):
+      {
+        "EMPLOYEE_ID":  "uuid or EMP code"  (required),
+        "YEAR":         2026                (required),
+        "MONTH":        6                   (required, 1-12),
+        "WORKING_DAYS": 26,                 (defaults to Employee policy / 26)
+
+        // Attendance snapshot — pre-fill from HR's review, no auto-calc
+        "DAYS_PRESENT":      24,
+        "DAYS_LATE":         1,
+        "PAID_LEAVE_DAYS":   1,
+        "UNPAID_LEAVE_DAYS": 0,
+        "ABSENT_DAYS":       0,
+        "OT_HOURS":          0,
+
+        // Earnings (rupees per month)
+        "BASIC":              18000,
+        "HRA":                7200,
+        "DA":                 0,
+        "CONVEYANCE":         1600,
+        "MEDICAL_ALLOWANCE":  1250,
+        "SPECIAL_ALLOWANCE":  0,
+        "OTHER_ALLOWANCES":   0,
+        "BONUS":              0,
+        "INCENTIVES":         0,
+        "TASK_BONUS":         0,
+        "OT_PAY":             0,
+
+        // Deductions (rupees)
+        "PF_EMPLOYEE":      1800,
+        "ESI_EMPLOYEE":      0,
+        "PROFESSIONAL_TAX":  200,
+        "LATE_PENALTY":      0,
+        "OTHER_DEDUCTIONS":  0
+      }
+
+    Behaviour:
+      - Reuses or creates the PayrollRun for (vendor, year, month)
+      - Inserts new PayrollSlip OR updates the existing one for this employee
+      - Computes GROSS_PAY = sum of earnings
+      - Computes TOTAL_DEDUCTIONS = sum of deductions
+      - Computes NET_PAY = GROSS - DEDUCTIONS
+      - Pushes a Notification to the employee
+      - Returns the slip ID + summary
+    """
+    from app.utils.employee_resolver import require_employee
+    from app.models.models import Notification
+
+    emp_id_raw = body.get("EMPLOYEE_ID")
+    year       = body.get("YEAR")
+    month      = body.get("MONTH")
+
+    if not emp_id_raw:
+        raise HTTPException(status_code=400, detail="EMPLOYEE_ID is required")
+    if not year or not month:
+        raise HTTPException(status_code=400, detail="YEAR and MONTH are required")
+    try:
+        year  = int(year)
+        month = int(month)
+    except Exception:
+        raise HTTPException(status_code=400, detail="YEAR and MONTH must be integers")
+    if month < 1 or month > 12:
+        raise HTTPException(status_code=400, detail="MONTH must be 1-12")
+
+    emp = require_employee(db, emp_id_raw)
+    vendor_id = getattr(emp, "VENDOR_ID", 1) or 1
+
+    # Find or create the PayrollRun for this period.
+    run = (
+        db.query(PayrollRun)
+        .filter(PayrollRun.VENDOR_ID == vendor_id)
+        .filter(PayrollRun.PAY_YEAR == year)
+        .filter(PayrollRun.PAY_MONTH == month)
+        .first()
+    )
+    if not run:
+        run = PayrollRun(
+            VENDOR_ID=vendor_id,
+            PAY_YEAR=year,
+            PAY_MONTH=month,
+            WORKING_DAYS=int(body.get("WORKING_DAYS") or 26),
+            STATUS="DRAFT",
+        )
+        db.add(run); db.flush()
+
+    if run.STATUS != "DRAFT":
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Payroll run for {year}-{month:02d} is already "
+                f"{run.STATUS} — unlock or delete it before regenerating."
+            ),
+        )
+
+    # Find or create the slip for this (run, employee) pair.
+    slip = (
+        db.query(PayrollSlip)
+        .filter(PayrollSlip.PAYROLL_RUN_ID == run.ID)
+        .filter(PayrollSlip.EMPLOYEE_ID == emp.ID)
+        .first()
+    )
+    if not slip:
+        slip = PayrollSlip(
+            PAYROLL_RUN_ID=run.ID,
+            EMPLOYEE_ID=emp.ID,
+            BASE_SALARY=float(getattr(emp, "SALARY", 0) or 0),
+            WORKING_DAYS=run.WORKING_DAYS,
+        )
+        db.add(slip); db.flush()
+
+    # ---- Fill from body, with sensible defaults ----
+    def f(key, default=0.0):
+        v = body.get(key)
+        if v in (None, ""): return float(default)
+        try: return float(v)
+        except Exception: return float(default)
+    def i(key, default=0):
+        v = body.get(key)
+        if v in (None, ""): return int(default)
+        try: return int(v)
+        except Exception: return int(default)
+
+    slip.WORKING_DAYS       = i("WORKING_DAYS", run.WORKING_DAYS or 26)
+    slip.DAYS_PRESENT       = i("DAYS_PRESENT", 0)
+    slip.DAYS_LATE          = i("DAYS_LATE", 0)
+    slip.PAID_LEAVE_DAYS    = f("PAID_LEAVE_DAYS", 0)
+    slip.UNPAID_LEAVE_DAYS  = f("UNPAID_LEAVE_DAYS", 0)
+    slip.ABSENT_DAYS        = f("ABSENT_DAYS", 0)
+    slip.OT_HOURS           = f("OT_HOURS", 0)
+
+    # ---- Earnings ----
+    slip.EARNED_BASIC         = f("BASIC", 0)
+    slip.HRA                  = f("HRA", 0)
+    slip.DA                   = f("DA", 0)
+    slip.CONVEYANCE_ALLOWANCE = f("CONVEYANCE", 0)
+    slip.MEDICAL_ALLOWANCE    = f("MEDICAL_ALLOWANCE", 0)
+    slip.SPECIAL_ALLOWANCE    = f("SPECIAL_ALLOWANCE", 0)
+    slip.OTHER_ALLOWANCES     = f("OTHER_ALLOWANCES", 0)
+    slip.ANNUAL_BONUS         = f("BONUS", 0)
+    slip.INCENTIVES           = f("INCENTIVES", 0)
+    slip.TASK_BONUS           = f("TASK_BONUS", 0)
+    slip.OT_PAY               = f("OT_PAY", 0)
+
+    gross = (
+        slip.EARNED_BASIC + slip.HRA + slip.DA
+        + slip.CONVEYANCE_ALLOWANCE + slip.MEDICAL_ALLOWANCE
+        + slip.SPECIAL_ALLOWANCE + slip.OTHER_ALLOWANCES
+        + slip.ANNUAL_BONUS + slip.INCENTIVES
+        + slip.TASK_BONUS + slip.OT_PAY
+    )
+
+    # ---- Deductions ----
+    slip.PF_EMPLOYEE      = f("PF_EMPLOYEE", 0)
+    slip.ESI_EMPLOYEE     = f("ESI_EMPLOYEE", 0)
+    slip.PROFESSIONAL_TAX = f("PROFESSIONAL_TAX", 0)
+    slip.LATE_PENALTY     = f("LATE_PENALTY", 0)
+    slip.OTHER_DEDUCTIONS = f("OTHER_DEDUCTIONS", 0)
+
+    # ABSENCE_DEDUCTION: the frontend generator computes this as
+    # (Basic ÷ Working Days) × unpaid_absent_days and posts it. The
+    # frontend also posts BASIC = full contractual salary (NOT reduced
+    # for absence), so we're NOT double-counting when we add
+    # ABSENCE_DEDUCTION to TOTAL_DEDUCTIONS — the reduction only
+    # happens on the deductions side. Without this, TOTAL_DEDUCTIONS
+    # was silently 0 even when the generator showed thousands.
+    if "ABSENCE_DEDUCTION" in body and body.get("ABSENCE_DEDUCTION") not in (None, ""):
+        slip.ABSENCE_DEDUCTION = f("ABSENCE_DEDUCTION", 0)
+    else:
+        # Fallback: if not posted, derive from basic × ratio.
+        wd = float(slip.WORKING_DAYS or 0)
+        absent = float(slip.ABSENT_DAYS or 0)
+        if wd > 0 and absent > 0:
+            slip.ABSENCE_DEDUCTION = round(
+                (float(slip.EARNED_BASIC or 0) / wd) * absent, 2
+            )
+        else:
+            slip.ABSENCE_DEDUCTION = 0.0
+
+    deductions = (
+        slip.PF_EMPLOYEE + slip.ESI_EMPLOYEE + slip.PROFESSIONAL_TAX
+        + slip.LATE_PENALTY + slip.OTHER_DEDUCTIONS
+        + (slip.ABSENCE_DEDUCTION or 0)
+    )
+
+    slip.GROSS_PAY        = round(gross, 2)
+    slip.TOTAL_DEDUCTIONS = round(deductions, 2)
+    slip.NET_PAY          = round(gross - deductions, 2)
+    slip.PER_DAY_RATE = (
+        slip.EARNED_BASIC / slip.WORKING_DAYS
+        if slip.WORKING_DAYS else 0.0
+    )
+
+    db.commit(); db.refresh(slip)
+
+    # ---- Notify the employee ----
+    try:
+        month_names = [
+            "January","February","March","April","May","June",
+            "July","August","September","October","November","December",
+        ]
+        m_name = month_names[month - 1]
+        db.add(Notification(
+            EMPLOYEE_ID=slip.EMPLOYEE_ID,
+            TYPE="INFO",
+            TITLE=f"New payslip — {m_name} {year}",
+            MESSAGE=(
+                f"Your {m_name} {year} payslip has been generated. "
+                f"Net pay: INR {slip.NET_PAY:,.2f}. "
+                f"View it in Employee Portal -> Payslips."
+            ),
+            # datetime.now() — server clock is IST; utcnow() here made
+            # the frontend read the timestamp as IST wall-clock and
+            # then show '5h ago' for a slip that had just been generated.
+            CREATED_AT=datetime.now(),
+            IS_READ=0,
+            VENDOR_ID=vendor_id,
+        ))
+        db.commit()
+    except Exception:
+        # Notification table schema may differ; never block payslip create.
+        db.rollback()
+
+    return {
+        "message": f"Payslip generated for {emp.NAME} ({year}-{month:02d})",
+        "slip_id": slip.ID,
+        "run_id":  run.ID,
+        "gross":   slip.GROSS_PAY,
+        "deductions": slip.TOTAL_DEDUCTIONS,
+        "net":     slip.NET_PAY,
+        "employee_code": emp.EMPLOYEE_CODE,
+        "employee_name": emp.NAME,
+    }
+
 
 @router.post("/generate")
 def generate_payroll(
@@ -277,6 +525,201 @@ def get_slip(
     }
 
 
+# =========================
+# REPORTS — summary + CSV export
+# =========================
+
+@router.get("/runs/{run_id}/summary")
+def run_summary(run_id: int, db: Session = Depends(get_db)):
+    """Aggregated summary for a payroll run — used by the Reports tab.
+
+    Returns:
+      - run header
+      - by_department: [{department, employee_count, total_gross, total_deductions, total_net}]
+      - by_designation: [{designation, employee_count, total_net}]
+      - by_status: [{status, count, total_net}]
+      - totals: {employee_count, total_gross, total_deductions, total_net}
+    """
+    from app.models.models import Department, Designation
+
+    run = db.query(PayrollRun).filter(PayrollRun.ID == run_id).first()
+    if not run:
+        raise HTTPException(404, "Payroll run not found")
+
+    rows = (
+        db.query(PayrollSlip, Employee, Department, Designation)
+        .outerjoin(Employee,    PayrollSlip.EMPLOYEE_ID == Employee.ID)
+        .outerjoin(Department,  Employee.DEPARTMENT_ID  == Department.ID)
+        .outerjoin(Designation, Employee.DESIGNATION_ID == Designation.ID)
+        .filter(PayrollSlip.PAYROLL_RUN_ID == run_id)
+        .all()
+    )
+
+    by_dept = {}
+    by_desig = {}
+    by_status = {}
+    tot_gross = tot_ded = tot_net = 0.0
+
+    for slip, emp, dept, desig in rows:
+        gross = float(slip.GROSS_PAY or 0)
+        ded   = float(slip.TOTAL_DEDUCTIONS or 0)
+        net   = float(slip.NET_PAY or 0)
+
+        tot_gross += gross
+        tot_ded   += ded
+        tot_net   += net
+
+        dept_name = (dept.NAME if dept else "—")
+        d = by_dept.setdefault(dept_name, {
+            "department": dept_name,
+            "employee_count": 0,
+            "total_gross": 0.0,
+            "total_deductions": 0.0,
+            "total_net": 0.0,
+        })
+        d["employee_count"] += 1
+        d["total_gross"]    += gross
+        d["total_deductions"] += ded
+        d["total_net"]      += net
+
+        desig_name = (desig.TITLE if desig else "—")
+        x = by_desig.setdefault(desig_name, {
+            "designation": desig_name,
+            "employee_count": 0,
+            "total_net": 0.0,
+        })
+        x["employee_count"] += 1
+        x["total_net"]      += net
+
+        st = (slip.STATUS or "PENDING").upper()
+        s = by_status.setdefault(st, {
+            "status": st,
+            "count": 0,
+            "total_net": 0.0,
+        })
+        s["count"]     += 1
+        s["total_net"] += net
+
+    def _round_block(d, keys):
+        for k in keys:
+            if k in d:
+                d[k] = round(d[k], 2)
+        return d
+
+    by_dept_list = [
+        _round_block(d, ["total_gross", "total_deductions", "total_net"])
+        for d in sorted(by_dept.values(), key=lambda x: -x["total_net"])
+    ]
+    by_desig_list = [
+        _round_block(d, ["total_net"])
+        for d in sorted(by_desig.values(), key=lambda x: -x["total_net"])
+    ]
+    by_status_list = [
+        _round_block(d, ["total_net"])
+        for d in sorted(by_status.values(), key=lambda x: x["status"])
+    ]
+
+    return {
+        "run":           _serialize_run(run),
+        "by_department": by_dept_list,
+        "by_designation": by_desig_list,
+        "by_status":     by_status_list,
+        "totals": {
+            "employee_count":   len(rows),
+            "total_gross":      round(tot_gross, 2),
+            "total_deductions": round(tot_ded, 2),
+            "total_net":        round(tot_net, 2),
+        }
+    }
+
+
+@router.get("/runs/{run_id}/export.csv")
+def run_export_csv(run_id: int, db: Session = Depends(get_db)):
+    """CSV export of every slip in a run. Used by HR + accounting."""
+    from fastapi.responses import StreamingResponse
+    import csv
+    import io
+    from app.models.models import Department, Designation
+
+    run = db.query(PayrollRun).filter(PayrollRun.ID == run_id).first()
+    if not run:
+        raise HTTPException(404, "Payroll run not found")
+
+    rows = (
+        db.query(PayrollSlip, Employee, Department, Designation)
+        .outerjoin(Employee,    PayrollSlip.EMPLOYEE_ID == Employee.ID)
+        .outerjoin(Department,  Employee.DEPARTMENT_ID  == Department.ID)
+        .outerjoin(Designation, Employee.DESIGNATION_ID == Designation.ID)
+        .filter(PayrollSlip.PAYROLL_RUN_ID == run_id)
+        .all()
+    )
+    rows.sort(key=lambda r: (r[1].NAME if r[1] else ""))
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+
+    writer.writerow([
+        "Employee Code", "Employee Name", "Department", "Designation",
+        "Base Salary", "Working Days", "Days Present",
+        "Paid Leave", "Unpaid Leave", "Absent Days", "Permission Hours",
+        "Earned Basic", "HRA", "DA", "Conveyance", "Medical", "Special",
+        "Other Allowances", "Annual Bonus", "Incentives",
+        "Task Bonus", "Star Bonus", "OT Hours", "OT Pay",
+        "PF (Employee)", "ESI (Employee)", "Prof Tax",
+        "Other Deductions", "Late Penalty",
+        "Gross Pay", "Total Deductions", "Net Pay",
+        "Status", "Paid At",
+    ])
+
+    for slip, emp, dept, desig in rows:
+        writer.writerow([
+            (emp.EMPLOYEE_CODE if emp else ""),
+            (emp.NAME          if emp else ""),
+            (dept.NAME         if dept else ""),
+            (desig.TITLE       if desig else ""),
+            slip.BASE_SALARY or 0,
+            slip.WORKING_DAYS or 0,
+            slip.DAYS_PRESENT or 0,
+            slip.PAID_LEAVE_DAYS or 0,
+            slip.UNPAID_LEAVE_DAYS or 0,
+            slip.ABSENT_DAYS or 0,
+            slip.PERMISSION_HOURS or 0,
+            slip.EARNED_BASIC or 0,
+            slip.HRA or 0,
+            slip.DA or 0,
+            slip.CONVEYANCE_ALLOWANCE or 0,
+            slip.MEDICAL_ALLOWANCE or 0,
+            slip.SPECIAL_ALLOWANCE or 0,
+            slip.OTHER_ALLOWANCES or 0,
+            slip.ANNUAL_BONUS or 0,
+            slip.INCENTIVES or 0,
+            slip.TASK_BONUS or 0,
+            slip.STAR_BONUS or 0,
+            slip.OT_HOURS or 0,
+            slip.OT_PAY or 0,
+            slip.PF_EMPLOYEE or 0,
+            slip.ESI_EMPLOYEE or 0,
+            slip.PROFESSIONAL_TAX or 0,
+            slip.OTHER_DEDUCTIONS or 0,
+            slip.LATE_PENALTY or 0,
+            slip.GROSS_PAY or 0,
+            slip.TOTAL_DEDUCTIONS or 0,
+            slip.NET_PAY or 0,
+            slip.STATUS or "PENDING",
+            slip.PAID_AT.isoformat() if slip.PAID_AT else "",
+        ])
+
+    buf.seek(0)
+    period = f"{run.PAY_YEAR}-{run.PAY_MONTH:02d}"
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="payroll-{period}.csv"'
+        }
+    )
+
+
 @router.patch("/runs/{run_id}/finalize")
 def finalize_run(run_id: int, db: Session = Depends(get_db)):
     """Lock a DRAFT run — slips can no longer be edited and the run
@@ -304,6 +747,75 @@ def finalize_run(run_id: int, db: Session = Depends(get_db)):
     return {
         "message": f"Run {run.PAY_YEAR}-{run.PAY_MONTH:02d} finalized.",
         "run": _serialize_run(run)
+    }
+
+
+@router.patch("/slips/{slip_id}/mark-paid")
+def mark_slip_paid(slip_id: int, db: Session = Depends(get_db)):
+    """Mark one employee's slip as PAID. Used by the simplified
+    employee-list payroll UI where each row has its own Mark Paid
+    button instead of a run-level workflow."""
+
+    slip = db.query(PayrollSlip).filter(PayrollSlip.ID == slip_id).first()
+
+    if not slip:
+
+        raise HTTPException(status_code=404, detail="Payroll slip not found")
+
+    slip.STATUS = "PAID"
+
+    slip.PAID_AT = datetime.utcnow()
+
+    db.commit()
+
+    employee = db.query(Employee).filter(
+        Employee.ID == slip.EMPLOYEE_ID
+    ).first()
+
+    return {
+        "message": "Slip marked PAID.",
+        "slip": _serialize_slip(slip, employee)
+    }
+
+
+@router.patch("/slips/{slip_id}/submit")
+def submit_slip(slip_id: int, db: Session = Depends(get_db)):
+    """Publish a draft slip to Payroll Records.
+
+    Flow:
+      PENDING (draft, HR editing) → SUBMITTED (visible to employee /
+      admin as an official record) → PAID (via /mark-paid).
+
+    Idempotent: submitting an already-SUBMITTED slip returns the
+    existing SUBMITTED_AT so the UI's 'Already submitted' state
+    stays consistent. Submitting a slip that's already PAID leaves
+    its status untouched but still returns the SUBMITTED_AT stamp.
+    """
+
+    slip = db.query(PayrollSlip).filter(PayrollSlip.ID == slip_id).first()
+
+    if not slip:
+        raise HTTPException(status_code=404, detail="Payroll slip not found")
+
+    now = datetime.utcnow()
+
+    # First submission — stamp SUBMITTED_AT and flip status (unless
+    # the slip is already PAID, in which case keep PAID as the
+    # authoritative state but still record when it was submitted).
+    if not slip.SUBMITTED_AT:
+        slip.SUBMITTED_AT = now
+        if slip.STATUS not in ("PAID",):
+            slip.STATUS = "SUBMITTED"
+        db.commit()
+
+    employee = db.query(Employee).filter(
+        Employee.ID == slip.EMPLOYEE_ID
+    ).first()
+
+    return {
+        "message": "Slip submitted to Payroll Records.",
+        "submitted_at": slip.SUBMITTED_AT.isoformat() if slip.SUBMITTED_AT else None,
+        "slip": _serialize_slip(slip, employee),
     }
 
 
@@ -358,6 +870,197 @@ def delete_run(run_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": f"Run {run.PAY_YEAR}-{run.PAY_MONTH:02d} deleted."}
+
+
+# ====================================================================
+# Payroll Records — flat list view of every slip in the system.
+# The Payroll Records admin page (/payroll-records) hits these three
+# endpoints. They join PayrollSlip + PayrollRun + Employee (+ dept +
+# designation) and return a paginated slice + a summary tile block.
+# ====================================================================
+
+@router.get("/records")
+def payroll_records_list(
+    q: Optional[str]           = Query(None),
+    department_id: Optional[int] = Query(None),
+    year:  Optional[int]       = Query(None),
+    month: Optional[int]       = Query(None),
+    status: Optional[str]      = Query(None),
+    date_from: Optional[str]   = Query(None),
+    date_to:   Optional[str]   = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=200),
+    db: Session = Depends(get_db),
+):
+    """Flat list of every payroll slip with employee + run context.
+    Powers the admin Payroll Records page."""
+
+    from app.models.models import Department, Designation
+
+    qy = (
+        db.query(PayrollSlip, PayrollRun, Employee)
+          .join(PayrollRun, PayrollSlip.PAYROLL_RUN_ID == PayrollRun.ID)
+          .join(Employee,   Employee.ID == PayrollSlip.EMPLOYEE_ID)
+    )
+
+    if q:
+        needle = f"%{q.strip()}%"
+        qy = qy.filter(
+            (Employee.NAME.like(needle))
+            | (Employee.EMPLOYEE_CODE.like(needle))
+        )
+    if department_id:
+        qy = qy.filter(Employee.DEPARTMENT_ID == department_id)
+    if year:
+        qy = qy.filter(PayrollRun.PAY_YEAR == year)
+    if month:
+        qy = qy.filter(PayrollRun.PAY_MONTH == month)
+    if status:
+        qy = qy.filter(PayrollSlip.STATUS == status.upper())
+    if date_from:
+        try:
+            df = datetime.strptime(date_from, "%Y-%m-%d").date()
+            qy = qy.filter(PayrollSlip.PAID_AT >= df)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            dt = datetime.strptime(date_to, "%Y-%m-%d").date()
+            qy = qy.filter(PayrollSlip.PAID_AT <= dt)
+        except ValueError:
+            pass
+
+    total = qy.count()
+
+    rows = (
+        qy.order_by(
+            PayrollRun.PAY_YEAR.desc(),
+            PayrollRun.PAY_MONTH.desc(),
+            Employee.EMPLOYEE_CODE.asc(),
+        )
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+
+    # Resolve dept + designation names once per unique ID (small N)
+    dept_ids = {emp.DEPARTMENT_ID for _, _, emp in rows if emp.DEPARTMENT_ID}
+    desig_ids = {emp.DESIGNATION_ID for _, _, emp in rows if emp.DESIGNATION_ID}
+
+    dept_map = {}
+    if dept_ids:
+        for d in db.query(Department).filter(Department.ID.in_(dept_ids)).all():
+            dept_map[d.ID] = getattr(d, "DEPARTMENT_NAME", None) or getattr(d, "NAME", None)
+
+    desig_map = {}
+    if desig_ids:
+        for de in db.query(Designation).filter(Designation.ID.in_(desig_ids)).all():
+            desig_map[de.ID] = getattr(de, "DESIGNATION_NAME", None) or getattr(de, "NAME", None)
+
+    def _pay_date(slip, run):
+        if slip.PAID_AT:
+            return slip.PAID_AT.strftime("%Y-%m-%d")
+        if slip.SUBMITTED_AT:
+            return slip.SUBMITTED_AT.strftime("%Y-%m-%d")
+        return None
+
+    def _payslip_no(slip, run):
+        return f"PS-{run.PAY_YEAR}-{run.PAY_MONTH:02d}-{slip.ID:04d}"
+
+    payload = []
+    for slip, run, emp in rows:
+        gross = float(slip.GROSS_PAY or 0)
+        deductions = float(slip.TOTAL_DEDUCTIONS or 0)
+        net = float(slip.NET_PAY or 0)
+
+        payload.append({
+            "PAYROLL_ID":       slip.ID,
+            "PAYSLIP_NUMBER":   _payslip_no(slip, run),
+            "EMPLOYEE_ID":      emp.ID,
+            "EMPLOYEE_CODE":    emp.EMPLOYEE_CODE,
+            "EMPLOYEE_NAME":    emp.NAME,
+            "DEPARTMENT":       dept_map.get(emp.DEPARTMENT_ID),
+            "DESIGNATION":      desig_map.get(emp.DESIGNATION_ID),
+            "PAY_YEAR":         run.PAY_YEAR,
+            "PAY_MONTH":        run.PAY_MONTH,
+            "PAY_DATE":         _pay_date(slip, run),
+            "BASIC_SALARY":     float(slip.EARNED_BASIC or 0),
+            "TOTAL_EARNINGS":   gross,
+            "TOTAL_DEDUCTIONS": deductions,
+            "NET_SALARY":       net,
+            "STATUS":           slip.STATUS or "PENDING",
+            "GENERATED_BY":     "System",
+            "GENERATED_DATE":   (
+                slip.CREATED_AT.strftime("%Y-%m-%d")
+                if slip.CREATED_AT else None
+            ),
+        })
+
+    return {
+        "rows": payload,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
+
+
+@router.get("/records/summary")
+def payroll_records_summary(
+    year:  Optional[int] = Query(None),
+    month: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Four-tile dashboard for the Payroll Records page:
+    total_records / total_amount / employees_paid / pending."""
+
+    qy = (
+        db.query(PayrollSlip, PayrollRun)
+          .join(PayrollRun, PayrollSlip.PAYROLL_RUN_ID == PayrollRun.ID)
+    )
+    if year:
+        qy = qy.filter(PayrollRun.PAY_YEAR == year)
+    if month:
+        qy = qy.filter(PayrollRun.PAY_MONTH == month)
+
+    rows = qy.all()
+
+    total_records = len(rows)
+    total_amount = round(sum(float(s.NET_PAY or 0) for s, _ in rows), 2)
+    employees_paid = sum(1 for s, _ in rows if (s.STATUS or "").upper() == "PAID")
+    pending = sum(
+        1 for s, _ in rows
+        if (s.STATUS or "").upper() not in ("PAID",)
+    )
+
+    return {
+        "total_records":   total_records,
+        "total_amount":    total_amount,
+        "employees_paid":  employees_paid,
+        "pending":         pending,
+    }
+
+
+@router.delete("/slips/{slip_id}")
+def delete_slip(slip_id: int, db: Session = Depends(get_db)):
+    """Delete a single payslip row. PAID slips are protected —
+    the admin must first un-pay via a direct DB action if they
+    really need to remove one."""
+
+    slip = db.query(PayrollSlip).filter(PayrollSlip.ID == slip_id).first()
+
+    if not slip:
+        raise HTTPException(status_code=404, detail="Payroll slip not found")
+
+    if (slip.STATUS or "").upper() == "PAID":
+        raise HTTPException(
+            status_code=409,
+            detail="Paid slips cannot be deleted. Undo the payment first.",
+        )
+
+    db.delete(slip)
+    db.commit()
+
+    return {"message": f"Slip {slip_id} deleted."}
 
 
 # ====================================================================

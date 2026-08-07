@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import API, { API_BASE_URL } from "../services/api";
+import Pagination from "../components/Pagination";
+import styles from "./Employees.module.css";
 
 
 const VENDOR_ID = 1;
@@ -31,14 +34,14 @@ function initials(name) {
 function avatarGradient(name) {
 
   const palette = [
-    "linear-gradient(135deg, #C8102E, #8B0B1F)",
-    "linear-gradient(135deg, #C8102E, #8B0B1F)",
-    "linear-gradient(135deg, #10b981, #047857)",
-    "linear-gradient(135deg, #F4B324, #8B0B1F)",
-    "linear-gradient(135deg, #06b6d4, #0e7490)",
-    "linear-gradient(135deg, #C8102E, #8B0B1F)",
-    "linear-gradient(135deg, #ef4444, #b91c1c)",
-    "linear-gradient(135deg, #0ea5e9, #1e40af)"
+    "#ef4444",
+    "#ef4444",
+    "#10b981",
+    "var(--text-secondary)",
+    "#06b6d4",
+    "#ef4444",
+    "#ef4444",
+    "#0ea5e9"
   ];
 
   let hash = 0;
@@ -64,14 +67,8 @@ function Avatar({ employee, size = 56, dataUrl }) {
       <img
         src={photoUrl}
         alt={employee?.NAME || ""}
-        style={{
-          width: size,
-          height: size,
-          borderRadius: "50%",
-          objectFit: "cover",
-          border: "2px solid white",
-          boxShadow: "0 4px 12px rgba(15,23,42,0.18)"
-        }}
+        className={styles.avatarImg}
+        style={{ width: size, height: size }}
       />
     );
   }
@@ -79,21 +76,12 @@ function Avatar({ employee, size = 56, dataUrl }) {
   return (
 
     <div
+      className={styles.avatarInitials}
       style={{
         width: size,
         height: size,
-        borderRadius: "50%",
         background: avatarGradient(employee?.NAME),
-        color: "white",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontWeight: 800,
         fontSize: size * 0.38,
-        letterSpacing: 0.5,
-        border: "2px solid white",
-        boxShadow: "0 4px 12px rgba(15,23,42,0.18)",
-        flexShrink: 0
       }}
     >
       {initials(employee?.NAME)}
@@ -106,17 +94,7 @@ function Pill({ children, bg = "#e0e7ff", fg = "#4338ca" }) {
 
   return (
 
-    <span style={{
-      display: "inline-block",
-      padding: "3px 10px",
-      borderRadius: 999,
-      fontSize: 10,
-      fontWeight: 800,
-      background: bg,
-      color: fg,
-      letterSpacing: 0.4,
-      textTransform: "uppercase"
-    }}>
+    <span className={styles.pill} style={{ background: bg, color: fg }}>
       {children}
     </span>
   );
@@ -127,274 +105,254 @@ function StatTile({ label, value, sub, color }) {
 
   return (
 
-    <div style={{
-      background: "white",
-      padding: "16px 20px",
-      borderRadius: 14,
-      boxShadow: "0 6px 18px rgba(15,23,42,0.06)",
-      borderTop: `3px solid ${color}`
-    }}>
-      <div style={{
-        fontSize: 10,
-        fontWeight: 800,
-        letterSpacing: 1.5,
-        color: "#64748b",
-        textTransform: "uppercase"
-      }}>
-        {label}
-      </div>
-      <div style={{
-        fontSize: 26,
-        fontWeight: 900,
-        color: "#0f172a",
-        marginTop: 4
-      }}>
-        {value}
-      </div>
-      {sub && (
-        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
-          {sub}
-        </div>
-      )}
+    <div className={styles.statTile} style={{ borderTop: `3px solid ${color}` }}>
+      <div className={styles.statTileLabel}>{label}</div>
+      <div className={styles.statTileValue}>{value}</div>
+      {sub && <div className={styles.statTileSub}>{sub}</div>}
     </div>
   );
+}
+
+
+// 8-colour theme palette cycled deterministically from EMPLOYEE_CODE.
+// Same code always gets the same colour, so the directory looks the
+// same across refreshes.
+const CARD_THEMES = [
+  { tag: "#dbeafe", tagFg: "#1d4ed8", title: "#2563eb", btn: "#3b82f6", chip: "#eff6ff", chipFg: "#1d4ed8", deptBg: "#eff6ff", deptFg: "#1d4ed8" }, // blue
+  { tag: "#d1fae5", tagFg: "#047857", title: "#059669", btn: "#10b981", chip: "#ecfdf5", chipFg: "#047857", deptBg: "#ecfdf5", deptFg: "#047857" }, // green
+  { tag: "#ede9fe", tagFg: "#6d28d9", title: "#7c3aed", btn: "#8b5cf6", chip: "#f5f3ff", chipFg: "#6d28d9", deptBg: "#f5f3ff", deptFg: "#6d28d9" }, // purple
+  { tag: "#fed7aa", tagFg: "#c2410c", title: "#ea580c", btn: "#f97316", chip: "#fff7ed", chipFg: "#c2410c", deptBg: "#fff7ed", deptFg: "#c2410c" }, // orange
+  { tag: "#fce7f3", tagFg: "#be185d", title: "#db2777", btn: "#ec4899", chip: "#fdf2f8", chipFg: "#be185d", deptBg: "#fdf2f8", deptFg: "#be185d" }, // pink
+  { tag: "#cffafe", tagFg: "#0e7490", title: "#0891b2", btn: "#06b6d4", chip: "#ecfeff", chipFg: "#0e7490", deptBg: "#ecfeff", deptFg: "#0e7490" }, // teal
+  { tag: "#fef3c7", tagFg: "#a16207", title: "#d97706", btn: "var(--text-secondary)", chip: "#fffbeb", chipFg: "#a16207", deptBg: "#fffbeb", deptFg: "#a16207" }, // amber
+  { tag: "#e0e7ff", tagFg: "#4338ca", title: "#4f46e5", btn: "#6366f1", chip: "#eef2ff", chipFg: "#4338ca", deptBg: "#eef2ff", deptFg: "#4338ca" }, // indigo
+];
+
+function pickTheme(code) {
+  const s = String(code || "");
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return CARD_THEMES[h % CARD_THEMES.length];
+}
+
+function fmtJoinDate(iso) {
+  if (!iso) return null;
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return null;
+    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  } catch { return null; }
+}
+
+// Lifecycle status → display label + dot colour + text colour + pill bg.
+// Aligned with backend ALLOWED_STATUSES (see employee_status.py).
+const STATUS_THEMES = {
+  ACTIVE:        { label: "Active",        dot: "#10b981", fg: "#166534", bg: "#dcfce7" },
+  ON_NOTICE:     { label: "On Notice",     dot: "#f59e0b", fg: "#92400e", bg: "#fef3c7" },
+  RESIGNED:      { label: "Resigned",      dot: "#94a3b8", fg: "#475569", bg: "#e2e8f0" },
+  TERMINATED:    { label: "Terminated",    dot: "#dc2626", fg: "#991b1b", bg: "#fee2e2" },
+  RETIRED:       { label: "Retired",       dot: "#3b82f6", fg: "#1e40af", bg: "#dbeafe" },
+  ON_LEAVE_LONG: { label: "On Long Leave", dot: "#8b5cf6", fg: "#6b21a8", bg: "#f3e8ff" },
+  INACTIVE:      { label: "Inactive",      dot: "#94a3b8", fg: "#64748b", bg: "#f1f5f9" },
+  ON_LEAVE:      { label: "On Leave",      dot: "#f59e0b", fg: "#92400e", bg: "#fef3c7" },
+};
+
+function statusBadge(emp) {
+  // Transient "on leave today" hint takes precedence — it's what HR
+  // wants to see at a glance, even if the underlying STATUS is ACTIVE.
+  const onLeave = (emp.LEAVE_STATUS || "").toUpperCase() === "ON_LEAVE"
+    || (emp.TODAY_STATUS || "").toUpperCase() === "ON_LEAVE";
+  if (onLeave) return STATUS_THEMES.ON_LEAVE;
+
+  const code = (emp.STATUS || "ACTIVE").toUpperCase();
+  return STATUS_THEMES[code] || {
+    label: code.replace(/_/g, " "),
+    dot: "#94a3b8", fg: "#475569", bg: "#f1f5f9",
+  };
 }
 
 
 function EmployeeCard({ employee, onView, onEdit, onDelete }) {
 
-  const skills = (employee.SKILLS || "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  // Clean horizontal Odoo-style card.
+  // Shows ONLY: name, designation, department, phone.
+  // Everything else lives behind "View Details" → 360° profile page.
+  const status = statusBadge(employee);
 
   return (
+    <div className={styles.employeeCard}>
 
-    <div
-      style={{
-        background: "white",
-        borderRadius: 16,
-        padding: 18,
-        boxShadow: "0 10px 30px rgba(15,23,42,0.07)",
-        transition: "transform 0.18s, box-shadow 0.18s",
-        position: "relative",
-        overflow: "hidden",
-        animation: "empFadeIn 0.4s ease-out both",
-        // Flex column so the content area expands and the action
-        // button row sits at a uniform bottom across all cards in
-        // the grid (CSS Grid already equalises row heights).
-        display: "flex",
-        flexDirection: "column",
-        height: "100%"
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.transform = "translateY(-3px)";
-        e.currentTarget.style.boxShadow = "0 18px 40px rgba(15,23,42,0.14)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "0 10px 30px rgba(15,23,42,0.07)";
-      }}
-    >
-      <div style={{
-        position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 4,
-        background: avatarGradient(employee.NAME)
-      }} />
+      {/* ====== TOP: photo (left) + minimal info (right) ====== */}
+      <div className={styles.cardBody}>
 
-      <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 12 }}>
-        <Avatar employee={employee} size={64} />
+        {/* Photo column */}
+        <div className={styles.cardPhotoCol}>
+          <Avatar employee={employee} size={96} />
+        </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            fontSize: 16,
-            fontWeight: 800,
-            color: "#0f172a",
-            lineHeight: 1.2,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap"
-          }}>
+        {/* Info column */}
+        <div className={styles.cardInfoCol}>
+
+          {/* Status pill in the top-right corner — visible label so HR
+              can scan the whole list and spot On Notice / Resigned /
+              Terminated rows at a glance. */}
+          <span
+            className={styles.cardStatusPill}
+            style={{ background: status.bg, color: status.fg }}
+            title={status.label}
+          >
+            <span
+              className={styles.cardStatusDot}
+              style={{ background: status.dot }}
+            />
+            {status.label}
+          </span>
+
+          <div className={styles.cardName}>
             {employee.NAME || "—"}
           </div>
-          <div style={{
-            fontSize: 11,
-            color: "#64748b",
-            fontFamily: "ui-monospace, monospace",
-            fontWeight: 700,
-            marginTop: 2
-          }}>
-            {employee.EMPLOYEE_CODE}
-          </div>
+
           {employee.DESIGNATION?.TITLE && (
-            <div style={{ fontSize: 12, color: "#475569", marginTop: 4, fontStyle: "italic" }}>
-              {employee.DESIGNATION.TITLE}
+            <div className={styles.cardLine}>
+              <BriefcaseIcon />
+              <span>{employee.DESIGNATION.TITLE}</span>
+            </div>
+          )}
+
+          {employee.DEPARTMENT?.NAME && (
+            <div className={styles.cardLine}>
+              <BuildingIcon />
+              <span>{employee.DEPARTMENT.NAME}</span>
+            </div>
+          )}
+
+          {employee.PHONE && (
+            <div className={styles.cardLine}>
+              <PhoneIcon />
+              <span>{employee.PHONE}</span>
             </div>
           )}
         </div>
       </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-        {employee.DEPARTMENT?.NAME && (
-          <Pill bg="#dbeafe" fg="#1e40af">
-            {employee.DEPARTMENT.NAME}
-          </Pill>
-        )}
-        {employee.ROLE?.NAME && (
-          <Pill bg="#ede9fe" fg="#6d28d9">
-            {employee.ROLE.NAME}
-          </Pill>
-        )}
-        {employee.EMPLOYMENT_TYPE && (
-          <Pill
-            bg={employee.EMPLOYMENT_TYPE === "FRESHER" ? "#dcfce7" : "#fef3c7"}
-            fg={employee.EMPLOYMENT_TYPE === "FRESHER" ? "#166534" : "#92400e"}
+      {/* ====== BOTTOM: single primary action + secondary controls ====== */}
+      <div className={styles.cardFooter}>
+        <Link
+          to={`/employees/${employee.ID}/profile`}
+          className={styles.cardViewDetailsBtn}
+        >
+          View Details
+          <ArrowRightIcon />
+        </Link>
+
+        <div className={styles.cardSecondaryActions}>
+          <button
+            type="button"
+            onClick={() => onView(employee)}
+            className={styles.cardIconBtn}
+            title="Quick preview"
+            aria-label="Quick preview"
           >
-            {employee.EMPLOYMENT_TYPE}
-          </Pill>
-        )}
-      </div>
-
-      {/* Flexible content area — expands so the action row sticks
-          to the card bottom across all rows in the grid. */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-
-        {employee.EMAIL && (
-          <div style={{
-            fontSize: 11,
-            color: "#64748b",
-            marginBottom: 4,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap"
-          }}>
-            ✉️ {employee.EMAIL}
-          </div>
-        )}
-        {employee.PHONE && (
-          <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>
-            📞 {employee.PHONE}
-          </div>
-        )}
-
-        {skills.length > 0 && (
-          <div style={{
-            background: "#f8fafc",
-            padding: "8px 10px",
-            borderRadius: 8,
-            marginBottom: 10
-          }}>
-            <div style={{
-              fontSize: 9,
-              fontWeight: 800,
-              color: "#64748b",
-              textTransform: "uppercase",
-              letterSpacing: 1,
-              marginBottom: 4
-            }}>
-              🧠 Skills
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-              {skills.slice(0, 5).map((s, i) => (
-                <span
-                  key={i}
-                  style={{
-                    fontSize: 10,
-                    padding: "2px 8px",
-                    background: "white",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: 4,
-                    color: "#475569",
-                    fontWeight: 600
-                  }}
-                >
-                  {s}
-                </span>
-              ))}
-              {skills.length > 5 && (
-                <span style={{ fontSize: 10, color: "#94a3b8" }}>
-                  +{skills.length - 5}
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-
-      </div>
-
-      <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
-        <button
-          onClick={() => onView(employee)}
-          style={{
-            flex: 1,
-            background: "linear-gradient(135deg, #C8102E, #8B0B1F)",
-            color: "white",
-            border: "none",
-            padding: "9px 12px",
-            borderRadius: 8,
-            fontWeight: 700,
-            fontSize: 12,
-            cursor: "pointer",
-            letterSpacing: 0.3
-          }}
-        >
-          👤 View Data
-        </button>
-        <button
-          onClick={() => onEdit?.(employee)}
-          title="Edit"
-          style={{
-            background: "#f0f9ff",
-            color: "#0369a1",
-            border: "1px solid #bae6fd",
-            padding: "9px 12px",
-            borderRadius: 8,
-            fontWeight: 700,
-            fontSize: 12,
-            cursor: "pointer"
-          }}
-        >
-          ✏️
-        </button>
-        <button
-          onClick={() => { window.location.href = `/memos?employee_id=${employee.ID}`; }}
-          title="View this employee's memos"
-          style={{
-            background: "#fffbeb",
-            color: "#92400e",
-            border: "1px solid #fde68a",
-            padding: "9px 12px",
-            borderRadius: 8,
-            fontWeight: 700,
-            fontSize: 12,
-            cursor: "pointer"
-          }}
-        >
-          📋
-        </button>
-        <button
-          onClick={() => onDelete(employee)}
-          title="Delete"
-          style={{
-            background: "#fef2f2",
-            color: "#b91c1c",
-            border: "1px solid #fecaca",
-            padding: "9px 12px",
-            borderRadius: 8,
-            fontWeight: 700,
-            fontSize: 12,
-            cursor: "pointer"
-          }}
-        >
-          🗑
-        </button>
+            <EyeIcon />
+          </button>
+          <button
+            type="button"
+            onClick={() => onEdit?.(employee)}
+            className={styles.cardIconBtn}
+            title="Edit"
+            aria-label="Edit"
+          >
+            <EditIcon />
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete(employee)}
+            className={`${styles.cardIconBtn} ${styles.cardIconBtnDanger}`}
+            title="Delete"
+            aria-label="Delete"
+          >
+            <TrashIcon />
+          </button>
+        </div>
       </div>
     </div>
   );
 }
+
+
+// ===== Inline SVG icons (replaces emoji + per-card colours) =====
+const ICON_PROPS = {
+  width: 14, height: 14, viewBox: "0 0 24 24", fill: "none",
+  stroke: "currentColor", strokeWidth: 1.8,
+  strokeLinecap: "round", strokeLinejoin: "round",
+};
+
+function BriefcaseIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <rect x="2" y="7" width="20" height="14" rx="2" />
+      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+    </svg>
+  );
+}
+
+function BuildingIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M3 21h18" />
+      <path d="M5 21V7l8-4v18" />
+      <path d="M19 21V11l-6-4" />
+      <path d="M9 9v.01M9 12v.01M9 15v.01M9 18v.01" />
+    </svg>
+  );
+}
+
+function PhoneIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z" />
+    </svg>
+  );
+}
+
+function ArrowRightIcon() {
+  return (
+    <svg {...ICON_PROPS} width="16" height="16">
+      <path d="M5 12h14M13 5l7 7-7 7" />
+    </svg>
+  );
+}
+
+function EyeIcon() {
+  return (
+    <svg {...ICON_PROPS} width="16" height="16">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function EditIcon() {
+  return (
+    <svg {...ICON_PROPS} width="16" height="16">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg {...ICON_PROPS} width="16" height="16">
+      <path d="M3 6h18" />
+      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    </svg>
+  );
+}
+
+
+// ---- EmployeeCard style helpers moved to Employees.module.css ----
 
 
 // =====================================================================
@@ -408,38 +366,38 @@ function EmployeeCard({ employee, onView, onEdit, onDelete }) {
 // in the backend whitelist (backend/app/routes/employee_documents.py).
 const DOC_TYPES = [
   // ---- Identity ----
-  { key: "AADHAAR",              label: "Aadhaar",                  icon: "🪪", group: "Identity" },
-  { key: "PAN",                  label: "PAN",                      icon: "🆔", group: "Identity" },
-  { key: "VOTER_ID",             label: "Voter ID",                 icon: "🗳️", group: "Identity" },
-  { key: "PASSPORT",             label: "Passport",                 icon: "🛂", group: "Identity" },
-  { key: "DRIVING_LICENSE",      label: "Driving License",          icon: "🚗", group: "Identity" },
+  { key: "AADHAAR", label: "Aadhaar", icon: "🪪", group: "Identity" },
+  { key: "PAN", label: "PAN", icon: "🆔", group: "Identity" },
+  { key: "VOTER_ID", label: "Voter ID", icon: "🗳️", group: "Identity" },
+  { key: "PASSPORT", label: "Passport", icon: "🛂", group: "Identity" },
+  { key: "DRIVING_LICENSE", label: "Driving License", icon: "🚗", group: "Identity" },
 
   // ---- Education ----
-  { key: "TENTH_MARKSHEET",      label: "10th Marksheet / SSLC",    icon: "📘", group: "Education" },
-  { key: "TWELFTH_MARKSHEET",    label: "12th Marksheet / HSC",     icon: "📗", group: "Education" },
-  { key: "DIPLOMA",              label: "Diploma / ITI",            icon: "📙", group: "Education" },
-  { key: "DEGREE",               label: "Degree (UG)",              icon: "🎓", group: "Education" },
-  { key: "POSTGRADUATE",         label: "Post-Graduate (PG)",       icon: "🎓", group: "Education" },
-  { key: "EDUCATIONAL",          label: "Other Educational",        icon: "📚", group: "Education" },
-  { key: "CERTIFICATE",          label: "Professional Certificate", icon: "📜", group: "Education" },
+  { key: "TENTH_MARKSHEET", label: "10th Marksheet / SSLC", icon: "📘", group: "Education" },
+  { key: "TWELFTH_MARKSHEET", label: "12th Marksheet / HSC", icon: "📗", group: "Education" },
+  { key: "DIPLOMA", label: "Diploma / ITI", icon: "📙", group: "Education" },
+  { key: "DEGREE", label: "Degree (UG)", icon: "🎓", group: "Education" },
+  { key: "POSTGRADUATE", label: "Post-Graduate (PG)", icon: "🎓", group: "Education" },
+  { key: "EDUCATIONAL", label: "Other Educational", icon: "📚", group: "Education" },
+  { key: "CERTIFICATE", label: "Professional Certificate", icon: "📜", group: "Education" },
 
   // ---- Employment ----
-  { key: "RESUME",               label: "Resume / CV",              icon: "📄", group: "Employment" },
-  { key: "OFFER_LETTER",         label: "Offer Letter",             icon: "📃", group: "Employment" },
-  { key: "JOINING_LETTER",       label: "Joining Letter",           icon: "✍️", group: "Employment" },
-  { key: "EXPERIENCE_LETTER",    label: "Experience Letter",        icon: "🏅", group: "Employment" },
-  { key: "RELIEVING_LETTER",     label: "Relieving Letter",         icon: "🗒️", group: "Employment" },
-  { key: "SALARY_SLIP",          label: "Previous Salary Slip",     icon: "💰", group: "Employment" },
+  { key: "RESUME", label: "Resume / CV", icon: "📄", group: "Employment" },
+  { key: "OFFER_LETTER", label: "Offer Letter", icon: "📃", group: "Employment" },
+  { key: "JOINING_LETTER", label: "Joining Letter", icon: "✍️", group: "Employment" },
+  { key: "EXPERIENCE_LETTER", label: "Experience Letter", icon: "🏅", group: "Employment" },
+  { key: "RELIEVING_LETTER", label: "Relieving Letter", icon: "🗒️", group: "Employment" },
+  { key: "SALARY_SLIP", label: "Previous Salary Slip", icon: "💰", group: "Employment" },
 
   // ---- Personal / Banking ----
-  { key: "PHOTO",                label: "Photograph",               icon: "🖼️", group: "Personal" },
-  { key: "BIRTH_CERTIFICATE",    label: "Birth Certificate",        icon: "👶", group: "Personal" },
-  { key: "MARRIAGE_CERTIFICATE", label: "Marriage Certificate",     icon: "💍", group: "Personal" },
-  { key: "ADDRESS_PROOF",        label: "Address Proof",            icon: "🏠", group: "Personal" },
-  { key: "BANK_PASSBOOK",        label: "Bank Passbook / Cheque",   icon: "🏦", group: "Personal" },
+  { key: "PHOTO", label: "Photograph", icon: "🖼️", group: "Personal" },
+  { key: "BIRTH_CERTIFICATE", label: "Birth Certificate", icon: "👶", group: "Personal" },
+  { key: "MARRIAGE_CERTIFICATE", label: "Marriage Certificate", icon: "💍", group: "Personal" },
+  { key: "ADDRESS_PROOF", label: "Address Proof", icon: "🏠", group: "Personal" },
+  { key: "BANK_PASSBOOK", label: "Bank Passbook / Cheque", icon: "🏦", group: "Personal" },
 
   // ---- Catch-all ----
-  { key: "OTHER",                label: "Other",                    icon: "📁", group: "Other" },
+  { key: "OTHER", label: "Other", icon: "📁", group: "Other" },
 ];
 
 const DOC_TYPE_LABEL = Object.fromEntries(
@@ -572,31 +530,13 @@ function EmployeeDocumentsSection({ employee }) {
     <ResumeBlock title="📂 Documents">
 
       {/* Upload row */}
-      <form onSubmit={upload} style={{
-        display: "grid",
-        gridTemplateColumns: "180px 1fr 1fr auto",
-        gap: 8,
-        alignItems: "end",
-        padding: 14,
-        background: "linear-gradient(135deg,#fef2f2,#fff5f5)",
-        border: "1px dashed #fecaca",
-        borderRadius: 10,
-        marginBottom: 14
-      }}>
-        <label style={{ fontSize: 11, fontWeight: 700, color: "#7f1d1d" }}>
+      <form onSubmit={upload} className={styles.docUploadForm}>
+        <label className={styles.docUploadLabel}>
           DOCUMENT TYPE
           <select
             value={draft.doc_type}
             onChange={(e) => setDraft((d) => ({ ...d, doc_type: e.target.value }))}
-            style={{
-              width: "100%",
-              marginTop: 4,
-              padding: "8px 10px",
-              border: "1px solid #fecaca",
-              borderRadius: 6,
-              fontSize: 13,
-              background: "white"
-            }}
+            className={styles.docUploadSelect}
           >
             {/* Render as grouped <optgroup> so the 24 types scan easily */}
             {(() => {
@@ -623,85 +563,45 @@ function EmployeeDocumentsSection({ employee }) {
             })()}
           </select>
         </label>
-        <label style={{ fontSize: 11, fontWeight: 700, color: "#7f1d1d" }}>
+        <label className={styles.docUploadLabel}>
           TITLE (optional)
           <input
             type="text"
             value={draft.title}
             onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
             placeholder="e.g. Aadhaar — Front"
-            style={{
-              width: "100%",
-              marginTop: 4,
-              padding: "8px 10px",
-              border: "1px solid #fecaca",
-              borderRadius: 6,
-              fontSize: 13
-            }}
+            className={styles.docUploadInput}
           />
         </label>
-        <label style={{ fontSize: 11, fontWeight: 700, color: "#7f1d1d" }}>
+        <label className={styles.docUploadLabel}>
           FILE (PDF / Image / DOC / XLS · max 10 MB)
           <input
             id={`emp-doc-file-${empId}`}
             type="file"
             accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"
             onChange={(e) => setDraft((d) => ({ ...d, file: e.target.files?.[0] || null }))}
-            style={{ width: "100%", marginTop: 4, fontSize: 12 }}
+            className={styles.docUploadFileInput}
           />
         </label>
         <button
           type="submit"
           disabled={pending || !draft.file}
-          style={{
-            padding: "10px 18px",
-            background: pending || !draft.file
-              ? "#cbd5e1"
-              : "linear-gradient(135deg,#C8102E,#8B0B1F)",
-            color: "white",
-            border: "none",
-            borderRadius: 8,
-            fontWeight: 800,
-            fontSize: 12,
-            cursor: pending || !draft.file ? "not-allowed" : "pointer",
-            whiteSpace: "nowrap"
-          }}
+          className={styles.docUploadBtn}
         >
           {pending ? "Uploading…" : "⬆ Upload"}
         </button>
       </form>
 
       {error && (
-        <div style={{
-          padding: "8px 12px",
-          background: "#fef2f2",
-          color: "#991b1b",
-          border: "1px solid #fecaca",
-          borderRadius: 6,
-          fontSize: 12,
-          marginBottom: 12
-        }}>
-          ⚠ {error}
-        </div>
+        <div className={styles.docErrorBanner}>⚠ {error}</div>
       )}
 
       {loading && (
-        <div style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic" }}>
-          Loading documents…
-        </div>
+        <div className={styles.docLoadingText}>Loading documents…</div>
       )}
 
       {!loading && docs.length === 0 && !error && (
-        <div style={{
-          padding: "16px 12px",
-          background: "#f8fafc",
-          border: "1px dashed #cbd5e1",
-          borderRadius: 8,
-          fontSize: 12,
-          color: "#64748b",
-          textAlign: "center",
-          fontStyle: "italic"
-        }}>
+        <div className={styles.docEmpty}>
           No documents uploaded yet. Use the form above to add Aadhaar, PAN,
           Resume, Offer Letter, etc.
         </div>
@@ -709,33 +609,17 @@ function EmployeeDocumentsSection({ employee }) {
 
       {Object.entries(grouped).map(([type, items]) => (
         <div key={type} style={{ marginBottom: 12 }}>
-          <div style={{
-            fontSize: 10,
-            fontWeight: 800,
-            letterSpacing: 1,
-            color: "#7f1d1d",
-            marginBottom: 6,
-            textTransform: "uppercase"
-          }}>
+          <div className={styles.docGroupLabel}>
             {DOC_TYPE_LABEL[type] || type} · {items.length}
           </div>
           <div style={{ display: "grid", gap: 6 }}>
             {items.map((d) => (
-              <div key={d.ID} style={{
-                display: "grid",
-                gridTemplateColumns: "1fr auto auto auto",
-                gap: 8,
-                alignItems: "center",
-                padding: "8px 12px",
-                background: "white",
-                border: "1px solid #e2e8f0",
-                borderRadius: 8
-              }}>
+              <div key={d.ID} className={styles.docItem}>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+                  <div className={styles.docItemName}>
                     {d.TITLE || d.FILE_NAME || `Document #${d.ID}`}
                   </div>
-                  <div style={{ fontSize: 11, color: "#64748b" }}>
+                  <div className={styles.docItemMeta}>
                     {d.FILE_NAME && d.FILE_NAME !== d.TITLE
                       ? `${d.FILE_NAME} · `
                       : ""}
@@ -750,48 +634,21 @@ function EmployeeDocumentsSection({ employee }) {
                   href={`${API.defaults.baseURL || ""}${d.FILE_URL}`}
                   target="_blank"
                   rel="noreferrer"
-                  style={{
-                    padding: "6px 10px",
-                    background: "#eff6ff",
-                    color: "#1d4ed8",
-                    border: "1px solid #bfdbfe",
-                    borderRadius: 6,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textDecoration: "none"
-                  }}
+                  className={styles.docViewLink}
                 >
                   👁 View
                 </a>
                 <a
                   href={`${API.defaults.baseURL || ""}${d.FILE_URL}`}
                   download={d.FILE_NAME || "document"}
-                  style={{
-                    padding: "6px 10px",
-                    background: "#f0fdf4",
-                    color: "#15803d",
-                    border: "1px solid #bbf7d0",
-                    borderRadius: 6,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textDecoration: "none"
-                  }}
+                  className={styles.docDownloadLink}
                 >
                   ⬇ Download
                 </a>
                 <button
                   type="button"
                   onClick={() => removeDoc(d)}
-                  style={{
-                    padding: "6px 10px",
-                    background: "#fef2f2",
-                    color: "#b91c1c",
-                    border: "1px solid #fecaca",
-                    borderRadius: 6,
-                    fontSize: 11,
-                    fontWeight: 700,
-                    cursor: "pointer"
-                  }}
+                  className={styles.docDeleteBtn}
                 >
                   🗑 Delete
                 </button>
@@ -817,100 +674,24 @@ function ResumeModal({ employee, photoDataUrl, onClose }) {
 
   return (
 
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,0.6)",
-        zIndex: 1100,
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        padding: 40
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "min(900px, 100%)",
-          maxHeight: "92vh",
-          background: "white",
-          borderRadius: 18,
-          overflow: "hidden",
-          boxShadow: "0 30px 80px rgba(0,0,0,0.4)",
-          animation: "empFadeIn 0.25s ease-out both",
-          display: "flex",
-          flexDirection: "column"
-        }}
-      >
+    <div onClick={onClose} className={styles.modalBackdrop}>
+      <div onClick={(e) => e.stopPropagation()} className={styles.resumeModalPanel}>
         {/* Fixed header — stays visible while body scrolls */}
-        <div style={{
-          background: "linear-gradient(120deg, #1A0508 0%, #4A0E18 35%, #8B0B1F 65%, #C8102E 100%)",
-          padding: "36px 40px",
-          color: "white",
-          position: "relative",
-          flexShrink: 0
-        }}>
-          <button
-            onClick={onClose}
-            style={{
-              position: "absolute",
-              top: 14,
-              right: 14,
-              background: "rgba(255,255,255,0.2)",
-              color: "white",
-              border: "none",
-              borderRadius: 8,
-              padding: "4px 12px",
-              cursor: "pointer",
-              fontSize: 18
-            }}
-          >
-            ×
-          </button>
+        <div className={styles.resumeModalHeader}>
+          <button onClick={onClose} className={styles.resumeCloseBtn}>×</button>
 
-          <div style={{ display: "flex", gap: 24, alignItems: "center" }}>
+          <div className={styles.resumeHeaderRow}>
             <Avatar employee={employee} size={120} dataUrl={photoDataUrl} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{
-                fontSize: 11,
-                letterSpacing: 2,
-                opacity: 0.85,
-                fontWeight: 700,
-                textTransform: "uppercase"
-              }}>
-                Employee Profile
-              </div>
-              <h1 style={{
-                fontSize: 32,
-                fontWeight: 900,
-                margin: "4px 0 6px",
-                letterSpacing: -0.5,
-                lineHeight: 1.15,
-                color: "white"
-              }}>
-                {employee.NAME}
-              </h1>
-              <div style={{ fontSize: 14, opacity: 0.9 }}>
+            <div className={styles.resumeHeaderFlex}>
+              <div className={styles.resumeEyebrow}>Employee Profile</div>
+              <h1 className={styles.resumeName}>{employee.NAME}</h1>
+              <div className={styles.resumeSubTitle}>
                 {employee.DESIGNATION?.TITLE || "—"}
                 {employee.DEPARTMENT?.NAME && (
                   <> · {employee.DEPARTMENT.NAME}</>
                 )}
               </div>
-              <div style={{
-                marginTop: 8,
-                fontSize: 11,
-                fontFamily: "ui-monospace, monospace",
-                background: "rgba(255,255,255,0.18)",
-                padding: "4px 12px",
-                borderRadius: 6,
-                display: "inline-block",
-                fontWeight: 700,
-                letterSpacing: 1
-              }}>
-                {employee.EMPLOYEE_CODE}
-              </div>
+              <div className={styles.resumeCodeBadge}>{employee.EMPLOYEE_CODE}</div>
             </div>
           </div>
         </div>
@@ -919,20 +700,10 @@ function ResumeModal({ employee, photoDataUrl, onClose }) {
             full-width content sections below. Scrollable area —
             only this part scrolls, keeping the red profile header
             pinned in view. */}
-        <div style={{
-          padding: 32,
-          overflowY: "auto",
-          flex: 1,
-          minHeight: 0
-        }}>
+        <div className={styles.resumeBody}>
 
           {/* Top — identity grid: Contact | Personal */}
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 32,
-            marginBottom: 8
-          }}>
+          <div className={styles.resumeGrid2}>
 
             <div>
               <ResumeBlock title="Contact">
@@ -974,31 +745,26 @@ function ResumeModal({ employee, photoDataUrl, onClose }) {
               {(employee.EMERGENCY_CONTACT_NAME ||
                 employee.EMERGENCY_CONTACT_PHONE ||
                 employee.EMERGENCY_CONTACT_RELATION) && (
-                <div style={{ marginTop: 14 }}>
-                  <ResumeBlock title="Emergency Contact">
-                    {employee.EMERGENCY_CONTACT_NAME && (
-                      <ResumeRow icon="🆘" label="Name" value={employee.EMERGENCY_CONTACT_NAME} />
-                    )}
-                    {employee.EMERGENCY_CONTACT_PHONE && (
-                      <ResumeRow icon="📞" label="Phone" value={employee.EMERGENCY_CONTACT_PHONE} />
-                    )}
-                    {employee.EMERGENCY_CONTACT_RELATION && (
-                      <ResumeRow icon="❤️" label="Relation" value={employee.EMERGENCY_CONTACT_RELATION} />
-                    )}
-                  </ResumeBlock>
-                </div>
-              )}
+                  <div className={styles.emergencyContactWrap}>
+                    <ResumeBlock title="Emergency Contact">
+                      {employee.EMERGENCY_CONTACT_NAME && (
+                        <ResumeRow icon="🆘" label="Name" value={employee.EMERGENCY_CONTACT_NAME} />
+                      )}
+                      {employee.EMERGENCY_CONTACT_PHONE && (
+                        <ResumeRow icon="📞" label="Phone" value={employee.EMERGENCY_CONTACT_PHONE} />
+                      )}
+                      {employee.EMERGENCY_CONTACT_RELATION && (
+                        <ResumeRow icon="❤️" label="Relation" value={employee.EMERGENCY_CONTACT_RELATION} />
+                      )}
+                    </ResumeBlock>
+                  </div>
+                )}
             </div>
 
           </div>
 
           {/* Middle — Education | Employment side by side */}
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 32,
-            marginBottom: 8
-          }}>
+          <div className={styles.resumeGrid2}>
 
             <div>
               <ResumeBlock title="Education">
@@ -1018,11 +784,11 @@ function ResumeModal({ employee, photoDataUrl, onClose }) {
                   <ResumeRow icon="📊" label="Score" value={`${employee.PERCENTAGE}%`} />
                 )}
                 {!employee.QUALIFICATION && !employee.YEAR_OF_PASSING &&
-                 !employee.COLLEGE && !employee.UNIVERSITY && employee.PERCENTAGE == null && (
-                  <div style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic" }}>
-                    No education info on file
-                  </div>
-                )}
+                  !employee.COLLEGE && !employee.UNIVERSITY && employee.PERCENTAGE == null && (
+                    <div className={styles.noEduInfo}>
+                      No education info on file
+                    </div>
+                  )}
               </ResumeBlock>
             </div>
 
@@ -1071,20 +837,9 @@ function ResumeModal({ employee, photoDataUrl, onClose }) {
           {/* Bottom — full-width content-heavy sections */}
           {skills.length > 0 && (
             <ResumeBlock title="🧠 Skills">
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              <div className={styles.skillsPillWrap}>
                 {skills.map((s, i) => (
-                  <span
-                    key={i}
-                    style={{
-                      fontSize: 12,
-                      padding: "5px 12px",
-                      background: "linear-gradient(135deg, #eef2ff, #ede9fe)",
-                      color: "#4338ca",
-                      border: "1px solid #c7d2fe",
-                      borderRadius: 999,
-                      fontWeight: 700
-                    }}
-                  >
+                  <span key={i} className={styles.skillsPill}>
                     {s}
                   </span>
                 ))}
@@ -1094,27 +849,16 @@ function ResumeModal({ employee, photoDataUrl, onClose }) {
 
           {/* Two-column flex for Work Experience + Past Projects */}
           {(employee.EXPERIENCE_DETAILS || employee.PAST_PROJECTS) && (
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: (
+            <div
+              className={
                 employee.EXPERIENCE_DETAILS && employee.PAST_PROJECTS
-                  ? "1fr 1fr"
-                  : "1fr"
-              ),
-              gap: 24
-            }}>
+                  ? styles.resumeGrid2ExpProj
+                  : styles.resumeGrid1
+              }
+            >
               {employee.EXPERIENCE_DETAILS && (
                 <ResumeBlock title="💼 Work Experience">
-                  <div style={{
-                    fontSize: 13,
-                    color: "#334155",
-                    lineHeight: 1.6,
-                    whiteSpace: "pre-wrap",
-                    background: "#f8fafc",
-                    padding: 14,
-                    borderRadius: 10,
-                    borderLeft: "3px solid #6366f1"
-                  }}>
+                  <div className={`${styles.preBlock} ${styles.preBlockExperience}`}>
                     {employee.EXPERIENCE_DETAILS}
                   </div>
                 </ResumeBlock>
@@ -1122,16 +866,7 @@ function ResumeModal({ employee, photoDataUrl, onClose }) {
 
               {employee.PAST_PROJECTS && (
                 <ResumeBlock title="🏗 Past Projects">
-                  <div style={{
-                    fontSize: 13,
-                    color: "#334155",
-                    lineHeight: 1.6,
-                    whiteSpace: "pre-wrap",
-                    background: "#f8fafc",
-                    padding: 14,
-                    borderRadius: 10,
-                    borderLeft: "3px solid #ec4899"
-                  }}>
+                  <div className={`${styles.preBlock} ${styles.preBlockProjects}`}>
                     {employee.PAST_PROJECTS}
                   </div>
                 </ResumeBlock>
@@ -1141,17 +876,7 @@ function ResumeModal({ employee, photoDataUrl, onClose }) {
 
           {employee.NOTES && (
             <ResumeBlock title="📝 Notes">
-              <div style={{
-                fontSize: 13,
-                color: "#334155",
-                lineHeight: 1.6,
-                whiteSpace: "pre-wrap",
-                background: "#fffbeb",
-                padding: 14,
-                borderRadius: 10,
-                borderLeft: "3px solid #f59e0b",
-                fontStyle: "italic"
-              }}>
+              <div className={`${styles.preBlock} ${styles.preBlockNotes}`}>
                 {employee.NOTES}
               </div>
             </ResumeBlock>
@@ -1160,46 +885,35 @@ function ResumeModal({ employee, photoDataUrl, onClose }) {
           {(employee.BANK_ACCOUNT_NUMBER || employee.BANK_NAME ||
             employee.IFSC_CODE || employee.PAN_NUMBER ||
             employee.AADHAAR_NUMBER) && (
-            <ResumeBlock title="🏦 Bank & Identity">
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 8
-              }}>
-                {employee.BANK_NAME && (
-                  <ResumeRow icon="🏦" label="Bank" value={employee.BANK_NAME} />
-                )}
-                {employee.BANK_ACCOUNT_NUMBER && (
-                  <ResumeRow icon="💳" label="Account" value={employee.BANK_ACCOUNT_NUMBER} />
-                )}
-                {employee.IFSC_CODE && (
-                  <ResumeRow icon="🔢" label="IFSC" value={employee.IFSC_CODE} />
-                )}
-                {employee.PAN_NUMBER && (
-                  <ResumeRow icon="🆔" label="PAN" value={employee.PAN_NUMBER} />
-                )}
-                {employee.AADHAAR_NUMBER && (
-                  <ResumeRow icon="🪪" label="Aadhaar" value={employee.AADHAAR_NUMBER} />
-                )}
-              </div>
-            </ResumeBlock>
-          )}
+              <ResumeBlock title="🏦 Bank & Identity">
+                <div className={styles.bankGrid}>
+                  {employee.BANK_NAME && (
+                    <ResumeRow icon="🏦" label="Bank" value={employee.BANK_NAME} />
+                  )}
+                  {employee.BANK_ACCOUNT_NUMBER && (
+                    <ResumeRow icon="💳" label="Account" value={employee.BANK_ACCOUNT_NUMBER} />
+                  )}
+                  {employee.IFSC_CODE && (
+                    <ResumeRow icon="🔢" label="IFSC" value={employee.IFSC_CODE} />
+                  )}
+                  {employee.PAN_NUMBER && (
+                    <ResumeRow icon="🆔" label="PAN" value={employee.PAN_NUMBER} />
+                  )}
+                  {employee.AADHAAR_NUMBER && (
+                    <ResumeRow icon="🪪" label="Aadhaar" value={employee.AADHAAR_NUMBER} />
+                  )}
+                </div>
+              </ResumeBlock>
+            )}
 
           {/* HR Module — Phase B: Documents */}
           <EmployeeDocumentsSection employee={employee} />
 
           {(Number(employee.SALARY) || 0) > 0 && (
             <ResumeBlock title="💰 Compensation">
-              <div style={{
-                fontSize: 22,
-                fontWeight: 900,
-                color: "#065f46",
-                fontFamily: "ui-monospace, monospace"
-              }}>
+              <div className={styles.compensationAmount}>
                 ₹ {Number(employee.SALARY).toLocaleString("en-IN")}
-                <span style={{ fontSize: 13, color: "#64748b", marginLeft: 8 }}>
-                  / month
-                </span>
+                <span className={styles.compensationUnit}>/ month</span>
               </div>
             </ResumeBlock>
           )}
@@ -1215,17 +929,8 @@ function ResumeBlock({ title, children }) {
 
   return (
 
-    <div style={{ marginBottom: 22 }}>
-      <div style={{
-        fontSize: 11,
-        fontWeight: 800,
-        letterSpacing: 1.4,
-        color: "#1e293b",
-        textTransform: "uppercase",
-        marginBottom: 10,
-        paddingBottom: 6,
-        borderBottom: "2px solid #e2e8f0"
-      }}>
+    <div className={styles.resumeBlock}>
+      <div className={styles.resumeBlockTitle}>
         {title}
       </div>
       {children}
@@ -1238,27 +943,11 @@ function ResumeRow({ icon, label, value }) {
 
   return (
 
-    <div style={{
-      display: "flex",
-      gap: 10,
-      padding: "6px 0",
-      fontSize: 12,
-      color: "#475569"
-    }}>
-      <span style={{ flexShrink: 0 }}>{icon}</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          fontSize: 10,
-          color: "#94a3b8",
-          fontWeight: 700,
-          letterSpacing: 0.5,
-          textTransform: "uppercase"
-        }}>
-          {label}
-        </div>
-        <div style={{ color: "#0f172a", fontWeight: 600, wordBreak: "break-word" }}>
-          {value}
-        </div>
+    <div className={styles.resumeRow}>
+      <span className={styles.resumeRowIcon}>{icon}</span>
+      <div className={styles.resumeRowBody}>
+        <div className={styles.resumeRowLabel}>{label}</div>
+        <div className={styles.resumeRowValue}>{value}</div>
       </div>
     </div>
   );
@@ -1317,6 +1006,9 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
     PERCENTAGE: editingEmployee?.PERCENTAGE ?? "",
     PREVIOUS_COMPANY: editingEmployee?.PREVIOUS_COMPANY || "",
     PREVIOUS_SALARY: editingEmployee?.PREVIOUS_SALARY ?? "",
+    // Current monthly salary — drives payroll BASE_SALARY snapshot.
+    // Editable here so HR can adjust without re-running the seed script.
+    SALARY: editingEmployee?.SALARY ?? "",
     BANK_ACCOUNT_NUMBER: editingEmployee?.BANK_ACCOUNT_NUMBER || "",
     BANK_NAME: editingEmployee?.BANK_NAME || "",
     IFSC_CODE: editingEmployee?.IFSC_CODE || "",
@@ -1381,6 +1073,8 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
   const [saving, setSaving] = useState(false);
 
   const [error, setError] = useState("");
+
+  const [phoneErrors, setPhoneErrors] = useState({ PHONE: "", EMERGENCY_CONTACT_PHONE: "" });
 
   const [showPreview, setShowPreview] = useState(false);
 
@@ -1470,6 +1164,8 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
           ? null : Number(form.PERCENTAGE),
         PREVIOUS_SALARY: form.PREVIOUS_SALARY === "" || form.PREVIOUS_SALARY == null
           ? null : Number(form.PREVIOUS_SALARY),
+        SALARY: form.SALARY === "" || form.SALARY == null
+          ? 0 : Number(form.SALARY),
         CONFIRMATION_DATE: form.CONFIRMATION_DATE || null
       };
 
@@ -1540,18 +1236,18 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
           try {
 
             await API.put(`/payroll/salary-structures/${empId}`, {
-              BASIC:                Number(form.SAL_BASIC)        || 0,
-              HRA:                  Number(form.SAL_HRA)          || 0,
-              DA:                   Number(form.SAL_DA)           || 0,
-              CONVEYANCE_ALLOWANCE: Number(form.SAL_CONVEYANCE)   || 0,
-              MEDICAL_ALLOWANCE:    Number(form.SAL_MEDICAL)      || 0,
-              SPECIAL_ALLOWANCE:    Number(form.SAL_SPECIAL)      || 0,
-              OTHER_ALLOWANCES:     Number(form.SAL_OTHER)        || 0,
-              INCENTIVES:           Number(form.SAL_INCENTIVES)   || 0,
-              ANNUAL_BONUS:         Number(form.SAL_ANNUAL_BONUS) || 0,
-              PT_STATE:             form.SAL_PT_STATE || "TAMIL_NADU",
-              PF_APPLICABLE:        form.SAL_PF_APPLICABLE ? 1 : 0,
-              ESI_APPLICABLE:       form.SAL_ESI_APPLICABLE ? 1 : 0
+              BASIC: Number(form.SAL_BASIC) || 0,
+              HRA: Number(form.SAL_HRA) || 0,
+              DA: Number(form.SAL_DA) || 0,
+              CONVEYANCE_ALLOWANCE: Number(form.SAL_CONVEYANCE) || 0,
+              MEDICAL_ALLOWANCE: Number(form.SAL_MEDICAL) || 0,
+              SPECIAL_ALLOWANCE: Number(form.SAL_SPECIAL) || 0,
+              OTHER_ALLOWANCES: Number(form.SAL_OTHER) || 0,
+              INCENTIVES: Number(form.SAL_INCENTIVES) || 0,
+              ANNUAL_BONUS: Number(form.SAL_ANNUAL_BONUS) || 0,
+              PT_STATE: form.SAL_PT_STATE || "TAMIL_NADU",
+              PF_APPLICABLE: form.SAL_PF_APPLICABLE ? 1 : 0,
+              ESI_APPLICABLE: form.SAL_ESI_APPLICABLE ? 1 : 0
             });
 
           } catch (salErr) {
@@ -1650,154 +1346,69 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
 
   return (
 
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,0.6)",
-        zIndex: 1000,
-        display: "flex",
-        justifyContent: "flex-end"
-      }}
-    >
+    <div onClick={onClose} className={styles.drawerBackdrop}>
       <form
         onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
-        style={{
-          width: 800,
-          maxWidth: "94%",
-          background: "white",
-          overflowY: "auto",
-          padding: 0,
-          boxShadow: "-30px 0 80px rgba(0,0,0,0.4)"
-        }}
+        className={styles.drawerPanel}
       >
-        <div style={{
-          background: "linear-gradient(135deg, #1A0508, #4A0E18, #8B0B1F)",
-          color: "white",
-          padding: "26px 32px",
-          position: "sticky",
-          top: 0,
-          zIndex: 5,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center"
-        }}>
+        <div className={styles.drawerHeader}>
           <div>
-            <div style={{ fontSize: 11, letterSpacing: 2, opacity: 0.85, fontWeight: 700 }}>
+            <div className={styles.drawerHeaderEyebrow}>
               {isEdit ? "EMPLOYEE PROFILE" : "EMPLOYEE REGISTRATION"}
             </div>
-            <div style={{ fontSize: 22, fontWeight: 900, marginTop: 4 }}>
+            <div className={styles.drawerHeaderTitle}>
               {isEdit
                 ? `Edit ${editingEmployee.NAME || editingEmployee.EMPLOYEE_CODE}`
                 : "Add New Employee"}
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className={styles.drawerHeaderButtons}>
             <button
               type="button"
               onClick={() => setShowPreview(true)}
-              style={{
-                background: "rgba(255,255,255,0.18)",
-                color: "white",
-                border: "1px solid rgba(255,255,255,0.3)",
-                padding: "8px 16px",
-                borderRadius: 8,
-                fontWeight: 700,
-                fontSize: 12,
-                cursor: "pointer"
-              }}
+              className={styles.drawerGhostBtn}
             >
               👁 View Data
             </button>
             <button
               type="button"
               onClick={onClose}
-              style={{
-                background: "rgba(255,255,255,0.18)",
-                color: "white",
-                border: "none",
-                padding: "8px 14px",
-                borderRadius: 8,
-                cursor: "pointer",
-                fontSize: 18
-              }}
+              className={styles.drawerCloseBtn}
             >
               ×
             </button>
           </div>
         </div>
 
-        <div style={{ padding: 28 }}>
+        <div className={styles.drawerBody}>
 
           {error && (
-            <div style={{
-              background: "#fef2f2",
-              color: "#b91c1c",
-              border: "1px solid #fecaca",
-              padding: 12,
-              borderRadius: 8,
-              marginBottom: 18,
-              fontSize: 13,
-              fontWeight: 600
-            }}>
-              {error}
-            </div>
+            <div className={styles.formErrorBanner}>{error}</div>
           )}
 
-          <div style={{
-            background: "linear-gradient(135deg, #f5f3ff, #ede9fe)",
-            border: "1px dashed #c4b5fd",
-            borderRadius: 14,
-            padding: 18,
-            marginBottom: 22,
-            display: "flex",
-            gap: 18,
-            alignItems: "center"
-          }}>
-            <div style={{
-              width: 100,
-              height: 100,
-              borderRadius: "50%",
-              background: photoPreview
-                ? `url(${photoPreview}) center/cover`
-                : avatarGradient(form.NAME),
-              color: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 800,
-              fontSize: 38,
-              border: "3px solid white",
-              boxShadow: "0 6px 20px rgba(99,102,241,0.3)",
-              flexShrink: 0
-            }}>
+          <div className={styles.photoStrip}>
+            <div
+              className={styles.photoStripAvatar}
+              style={{
+                width: 100,
+                height: 100,
+                fontSize: 38,
+                background: photoPreview
+                  ? `url(${photoPreview}) center/cover`
+                  : avatarGradient(form.NAME),
+              }}
+            >
               {!photoPreview && initials(form.NAME)}
             </div>
 
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 800, color: "#0f172a", fontSize: 14 }}>
-                Passport-size photo
-              </div>
-              <div style={{ fontSize: 11, color: "#64748b", marginTop: 4, lineHeight: 1.5 }}>
+            <div className={styles.photoStripInfo}>
+              <div className={styles.photoStripTitle}>Passport-size photo</div>
+              <div className={styles.photoStripHint}>
                 PNG / JPG / WEBP. Saved to the employee's profile.
                 Will appear on cards, attendance views, and the resume.
               </div>
-              <label
-                htmlFor="emp-photo-input"
-                style={{
-                  display: "inline-block",
-                  marginTop: 10,
-                  background: "linear-gradient(135deg, #C8102E, #8B0B1F)",
-                  color: "white",
-                  padding: "7px 16px",
-                  borderRadius: 8,
-                  cursor: "pointer",
-                  fontSize: 12,
-                  fontWeight: 700
-                }}
-              >
+              <label htmlFor="emp-photo-input" className={styles.photoUploadLabel}>
                 {photoPreview ? "🔄 Change photo" : "📷 Upload photo"}
               </label>
               <input
@@ -1820,12 +1431,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   onChange={set("EMPLOYEE_CODE")}
                   placeholder="EMP015"
                   readOnly={isEdit}
-                  style={{
-                    ...inputStyle(),
-                    ...(isEdit
-                      ? { background: "#f1f5f9", color: "#64748b", cursor: "not-allowed" }
-                      : {})
-                  }}
+                  className={`${styles.formInput}${isEdit ? ` ${styles.formInputLocked}` : ""}`}
                 />
               </FormField>
               <FormField label="Employee Name *">
@@ -1834,7 +1440,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.NAME}
                   onChange={set("NAME")}
                   placeholder="Ramesh Kumar"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Father's Name">
@@ -1843,7 +1449,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.FATHER_NAME}
                   onChange={set("FATHER_NAME")}
                   placeholder="Murugan"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Mother's Name">
@@ -1852,7 +1458,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.MOTHER_NAME}
                   onChange={set("MOTHER_NAME")}
                   placeholder="Lakshmi"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Date of Birth">
@@ -1860,14 +1466,14 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   type="date"
                   value={form.DOB}
                   onChange={set("DOB")}
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Gender">
                 <select
                   value={form.GENDER}
                   onChange={set("GENDER")}
-                  style={inputStyle()}
+                  className={styles.formInput}
                 >
                   <option value="">— pick —</option>
                   {GENDERS.map((g) => (
@@ -1879,7 +1485,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                 <select
                   value={form.MARITAL_STATUS}
                   onChange={set("MARITAL_STATUS")}
-                  style={inputStyle()}
+                  className={styles.formInput}
                 >
                   <option value="">— pick —</option>
                   {MARITAL_STATUSES.map((m) => (
@@ -1893,17 +1499,17 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.OCCUPATION}
                   onChange={set("OCCUPATION")}
                   placeholder="Mechanical Technician"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Blood Group">
                 <select
                   value={form.BLOOD_GROUP}
                   onChange={set("BLOOD_GROUP")}
-                  style={inputStyle()}
+                  className={styles.formInput}
                 >
                   <option value="">— pick —</option>
-                  {["A+","A-","B+","B-","O+","O-","AB+","AB-"].map((b) => (
+                  {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((b) => (
                     <option key={b} value={b}>{b}</option>
                   ))}
                 </select>
@@ -1914,7 +1520,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.NATIONALITY}
                   onChange={set("NATIONALITY")}
                   placeholder="Indian"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Emergency Contact Name">
@@ -1923,17 +1529,28 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.EMERGENCY_CONTACT_NAME}
                   onChange={set("EMERGENCY_CONTACT_NAME")}
                   placeholder="Spouse / Parent / Sibling"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Emergency Contact Phone">
                 <input
-                  type="tel"
+                  type="text"
                   value={form.EMERGENCY_CONTACT_PHONE}
-                  onChange={set("EMERGENCY_CONTACT_PHONE")}
-                  placeholder="+91 98765 43210"
-                  style={inputStyle()}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    setForm((f) => ({ ...f, EMERGENCY_CONTACT_PHONE: digits }));
+                    setPhoneErrors((err) => ({
+                      ...err,
+                      EMERGENCY_CONTACT_PHONE: digits.length > 0 && digits.length < 10 ? "Mobile number must be 10 digits" : ""
+                    }));
+                  }}
+                  placeholder="9876543210"
+                  inputMode="numeric"
+                  className={`${styles.formInput}${phoneErrors.EMERGENCY_CONTACT_PHONE ? ` ${styles.formInputError}` : ""}`}
                 />
+                {phoneErrors.EMERGENCY_CONTACT_PHONE && (
+                  <div className={styles.fieldValidationMsg}>{phoneErrors.EMERGENCY_CONTACT_PHONE}</div>
+                )}
               </FormField>
               <FormField label="Relationship" span={2}>
                 <input
@@ -1941,7 +1558,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.EMERGENCY_CONTACT_RELATION}
                   onChange={set("EMERGENCY_CONTACT_RELATION")}
                   placeholder="Father / Mother / Spouse / Sibling"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
             </FormGrid>
@@ -1952,12 +1569,23 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
             <FormGrid cols={2}>
               <FormField label="Contact Number">
                 <input
-                  type="tel"
+                  type="text"
                   value={form.PHONE}
-                  onChange={set("PHONE")}
-                  placeholder="+91 98765 43210"
-                  style={inputStyle()}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    setForm((f) => ({ ...f, PHONE: digits }));
+                    setPhoneErrors((err) => ({
+                      ...err,
+                      PHONE: digits.length > 0 && digits.length < 10 ? "Mobile number must be 10 digits" : ""
+                    }));
+                  }}
+                  placeholder="9876543210"
+                  inputMode="numeric"
+                  className={`${styles.formInput}${phoneErrors.PHONE ? ` ${styles.formInputError}` : ""}`}
                 />
+                {phoneErrors.PHONE && (
+                  <div className={styles.fieldValidationMsg}>{phoneErrors.PHONE}</div>
+                )}
               </FormField>
               <FormField label="Email">
                 <input
@@ -1965,7 +1593,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.EMAIL}
                   onChange={set("EMAIL")}
                   placeholder="ramesh@bvc24.in"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Address (Street / House No)" span={2}>
@@ -1974,7 +1602,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.ADDRESS}
                   onChange={set("ADDRESS")}
                   placeholder="Plot 12, ABC Street, Near XYZ Park"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="City">
@@ -1983,7 +1611,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.CITY}
                   onChange={set("CITY")}
                   placeholder="Coimbatore"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="State">
@@ -1992,7 +1620,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.STATE}
                   onChange={set("STATE")}
                   placeholder="Tamil Nadu"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Pincode" span={2}>
@@ -2003,7 +1631,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   onChange={set("PINCODE")}
                   placeholder="641001"
                   maxLength={10}
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               {!isEdit && (
@@ -2013,7 +1641,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                     value={form.PASSWORD}
                     onChange={set("PASSWORD")}
                     placeholder="Set a login password"
-                    style={inputStyle()}
+                    className={styles.formInput}
                   />
                 </FormField>
               )}
@@ -2029,7 +1657,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.QUALIFICATION}
                   onChange={set("QUALIFICATION")}
                   placeholder="BE Mechanical Engineering"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Year of Passing">
@@ -2040,7 +1668,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.YEAR_OF_PASSING}
                   onChange={set("YEAR_OF_PASSING")}
                   placeholder="2020"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="College">
@@ -2049,7 +1677,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.COLLEGE}
                   onChange={set("COLLEGE")}
                   placeholder="PSG College of Technology"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="University">
@@ -2058,7 +1686,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.UNIVERSITY}
                   onChange={set("UNIVERSITY")}
                   placeholder="Anna University"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Percentage / CGPA" span={2}>
@@ -2070,20 +1698,20 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.PERCENTAGE}
                   onChange={set("PERCENTAGE")}
                   placeholder="85.5"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
             </FormGrid>
           </FormSection>
 
           {/* ============== 4. PROFESSIONAL INFORMATION ============== */}
-          <FormSection title="④ Professional Information" color="#f59e0b">
+          <FormSection title="④ Professional Information" color="var(--text-secondary)">
             <FormGrid cols={2}>
               <FormField label="Fresher / Experienced">
                 <select
                   value={form.EMPLOYMENT_TYPE}
                   onChange={set("EMPLOYMENT_TYPE")}
-                  style={inputStyle()}
+                  className={styles.formInput}
                 >
                   {EMPLOYMENT_TYPES.map((t) => (
                     <option key={t} value={t}>{t}</option>
@@ -2098,7 +1726,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.EXPERIENCE_YEARS}
                   onChange={set("EXPERIENCE_YEARS")}
                   placeholder="0"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Previous Company">
@@ -2107,8 +1735,22 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.PREVIOUS_COMPANY}
                   onChange={set("PREVIOUS_COMPANY")}
                   placeholder="ABC Manufacturing Pvt Ltd"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
+              </FormField>
+              <FormField label="Current Monthly Salary (₹) *">
+                <input
+                  type="number"
+                  min="0"
+                  step="500"
+                  value={form.SALARY}
+                  onChange={set("SALARY")}
+                  placeholder="18000"
+                  className={styles.formInput}
+                />
+                <div className={styles.fieldHint}>
+                  Used as the BASE_SALARY snapshot when payroll is generated.
+                </div>
               </FormField>
               <FormField label="Previous Salary (₹/month)">
                 <input
@@ -2118,7 +1760,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.PREVIOUS_SALARY}
                   onChange={set("PREVIOUS_SALARY")}
                   placeholder="45000"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Skills (comma-separated)" span={2}>
@@ -2127,7 +1769,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.SKILLS}
                   onChange={set("SKILLS")}
                   placeholder="solidworks, wiring, assembly, quality check"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Experience Details" span={2}>
@@ -2136,7 +1778,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.EXPERIENCE_DETAILS}
                   onChange={set("EXPERIENCE_DETAILS")}
                   placeholder={"ABC Manufacturing — 2 yrs (CNC operator)\nXYZ Industries — 1 yr (Welder)"}
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Past Working Projects" span={2}>
@@ -2145,7 +1787,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.PAST_PROJECTS}
                   onChange={set("PAST_PROJECTS")}
                   placeholder={"• Snack Vending Machine v2\n• Industrial Conveyor Belt System\n• Custom CNC retrofit"}
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
             </FormGrid>
@@ -2159,7 +1801,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                 value={form.NOTES}
                 onChange={set("NOTES")}
                 placeholder="Any additional notes about this employee"
-                style={inputStyle()}
+                className={styles.formInput}
               />
             </FormField>
           </FormSection>
@@ -2173,7 +1815,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                 <select
                   value={form.ROLE_ID}
                   onChange={set("ROLE_ID")}
-                  style={inputStyle()}
+                  className={styles.formInput}
                 >
                   <option value="">— pick role —</option>
                   {roles.map((r) => (
@@ -2185,7 +1827,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                 <select
                   value={form.DEPARTMENT_ID}
                   onChange={set("DEPARTMENT_ID")}
-                  style={inputStyle()}
+                  className={styles.formInput}
                 >
                   <option value="">— pick department —</option>
                   {departments.map((d) => (
@@ -2197,7 +1839,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                 <select
                   value={form.DESIGNATION_ID}
                   onChange={set("DESIGNATION_ID")}
-                  style={inputStyle()}
+                  className={styles.formInput}
                 >
                   <option value="">— pick designation —</option>
                   {designations.map((d) => (
@@ -2210,7 +1852,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   type="date"
                   value={form.CONFIRMATION_DATE}
                   onChange={set("CONFIRMATION_DATE")}
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Work Location" span={2}>
@@ -2219,7 +1861,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.WORK_LOCATION}
                   onChange={set("WORK_LOCATION")}
                   placeholder="Coimbatore HQ / Chennai Site / Remote"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
             </FormGrid>
@@ -2234,7 +1876,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.BANK_ACCOUNT_NUMBER}
                   onChange={set("BANK_ACCOUNT_NUMBER")}
                   placeholder="50100123456789"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Bank Name">
@@ -2243,7 +1885,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.BANK_NAME}
                   onChange={set("BANK_NAME")}
                   placeholder="HDFC Bank"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="IFSC Code">
@@ -2253,7 +1895,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   onChange={set("IFSC_CODE")}
                   placeholder="HDFC0001234"
                   maxLength={20}
-                  style={{...inputStyle(), textTransform: "uppercase"}}
+                  className={`${styles.formInput} ${styles.formInputUppercase}`}
                 />
               </FormField>
               <FormField label="PAN Number">
@@ -2263,7 +1905,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   onChange={set("PAN_NUMBER")}
                   placeholder="ABCDE1234F"
                   maxLength={20}
-                  style={{...inputStyle(), textTransform: "uppercase"}}
+                  className={`${styles.formInput} ${styles.formInputUppercase}`}
                 />
               </FormField>
               <FormField label="Aadhaar Number" span={2}>
@@ -2271,11 +1913,18 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   type="text"
                   inputMode="numeric"
                   value={form.AADHAAR_NUMBER}
-                  onChange={set("AADHAAR_NUMBER")}
-                  placeholder="1234 5678 9012"
-                  maxLength={20}
-                  style={inputStyle()}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 12);
+                    setForm((f) => ({ ...f, AADHAAR_NUMBER: digits }));
+                  }}
+                  placeholder="123456789012"
+                  className={`${styles.formInput}${form.AADHAAR_NUMBER.length > 0 && form.AADHAAR_NUMBER.length < 12 ? ` ${styles.formInputError}` : ""}`}
                 />
+                {form.AADHAAR_NUMBER.length > 0 && form.AADHAAR_NUMBER.length < 12 && (
+                  <div className={styles.fieldValidationMsg}>
+                    {form.AADHAAR_NUMBER.length}/12 digits — Aadhaar must be 12 digits
+                  </div>
+                )}
               </FormField>
             </FormGrid>
           </FormSection>
@@ -2283,15 +1932,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
           {/* ============== 8. SALARY STRUCTURE (drives Payroll) ============== */}
           <FormSection title="⑧ Salary Structure (Payroll)" color="#10b981">
 
-            <div style={{
-              background: "#ecfdf5",
-              border: "1px solid #a7f3d0",
-              borderRadius: 8,
-              padding: "10px 14px",
-              fontSize: 12,
-              color: "#065f46",
-              marginBottom: 14
-            }}>
+            <div className={styles.salaryNote}>
               These monthly amounts drive payroll generation.
               Leave blank if not yet decided — payroll will fall back to
               <b> Employee.Salary</b> or treat as zero. Statutory deductions
@@ -2307,7 +1948,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.SAL_BASIC}
                   onChange={set("SAL_BASIC")}
                   placeholder="25000"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="HRA (₹/month)">
@@ -2318,7 +1959,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.SAL_HRA}
                   onChange={set("SAL_HRA")}
                   placeholder="10000"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="DA (Dearness Allowance)">
@@ -2329,7 +1970,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.SAL_DA}
                   onChange={set("SAL_DA")}
                   placeholder="2000"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Conveyance Allowance">
@@ -2340,7 +1981,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.SAL_CONVEYANCE}
                   onChange={set("SAL_CONVEYANCE")}
                   placeholder="1600"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Medical Allowance">
@@ -2351,7 +1992,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.SAL_MEDICAL}
                   onChange={set("SAL_MEDICAL")}
                   placeholder="1250"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Special Allowance">
@@ -2362,7 +2003,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.SAL_SPECIAL}
                   onChange={set("SAL_SPECIAL")}
                   placeholder="5000"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Other Allowances">
@@ -2373,7 +2014,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.SAL_OTHER}
                   onChange={set("SAL_OTHER")}
                   placeholder="0"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Incentives (recurring)">
@@ -2384,7 +2025,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.SAL_INCENTIVES}
                   onChange={set("SAL_INCENTIVES")}
                   placeholder="0"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
               <FormField label="Annual Bonus (÷12 per month)">
@@ -2395,19 +2036,19 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   value={form.SAL_ANNUAL_BONUS}
                   onChange={set("SAL_ANNUAL_BONUS")}
                   placeholder="0"
-                  style={inputStyle()}
+                  className={styles.formInput}
                 />
               </FormField>
             </FormGrid>
 
-            <div style={{ height: 14 }} />
+            <div className={styles.salaryGridSpacer} />
 
             <FormGrid cols={3}>
               <FormField label="PT State (for Professional Tax slab)">
                 <select
                   value={form.SAL_PT_STATE}
                   onChange={set("SAL_PT_STATE")}
-                  style={inputStyle()}
+                  className={styles.formInput}
                 >
                   <option value="TAMIL_NADU">Tamil Nadu</option>
                   <option value="KARNATAKA">Karnataka</option>
@@ -2421,14 +2062,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                 </select>
               </FormField>
               <FormField label="Deduct PF (12% of basic)">
-                <label style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  paddingTop: 8,
-                  fontSize: 13,
-                  cursor: "pointer"
-                }}>
+                <label className={styles.checkboxLabel}>
                   <input
                     type="checkbox"
                     checked={!!form.SAL_PF_APPLICABLE}
@@ -2440,14 +2074,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                 </label>
               </FormField>
               <FormField label="Deduct ESI (0.75% if gross ≤ ₹21k)">
-                <label style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  paddingTop: 8,
-                  fontSize: 13,
-                  cursor: "pointer"
-                }}>
+                <label className={styles.checkboxLabel}>
                   <input
                     type="checkbox"
                     checked={!!form.SAL_ESI_APPLICABLE}
@@ -2464,14 +2091,14 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
             {(() => {
 
               const sum =
-                (Number(form.SAL_BASIC)        || 0) +
-                (Number(form.SAL_HRA)          || 0) +
-                (Number(form.SAL_DA)           || 0) +
-                (Number(form.SAL_CONVEYANCE)   || 0) +
-                (Number(form.SAL_MEDICAL)      || 0) +
-                (Number(form.SAL_SPECIAL)      || 0) +
-                (Number(form.SAL_OTHER)        || 0) +
-                (Number(form.SAL_INCENTIVES)   || 0) +
+                (Number(form.SAL_BASIC) || 0) +
+                (Number(form.SAL_HRA) || 0) +
+                (Number(form.SAL_DA) || 0) +
+                (Number(form.SAL_CONVEYANCE) || 0) +
+                (Number(form.SAL_MEDICAL) || 0) +
+                (Number(form.SAL_SPECIAL) || 0) +
+                (Number(form.SAL_OTHER) || 0) +
+                (Number(form.SAL_INCENTIVES) || 0) +
                 (Number(form.SAL_ANNUAL_BONUS) || 0);
 
               if (sum <= 0) return null;
@@ -2482,66 +2109,27 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
 
               return (
 
-                <div style={{
-                  marginTop: 14,
-                  padding: "12px 16px",
-                  background: "linear-gradient(135deg, #10b981, #047857)",
-                  borderRadius: 10,
-                  color: "white",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center"
-                }}>
+                <div className={styles.grossBar}>
                   <span>Gross / month (auto-calculated)</span>
-                  <span style={{ fontSize: 18, fontWeight: 800 }}>{inr(sum)}</span>
+                  <span className={styles.grossAmount}>{inr(sum)}</span>
                 </div>
               );
             })()}
 
           </FormSection>
 
-          <div style={{
-            display: "flex",
-            gap: 10,
-            justifyContent: "flex-end",
-            marginTop: 24,
-            paddingTop: 18,
-            borderTop: "1px solid #e2e8f0"
-          }}>
+          <div className={styles.formFooter}>
             <button
               type="button"
               onClick={() => setShowPreview(true)}
-              style={{
-                background: "white",
-                color: "#4338ca",
-                border: "2px solid #6366f1",
-                padding: "10px 22px",
-                borderRadius: 10,
-                fontWeight: 800,
-                fontSize: 13,
-                cursor: "pointer"
-              }}
+              className={styles.formPreviewBtn}
             >
               👁 View Data (preview)
             </button>
             <button
               type="submit"
               disabled={saving}
-              style={{
-                background: saving
-                  ? "#cbd5e1"
-                  : "linear-gradient(135deg, #10b981, #047857)",
-                color: "white",
-                border: "none",
-                padding: "10px 28px",
-                borderRadius: 10,
-                fontWeight: 800,
-                fontSize: 13,
-                cursor: saving ? "default" : "pointer",
-                boxShadow: "0 6px 16px rgba(16,185,129,0.3)"
-              }}
+              className={styles.formSaveBtn}
             >
               {saving
                 ? "Saving…"
@@ -2567,17 +2155,11 @@ function FormSection({ title, color, children }) {
 
   return (
 
-    <div style={{ marginBottom: 22 }}>
-      <div style={{
-        fontSize: 11,
-        fontWeight: 800,
-        letterSpacing: 1.4,
-        color,
-        textTransform: "uppercase",
-        marginBottom: 12,
-        paddingBottom: 6,
-        borderBottom: `2px solid ${color}33`
-      }}>
+    <div className={styles.formSection}>
+      <div
+        className={styles.formSectionTitle}
+        style={{ color, borderBottom: `2px solid ${color}33` }}
+      >
         {title}
       </div>
       {children}
@@ -2590,11 +2172,10 @@ function FormGrid({ cols, children }) {
 
   return (
 
-    <div style={{
-      display: "grid",
-      gridTemplateColumns: `repeat(${cols}, 1fr)`,
-      gap: 12
-    }}>
+    <div
+      className={styles.formGrid}
+      style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}
+    >
       {children}
     </div>
   );
@@ -2605,35 +2186,14 @@ function FormField({ label, span, children }) {
 
   return (
 
-    <div style={{ gridColumn: span ? `span ${span}` : undefined }}>
-      <label style={{
-        display: "block",
-        fontSize: 11,
-        fontWeight: 700,
-        color: "#475569",
-        marginBottom: 4,
-        letterSpacing: 0.3
-      }}>
-        {label}
-      </label>
+    <div
+      className={styles.formField}
+      style={{ gridColumn: span ? `span ${span}` : undefined }}
+    >
+      <label className={styles.formFieldLabel}>{label}</label>
       {children}
     </div>
   );
-}
-
-
-function inputStyle() {
-
-  return {
-    width: "100%",
-    padding: "9px 12px",
-    border: "1px solid #cbd5e1",
-    borderRadius: 8,
-    fontSize: 13,
-    fontFamily: "inherit",
-    outline: "none",
-    boxSizing: "border-box"
-  };
 }
 
 
@@ -2650,6 +2210,9 @@ function Employees() {
   const [search, setSearch] = useState("");
 
   const [deptFilter, setDeptFilter] = useState("");
+
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   const [showAdd, setShowAdd] = useState(false);
 
@@ -2706,6 +2269,16 @@ function Employees() {
 
   }, [employees, search, deptFilter]);
 
+  // Reset to page 1 whenever the filter changes (so we don't land on
+  // an empty page beyond the new result set's last page).
+  useEffect(() => { setPage(1); }, [search, deptFilter]);
+
+  // Slice the filtered list for the current page.
+  const pagedEmployees = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
+
   const stats = useMemo(() => {
 
     const total = employees.length;
@@ -2740,148 +2313,90 @@ function Employees() {
 
   return (
 
-    <div style={{ padding: 26, minHeight: "100%", background: "#f1f5f9" }}>
+    <div className={styles.pageWrapper}>
 
-      <style>{`
-        @keyframes empFadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes empHeroShift {
-          0%, 100% { background-position: 0% 50%; }
-          50%      { background-position: 100% 50%; }
-        }
-      `}</style>
-
-      <div style={{
-        background: "linear-gradient(120deg, #1A0508 0%, #4A0E18 30%, #8B0B1F 60%, #C8102E 100%)",
-        backgroundSize: "300% 300%",
-        animation: "empHeroShift 18s ease-in-out infinite",
-        color: "white",
-        padding: "28px 32px",
-        borderRadius: 20,
-        marginBottom: 22,
-        boxShadow: "0 24px 60px rgba(99,102,241,0.4)",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        flexWrap: "wrap",
-        gap: 16
-      }}>
+      <div className={styles.pageBanner}>
         <div>
-          <div style={{ fontSize: 11, letterSpacing: 2.5, opacity: 0.85, fontWeight: 800, textTransform: "uppercase" }}>
-            BVC24 · Workforce
-          </div>
-          <h1 style={{ fontSize: 28, fontWeight: 900, margin: "6px 0 6px", lineHeight: 1.15, color: "white" }}>
-            Employee Directory — every face, every skill, one click away.
-          </h1>
-          <div style={{ fontSize: 13, opacity: 0.92, maxWidth: 600 }}>
-            Add new hires with their full profile + photo. View any
-            employee's resume on demand. Skills, experience, projects,
-            qualification — all in one place.
+          <div className={styles.pageBannerEyebrow}>Workforce</div>
+          <h1 className={styles.pageBannerTitle}>Employees</h1>
+          <div className={styles.pageBannerSub}>
+            Manage your team, onboarding invites and roles.
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <div className={styles.pageBannerActions}>
           <button
+            type="button"
             onClick={() => setShowInvite(true)}
-            style={{
-              background: "rgba(255,255,255,0.15)",
-              color: "white",
-              border: "1px solid rgba(255,255,255,0.4)",
-              padding: "14px 22px",
-              borderRadius: 12,
-              fontWeight: 800,
-              fontSize: 14,
-              cursor: "pointer",
-              boxShadow: "0 10px 24px rgba(0,0,0,0.2)",
-              letterSpacing: 0.3,
-              backdropFilter: "blur(6px)"
-            }}
+            className={styles.bannerInviteBtn}
           >
-            🤖 Invite (AI Onboarding)
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" strokeWidth="2"
+                 strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+              <polyline points="22,6 12,13 2,6" />
+            </svg>
+            Invite via Onboarding
           </button>
           <button
+            type="button"
             onClick={() => setShowAdd(true)}
-            style={{
-              background: "white",
-              color: "#8B0B1F",
-              border: "none",
-              padding: "14px 26px",
-              borderRadius: 12,
-              fontWeight: 800,
-              fontSize: 14,
-              cursor: "pointer",
-              boxShadow: "0 10px 24px rgba(0,0,0,0.2)",
-              letterSpacing: 0.3
-            }}
+            className={styles.bannerAddBtn}
           >
-            ✨ Add Employee
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" strokeWidth="2.4"
+                 strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Add Employee
           </button>
         </div>
       </div>
 
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
-        gap: 14,
-        marginBottom: 20
-      }}>
+      <div className={styles.statsGrid}>
         <StatTile label="Total Employees" value={stats.total} color="#6366f1" />
         <StatTile label="Active" value={stats.active} sub="working" color="#10b981" />
         <StatTile label="Freshers" value={stats.freshers} sub="new joinees" color="#06b6d4" />
-        <StatTile label="Avg Experience" value={`${stats.avgExp} yr`} sub="across team" color="#f59e0b" />
+        <StatTile label="Avg Experience" value={`${stats.avgExp} yr`} sub="across team" color="var(--text-secondary)" />
       </div>
 
-      <div style={{
-        background: "white",
-        padding: 14,
-        borderRadius: 12,
-        boxShadow: "0 4px 14px rgba(15,23,42,0.06)",
-        display: "flex",
-        gap: 10,
-        flexWrap: "wrap",
-        alignItems: "center",
-        marginBottom: 18
-      }}>
-        <input
-          type="text"
-          placeholder="🔍 Search by name, code, email, skill, qualification..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{
-            flex: 1,
-            minWidth: 280,
-            padding: "10px 14px",
-            border: "1px solid #e2e8f0",
-            borderRadius: 8,
-            fontSize: 13
-          }}
-        />
+      <div className={styles.filterBar}>
+        <div className={styles.filterSearchWrap}>
+          <span className={styles.filterSearchIcon} aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" strokeWidth="2.2"
+                 strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+          </span>
+          <input
+            type="text"
+            placeholder="Search by name, code, email, skill…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className={styles.filterInput}
+          />
+        </div>
         <select
           value={deptFilter}
           onChange={(e) => setDeptFilter(e.target.value)}
-          style={{
-            padding: "10px 14px",
-            border: "1px solid #e2e8f0",
-            borderRadius: 8,
-            fontSize: 13,
-            background: "white"
-          }}
+          className={styles.filterSelect}
         >
           <option value="">All departments</option>
           {departments.map((d) => (
             <option key={d} value={d}>{d}</option>
           ))}
         </select>
-        <div style={{ fontSize: 12, color: "#94a3b8" }}>
+        <div className={styles.filterCount}>
           {filtered.length} of {employees.length}
         </div>
       </div>
 
       {
         loading && (
-          <div style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>
+          <div className={styles.loadingState}>
             Loading employees…
           </div>
         )
@@ -2889,17 +2404,9 @@ function Employees() {
 
       {
         !loading && filtered.length === 0 && (
-          <div style={{
-            padding: 50,
-            textAlign: "center",
-            color: "#94a3b8",
-            background: "white",
-            borderRadius: 14,
-            border: "1px dashed #cbd5e1"
-          }}>
-            <div style={{ fontSize: 30, marginBottom: 8 }}>👥</div>
+          <div className={styles.emptyState}>
             {employees.length === 0
-              ? <>No employees yet. Click <strong>✨ Add Employee</strong> to start the directory.</>
+              ? <>No employees yet. Click <strong>+ Add Employee</strong> to start the directory.</>
               : "No employees match these filters."}
           </div>
         )
@@ -2907,21 +2414,26 @@ function Employees() {
 
       {
         !loading && filtered.length > 0 && (
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(330px, 1fr))",
-            gap: 18
-          }}>
-            {filtered.map((emp) => (
-              <EmployeeCard
-                key={emp.ID}
-                employee={emp}
-                onView={setViewing}
-                onEdit={setEditingEmployee}
-                onDelete={handleDelete}
-              />
-            ))}
-          </div>
+          <>
+            <div className={styles.cardGrid}>
+              {pagedEmployees.map((emp) => (
+                <EmployeeCard
+                  key={emp.ID}
+                  employee={emp}
+                  onView={setViewing}
+                  onEdit={setEditingEmployee}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              total={filtered.length}
+              onPageChange={setPage}
+              onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
+            />
+          </>
         )
       }
 
@@ -2982,9 +2494,18 @@ function InviteEmployeeModal({ onClose }) {
   const [form, setForm] = useState({
     INVITED_NAME: "",
     EMPLOYEE_CODE: "",
+    EMAIL: "",
     PASSWORD: "",
-    EXPIRES_IN_DAYS: 2
+    EXPIRES_IN_DAYS: 2,
+    DEPARTMENT_ID: "",
+    DESIGNATION_ID: ""
   });
+
+  // Departments + Designations are loaded from the org catalog
+  // (/departments and /designations). Both are auto-seeded with the
+  // canonical manufacturing list on backend boot.
+  const [departments, setDepartments] = useState([]);
+  const [designations, setDesignations] = useState([]);
 
   const [result, setResult] = useState(null);
 
@@ -2992,9 +2513,26 @@ function InviteEmployeeModal({ onClose }) {
 
   const [error, setError] = useState("");
 
+  // Toggle for the password field's eye icon — admin can verify the
+  // 6+ char password they're sending the candidate before submitting.
+  const [showPassword, setShowPassword] = useState(false);
+
   const [copied, setCopied] = useState(false);
 
   const [emailMsg, setEmailMsg] = useState("");
+
+  // Fetch dropdown options once when the modal opens
+  useEffect(() => {
+
+    API.get("/departments")
+      .then((r) => setDepartments(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setDepartments([]));
+
+    API.get("/designations")
+      .then((r) => setDesignations(Array.isArray(r.data) ? r.data : []))
+      .catch(() => setDesignations([]));
+
+  }, []);
 
   // ESC closes the modal
   useEffect(() => {
@@ -3034,6 +2572,15 @@ function InviteEmployeeModal({ onClose }) {
       return;
     }
 
+    const emailTrim = form.EMAIL.trim();
+
+    if (!emailTrim || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailTrim)) {
+
+      setError("A valid candidate email is required — the invite link is sent automatically.");
+
+      return;
+    }
+
     if (form.PASSWORD.trim().length < 6) {
 
       setError("Password must be at least 6 characters.");
@@ -3048,8 +2595,11 @@ function InviteEmployeeModal({ onClose }) {
       const res = await API.post("/employee-onboarding/invite", {
         INVITED_NAME: form.INVITED_NAME.trim(),
         EMPLOYEE_CODE: form.EMPLOYEE_CODE.trim() || null,
+        EMAIL: emailTrim,
         PASSWORD: form.PASSWORD,
-        EXPIRES_IN_DAYS: Number(form.EXPIRES_IN_DAYS) || 2
+        EXPIRES_IN_DAYS: Number(form.EXPIRES_IN_DAYS) || 2,
+        DEPARTMENT_ID: form.DEPARTMENT_ID ? Number(form.DEPARTMENT_ID) : null,
+        DESIGNATION_ID: form.DESIGNATION_ID ? Number(form.DESIGNATION_ID) : null
       });
 
       setResult(res.data);
@@ -3058,8 +2608,8 @@ function InviteEmployeeModal({ onClose }) {
 
       setError(
         err?.response?.data?.detail ||
-          err?.message ||
-          "Could not generate the invite link."
+        err?.message ||
+        "Could not generate the invite link."
       );
 
     } finally {
@@ -3088,88 +2638,24 @@ function InviteEmployeeModal({ onClose }) {
 
   return (
 
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(15,23,42,0.55)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 1200,
-        padding: 20
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "min(640px, 100%)",
-          maxHeight: "92vh",
-          background: "white",
-          borderRadius: 16,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          boxShadow: "0 24px 60px rgba(0,0,0,0.4)"
-        }}
-      >
+    <div onClick={onClose} className={styles.inviteBackdrop}>
+      <div onClick={(e) => e.stopPropagation()} className={styles.invitePanel}>
 
         {/* Sticky header */}
-        <div style={{
-          background: "linear-gradient(135deg, #C8102E, #8B0B1F)",
-          color: "white",
-          padding: "20px 24px",
-          flexShrink: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between"
-        }}>
+        <div className={styles.inviteHeader}>
           <div>
-            <div style={{
-              fontSize: 10,
-              fontWeight: 800,
-              letterSpacing: 2,
-              opacity: 0.85
-            }}>
-              EMPLOYEE AI ONBOARDING
-            </div>
-            <h2 style={{ margin: "4px 0 0", fontSize: 18 }}>
+            <div className={styles.inviteHeaderEyebrow}>EMPLOYEE AI ONBOARDING</div>
+            <h2 className={styles.inviteHeaderTitle}>
               Invite candidate to self-onboard
             </h2>
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: "rgba(255,255,255,0.18)",
-              color: "white",
-              border: "none",
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              cursor: "pointer",
-              fontSize: 18,
-              lineHeight: 1
-            }}
-          >
-            ×
-          </button>
+          <button onClick={onClose} className={styles.inviteCloseBtn}>×</button>
         </div>
 
         {/* Body — only this scrolls so the header stays pinned */}
-        <div style={{
-          flex: 1,
-          minHeight: 0,
-          overflowY: "auto",
-          padding: 22
-        }}>
+        <div className={styles.inviteBody}>
 
-          <p style={{
-            margin: "0 0 16px",
-            color: "#475569",
-            fontSize: 13,
-            lineHeight: 1.5
-          }}>
+          <p className={styles.inviteIntro}>
             Generate a one-time link the candidate opens in their
             browser. Our AI assistant walks them through every field —
             once they hit <b>Submit</b>, the session appears under
@@ -3178,19 +2664,14 @@ function InviteEmployeeModal({ onClose }) {
 
           {!result && (
             <form onSubmit={submit}>
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 12,
-                marginBottom: 12
-              }}>
+              <div className={styles.inviteFormGrid}>
                 <InviteField label="Candidate name *">
                   <input
                     type="text"
                     value={form.INVITED_NAME}
                     onChange={set("INVITED_NAME")}
                     placeholder="e.g. Ramesh Kumar"
-                    style={inviteInputStyle()}
+                    className={styles.inviteInput}
                   />
                 </InviteField>
                 <InviteField label="Employee ID *">
@@ -3199,17 +2680,83 @@ function InviteEmployeeModal({ onClose }) {
                     value={form.EMPLOYEE_CODE}
                     onChange={set("EMPLOYEE_CODE")}
                     placeholder="EMP015"
-                    style={inviteInputStyle()}
+                    className={styles.inviteInput}
                   />
                 </InviteField>
-                <InviteField label="Login Password *" span={2}>
+                <InviteField label="Candidate email *" span={2}>
                   <input
-                    type="password"
-                    value={form.PASSWORD}
-                    onChange={set("PASSWORD")}
-                    placeholder="Min 6 characters"
-                    style={inviteInputStyle()}
+                    type="email"
+                    value={form.EMAIL}
+                    onChange={set("EMAIL")}
+                    placeholder="ramesh.kumar@example.com"
+                    className={styles.inviteInput}
                   />
+                </InviteField>
+                <InviteField label="Department">
+                  <select
+                    value={form.DEPARTMENT_ID}
+                    onChange={set("DEPARTMENT_ID")}
+                    className={styles.inviteInput}
+                  >
+                    <option value="">— Select —</option>
+                    {departments.map((d) => (
+                      <option key={d.ID} value={d.ID}>
+                        {d.NAME}
+                      </option>
+                    ))}
+                  </select>
+                </InviteField>
+                <InviteField label="Designation">
+                  <select
+                    value={form.DESIGNATION_ID}
+                    onChange={set("DESIGNATION_ID")}
+                    className={styles.inviteInput}
+                  >
+                    <option value="">— Select —</option>
+                    {designations.map((d) => (
+                      <option key={d.ID} value={d.ID}>
+                        {d.TITLE}
+                      </option>
+                    ))}
+                  </select>
+                </InviteField>
+                <InviteField label="Login Password *" span={2}>
+                  <div className={styles.pwdWrapper}>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={form.PASSWORD}
+                      onChange={set("PASSWORD")}
+                      placeholder="Min 6 characters"
+                      className={`${styles.inviteInput} ${styles.inviteInputPwd}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      title={showPassword ? "Hide password" : "Show password"}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      className={`${styles.pwdToggleBtn}${showPassword ? ` ${styles.visible}` : ""}`}
+                    >
+                      {showPassword ? (
+                        // eye-off (currently visible -> click to hide)
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" strokeWidth="1.8"
+                          strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 3l18 18" />
+                          <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+                          <path d="M9.9 4.2A9.5 9.5 0 0 1 12 4c5 0 9.3 3 11 8a14 14 0 0 1-3.4 4.8" />
+                          <path d="M6.3 6.3A14 14 0 0 0 1 12c1.7 5 6 8 11 8 1.7 0 3.3-.3 4.7-.9" />
+                        </svg>
+                      ) : (
+                        // eye (currently hidden -> click to show)
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" strokeWidth="1.8"
+                          strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </InviteField>
                 <InviteField label="Expires in (days)" span={2}>
                   <input
@@ -3218,71 +2765,31 @@ function InviteEmployeeModal({ onClose }) {
                     max="90"
                     value={form.EXPIRES_IN_DAYS}
                     onChange={set("EXPIRES_IN_DAYS")}
-                    style={inviteInputStyle()}
+                    className={styles.inviteInput}
                   />
                 </InviteField>
               </div>
 
-              <div style={{
-                padding: "8px 12px",
-                background: "#f0f9ff",
-                color: "#075985",
-                border: "1px solid #bae6fd",
-                borderRadius: 8,
-                fontSize: 12,
-                lineHeight: 1.5,
-                marginBottom: 12
-              }}>
+              <div className={styles.inviteInfoBox}>
                 🔑 The candidate will sign in with this Employee ID + Password to open their registration form.
               </div>
 
               {error && (
-                <div style={{
-                  padding: "8px 12px",
-                  background: "#fef2f2",
-                  color: "#991b1b",
-                  border: "1px solid #fecaca",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  marginBottom: 12
-                }}>
-                  ⚠ {error}
-                </div>
+                <div className={styles.inviteErrorBox}>⚠ {error}</div>
               )}
 
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <div className={styles.inviteFormActions}>
                 <button
                   type="button"
                   onClick={onClose}
-                  style={{
-                    padding: "11px 18px",
-                    background: "white",
-                    color: "#475569",
-                    border: "1px solid #cbd5e1",
-                    borderRadius: 10,
-                    fontWeight: 700,
-                    fontSize: 13,
-                    cursor: "pointer"
-                  }}
+                  className={styles.inviteCancelBtn}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  style={{
-                    padding: "11px 22px",
-                    background: submitting
-                      ? "#cbd5e1"
-                      : "linear-gradient(135deg, #C8102E, #8B0B1F)",
-                    color: "white",
-                    border: "none",
-                    borderRadius: 10,
-                    fontWeight: 800,
-                    fontSize: 13,
-                    cursor: submitting ? "wait" : "pointer",
-                    boxShadow: "0 6px 18px rgba(200,16,46,0.35)"
-                  }}
+                  className={styles.inviteSubmitBtn}
                 >
                   {submitting ? "Generating…" : "🔗 Generate Invite Link"}
                 </button>
@@ -3291,60 +2798,51 @@ function InviteEmployeeModal({ onClose }) {
           )}
 
           {result && (
-            <div style={{
-              background: "linear-gradient(135deg, #fff7ed, #ffedd5)",
-              border: "2px solid #F4B324",
-              borderRadius: 12,
-              padding: "16px 18px"
-            }}>
-              <div style={{
-                fontSize: 11,
-                fontWeight: 800,
-                letterSpacing: 1.5,
-                color: "#8B4500",
-                marginBottom: 8
-              }}>
-                ✅ INVITE CREATED
+            <div className={styles.inviteResultBox}>
+              <div className={styles.inviteResultHeader}>
+                {result.email_sent ? "✅ INVITE SENT" : "✅ INVITE CREATED"}
                 {result.expires_at && (
-                  <span style={{
-                    marginLeft: 10,
-                    fontWeight: 600,
-                    color: "#92400e"
-                  }}>
+                  <span className={styles.inviteResultExpiry}>
                     · expires {new Date(result.expires_at).toLocaleDateString("en-IN")}
                   </span>
                 )}
               </div>
-              <div style={{
-                background: "white",
-                padding: 10,
-                borderRadius: 8,
-                fontFamily: "ui-monospace, monospace",
-                fontSize: 12,
-                wordBreak: "break-all",
-                color: "#0f172a",
-                border: "1px solid #fcd34d"
-              }}>
+
+              <div
+                style={{
+                  marginBottom: 12,
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  lineHeight: 1.5,
+                  background: result.email_sent ? "#ecfdf5" : "#fef2f2",
+                  border: `1px solid ${result.email_sent ? "#a7f3d0" : "#fecaca"}`,
+                  color: result.email_sent ? "#065f46" : "#7A1022",
+                }}
+              >
+                {result.email_sent ? (
+                  <>
+                    The invite link was emailed to{" "}
+                    <b>{result.invited_email}</b>. The candidate can sign in
+                    using the Employee ID and password you set.
+                  </>
+                ) : (
+                  <>
+                    Invite created, but the email could not be delivered to{" "}
+                    <b>{result.invited_email}</b>
+                    {result.email_message ? ` (${result.email_message})` : ""}.
+                    Copy the link below and share it manually as a fallback.
+                  </>
+                )}
+              </div>
+
+              <div className={styles.inviteLinkBox}>
                 {result.invite_link}
               </div>
-              <div style={{
-                display: "flex",
-                gap: 8,
-                marginTop: 12,
-                flexWrap: "wrap"
-              }}>
+              <div className={styles.inviteResultActions}>
                 <button
                   onClick={copyLink}
-                  style={{
-                    padding: "9px 16px",
-                    background: copied ? "#16a34a" : "#0f172a",
-                    color: "white",
-                    border: "none",
-                    borderRadius: 8,
-                    fontWeight: 700,
-                    fontSize: 12,
-                    cursor: "pointer"
-                  }}
+                  className={`${styles.inviteCopyBtn}${copied ? ` ${styles.copied}` : ""}`}
                 >
                   {copied ? "✓ Copied!" : "📋 Copy Link"}
                 </button>
@@ -3352,17 +2850,7 @@ function InviteEmployeeModal({ onClose }) {
                   href={result.invite_link}
                   target="_blank"
                   rel="noreferrer"
-                  style={{
-                    padding: "9px 16px",
-                    background: "white",
-                    color: "#8B0B1F",
-                    border: "1px solid #fecaca",
-                    borderRadius: 8,
-                    fontWeight: 700,
-                    fontSize: 12,
-                    textDecoration: "none",
-                    display: "inline-block"
-                  }}
+                  className={styles.inviteOpenLink}
                 >
                   Open ↗
                 </a>
@@ -3373,34 +2861,21 @@ function InviteEmployeeModal({ onClose }) {
                     setForm({
                       INVITED_NAME: "",
                       EMPLOYEE_CODE: "",
+                      EMAIL: "",
                       PASSWORD: "",
-                      EXPIRES_IN_DAYS: 2
+                      EXPIRES_IN_DAYS: 2,
+                      DEPARTMENT_ID: "",
+                      DESIGNATION_ID: ""
                     });
                   }}
-                  style={{
-                    padding: "9px 16px",
-                    background: "white",
-                    color: "#475569",
-                    border: "1px solid #cbd5e1",
-                    borderRadius: 8,
-                    fontWeight: 700,
-                    fontSize: 12,
-                    cursor: "pointer"
-                  }}
+                  className={styles.inviteNewBtn}
                 >
                   + New invite
                 </button>
               </div>
 
               {emailMsg && (
-                <div style={{
-                  marginTop: 10,
-                  fontSize: 11,
-                  color: "#854d0e",
-                  fontWeight: 600
-                }}>
-                  {emailMsg}
-                </div>
+                <div className={styles.inviteEmailMsg}>{emailMsg}</div>
               )}
             </div>
           )}
@@ -3416,37 +2891,16 @@ function InviteField({ label, span, children }) {
 
   return (
 
-    <div style={{ gridColumn: span ? `span ${span}` : undefined }}>
-      <label style={{
-        display: "block",
-        fontSize: 11,
-        fontWeight: 700,
-        color: "#475569",
-        marginBottom: 4,
-        letterSpacing: 0.3
-      }}>
-        {label}
-      </label>
+    <div
+      className={styles.inviteField}
+      style={{ gridColumn: span ? `span ${span}` : undefined }}
+    >
+      <label className={styles.inviteFieldLabel}>{label}</label>
       {children}
     </div>
   );
 }
 
-
-function inviteInputStyle() {
-
-  return {
-    width: "100%",
-    padding: "9px 11px",
-    border: "1px solid #cbd5e1",
-    borderRadius: 8,
-    fontSize: 13,
-    fontFamily: "inherit",
-    background: "white",
-    boxSizing: "border-box",
-    outline: "none"
-  };
-}
 
 
 export default Employees;

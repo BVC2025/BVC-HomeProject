@@ -1,3 +1,6 @@
+import styles from "./TablePagination.module.css";
+
+
 /**
  * Shared pagination footer for any table.
  *
@@ -8,13 +11,9 @@
  *     onPageChange={setPage}
  *     onPageSizeChange={(n) => { setPageSize(n); setPage(1); }}
  *   />
- *
- * Sits below the table. Renders:
- *   Rows per page: [25 ▼]    51–75 of 96    [<] [>]
  */
 
-const DEFAULT_PAGE_SIZES = [5, 10, 25, 50, 100];
-
+const DEFAULT_PAGE_SIZES = [5, 10, 25, 50, 100, 0]; // 0 = All
 
 function TablePagination({
   total,
@@ -22,120 +21,100 @@ function TablePagination({
   pageSize,
   onPageChange,
   onPageSizeChange,
-  pageSizes = DEFAULT_PAGE_SIZES
+  pageSizes = DEFAULT_PAGE_SIZES,
 }) {
-
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
+  const showAll = pageSize === 0;
+  const totalPages = showAll ? 1 : Math.max(1, Math.ceil(total / pageSize));
   const safePage = Math.min(Math.max(1, page), totalPages);
-
-  const firstRow = total === 0 ? 0 : (safePage - 1) * pageSize + 1;
-
-  const lastRow = Math.min(safePage * pageSize, total);
+  const firstRow = total === 0 ? 0 : showAll ? 1 : (safePage - 1) * pageSize + 1;
+  const lastRow = total === 0 ? 0 : showAll ? total : Math.min(safePage * pageSize, total);
 
   const prev = () => safePage > 1 && onPageChange(safePage - 1);
-
   const next = () => safePage < totalPages && onPageChange(safePage + 1);
 
+  // Build visible page numbers: always show first, last, current ±1, with ellipsis
+  const getPages = () => {
+    if (showAll || totalPages <= 1) return [];
+    const pages = [];
+    const add = (n) => { if (n >= 1 && n <= totalPages && !pages.includes(n)) pages.push(n); };
+    add(1);
+    add(safePage - 1);
+    add(safePage);
+    add(safePage + 1);
+    add(totalPages);
+    pages.sort((a, b) => a - b);
+    // Insert ellipsis markers
+    const result = [];
+    for (let i = 0; i < pages.length; i++) {
+      if (i > 0 && pages[i] - pages[i - 1] > 1) result.push("…");
+      result.push(pages[i]);
+    }
+    return result;
+  };
+
+  const pageList = getPages();
+
   return (
+    <div className={styles.bar}>
 
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "flex-end",
-        gap: 24,
-        padding: "12px 16px",
-        background: "#f8fafc",
-        border: "1px solid #e5e7eb",
-        borderTop: "none",
-        borderBottomLeftRadius: 10,
-        borderBottomRightRadius: 10,
-        fontSize: 13,
-        color: "#475569",
-        flexWrap: "wrap"
-      }}
-    >
-
-      <label
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8
-        }}
-      >
-        Rows per page:
-
+      <label className={styles.rowsLabel}>
+        Rows:
         <select
           value={pageSize}
           onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          style={{
-            padding: "4px 8px",
-            border: "1px solid #cbd5e1",
-            borderRadius: 6,
-            background: "#fff",
-            fontSize: 13,
-            cursor: "pointer"
-          }}
+          className={styles.select}
         >
           {pageSizes.map((n) => (
-            <option key={n} value={n}>
-              {n}
-            </option>
+            <option key={n} value={n}>{n === 0 ? "All" : n}</option>
           ))}
         </select>
       </label>
 
-      <span style={{ minWidth: 80, textAlign: "right" }}>
-        {firstRow}–{lastRow} of {total}
+      <span className={styles.info}>
+        {total === 0 ? "0 rows" : `${firstRow}–${lastRow} of ${total}`}
       </span>
 
-      <div style={{ display: "flex", gap: 4 }}>
-        <button
-          type="button"
-          onClick={prev}
-          disabled={safePage <= 1}
-          style={navBtnStyle(safePage <= 1)}
-          aria-label="Previous page"
-          title="Previous page"
-        >
-          ‹
-        </button>
-        <button
-          type="button"
-          onClick={next}
-          disabled={safePage >= totalPages}
-          style={navBtnStyle(safePage >= totalPages)}
-          aria-label="Next page"
-          title="Next page"
-        >
-          ›
-        </button>
-      </div>
+      {!showAll && totalPages > 1 && (
+        <div className={styles.navGroup}>
+          <button
+            type="button"
+            onClick={prev}
+            disabled={safePage <= 1}
+            className={`${styles.navBtn} ${styles.navBtnArrow}`}
+            aria-label="Previous page"
+          >
+            ‹
+          </button>
 
+          {pageList.map((item, idx) =>
+            item === "…" ? (
+              <span key={`ellipsis-${idx}`} className={styles.ellipsis}>…</span>
+            ) : (
+              <button
+                key={item}
+                type="button"
+                onClick={() => onPageChange(item)}
+                className={`${styles.navBtn} ${item === safePage ? styles.navBtnActive : ""}`}
+                aria-current={item === safePage ? "page" : undefined}
+              >
+                {item}
+              </button>
+            )
+          )}
+
+          <button
+            type="button"
+            onClick={next}
+            disabled={safePage >= totalPages}
+            className={`${styles.navBtn} ${styles.navBtnArrow}`}
+            aria-label="Next page"
+          >
+            ›
+          </button>
+        </div>
+      )}
     </div>
   );
 }
-
-
-function navBtnStyle(disabled) {
-
-  return {
-    width: 32,
-    height: 32,
-    border: "1px solid #cbd5e1",
-    borderRadius: 6,
-    background: disabled ? "#f1f5f9" : "#fff",
-    color: disabled ? "#cbd5e1" : "#0f172a",
-    fontSize: 18,
-    fontWeight: 600,
-    cursor: disabled ? "not-allowed" : "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    lineHeight: 1
-  };
-}
-
 
 export default TablePagination;

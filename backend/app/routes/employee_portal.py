@@ -60,6 +60,11 @@ from app.auth.auth_bearer import get_current_user, assert_self_or_admin
 router = APIRouter()
 
 
+# Shared CODE-or-UUID resolver used at the top of every portal route —
+# see backstory in app/utils/employee_resolver.py.
+from app.utils.employee_resolver import resolve_employee_uuid as _resolve_employee_uuid  # noqa: E402
+
+
 # ---------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------
@@ -582,6 +587,9 @@ def get_portal_dashboard(
 
     assert_self_or_admin(employee_id, payload)
 
+    # Accept either UUID or CODE — see _resolve_employee_uuid docstring.
+    employee_id = _resolve_employee_uuid(db, employee_id)
+
     profile = _employee_profile(db, employee_id)
     buckets = _bucket_assignments(db, employee_id)
     assigned_projects = _assigned_projects_block(db, employee_id)
@@ -591,8 +599,32 @@ def get_portal_dashboard(
     streak_info = _compute_streak_and_badge(db, employee_id)
     points_total = _compute_points_total(db, employee_id)
 
+    # Map perf keys to the names the EmployeeDashboard frontend reads.
+    # Backend service uses operational names (productivity_score,
+    # on_time_completion_pct, total_points); frontend uses shorter
+    # display names (score, on_time_pct, total_points_earned).
+    # We expose BOTH so other consumers of `performance` keep working.
+    productivity_block = {
+        "score":                    float(perf.get("productivity_score") or 0),
+        "rating":                   float(perf.get("overall_rating") or 0),
+        "rating_label":             perf.get("rating_label") or "Getting Started",
+        "badge":                    streak_info.get("badge") or "Getting Started",
+        "on_time_pct":              float(perf.get("on_time_completion_pct") or 0),
+        "attendance_pct":           float(perf.get("attendance_pct") or 0),
+        "avg_completion_hours":     float(perf.get("avg_completion_hours") or 0),
+        "project_contribution_pct": float(perf.get("project_contribution_pct") or 0),
+        "delayed_tasks":            int(perf.get("delayed_tasks") or 0),
+        "tasks_completed":          int(perf.get("tasks_completed") or 0),
+        "tasks_total":              int(perf.get("tasks_total") or 0),
+        "tasks_overdue":            int(perf.get("tasks_overdue") or 0),
+        "total_points_earned":      int(perf.get("total_points") or 0),
+        "current_streak":           int(streak_info.get("current_streak") or 0),
+        "points_total":             int(points_total or 0),
+    }
+
     return {
         "employee": profile,
+        "profile":  profile,    # alias — some components read portal.profile
         "task_summary": buckets["task_summary"],
         "today_tasks": buckets["today_tasks"],
         "pending_tasks": buckets["pending_tasks"],
@@ -600,10 +632,28 @@ def get_portal_dashboard(
         "on_hold_tasks": buckets["on_hold_tasks"],
         "completed_tasks": buckets["completed_tasks"],
         "upcoming_tasks": buckets["upcoming_tasks"],
+        "tasks": {
+            "today":       buckets["today_tasks"],
+            "pending":     buckets["pending_tasks"],
+            "in_progress": buckets["in_progress_tasks"],
+            "on_hold":     buckets["on_hold_tasks"],
+            "upcoming":    buckets["upcoming_tasks"],
+            "completed":   buckets["completed_tasks"],
+        },
         "assigned_projects": assigned_projects,
-        "performance": perf,
-        "monthly_report": monthly,
+        "projects":          assigned_projects,   # alias
+        "performance":       perf,                # raw, backend-style names
+        "productivity":      productivity_block,  # display-friendly names
+        "monthly_report":       monthly,
+        "monthly_productivity": monthly,          # alias — chart reads this
         "attendance_summary": attendance,
+        "attendance":         attendance,         # alias
+        "kpis": {
+            "score":          productivity_block["score"],
+            "tasks_done":     productivity_block["tasks_completed"],
+            "tasks_overdue":  productivity_block["tasks_overdue"],
+            "attendance_pct": productivity_block["attendance_pct"],
+        },
         "rewards": {
             "points_total": int(points_total),
             "current_streak": int(streak_info["current_streak"]),
@@ -630,6 +680,9 @@ def patch_task_status(
     cascade the side-effects (points, stage unlock, performance)."""
 
     assert_self_or_admin(employee_id, payload)
+
+    # Accept either UUID or CODE — see _resolve_employee_uuid docstring.
+    employee_id = _resolve_employee_uuid(db, employee_id)
 
     new_status = (body.status or "").upper().strip()
 
@@ -795,6 +848,9 @@ def get_performance_only(
     """Cheap polling endpoint — just the headline performance dict."""
 
     assert_self_or_admin(employee_id, payload)
+
+    # Accept either UUID or CODE — see _resolve_employee_uuid docstring.
+    employee_id = _resolve_employee_uuid(db, employee_id)
 
     # Existence check so the polling caller gets a clean 404 rather
     # than a zero-row dict that masks a typo in the ID.

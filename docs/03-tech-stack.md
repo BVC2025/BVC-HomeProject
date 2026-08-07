@@ -67,8 +67,8 @@ If a service is not configured, the application gracefully degrades:
 | Git | Source control (current branch: `main`) |
 | Node.js + npm | Frontend tooling |
 | Python venv (`venv\`) | Backend isolation |
-| FastAPI Swagger UI | `http://127.0.0.1:8001/docs` — auto-generated API explorer |
-| FastAPI ReDoc | `http://127.0.0.1:8001/redoc` — alternative spec view |
+| FastAPI Swagger UI | `http:///127.0.0.1/docs` — auto-generated API explorer |
+| FastAPI ReDoc | `http:///127.0.0.1/redoc` — alternative spec view |
 
 ## 3.6 Browser & Device Support
 

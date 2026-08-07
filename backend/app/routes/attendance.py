@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, date, time
+from typing import Optional
+from pydantic import BaseModel
 
 from app.database.database import get_db
 
@@ -25,6 +27,8 @@ from app.routes.geofence import (
     haversine_meters,
     _get_or_create_settings as get_geofence_settings
 )
+
+from app.utils.employee_resolver import resolve_employee_uuid
 
 from app.auth.auth_bearer import (
     get_current_admin,
@@ -113,8 +117,11 @@ def _log_failure(
     db.commit()
 
 
-WORK_START_HOUR = 10
-WORK_START_MINUTE = 0
+# Fallback office-start used only when the Setting rows are missing.
+# Source of truth is attendance_settings_service.get_office_hours(db)
+# — that reads from the `setting` table (configurable from the UI).
+WORK_START_HOUR = 9
+WORK_START_MINUTE = 15
 
 
 # =========================
@@ -148,6 +155,12 @@ def check_in(
     # operators or HR via the live floor board) may check in anyone.
     assert_self_or_admin(data.EMPLOYEE_ID, payload)
 
+    # Normalise either UUID or EMPLOYEE_CODE (e.g. "EMP101") to the
+    # canonical UUID. The /employee-login flow returns the CODE under
+    # the EMPLOYEE_ID key, so self-service callers need this bridge.
+    # Raises 404 here if the employee genuinely doesn't exist.
+    data.EMPLOYEE_ID = resolve_employee_uuid(db, data.EMPLOYEE_ID)
+
     emp = db.query(Employee).filter(
         Employee.ID == data.EMPLOYEE_ID
     ).first()
@@ -164,7 +177,7 @@ def check_in(
     # ---- Geofence gate (server-side re-validation) ----
     geo = _check_geofence(db, data.VENDOR_ID, data.LATITUDE, data.LONGITUDE)
 
-    if not geo["allowed"]:
+    if not geo["allowed"] and not data.BYPASS_GEOFENCE:
 
         _log_failure(
             db, data.EMPLOYEE_ID, "OUTSIDE_GEOFENCE",
@@ -182,6 +195,17 @@ def check_in(
                 f"Move closer and try again."
             )
         )
+
+    # If the caller explicitly bypassed the gate, log the override
+    # for audit + tag the status so HR can filter on it later.
+    if not geo["allowed"] and data.BYPASS_GEOFENCE:
+        _log_failure(
+            db, data.EMPLOYEE_ID, "GEOFENCE_BYPASSED",
+            data.LATITUDE, data.LONGITUDE, geo["distance_m"],
+            "Admin/employee bypassed geofence gate at check-in.",
+            data.DEVICE_INFO, ip, data.VENDOR_ID
+        )
+        geo["status"] = "BYPASSED"
 
     today = date.today()
 
@@ -255,6 +279,9 @@ def check_out(
     # check out anyone (e.g. shift supervisor closing the floor).
     assert_self_or_admin(data.EMPLOYEE_ID, payload)
 
+    # Accept either UUID or EMPLOYEE_CODE — see check-in route comment.
+    data.EMPLOYEE_ID = resolve_employee_uuid(db, data.EMPLOYEE_ID)
+
     today = date.today()
 
     record = db.query(Attendance).filter(
@@ -290,7 +317,7 @@ def check_out(
 
     geo = _check_geofence(db, vendor_id, data.LATITUDE, data.LONGITUDE)
 
-    if not geo["allowed"]:
+    if not geo["allowed"] and not data.BYPASS_GEOFENCE:
 
         _log_failure(
             db, data.EMPLOYEE_ID, "OUTSIDE_GEOFENCE",
@@ -308,6 +335,17 @@ def check_out(
             )
         )
 
+    if not geo["allowed"] and data.BYPASS_GEOFENCE:
+        _log_failure(
+            db, data.EMPLOYEE_ID, "GEOFENCE_BYPASSED",
+            data.LATITUDE, data.LONGITUDE, geo["distance_m"],
+            "Admin/employee bypassed geofence gate at check-out.",
+            data.DEVICE_INFO, ip, vendor_id
+        )
+        # Keep the existing GEOFENCE_STATUS on the record (set at check-in
+        # time) — checkout-side bypass doesn't overwrite the morning's
+        # geofence verdict. Distance below is still computed + stored.
+
     now = datetime.now()
 
     record.CHECK_OUT = now
@@ -319,7 +357,9 @@ def check_out(
 
     record.WORKED_HOURS = hours
 
-    record.OVERTIME_HOURS = max(0, round(hours - 8, 2))
+    # OT is no longer auto-derived from regular hours. Employees must
+    # explicitly start a separate OT session (POST /attendance/ot-check-in)
+    # for any time after their regular check-out to count as overtime.
 
     # ---- Persist check-out geo ----
     record.CHECKOUT_LATITUDE  = data.LATITUDE
@@ -338,6 +378,116 @@ def check_out(
 
 
 # =========================
+# OT CHECK-IN / CHECK-OUT
+# =========================
+# Overtime is a SECOND session within the same day. The employee
+# completes their regular check-out first, then starts an OT session
+# when they continue working. OT hours are computed strictly from
+# (OT_CHECK_OUT - OT_CHECK_IN).
+
+class _OtRequest(BaseModel):
+    EMPLOYEE_ID: str
+
+
+@router.post("/ot-check-in")
+def ot_check_in(
+    data: _OtRequest,
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
+):
+    """Start the OT session for today. Requires regular check-out to
+    be done first. Idempotent — re-calling while OT is in progress
+    returns the existing OT_CHECK_IN."""
+
+    assert_self_or_admin(data.EMPLOYEE_ID, payload)
+    data.EMPLOYEE_ID = resolve_employee_uuid(db, data.EMPLOYEE_ID)
+
+    today = date.today()
+    record = db.query(Attendance).filter(
+        Attendance.EMPLOYEE_ID == data.EMPLOYEE_ID,
+        Attendance.DATE == today
+    ).first()
+
+    if not record:
+        raise HTTPException(
+            status_code=404,
+            detail="No check-in record for today. Check in first."
+        )
+
+    if not record.CHECK_OUT:
+        raise HTTPException(
+            status_code=400,
+            detail="Complete the regular check-out before starting OT."
+        )
+
+    if record.OT_CHECK_OUT:
+        raise HTTPException(
+            status_code=400,
+            detail="OT session for today is already closed."
+        )
+
+    if record.OT_CHECK_IN:
+        # Idempotent — return the existing timestamp
+        return {
+            "message": "OT already in progress",
+            "ot_check_in": record.OT_CHECK_IN.isoformat()
+        }
+
+    record.OT_CHECK_IN = datetime.now()
+    db.commit()
+
+    return {
+        "message": "OT started",
+        "attendance_id": record.ID,
+        "ot_check_in": record.OT_CHECK_IN.isoformat()
+    }
+
+
+@router.post("/ot-check-out")
+def ot_check_out(
+    data: _OtRequest,
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
+):
+    """Close the OT session — computes OVERTIME_HOURS from the delta."""
+
+    assert_self_or_admin(data.EMPLOYEE_ID, payload)
+    data.EMPLOYEE_ID = resolve_employee_uuid(db, data.EMPLOYEE_ID)
+
+    today = date.today()
+    record = db.query(Attendance).filter(
+        Attendance.EMPLOYEE_ID == data.EMPLOYEE_ID,
+        Attendance.DATE == today
+    ).first()
+
+    if not record or not record.OT_CHECK_IN:
+        raise HTTPException(
+            status_code=400,
+            detail="No OT session in progress. Start OT first."
+        )
+
+    if record.OT_CHECK_OUT:
+        raise HTTPException(
+            status_code=400,
+            detail="OT session for today is already closed."
+        )
+
+    now = datetime.now()
+    record.OT_CHECK_OUT = now
+    delta = now - record.OT_CHECK_IN
+    record.OVERTIME_HOURS = max(0.0, round(delta.total_seconds() / 3600, 2))
+    db.commit()
+
+    return {
+        "message": "OT closed",
+        "attendance_id": record.ID,
+        "ot_check_in":  record.OT_CHECK_IN.isoformat(),
+        "ot_check_out": record.OT_CHECK_OUT.isoformat(),
+        "overtime_hours": record.OVERTIME_HOURS
+    }
+
+
+# =========================
 # MARK ABSENT
 # =========================
 
@@ -346,6 +496,9 @@ def mark_absent(
     data: MarkAbsentRequest,
     db: Session = Depends(get_db)
 ):
+
+    # Accept either UUID or EMPLOYEE_CODE — see check-in route comment.
+    data.EMPLOYEE_ID = resolve_employee_uuid(db, data.EMPLOYEE_ID)
 
     today = date.today()
 
@@ -395,45 +548,61 @@ def mark_absent(
 
 @router.get("/attendance", dependencies=[Depends(require("attendance.view.all"))])
 def get_attendance(
-    db: Session = Depends(get_db)
+    start_date:  Optional[date] = Query(None, description="Inclusive lower bound on DATE"),
+    end_date:    Optional[date] = Query(None, description="Inclusive upper bound on DATE"),
+    employee_id: Optional[str]  = Query(None, description="Employee UUID or EMPLOYEE_CODE"),
+    status:      Optional[str]  = Query(None, description="PRESENT / LATE / ABSENT / HALF_DAY"),
+    limit:       int            = Query(100, ge=1, le=1000),
+    offset:      int            = Query(0,   ge=0),
+    db: Session = Depends(get_db),
 ):
+    """
+    Filterable attendance history.
 
-    rows = db.query(
-        Attendance,
-        Employee.NAME,
-        Employee.EMPLOYEE_CODE
+    Returns an envelope `{ total, rows }` so the UI can paginate. With no
+    filters, returns the most-recent `limit` rows.
+    """
+    q = db.query(
+        Attendance, Employee.NAME, Employee.EMPLOYEE_CODE
     ).outerjoin(
-        Employee,
-        Attendance.EMPLOYEE_ID == Employee.ID
-    ).order_by(
+        Employee, Attendance.EMPLOYEE_ID == Employee.ID
+    )
+
+    if start_date:
+        q = q.filter(Attendance.DATE >= start_date)
+    if end_date:
+        q = q.filter(Attendance.DATE <= end_date)
+    if status:
+        q = q.filter(Attendance.STATUS == status.upper().strip())
+    if employee_id:
+        # Accept either UUID or EMPLOYEE_CODE
+        q = q.filter(
+            (Attendance.EMPLOYEE_ID == employee_id) |
+            (Employee.EMPLOYEE_CODE == employee_id)
+        )
+
+    total = q.count()
+
+    rows = q.order_by(
         Attendance.DATE.desc(),
         Attendance.CHECK_IN.desc()
-    ).all()
+    ).offset(offset).limit(limit).all()
 
     out = []
-
     for record, name, code in rows:
-
         out.append({
             "ID": record.ID,
             "EMPLOYEE_ID": record.EMPLOYEE_ID,
             "EMPLOYEE_CODE": code,
             "EMPLOYEE_NAME": name,
-            "DATE": (
-                record.DATE.isoformat()
-                if record.DATE else None
-            ),
-            "CHECK_IN": (
-                record.CHECK_IN.isoformat()
-                if record.CHECK_IN else None
-            ),
-            "CHECK_OUT": (
-                record.CHECK_OUT.isoformat()
-                if record.CHECK_OUT else None
-            ),
+            "DATE": record.DATE.isoformat() if record.DATE else None,
+            "CHECK_IN":  record.CHECK_IN.isoformat()  if record.CHECK_IN  else None,
+            "CHECK_OUT": record.CHECK_OUT.isoformat() if record.CHECK_OUT else None,
             "STATUS": record.STATUS,
             "WORKED_HOURS": record.WORKED_HOURS,
             "OVERTIME_HOURS": record.OVERTIME_HOURS,
+            "OT_CHECK_IN":  record.OT_CHECK_IN.isoformat()  if record.OT_CHECK_IN  else None,
+            "OT_CHECK_OUT": record.OT_CHECK_OUT.isoformat() if record.OT_CHECK_OUT else None,
             "REMARKS": record.REMARKS,
             "VENDOR_ID": record.VENDOR_ID,
             # ---- Geofence ----
@@ -446,10 +615,15 @@ def get_attendance(
             "GEOFENCE_STATUS":    record.GEOFENCE_STATUS,
             "DEVICE_INFO":        record.DEVICE_INFO,
             "BROWSER_INFO":       record.BROWSER_INFO,
-            "IP_ADDRESS":         record.IP_ADDRESS
+            "IP_ADDRESS":         record.IP_ADDRESS,
         })
 
-    return out
+    return {
+        "total":  total,
+        "limit":  limit,
+        "offset": offset,
+        "rows":   out,
+    }
 
 
 @router.get("/attendance/today")
@@ -501,6 +675,8 @@ def get_today_attendance(
             "STATUS": rec.STATUS,
             "WORKED_HOURS": rec.WORKED_HOURS,
             "OVERTIME_HOURS": rec.OVERTIME_HOURS,
+            "OT_CHECK_IN":  rec.OT_CHECK_IN.isoformat()  if rec.OT_CHECK_IN  else None,
+            "OT_CHECK_OUT": rec.OT_CHECK_OUT.isoformat() if rec.OT_CHECK_OUT else None,
             # ---- Geofence (must match /attendance shape so the Today
             # ----  tab renders the same columns as All Records)
             "CHECKIN_LATITUDE":   rec.CHECKIN_LATITUDE,
@@ -601,7 +777,7 @@ def live_floor_board(
             "EMPLOYEE_CODE": emp.EMPLOYEE_CODE,
             "NAME": emp.NAME,
             "DEPARTMENT": dept.NAME if dept else None,
-            "DEPARTMENT_CODE": dept.CODE if dept else None,
+            "DEPARTMENT_CODE": dept.DEPARTMENT_CODE if dept else None,
             "SKILLS": emp.SKILLS,
             "CHECK_IN": (
                 att.CHECK_IN.isoformat()
@@ -689,3 +865,502 @@ def delete_attendance(
     db.commit()
 
     return {"message": "Attendance deleted"}
+
+
+# =====================================================================
+# ATTENDANCE REPORT — per-employee aggregates over a date range
+# =====================================================================
+
+@router.get("/attendance/report",
+            dependencies=[Depends(require("attendance.view.all"))])
+def attendance_report(
+    start_date: date = Query(..., description="Inclusive lower bound"),
+    end_date:   date = Query(..., description="Inclusive upper bound"),
+    db: Session = Depends(get_db),
+):
+    """
+    Returns per-employee summary across the date range:
+      - working_days (date range total)
+      - present, absent, late, half_day counts
+      - worked_hours, overtime_hours
+      - attendance_pct
+    Plus a totals block for the whole company.
+    """
+    if end_date < start_date:
+        raise HTTPException(400, "end_date must be >= start_date")
+
+    # Pre-load ACTIVE employees so we surface zeros for those with no
+    # attendance rows in the range.
+    employees = (db.query(Employee)
+                 .filter(Employee.STATUS == "ACTIVE")
+                 .order_by(Employee.NAME.asc()).all())
+
+    # Aggregate attendance per employee in one query
+    from collections import defaultdict
+    buckets = defaultdict(lambda: {
+        "present": 0, "absent": 0, "late": 0, "half_day": 0,
+        "worked_hours": 0.0, "overtime_hours": 0.0,
+    })
+    rows = (db.query(Attendance)
+            .filter(Attendance.DATE >= start_date,
+                    Attendance.DATE <= end_date).all())
+    for r in rows:
+        b = buckets[r.EMPLOYEE_ID]
+        s = (r.STATUS or "").upper()
+        if   s == "PRESENT":  b["present"]  += 1
+        elif s == "LATE":     b["late"]     += 1; b["present"] += 1
+        elif s == "ABSENT":   b["absent"]   += 1
+        elif s == "HALF_DAY": b["half_day"] += 1; b["present"] += 0.5
+        b["worked_hours"]   += float(r.WORKED_HOURS or 0)
+        b["overtime_hours"] += float(r.OVERTIME_HOURS or 0)
+
+    # Working-day count = total days in range minus Sundays
+    working_days = 0
+    d = start_date
+    while d <= end_date:
+        if d.weekday() != 6:   # 6 = Sunday
+            working_days += 1
+        d = date.fromordinal(d.toordinal() + 1)
+
+    items = []
+    for emp in employees:
+        b = buckets[emp.ID]
+        present = b["present"]
+        attendance_pct = (
+            round(present / working_days * 100, 1)
+            if working_days else 0.0
+        )
+        items.append({
+            "employee_id":   emp.ID,
+            "employee_code": emp.EMPLOYEE_CODE,
+            "employee_name": emp.NAME,
+            "working_days":  working_days,
+            "present":       present,
+            "absent":        b["absent"],
+            "late":          b["late"],
+            "half_day":      b["half_day"],
+            "worked_hours":  round(b["worked_hours"], 1),
+            "overtime_hours":round(b["overtime_hours"], 1),
+            "attendance_pct": attendance_pct,
+        })
+
+    # Sort by attendance_pct desc so top performers show first
+    items.sort(key=lambda r: (-r["attendance_pct"], r["employee_name"]))
+
+    totals = {
+        "employees":       len(items),
+        "working_days":    working_days,
+        "total_present":   sum(i["present"]  for i in items),
+        "total_absent":    sum(i["absent"]   for i in items),
+        "total_late":      sum(i["late"]     for i in items),
+        "total_hours":     round(sum(i["worked_hours"]   for i in items), 1),
+        "total_overtime":  round(sum(i["overtime_hours"] for i in items), 1),
+        "avg_attendance_pct": (
+            round(sum(i["attendance_pct"] for i in items) / len(items), 1)
+            if items else 0.0
+        ),
+    }
+
+    return {
+        "start_date": start_date.isoformat(),
+        "end_date":   end_date.isoformat(),
+        "totals":     totals,
+        "rows":       items,
+    }
+
+
+# =====================================================================
+# EMPLOYEE TRACKING — per-employee daily attendance over last N days
+# =====================================================================
+
+@router.get("/attendance/employee/{employee_id}/tracking")
+def employee_attendance_tracking(
+    employee_id: str,
+    days: int = Query(90, ge=7, le=365),
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
+):
+    """Per-employee tracking view used by the Attendance > Tracking tab.
+
+      - summary KPIs (present, absent, late, hours, attendance %)
+      - daily timeline (date → status) for the last N days, used by the
+        UI to render a calendar heatmap
+    """
+    from datetime import timedelta as _td
+
+    emp = (db.query(Employee)
+           .filter((Employee.ID == employee_id) |
+                   (Employee.EMPLOYEE_CODE == employee_id)).first())
+    if not emp:
+        raise HTTPException(404, "Employee not found")
+
+    end_d   = date.today()
+    start_d = end_d - _td(days=days - 1)
+
+    rows = (db.query(Attendance)
+            .filter(Attendance.EMPLOYEE_ID == emp.ID,
+                    Attendance.DATE >= start_d,
+                    Attendance.DATE <= end_d)
+            .order_by(Attendance.DATE.asc()).all())
+
+    by_date = {r.DATE: r for r in rows}
+
+    timeline = []
+    present, absent, late, half = 0, 0, 0, 0
+    worked_hours, ot_hours = 0.0, 0.0
+
+    d = start_d
+    while d <= end_d:
+        rec = by_date.get(d)
+        if rec:
+            s = (rec.STATUS or "").upper()
+            if s == "PRESENT":  present += 1
+            elif s == "LATE":   late    += 1; present += 1
+            elif s == "ABSENT": absent  += 1
+            elif s == "HALF_DAY": half += 1; present += 0.5
+            worked_hours += float(rec.WORKED_HOURS or 0)
+            ot_hours     += float(rec.OVERTIME_HOURS or 0)
+            check_in_str = (
+                rec.CHECK_IN.strftime("%H:%M") if rec.CHECK_IN else None
+            )
+            check_out_str = (
+                rec.CHECK_OUT.strftime("%H:%M") if rec.CHECK_OUT else None
+            )
+            timeline.append({
+                "date":          d.isoformat(),
+                "weekday":       d.strftime("%a"),
+                "status":        s,
+                "check_in":      check_in_str,
+                "check_out":     check_out_str,
+                "worked_hours":  float(rec.WORKED_HOURS or 0),
+                "overtime_hours":float(rec.OVERTIME_HOURS or 0),
+            })
+        else:
+            # No row for that day — treat Sundays as WEEKLY_OFF, else NO_DATA
+            timeline.append({
+                "date":     d.isoformat(),
+                "weekday":  d.strftime("%a"),
+                "status":   "WEEKLY_OFF" if d.weekday() == 6 else "NO_DATA",
+                "check_in": None, "check_out": None,
+                "worked_hours": 0, "overtime_hours": 0,
+            })
+        d = date.fromordinal(d.toordinal() + 1)
+
+    # Working days = days in range minus Sundays
+    working_days = sum(1 for t in timeline if t["status"] != "WEEKLY_OFF")
+    attendance_pct = round(present / working_days * 100, 1) if working_days else 0.0
+
+    return {
+        "employee": {
+            "id":   emp.ID,
+            "code": emp.EMPLOYEE_CODE,
+            "name": emp.NAME,
+            "department_id":  emp.DEPARTMENT_ID,
+            "designation_id": emp.DESIGNATION_ID,
+        },
+        "window": {
+            "start_date":   start_d.isoformat(),
+            "end_date":     end_d.isoformat(),
+            "days":         days,
+            "working_days": working_days,
+        },
+        "summary": {
+            "present":         present,
+            "absent":          absent,
+            "late":            late,
+            "half_day":        half,
+            "worked_hours":    round(worked_hours, 1),
+            "overtime_hours":  round(ot_hours, 1),
+            "attendance_pct":  attendance_pct,
+        },
+        "timeline": timeline,
+    }
+
+
+# =====================================================================
+# GET /attendance/export.xlsx
+#
+# Downloads a month's Attendance rows as an .xlsx file. Columns include
+# both edges of the day, worked/OT hours, status, late-by, and the
+# source (biometric device vs. web check-in). Optional filters:
+#
+#   month=YYYY-MM       (required) — e.g. 2026-08
+#   employee_id=<uuid>  optional   — restrict to one employee
+#   department_id=<int> optional   — restrict to one department
+#
+# Access is gated the same way as the /attendance list view (view.all).
+# =====================================================================
+from io import BytesIO
+
+
+@router.get(
+    "/attendance/download/xlsx",
+    dependencies=[Depends(require("attendance.view.all"))],
+)
+def export_attendance_excel(
+    month: str = Query(..., description="YYYY-MM, e.g. 2026-08"),
+    employee_id: Optional[str] = Query(None),
+    department_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Stream an .xlsx of the requested month's attendance rows."""
+
+    # Lazy imports so the module stays cheap when the endpoint isn't hit.
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    from fastapi.responses import StreamingResponse
+
+    # ---- Parse month + compute range -------------------------------
+    try:
+        year_str, mon_str = month.split("-")
+        year, mon = int(year_str), int(mon_str)
+        start_date = date(year, mon, 1)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="month must be YYYY-MM")
+
+    # Last day of the month, computed without dateutil
+    if mon == 12:
+        end_date = date(year + 1, 1, 1)
+    else:
+        end_date = date(year, mon + 1, 1)
+
+    # ---- Query attendance rows for the range -----------------------
+    q = (
+        db.query(Attendance, Employee)
+          .join(Employee, Employee.ID == Attendance.EMPLOYEE_ID)
+          .filter(Attendance.DATE >= start_date, Attendance.DATE < end_date)
+    )
+
+    if employee_id:
+        q = q.filter(Attendance.EMPLOYEE_ID == employee_id)
+
+    if department_id:
+        q = q.filter(Employee.DEPARTMENT_ID == department_id)
+
+    rows = q.order_by(Employee.EMPLOYEE_CODE, Attendance.DATE).all()
+
+    # ---- Build the workbook ----------------------------------------
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f"Attendance {month}"
+
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_fill = PatternFill(start_color="DC2626", end_color="DC2626", fill_type="solid")
+    header_align = Alignment(horizontal="center", vertical="center")
+    thin_border = Border(
+        left=Side(style="thin", color="E5E7EB"),
+        right=Side(style="thin", color="E5E7EB"),
+        top=Side(style="thin", color="E5E7EB"),
+        bottom=Side(style="thin", color="E5E7EB"),
+    )
+    alt_fill = PatternFill(start_color="FEF2F2", end_color="FEF2F2", fill_type="solid")
+
+    headers = [
+        "Employee Code",
+        "Name",
+        "Date",
+        "Day",
+        "Check In",
+        "Check Out",
+        "OT Check In",
+        "OT Check Out",
+        "Worked Hours",
+        "OT Hours",
+        "Status",
+        "Late By (min)",
+        "Source",
+        "Remarks",
+    ]
+
+    ws.append(headers)
+
+    for col_idx, _ in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col_idx)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_align
+        cell.border = thin_border
+
+    # ---- Row-by-row data -------------------------------------------
+    WORK_START = time(9, 15)  # match attendance.py's cutoff
+
+    def fmt_time(dt):
+        return dt.strftime("%H:%M") if dt else ""
+
+    def compute_late_by(check_in):
+        """Minutes late past 09:15. 0 if on-time or missing."""
+        if not check_in:
+            return 0
+        cutoff = datetime.combine(check_in.date(), WORK_START)
+        delta = (check_in - cutoff).total_seconds() / 60.0
+        return max(0, round(delta))
+
+    for i, (att, emp) in enumerate(rows, start=2):
+
+        row_data = [
+            emp.EMPLOYEE_CODE or "",
+            emp.NAME or "",
+            att.DATE.strftime("%d-%m-%Y") if att.DATE else "",
+            att.DATE.strftime("%A") if att.DATE else "",
+            fmt_time(att.CHECK_IN),
+            fmt_time(att.CHECK_OUT),
+            fmt_time(att.OT_CHECK_IN),
+            fmt_time(att.OT_CHECK_OUT),
+            round(att.WORKED_HOURS or 0, 2),
+            round(att.OVERTIME_HOURS or 0, 2),
+            att.STATUS or "",
+            compute_late_by(att.CHECK_IN),
+            att.DEVICE_INFO or "",
+            att.REMARKS or "",
+        ]
+
+        ws.append(row_data)
+
+        for col_idx in range(1, len(headers) + 1):
+            cell = ws.cell(row=i, column=col_idx)
+            cell.border = thin_border
+            if i % 2 == 0:
+                cell.fill = alt_fill
+
+    # If no rows, drop a friendly note in row 2 so the file isn't empty.
+    if not rows:
+        ws.cell(row=2, column=1, value=f"No attendance rows for {month}.")
+
+    # ---- Column widths ---------------------------------------------
+    widths = [15, 22, 12, 11, 11, 11, 12, 13, 13, 10, 12, 13, 15, 30]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+    ws.freeze_panes = "A2"
+
+    # ---- Stream as download ----------------------------------------
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    filename = f"attendance-{month}.xlsx"
+    if employee_id:
+        filename = f"attendance-{month}-{employee_id[:8]}.xlsx"
+
+    return StreamingResponse(
+        buf,
+        media_type=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# =====================================================================
+# GET /attendance/monthly-summary
+#
+# HR admin: returns one row per employee for the requested month, with
+# every metric the Monthly Summary tab renders (present/late/absent
+# counts, late minutes, OT hours, memo eligibility, star-score
+# breakdown, etc.). Gated by attendance.view.all so employees can't
+# read the whole company.
+# =====================================================================
+@router.get(
+    "/attendance/summary/monthly",
+    dependencies=[Depends(require("attendance.view.all"))],
+)
+def monthly_summary_all(
+    month: str = Query(..., description="YYYY-MM"),
+    department_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+):
+    from app.services.monthly_attendance import compute_monthly_summary
+
+    try:
+        year_str, mon_str = month.split("-")
+        year, mon = int(year_str), int(mon_str)
+        # Validate the month is a real calendar month
+        date(year, mon, 1)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="month must be YYYY-MM")
+
+    q = db.query(Employee).filter(Employee.STATUS == "ACTIVE")
+    if department_id:
+        q = q.filter(Employee.DEPARTMENT_ID == department_id)
+
+    employees = q.order_by(Employee.EMPLOYEE_CODE).all()
+
+    rows = [
+        compute_monthly_summary(db, emp, year, mon, include_days=False)
+        for emp in employees
+    ]
+
+    # Aggregate roll-up so the HR view can show company-wide numbers
+    # (e.g. "18 late arrivals across the org this month") without a
+    # second call.
+    totals = {
+        "employees": len(rows),
+        "days_present": sum(r["days_present"] for r in rows),
+        "days_absent": sum(r["days_absent"] for r in rows),
+        "unpaid_absences": sum(r["unpaid_absences"] for r in rows),
+        "late_arrivals": sum(r["late_arrivals"] for r in rows),
+        "missed_checkouts": sum(r["missed_checkouts"] for r in rows),
+        "total_ot_hours": round(sum(r["total_ot_hours"] for r in rows), 2),
+        "will_get_warning": sum(1 for r in rows if r["memo_flags"]["will_get_warning"]),
+        "will_get_appreciation": sum(1 for r in rows if r["memo_flags"]["will_get_appreciation"]),
+    }
+
+    return {
+        "month": f"{year}-{mon:02d}",
+        "month_label": date(year, mon, 1).strftime("%B %Y"),
+        "totals": totals,
+        "employees": rows,
+    }
+
+
+# =====================================================================
+# GET /attendance/summary/my
+#
+# Employee self-service. Returns the same summary but for the caller
+# only, plus a `days` array so the portal can render a calendar grid.
+# No admin role needed — the endpoint identifies the caller from the
+# JWT and returns their own data only. Employees passing someone
+# else's employee_id get a 403.
+# =====================================================================
+@router.get("/attendance/summary/my")
+def monthly_summary_mine(
+    month: str = Query(..., description="YYYY-MM"),
+    employee_id: Optional[str] = Query(
+        None,
+        description="Optional — admin can pass another employee's ID"
+    ),
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
+):
+    from app.services.monthly_attendance import compute_monthly_summary
+
+    try:
+        year_str, mon_str = month.split("-")
+        year, mon = int(year_str), int(mon_str)
+        date(year, mon, 1)
+    except (ValueError, AttributeError):
+        raise HTTPException(status_code=400, detail="month must be YYYY-MM")
+
+    # Resolve who we're querying. Employees can only fetch themselves.
+    caller_id = payload.get("sub") or payload.get("employee_id") or ""
+    role = (payload.get("role") or "").upper()
+
+    target_id = employee_id or caller_id
+
+    # Allow admins/HR to pass another employee's id; block regular staff
+    if employee_id and employee_id != caller_id and role not in ADMIN_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only view your own attendance summary."
+        )
+
+    # Normalise UUID vs EMPLOYEE_CODE
+    target_id = resolve_employee_uuid(db, target_id)
+
+    emp = db.query(Employee).filter(Employee.ID == target_id).first()
+
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    return compute_monthly_summary(db, emp, year, mon, include_days=True)

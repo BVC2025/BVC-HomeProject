@@ -1,19 +1,46 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 
-import API from "../services/api";
-import ChatBot from "../components/ChatBot";
-import HRAssistant from "../components/HRAssistant";
+import API, { API_BASE_URL } from "../services/api";
+import EmployeeAIAssistant from "../components/EmployeeAIAssistant";
+// HRAssistant replaced by EmployeeAIAssistant (voice + chat).
 import LeaveChatbot from "../components/LeaveChatbot";
+import LeaveAgentChat from "../components/LeaveAgentChat";
+import MyLeaveStatus from "../components/MyLeaveStatus";
 import MyAttendancePanel from "../components/MyAttendancePanel";
+import MyMonthlyAttendance from "../components/MyMonthlyAttendance";
+import MyTasksPanel from "../components/MyTasksPanel";
+import MyAllowanceSection from "../components/MyAllowanceSection";
+import MyPayslipsPanel from "../components/MyPayslipsPanel";
+import MyLeaveRequest from "../components/MyLeaveRequest";
+import MyPermissionRequest from "../components/MyPermissionRequest";
+import MyMemosPanel from "../components/MyMemosPanel";
+import MyPerformancePanel from "../components/MyPerformancePanel";
+import MyAssetsPanel from "../components/MyAssetsPanel";
+import MyAnnouncementsPanel from "../components/MyAnnouncementsPanel";
+import MyHelpDeskPanel from "../components/MyHelpDeskPanel";
+import VoiceAssistant from "../components/VoiceAssistant";
+import MyDocumentsPanel from "../components/MyDocumentsPanel";
+import MySettingsPanel from "../components/MySettingsPanel";
+import EmployeeSidebar from "../components/EmployeeSidebar";
+import EmployeeHomeDashboard from "../components/EmployeeHomeDashboard";
+import ComingSoonPanel from "../components/ComingSoonPanel";
+
+import MyProfilePanel from "../components/MyProfilePanel";
+
+import ConfirmDialog from "../components/ConfirmDialog";
+
 import EmployeeProfileForm from "./EmployeeProfileForm";
 
+import styles from "./EmployeeDashboard.module.css";
 import {
   isVoiceSupported,
   isVoiceEnabled,
   setVoiceEnabled,
   speak,
-  stopSpeaking
+  stopSpeaking,
+  getLastSeenId,
+  setLastSeenId
 } from "../services/voiceAlerts";
 
 
@@ -25,56 +52,50 @@ const PORTAL_REFRESH_MS = 60000;   // 60s auto-refresh on the portal dashboard
 const POLL_INTERVAL_MS = 15000;    // legacy poll for tasks/notifications
 
 const BVC = {
-  PRIMARY: "#C8102E",   // BVC red
-  DARK:    "#8B0B1F",   // dark red
-  DEEPEST: "#4A0E18",   // deepest red — section headers
-  INK:     "#1A0508",   // near black
-  ACCENT:  "#F4B324",   // gold
-  TINT:    "#fef2f2",
-  BORDER:  "#fecaca",
-  BG:      "#F5F6FA",   // page background
-  TEXT:    "#0f172a",
-  MUTED:   "#94a3b8"
+  PRIMARY: "#ef4444",   // BVC primary red
+  DARK: "#dc2626",   // darker red
+  DEEPEST: "#1e293b",   // near-black
+  INK: "#1e293b",   // neutral dark (tooltips, labels)
+  ACCENT: "#f59e0b",   // amber accent
+  TINT: "#fef2f2",
+  BORDER: "#fecaca",
+  BG: "#f8f9fa",   // page background
+  TEXT: "#1e293b",
+  MUTED: "#94a3b8"
 };
 
 const CARD_SHADOW = "0 4px 12px rgba(0,0,0,0.06)";
 
-const SECTION_LABEL = {
-  textTransform: "uppercase",
-  fontSize: 11,
-  letterSpacing: 1.2,
-  fontWeight: 700,
-  color: BVC.DEEPEST
-};
+// SECTION_LABEL inline style object removed — replaced by styles.kpiSectionLabel CSS class
 
 const PRIORITY_THEME = {
-  HIGH:   { bg: "#fee2e2", fg: "#b91c1c", border: "#fca5a5" },
+  HIGH: { bg: "#fee2e2", fg: "#b91c1c", border: "#fca5a5" },
   MEDIUM: { bg: "#fef3c7", fg: "#854d0e", border: "#fde68a" },
-  LOW:    { bg: "#dcfce7", fg: "#166534", border: "#a7f3d0" }
+  LOW: { bg: "#dcfce7", fg: "#166534", border: "#a7f3d0" }
 };
 
 const STATUS_PILL = {
-  PENDING:     { bg: "#f1f5f9", fg: "#475569", label: "Pending" },
+  PENDING: { bg: "#f1f5f9", fg: "#475569", label: "Pending" },
   IN_PROGRESS: { bg: "#dbeafe", fg: "#1d4ed8", label: "In Progress" },
-  ON_HOLD:     { bg: "#fef3c7", fg: "#854d0e", label: "On Hold" },
-  COMPLETED:   { bg: "#dcfce7", fg: "#166534", label: "Completed" },
-  UPCOMING:    { bg: "#ede9fe", fg: "#5b21b6", label: "Upcoming" },
-  OVERDUE:     { bg: "#fee2e2", fg: "#b91c1c", label: "Overdue" }
+  ON_HOLD: { bg: "#fef3c7", fg: "#854d0e", label: "On Hold" },
+  COMPLETED: { bg: "#dcfce7", fg: "#166534", label: "Completed" },
+  UPCOMING: { bg: "#ede9fe", fg: "#5b21b6", label: "Upcoming" },
+  OVERDUE: { bg: "#fee2e2", fg: "#b91c1c", label: "Overdue" }
 };
 
 const LEAVE_STATUS_PILL = {
   PENDING_APPROVAL: { bg: "#fef3c7", fg: "#854d0e", label: "Pending" },
-  APPROVED:         { bg: "#dcfce7", fg: "#166534", label: "Approved" },
-  REJECTED:         { bg: "#fee2e2", fg: "#b91c1c", label: "Rejected" },
-  CANCELLED:        { bg: "#f1f5f9", fg: "#475569", label: "Cancelled" }
+  APPROVED: { bg: "#dcfce7", fg: "#166534", label: "Approved" },
+  REJECTED: { bg: "#fee2e2", fg: "#b91c1c", label: "Rejected" },
+  CANCELLED: { bg: "#f1f5f9", fg: "#475569", label: "Cancelled" }
 };
 
 const LEAVE_TYPE_THEMES = {
   CASUAL: "#3b82f6",
-  SICK:   "#ef4444",
+  SICK: "#ef4444",
   EARNED: "#10b981",
   UNPAID: "#94a3b8",
-  LOP:    "#6b7280"
+  LOP: "#6b7280"
 };
 
 
@@ -139,44 +160,143 @@ function Toast({ toast, onClose }) {
   }, [toast, onClose]);
   if (!toast) return null;
   return (
-    <div
-      style={{
-        position: "fixed",
-        top: 16,
-        right: 16,
-        zIndex: 9999,
-        background: "#fff",
-        border: `1px solid ${BVC.BORDER}`,
-        borderLeft: `4px solid ${BVC.PRIMARY}`,
-        borderRadius: 12,
-        boxShadow: "0 12px 28px rgba(0,0,0,0.18)",
-        padding: "12px 16px",
-        minWidth: 280,
-        maxWidth: 380,
-        color: BVC.INK,
-        fontSize: 13,
-        fontWeight: 600
-      }}
-      role="status"
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-        <span style={{ flex: 1 }}>{toast.message}</span>
+    <div className={styles.toast} role="status">
+      <div className={styles.toastRow}>
+        <span className={styles.toastMessage}>{toast.message}</span>
         <button
           type="button"
           onClick={onClose}
-          style={{
-            background: "transparent",
-            border: "none",
-            color: BVC.MUTED,
-            cursor: "pointer",
-            fontSize: 16,
-            lineHeight: 1
-          }}
+          className={styles.toastClose}
           aria-label="Close"
         >
           ×
         </button>
       </div>
+    </div>
+  );
+}
+
+
+// =================================================================
+// NotificationsInbox — employee-side alert list.
+// Renders the notifications the employee has received. MEMO
+// notifications open the associated memo in the Memos tab.
+// =================================================================
+function NotificationsInbox({ notifications, onOpenMemo, onMarkRead }) {
+
+  const rows = Array.isArray(notifications) ? notifications : [];
+
+  const handleClick = (n) => {
+    if (!n.IS_READ) onMarkRead?.(n.ID);
+    if (n.REF_TYPE === "MEMO" && n.REF_ID) onOpenMemo?.(n.REF_ID);
+  };
+
+  const toneOf = (type) => {
+    switch ((type || "").toUpperCase()) {
+      case "WARNING": return { bg: "#fef3c7", fg: "#92400e", label: "Warning" };
+      case "SUCCESS": return { bg: "#dcfce7", fg: "#166534", label: "Appreciation" };
+      case "ALERT":   return { bg: "#fee2e2", fg: "#991b1b", label: "Alert" };
+      default:        return { bg: "#dbeafe", fg: "#1e40af", label: "Info" };
+    }
+  };
+
+  return (
+    <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
+      <div>
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#0f172a" }}>Notifications</h2>
+        <p style={{ margin: "4px 0 0", fontSize: 13, color: "#64748b" }}>
+          Every alert you&apos;ve received. Click a memo notification to open the full memo.
+        </p>
+      </div>
+
+      {rows.length === 0 && (
+        <div style={{
+          padding: "40px 20px",
+          textAlign: "center",
+          background: "#ffffff",
+          border: "1px dashed #cbd5e1",
+          borderRadius: 12,
+          color: "#64748b",
+          fontSize: 13.5,
+        }}>
+          You&apos;re all caught up — no notifications right now.
+        </div>
+      )}
+
+      {rows.map((n) => {
+        const tone = toneOf(n.TYPE);
+        const isMemo = n.REF_TYPE === "MEMO" && !!n.REF_ID;
+        return (
+          <button
+            key={n.ID}
+            type="button"
+            onClick={() => handleClick(n)}
+            style={{
+              textAlign: "left",
+              display: "flex",
+              gap: 14,
+              padding: "14px 16px",
+              background: "#ffffff",
+              border: n.IS_READ ? "1px solid #e2e8f0" : "1px solid #fecaca",
+              borderLeft: `3px solid ${n.IS_READ ? "#cbd5e1" : "#dc2626"}`,
+              borderRadius: 12,
+              cursor: isMemo ? "pointer" : "default",
+              fontFamily: "inherit",
+              width: "100%",
+              alignItems: "flex-start",
+            }}
+          >
+            <span style={{
+              padding: "2px 8px",
+              borderRadius: 999,
+              background: tone.bg,
+              color: tone.fg,
+              fontSize: 10.5,
+              fontWeight: 700,
+              letterSpacing: 0.4,
+              textTransform: "uppercase",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}>
+              {tone.label}
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: 13.5,
+                fontWeight: 600,
+                color: "#0f172a",
+                marginBottom: 2,
+              }}>
+                {n.TITLE || "Notification"}
+                {!n.IS_READ && (
+                  <span style={{
+                    marginLeft: 8,
+                    display: "inline-block",
+                    width: 8, height: 8, borderRadius: "50%",
+                    background: "#dc2626",
+                    verticalAlign: "middle",
+                  }} />
+                )}
+              </div>
+              <div style={{
+                fontSize: 12.5, color: "#475569", lineHeight: 1.5,
+              }}>
+                {n.MESSAGE}
+              </div>
+              <div style={{
+                marginTop: 6, fontSize: 11.5, color: "#94a3b8",
+              }}>
+                {fmtDateTime(n.CREATED_AT)}
+                {isMemo && (
+                  <span style={{ marginLeft: 10, color: "#dc2626", fontWeight: 600 }}>
+                    View memo →
+                  </span>
+                )}
+              </div>
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -196,6 +316,10 @@ function EmployeeDashboard() {
     employee: null,
     submitted: false
   });
+
+  // Confirm modal gate for the onboarding-form logout button. The
+  // main dashboard has its own confirm inside EmployeeDashboardBody.
+  const [logoutOpen, setLogoutOpen] = useState(false);
 
   const reloadProfileGate = () => {
     if (!employeeId) {
@@ -223,12 +347,7 @@ function EmployeeDashboard() {
 
   if (profileGate.loading) {
     return (
-      <div style={{
-        minHeight: "100vh", display: "flex",
-        alignItems: "center", justifyContent: "center",
-        background: BVC.BG, color: BVC.DARK,
-        fontFamily: "Arial, sans-serif"
-      }}>
+      <div className={styles.loadingScreen}>
         Loading your profile…
       </div>
     );
@@ -236,26 +355,30 @@ function EmployeeDashboard() {
 
   if (profileGate.employee && !profileGate.submitted) {
     return (
-      <EmployeeProfileForm
-        employee={profileGate.employee}
-        onSubmitted={() => reloadProfileGate()}
-        onLogout={() => {
-          localStorage.clear();
-          navigate("/login", { replace: true });
-        }}
-      />
+      <>
+        <EmployeeProfileForm
+          employee={profileGate.employee}
+          onSubmitted={() => reloadProfileGate()}
+          onLogout={() => setLogoutOpen(true)}
+        />
+        <ConfirmDialog
+          open={logoutOpen}
+          title="Are you sure you want to log out?"
+          confirmLabel="Log Out"
+          cancelLabel="Continue"
+          danger
+          onCancel={() => setLogoutOpen(false)}
+          onConfirm={() => {
+            setLogoutOpen(false);
+            localStorage.clear();
+            navigate("/login", { replace: true });
+          }}
+        />
+      </>
     );
   }
 
-  return (
-    <>
-      <EmployeeDashboardBody />
-      <HRAssistant
-        employeeId={profileGate.employee?.EMPLOYEE_CODE || employeeId}
-        employeeName={profileGate.employee?.NAME || ""}
-      />
-    </>
-  );
+  return <EmployeeDashboardBody />;
 }
 
 
@@ -266,24 +389,69 @@ function EmployeeDashboard() {
 function EmployeeDashboardBody() {
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   // localStorage keys written by Login.jsx (Employee login flow):
   //   employee_id, employee_name, department, employee_role,
   //   loginTime, attendance_status, auth, role, token, username
-  const employeeId       = localStorage.getItem("employee_id") || "";
-  const employeeName     = localStorage.getItem("employee_name") || "";
-  const department       = localStorage.getItem("department") || "";
-  const role             = localStorage.getItem("employee_role") || "EMPLOYEE";
-  const loginTime        = localStorage.getItem("loginTime") || "";
+  const employeeId = localStorage.getItem("employee_id") || "";
+  const employeeName = localStorage.getItem("employee_name") || "";
+  const department = localStorage.getItem("department") || "";
+  const role = localStorage.getItem("employee_role") || "EMPLOYEE";
+  const loginTime = localStorage.getItem("loginTime") || "";
   const attendanceStatus = localStorage.getItem("attendance_status") || "PRESENT";
 
+  // RBAC — permissions this employee's role grants. Used to gate the
+  // content of tabs that are otherwise hidden from the sidebar — this
+  // is the SECOND layer of defence in case someone forces a mainTab
+  // via localStorage tampering or a stale bookmark.
+  const permSet = useMemo(() => {
+    try {
+      const arr = JSON.parse(localStorage.getItem("permissions") || "[]");
+      return new Set(
+        (Array.isArray(arr) ? arr : []).map((p) => String(p).toLowerCase())
+      );
+    } catch {
+      return new Set();
+    }
+  }, []);
+
+  const hasPerm = (codes) => {
+    const list = Array.isArray(codes) ? codes : [codes];
+    return list.some((c) => permSet.has(String(c).toLowerCase()));
+  };
+
   // ----- portal-dashboard state -----
-  const [portal, setPortal]   = useState(null);
+  const [portal, setPortal] = useState(null);
   const [portalErr, setPortalErr] = useState("");
   const [loading, setLoading] = useState(true);
   const [actionBusy, setActionBusy] = useState({}); // { [assignmentId]: true }
-  const [toast, setToast]     = useState(null);
-  const [tab, setTab]         = useState("pending");
+  const [toast, setToast] = useState(null);
+  const [tab, setTab] = useState("pending");
+
+  // Which section is currently shown. Deep-linked from the welcome
+  // screen via location.state.tab; falls back to "home" so an
+  // unadorned visit to "/" lands on the new ESS dashboard.
+  const [mainTab, setMainTab] = useState(
+    () => location.state?.tab || "home"
+  );
+
+  // Mobile sidebar drawer state — hamburger button in the header
+  // toggles this; the sidebar itself calls onClose when a nav item
+  // is picked, so navigation on a phone acts like a real drawer.
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+
+  // Re-sync when the user comes back through the welcome tiles.
+  useEffect(() => {
+    const t = location.state?.tab;
+    if (t && t !== mainTab) setMainTab(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state?.tab]);
+
+  // Bumped whenever the AI agent successfully submits a leave so the
+  // MyLeaveStatus panel reloads without a page refresh.
+  const [leaveStatusRefresh, setLeaveStatusRefresh] = useState(0);
 
   // ----- legacy supporting state -----
   const [productionStages, setProductionStages] = useState([]);
@@ -293,7 +461,23 @@ function EmployeeDashboardBody() {
   const [permissionHistory, setPermissionHistory] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const lastNotifIdRef = useRef(0);
+  // Seed from localStorage so a genuinely-new notification issued
+  // between yesterday's logout and today's login still triggers a
+  // toast + voice on this fresh session. Refs skip re-renders — we
+  // just need the value on the next poll comparison.
+  const lastNotifIdRef = useRef(getLastSeenId());
+  // When a notification deep-links to a memo, MyMemosPanel opens this ID.
+  const [focusMemoId, setFocusMemoId] = useState(null);
+  // WhatsApp-style toast for freshly-arrived notifications. Shows at
+  // the top of the dashboard for ~8 seconds, then auto-dismisses.
+  // Clicking it jumps to the Notifications tab.
+  const [notifToast, setNotifToast] = useState(null);
+
+  // Bell dropdown — social-media-style panel that lists every HR
+  // notification (message + timestamp) so employees can catch up on
+  // anything they missed while the toast was on screen.
+  const [notifPanelOpen, setNotifPanelOpen] = useState(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const [voiceOn, setVoiceOn] = useState(
     () => isVoiceSupported() && isVoiceEnabled()
@@ -330,8 +514,11 @@ function EmployeeDashboardBody() {
   const fetchProductionStages = async () => {
     if (!employeeId) return;
     try {
-      const res = await API.get(`/employee/${employeeId}/production-stages`);
-      setProductionStages(res.data?.stages || []);
+      // Endpoint lives under the /process router prefix — without it,
+      // this call 404s and floods the console.
+      const res = await API.get(`/process/employee/${employeeId}/production-stages`);
+      // Endpoint returns the array directly, not an object with .stages
+      setProductionStages(Array.isArray(res.data) ? res.data : (res.data?.stages || []));
     } catch { /* non-critical */ }
   };
 
@@ -373,17 +560,40 @@ function EmployeeDashboardBody() {
 
   const fetchNotifications = async () => {
     try {
+      const empParam = employeeId ? `?employee_id=${encodeURIComponent(employeeId)}` : "";
       const [listRes, countRes] = await Promise.all([
-        API.get("/notifications"),
-        API.get("/notifications/unread-count")
+        API.get(`/notifications${empParam}`),
+        API.get(`/notifications/unread-count${empParam}`)
       ]);
       const items = listRes.data || [];
       setNotifications(items);
       setUnreadCount(countRes.data?.count ?? countRes.data?.unread ?? 0);
       if (items.length > 0) {
         const newest = items[0];
-        if (voiceOn && lastNotifIdRef.current !== 0 && newest.ID > lastNotifIdRef.current) {
-          speak(`${newest.TITLE}. ${newest.MESSAGE}`);
+        // Fresh arrival = notification ID higher than what we last
+        // saw (persisted in localStorage across sessions). This fires
+        // both on freshly-issued items DURING the session AND on
+        // login for items issued between logouts — matching the
+        // WhatsApp behaviour the user asked for.
+        const isFresh = newest.ID > lastNotifIdRef.current;
+
+        if (isFresh) {
+          // Brief, HR-branded voice announcement. Does NOT read the
+          // memo body — that would be too long. Employees can read
+          // the details inside the app after clicking.
+          if (voiceOn) {
+            speak("You have received a new notification from HR.");
+          }
+          // WhatsApp-style top toast — visual companion to the voice.
+          setNotifToast({
+            id: newest.ID,
+            title: newest.TITLE || "New notification",
+            message: newest.MESSAGE || "",
+            type: (newest.TYPE || "INFO").toUpperCase(),
+          });
+
+          // Persist so tomorrow's login won't re-announce today's item.
+          setLastSeenId(newest.ID);
         }
         lastNotifIdRef.current = Math.max(lastNotifIdRef.current, newest.ID || 0);
       }
@@ -442,6 +652,43 @@ function EmployeeDashboardBody() {
     }
   };
 
+  // Bulk-update every task assigned to this employee within a project
+  // via PATCH /employee/{id}/projects/{project_id}/status. Used by the
+  // 4 status buttons on each Assigned Projects card.
+  const [projectBusy, setProjectBusy] = useState({});   // { [projectId]: true }
+
+  const updateProjectStatus = async (projectId, newStatus, currentStatus) => {
+    if (!projectId || projectBusy[projectId]) return;
+    if (newStatus === currentStatus) return;             // no-op click
+
+    setProjectBusy((b) => ({ ...b, [projectId]: true }));
+
+    try {
+      const res = await API.patch(
+        `/employee/${employeeId}/projects/${projectId}/status`,
+        { status: newStatus }
+      );
+      const changed = res?.data?.changed_count ?? 0;
+      setToast({
+        message: (
+          changed > 0
+            ? `Project updated — ${changed} task(s) → ${newStatus.replace("_", " ")}.`
+            : `Project already at ${newStatus.replace("_", " ")}.`
+        )
+      });
+      await fetchPortalDashboard();
+    } catch (e) {
+      const detail = e?.response?.data?.detail || "Failed to update project";
+      setToast({ message: `⚠ ${detail}` });
+    } finally {
+      setProjectBusy((b) => {
+        const next = { ...b };
+        delete next[projectId];
+        return next;
+      });
+    }
+  };
+
   const updateStage = async (stage, newStatus) => {
     const key = `${stage.WORK_ORDER_ID}-${stage.STAGE_ID}`;
     setStageBusy((b) => ({ ...b, [key]: true }));
@@ -472,9 +719,12 @@ function EmployeeDashboardBody() {
   };
 
   const submitPermission = async (form) => {
+    // The form's startTime is a datetime-local value (e.g. "2026-06-13T17:00"),
+    // but the backend's PERMISSION_DATE is a plain date. Send the date part only
+    // (string split avoids any Date() timezone shift on the day boundary).
     const res = await API.post("/leave/apply-permission", {
       EMPLOYEE_ID: employeeId,
-      START_TIME: form.startTime,
+      PERMISSION_DATE: (form.startTime || "").split("T")[0],
       DURATION_HOURS: Number(form.durationHours),
       REASON: (form.reason || "").trim() || null
     });
@@ -499,11 +749,15 @@ function EmployeeDashboardBody() {
     if (!next) stopSpeaking();
   };
 
-  const handleLogout = async () => {
-    if (!window.confirm("Log out now?")) return;
+  // Open the branded confirm modal; the actual logout happens in
+  // performLogout below, called on Confirm.
+  const handleLogout = () => setLogoutOpen(true);
+
+  const performLogout = async () => {
+    setLogoutOpen(false);
     try {
       await API.post("/employee-logout", { EMPLOYEE_ID: employeeId });
-    } catch { /* ignore */ }
+    } catch { /* server-side logout is best-effort */ }
     localStorage.clear();
     navigate("/login", { replace: true });
   };
@@ -544,6 +798,26 @@ function EmployeeDashboardBody() {
   }, []);
 
 
+  // Near-real-time refresh — when the user returns to this tab
+  // (window focus or the document becomes visible again after being
+  // backgrounded), pull the latest notifications immediately instead
+  // of waiting for the next 15-second poll. Combined with the 15s
+  // interval this keeps the bell feeling live without pulling in a
+  // WebSocket/SSE stack.
+  useEffect(() => {
+    const refetch = () => {
+      if (document.visibilityState === "visible") fetchNotifications();
+    };
+    window.addEventListener("focus", refetch);
+    document.addEventListener("visibilitychange", refetch);
+    return () => {
+      window.removeEventListener("focus", refetch);
+      document.removeEventListener("visibilitychange", refetch);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
   // -------------------------------------------------------------
   // DERIVED VIEW DATA
   // -------------------------------------------------------------
@@ -569,14 +843,29 @@ function EmployeeDashboardBody() {
     current_streak: 0
   };
 
-  const kpis = portal?.kpis || {};
+  // KpiGrid expects per-bucket task counts (total_assigned, today,
+  // pending, in_progress, on_hold, completed, upcoming, overdue).
+  // The backend already filters by EMPLOYEE_ID == employee_id, so
+  // these counts only reflect tasks actually assigned to this
+  // employee — unassigned tasks (EMPLOYEE_ID = NULL) are excluded.
+  const summary = portal?.task_summary || {};
+  const kpis = {
+    total_assigned: summary.total       ?? 0,
+    today:          summary.today       ?? 0,
+    pending:        summary.pending     ?? 0,
+    in_progress:    summary.in_progress ?? 0,
+    on_hold:        summary.on_hold     ?? 0,
+    completed:      summary.completed   ?? 0,
+    upcoming:       summary.upcoming    ?? 0,
+    overdue:        summary.overdue     ?? 0,
+  };
   const taskBuckets = {
-    today:      portal?.tasks?.today      || [],
-    pending:    portal?.tasks?.pending    || [],
+    today: portal?.tasks?.today || [],
+    pending: portal?.tasks?.pending || [],
     in_progress: portal?.tasks?.in_progress || [],
-    on_hold:    portal?.tasks?.on_hold    || [],
-    upcoming:   portal?.tasks?.upcoming   || [],
-    completed:  portal?.tasks?.completed  || []
+    on_hold: portal?.tasks?.on_hold || [],
+    upcoming: portal?.tasks?.upcoming || [],
+    completed: portal?.tasks?.completed || []
   };
   const projects = portal?.projects || [];
   const monthlyChart = portal?.monthly_productivity || [];
@@ -586,245 +875,559 @@ function EmployeeDashboardBody() {
 
   const tilesActiveTab = (() => {
     switch (tab) {
-      case "pending":     return taskBuckets.pending;
+      case "pending": return taskBuckets.pending;
       case "in_progress": return taskBuckets.in_progress;
-      case "on_hold":     return taskBuckets.on_hold;
-      case "upcoming":    return taskBuckets.upcoming;
-      case "completed":   return taskBuckets.completed;
-      default:            return [];
+      case "on_hold": return taskBuckets.on_hold;
+      case "upcoming": return taskBuckets.upcoming;
+      case "completed": return taskBuckets.completed;
+      default: return [];
     }
   })();
+
+  // Bell badge now surfaces OVERDUE tasks only — a task is overdue
+  // when its remaining_days is negative and it isn't COMPLETED. That
+  // means the bell only lights up when the employee genuinely has
+  // something they haven't submitted on time.
+  const overdueTasks = [
+    ...(taskBuckets.today || []),
+    ...(taskBuckets.pending || []),
+    ...(taskBuckets.in_progress || []),
+    ...(taskBuckets.on_hold || [])
+  ].filter((t) => {
+    const days = Number(t?.remaining_days);
+    const status = String(t?.status || "").toUpperCase();
+    return Number.isFinite(days) && days < 0 && status !== "COMPLETED";
+  });
+  const overdueCount = overdueTasks.length;
+
+  const showOverdueToast = () => {
+    if (overdueCount === 0) {
+      setToast({ message: "You're all caught up. No pending overdue tasks." });
+      return;
+    }
+    const first = overdueTasks[0];
+    const others = overdueCount > 1 ? ` (+${overdueCount - 1} more)` : "";
+    const title = first?.title ? `“${first.title}”` : "a task";
+    setToast({
+      message: `Time is over — your task ${title} is still pending.${others}`
+    });
+  };
+
+  // Bell click on the main header — opens/closes the notification
+  // dropdown. On open, mark everything as read so the badge clears
+  // (the messages themselves stay in the list until the user
+  // explicitly dismisses one, matching the social-media inbox model).
+  const toggleNotifPanel = useCallback(async () => {
+    setNotifPanelOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        setNotifToast(null);
+        // Fire-and-forget mark-all-read. If the endpoint fails the UI
+        // still shows the messages — just the red badge won't clear
+        // until the next poll.
+        const empParam = employeeId
+          ? `?employee_id=${encodeURIComponent(employeeId)}`
+          : "";
+        API.put(`/notifications/mark-all-read${empParam}`).then(
+          () => setUnreadCount(0),
+          () => { /* silent */ }
+        );
+      }
+      return next;
+    });
+  }, [employeeId]);
+
+  // Clear every notification for this employee. Backend deletes the
+  // rows from the DB and returns a count. UI empties immediately so
+  // the panel closes to its 'no notifications yet' state without
+  // waiting for the next poll.
+  const clearAllNotifications = useCallback(async () => {
+    if (!employeeId) return;
+    if (!window.confirm("Delete every notification? This can't be undone.")) return;
+    try {
+      await API.delete(
+        `/notifications?employee_id=${encodeURIComponent(employeeId)}`
+      );
+      setNotifications([]);
+      setUnreadCount(0);
+      setLastSeenId(0);
+    } catch (e) {
+      alert(e?.response?.data?.detail || "Could not clear notifications.");
+    }
+  }, [employeeId]);
 
 
   // =============================================================
   // RENDER
   // =============================================================
 
+  // Auto-dismiss the top notification toast after 8 seconds. Also
+  // clears when the user clicks it (which jumps to the Notifications
+  // tab — see onClick below). The message is also preserved in the
+  // bell dropdown for later — the toast is the "push", the dropdown
+  // is the "inbox".
+  useEffect(() => {
+    if (!notifToast) return undefined;
+    const t = setTimeout(() => setNotifToast(null), 8000);
+    return () => clearTimeout(t);
+  }, [notifToast]);
+
   return (
 
-    <div
-      style={{
-        minHeight: "100vh",
-        background: BVC.BG,
-        fontFamily: "Arial, sans-serif",
-        color: BVC.TEXT
-      }}
-    >
+    <div className={styles.zShell}>
 
-      {/* ---------- TOP BAR ---------- */}
-      <header
-        style={{
-          background: `linear-gradient(135deg, ${BVC.INK}, ${BVC.DEEPEST} 50%, ${BVC.DARK})`,
-          color: "#fff",
-          padding: "14px 22px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          boxShadow: "0 4px 14px rgba(0,0,0,0.18)"
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <img
-            src="/bharath-logo.png"
-            alt="logo"
-            style={{ height: 38, width: "auto" }}
-          />
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: 0.4 }}>
-              BVC24 · Employee Portal
-            </div>
-            <div style={{ fontSize: 12, opacity: 0.85 }}>
-              {employeeName || profile.name} · {profile.employee_code}{" "}
-              {profile.department ? `· ${profile.department}` : ""}
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 800,
-              padding: "5px 10px",
-              borderRadius: 999,
-              background: attendanceStatus === "LATE"
-                ? "rgba(244,179,36,0.22)"
-                : "rgba(34,197,94,0.22)",
-              color: attendanceStatus === "LATE" ? BVC.ACCENT : "#86efac",
-              letterSpacing: 0.4
+      {/* WhatsApp-style banner for freshly-arrived notifications.
+          Mobile-first: hugs the top of the viewport with 10px of
+          side margin on every screen so it never overflows on
+          narrow phones. On desktop it caps at 440px and centres
+          under the header. White card, coloured left-stripe per
+          type (green success / amber warning / red error / blue
+          info) — matches WhatsApp's push style. Click anywhere on
+          the card to jump to the Notifications tab; click ✕ to
+          dismiss without navigating. Auto-hides after 8s. */}
+      {notifToast && (() => {
+        const accent =
+          notifToast.type === "WARNING" ? "#f59e0b" :
+          notifToast.type === "ERROR"   ? "#dc2626" :
+          notifToast.type === "SUCCESS" ? "#10b981" :
+                                          "#dc2626";   // INFO → BVC red
+        return (
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => {
+              setMainTab("notifications");
+              setNotifToast(null);
             }}
-            title={`Login: ${fmtTime(loginTime)}`}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                setMainTab("notifications");
+                setNotifToast(null);
+              }
+            }}
+            style={{
+              position: "fixed",
+              top: 10,
+              left: 10,
+              right: 10,
+              marginInline: "auto",
+              maxWidth: 440,
+              zIndex: 9999,
+              background: "#ffffff",
+              color: "#0f172a",
+              borderRadius: 12,
+              padding: "12px 12px 12px 16px",
+              display: "flex",
+              gap: 10,
+              alignItems: "flex-start",
+              boxShadow: "0 12px 28px rgba(15,23,42,0.16), 0 2px 6px rgba(15,23,42,0.08)",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              animation: "bvcSlideDown 0.25s ease-out",
+              overflow: "hidden",
+              boxSizing: "border-box",
+              borderLeft: `4px solid ${accent}`,
+            }}
           >
-            {attendanceStatus} · {fmtTime(loginTime)}
-          </span>
-
-          {isVoiceSupported() && (
+            <div style={{
+              width: 32, height: 32, borderRadius: 999,
+              background: accent,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+            }}>
+              {/* Megaphone — the professional 'announcement /
+                  broadcast' icon. Reads as HR-authored push rather
+                  than generic app notification (which a bell would). */}
+              <svg
+                width="16" height="16" viewBox="0 0 24 24"
+                fill="none" stroke="#fff" strokeWidth="2.2"
+                strokeLinecap="round" strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 11v2a1 1 0 0 0 1 1h2l6 4V6L6 10H4a1 1 0 0 0-1 1z" />
+                <path d="M16 8a5 5 0 0 1 0 8" />
+                <path d="M19.5 5.5a9 9 0 0 1 0 13" />
+              </svg>
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{
+                fontSize: 10, fontWeight: 800, letterSpacing: 0.6,
+                textTransform: "uppercase", color: accent,
+              }}>
+                New from HR
+              </div>
+              <div style={{
+                fontSize: 13.5, fontWeight: 700, marginTop: 2, color: "#0f172a",
+                overflow: "hidden", textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}>
+                {notifToast.title}
+              </div>
+              {notifToast.message && (
+                <div style={{
+                  fontSize: 12, color: "#64748b", marginTop: 2,
+                  lineHeight: 1.35,
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }}>
+                  {notifToast.message}
+                </div>
+              )}
+            </div>
             <button
               type="button"
-              onClick={toggleVoice}
-              style={topbarBtn}
-              title="Toggle voice alerts"
-            >
-              {voiceOn ? "🔊" : "🔇"} Voice
-            </button>
-          )}
-
-          <button type="button" style={topbarBtn} onClick={handleLogout}>
-            Logout
-          </button>
-
-          {unreadCount > 0 && (
-            <span
-              style={{
-                fontSize: 11,
-                background: BVC.ACCENT,
-                color: BVC.DEEPEST,
-                padding: "4px 8px",
-                borderRadius: 999,
-                fontWeight: 800
+              onClick={(e) => {
+                e.stopPropagation();
+                setNotifToast(null);
               }}
+              style={{
+                background: "transparent", border: "none", color: "#94a3b8",
+                fontSize: 20, lineHeight: 1, cursor: "pointer",
+                padding: 4, margin: "-4px -4px 0 0", flexShrink: 0,
+                borderRadius: 6,
+              }}
+              aria-label="Dismiss"
             >
-              🔔 {unreadCount}
-            </span>
-          )}
-        </div>
-      </header>
-
-      <main
-        style={{
-          maxWidth: 1380,
-          margin: "0 auto",
-          padding: "20px 22px 40px"
-        }}
-      >
-
-        {portalErr && (
-          <div
-            style={{
-              background: "#fff",
-              border: `1px solid ${BVC.BORDER}`,
-              borderLeft: `4px solid ${BVC.PRIMARY}`,
-              borderRadius: 12,
-              padding: "12px 16px",
-              fontSize: 13,
-              color: BVC.DARK,
-              marginBottom: 16,
-              boxShadow: CARD_SHADOW
-            }}
-          >
-            ⚠ {portalErr}{" "}
-            <span style={{ color: BVC.MUTED }}>
-              — supporting widgets below remain functional.
-            </span>
+              ×
+            </button>
+            <style>{`
+              @keyframes bvcSlideDown {
+                from { opacity: 0; transform: translateY(-20px); }
+                to   { opacity: 1; transform: translateY(0); }
+              }
+            `}</style>
           </div>
-        )}
+        );
+      })()}
 
-        {loading && !portal && (
-          <div
-            style={{
-              ...cardBase,
-              textAlign: "center",
-              padding: 40,
-              color: BVC.MUTED
-            }}
-          >
-            Loading your workspace…
-          </div>
-        )}
+      {/* ---------- Left rail — Employee Self-Service navigation ---------- */}
+      <EmployeeSidebar
+        activeTab={mainTab}
+        onSelect={(key) => setMainTab(key)}
+        onLogout={handleLogout}
+        unreadCount={unreadCount}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        profile={profile}
+      />
 
-        {/* ---------- 1. PROFILE STRIP ---------- */}
-        <ProfileStrip
-          profile={profile}
+      <main className={styles.zMain}>
+
+        <ZMainHeader
+          title={Z_TAB_TITLES[mainTab] || "Dashboard"}
+          attendanceStatus={attendanceStatus}
+          loginTime={loginTime}
           productivity={productivity}
-        />
-
-        {/* ---------- 1b. MY ATTENDANCE — check-in / check-out ---------- */}
-        {/* Mirrors the admin Attendance widget but auto-targets the logged-in */}
-        {/* employee. Hits the SAME /check-in and /check-out endpoints, so the */}
-        {/* attendance ledger HR sees stays a single source of truth.          */}
-        <MyAttendancePanel employeeId={employeeId} />
-
-        {/* ---------- 2. KPI GRID ---------- */}
-        <KpiGrid kpis={kpis} />
-
-        {/* ---------- 3. TODAY'S TASKS ---------- */}
-        <TodayTasksCard
-          tasks={taskBuckets.today}
-          busyMap={actionBusy}
-          onUpdate={updateAssignmentStatus}
-        />
-
-        {/* ---------- 4. TABBED TASK LISTS ---------- */}
-        <TabbedTaskLists
-          tab={tab}
-          onTabChange={setTab}
-          counts={{
-            pending:     taskBuckets.pending.length,
-            in_progress: taskBuckets.in_progress.length,
-            on_hold:     taskBuckets.on_hold.length,
-            upcoming:    taskBuckets.upcoming.length,
-            completed:   taskBuckets.completed.length
+          voiceOn={voiceOn}
+          onToggleVoice={toggleVoice}
+          voiceSupported={isVoiceSupported()}
+          notifications={notifications}
+          notifUnreadCount={unreadCount}
+          notifPanelOpen={notifPanelOpen}
+          onBellClick={toggleNotifPanel}
+          onCloseNotifPanel={() => setNotifPanelOpen(false)}
+          onClearNotifs={clearAllNotifications}
+          onNotifClick={(n) => {
+            setNotifPanelOpen(false);
+            setMainTab("notifications");
+            if (n?.MEMO_ID) setFocusMemoId(n.MEMO_ID);
           }}
-          tasks={tilesActiveTab}
-          busyMap={actionBusy}
-          onUpdate={updateAssignmentStatus}
+          onGoHome={() => setMainTab("home")}
+          onLogout={handleLogout}
+          onMenuToggle={() => setSidebarOpen((v) => !v)}
         />
 
-        {/* ---------- 5. ASSIGNED PROJECTS ---------- */}
-        <AssignedProjectsCard projects={projects} />
+        <div className={styles.zMainContent}>
 
-        {/* ---------- 5b. MY MEMOS — employee-side view ---------- */}
-        <MyMemosCard employeeId={employeeId} />
+          {portalErr && (
+            <div className={styles.portalError}>
+              {portalErr}{" "}
+              <span className={styles.portalErrorNote}>
+                — supporting widgets below remain functional.
+              </span>
+            </div>
+          )}
 
-        {/* ---------- 6. PERFORMANCE BREAKDOWN ---------- */}
-        <PerformanceBreakdownCard productivity={productivity} />
+          {loading && !portal && (
+            <div className={styles.loadingCard}>
+              Loading your workspace…
+            </div>
+          )}
 
-        {/* ---------- 7. MONTHLY PRODUCTIVITY CHART ---------- */}
-        <MonthlyProductivityChart data={monthlyChart} />
+          {mainTab === "attendance" && (
+            <>
+              <MyAttendancePanel employeeId={employeeId} />
+              <MyMonthlyAttendance employeeId={employeeId} />
+            </>
+          )}
 
-        {/* ---------- 8. ATTENDANCE SUMMARY ---------- */}
-        <AttendanceSummaryCard attendance={attendance} />
+          {mainTab === "tasks" && (
+            <>
+              {/* Modern card-based tasks view; the old ZTasksPage
+                  table remains defined below for admin-side reuse
+                  but is no longer surfaced in the ESS. */}
+              <MyTasksPanel
+                buckets={taskBuckets}
+                busyMap={actionBusy}
+                onUpdate={updateAssignmentStatus}
+              />
+              <AssignedProjectsCard
+                projects={projects}
+                busyMap={projectBusy}
+                onUpdate={updateProjectStatus}
+              />
+              {productionStages.length > 0 && (
+                <ProductionStagesSection
+                  stages={productionStages}
+                  busyMap={stageBusy}
+                  onUpdate={updateStage}
+                />
+              )}
+            </>
+          )}
 
-        {/* ---------- 9. REWARDS ---------- */}
-        <RewardsCard productivity={productivity} />
+          {mainTab === "leave" && (
+            <MyLeaveRequest
+              employeeId={employeeId}
+              onSubmitted={() => setLeaveStatusRefresh((n) => n + 1)}
+            />
+          )}
 
-        {/* ---------- (retained) Production Stages ---------- */}
-        {productionStages.length > 0 && (
-          <ProductionStagesSection
-            stages={productionStages}
-            busyMap={stageBusy}
-            onUpdate={updateStage}
-          />
-        )}
+          {mainTab === "permission" && (
+            <MyPermissionRequest employeeId={employeeId} />
+          )}
 
-        {/* ---------- AI Leave Chatbot — new feature ---------- */}
-        {/* Sits above the existing form. Does NOT replace it — both    */}
-        {/* coexist. The chatbot calls the same POST /leave/apply       */}
-        {/* endpoint the form does, so the rest of the workflow         */}
-        {/* (HR email, dashboard update, balance deduction) stays put.  */}
-        <LeaveChatbot
-          employeeId={employeeId}
-          onLeaveSubmitted={() => {
-            // Re-fetch so the Leave History panel + balance refresh
-            fetchLeaveHistory?.();
-            fetchLeaveBalance?.();
-          }}
-        />
+          {/* Personal memos — warnings, appreciations, notices issued
+              to this employee. */}
+          {mainTab === "memos" && (
+            <MyMemosPanel
+              employeeId={employeeId}
+              initialOpenId={focusMemoId}
+              onInitialOpenConsumed={() => setFocusMemoId(null)}
+            />
+          )}
 
-        {/* ---------- (retained) Leave & Permission ---------- */}
-        <LeavePermissionSection
-          balance={leaveBalance}
-          leaveHistory={leaveHistory}
-          permissionHistory={permissionHistory}
-          onSubmitLeave={submitLeave}
-          onSubmitPermission={submitPermission}
-          onCancel={cancelLeave}
-        />
+          {/* Company-wide announcements — holidays, notices, meetings,
+              events, birthdays. Tab-based. */}
+          {mainTab === "announcements" && (
+            <MyAnnouncementsPanel employeeId={employeeId} />
+          )}
 
+          {/* Performance dashboard — pulls from the star-performance
+              history endpoint and computes an AI overall score client-side. */}
+          {mainTab === "performance" && (
+            <MyPerformancePanel employeeId={employeeId} />
+          )}
+
+          {mainTab === "allowance" && (
+            <MyAllowanceSection employeeId={employeeId} />
+          )}
+
+          {mainTab === "payslips" && (
+            <MyPayslipsPanel employeeId={employeeId} />
+          )}
+
+          {/* ---------- My Profile (comprehensive view-only) ----------
+              MyProfilePanel reads employee_code + employee_id from
+              localStorage itself (set by Login.jsx). */}
+          {mainTab === "profile" && (
+            <MyProfilePanel />
+          )}
+
+          {/* ---------- New ESS home dashboard ---------- */}
+          {mainTab === "home" && (
+            <EmployeeHomeDashboard
+              portal={portal}
+              attendanceStatus={attendanceStatus}
+              loginTime={loginTime}
+              productivity={productivity}
+              leaveBalance={leaveBalance}
+              unreadCount={unreadCount}
+              overdueCount={overdueCount}
+              onNavigate={(key) => setMainTab(key)}
+            />
+          )}
+
+          {/* ---------- Coming-soon placeholders for modules whose
+                        backend is on the roadmap ---------- */}
+          {mainTab === "documents" && (
+            <MyDocumentsPanel employeeId={employeeId} />
+          )}
+          {mainTab === "holidays" && (
+            <ComingSoonPanel
+              title="Holiday Calendar"
+              iconKey="calendar"
+              description="Monthly calendar with public, company and restricted holidays clearly marked."
+              bullets={[
+                "Public and company holidays for the year",
+                "Restricted / optional holiday tags",
+                "Filter by month, search by name",
+              ]}
+            />
+          )}
+          {mainTab === "notifications" && (
+            <NotificationsInbox
+              notifications={notifications}
+              onOpenMemo={(memoId) => {
+                setFocusMemoId(memoId);
+                setMainTab("memos");
+              }}
+              onMarkRead={async (id) => {
+                try {
+                  await API.put(`/notifications/${id}/read`);
+                  setNotifications((prev) =>
+                    prev.map((n) => (n.ID === id ? { ...n, IS_READ: true } : n))
+                  );
+                  setUnreadCount((c) => Math.max(0, c - 1));
+                } catch { /* ignore */ }
+              }}
+            />
+          )}
+          {/* announcements handled above alongside memos */}
+          {mainTab === "assets" && (
+            <MyAssetsPanel employeeId={employeeId} />
+          )}
+          {mainTab === "training" && (
+            <ComingSoonPanel
+              title="Training"
+              iconKey="book"
+              description="Assigned courses, completion progress and certificates you can download."
+              bullets={[
+                "Course thumbnail, trainer and duration",
+                "Per-course progress bar",
+                "Certificate download once complete",
+              ]}
+            />
+          )}
+          {mainTab === "helpdesk" && (
+            <MyHelpDeskPanel employeeId={employeeId} />
+          )}
+          {/* Performance now handled above by MyPerformancePanel. */}
+          {mainTab === "orgchart" && (
+            <ComingSoonPanel
+              title="Organization Chart"
+              iconKey="tree"
+              description="See the reporting hierarchy from CEO down to your seat."
+              bullets={[
+                "Interactive drill-down by department",
+                "Photos, names and designations",
+                "Your position highlighted",
+              ]}
+            />
+          )}
+          {mainTab === "myteam" && (
+            hasPerm(["team.view", "team.manage"]) ? (
+              <ComingSoonPanel
+                title="My Team"
+                iconKey="users"
+                description="For team leads and managers — team attendance, pending approvals and birthdays."
+                bullets={[
+                  "Approve or reject leave requests",
+                  "See attendance at a glance",
+                  "Only visible to Managers and Team Leads",
+                ]}
+              />
+            ) : (
+              <ComingSoonPanel
+                title="Not authorised"
+                iconKey="gear"
+                description="Your role does not have access to the Team module. Contact HR if you believe this is wrong."
+              />
+            )
+          )}
+          {mainTab === "settings" && (
+            <MySettingsPanel />
+          )}
+
+        </div>
       </main>
 
       <Toast toast={toast} onClose={() => setToast(null)} />
-      <ChatBot />
+      <EmployeeAIAssistant />
+
+      <VoiceAssistant employeeId={employeeId} />
+
+      <ConfirmDialog
+        open={logoutOpen}
+        title="Are you sure you want to log out?"
+        confirmLabel="Log Out"
+        cancelLabel="Continue"
+        danger
+        onCancel={() => setLogoutOpen(false)}
+        onConfirm={performLogout}
+      />
+    </div>
+  );
+}
+
+
+// =================================================================
+// PortalTabNav — top-level tab bar shown directly under the
+// sticky profile strip. Splits the 14 employee-portal widgets into
+// six focused sections so the page no longer feels like one endless
+// scroll. Each tab is just a label + optional red badge; counts come
+// from the parent (today/pending tasks, pending leave requests, etc.).
+// =================================================================
+
+function PortalTabNav({ active, onChange, badges = {} }) {
+
+  const tabs = [
+    { key: "overview",    label: "Overview"    },
+    { key: "attendance",  label: "Attendance"  },
+    { key: "tasks",       label: "Tasks",       badge: badges.tasks },
+    { key: "leave",       label: "Leave",       badge: badges.leave },
+    { key: "memos",       label: "Memos"       },
+    { key: "allowance",   label: "Allowance"   },
+    { key: "payslips",    label: "Payslips"    },
+    { key: "performance", label: "Performance" }
+  ];
+
+  return (
+    <div className={styles.portalTabNav}>
+      {tabs.map((t) => {
+
+        const isOn = t.key === active;
+
+        return (
+          <button
+            key={t.key}
+            onClick={() => onChange(t.key)}
+            style={{
+              background: isOn ? "#ef4444" : "transparent",
+              color: isOn ? "white" : "#475569",
+              border: "none",
+              padding: "10px 18px",
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: 0.6,
+              textTransform: "uppercase",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              transition: "background 0.15s, color 0.15s",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
+              boxShadow: isOn ? "0 4px 12px rgba(139,11,31,0.25)" : "none"
+            }}
+          >
+            <span>{t.label}</span>
+            {!!t.badge && t.badge > 0 && (
+              <span
+                className={styles.portalTabBadge}
+                style={{
+                  background: isOn ? "#f59e0b" : "#fee2e2",
+                  color: isOn ? "#5a0712" : "#991b1b"
+                }}
+              >
+                {t.badge > 99 ? "99+" : t.badge}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -847,6 +1450,815 @@ function applyOptimisticStatus(portal, assignmentId, newStatus) {
     );
   }
   return { ...portal, tasks: patched };
+}
+
+
+// =================================================================
+// Zoho-style icon set (no emojis anywhere on the portal)
+// =================================================================
+
+const SVG_PATHS = {
+  overview:    "M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z",
+  attendance:  "M19 3h-1V1h-2v2H8V1H6v2H5a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 18H5V9h14v12z",
+  tasks:       "M9 16.17 4.83 12l-1.41 1.41L9 19 21 7l-1.41-1.41L9 16.17z",
+  leave:       "M12 2C8 2 5 5 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-4-3-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z",
+  memos:       "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z",
+  allowance:   "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 14.09v1.41h-2v-1.42c-1.27-.27-2.36-1.08-2.44-2.5h1.47c.08.81.62 1.43 1.97 1.43 1.45 0 1.78-.72 1.78-1.18 0-.61-.33-1.18-1.97-1.58-1.82-.44-3.06-1.18-3.06-2.66 0-1.24.99-2.05 2.25-2.32V5.87h2v1.42c1.36.34 2.04 1.38 2.08 2.51h-1.46c-.04-.86-.5-1.43-1.69-1.43-1.14 0-1.81.51-1.81 1.24 0 .64.5 1.06 1.97 1.43 1.47.37 3.06.99 3.06 2.83 0 1.31-.99 2.04-2.26 2.31z",
+  payslips:    "M19.5 3.5 18 2l-1.5 1.5L15 2l-1.5 1.5L12 2l-1.5 1.5L9 2 7.5 3.5 6 2v14H3v3a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3V2l-1.5 1.5zM14 19v.5a1.5 1.5 0 0 1-3 0V19H5v-4h11v4zm5-.5a1.5 1.5 0 0 1-3 0V13H8V4h11v14.5zM10 7h7v2h-7zm0 4h7v2h-7z",
+  performance: "M3 13h2v8H3zm6-4h2v12H9zm6-6h2v18h-2z",
+  clock:       "M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z",
+  bell:        "M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 0 0-5-5.91V4a1 1 0 0 0-2 0v1.09A6 6 0 0 0 6 11v5l-2 2v1h16v-1z",
+  logout:      "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8v-2H4z",
+  mic:         "M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5.91-3a1 1 0 0 0-1.98.34A4 4 0 0 1 12 15a4 4 0 0 1-3.93-3.66 1 1 0 0 0-1.98.34A6 6 0 0 0 11 16.92V19H8v2h8v-2h-3v-2.08a6 6 0 0 0 4.91-5.92z",
+  micOff:      "M19 11h-1.7c0 .58-.1 1.13-.27 1.64l1.27 1.27a6 6 0 0 0 .7-2.91zM15 11.16V5a3 3 0 0 0-6 0v.18L15 11.16zM3.41 2 2 3.41l6 6V11a3 3 0 0 0 4.94 2.31l1.42 1.42a4 4 0 0 1-6.34-3.39A1 1 0 0 0 6.04 11a6 6 0 0 0 4.96 5.92V19H8v2h8v-2h-3v-2.08c.85-.13 1.64-.45 2.34-.92L20.59 22 22 20.59 3.41 2z",
+  play:        "M8 5v14l11-7L8 5z",
+  pause:       "M6 4h4v16H6zm8 0h4v16h-4z",
+  check:       "M9 16.17 4.83 12l-1.41 1.41L9 19 21 7l-1.41-1.41L9 16.17z",
+  search:      "M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19 15.5 14zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z",
+  rotate:      "M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.73 10h-2.08A6 6 0 1 1 12 6a5.92 5.92 0 0 1 4.22 1.78L13 11h7V4z"
+};
+
+function Ico({ name, size = 16, style }) {
+  const d = SVG_PATHS[name];
+  if (!d) return null;
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+      style={style}
+    >
+      <path d={d} />
+    </svg>
+  );
+}
+
+
+// =================================================================
+// Z-shell — slim Zoho-style top header (replaces topbar + hero strip)
+// =================================================================
+
+function ZTopBar({
+  profile, productivity, employeeName, employeeCode,
+  attendanceStatus, loginTime,
+  voiceOn, onToggleVoice, voiceSupported,
+  unreadCount, onLogout
+}) {
+
+  const name = profile?.name || employeeName || "Employee";
+  const code = profile?.employee_code || employeeCode || "—";
+  const designation = profile?.designation || "";
+  const department = profile?.department || "";
+  const photoUrl = profile?.photo_url || null;
+  const score = Math.max(0, Math.min(100, Number(productivity?.score || 0)));
+
+  const initials = (name || "?")
+    .split(/\s+/)
+    .map((p) => p.charAt(0))
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "?";
+
+  const isLate = attendanceStatus === "LATE";
+
+  return (
+    <header className={styles.zHeader}>
+      <div className={styles.zHeaderLeft}>
+        <div className={styles.zAvatar}>
+          {photoUrl ? <img src={photoUrl} alt={name} /> : initials}
+        </div>
+        <div className={styles.zIdentText}>
+          <div className={styles.zIdentName}>
+            {name} <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>· {code}</span>
+          </div>
+          <div className={styles.zIdentMeta}>
+            {designation || "—"}{department ? ` · ${department}` : ""}
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.zHeaderRight}>
+        <span
+          className={`${styles.zChip} ${isLate ? styles.zChipWarn : styles.zChipSuccess}`}
+          title={`Login: ${fmtTime(loginTime)}`}
+        >
+          <Ico name="clock" size={12} />
+          {attendanceStatus} · {fmtTime(loginTime)}
+        </span>
+
+        <span className={`${styles.zChip} ${styles.zChipScore}`} title="Productivity score">
+          <Ico name="performance" size={12} />
+          {score} / 100
+        </span>
+
+        {voiceSupported && (
+          <button
+            type="button"
+            onClick={onToggleVoice}
+            className={`${styles.zIconBtn}${voiceOn ? " " + styles.zIconBtnActive : ""}`}
+            title={voiceOn ? "Disable voice alerts" : "Enable voice alerts"}
+            aria-label="Toggle voice alerts"
+          >
+            <Ico name={voiceOn ? "mic" : "micOff"} size={14} />
+          </button>
+        )}
+
+        <button
+          type="button"
+          className={styles.zIconBtn}
+          title="Notifications"
+          aria-label="Notifications"
+        >
+          <Ico name="bell" size={14} />
+          {unreadCount > 0 && (
+            <span className={styles.zIconBtnBadge}>
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={onLogout}
+          className={styles.zIconBtn}
+          title="Log out"
+          aria-label="Log out"
+        >
+          <Ico name="logout" size={14} />
+        </button>
+      </div>
+    </header>
+  );
+}
+
+
+// =================================================================
+// Z-shell — slim underline tab strip (replaces PortalTabNav)
+// =================================================================
+
+function ZTabStrip({ active, onChange, badges = {} }) {
+
+  const tabs = [
+    { key: "overview",    label: "Overview",    icon: "overview" },
+    { key: "attendance",  label: "Attendance",  icon: "attendance" },
+    { key: "tasks",       label: "Tasks",       icon: "tasks", badge: badges.tasks },
+    { key: "leave",       label: "Leave",       icon: "leave", badge: badges.leave },
+    { key: "permission",  label: "Permission",  icon: "clock" },
+    { key: "memos",       label: "Memos",       icon: "memos" },
+    { key: "allowance",   label: "Allowance",   icon: "allowance" },
+    { key: "payslips",    label: "Payslips",    icon: "payslips" },
+    { key: "performance", label: "Performance", icon: "performance" }
+  ];
+
+  return (
+    <div className={styles.zTabStrip}>
+      {tabs.map((t) => {
+        const isOn = t.key === active;
+        return (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => onChange(t.key)}
+            className={`${styles.zTab}${isOn ? " " + styles.zTabActive : ""}`}
+          >
+            <Ico name={t.icon} size={14} />
+            <span>{t.label}</span>
+            {!!t.badge && t.badge > 0 && (
+              <span className={styles.zTabBadge}>
+                {t.badge > 99 ? "99+" : t.badge}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+
+// =================================================================
+// Z-shell — left sidebar (Admin-Dashboard style) + main header
+// =================================================================
+
+const Z_TAB_TITLES = {
+  home:          "Dashboard",
+  attendance:    "Attendance",
+  tasks:         "Tasks",
+  leave:         "Leave",
+  permission:    "Permission",
+  memos:         "Memos",
+  allowance:     "Allowance",
+  payslips:      "Payslips",
+  documents:     "Documents",
+  holidays:      "Holiday Calendar",
+  notifications: "Notifications",
+  announcements: "Announcements",
+  assets:        "My Assets",
+  training:      "Training",
+  helpdesk:      "Help Desk",
+  performance:   "Performance",
+  orgchart:      "Organization Chart",
+  myteam:        "My Team",
+  settings:      "Settings",
+};
+
+function ZSidebar({
+  active, onChange, badges = {},
+  profile, employeeName, employeeCode,
+  onLogout,
+  open, onClose
+}) {
+
+  const name = profile?.name || employeeName || "Employee";
+  const code = profile?.employee_code || employeeCode || "—";
+  const designation = profile?.designation || "—";
+  const department = profile?.department || "";
+  const photoUrl = profile?.photo_url || null;
+
+  const initials = (name || "?")
+    .split(/\s+/)
+    .map((p) => p.charAt(0))
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "?";
+
+  const items = [
+    { key: "attendance",  label: "Attendance",  icon: "attendance" },
+    { key: "tasks",       label: "Tasks",       icon: "tasks", badge: badges.tasks },
+    { key: "leave",       label: "Leave",       icon: "leave", badge: badges.leave },
+    { key: "permission",  label: "Permission",  icon: "clock" },
+    { key: "memos",       label: "Memos",       icon: "memos" },
+    { key: "allowance",   label: "Allowance",   icon: "allowance" },
+    { key: "payslips",    label: "Payslips",    icon: "payslips" },
+    { key: "performance", label: "Performance", icon: "performance" }
+  ];
+
+  return (
+    <>
+      {open && (
+        <div
+          className={styles.zSidebarOverlay}
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={`${styles.zSidebar}${open ? " " + styles.zSidebarOpen : ""}`}
+      >
+
+        <div className={styles.zSidebarBrand}>
+          <div className={styles.zSidebarBrandLogo}>B</div>
+          <div>
+            <div className={styles.zSidebarBrandText}>Bharath ERP</div>
+            <div className={styles.zSidebarBrandSub}>Employee Portal</div>
+          </div>
+        </div>
+
+        <nav className={styles.zSidebarNav}>
+          <div className={styles.zSidebarGroupLabel}>Workspace</div>
+          {items.map((t) => {
+            const isOn = t.key === active;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => { onChange(t.key); onClose?.(); }}
+                className={`${styles.zSidebarItem}${isOn ? " " + styles.zSidebarItemActive : ""}`}
+              >
+                <span className={styles.zSidebarItemIcon}>
+                  <Ico name={t.icon} size={16} />
+                </span>
+                <span className={styles.zSidebarItemLabel}>{t.label}</span>
+                {!!t.badge && t.badge > 0 && (
+                  <span className={styles.zSidebarItemBadge}>
+                    {t.badge > 99 ? "99+" : t.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className={styles.zSidebarFooter}>
+          <div className={styles.zSidebarUserCard}>
+            <div className={styles.zSidebarUserAvatar}>
+              {photoUrl ? <img src={photoUrl} alt={name} /> : initials}
+            </div>
+            <div className={styles.zSidebarUserInfo}>
+              <div className={styles.zSidebarUserName}>{name}</div>
+              <div className={styles.zSidebarUserMeta}>
+                {code}{department ? ` · ${department}` : ""}
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onLogout}
+            className={styles.zSidebarLogout}
+          >
+            <Ico name="logout" size={13} />
+            Logout
+          </button>
+        </div>
+
+      </aside>
+    </>
+  );
+}
+
+
+function ZMainHeader({
+  title,
+  attendanceStatus, loginTime,
+  productivity,
+  voiceOn, onToggleVoice, voiceSupported,
+  notifications = [], notifUnreadCount = 0,
+  notifPanelOpen = false,
+  onBellClick, onCloseNotifPanel, onNotifClick, onClearNotifs,
+  onGoHome, onLogout,
+  onMenuToggle,
+}) {
+
+  const isLate = attendanceStatus === "LATE";
+  const score = Math.max(0, Math.min(100, Number(productivity?.score || 0)));
+
+  // Close the notification dropdown when the user clicks outside it.
+  // Listener attached only while open so we don't leak.
+  const notifWrapRef = useRef(null);
+  useEffect(() => {
+    if (!notifPanelOpen) return undefined;
+    const onDocClick = (e) => {
+      if (notifWrapRef.current && !notifWrapRef.current.contains(e.target)) {
+        onCloseNotifPanel?.();
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [notifPanelOpen, onCloseNotifPanel]);
+
+  return (
+    <header className={styles.zMainHeader}>
+      <div className={styles.zMainHeaderLeft}>
+        {/* Mobile only: hamburger opens the sidebar drawer. Hidden on
+            desktop where the sidebar is always visible. */}
+        <button
+          type="button"
+          className={styles.zHamburger}
+          onClick={onMenuToggle}
+          aria-label="Open menu"
+          title="Menu"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" strokeWidth="2.2"
+               strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 6h16" />
+            <path d="M4 12h16" />
+            <path d="M4 18h16" />
+          </svg>
+        </button>
+        <h1 className={styles.zMainTitle}>{title}</h1>
+      </div>
+
+      <div className={styles.zMainHeaderRight}>
+        <span
+          className={`${styles.zChip} ${isLate ? styles.zChipWarn : styles.zChipSuccess}`}
+          title={`Login: ${fmtTime(loginTime)}`}
+        >
+          <Ico name="clock" size={12} />
+          {attendanceStatus} · {fmtTime(loginTime)}
+        </span>
+
+        <span
+          className={`${styles.zChip} ${styles.zChipScore}`}
+          title="Productivity score"
+        >
+          <Ico name="performance" size={12} />
+          {score} / 100
+        </span>
+
+        {voiceSupported && (
+          <button
+            type="button"
+            onClick={onToggleVoice}
+            className={`${styles.zIconBtn}${voiceOn ? " " + styles.zIconBtnActive : ""}`}
+            title={voiceOn ? "Disable voice alerts" : "Enable voice alerts"}
+            aria-label="Toggle voice alerts"
+          >
+            <Ico name={voiceOn ? "mic" : "micOff"} size={14} />
+          </button>
+        )}
+
+        <div ref={notifWrapRef} style={{ position: "relative", display: "inline-block" }}>
+          <button
+            type="button"
+            className={styles.zIconBtn}
+            onClick={onBellClick}
+            title={
+              notifUnreadCount > 0
+                ? `${notifUnreadCount} new HR notification${notifUnreadCount === 1 ? "" : "s"}`
+                : "Notifications"
+            }
+            aria-label="Notifications"
+            aria-expanded={notifPanelOpen}
+          >
+            <Ico name="bell" size={14} />
+            {notifUnreadCount > 0 && (
+              <span className={styles.zIconBtnBadge}>
+                {notifUnreadCount > 99 ? "99+" : notifUnreadCount}
+              </span>
+            )}
+          </button>
+
+          {notifPanelOpen && (
+            <NotifDropdown
+              notifications={notifications}
+              onItemClick={onNotifClick}
+              onClearAll={onClearNotifs}
+            />
+          )}
+        </div>
+
+        <button
+          type="button"
+          className={styles.zIconBtn}
+          onClick={onLogout}
+          title="Log out"
+          aria-label="Log out"
+        >
+          <Ico name="logout" size={14} />
+        </button>
+      </div>
+    </header>
+  );
+}
+
+
+// =================================================================
+// NotifDropdown — social-media-style HR notification list
+// -----------------------------------------------------------------
+// Anchored below the bell button. Scrollable inner list, one item
+// per notification, newest first. Each row shows a colour dot for
+// the type (INFO/SUCCESS/WARNING/ERROR), the title, the message
+// body, and a relative timestamp ("2 minutes ago"). Clicking a
+// row calls onItemClick — the parent jumps to the Notifications
+// tab. If there are no notifications the panel shows an empty
+// state.
+// =================================================================
+
+function formatRelativeTime(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60)    return "just now";
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function NotifDropdown({ notifications = [], onItemClick, onClearAll }) {
+
+  const dotColor = (type) => {
+    const t = (type || "INFO").toUpperCase();
+    if (t === "SUCCESS") return "#10b981";
+    if (t === "WARNING") return "#f59e0b";
+    if (t === "ERROR")   return "#dc2626";
+    return "#3b82f6";
+  };
+
+  return (
+    <div
+      role="menu"
+      style={{
+        position: "absolute",
+        top: "calc(100% + 8px)",
+        right: 0,
+        minWidth: 320,
+        maxWidth: 380,
+        maxHeight: 440,
+        background: "#ffffff",
+        border: "1px solid #e2e8f0",
+        borderRadius: 12,
+        boxShadow: "0 20px 40px rgba(15, 23, 42, 0.18)",
+        zIndex: 60,
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        color: "#0f172a",
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div style={{
+        padding: "12px 16px",
+        borderBottom: "1px solid #f1f5f9",
+        fontSize: 12,
+        fontWeight: 800,
+        letterSpacing: 0.6,
+        textTransform: "uppercase",
+        color: "#64748b",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 8,
+      }}>
+        <span>HR Notifications</span>
+        {notifications.length > 0 && (
+          <button
+            type="button"
+            onClick={onClearAll}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#dc2626",
+              fontFamily: "inherit",
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: 0.4,
+              textTransform: "uppercase",
+              cursor: "pointer",
+              padding: "2px 6px",
+              borderRadius: 4,
+            }}
+            title="Clear all notifications"
+          >
+            Clear all
+          </button>
+        )}
+      </div>
+
+      <div style={{ overflowY: "auto", flex: "1 1 auto" }}>
+        {notifications.length === 0 ? (
+          <div style={{
+            padding: "22px 20px",
+            fontSize: 13,
+            color: "#94a3b8",
+            textAlign: "center",
+          }}>
+            No notifications yet. HR messages will appear here.
+          </div>
+        ) : (
+          notifications.map((n) => (
+            <button
+              key={n.ID}
+              type="button"
+              onClick={() => onItemClick?.(n)}
+              style={{
+                width: "100%",
+                padding: "12px 16px",
+                display: "flex",
+                gap: 10,
+                alignItems: "flex-start",
+                background: "transparent",
+                border: "none",
+                borderBottom: "1px solid #f1f5f9",
+                cursor: "pointer",
+                textAlign: "left",
+                fontFamily: "inherit",
+                color: "inherit",
+                transition: "background 0.12s ease",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "#f8fafc"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+            >
+              <span style={{
+                width: 8, height: 8, borderRadius: 999,
+                background: dotColor(n.TYPE),
+                flexShrink: 0, marginTop: 6,
+              }} />
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{
+                  display: "block",
+                  fontSize: 13, fontWeight: 700, color: "#0f172a",
+                  marginBottom: 2,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}>
+                  {n.TITLE || "Notification"}
+                </span>
+                {n.MESSAGE && (
+                  <span style={{
+                    display: "block",
+                    fontSize: 12, color: "#475569",
+                    lineHeight: 1.4,
+                    marginBottom: 4,
+                    whiteSpace: "normal",
+                    wordBreak: "break-word",
+                  }}>
+                    {n.MESSAGE}
+                  </span>
+                )}
+                <span style={{
+                  fontSize: 11, color: "#94a3b8", fontWeight: 500,
+                }}>
+                  {formatRelativeTime(n.CREATED_AT)}
+                </span>
+              </span>
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+// =================================================================
+// Z-shell — Tasks page (replaces TodayTasksCard + TabbedTaskLists)
+// =================================================================
+
+const Z_TASK_STATUS_PILL = {
+  PENDING:     { label: "Pending",     cls: "zPillNeutral" },
+  IN_PROGRESS: { label: "In Progress", cls: "zPillInfo" },
+  ON_HOLD:     { label: "On Hold",     cls: "zPillWarn" },
+  COMPLETED:   { label: "Completed",   cls: "zPillSuccess" }
+};
+
+const Z_PRIORITY_PILL = {
+  HIGH:   "zPillDanger",
+  MEDIUM: "zPillWarn",
+  LOW:    "zPillNeutral"
+};
+
+function ZTasksPage({ buckets, busyMap, onUpdate }) {
+
+  const [filter, setFilter] = useState("pending");
+  const [q, setQ] = useState("");
+
+  const filters = [
+    { key: "today",       label: "Today",       count: buckets.today?.length || 0 },
+    { key: "pending",     label: "Pending",     count: buckets.pending?.length || 0 },
+    { key: "in_progress", label: "In Progress", count: buckets.in_progress?.length || 0 },
+    { key: "on_hold",     label: "On Hold",     count: buckets.on_hold?.length || 0 },
+    { key: "upcoming",    label: "Upcoming",    count: buckets.upcoming?.length || 0 },
+    { key: "completed",   label: "Completed",   count: buckets.completed?.length || 0 }
+  ];
+
+  const all = buckets[filter] || [];
+  const qNorm = q.trim().toLowerCase();
+  const rows = qNorm
+    ? all.filter((t) =>
+        (t.title || "").toLowerCase().includes(qNorm) ||
+        (t.project_name || "").toLowerCase().includes(qNorm))
+    : all;
+
+  return (
+    <div className={styles.zCard}>
+      <div className={styles.zCardHead}>
+        <div className={styles.zCardTitle}>
+          <Ico name="tasks" size={14} />
+          My Tasks
+        </div>
+        <div className={styles.zSearchBox}>
+          <Ico name="search" size={12} />
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search title or project"
+          />
+        </div>
+      </div>
+
+      <div className={styles.zFilterRow}>
+        {filters.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            onClick={() => setFilter(f.key)}
+            className={`${styles.zFilter}${filter === f.key ? " " + styles.zFilterActive : ""}`}
+          >
+            {f.label}
+            <span className={styles.zFilterCount}>{f.count}</span>
+          </button>
+        ))}
+      </div>
+
+      {rows.length === 0 ? (
+        <div className={styles.zEmpty}>
+          No tasks in this view.
+        </div>
+      ) : (
+        <div className={styles.zTableWrap}>
+          <table className={styles.zTable}>
+            <thead>
+              <tr>
+                <th style={{ width: "40%" }}>Task</th>
+                <th>Priority</th>
+                <th>Due</th>
+                <th>Status</th>
+                <th style={{ textAlign: "right" }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((t) => (
+                <ZTaskRow
+                  key={t.assignment_id || t.id}
+                  task={t}
+                  busy={!!busyMap[t.assignment_id]}
+                  onUpdate={onUpdate}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ZTaskRow({ task, busy, onUpdate }) {
+
+  const status = (task.status || "PENDING").toUpperCase();
+  const pill = Z_TASK_STATUS_PILL[status] || Z_TASK_STATUS_PILL.PENDING;
+  const priority = (task.priority || "MEDIUM").toUpperCase();
+  const priorityCls = Z_PRIORITY_PILL[priority] || "zPillNeutral";
+
+  const due = task.due_date ? fmtDate(task.due_date) : "—";
+  const remaining = task.remaining_days != null ? Number(task.remaining_days) : null;
+  const dueSub = remaining == null
+    ? null
+    : remaining < 0
+      ? `${Math.abs(remaining)}d overdue`
+      : remaining === 0
+        ? "due today"
+        : `${remaining}d left`;
+
+  const dueSubStyle = remaining != null && remaining < 0
+    ? { color: "var(--danger-dark)", fontWeight: 600 }
+    : remaining === 0
+      ? { color: "var(--warning-dark)", fontWeight: 600 }
+      : null;
+
+  const actions = (() => {
+    switch (status) {
+      case "PENDING":
+        return [
+          { target: "IN_PROGRESS", label: "Start", icon: "play",  cls: "zActionPrimary" },
+          { target: "ON_HOLD",     label: "Hold",  icon: "pause", cls: "zActionWarn" },
+          { target: "COMPLETED",   label: "Done",  icon: "check", cls: "zActionSuccess" }
+        ];
+      case "IN_PROGRESS":
+        return [
+          { target: "ON_HOLD",   label: "Hold", icon: "pause", cls: "zActionWarn" },
+          { target: "COMPLETED", label: "Done", icon: "check", cls: "zActionSuccess" }
+        ];
+      case "ON_HOLD":
+        return [
+          { target: "IN_PROGRESS", label: "Resume", icon: "play",  cls: "zActionPrimary" },
+          { target: "COMPLETED",   label: "Done",   icon: "check", cls: "zActionSuccess" }
+        ];
+      case "COMPLETED":
+      default:
+        return [];
+    }
+  })();
+
+  return (
+    <tr>
+      <td>
+        <div className={styles.zTaskTitle}>{task.title || "Untitled task"}</div>
+        {task.project_name && (
+          <div className={styles.zTaskMeta}>{task.project_name}</div>
+        )}
+      </td>
+      <td>
+        <span className={`${styles.zPill} ${styles[priorityCls]}`}>{priority}</span>
+      </td>
+      <td>
+        <div className={styles.zDue}>{due}</div>
+        {dueSub && (
+          <div className={styles.zDueSub} style={dueSubStyle || undefined}>{dueSub}</div>
+        )}
+      </td>
+      <td>
+        <span className={`${styles.zPill} ${styles[pill.cls]}`}>{pill.label}</span>
+      </td>
+      <td>
+        <div className={styles.zRowActions}>
+          {actions.length === 0 ? (
+            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>—</span>
+          ) : (
+            actions.map((a) => (
+              <button
+                key={a.target}
+                type="button"
+                disabled={busy}
+                onClick={() => onUpdate(task.assignment_id, a.target, status)}
+                className={`${styles.zActionBtn} ${styles[a.cls]}`}
+              >
+                <Ico name={a.icon} size={11} />
+                {busy ? "…" : a.label}
+              </button>
+            ))
+          )}
+        </div>
+      </td>
+    </tr>
+  );
 }
 
 
@@ -874,58 +2286,30 @@ function ProfileStrip({ profile, productivity }) {
       : { bg: "#e5e7eb", fg: "#475569" };
 
   return (
-    <section style={{ ...cardBase, marginBottom: 18, padding: 20 }}>
-      <div
-        style={{
-          display: "flex",
-          gap: 20,
-          alignItems: "center",
-          flexWrap: "wrap"
-        }}
-      >
+    <section className={styles.profileStrip}>
+      <div className={styles.profileStripInner}>
         {/* LEFT — identity */}
-        <div style={{ display: "flex", gap: 16, alignItems: "center", flex: 1, minWidth: 280 }}>
+        <div className={styles.profileIdentity}>
           {profile?.photo_url ? (
             <img
               src={profile.photo_url}
               alt={profile.name}
-              style={{
-                width: 78,
-                height: 78,
-                borderRadius: "50%",
-                objectFit: "cover",
-                border: `3px solid ${BVC.PRIMARY}`
-              }}
+              className={styles.profilePhoto}
             />
           ) : (
-            <div
-              style={{
-                width: 78,
-                height: 78,
-                borderRadius: "50%",
-                background: `linear-gradient(135deg, ${BVC.PRIMARY}, ${BVC.DEEPEST})`,
-                color: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 28,
-                fontWeight: 800,
-                letterSpacing: 1,
-                boxShadow: "0 6px 16px rgba(200,16,46,0.30)"
-              }}
-            >
+            <div className={styles.profileAvatar}>
               {initials}
             </div>
           )}
 
           <div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: BVC.INK, marginBottom: 2 }}>
+            <div className={styles.profileName}>
               {profile?.name || "Employee"}
             </div>
-            <div style={{ fontSize: 12, color: BVC.MUTED, fontWeight: 700, letterSpacing: 0.4 }}>
+            <div className={styles.profileCode}>
               {profile?.employee_code || "—"}
             </div>
-            <div style={{ marginTop: 6, fontSize: 13, color: "#475569" }}>
+            <div className={styles.profileRole}>
               {profile?.designation || "—"}
               {profile?.department ? ` · ${profile.department}` : ""}
             </div>
@@ -933,49 +2317,24 @@ function ProfileStrip({ profile, productivity }) {
         </div>
 
         {/* RIGHT — score + rating + badge */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 22,
-            paddingLeft: 18,
-            borderLeft: "1px solid #f1f5f9"
-          }}
-        >
-          <div style={{ textAlign: "center" }}>
-            <div
-              style={{
-                fontSize: 56,
-                fontWeight: 900,
-                lineHeight: 1,
-                color: BVC.PRIMARY
-              }}
-            >
+        <div className={styles.profileScoreBlock}>
+          <div className={styles.profileScoreCenter}>
+            <div className={styles.profileScoreNum}>
               {score}
             </div>
-            <div style={{ ...SECTION_LABEL, marginTop: 4 }}>
+            <div className={styles.profileScoreLabel}>
               Productivity
             </div>
           </div>
 
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 22, color: BVC.ACCENT, letterSpacing: 2 }}>
+          <div className={styles.profileScoreCenter}>
+            <div className={styles.profileStars}>
               {"★".repeat(rating)}
-              <span style={{ color: "#e5e7eb" }}>{"★".repeat(5 - rating)}</span>
+              <span className={styles.profileStarsEmpty}>{"★".repeat(5 - rating)}</span>
             </div>
             <div
-              style={{
-                marginTop: 8,
-                display: "inline-block",
-                padding: "5px 12px",
-                borderRadius: 999,
-                background: badgeTheme.bg,
-                color: badgeTheme.fg,
-                fontSize: 11,
-                fontWeight: 800,
-                letterSpacing: 0.8,
-                textTransform: "uppercase"
-              }}
+              className={styles.profileBadgePill}
+              style={{ background: badgeTheme.bg, color: badgeTheme.fg }}
             >
               {badge === "On Fire" ? "🔥 " : ""}{badge}
             </div>
@@ -994,49 +2353,29 @@ function ProfileStrip({ profile, productivity }) {
 function KpiGrid({ kpis }) {
   const tiles = [
     { key: "total_assigned", label: "Total Assigned", color: BVC.PRIMARY },
-    { key: "today",          label: "Today",          color: BVC.ACCENT },
-    { key: "pending",        label: "Pending",        color: "#64748b" },
-    { key: "in_progress",    label: "In Progress",    color: "#1d4ed8" },
-    { key: "on_hold",        label: "On Hold",        color: "#d97706" },
-    { key: "completed",      label: "Completed",      color: "#16a34a" },
-    { key: "upcoming",       label: "Upcoming",       color: "#7c3aed" },
-    { key: "overdue",        label: "Overdue",        color: "#dc2626" }
+    { key: "today", label: "Today", color: BVC.ACCENT },
+    { key: "pending", label: "Pending", color: "#64748b" },
+    { key: "in_progress", label: "In Progress", color: "#1d4ed8" },
+    { key: "on_hold", label: "On Hold", color: "#d97706" },
+    { key: "completed", label: "Completed", color: "#16a34a" },
+    { key: "upcoming", label: "Upcoming", color: "#7c3aed" },
+    { key: "overdue", label: "Overdue", color: "#dc2626" }
   ];
 
   return (
-    <section style={{ marginBottom: 18 }}>
-      <div style={{ ...SECTION_LABEL, marginBottom: 10 }}>Task KPIs</div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-          gap: 12
-        }}
-      >
+    <section className={styles.kpiSection}>
+      <div className={styles.kpiSectionLabel}>Task KPIs</div>
+      <div className={styles.kpiTileGrid}>
         {tiles.map((t) => (
           <div
             key={t.key}
-            style={{
-              ...cardBase,
-              padding: "14px 14px 12px 16px",
-              borderLeft: `4px solid ${t.color}`,
-              display: "flex",
-              flexDirection: "column",
-              gap: 2
-            }}
+            className={styles.kpiTile}
+            style={{ borderLeft: `4px solid ${t.color}` }}
           >
-            <div style={{ fontSize: 30, fontWeight: 900, color: t.color, lineHeight: 1.1 }}>
+            <div className={styles.kpiTileNum} style={{ color: t.color }}>
               {kpis?.[t.key] ?? 0}
             </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: BVC.MUTED,
-                fontWeight: 700,
-                letterSpacing: 0.5,
-                textTransform: "uppercase"
-              }}
-            >
+            <div className={styles.kpiTileLabel}>
               {t.label}
             </div>
           </div>
@@ -1053,43 +2392,17 @@ function KpiGrid({ kpis }) {
 
 function TodayTasksCard({ tasks, busyMap, onUpdate }) {
   return (
-    <section style={{ ...cardBase, padding: 0, marginBottom: 18, overflow: "hidden" }}>
-      <div
-        style={{
-          position: "sticky",
-          top: 0,
-          zIndex: 1,
-          background: `linear-gradient(135deg, ${BVC.PRIMARY}, ${BVC.DEEPEST})`,
-          color: "#fff",
-          padding: "12px 18px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between"
-        }}
-      >
-        <div
-          style={{
-            ...SECTION_LABEL,
-            color: "#fff"
-          }}
-        >
+    <section className={styles.todayCard}>
+      <div className={styles.todayCardHeader}>
+        <div className={styles.todayCardHeaderLabel}>
           📌 Today's Tasks
         </div>
-        <span
-          style={{
-            background: "rgba(255,255,255,0.18)",
-            color: "#fff",
-            fontWeight: 800,
-            fontSize: 12,
-            padding: "3px 10px",
-            borderRadius: 999
-          }}
-        >
+        <span className={styles.todayCardCount}>
           {tasks.length} task{tasks.length === 1 ? "" : "s"}
         </span>
       </div>
 
-      <div style={{ padding: 16 }}>
+      <div className={styles.todayCardBody}>
         {tasks.length === 0 ? (
           <EmptyState message="No tasks scheduled for today. Enjoy the breathing room." />
         ) : (
@@ -1115,25 +2428,16 @@ function TodayTasksCard({ tasks, busyMap, onUpdate }) {
 function TabbedTaskLists({ tab, onTabChange, counts, tasks, busyMap, onUpdate }) {
 
   const tabs = [
-    { key: "pending",     label: "Pending" },
+    { key: "pending", label: "Pending" },
     { key: "in_progress", label: "In Progress" },
-    { key: "on_hold",     label: "On Hold" },
-    { key: "upcoming",    label: "Upcoming" },
-    { key: "completed",   label: "Completed" }
+    { key: "on_hold", label: "On Hold" },
+    { key: "upcoming", label: "Upcoming" },
+    { key: "completed", label: "Completed" }
   ];
 
   return (
-    <section style={{ ...cardBase, padding: 0, marginBottom: 18, overflow: "hidden" }}>
-      <div
-        style={{
-          display: "flex",
-          gap: 0,
-          borderBottom: "1px solid #f1f5f9",
-          padding: "0 16px",
-          background: "#fafbff",
-          flexWrap: "wrap"
-        }}
-      >
+    <section className={styles.tabbedCard}>
+      <div className={styles.tabbedCardTabBar}>
         {tabs.map((t) => {
           const active = tab === t.key;
           return (
@@ -1175,7 +2479,7 @@ function TabbedTaskLists({ tab, onTabChange, counts, tasks, busyMap, onUpdate })
         })}
       </div>
 
-      <div style={{ padding: 16 }}>
+      <div className={styles.tabbedCardBody}>
         {(!tasks || tasks.length === 0) ? (
           <EmptyState message={`No ${tab.replace("_", " ")} tasks.`} />
         ) : (
@@ -1225,28 +2529,11 @@ function TaskRow({ task, busy, onUpdate }) {
   const actions = actionsForStatus(status);
 
   return (
-    <div
-      style={{
-        background: "#fff",
-        border: "1px solid #f1f5f9",
-        borderLeft: `4px solid ${BVC.PRIMARY}`,
-        borderRadius: 12,
-        padding: 14,
-        marginBottom: 10,
-        boxShadow: CARD_SHADOW
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          alignItems: "flex-start",
-          flexWrap: "wrap"
-        }}
-      >
-        <div style={{ flex: 1, minWidth: 240 }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: BVC.INK }}>
+    <div className={styles.taskCard}>
+      <div className={styles.taskCardRow}>
+        <div className={styles.taskCardLeft}>
+          <div className={styles.taskCardTitleRow}>
+            <div className={styles.taskCardTitle}>
               {task?.title || task?.task_name || "Untitled task"}
             </div>
             <span
@@ -1279,21 +2566,13 @@ function TaskRow({ task, busy, onUpdate }) {
             </span>
           </div>
 
-          <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
+          <div className={styles.taskCardMeta}>
             {task?.project_name ? `📁 ${task.project_name}` : ""}
             {task?.stage_name ? ` · 🔧 ${task.stage_name}` : ""}
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-              alignItems: "center",
-              flexWrap: "wrap",
-              marginTop: 6
-            }}
-          >
-            <span style={{ fontSize: 12, color: "#475569" }}>
+          <div className={styles.taskCardDueRow}>
+            <span className={styles.taskCardDueLabel}>
               ⏰ Due {fmtDate(task?.due_date)}
             </span>
             <span
@@ -1311,15 +2590,7 @@ function TaskRow({ task, busy, onUpdate }) {
           </div>
 
           {task?.description && (
-            <div
-              style={{
-                marginTop: 6,
-                fontSize: 12,
-                color: "#475569",
-                whiteSpace: "pre-wrap",
-                lineHeight: 1.4
-              }}
-            >
+            <div className={styles.taskCardDesc}>
               {task.description.length > 200
                 ? task.description.slice(0, 200) + "…"
                 : task.description}
@@ -1327,18 +2598,9 @@ function TaskRow({ task, busy, onUpdate }) {
           )}
         </div>
 
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <div className={styles.taskCardActions}>
           {actions.length === 0 ? (
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 800,
-                padding: "6px 12px",
-                borderRadius: 999,
-                background: "#dcfce7",
-                color: "#166534"
-              }}
-            >
+            <span className={styles.taskDoneChip}>
               ✓ Done
             </span>
           ) : (
@@ -1365,18 +2627,18 @@ function actionsForStatus(status) {
     case "PENDING":
       return [
         { target: "IN_PROGRESS", label: "▶ Start Task", color: "#1d4ed8" },
-        { target: "ON_HOLD",     label: "⏸ Hold",       color: "#d97706" },
-        { target: "COMPLETED",   label: "✓ Complete",   color: "#16a34a" }
+        { target: "ON_HOLD", label: "⏸ Hold", color: "#d97706" },
+        { target: "COMPLETED", label: "✓ Complete", color: "#16a34a" }
       ];
     case "IN_PROGRESS":
       return [
-        { target: "ON_HOLD",   label: "⏸ Hold",     color: "#d97706" },
+        { target: "ON_HOLD", label: "⏸ Hold", color: "#d97706" },
         { target: "COMPLETED", label: "✓ Complete", color: "#16a34a" }
       ];
     case "ON_HOLD":
       return [
-        { target: "IN_PROGRESS", label: "▶ Resume",   color: "#1d4ed8" },
-        { target: "COMPLETED",   label: "✓ Complete", color: "#16a34a" }
+        { target: "IN_PROGRESS", label: "▶ Resume", color: "#1d4ed8" },
+        { target: "COMPLETED", label: "✓ Complete", color: "#16a34a" }
       ];
     case "COMPLETED":
     default:
@@ -1404,70 +2666,48 @@ function taskActionBtn(color, busy) {
 // 5. ASSIGNED PROJECTS CARD
 // =================================================================
 
-function AssignedProjectsCard({ projects }) {
+function AssignedProjectsCard({ projects, busyMap = {}, onUpdate }) {
+
+  // Four fixed statuses the employee can flip a project to via the
+  // quick-buttons under each card. Bulk-updates every task assigned to
+  // this employee within the project via PATCH /projects/:id/status.
+  const PROJECT_STATUS_BUTTONS = [
+    { key: "PENDING",     label: "Pending"     },
+    { key: "IN_PROGRESS", label: "In Progress" },
+    { key: "ON_HOLD",     label: "On Hold"     },
+    { key: "COMPLETED",   label: "Completed"   }
+  ];
+
   return (
-    <section style={{ ...cardBase, padding: 18, marginBottom: 18 }}>
-      <div style={{ ...SECTION_LABEL, marginBottom: 12 }}>
+    <section className={styles.projectsCard}>
+      <div className={styles.kpiSectionLabel} style={{ marginBottom: 12 }}>
         Assigned Projects
       </div>
 
       {(!projects || projects.length === 0) ? (
         <EmptyState message="You have no projects assigned yet." />
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: 12
-          }}
-        >
+        <div className={styles.projectsGrid}>
           {projects.map((p) => {
+            const projectId = p.id || p.project_id;
             const total = Number(p.my_stages_count || 0);
             const done = Number(p.my_completed_count || 0);
             const pct = total > 0 ? Math.round((done / total) * 100) : 0;
             const statusKey = (p.status || "PENDING").toUpperCase();
             const sPill = STATUS_PILL[statusKey] || STATUS_PILL.PENDING;
+            const busy = !!busyMap[projectId];
             return (
               <div
-                key={p.project_id || p.id || p.name}
-                style={{
-                  border: "1px solid #f1f5f9",
-                  borderRadius: 12,
-                  padding: 14,
-                  background: "#fff"
-                }}
+                key={projectId || p.name}
+                className={styles.projectCard}
               >
-                <div
-                  style={{
-                    fontWeight: 800,
-                    fontSize: 14,
-                    color: BVC.INK,
-                    marginBottom: 6
-                  }}
-                >
+                <div className={styles.projectCardName}>
                   {p.project_name || p.name || "Untitled project"}
                 </div>
 
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 6,
-                    flexWrap: "wrap",
-                    marginBottom: 10
-                  }}
-                >
+                <div className={styles.projectCardPills}>
                   {p.customer_name && (
-                    <span
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        padding: "3px 9px",
-                        borderRadius: 999,
-                        background: BVC.TINT,
-                        color: BVC.DARK,
-                        border: `1px solid ${BVC.BORDER}`
-                      }}
-                    >
+                    <span className={styles.projectCustomerPill}>
                       👤 {p.customer_name}
                     </span>
                   )}
@@ -1485,35 +2725,42 @@ function AssignedProjectsCard({ projects }) {
                   </span>
                 </div>
 
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: BVC.MUTED,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginBottom: 4
-                  }}
-                >
+                <div className={styles.projectProgressRow}>
                   <span>My progress</span>
-                  <span style={{ color: BVC.DARK, fontWeight: 700 }}>
+                  <span className={styles.projectProgressDone}>
                     {done} / {total} stages · {pct}%
                   </span>
                 </div>
-                <div
-                  style={{
-                    height: 8,
-                    background: "#f1f5f9",
-                    borderRadius: 999,
-                    overflow: "hidden"
-                  }}
-                >
+                <div className={styles.progressTrack}>
                   <div
-                    style={{
-                      width: `${pct}%`,
-                      height: "100%",
-                      background: `linear-gradient(135deg, ${BVC.PRIMARY}, ${BVC.DEEPEST})`
-                    }}
+                    className={styles.progressBar}
+                    style={{ width: `${pct}%` }}
                   />
+                </div>
+
+                {/* Status quick-buttons — flips ALL of this employee's
+                    task assignments in the project to the chosen status.
+                    The current status button is highlighted; clicking it
+                    is a no-op server-side but the UI still calls through
+                    for consistency. */}
+                <div className={styles.projectStatusBtnRow}>
+                  {PROJECT_STATUS_BUTTONS.map((btn) => {
+                    const isCurrent = btn.key === statusKey;
+                    return (
+                      <button
+                        key={btn.key}
+                        type="button"
+                        disabled={busy || !projectId || !onUpdate}
+                        onClick={() => onUpdate?.(projectId, btn.key, statusKey)}
+                        className={
+                          `${styles.projectStatusBtn}` +
+                          (isCurrent ? ` ${styles.projectStatusBtnActive}` : "")
+                        }
+                      >
+                        {busy ? "…" : btn.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -1531,72 +2778,52 @@ function AssignedProjectsCard({ projects }) {
 
 function PerformanceBreakdownCard({ productivity }) {
 
+  // Task completion / memo / star-performance mirror server-side fields
+  // that may not yet be populated — fall back to 0 so the UI stays clean.
+  const attendancePct  = Number(productivity?.attendance_pct        ?? 0);
+  const taskDonePct    = Number(productivity?.task_completion_pct   ?? productivity?.project_contribution_pct ?? 0);
+  const onTimePct      = Number(productivity?.on_time_pct           ?? 0);
+  const memoPct        = Number(productivity?.memo_pct              ?? 0);
+  const starPct        = Number(productivity?.star_pct              ?? productivity?.score ?? 0);
+  const ratingStars    = Math.round(Number(productivity?.rating     ?? 0));
+
   const rows = [
-    { label: "Productivity Score", value: productivity?.score, suffix: "/ 100", bar: productivity?.score },
-    { label: "On-Time Completion", value: productivity?.on_time_pct, suffix: "%", bar: productivity?.on_time_pct },
-    { label: "Attendance", value: productivity?.attendance_pct, suffix: "%", bar: productivity?.attendance_pct },
-    { label: "Avg Completion Hours", value: productivity?.avg_completion_hours, suffix: " hrs", bar: null },
-    { label: "Project Contribution", value: productivity?.project_contribution_pct, suffix: "%", bar: productivity?.project_contribution_pct },
-    { label: "Delayed Tasks", value: productivity?.delayed_tasks, suffix: "", bar: null },
-    { label: "Total Points Earned", value: productivity?.points_total, suffix: " pts", bar: null },
-    { label: "Overall Rating", value: null, suffix: "", bar: null, stars: Math.round(Number(productivity?.rating || 0)) }
+    { label: "Attendance",         value: attendancePct, suffix: "%", bar: attendancePct },
+    { label: "Task Completion",    value: taskDonePct,   suffix: "%", bar: taskDonePct   },
+    { label: "On-Time Completion", value: onTimePct,     suffix: "%", bar: onTimePct     },
+    { label: "Memo",               value: memoPct,       suffix: "%", bar: memoPct       },
+    { label: "Star Performance",   value: starPct,       suffix: "%", bar: starPct       },
+    { label: "Overall Rating",     value: null,          suffix: "",  bar: null, stars: ratingStars }
   ];
 
   return (
-    <section style={{ ...cardBase, padding: 18, marginBottom: 18 }}>
-      <div style={{ ...SECTION_LABEL, marginBottom: 12 }}>
+    <section className={styles.perfCard}>
+      <div className={styles.kpiSectionLabel} style={{ marginBottom: 12 }}>
         Performance Breakdown
       </div>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr",
-          gap: 8
-        }}
-      >
+      <div className={styles.perfRowGrid}>
         {rows.map((r) => (
-          <div
-            key={r.label}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "200px 1fr 100px",
-              gap: 12,
-              alignItems: "center",
-              padding: "10px 12px",
-              background: "#fafbff",
-              borderRadius: 10
-            }}
-          >
-            <div style={{ fontSize: 12, color: "#475569", fontWeight: 700 }}>
+          <div key={r.label} className={styles.perfRow}>
+            <div className={styles.perfRowLabel}>
               {r.label}
             </div>
             <div>
               {r.bar != null ? (
-                <div
-                  style={{
-                    height: 10,
-                    background: "#f1f5f9",
-                    borderRadius: 999,
-                    overflow: "hidden"
-                  }}
-                >
+                <div className={styles.perfBarTrack}>
                   <div
-                    style={{
-                      width: `${Math.max(0, Math.min(100, Number(r.bar) || 0))}%`,
-                      height: "100%",
-                      background: `linear-gradient(135deg, ${BVC.PRIMARY}, ${BVC.DEEPEST})`
-                    }}
+                    className={styles.perfBarFill}
+                    style={{ width: `${Math.max(0, Math.min(100, Number(r.bar) || 0))}%` }}
                   />
                 </div>
               ) : (
-                <div style={{ height: 10 }} />
+                <div className={styles.perfBarSpacer} />
               )}
             </div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: BVC.DARK, textAlign: "right" }}>
+            <div className={styles.perfRowValue}>
               {r.stars != null
-                ? <span style={{ color: BVC.ACCENT, letterSpacing: 2 }}>
-                    {"★".repeat(r.stars)}<span style={{ color: "#e5e7eb" }}>{"★".repeat(5 - r.stars)}</span>
-                  </span>
+                ? <span className={styles.perfStars}>
+                  {"★".repeat(r.stars)}<span className={styles.perfStarsEmpty}>{"★".repeat(5 - r.stars)}</span>
+                </span>
                 : `${r.value ?? 0}${r.suffix}`}
             </div>
           </div>
@@ -1618,8 +2845,8 @@ function MonthlyProductivityChart({ data }) {
 
   if (months.length === 0) {
     return (
-      <section style={{ ...cardBase, padding: 18, marginBottom: 18 }}>
-        <div style={{ ...SECTION_LABEL, marginBottom: 12 }}>Monthly Productivity</div>
+      <section className={styles.chartCard}>
+        <div className={styles.kpiSectionLabel} style={{ marginBottom: 12 }}>Monthly Productivity</div>
         <EmptyState message="Monthly productivity data will appear after your first completed month." />
       </section>
     );
@@ -1637,15 +2864,15 @@ function MonthlyProductivityChart({ data }) {
   const yFor = (v) => padT + (1 - v / yMax) * innerH;
 
   return (
-    <section style={{ ...cardBase, padding: 18, marginBottom: 18 }}>
-      <div style={{ ...SECTION_LABEL, marginBottom: 12 }}>
+    <section className={styles.chartCard}>
+      <div className={styles.kpiSectionLabel} style={{ marginBottom: 12 }}>
         Monthly Productivity (last 6 months)
       </div>
 
-      <div style={{ position: "relative" }}>
+      <div className={styles.chartRelative}>
         <svg
           viewBox={`0 0 ${W} ${H}`}
-          style={{ width: "100%", height: "auto", maxHeight: 280 }}
+          className={styles.chartSvg}
           role="img"
         >
           {/* gridlines */}
@@ -1720,22 +2947,13 @@ function MonthlyProductivityChart({ data }) {
 
         {hover && (
           <div
+            className={styles.chartTooltip}
             style={{
-              position: "absolute",
               left: `${(hover.x / W) * 100}%`,
-              top: `${(hover.y / H) * 100}%`,
-              transform: "translate(-50%, -110%)",
-              background: BVC.INK,
-              color: "#fff",
-              padding: "8px 10px",
-              borderRadius: 8,
-              fontSize: 11,
-              pointerEvents: "none",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
-              whiteSpace: "nowrap"
+              top: `${(hover.y / H) * 100}%`
             }}
           >
-            <div style={{ fontWeight: 800, marginBottom: 2 }}>
+            <div className={styles.chartTooltipTitle}>
               {hover.m.month_label || hover.m.label}
             </div>
             <div>Score: {hover.m.score ?? 0}</div>
@@ -1753,88 +2971,182 @@ function MonthlyProductivityChart({ data }) {
 // 8. ATTENDANCE SUMMARY CARD
 // =================================================================
 
+// =================================================================
+// Z-shell — Attendance overview page (admin-Attendance-style stat rows)
+// Two cards: "This month" (attendance counts) + "Leave & permissions"
+// (balance remaining + pending counts).
+// =================================================================
+
+function ZAttItem({ label, value, sub, tone = "slate" }) {
+  const toneCls = {
+    green: styles.zAttItemGreen,
+    amber: styles.zAttItemAmber,
+    red:   styles.zAttItemRed,
+    blue:  styles.zAttItemBlue,
+    slate: styles.zAttItemSlate,
+  }[tone] || styles.zAttItemSlate;
+
+  return (
+    <div className={`${styles.zAttItem} ${toneCls}`}>
+      <div className={styles.zAttItemValue}>{value}</div>
+      <div className={styles.zAttItemLabel}>{label}</div>
+      {sub && <div className={styles.zAttItemSub}>{sub}</div>}
+    </div>
+  );
+}
+
+function MyAttendanceOverview({
+  attendance, leaveBalance, leaveHistory, permissionHistory
+}) {
+
+  const today = new Date();
+  const dateLabel = today.toLocaleDateString("en-IN", {
+    weekday: "short", day: "numeric", month: "long", year: "numeric"
+  });
+  const monthLabel = today.toLocaleString("en-IN", {
+    month: "long", year: "numeric"
+  });
+
+  const present    = Number(attendance?.present    ?? 0);
+  const absent     = Number(attendance?.absent     ?? 0);
+  const lateCnt    = Number(attendance?.late       ?? 0);
+  const leaveCnt   = Number(attendance?.leave      ?? 0);
+  const permCnt    = Number(attendance?.permission ?? 0);
+  const pct        = Number(attendance?.percentage ?? 0);
+  const workingDays =
+    Number(attendance?.working_days ?? attendance?.total_days ?? 0);
+
+  const casual = leaveBalance?.CASUAL || { total: 0, used: 0, remaining: 0 };
+  const sick   = leaveBalance?.SICK   || { total: 0, used: 0, remaining: 0 };
+  const earned = leaveBalance?.EARNED || { total: 0, used: 0, remaining: 0 };
+
+  const pendingLeave = (leaveHistory || []).filter(
+    (l) => (l.STATUS || "").toUpperCase() === "PENDING_APPROVAL"
+  ).length;
+
+  const pendingPerm = (permissionHistory || []).filter(
+    (p) => (p.STATUS || "").toUpperCase() === "PENDING_APPROVAL"
+  ).length;
+
+  const usedLeave = Number(casual.used || 0) + Number(sick.used || 0) + Number(earned.used || 0);
+
+  return (
+    <>
+      {/* ---- Card 1: Attendance — identical to admin headerStrip ---- */}
+      <section className={styles.zAttCard}>
+        <div className={styles.zAttTitleRow}>
+          <h2 className={styles.zAttTitle}>Attendance · {monthLabel}</h2>
+          <div className={styles.zAttDate}>{dateLabel}</div>
+        </div>
+
+        <div className={styles.zAttStatRow}>
+          <ZAttItem label="Present"    value={present}  tone="green" />
+          <ZAttItem label="Late"       value={lateCnt}  tone="amber" />
+          <ZAttItem label="Absent"     value={absent}   tone="red"   />
+          <ZAttItem label="Leave"      value={leaveCnt} tone="amber" />
+          <ZAttItem label="Permission" value={permCnt}  tone="blue"  />
+          <div className={styles.zAttDivider} />
+          <ZAttItem label="Attendance" value={`${pct}%`} tone="slate" />
+          {workingDays > 0 && (
+            <ZAttItem label="Working days" value={workingDays} tone="slate" />
+          )}
+        </div>
+      </section>
+
+      {/* ---- Card 2: Leave & permissions — same headerStrip style ---- */}
+      <section className={styles.zAttCard}>
+        <div className={styles.zAttTitleRow}>
+          <h2 className={styles.zAttTitle}>
+            Leave & permissions · {today.getFullYear()}
+          </h2>
+          <div className={styles.zAttDate}>
+            {(leaveBalance && leaveBalance.YEAR) || today.getFullYear()} year
+          </div>
+        </div>
+
+        <div className={styles.zAttStatRow}>
+          <ZAttItem
+            label="Casual"
+            value={casual.remaining ?? 0}
+            sub={`of ${casual.total ?? 0} · used ${casual.used ?? 0}`}
+            tone="green"
+          />
+          <ZAttItem
+            label="Sick"
+            value={sick.remaining ?? 0}
+            sub={`of ${sick.total ?? 0} · used ${sick.used ?? 0}`}
+            tone="amber"
+          />
+          <ZAttItem
+            label="Earned"
+            value={earned.remaining ?? 0}
+            sub={`of ${earned.total ?? 0} · used ${earned.used ?? 0}`}
+            tone="blue"
+          />
+          <div className={styles.zAttDivider} />
+          <ZAttItem
+            label="Pending leave"
+            value={pendingLeave}
+            tone={pendingLeave > 0 ? "amber" : "slate"}
+          />
+          <ZAttItem
+            label="Pending permission"
+            value={pendingPerm}
+            tone={pendingPerm > 0 ? "amber" : "slate"}
+          />
+          <ZAttItem
+            label="Total taken"
+            value={usedLeave}
+            sub="this year"
+            tone="slate"
+          />
+        </div>
+      </section>
+    </>
+  );
+}
+
+
 function AttendanceSummaryCard({ attendance }) {
 
   const tiles = [
-    { key: "present",    label: "Present",    color: "#16a34a" },
-    { key: "absent",     label: "Absent",     color: "#dc2626" },
-    { key: "leave",      label: "Leave",      color: BVC.ACCENT },
+    { key: "present", label: "Present", color: "#16a34a" },
+    { key: "absent", label: "Absent", color: "#dc2626" },
+    { key: "leave", label: "Leave", color: BVC.ACCENT },
     { key: "permission", label: "Permission", color: "#0891b2" }
   ];
 
   const pct = Math.max(0, Math.min(100, Number(attendance?.percentage || 0)));
 
   return (
-    <section style={{ ...cardBase, padding: 18, marginBottom: 18 }}>
-      <div style={{ ...SECTION_LABEL, marginBottom: 12 }}>
+    <section className={styles.attendanceCard}>
+      <div className={styles.kpiSectionLabel} style={{ marginBottom: 12 }}>
         Attendance — this month
       </div>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr auto",
-          gap: 18,
-          alignItems: "center"
-        }}
-      >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-            gap: 10
-          }}
-        >
+      <div className={styles.attendanceLayout}>
+        <div className={styles.attendanceTileGrid}>
           {tiles.map((t) => (
             <div
               key={t.key}
-              style={{
-                border: "1px solid #f1f5f9",
-                borderLeft: `4px solid ${t.color}`,
-                borderRadius: 10,
-                padding: "12px 14px"
-              }}
+              className={styles.attendanceTile}
+              style={{ borderLeft: `4px solid ${t.color}` }}
             >
-              <div style={{ fontSize: 24, fontWeight: 900, color: t.color, lineHeight: 1.1 }}>
+              <div className={styles.attendanceTileNum} style={{ color: t.color }}>
                 {attendance?.[t.key] ?? 0}
               </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: BVC.MUTED,
-                  fontWeight: 700,
-                  letterSpacing: 0.5,
-                  textTransform: "uppercase"
-                }}
-              >
+              <div className={styles.attendanceTileLabel}>
                 {t.label}
               </div>
             </div>
           ))}
         </div>
 
-        <div
-          style={{
-            background: `linear-gradient(135deg, ${BVC.PRIMARY}, ${BVC.DEEPEST})`,
-            color: "#fff",
-            borderRadius: 12,
-            padding: "16px 22px",
-            textAlign: "center",
-            minWidth: 140,
-            boxShadow: "0 8px 22px rgba(200,16,46,0.25)"
-          }}
-        >
-          <div style={{ fontSize: 38, fontWeight: 900, lineHeight: 1 }}>
+        <div className={styles.attendancePctBox}>
+          <div className={styles.attendancePctNum}>
             {pct}%
           </div>
-          <div
-            style={{
-              ...SECTION_LABEL,
-              color: "#fff",
-              opacity: 0.85,
-              marginTop: 6
-            }}
-          >
+          <div className={styles.attendancePctLabel}>
             Monthly
           </div>
         </div>
@@ -1860,94 +3172,33 @@ function RewardsCard({ productivity }) {
       : { bg: "#e5e7eb", fg: "#475569" };
 
   return (
-    <section style={{ ...cardBase, padding: 18, marginBottom: 18 }}>
-      <div style={{ ...SECTION_LABEL, marginBottom: 12 }}>
+    <section className={styles.rewardsCard}>
+      <div className={styles.kpiSectionLabel} style={{ marginBottom: 12 }}>
         Rewards
       </div>
-      <div
-        style={{
-          display: "flex",
-          gap: 18,
-          alignItems: "center",
-          flexWrap: "wrap"
-        }}
-      >
-        <div
-          style={{
-            flex: 1,
-            minWidth: 200,
-            background: `linear-gradient(135deg, ${BVC.DEEPEST}, ${BVC.INK})`,
-            color: "#fff",
-            borderRadius: 12,
-            padding: "20px 22px"
-          }}
-        >
-          <div
-            style={{
-              ...SECTION_LABEL,
-              color: BVC.ACCENT,
-              opacity: 0.9
-            }}
-          >
+      <div className={styles.rewardsRow}>
+        <div className={styles.rewardPointsBox}>
+          <div className={styles.rewardPointsLabel}>
             Points Total
           </div>
-          <div style={{ fontSize: 44, fontWeight: 900, lineHeight: 1, marginTop: 6 }}>
+          <div className={styles.rewardPointsNum}>
             {points.toLocaleString()}
           </div>
         </div>
 
-        <div
-          style={{
-            flex: 1,
-            minWidth: 200,
-            border: `1px solid ${BVC.BORDER}`,
-            borderRadius: 12,
-            padding: "18px 22px",
-            background: "#fff"
-          }}
-        >
-          <div style={SECTION_LABEL}>Current Streak</div>
-          <div
-            style={{
-              fontSize: 30,
-              fontWeight: 900,
-              color: BVC.DARK,
-              marginTop: 4,
-              display: "flex",
-              alignItems: "center",
-              gap: 8
-            }}
-          >
+        <div className={styles.rewardStreakBox}>
+          <div className={styles.rewardStreakLabel}>Current Streak</div>
+          <div className={styles.rewardStreakNum}>
             {streak >= 5 && <span aria-hidden="true">🔥</span>}
             {streak} day{streak === 1 ? "" : "s"}
           </div>
         </div>
 
-        <div
-          style={{
-            flex: 1,
-            minWidth: 200,
-            border: `1px solid ${BVC.BORDER}`,
-            borderRadius: 12,
-            padding: "18px 22px",
-            background: "#fff",
-            textAlign: "center"
-          }}
-        >
-          <div style={SECTION_LABEL}>Badge</div>
+        <div className={styles.rewardBadgeBox}>
+          <div className={styles.rewardBadgeLabel}>Badge</div>
           <div
-            style={{
-              marginTop: 8,
-              display: "inline-block",
-              padding: "8px 16px",
-              borderRadius: 999,
-              background: badgeTheme.bg,
-              color: badgeTheme.fg,
-              fontSize: 13,
-              fontWeight: 800,
-              letterSpacing: 0.8,
-              textTransform: "uppercase"
-            }}
+            className={styles.rewardBadgePill}
+            style={{ background: badgeTheme.bg, color: badgeTheme.fg }}
           >
             {badge === "On Fire" ? "🔥 " : ""}{badge}
           </div>
@@ -1962,37 +3213,11 @@ function RewardsCard({ productivity }) {
 // SHARED — empty state, card base, topbar btn
 // =================================================================
 
-const cardBase = {
-  background: "#fff",
-  borderRadius: 12,
-  boxShadow: CARD_SHADOW,
-  padding: 16
-};
-
-const topbarBtn = {
-  background: "rgba(255,255,255,0.12)",
-  color: "#fff",
-  border: "1px solid rgba(255,255,255,0.2)",
-  padding: "6px 12px",
-  borderRadius: 8,
-  cursor: "pointer",
-  fontSize: 12,
-  fontWeight: 700
-};
+// cardBase and topbarBtn inline style objects removed — replaced by CSS module classes
 
 function EmptyState({ message }) {
   return (
-    <div
-      style={{
-        padding: "22px 16px",
-        textAlign: "center",
-        color: BVC.MUTED,
-        background: "#fafbff",
-        border: "1px dashed #e2e8f0",
-        borderRadius: 10,
-        fontSize: 13
-      }}
-    >
+    <div className={styles.emptyBox}>
       {message}
     </div>
   );
@@ -2008,21 +3233,12 @@ function LeavePermissionSection({
   onSubmitLeave, onSubmitPermission, onCancel
 }) {
   return (
-    <section
-      style={{
-        marginTop: 18,
-        background: `linear-gradient(135deg, ${BVC.TINT} 0%, #fff7ed 100%)`,
-        border: `1px solid ${BVC.BORDER}`,
-        borderRadius: 14,
-        padding: 18,
-        boxShadow: CARD_SHADOW
-      }}
-    >
-      <div style={{ marginBottom: 14 }}>
-        <div style={SECTION_LABEL}>
+    <section className={styles.leaveSection}>
+      <div className={styles.leaveSectionHeader}>
+        <div className={styles.kpiSectionLabel}>
           🌴 Leave &amp; Permission
         </div>
-        <div style={{ fontSize: 13, color: "#7c2d12", marginTop: 2 }}>
+        <div className={styles.leaveSectionNote}>
           Apply for leave or a short-duration permission. All requests are
           emailed to your manager for approval.
         </div>
@@ -2030,19 +3246,13 @@ function LeavePermissionSection({
 
       {balance && <InlineBalanceRow balance={balance} />}
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
-          gap: 16
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className={styles.leaveGrid}>
+        <div className={styles.leaveFormCol}>
           <InlineApplyLeaveForm onSubmit={onSubmitLeave} />
           <InlineApplyPermissionForm onSubmit={onSubmitPermission} />
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className={styles.leaveHistoryCol}>
           <LeaveHistoryList
             rows={leaveHistory.filter(
               (r) => (r.LEAVE_TYPE || "").toUpperCase() !== "PERMISSION"
@@ -2063,14 +3273,7 @@ function LeavePermissionSection({
 function InlineBalanceRow({ balance }) {
   const types = ["CASUAL", "SICK", "EARNED"];
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gap: 10,
-        marginBottom: 14
-      }}
-    >
+    <div className={styles.balanceGrid}>
       {types.map((t) => {
         const b = balance[t];
         if (!b) return null;
@@ -2078,30 +3281,19 @@ function InlineBalanceRow({ balance }) {
         return (
           <div
             key={t}
-            style={{
-              background: "white",
-              padding: 12,
-              borderRadius: 10,
-              border: `1px solid ${BVC.BORDER}`,
-              borderTop: `3px solid ${LEAVE_TYPE_THEMES[t]}`
-            }}
+            className={styles.balanceTile}
+            style={{ borderTop: `3px solid ${LEAVE_TYPE_THEMES[t]}` }}
           >
-            <div style={{
-              fontSize: 10, fontWeight: 700, letterSpacing: 0.8,
-              color: "#64748b", textTransform: "uppercase"
-            }}>
+            <div className={styles.balanceTileLabel}>
               {t} leave
             </div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: BVC.TEXT, marginTop: 2 }}>
+            <div className={styles.balanceTileNum}>
               {b.remaining}
-              <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>
+              <span className={styles.balanceTileSub}>
                 {" "}/ {b.total}d
               </span>
             </div>
-            <div style={{
-              height: 4, background: "#f1f5f9", borderRadius: 999,
-              marginTop: 6, overflow: "hidden"
-            }}>
+            <div className={styles.balanceProgressTrack}>
               <div style={{
                 height: "100%", width: `${pct}%`,
                 background: LEAVE_TYPE_THEMES[t], borderRadius: 999
@@ -2159,33 +3351,13 @@ function InlineApplyLeaveForm({ onSubmit }) {
   };
 
   return (
-    <form
-      onSubmit={submit}
-      style={{
-        background: "white",
-        border: `1px solid ${BVC.BORDER}`,
-        borderRadius: 12,
-        padding: 16,
-        boxShadow: CARD_SHADOW
-      }}
-    >
-      <div style={{
-        fontSize: 14, fontWeight: 800, color: BVC.DARK,
-        marginBottom: 12, display: "flex", alignItems: "center", gap: 8
-      }}>
-        <span style={{
-          background: BVC.PRIMARY, color: "white",
-          width: 24, height: 24, borderRadius: 6,
-          display: "inline-flex", alignItems: "center", justifyContent: "center",
-          fontSize: 13
-        }}>📅</span>
+    <form onSubmit={submit} className={styles.formCard}>
+      <div className={styles.formCardTitle}>
+        <span className={styles.formCardIconPrimary}>📅</span>
         Apply for Leave
       </div>
 
-      <div style={{
-        display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
-        gap: 8, marginBottom: 10
-      }}>
+      <div className={styles.formRow3}>
         <LabeledField label="Type">
           <select
             value={leaveType}
@@ -2224,10 +3396,7 @@ function InlineApplyLeaveForm({ onSubmit }) {
         </LabeledField>
       </div>
 
-      <label style={{
-        display: "inline-flex", alignItems: "center", gap: 6,
-        fontSize: 12, color: "#475569", marginBottom: 10, cursor: "pointer"
-      }}>
+      <label className={styles.halfDayLabel}>
         <input
           type="checkbox"
           checked={halfDay}
@@ -2249,40 +3418,14 @@ function InlineApplyLeaveForm({ onSubmit }) {
         />
       </LabeledField>
 
-      {err && (
-        <div style={{
-          background: "#fef2f2", border: "1px solid #fecaca",
-          color: "#b91c1c", padding: 8, borderRadius: 6,
-          fontSize: 12, marginTop: 8
-        }}>{err}</div>
-      )}
-
-      {ok && (
-        <div style={{
-          background: "#dcfce7", border: "1px solid #86efac",
-          color: "#166534", padding: 8, borderRadius: 6,
-          fontSize: 12, marginTop: 8
-        }}>{ok}</div>
-      )}
+      {err && <div className={styles.formErrorMsg}>{err}</div>}
+      {ok && <div className={styles.formSuccessMsg}>{ok}</div>}
 
       <button
         type="submit"
         disabled={busy}
-        style={{
-          marginTop: 12,
-          width: "100%",
-          border: "none",
-          background: busy
-            ? "#94a3b8"
-            : `linear-gradient(135deg, ${BVC.PRIMARY}, ${BVC.DARK})`,
-          color: "white",
-          padding: "10px 16px",
-          borderRadius: 8,
-          fontWeight: 800,
-          cursor: busy ? "not-allowed" : "pointer",
-          fontSize: 13,
-          boxShadow: "0 6px 14px rgba(200,16,46,0.25)"
-        }}
+        className={styles.formSubmitBtn}
+        style={{ background: busy ? "#94a3b8" : "#ef4444", cursor: busy ? "not-allowed" : "pointer" }}
       >
         {busy ? "Submitting…" : `📧 Submit Leave (${days || 0} day${days === 1 ? "" : "s"})`}
       </button>
@@ -2323,33 +3466,13 @@ function InlineApplyPermissionForm({ onSubmit }) {
   };
 
   return (
-    <form
-      onSubmit={submit}
-      style={{
-        background: "white",
-        border: `1px solid ${BVC.BORDER}`,
-        borderRadius: 12,
-        padding: 16,
-        boxShadow: CARD_SHADOW
-      }}
-    >
-      <div style={{
-        fontSize: 14, fontWeight: 800, color: BVC.DARK,
-        marginBottom: 12, display: "flex", alignItems: "center", gap: 8
-      }}>
-        <span style={{
-          background: BVC.ACCENT, color: BVC.DARK,
-          width: 24, height: 24, borderRadius: 6,
-          display: "inline-flex", alignItems: "center", justifyContent: "center",
-          fontSize: 13
-        }}>⏱</span>
+    <form onSubmit={submit} className={styles.formCard}>
+      <div className={styles.formCardTitle}>
+        <span className={styles.formCardIconAccent}>⏱</span>
         Apply for Permission (short hours)
       </div>
 
-      <div style={{
-        display: "grid", gridTemplateColumns: "2fr 1fr",
-        gap: 8, marginBottom: 10
-      }}>
+      <div className={styles.formRow2}>
         <LabeledField label="Start (date & time)">
           <input
             type="datetime-local"
@@ -2381,40 +3504,14 @@ function InlineApplyPermissionForm({ onSubmit }) {
         />
       </LabeledField>
 
-      {err && (
-        <div style={{
-          background: "#fef2f2", border: "1px solid #fecaca",
-          color: "#b91c1c", padding: 8, borderRadius: 6,
-          fontSize: 12, marginTop: 8
-        }}>{err}</div>
-      )}
-
-      {ok && (
-        <div style={{
-          background: "#dcfce7", border: "1px solid #86efac",
-          color: "#166534", padding: 8, borderRadius: 6,
-          fontSize: 12, marginTop: 8
-        }}>{ok}</div>
-      )}
+      {err && <div className={styles.formErrorMsg}>{err}</div>}
+      {ok && <div className={styles.formSuccessMsg}>{ok}</div>}
 
       <button
         type="submit"
         disabled={busy}
-        style={{
-          marginTop: 12,
-          width: "100%",
-          border: "none",
-          background: busy
-            ? "#94a3b8"
-            : `linear-gradient(135deg, ${BVC.ACCENT}, #d97706)`,
-          color: "white",
-          padding: "10px 16px",
-          borderRadius: 8,
-          fontWeight: 800,
-          cursor: busy ? "not-allowed" : "pointer",
-          fontSize: 13,
-          boxShadow: "0 6px 14px rgba(244,179,36,0.3)"
-        }}
+        className={styles.formSubmitBtn}
+        style={{ background: busy ? "#94a3b8" : BVC.ACCENT, cursor: busy ? "not-allowed" : "pointer" }}
       >
         {busy ? "Submitting…" : `⏱ Submit Permission (${Number(durationHours) || 0}h)`}
       </button>
@@ -2425,53 +3522,28 @@ function InlineApplyPermissionForm({ onSubmit }) {
 
 function LeaveHistoryList({ rows, onCancel }) {
   return (
-    <div style={{
-      background: "white",
-      border: `1px solid ${BVC.BORDER}`,
-      borderRadius: 12,
-      padding: 14,
-      boxShadow: CARD_SHADOW
-    }}>
-      <div style={{
-        fontSize: 13, fontWeight: 800, color: BVC.DARK,
-        marginBottom: 10, display: "flex", justifyContent: "space-between"
-      }}>
+    <div className={styles.historyCard}>
+      <div className={styles.historyCardTitle}>
         <span>📜 Leave History</span>
-        <span style={{
-          fontSize: 11, color: "#94a3b8", fontWeight: 600
-        }}>
+        <span className={styles.historyCardCount}>
           {rows.length} request{rows.length === 1 ? "" : "s"}
         </span>
       </div>
 
       {rows.length === 0 && (
-        <div style={{
-          fontSize: 12, color: "#94a3b8",
-          textAlign: "center", padding: 20
-        }}>
+        <div className={styles.historyEmpty}>
           No leave requests yet.
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className={styles.historyList}>
         {rows.map((r) => {
           const pill = LEAVE_STATUS_PILL[r.STATUS] || LEAVE_STATUS_PILL.PENDING_APPROVAL;
           const canCancel = r.STATUS === "PENDING_APPROVAL" || r.STATUS === "APPROVED";
           return (
-            <div
-              key={r.ID}
-              style={{
-                background: "#fafafa",
-                border: "1px solid #f1f5f9",
-                borderRadius: 8,
-                padding: "10px 12px"
-              }}
-            >
-              <div style={{
-                display: "flex", justifyContent: "space-between",
-                alignItems: "center", gap: 8, marginBottom: 4
-              }}>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div key={r.ID} className={styles.historyItem}>
+              <div className={styles.historyItemTopRow}>
+                <div className={styles.historyItemLeft}>
                   <span style={{
                     fontSize: 10,
                     fontWeight: 800,
@@ -2483,7 +3555,7 @@ function LeaveHistoryList({ rows, onCancel }) {
                   }}>
                     {r.LEAVE_TYPE}
                   </span>
-                  <span style={{ fontSize: 12, color: "#475569" }}>
+                  <span className={styles.historyItemMeta}>
                     {r.START_DATE}
                     {r.END_DATE !== r.START_DATE ? ` → ${r.END_DATE}` : ""}
                     {" · "}
@@ -2499,33 +3571,19 @@ function LeaveHistoryList({ rows, onCancel }) {
                 </span>
               </div>
               {r.REASON && (
-                <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
-                  {r.REASON}
-                </div>
+                <div className={styles.historyItemReason}>{r.REASON}</div>
               )}
               {r.REJECTION_REASON && (
-                <div style={{
-                  fontSize: 11, color: "#b91c1c",
-                  marginTop: 4, fontStyle: "italic"
-                }}>
+                <div className={styles.historyItemRejection}>
                   ⚠ {r.REJECTION_REASON}
                 </div>
               )}
               {canCancel && (
-                <div style={{ textAlign: "right", marginTop: 6 }}>
+                <div className={styles.historyItemCancelRow}>
                   <button
                     type="button"
                     onClick={() => onCancel(r.ID)}
-                    style={{
-                      border: `1px solid ${BVC.BORDER}`,
-                      background: "white",
-                      color: BVC.DARK,
-                      padding: "3px 10px",
-                      borderRadius: 6,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      cursor: "pointer"
-                    }}
+                    className={styles.historyItemCancelBtn}
                   >
                     Cancel request
                   </button>
@@ -2542,54 +3600,29 @@ function LeaveHistoryList({ rows, onCancel }) {
 
 function PermissionHistoryList({ rows, onCancel }) {
   return (
-    <div style={{
-      background: "white",
-      border: `1px solid ${BVC.BORDER}`,
-      borderRadius: 12,
-      padding: 14,
-      boxShadow: CARD_SHADOW
-    }}>
-      <div style={{
-        fontSize: 13, fontWeight: 800, color: BVC.DARK,
-        marginBottom: 10, display: "flex", justifyContent: "space-between"
-      }}>
+    <div className={styles.historyCard}>
+      <div className={styles.historyCardTitle}>
         <span>⏱ Permission History</span>
-        <span style={{
-          fontSize: 11, color: "#94a3b8", fontWeight: 600
-        }}>
+        <span className={styles.historyCardCount}>
           {rows.length} request{rows.length === 1 ? "" : "s"}
         </span>
       </div>
 
       {rows.length === 0 && (
-        <div style={{
-          fontSize: 12, color: "#94a3b8",
-          textAlign: "center", padding: 20
-        }}>
+        <div className={styles.historyEmpty}>
           No permission requests yet.
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div className={styles.historyList}>
         {rows.map((r) => {
           const pill = LEAVE_STATUS_PILL[r.STATUS] || LEAVE_STATUS_PILL.PENDING_APPROVAL;
           const canCancel = r.STATUS === "PENDING_APPROVAL" || r.STATUS === "APPROVED";
           const startLabel = r.START_TIME ? fmtDateTime(r.START_TIME) : (r.START_DATE || "—");
           return (
-            <div
-              key={r.ID}
-              style={{
-                background: "#fafafa",
-                border: "1px solid #f1f5f9",
-                borderRadius: 8,
-                padding: "10px 12px"
-              }}
-            >
-              <div style={{
-                display: "flex", justifyContent: "space-between",
-                alignItems: "center", gap: 8, marginBottom: 4
-              }}>
-                <div style={{ fontSize: 12, color: "#475569" }}>
+            <div key={r.ID} className={styles.historyItem}>
+              <div className={styles.historyItemTopRow}>
+                <div className={styles.historyItemMeta}>
                   🕒 <strong>{startLabel}</strong>
                   {" · "}
                   <span style={{ color: BVC.DARK, fontWeight: 700 }}>
@@ -2605,33 +3638,19 @@ function PermissionHistoryList({ rows, onCancel }) {
                 </span>
               </div>
               {r.REASON && (
-                <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
-                  {r.REASON}
-                </div>
+                <div className={styles.historyItemReason}>{r.REASON}</div>
               )}
               {r.REJECTION_REASON && (
-                <div style={{
-                  fontSize: 11, color: "#b91c1c",
-                  marginTop: 4, fontStyle: "italic"
-                }}>
+                <div className={styles.historyItemRejection}>
                   ⚠ {r.REJECTION_REASON}
                 </div>
               )}
               {canCancel && (
-                <div style={{ textAlign: "right", marginTop: 6 }}>
+                <div className={styles.historyItemCancelRow}>
                   <button
                     type="button"
                     onClick={() => onCancel(r.ID)}
-                    style={{
-                      border: `1px solid ${BVC.BORDER}`,
-                      background: "white",
-                      color: BVC.DARK,
-                      padding: "3px 10px",
-                      borderRadius: 6,
-                      fontSize: 11,
-                      fontWeight: 700,
-                      cursor: "pointer"
-                    }}
+                    className={styles.historyItemCancelBtn}
                   >
                     Cancel request
                   </button>
@@ -2663,12 +3682,7 @@ const inputStyle = {
 function LabeledField({ label, children }) {
   return (
     <div>
-      <label style={{
-        fontSize: 10, color: "#64748b",
-        display: "block", marginBottom: 4,
-        fontWeight: 700, letterSpacing: 0.5,
-        textTransform: "uppercase"
-      }}>
+      <label className={styles.fieldLabel}>
         {label}
       </label>
       {children}
@@ -2697,23 +3711,13 @@ function ProductionStagesSection({ stages, busyMap, onUpdate }) {
   };
 
   return (
-    <div style={{
-      background: `linear-gradient(135deg, ${BVC.TINT} 0%, #fff7ed 100%)`,
-      border: `1px solid ${BVC.BORDER}`,
-      borderRadius: 14,
-      padding: 18,
-      marginBottom: 18,
-      boxShadow: CARD_SHADOW
-    }}>
-      <div style={{
-        display: "flex", justifyContent: "space-between",
-        alignItems: "center", marginBottom: 12
-      }}>
+    <div className={styles.productionSection}>
+      <div className={styles.productionHeader}>
         <div>
-          <div style={SECTION_LABEL}>
+          <div className={styles.kpiSectionLabel}>
             🏭 Production Stages ({stages.length})
           </div>
-          <div style={{ fontSize: 13, color: "#7c2d12", marginTop: 2 }}>
+          <div className={styles.productionNote}>
             Work-Order tasks assigned to you. Tap <b>Start</b> when you
             begin and <b>Complete</b> when done — production tracking
             updates automatically.
@@ -2721,11 +3725,7 @@ function ProductionStagesSection({ stages, busyMap, onUpdate }) {
         </div>
       </div>
 
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-        gap: 12
-      }}>
+      <div className={styles.productionGrid}>
         {stages.map((s) => {
           const key = `${s.WORK_ORDER_ID}-${s.STAGE_ID}`;
           const busy = busyMap?.[key];
@@ -2734,41 +3734,26 @@ function ProductionStagesSection({ stages, busyMap, onUpdate }) {
           return (
             <div
               key={key}
+              className={styles.stageCard}
               style={{
-                background: "white",
-                borderRadius: 12,
-                padding: 14,
-                border: `1.5px solid ${inProgress ? "#f59e0b" : BVC.BORDER}`,
+                border: `1.5px solid ${inProgress ? "#f59e0b" : "#fecaca"}`,
                 boxShadow: inProgress
                   ? "0 6px 18px rgba(245,158,11,0.18)"
-                  : CARD_SHADOW
+                  : "0 4px 12px rgba(0,0,0,0.06)"
               }}
             >
-              <div style={{
-                display: "flex", gap: 8,
-                alignItems: "center", marginBottom: 8
-              }}>
-                <div style={{
-                  width: 28, height: 28, borderRadius: "50%",
-                  background: `${typeColor}22`,
-                  color: typeColor,
-                  fontSize: 12, fontWeight: 800,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontFamily: "ui-monospace, monospace"
-                }}>
+              <div className={styles.stageCardTop}>
+                <div
+                  className={styles.stageSeqBadge}
+                  style={{ background: `${typeColor}22`, color: typeColor }}
+                >
                   {s.SEQUENCE}
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    fontSize: 14, fontWeight: 800, color: "#0f172a",
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
-                  }}>
+                <div className={styles.stageCardMeta}>
+                  <div className={styles.stageName}>
                     {s.STAGE_NAME}
                   </div>
-                  <div style={{
-                    fontSize: 10, color: typeColor,
-                    fontWeight: 700, letterSpacing: 0.5
-                  }}>
+                  <div className={styles.stageType} style={{ color: typeColor }}>
                     {s.STAGE_TYPE} · {s.ESTIMATED_HOURS}h
                   </div>
                 </div>
@@ -2782,30 +3767,26 @@ function ProductionStagesSection({ stages, busyMap, onUpdate }) {
                 </span>
               </div>
 
-              <div style={{
-                fontSize: 11, color: "#475569", lineHeight: 1.5,
-                padding: "8px 10px", background: "#f8fafc",
-                borderRadius: 8, marginBottom: 10
-              }}>
+              <div className={styles.stageInfo}>
                 <div>
                   📦 <b>{s.PRODUCT_NAME || "—"}</b>
                   {s.QUANTITY ? ` × ${s.QUANTITY}` : ""}
                 </div>
                 {s.CUSTOMER_NAME && <div>👤 {s.CUSTOMER_NAME}</div>}
-                <div style={{ color: "#94a3b8", fontSize: 10, marginTop: 2 }}>
+                <div className={styles.stageInfoSub}>
                   {s.WO_NUMBER}
                   {s.PROJECT_NAME ? ` · ${s.PROJECT_NAME}` : ""}
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: 8 }}>
+              <div className={styles.stageActions}>
                 {s.STATUS === "PENDING" && (
                   <button
                     disabled={busy}
                     onClick={() => onUpdate(s, "IN_PROGRESS")}
                     style={{
                       flex: 1, padding: "9px 12px",
-                      background: "linear-gradient(135deg, #f59e0b, #d97706)",
+                      background: "#f59e0b",
                       color: "white", border: "none", borderRadius: 8,
                       fontWeight: 800, fontSize: 12,
                       cursor: busy ? "wait" : "pointer",
@@ -2822,7 +3803,7 @@ function ProductionStagesSection({ stages, busyMap, onUpdate }) {
                     onClick={() => onUpdate(s, "DONE")}
                     style={{
                       flex: 1, padding: "9px 12px",
-                      background: "linear-gradient(135deg, #16a34a, #15803d)",
+                      background: "#16a34a",
                       color: "white", border: "none", borderRadius: 8,
                       fontWeight: 800, fontSize: 12,
                       cursor: busy ? "wait" : "pointer",
@@ -2907,14 +3888,14 @@ function MyMemosCard({ employeeId }) {
 
     load();
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employeeId]);
 
   const filtered = memos.filter((m) => {
 
-    if (filter === "PENDING")      return !m.ACKNOWLEDGED_BY_EMPLOYEE;
+    if (filter === "PENDING") return !m.ACKNOWLEDGED_BY_EMPLOYEE;
 
-    if (filter === "ACKNOWLEDGED") return  m.ACKNOWLEDGED_BY_EMPLOYEE;
+    if (filter === "ACKNOWLEDGED") return m.ACKNOWLEDGED_BY_EMPLOYEE;
 
     return true;
   });
@@ -2922,9 +3903,9 @@ function MyMemosCard({ employeeId }) {
   const visible = showAll ? filtered : filtered.slice(0, 5);
 
   const counts = {
-    total:        memos.length,
-    pendingAck:   memos.filter((m) => !m.ACKNOWLEDGED_BY_EMPLOYEE).length,
-    warnings:     memos.filter((m) => m.MEMO_TYPE === "WARNING").length,
+    total: memos.length,
+    pendingAck: memos.filter((m) => !m.ACKNOWLEDGED_BY_EMPLOYEE).length,
+    warnings: memos.filter((m) => m.MEMO_TYPE === "WARNING").length,
     appreciations: memos.filter((m) =>
       m.MEMO_TYPE === "APPRECIATION" || m.MEMO_TYPE === "PERFORMANCE_RECOGNITION"
     ).length
@@ -2956,54 +3937,35 @@ function MyMemosCard({ employeeId }) {
 
   return (
 
-    <section style={{ ...cardBase, padding: 18, marginBottom: 18 }}>
+    <section className={styles.memosCard}>
 
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "flex-start",
-        marginBottom: 12,
-        gap: 12,
-        flexWrap: "wrap"
-      }}>
+      <div className={styles.memosHeader}>
         <div>
-          <div style={{ ...SECTION_LABEL }}>📋 My Memos</div>
-          <div style={{ fontSize: 12, color: BVC.MUTED, marginTop: 2 }}>
+          <div className={styles.memosTitle}>📋 My Memos</div>
+          <div className={styles.memosTitleNote}>
             Official records issued to you by HR / Management.
           </div>
         </div>
 
         {memos.length > 0 && (
-
-          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-            <MiniStat label="Total"        value={counts.total}        color={BVC.INK} />
-            <MiniStat label="To Ack"       value={counts.pendingAck}   color="#f59e0b" />
-            <MiniStat label="Warnings"     value={counts.warnings}     color="#dc2626" />
-            <MiniStat label="Appreciations"value={counts.appreciations}color="#16a34a" />
+          <div className={styles.memosStats}>
+            <MiniStat label="Total" value={counts.total} color={BVC.INK} />
+            <MiniStat label="To Ack" value={counts.pendingAck} color="#f59e0b" />
+            <MiniStat label="Warnings" value={counts.warnings} color="#dc2626" />
+            <MiniStat label="Appreciations" value={counts.appreciations} color="#16a34a" />
           </div>
         )}
       </div>
 
       {/* Pending Ack callout */}
       {counts.pendingAck > 0 && filter === "ALL" && (
-
         <div
           onClick={() => setFilter("PENDING")}
-          style={{
-            background: "#fff7ed",
-            border: "1px solid #fed7aa",
-            borderRadius: 10,
-            padding: "10px 14px",
-            marginBottom: 12,
-            fontSize: 13,
-            color: "#9a3412",
-            cursor: "pointer",
-            fontWeight: 700
-          }}
+          className={styles.memosPendingBanner}
         >
           ⏳ You have <strong>{counts.pendingAck}</strong> memo
           {counts.pendingAck !== 1 ? "s" : ""} waiting for your acknowledgement.
-          <span style={{ marginLeft: 6, color: "#c2410c", textDecoration: "underline" }}>
+          <span className={styles.memosPendingBannerLink}>
             Show only those →
           </span>
         </div>
@@ -3011,21 +3973,19 @@ function MyMemosCard({ employeeId }) {
 
       {/* Filter chips */}
       {memos.length > 0 && (
-
-        <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+        <div className={styles.memosFilterRow}>
           {[
-            { key: "ALL",          label: "All" },
-            { key: "PENDING",      label: `Pending (${counts.pendingAck})` },
+            { key: "ALL", label: "All" },
+            { key: "PENDING", label: `Pending (${counts.pendingAck})` },
             { key: "ACKNOWLEDGED", label: `Acknowledged (${counts.total - counts.pendingAck})` }
           ].map((c) => (
-
             <button
               key={c.key}
               onClick={() => setFilter(c.key)}
               style={{
                 background: filter === c.key ? BVC.PRIMARY : "white",
-                color:      filter === c.key ? "white" : BVC.TEXT,
-                border:    `1px solid ${filter === c.key ? BVC.PRIMARY : "#e2e8f0"}`,
+                color: filter === c.key ? "white" : BVC.TEXT,
+                border: `1px solid ${filter === c.key ? BVC.PRIMARY : "#e2e8f0"}`,
                 padding: "5px 12px",
                 borderRadius: 6,
                 fontSize: 11,
@@ -3042,17 +4002,13 @@ function MyMemosCard({ employeeId }) {
 
       {/* Loading / empty / error states */}
       {loading && (
-        <div style={{ padding: 20, color: BVC.MUTED, fontSize: 13 }}>
+        <div className={styles.memosLoading}>
           Loading memos…
         </div>
       )}
 
       {error && (
-        <div style={{
-          padding: "10px 14px", background: "#fef2f2",
-          border: "1px solid #fecaca", borderRadius: 8,
-          color: "#991b1b", fontSize: 13
-        }}>
+        <div className={styles.memosError}>
           {error}
         </div>
       )}
@@ -3062,17 +4018,14 @@ function MyMemosCard({ employeeId }) {
       )}
 
       {!loading && !error && filtered.length === 0 && memos.length > 0 && (
-        <div style={{
-          padding: 24, textAlign: "center", color: BVC.MUTED, fontSize: 13
-        }}>
+        <div className={styles.memosFilterEmpty}>
           No memos match this filter.
         </div>
       )}
 
       {/* Memo list */}
       {!loading && visible.length > 0 && (
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div className={styles.memosList}>
           {visible.map((m) => (
             <MemoRow key={m.ID} memo={m} onOpen={() => setOpenMemo(m)} />
           ))}
@@ -3080,14 +4033,10 @@ function MyMemosCard({ employeeId }) {
       )}
 
       {filtered.length > 5 && !showAll && (
-        <div style={{ marginTop: 10, textAlign: "center" }}>
+        <div className={styles.memosShowAllRow}>
           <button
             onClick={() => setShowAll(true)}
-            style={{
-              background: "white", border: `1px solid ${BVC.BORDER}`,
-              color: BVC.DARK, padding: "6px 14px", borderRadius: 6,
-              fontSize: 12, fontWeight: 700, cursor: "pointer"
-            }}
+            className={styles.memosShowAllBtn}
           >
             Show all {filtered.length} memos →
           </button>
@@ -3111,16 +4060,11 @@ function MyMemosCard({ employeeId }) {
 function MiniStat({ label, value, color }) {
 
   return (
-    <div style={{ textAlign: "center" }}>
-      <div style={{
-        fontSize: 9, fontWeight: 800, letterSpacing: 0.8, color: BVC.MUTED,
-        textTransform: "uppercase"
-      }}>
+    <div className={styles.miniStatBox}>
+      <div className={styles.miniStatLabel}>
         {label}
       </div>
-      <div style={{
-        fontSize: 20, fontWeight: 800, color, letterSpacing: -0.3, marginTop: 1
-      }}>
+      <div className={styles.miniStatNum} style={{ color }}>
         {value}
       </div>
     </div>
@@ -3129,20 +4073,20 @@ function MiniStat({ label, value, color }) {
 
 
 const MEMO_TYPE_THEME = {
-  WARNING:                { emoji: "⚠️", color: "#dc2626", bg: "#fef2f2", label: "Warning" },
-  APPRECIATION:           { emoji: "👏", color: "#16a34a", bg: "#dcfce7", label: "Appreciation" },
-  DISCIPLINARY:           { emoji: "🚫", color: "#991b1b", bg: "#fee2e2", label: "Disciplinary" },
-  INFORMATION:            { emoji: "ℹ️", color: "#2563eb", bg: "#dbeafe", label: "Information" },
-  CUSTOMER_COMPLAINT:     { emoji: "📨", color: "#ea580c", bg: "#fff7ed", label: "Customer Complaint" },
-  PERFORMANCE_RECOGNITION:{ emoji: "🏆", color: "#0d9488", bg: "#ccfbf1", label: "Recognition" },
-  SHOW_CAUSE_NOTICE:      { emoji: "📜", color: "#7c2d12", bg: "#fef3c7", label: "Show Cause" }
+  WARNING: { emoji: "⚠️", color: "#dc2626", bg: "#fef2f2", label: "Warning" },
+  APPRECIATION: { emoji: "👏", color: "#16a34a", bg: "#dcfce7", label: "Appreciation" },
+  DISCIPLINARY: { emoji: "🚫", color: "#991b1b", bg: "#fee2e2", label: "Disciplinary" },
+  INFORMATION: { emoji: "ℹ️", color: "#2563eb", bg: "#dbeafe", label: "Information" },
+  CUSTOMER_COMPLAINT: { emoji: "📨", color: "#ea580c", bg: "#fff7ed", label: "Customer Complaint" },
+  PERFORMANCE_RECOGNITION: { emoji: "🏆", color: "#0d9488", bg: "#ccfbf1", label: "Recognition" },
+  SHOW_CAUSE_NOTICE: { emoji: "📜", color: "#7c2d12", bg: "#fef3c7", label: "Show Cause" }
 };
 
 
 const MEMO_SEV_THEME = {
-  LOW:      { color: "#10b981", bg: "#dcfce7" },
-  MEDIUM:   { color: "#f59e0b", bg: "#fef3c7" },
-  HIGH:     { color: "#ef4444", bg: "#fee2e2" },
+  LOW: { color: "#10b981", bg: "#dcfce7" },
+  MEDIUM: { color: "#f59e0b", bg: "#fef3c7" },
+  HIGH: { color: "#ef4444", bg: "#fee2e2" },
   CRITICAL: { color: "#7c2d12", bg: "#fef2f2" }
 };
 
@@ -3151,47 +4095,34 @@ function MemoRow({ memo, onOpen }) {
 
   const tt = MEMO_TYPE_THEME[memo.MEMO_TYPE] || MEMO_TYPE_THEME.INFORMATION;
 
-  const st = MEMO_SEV_THEME[memo.SEVERITY]   || MEMO_SEV_THEME.LOW;
+  const st = MEMO_SEV_THEME[memo.SEVERITY] || MEMO_SEV_THEME.LOW;
 
   return (
     <div
       onClick={onOpen}
+      className={styles.memoRow}
       style={{
-        display: "grid",
-        gridTemplateColumns: "auto 1fr auto auto",
-        gap: 12,
-        alignItems: "center",
-        padding: "12px 14px",
         border: `1px solid ${memo.ACKNOWLEDGED_BY_EMPLOYEE ? "#e2e8f0" : tt.color + "55"}`,
-        borderRadius: 10,
-        background: memo.ACKNOWLEDGED_BY_EMPLOYEE ? "white" : tt.bg + "55",
-        cursor: "pointer",
-        transition: "all 0.15s"
+        background: memo.ACKNOWLEDGED_BY_EMPLOYEE ? "white" : tt.bg + "55"
       }}
       onMouseEnter={(e) => e.currentTarget.style.boxShadow = "0 4px 12px rgba(15,23,42,0.08)"}
       onMouseLeave={(e) => e.currentTarget.style.boxShadow = "none"}
     >
       {/* Type emoji avatar */}
-      <div style={{
-        width: 40, height: 40, borderRadius: 10,
-        background: tt.color + "22",
-        color: tt.color,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 18
-      }}>
+      <div
+        className={styles.memoRowTypeAvatar}
+        style={{ background: tt.color + "22", color: tt.color }}
+      >
         {tt.emoji}
       </div>
 
       {/* Subject + meta */}
-      <div style={{ minWidth: 0 }}>
-        <div style={{
-          fontSize: 13, fontWeight: 700, color: BVC.INK, marginBottom: 2,
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
-        }}>
+      <div className={styles.memoRowContent}>
+        <div className={styles.memoRowSubject}>
           {memo.SUBJECT}
         </div>
-        <div style={{ fontSize: 11, color: BVC.MUTED, display: "flex", gap: 10 }}>
-          <span style={{ fontFamily: "ui-monospace, monospace", fontWeight: 700, color: "#475569" }}>
+        <div className={styles.memoRowMetaRow}>
+          <span className={styles.memoRowNumber}>
             {memo.MEMO_NUMBER}
           </span>
           <span>·</span>
@@ -3206,7 +4137,7 @@ function MemoRow({ memo, onOpen }) {
       </div>
 
       {/* Type + Severity pills */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
+      <div className={styles.memoRowPills}>
         <span style={{
           background: tt.bg, color: tt.color, padding: "2px 8px",
           borderRadius: 999, fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
@@ -3223,15 +4154,148 @@ function MemoRow({ memo, onOpen }) {
       </div>
 
       {/* Ack badge */}
-      <div style={{
-        width: 90, textAlign: "right", fontSize: 11, fontWeight: 800
-      }}>
+      <div className={styles.memoRowAckCol}>
         {memo.ACKNOWLEDGED_BY_EMPLOYEE
-          ? <span style={{ color: "#16a34a" }}>✓ Acknowledged</span>
-          : <span style={{ color: "#f59e0b" }}>○ Pending</span>}
+          ? <span className={styles.memoAckGreen}>✓ Acknowledged</span>
+          : <span className={styles.memoAckAmber}>○ Pending</span>}
       </div>
     </div>
   );
+}
+
+
+// ---------------------------------------------------------------------
+// Memo → printable PDF.
+//
+// No PDF library in the project — the established pattern (see the
+// *Print.jsx pages) is to render a print-styled document and let the
+// browser "Save as PDF". We open a standalone window, write a formatted
+// memo (BVC header + type ribbon + details + the attached image), and
+// auto-trigger print once every image has loaded.
+//
+// Attachments are served by the BACKEND as relative /static/* paths, so
+// they're resolved against API_BASE_URL (the frontend logo lives on the
+// app origin instead).
+// ---------------------------------------------------------------------
+function resolveMemoAsset(url) {
+  if (!url) return "";
+  if (/^https?:\/\//i.test(url)) return url;
+  return `${API_BASE_URL}${url.startsWith("/") ? "" : "/"}${url}`;
+}
+
+function memoAttachmentIsImage(memo) {
+  const name = (memo.ATTACHMENT_NAME || memo.ATTACHMENT_URL || "").toLowerCase();
+  return /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/.test(name);
+}
+
+function downloadMemoPdf(memo) {
+
+  const tt = MEMO_TYPE_THEME[memo.MEMO_TYPE] || MEMO_TYPE_THEME.INFORMATION;
+
+  const logoUrl = `${window.location.origin}/logo.webp`;
+
+  const attUrl = resolveMemoAsset(memo.ATTACHMENT_URL);
+
+  const showImage = !!attUrl && memoAttachmentIsImage(memo);
+
+  const esc = (s) =>
+    String(s ?? "").replace(/[&<>"]/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])
+    );
+
+  const ackLine =
+    memo.ACKNOWLEDGED_BY_EMPLOYEE && memo.ACKNOWLEDGED_DATE
+      ? `Acknowledged by employee on ${new Date(memo.ACKNOWLEDGED_DATE).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}`
+      : `Status: ${esc(memo.STATUS || "—")}`;
+
+  const generatedOn = new Date().toLocaleDateString("en-IN", { dateStyle: "medium" });
+
+  const html = `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>${esc(memo.MEMO_NUMBER || "Memo")}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", "Segoe UI Bold Italic", system-ui, -apple-system, Roboto, sans-serif; font-weight: 700; font-style: italic; color: #1f2933; }
+  .page { width: 800px; margin: 0 auto; padding: 48px 56px; }
+  .memono { float: right; margin-top: 30px; font-family: ui-monospace, monospace; font-weight: 700; font-size: 13px; color: ${tt.color}; }
+  .top { display: flex; align-items: center; gap: 16px; border-bottom: 3px solid ${tt.color}; padding-bottom: 18px; }
+  .top img { width: 60px; height: 60px; object-fit: contain; }
+  .org { font-size: 22px; font-weight: 800; color: #0f172a; line-height: 1.2; }
+  .org small { display: block; font-size: 11px; font-weight: 600; color: #64748b; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+  .ribbon { display: inline-block; margin: 26px 0 14px; padding: 8px 20px; border-radius: 999px; background: ${tt.color}; color: #fff; font-weight: 800; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; }
+  .subject { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 6px; }
+  .meta { font-size: 13px; color: #64748b; margin-bottom: 22px; line-height: 1.7; }
+  .meta b { color: #334155; }
+  .desc { padding: 18px 20px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; font-size: 14px; line-height: 1.7; white-space: pre-wrap; }
+  .imgwrap { margin-top: 24px; text-align: center; }
+  .imgwrap img { max-width: 100%; max-height: 540px; border: 1px solid #e2e8f0; border-radius: 10px; }
+  .imgcap { margin-top: 6px; font-size: 11px; color: #94a3b8; }
+  .foot { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 12px; color: #64748b; }
+  @page { margin: 14mm; }
+  @media print { .page { width: auto; padding: 0; } }
+</style>
+</head>
+<body>
+  <div class="page">
+    <div class="memono">${esc(memo.MEMO_NUMBER || "")}</div>
+
+    <div class="top">
+      <img src="${logoUrl}" alt="" onerror="this.style.display='none'" />
+      <div class="org">Bharath Vending Corporation<small>Employee Memo</small></div>
+    </div>
+
+    <div class="ribbon">${esc(tt.emoji)} ${esc(tt.label)}</div>
+
+    <div class="subject">${esc(memo.SUBJECT || "")}</div>
+
+    <div class="meta">
+      Issued to <b>${esc(memo.EMPLOYEE_NAME || "—")}</b>${memo.EMPLOYEE_CODE ? ` (${esc(memo.EMPLOYEE_CODE)})` : ""}
+      &nbsp;·&nbsp; Date: <b>${esc(memo.ISSUE_DATE || "—")}</b>
+      ${memo.ISSUED_BY ? `&nbsp;·&nbsp; Issued by: <b>${esc(memo.ISSUED_BY)}</b>` : ""}
+      &nbsp;·&nbsp; Severity: <b>${esc(memo.SEVERITY || "—")}</b>
+    </div>
+
+    ${memo.DESCRIPTION ? `<div class="desc">${esc(memo.DESCRIPTION)}</div>` : ""}
+
+    ${showImage ? `<div class="imgwrap"><img src="${attUrl}" onerror="this.parentNode.style.display='none'" /><div class="imgcap">${esc(memo.ATTACHMENT_NAME || "Attachment")}</div></div>` : ""}
+
+    <div class="foot">
+      <span>${esc(ackLine)}</span>
+      <span>Generated ${esc(generatedOn)}</span>
+    </div>
+  </div>
+
+  <script>
+    window.onload = function () {
+      var imgs = document.images, total = imgs.length, done = 0;
+      var go = function () { try { window.focus(); window.print(); } catch (e) {} };
+      if (!total) { setTimeout(go, 200); return; }
+      var tick = function () { if (++done >= total) setTimeout(go, 150); };
+      for (var i = 0; i < total; i++) {
+        if (imgs[i].complete) tick();
+        else { imgs[i].addEventListener('load', tick); imgs[i].addEventListener('error', tick); }
+      }
+      setTimeout(go, 3000); // hard fallback if an image never settles
+    };
+  <\/script>
+</body>
+</html>`;
+
+  const win = window.open("", "_blank", "width=900,height=1000");
+
+  if (!win) {
+    alert("Please allow pop-ups for this site to download the memo PDF.");
+    return;
+  }
+
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
 }
 
 
@@ -3239,65 +4303,38 @@ function MyMemoDetail({ memo, onClose, onAcknowledge, ackBusy }) {
 
   const tt = MEMO_TYPE_THEME[memo.MEMO_TYPE] || MEMO_TYPE_THEME.INFORMATION;
 
-  const st = MEMO_SEV_THEME[memo.SEVERITY]   || MEMO_SEV_THEME.LOW;
+  const st = MEMO_SEV_THEME[memo.SEVERITY] || MEMO_SEV_THEME.LOW;
 
   return (
 
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed", inset: 0,
-        background: "rgba(15,23,42,0.55)",
-        zIndex: 1100,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 20
-      }}
-    >
+    <div onClick={onClose} className={styles.modalOverlay}>
       <div
         onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "white",
-          borderRadius: 14,
-          width: "min(620px, 100%)",
-          maxHeight: "88vh",
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
-          boxShadow: "0 30px 80px rgba(0,0,0,0.3)"
-        }}
+        className={styles.modalPanel}
       >
 
         {/* Header */}
-        <div style={{
-          padding: "18px 24px",
-          background: `linear-gradient(135deg, ${tt.color}, ${tt.color}dd)`,
-          color: "white"
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div className={styles.modalHeaderBar} style={{ background: tt.color }}>
+          <div className={styles.modalHeaderTopRow}>
             <div>
-              <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.6, opacity: 0.85, textTransform: "uppercase" }}>
+              <div className={styles.modalHeaderNumber}>
                 {memo.MEMO_NUMBER}
               </div>
-              <div style={{ fontSize: 18, fontWeight: 800, marginTop: 4, letterSpacing: -0.2 }}>
+              <div className={styles.modalHeaderType}>
                 {tt.emoji} {tt.label}
               </div>
-              <div style={{ fontSize: 12, opacity: 0.92, marginTop: 4 }}>
+              <div className={styles.modalHeaderIssuedBy}>
                 Issued {memo.ISSUE_DATE || "—"}{memo.ISSUED_BY ? ` · by ${memo.ISSUED_BY}` : ""}
               </div>
             </div>
-            <button onClick={onClose} style={{
-              background: "rgba(255,255,255,0.2)", color: "white", border: "none",
-              padding: "4px 12px", borderRadius: 6, fontSize: 18, cursor: "pointer"
-            }}>×</button>
+            <button onClick={onClose} className={styles.modalCloseX}>×</button>
           </div>
         </div>
 
         {/* Body */}
-        <div style={{ flex: 1, overflowY: "auto", padding: 22 }}>
+        <div className={styles.modalBody}>
 
-          <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+          <div className={styles.modalPillRow}>
             <span style={{
               background: st.bg, color: st.color, padding: "3px 10px",
               borderRadius: 999, fontSize: 10, fontWeight: 800, letterSpacing: 0.6,
@@ -3323,68 +4360,54 @@ function MyMemoDetail({ memo, onClose, onAcknowledge, ackBusy }) {
             )}
           </div>
 
-          <div style={{ fontSize: 17, fontWeight: 800, color: BVC.INK, marginBottom: 12, letterSpacing: -0.2 }}>
+          <div className={styles.modalSubject}>
             {memo.SUBJECT}
           </div>
 
           {memo.DESCRIPTION && (
-            <div style={{
-              padding: 14, background: "#f8fafc", border: "1px solid #e2e8f0",
-              borderRadius: 10, fontSize: 13, color: "#334155",
-              whiteSpace: "pre-wrap", lineHeight: 1.6, marginBottom: 14
-            }}>
+            <div className={styles.modalDescBox}>
               {memo.DESCRIPTION}
             </div>
           )}
 
           {memo.ATTACHMENT_URL && (
-            <div style={{ marginBottom: 14 }}>
-              <a href={memo.ATTACHMENT_URL} target="_blank" rel="noreferrer"
-                 style={{
-                   display: "inline-flex", alignItems: "center", gap: 6,
-                   color: "#2563eb", fontWeight: 700, textDecoration: "none",
-                   padding: "8px 12px", border: "1px solid #bfdbfe",
-                   borderRadius: 8, background: "#eff6ff", fontSize: 12
-                 }}>
+            <div className={styles.modalAttachRow}>
+              <a href={resolveMemoAsset(memo.ATTACHMENT_URL)} target="_blank" rel="noreferrer"
+                className={styles.modalAttachLink}>
                 📎 {memo.ATTACHMENT_NAME || "Download attachment"}
               </a>
             </div>
           )}
 
           {memo.ACKNOWLEDGED_BY_EMPLOYEE && memo.ACKNOWLEDGED_DATE && (
-            <div style={{
-              fontSize: 11, color: "#15803d", padding: "8px 12px",
-              background: "#f0fdf4", border: "1px solid #bbf7d0",
-              borderRadius: 8
-            }}>
+            <div className={styles.modalAckBanner}>
               ✓ You acknowledged this on {new Date(memo.ACKNOWLEDGED_DATE).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div style={{
-          padding: "14px 22px",
-          background: "#f8fafc",
-          borderTop: "1px solid #e2e8f0",
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 10
-        }}>
-          <button onClick={onClose} style={{
-            background: "white", border: "1px solid #cbd5e1",
-            color: "#475569", padding: "8px 16px", borderRadius: 8,
-            fontWeight: 700, fontSize: 12, cursor: "pointer"
-          }}>
-            Close
-          </button>
+        <div className={styles.modalFooter}>
+          <div className={styles.modalFooterLeft}>
+            <button onClick={onClose} className={styles.modalCloseBtn}>
+              Close
+            </button>
+
+            <button
+              onClick={() => downloadMemoPdf(memo)}
+              className={styles.modalDownloadBtn}
+              style={{ border: `1px solid ${tt.color}`, color: tt.color }}
+            >
+              ⬇ Download PDF
+            </button>
+          </div>
 
           {!memo.ACKNOWLEDGED_BY_EMPLOYEE && (
             <button
               onClick={onAcknowledge}
               disabled={ackBusy}
               style={{
-                background: ackBusy ? "#94a3b8" : "linear-gradient(135deg, #10b981, #059669)",
+                background: ackBusy ? "#94a3b8" : "#10b981",
                 color: "white", border: "none",
                 padding: "9px 22px", borderRadius: 8,
                 fontWeight: 800, fontSize: 13,
@@ -3404,3 +4427,4 @@ function MyMemoDetail({ memo, onClose, onAcknowledge, ackBusy }) {
 
 
 export default EmployeeDashboard;
+

@@ -1,0 +1,553 @@
+/* ==================================================================
+   MyAssetsPanel — company assets issued to the employee
+   Cream page, elevated white cards, category-tinted icons.
+   ================================================================== */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 4px 2px 32px;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, sans-serif;
+  color: #1e293b;
+}
+
+
+/* ==================================================================
+   Header
+   ================================================================== */
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 26px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.headEyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+
+.headTitle {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.4px;
+}
+
+.headSub {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+  line-height: 1.55;
+  max-width: 480px;
+}
+
+.headMeta {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.metaTile {
+  min-width: 90px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  text-align: right;
+}
+
+.metaLabel {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 2px;
+}
+
+.metaValue {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.4px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+
+/* ==================================================================
+   Filter + search row
+   ================================================================== */
+
+.filterRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.filterChip:hover:not(.filterChip_active) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+.filterChip_active {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.22);
+}
+
+.filterCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.filterChip_active .filterCount {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+.filterChip_active:not(.filterChip_active) { /* no-op fallback */ }
+.filterChip_returned:not(.filterChip_active) {
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
+
+/* Search */
+.searchBox {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  min-width: 220px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.searchBox:focus-within {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
+}
+.searchBox input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  color: #0f172a;
+  width: 100%;
+  min-width: 0;
+}
+.searchBox input::placeholder { color: #94a3b8; }
+
+
+/* ==================================================================
+   Asset card list
+   ================================================================== */
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 18px;
+  align-items: flex-start;
+  padding: 18px 20px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.card:hover {
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+  border-color: #cbd5e1;
+}
+
+.card_returned {
+  background: #fafbfc;
+}
+.card_returned .cardName { color: #475569; }
+
+
+/* Category-tinted icon tile */
+.cardIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  color: #64748b;
+  flex-shrink: 0;
+}
+.icon_laptop   { background: #eff6ff; color: #1d4ed8; }
+.icon_monitor  { background: #eff6ff; color: #1d4ed8; }
+.icon_mouse    { background: #f1f5f9; color: #475569; }
+.icon_keyboard { background: #f1f5f9; color: #475569; }
+.icon_headset  { background: #f1f5f9; color: #475569; }
+.icon_id_card  { background: #fef2f2; color: #b91c1c; }
+.icon_access   { background: #fffbeb; color: #b45309; }
+.icon_phone    { background: #ecfdf5; color: #047857; }
+.icon_keys     { background: #f5f3ff; color: #6d28d9; }
+
+
+/* ---- Body ---- */
+.cardBody { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cardName {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.2px;
+}
+
+.cardCatPill {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #475569;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.spacer { flex: 1 1 auto; }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.chip_issued   { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+.chip_returned { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+.chip_lost     { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.chip_pending  { background: #fffbeb; color: #b45309; border-color: #fcd34d; }
+
+
+.cardSerial {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: #64748b;
+}
+.cardSerial b {
+  color: #0f172a;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+
+/* ---- Dates row ---- */
+.dates {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #eef2f7;
+  border-radius: 10px;
+  margin-top: 4px;
+}
+
+.dateBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.dateLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.dateValue {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+.notReturned {
+  color: #047857;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.notes {
+  padding: 8px 12px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #78350f;
+  line-height: 1.5;
+}
+
+
+/* ==================================================================
+   Loading / error / empty
+   ================================================================== */
+
+.loading,
+.error {
+  padding: 26px 20px;
+  border-radius: 12px;
+  text-align: center;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+.loading {
+  background: #ffffff;
+  border: 1px dashed #e2e8f0;
+  color: #94a3b8;
+}
+.error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 28px 22px;
+  background: #ffffff;
+  border: 1px dashed #e2e8f0;
+  border-radius: 14px;
+  color: #64748b;
+}
+.emptyIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: #f1f5f9;
+  color: #94a3b8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.emptyTitle { font-size: 14px; font-weight: 600; color: #334155; margin-bottom: 3px; }
+.emptyBody  { font-size: 12.5px; color: #94a3b8; line-height: 1.55; }
+
+
+/* ==================================================================
+   MOBILE
+   ================================================================== */
+
+@media (max-width: 768px) {
+  .wrap { gap: 12px; padding: 4px 0 32px; }
+
+  .head {
+    padding: 18px 18px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .headTitle { font-size: 19px; }
+  .headMeta { width: 100%; }
+  .metaTile { flex: 1 1 auto; text-align: left; }
+
+  .filterRow { gap: 10px; }
+  .searchBox { min-width: 0; flex: 1 1 auto; }
+
+  .card {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 16px 16px;
+  }
+  .cardIcon { width: 44px; height: 44px; }
+
+  .dates { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .dateBlock:nth-child(3) { grid-column: 1 / -1; }
+}
+
+@media (max-width: 420px) {
+  .dates { grid-template-columns: 1fr; }
+  .dateBlock:nth-child(3) { grid-column: auto; }
+}
+
+
+/* ==================================================================
+   DARK MODE
+   ================================================================== */
+
+:global(html[data-theme="dark"]) .wrap { color: #e2e8f0; }
+
+:global(html[data-theme="dark"]) .head {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .headEyebrow { color: #94a3b8; }
+:global(html[data-theme="dark"]) .headTitle   { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .headSub     { color: #cbd5e1; }
+:global(html[data-theme="dark"]) .metaTile {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+:global(html[data-theme="dark"]) .metaLabel { color: #94a3b8; }
+:global(html[data-theme="dark"]) .metaValue { color: #f1f5f9; }
+
+:global(html[data-theme="dark"]) .filterRow {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .filterChip {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: #cbd5e1;
+}
+:global(html[data-theme="dark"]) .filterChip:hover:not(.filterChip_active) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.20);
+}
+:global(html[data-theme="dark"]) .filterChip_active {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+:global(html[data-theme="dark"]) .filterCount {
+  background: rgba(255, 255, 255, 0.10);
+  color: #cbd5e1;
+}
+:global(html[data-theme="dark"]) .searchBox {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+:global(html[data-theme="dark"]) .searchBox input { color: #e2e8f0; }
+
+/* Asset card */
+:global(html[data-theme="dark"]) .card {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .card:hover {
+  border-color: rgba(255, 255, 255, 0.20);
+}
+:global(html[data-theme="dark"]) .card_returned .cardName { color: #94a3b8; }
+
+/* Icons — keep the accent, dark tint */
+:global(html[data-theme="dark"]) .icon_laptop,
+:global(html[data-theme="dark"]) .icon_monitor   { background: rgba(59, 130, 246, 0.18); color: #93c5fd; }
+:global(html[data-theme="dark"]) .icon_mouse,
+:global(html[data-theme="dark"]) .icon_keyboard,
+:global(html[data-theme="dark"]) .icon_headset   { background: rgba(148, 163, 184, 0.14); color: #cbd5e1; }
+:global(html[data-theme="dark"]) .icon_id_card   { background: rgba(239, 68, 68, 0.18);  color: #fca5a5; }
+:global(html[data-theme="dark"]) .icon_access    { background: rgba(251, 191, 36, 0.18); color: #fbbf24; }
+:global(html[data-theme="dark"]) .icon_phone     { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+:global(html[data-theme="dark"]) .icon_keys      { background: rgba(124, 58, 237, 0.20); color: #c4b5fd; }
+
+:global(html[data-theme="dark"]) .cardName { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .cardCatPill {
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+  border-color: rgba(255, 255, 255, 0.10);
+}
+:global(html[data-theme="dark"]) .cardSerial { color: #94a3b8; }
+:global(html[data-theme="dark"]) .cardSerial b { color: #e2e8f0; }
+:global(html[data-theme="dark"]) .dateLabel { color: #94a3b8; }
+:global(html[data-theme="dark"]) .dateValue { color: #e2e8f0; }
+:global(html[data-theme="dark"]) .notReturned { color: #fca5a5; }
+:global(html[data-theme="dark"]) .notes { color: #94a3b8; }
+
+/* Chip variants */
+:global(html[data-theme="dark"]) .chip_issued   { background: rgba(16, 185, 129, 0.14); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.30); }
+:global(html[data-theme="dark"]) .chip_returned { background: rgba(148, 163, 184, 0.14); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.30); }
+:global(html[data-theme="dark"]) .chip_lost     { background: rgba(239, 68, 68, 0.14); color: #fca5a5; border-color: rgba(239, 68, 68, 0.30); }
+:global(html[data-theme="dark"]) .chip_pending  { background: rgba(251, 191, 36, 0.14); color: #fbbf24; border-color: rgba(251, 191, 36, 0.30); }
+
+/* Empty / loading */
+:global(html[data-theme="dark"]) .empty,
+:global(html[data-theme="dark"]) .loading {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: #94a3b8;
+}
+:global(html[data-theme="dark"]) .emptyIcon {
+  background: rgba(255, 255, 255, 0.05);
+  color: #94a3b8;
+}
+:global(html[data-theme="dark"]) .emptyTitle { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .emptyBody  { color: #94a3b8; }

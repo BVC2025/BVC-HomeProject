@@ -1,0 +1,108 @@
+/* ==================================================================
+   ComingSoonPanel — quiet placeholder card
+   ================================================================== */
+
+.wrap {
+  display: grid;
+  place-items: center;
+  padding: 24px 8px;
+}
+
+.card {
+  width: 100%;
+  max-width: 520px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px 28px 26px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.iconRing {
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: var(--clr-primary-light);
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+
+.iconRing::after {
+  content: "";
+  position: absolute; inset: -6px;
+  border-radius: 50%;
+  border: 1px dashed var(--clr-primary-border);
+  opacity: 0.7;
+}
+
+.iconInner {
+  color: var(--clr-primary);
+  display: inline-flex;
+}
+
+.eyebrow {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  color: #F4B324;
+  text-transform: uppercase;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 6px 0 8px;
+  letter-spacing: -0.3px;
+}
+
+.desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin: 0 0 14px;
+  font-weight: 500;
+}
+
+.bullets {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  text-align: left;
+}
+
+.bullets li {
+  padding: 10px 14px;
+  background: var(--layout-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  position: relative;
+  padding-left: 30px;
+}
+
+.bullets li::before {
+  content: "";
+  position: absolute;
+  left: 12px; top: 50%;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  background: var(--clr-primary);
+}
+
+.footer {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}

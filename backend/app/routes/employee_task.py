@@ -9,7 +9,7 @@ from app.models.models import (
     Employee,
     Department,
     Role,
-    Project,
+    CustomerProject,
     TaskAssignment,
     Attendance,
     Notification,
@@ -92,6 +92,23 @@ def ensure_today_attendance(
     now: datetime,
     vendor_id: int
 ):
+    """Ensure an Attendance row exists for today, but do NOT mark
+    CHECK_IN automatically. Geofenced check-in is a separate explicit
+    action — the employee must tap the Check In button so the server
+    can validate their GPS coordinates against the office geofence.
+
+    Legacy "login = check-in" auto-fill was removed because it bypassed
+    the geofence gate and created phantom 4 PM check-ins whenever an
+    admin browsed the portal in the evening.
+
+    The row's STATUS is still computed at login time so that LATE
+    detection (used for late-coming notifications / auto-permissions)
+    works without waiting for the actual check-in.
+
+    Returns (row, fresh) where `fresh=True` means the row was created
+    in this call — used by the caller to decide whether to fire the
+    late-login notification.
+    """
 
     today = now.date()
 
@@ -107,24 +124,12 @@ def ensure_today_attendance(
         row = Attendance(
             EMPLOYEE_ID=employee_id,
             DATE=today,
-            CHECK_IN=now,
+            CHECK_IN=None,
             STATUS=compute_login_status(now, start),
             VENDOR_ID=vendor_id
         )
 
         db.add(row)
-
-        db.commit()
-
-        db.refresh(row)
-
-        return row, True
-
-    if row.CHECK_IN is None:
-
-        row.CHECK_IN = now
-
-        row.STATUS = compute_login_status(now, start)
 
         db.commit()
 
@@ -302,7 +307,7 @@ def seed_employees(
     """
 
     employee_role = db.query(Role).filter(
-        Role.ROLE_NAME == "EMPLOYEE"
+        Role.NAME == "EMPLOYEE"
     ).first()
 
     if not employee_role:
@@ -526,7 +531,7 @@ def seed_admin(
     """
 
     super_role = db.query(Role).filter(
-        Role.ROLE_NAME == "SUPER_ADMIN"
+        Role.NAME == "SUPER_ADMIN"
     ).first()
 
     if not super_role:
@@ -791,93 +796,41 @@ def employee_logout(
 
         raise HTTPException(status_code=400, detail=warning)
 
-    row.CHECK_OUT = now
+    # ------------------------------------------------------------------
+    # Portal logout is NOT attendance. The user was explicit: only
+    # biometric fingerprint punches at the ESSL device should set
+    # CHECK_IN / CHECK_OUT. So we no longer write to CHECK_OUT here.
+    #
+    # Previously this endpoint set CHECK_OUT = now, which produced
+    # bogus rows like "checked in 09:20, checked out 10:02" when an
+    # employee briefly opened the portal to view something and logged
+    # out. That's a portal event, not an attendance event.
+    #
+    # We keep the "logout without check-in" warning + notification
+    # (Rule 5/6 above) so HR still sees who touched the portal today,
+    # but the Attendance table stays owned by the biometric device.
+    # ------------------------------------------------------------------
+    early_exit = False       # No longer computed here — biometric owns it.
+    worked = row.WORKED_HOURS
 
-    # Rule 3: logout before the configured office end time counts as
-    # an Early Exit / Permission, not a normal logout. We keep the
-    # CHECK_OUT stamp and overwrite STATUS only when this is the case;
-    # otherwise the existing PRESENT / LATE status sticks.
-    early_exit = is_before_end(now, end)
+    # We do NOT db.commit() here since we're not mutating the row.
+    # The `row` we loaded above is used only for the response body
+    # so the ESS can display today's biometric-recorded numbers.
 
-    if early_exit:
-
-        row.STATUS = "EARLY_EXIT"
-
-    worked = None
-
-    if row.CHECK_IN and row.CHECK_OUT:
-
-        delta = row.CHECK_OUT - row.CHECK_IN
-
-        worked = round(delta.total_seconds() / 3600, 2)
-
-        row.WORKED_HOURS = worked
-
-        row.OVERTIME_HOURS = max(0, round(worked - 8, 2))
-
-    db.commit()
-
-    if early_exit:
-
-        push_notification(
-            db,
-            title=f"Early exit: {emp.NAME}",
-            message=(
-                f"{emp.EMPLOYEE_CODE} checked out at "
-                f"{now.strftime('%H:%M')}, before the "
-                f"{end.strftime('%H:%M')} office close. "
-                f"Recorded as Permission / Early Exit."
-            ),
-            ntype="WARNING",
-            vendor_id=emp.VENDOR_ID or 1
-        )
-
-        # Phase D — auto-create EARLY_EXIT Permission past the grace.
-        try:
-
-            _, early_grace_min = get_grace_minutes(db)
-
-            end_dt = datetime.combine(now.date(), end)
-
-            minutes_early = max(0, int((end_dt - now).total_seconds() // 60))
-
-            if minutes_early > early_grace_min:
-
-                hours_early = round(minutes_early / 60.0, 2)
-
-                auto_create_permission(
-                    db,
-                    employee_id=emp.ID,
-                    on_date=now.date(),
-                    subtype="EARLY_EXIT",
-                    duration_hours=hours_early,
-                    reason=(
-                        f"Auto-recorded: checked out at "
-                        f"{now.strftime('%H:%M')} "
-                        f"({minutes_early} min before "
-                        f"{end.strftime('%H:%M')} office close, "
-                        f"beyond {early_grace_min} min grace)."
-                    ),
-                    vendor_id=emp.VENDOR_ID or 1
-                )
-
-        except Exception:
-
-            # Best-effort: never block logout on the permission write
-            pass
+    # (Auto EARLY_EXIT permission block removed — portal logout no
+    # longer implies leaving the office; only the biometric punch-out
+    # does. If HR wants EARLY_EXIT permissions auto-created for early
+    # biometric punch-outs, that should happen in iclock.py where
+    # the real event lands.)
 
     return {
-        "message": (
-            "Recorded as Permission / Early Exit."
-            if early_exit
-            else "Logged out"
-        ),
-        "LOGIN_TIME":  row.CHECK_IN.isoformat(),
-        "LOGOUT_TIME": row.CHECK_OUT.isoformat(),
+        "message": "Logged out",
+        "LOGIN_TIME":  row.CHECK_IN.isoformat() if row.CHECK_IN else None,
+        "LOGOUT_TIME": row.CHECK_OUT.isoformat() if row.CHECK_OUT else None,
         "WORKED_HOURS": worked,
         "STATUS": row.STATUS,
-        "EARLY_EXIT": early_exit,
-        "OFFICE_END": end.strftime("%H:%M")
+        "EARLY_EXIT": False,
+        "OFFICE_END": end.strftime("%H:%M"),
     }
 
 
@@ -951,13 +904,13 @@ def today_task(
     row = (
         db.query(
             TaskAssignment,
-            Project.PROJECT_NAME,
-            Project.PRIORITY,
+            CustomerProject.PROJECT_NAME,
+            CustomerProject.PRIORITY,
             Employee.NAME
         )
         .outerjoin(
-            Project,
-            TaskAssignment.PROJECT_ID == Project.ID
+            CustomerProject,
+            TaskAssignment.PROJECT_ID == CustomerProject.ID
         )
         .outerjoin(
             Employee,
@@ -1069,13 +1022,13 @@ def all_tasks(
     rows = (
         db.query(
             TaskAssignment,
-            Project.PROJECT_NAME,
-            Project.PRIORITY,
+            CustomerProject.PROJECT_NAME,
+            CustomerProject.PRIORITY,
             AssignedBy.NAME
         )
         .outerjoin(
-            Project,
-            TaskAssignment.PROJECT_ID == Project.ID
+            CustomerProject,
+            TaskAssignment.PROJECT_ID == CustomerProject.ID
         )
         .outerjoin(
             AssignedBy,
@@ -1313,8 +1266,8 @@ def update_task_status(
 
     if task.PROJECT_ID:
 
-        proj = db.query(Project).filter(
-            Project.ID == task.PROJECT_ID
+        proj = db.query(CustomerProject).filter(
+            CustomerProject.ID == task.PROJECT_ID
         ).first()
 
         project_name = proj.PROJECT_NAME if proj else None
@@ -1454,8 +1407,8 @@ def reject_task(
 
         # Try to infer the stage type from the task name; fall
         # back to using the project's SKILLS_REQUIRED.
-        project = db.query(Project).filter(
-            Project.ID == task.PROJECT_ID
+        project = db.query(CustomerProject).filter(
+            CustomerProject.ID == task.PROJECT_ID
         ).first() if task.PROJECT_ID else None
 
         required = (
@@ -1550,8 +1503,8 @@ def list_pending_acceptance(
         raise HTTPException(status_code=404, detail="Employee not found")
 
     rows = (
-        db.query(TaskAssignment, Project)
-        .outerjoin(Project, TaskAssignment.PROJECT_ID == Project.ID)
+        db.query(TaskAssignment, CustomerProject)
+        .outerjoin(CustomerProject, TaskAssignment.PROJECT_ID == CustomerProject.ID)
         .filter(
             TaskAssignment.EMPLOYEE_ID == emp.ID,
             TaskAssignment.APPROVAL_STATUS == "PENDING"
@@ -1597,8 +1550,8 @@ def assign_task(
 
     if data.PROJECT_ID is not None:
 
-        proj = db.query(Project).filter(
-            Project.ID == data.PROJECT_ID
+        proj = db.query(CustomerProject).filter(
+            CustomerProject.ID == data.PROJECT_ID
         ).first()
 
         if not proj:
@@ -1733,8 +1686,8 @@ def workload_preview(
 
     if project_id is not None:
 
-        proj = db.query(Project).filter(
-            Project.ID == project_id
+        proj = db.query(CustomerProject).filter(
+            CustomerProject.ID == project_id
         ).first()
 
         if not proj:
@@ -1775,8 +1728,8 @@ def list_project_tasks(
     'Assign Tasks' panel on the Projects page.
     """
 
-    proj = db.query(Project).filter(
-        Project.ID == project_id
+    proj = db.query(CustomerProject).filter(
+        CustomerProject.ID == project_id
     ).first()
 
     if not proj:

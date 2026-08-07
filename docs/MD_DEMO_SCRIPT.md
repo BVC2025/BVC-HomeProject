@@ -9,7 +9,7 @@ Follow the script in order — every step has a "what to click" + "what to say".
 
 Open **3 browser tabs** in this order:
 
-1. **Tab 1**: http://localhost:8001/docs (Swagger — backend health check)
+1. **Tab 1**: http://192.168.1.10:8001/docs (Swagger — backend health check)
 2. **Tab 2**: http://localhost:5173/biometric (Gate kiosk — keep this large/full-screen)
 3. **Tab 3**: http://localhost:5173/login (Admin dashboard)
 4. **Tab 4**: http://localhost:5173/apply-leave (Employee leave page)
@@ -299,7 +299,7 @@ Be honest + frame as next iteration:
 
 ## ✅ Demo-ready checklist (right before MD walks in)
 
-- [ ] Backend running on http://localhost:8001 (Swagger loads)
+- [ ] Backend running on http://192.168.1.10:8001 (Swagger loads)
 - [ ] Frontend running on http://localhost:5173 (login page loads)
 - [ ] `POST /demo/seed-bvc24` returned 200 with all counts > 0
 - [ ] Tab 2 (biometric) speaker volume ON

@@ -1,32 +1,115 @@
-# Python
-backend/venv/
-backend/venv2/
-__pycache__/
-*.pyc
-*.pyo
-
-# Environment / secrets
+# =========================
+# ENV FILES
+# =========================
 .env
 .env.*
 !.env.example
 
-# Node / frontend
+# =========================
+# NODE / REACT / VITE
+# =========================
 node_modules/
-frontend/node_modules/
-frontend/dist/
 dist/
+build/
+.vite/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# Logs
+# =========================
+# REACT CACHE
+# =========================
+.eslintcache
+.cache/
+
+# =========================
+# TYPESCRIPT
+# =========================
+*.tsbuildinfo
+
+# =========================
+# PYTHON / FASTAPI
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python Build
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Mypy
+.mypy_cache/
+
+# Ruff
+.ruff_cache/
+
+# =========================
+# DATABASE
+# =========================
+*.db
+*.sqlite
+*.sqlite3
+
+# =========================
+# LOG FILES
+# =========================
+logs/
 *.log
-backend/logs/
-backend/logs/service/
 
-# OS / editor
+# =========================
+# UPLOADS
+# =========================
+uploads/
+media/
+temp/
+tmp/
+
+# =========================
+# IDE
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# OS FILES
+# =========================
 .DS_Store
 Thumbs.db
-.vscode/*
-!.vscode/settings.json
 
-# Build artifacts
-*.egg-info/
-build/
+# =========================
+# SECRETS
+# =========================
+*.pem
+*.key
+*.crt
+*.pfx
+
+# =========================
+# FASTAPI GENERATED
+# =========================
+__pycache__/
+.pytest_cache/
+
+# =========================
+# NEXT / REACT ENV FILES
+# =========================
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

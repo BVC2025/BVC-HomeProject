@@ -24,13 +24,14 @@ from app.models.models import Base
 from app.routes.users import router as users_router
 from app.routes.auth import router as auth_router
 from app.routes.vendor import router as vendor_router
-from app.routes.project import router as project_router
+# project_router (customer projects) removed — ProjectCategory→Project hierarchy now owns the "project" table
 from app.routes.task import router as task_router
 from app.routes.inventory import router as inventory_router
 from app.routes.analytics import router as analytics_router
 from app.routes.attendance import router as attendance_router
 from app.routes.machine import router as machine_router
 from app.routes.notification import router as notification_router
+from app.routes.announcement import router as announcement_router
 from app.routes.reports import router as reports_router
 from app.routes.settings import router as settings_router
 from app.routes.employee_task import router as employee_task_router
@@ -39,6 +40,7 @@ from app.routes.organization import router as organization_router
 from app.routes.task_approval import router as task_approval_router
 from app.routes.chatbot import router as chatbot_router
 from app.routes.biometric import router as biometric_router
+from app.routes.iclock import router as iclock_router  # ADMS Push (ZKTeco/ESSL X2008)
 from app.routes.bvc24_seed import router as bvc24_seed_router
 from app.routes.performance import router as performance_router
 from app.routes.production import router as production_router
@@ -59,7 +61,7 @@ from app.routes.employee_onboarding import router as employee_onboarding_router
 from app.routes.employee_documents import router as employee_documents_router
 from app.routes.admin_dashboard import router as admin_dashboard_router
 from app.routes.approvals import router as approvals_router
-from app.routes.ai_command import router as ai_command_router
+# ai_command router removed Phase 2 — front-end stub was deleted
 from app.routes.dashboard_aggregators import router as dashboard_aggregators_router
 from app.routes.ai import router as ai_router
 from app.routes.public_enquiry import router as public_enquiry_router
@@ -69,6 +71,24 @@ from app.routes.leave_chatbot import router as leave_chatbot_router
 from app.routes.employee_portal import router as employee_portal_router
 from app.routes.audit import router as audit_router  # Phase 3 security
 from app.routes.rbac import router as rbac_router    # Phase 2 RBAC
+from app.routes.holiday import router as holiday_router    # Phase 2 Holiday Calendar
+from app.routes.chatbot_ai import router as chatbot_ai_router  # AI chatbot v1 (Gemini)
+from app.routes.work_center import router as work_center_router  # Mfg Phase 1 — Work Centers
+from app.routes.allowance import router as allowance_router  # Employee expense claims
+from app.routes.leave_agent import router as leave_agent_router  # AI Leave Agent
+from app.routes.hr_chat import router as hr_chat_router          # Unified HR Assistant
+from app.routes.recruitment import router as recruitment_router  # Phase 2 — AI Recruitment Assistant
+from app.routes.employee_payslips import router as my_payslips_router  # Employee self-service payslips
+from app.routes.onboarding_checklist import router as onboarding_checklist_router  # Post-joining onboarding
+from app.routes.attendance_ai import router as attendance_ai_router  # Attendance Automation (Phase 1)
+from app.routes.leave_decisions import router as leave_decisions_router  # Leave Automation (Phase 1)
+from app.routes.monthly_reports import router as monthly_reports_router  # Auto monthly attendance + payroll reports
+from app.routes.employee_status import router as employee_status_router  # Employee lifecycle status tracking
+from app.routes.employee_insights import router as employee_insights_router  # AI workforce analytics
+from app.routes.custom_fields import router as custom_fields_router  # Custom Fields System
+from app.routes.helpdesk import router as helpdesk_router  # Help Desk (employee tickets + admin triage)
+from app.routes.memo_automation import router as memo_automation_router  # Weekly warning/appreciation memo automation
+from app.voice_assistant.routes import router as voice_assistant_router  # Voice-first ERP assistant (Siri-style)
 from fastapi.middleware.cors import CORSMiddleware
 
 # Phase 3 — Audit log
@@ -94,6 +114,11 @@ class AuditMiddleware(BaseHTTPMiddleware):
     table stays small and write volume stays low. Failed requests
     (4xx/5xx) ARE captured — that's the most forensically useful
     case (intrusion attempts, permission violations, etc.).
+
+    Also surfaces CORS preflight failures to stdout — these are easy
+    to miss because they never reach a route handler and never get
+    audited. When an OPTIONS request returns 400, we log the Origin
+    so you can extend the CORS allow-list without debugging blind.
     """
 
     async def dispatch(self, request, call_next):
@@ -104,6 +129,16 @@ class AuditMiddleware(BaseHTTPMiddleware):
         # Decide AFTER we have a status code so we can include it
         method = request.method
         path = request.url.path
+
+        # CORS preflight diagnostic — only log the bad ones to keep
+        # noise low. A 200 OPTIONS means CORS approved; a 400 means
+        # the Origin was rejected by CORSMiddleware.
+        if method == "OPTIONS" and response.status_code == 400:
+            origin = request.headers.get("origin", "<missing>")
+            print(
+                f"[cors-reject] OPTIONS {path}  origin={origin}  "
+                f"-> 400 (extend allow_origins / allow_origin_regex in main.py)"
+            )
 
         if not should_audit(method, path):
             return response
@@ -129,9 +164,59 @@ class AuditMiddleware(BaseHTTPMiddleware):
 # first → audit added first runs second.
 app.add_middleware(AuditMiddleware)
 
+# CORS — explicit allow-list. allow_origins=["*"] is incompatible with
+# allow_credentials=True per the CORS spec (browsers reject the combo),
+# so we enumerate. Override via env: CORS_ALLOWED_ORIGINS="a.com,b.com".
+# LAN IPs (for mobile-on-WiFi testing) are matched by regex below.
+_DEFAULT_CORS_ORIGINS = [
+    "https://erp.bvc24.com",        # production frontend
+    "https://api.bvc24.com",        # in case anything self-loads
+    "http://localhost:5173",        # vite dev
+    "http://localhost:5174",        # vite dev (alt port)
+    "http://localhost:4173",        # vite preview (production build)
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:4173",
+    # Capacitor / Ionic native shells. The Android/iOS WebView sends
+    # the page's origin as one of these depending on capacitor.config
+    # (androidScheme / iosScheme). All four cover current + legacy
+    # configs so the APK doesn't hit CORS again if the scheme changes.
+    "http://localhost",             # androidScheme: 'http'
+    "https://localhost",            # androidScheme: 'https' (Capacitor default)
+    "capacitor://localhost",        # iOS default scheme
+    "ionic://localhost",            # older Ionic default
+]
+
+_env_origins = os.getenv("CORS_ALLOWED_ORIGINS", "").strip()
+
+if _env_origins:
+
+    _cors_origins = [o.strip() for o in _env_origins.split(",") if o.strip()]
+
+else:
+
+    _cors_origins = _DEFAULT_CORS_ORIGINS
+
+# The regex below covers TWO dynamic-origin families that can't be
+# enumerated in the static list above:
+#
+#   1. LAN IPs over HTTP — for mobile-on-WiFi testing.
+#      e.g. http://192.168.1.56:5173 / http://10.0.0.5:4173
+#
+#   2. Cloudflare Quick Tunnel hostnames — *.trycloudflare.com over HTTPS.
+#      These rotate on every `cloudflared` restart, so a pinned URL
+#      would force a code edit every time the tunnel comes back up.
+#      Generic pattern: lowercase letters/digits/hyphens, then
+#      ".trycloudflare.com". Named-tunnel hosts (erp.bvc24.com,
+#      api.bvc24.com) are in the static list and don't need a regex.
+_CORS_ORIGIN_REGEX = (
+    r"^http://(10|127|192\.168|172\.(1[6-9]|2\d|3[01]))\.[\d.]+:\d{4}$"
+    r"|^https://[a-z0-9-]+\.trycloudflare\.com$"
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
+    allow_origin_regex=_CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -151,6 +236,48 @@ _STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 (_STATIC_DIR / "company").mkdir(parents=True, exist_ok=True)
 
 app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+
+
+def _rename_legacy_project_table():
+    """Archive legacy tables that have been superseded by new ORM models.
+
+    - old 'project'           (customer-facing projects, INTEGER PK)  → 'project_legacy'
+    - old 'sub_project_template' (old template model, INTEGER PK)     → 'sub_project_template_legacy'
+
+    Both renames are idempotent: they are skipped when the source table is
+    absent or when the target already exists.  Errors are caught per-table
+    so one failure never blocks the other rename or startup.
+    """
+    from sqlalchemy import text, inspect
+    insp = inspect(engine)
+    existing = set(insp.get_table_names())
+
+    # ── 1. Rename old customer-project table ──────────────────────────────────
+    if "project" in existing and "project_legacy" not in existing:
+        try:
+            cols = {c["name"] for c in insp.get_columns("project")}
+            if "PROJECT_NAME" in cols:          # old customer-project signature
+                with engine.connect() as conn:
+                    conn.execute(text("RENAME TABLE `project` TO `project_legacy`"))
+                    conn.commit()
+                print("[startup] Renamed legacy 'project' → 'project_legacy'")
+        except Exception as exc:
+            print(f"[startup] project rename skipped: {exc}")
+
+    # ── 2. Archive old sub_project_template table ─────────────────────────────
+    if "sub_project_template" in existing and "sub_project_template_legacy" not in existing:
+        try:
+            with engine.connect() as conn:
+                conn.execute(
+                    text("RENAME TABLE `sub_project_template` TO `sub_project_template_legacy`")
+                )
+                conn.commit()
+            print("[startup] Renamed legacy 'sub_project_template' → 'sub_project_template_legacy'")
+        except Exception as exc:
+            print(f"[startup] sub_project_template rename skipped: {exc}")
+
+
+_rename_legacy_project_table()
 
 Base.metadata.create_all(bind=engine)
 
@@ -238,6 +365,13 @@ def _auto_migrate():
         # Replaces the AI chatbot flow with admin-sets-password-at-invite +
         # candidate logs in to fill the registration form.
         ("employee_onboarding_session", "PASSWORD_HASH", "VARCHAR(255) NULL"),
+        # Phase 2 — admin can pre-set role at invite time
+        ("employee_onboarding_session", "DEPARTMENT_ID",  "INT NULL"),
+        ("employee_onboarding_session", "DESIGNATION_ID", "INT NULL"),
+        # ---- Manufacturing Phase 1: Reorder alerts ---------
+        # Threshold below which the inventory row triggers a low-stock
+        # notification. NULL/0 means "no alerting for this material".
+        ("inventory", "MIN_STOCK", "INT NULL DEFAULT 0"),
         # ---- HR Module Phase A — Employee column expansion (2026-06-01) ----
         ("employee", "BLOOD_GROUP",                "VARCHAR(5)   NULL"),
         ("employee", "NATIONALITY",                "VARCHAR(50)  NULL"),
@@ -280,6 +414,23 @@ def _auto_migrate():
         ("payroll_slip", "ESI_EMPLOYEE",          "FLOAT NULL DEFAULT 0"),
         ("payroll_slip", "ESI_EMPLOYER",          "FLOAT NULL DEFAULT 0"),
         ("payroll_slip", "PROFESSIONAL_TAX",      "FLOAT NULL DEFAULT 0"),
+        # Per-slip payment tracking — lets the UI mark each employee
+        # Paid independently instead of finalising a whole run.
+        ("payroll_slip", "STATUS",                "VARCHAR(20) NULL DEFAULT 'PENDING'"),
+        ("payroll_slip", "SUBMITTED_AT",          "DATETIME NULL"),
+        ("payroll_slip", "PAID_AT",               "DATETIME NULL"),
+        ("payroll_slip", "ABSENCE_DEDUCTION",     "FLOAT NULL DEFAULT 0"),
+        # Permission hours used by the employee in this pay period
+        # (LeaveRequest rows where TYPE='PERMISSION', summed).
+        ("payroll_slip", "PERMISSION_HOURS",      "FLOAT NULL DEFAULT 0"),
+        # Star-rating bonus — feeds into NET_PAY (BONUS_PER_STAR × stars).
+        ("payroll_slip", "PERFORMANCE_STARS",     "FLOAT NULL DEFAULT 0"),
+        ("payroll_slip", "STAR_BONUS",            "FLOAT NULL DEFAULT 0"),
+        # PerformanceScore — Leave + Permission dimensions (new scheme).
+        ("performance_score", "LEAVE_DAYS_TAKEN",       "FLOAT NULL DEFAULT 0"),
+        ("performance_score", "PERMISSION_HOURS_TAKEN", "FLOAT NULL DEFAULT 0"),
+        ("performance_score", "LEAVE_STARS",            "FLOAT NULL DEFAULT 0"),
+        ("performance_score", "PERMISSION_STARS",       "FLOAT NULL DEFAULT 0"),
         # ---- Geofenced attendance (Module: Geofence) ----
         ("attendance", "CHECKIN_LATITUDE",   "FLOAT NULL"),
         ("attendance", "CHECKIN_LONGITUDE",  "FLOAT NULL"),
@@ -291,6 +442,34 @@ def _auto_migrate():
         ("attendance", "DEVICE_INFO",        "VARCHAR(255) NULL"),
         ("attendance", "BROWSER_INFO",       "VARCHAR(255) NULL"),
         ("attendance", "IP_ADDRESS",         "VARCHAR(60) NULL"),
+        # Explicit OT session timestamps (overtime is now tracked as a
+        # separate check-in/check-out, never auto-derived from regular hours)
+        ("attendance", "OT_CHECK_IN",        "DATETIME NULL"),
+        ("attendance", "OT_CHECK_OUT",       "DATETIME NULL"),
+        # ---- Project Management Module (2026-06) ----
+        ("department", "UPDATED_AT",         "DATETIME NULL"),
+        ("role",       "DEPARTMENT_ID",      "INT NULL"),
+        ("role",       "CREATED_AT",         "DATETIME NULL"),
+        ("role",       "UPDATED_AT",         "DATETIME NULL"),
+        # ---- Help Desk (2026-07): new columns added when the module
+        # was rebuilt after the ram-development merge deleted it.
+        ("helpdesk_ticket", "INTERNAL_NOTES", "TEXT NULL"),
+        ("helpdesk_ticket", "CLOSED_AT",      "DATETIME NULL"),
+        # ---- Memo automation (2026-07): system-generated warning /
+        # appreciation memos + per-employee notification targeting.
+        ("employee_memos", "IS_AUTOMATED",   "INT NULL DEFAULT 0"),
+        ("employee_memos", "AUTOMATION_KEY", "VARCHAR(80) NULL"),
+        ("notification",   "EMPLOYEE_ID",    "VARCHAR(36) NULL"),
+        ("notification",   "REF_TYPE",       "VARCHAR(30) NULL"),
+        ("notification",   "REF_ID",         "INT NULL"),
+    ]
+
+    # Columns to rename. Old names from legacy schema that the model has
+    # since replaced. Each entry: (table, old_col, new_col, new_ddl).
+    # Idempotent: if old_col is absent (already renamed) we skip.
+    rename_columns = [
+        ("department", "CODE",      "DEPARTMENT_CODE", "VARCHAR(20) NULL"),
+        ("role",       "ROLE_NAME", "NAME",            "VARCHAR(100) NOT NULL DEFAULT ''"),
     ]
 
     # Indexes / unique constraints that earlier model versions
@@ -310,8 +489,11 @@ def _auto_migrate():
     # Each entry: (table, column, new_ddl). The DDL is whatever you'd
     # put in `ADD COLUMN`, e.g. "VARCHAR(2000) NULL".
     widened_columns = [
-        ("project", "DESCRIPTION",  "VARCHAR(2000) NULL"),
-        ("project", "PROJECT_NAME", "VARCHAR(200) NULL"),
+        # Extend FIELD_TYPE enum to include PHONE (idempotent MODIFY)
+        (
+            "custom_fields", "FIELD_TYPE",
+            "ENUM('TEXT','NUMBER','DATE','DATETIME','CHECKBOX','RADIO','SELECT','TEXTAREA','EMAIL','PHONE') NOT NULL",
+        ),
     ]
 
     # New tables that older deployments may not have yet. create_all()
@@ -537,7 +719,7 @@ def _auto_migrate():
                 `OFFICE_NAME` VARCHAR(150) NULL,
                 `LATITUDE` FLOAT NOT NULL DEFAULT 0,
                 `LONGITUDE` FLOAT NOT NULL DEFAULT 0,
-                `RADIUS_METERS` INT NOT NULL DEFAULT 100,
+                `RADIUS_METERS` INT NOT NULL DEFAULT 50,
                 `IS_ACTIVE` INT NOT NULL DEFAULT 1,
                 `CREATED_AT` DATETIME NULL,
                 `UPDATED_AT` DATETIME NULL,
@@ -733,6 +915,41 @@ def _auto_migrate():
                         table, column, exc_inner
                     )
 
+            # ---- 3b. Rename legacy columns whose Python attribute changed ----
+            for table, old_col, new_col, new_ddl in rename_columns:
+
+                if not insp.has_table(table):
+
+                    continue
+
+                existing_cols = {
+                    c["name"].lower()
+                    for c in insp.get_columns(table)
+                }
+
+                if old_col.lower() not in existing_cols:
+
+                    continue  # already renamed or never existed
+
+                try:
+
+                    conn.execute(text(
+                        f"ALTER TABLE `{table}` "
+                        f"CHANGE COLUMN `{old_col}` `{new_col}` {new_ddl}"
+                    ))
+
+                    log.info(
+                        "auto-migrate: renamed %s.%s → %s",
+                        table, old_col, new_col
+                    )
+
+                except Exception as exc_inner:
+
+                    log.warning(
+                        "auto-migrate: could not rename %s.%s → %s: %s",
+                        table, old_col, new_col, exc_inner
+                    )
+
             # ---- 4. Backfill NULL VENDOR_ID on customers (Phase 1) ----
             # New tenant-scope column — existing rows need a default.
             if insp.has_table("customer"):
@@ -790,61 +1007,234 @@ def _auto_migrate():
 _auto_migrate()
 
 
-def _auto_seed_org():
-    """If Department / Role / Designation are empty for vendor 1,
-    seed the MANUFACTURING preset. Idempotent — only runs when the
-    tables are actually empty so existing tenant data is never
-    overwritten."""
+def _auto_seed_holidays():
+    """If no holidays exist for the current year, seed the bundled
+    Indian national list (NATIONAL + Tamil New Year). Idempotent —
+    runs once on first boot per year per vendor."""
 
     from sqlalchemy.orm import sessionmaker
+    from datetime import date
+    from app.models.models import HolidayCalendar
+    from app.routes.holiday import INDIA_NATIONAL_HOLIDAYS
 
-    from app.models.models import Department, Role, Designation
+    Session = sessionmaker(bind=engine)
 
-    from app.routes.organization import do_seed_org
-
-    SessionLocal = sessionmaker(bind=engine)
-
-    db = SessionLocal()
+    db = Session()
 
     try:
 
-        has_dept = db.query(Department).filter(
-            Department.VENDOR_ID == 1
-        ).first()
+        current_year = date.today().year
 
-        has_role = db.query(Role).filter(
-            Role.VENDOR_ID == 1
-        ).first()
+        # Seed the current year + next year so payroll for early-Jan
+        # ever runs without manual setup.
+        for year in (current_year, current_year + 1):
 
-        has_desg = db.query(Designation).filter(
-            Designation.VENDOR_ID == 1
-        ).first()
+            existing = (
+                db.query(HolidayCalendar)
+                  .filter(
+                      HolidayCalendar.VENDOR_ID == 1,
+                      HolidayCalendar.HOLIDAY_DATE >= date(year, 1, 1),
+                      HolidayCalendar.HOLIDAY_DATE <= date(year, 12, 31),
+                  )
+                  .count()
+            )
 
-        if has_dept and has_role and has_desg:
+            if existing > 0:
+                continue
 
-            return  # everything's there — nothing to do
+            catalog = INDIA_NATIONAL_HOLIDAYS.get(year)
 
-        result = do_seed_org(db, "MANUFACTURING", 1)
+            if not catalog:
+                continue
 
-        log.info(
-            "auto-seed-org: added %s depts, %s designations, "
-            "%s roles, %s permissions",
-            result["departments_added"],
-            result["designations_added"],
-            result["roles_added"],
-            result["permissions_added"]
-        )
+            for iso, name, htype in catalog:
+
+                db.add(HolidayCalendar(
+                    HOLIDAY_DATE=date.fromisoformat(iso),
+                    NAME=name,
+                    TYPE=htype,
+                    IS_OPTIONAL=0,
+                    VENDOR_ID=1,
+                ))
+
+        db.commit()
 
     except Exception as exc:
 
-        log.warning("auto-seed-org skipped: %s", exc)
+        db.rollback()
+
+        import logging
+
+        logging.getLogger("uvicorn").warning(
+            "auto-seed-holidays skipped: %s", exc
+        )
 
     finally:
 
         db.close()
 
 
-_auto_seed_org()
+_auto_seed_holidays()
+
+
+def _seed_essl_fingerprint_ids():
+    """
+    Stamp the ESSL X2008 device PIN onto each employee's FINGERPRINT_ID
+    so /iclock/cdata can resolve incoming punches → Employee rows.
+
+    Idempotent: only writes if the employee's FINGERPRINT_ID is empty
+    AND no other employee already claims that PIN. Safe to keep running
+    on every boot — becomes a no-op once seeded.
+
+    PIN list from the device menu (User Mgt → All Users):
+      PIN 2  → BVC002 (Nasira)
+      PIN 4  → BVC004 (Ram kumar)
+      PIN 5  → BVC005 (Harshith)
+      PIN 8  → BVC008 (Puviyarasi)
+      PIN 9  → BVC009 (Lakshminarayanan)
+      PIN 16 → BVC016 (Manoj kumar)
+      PIN 21 → BVC021 (Bharath)
+      PIN 23 → BVC023 (Hemnath)
+    """
+    from sqlalchemy.orm import sessionmaker
+    from app.models.models import Employee
+
+    mapping = {
+        "BVC002": "2",
+        "BVC004": "4",
+        "BVC005": "5",
+        "BVC008": "8",
+        "BVC009": "9",
+        "BVC016": "16",
+        "BVC021": "21",
+        "BVC023": "23",
+    }
+
+    Session = sessionmaker(bind=engine)
+
+    db = Session()
+
+    try:
+
+        for code, pin in mapping.items():
+
+            emp = (
+                db.query(Employee)
+                  .filter(Employee.EMPLOYEE_CODE == code)
+                  .first()
+            )
+
+            if not emp:
+                print(f"[startup] essl-seed: employee {code} not found — skipped")
+                continue
+
+            if emp.FINGERPRINT_ID and emp.FINGERPRINT_ID.strip() != "":
+                # Already set — respect existing value (may be a
+                # different device model / re-enrolment).
+                continue
+
+            # Guard against the unique index on FINGERPRINT_ID: refuse
+            # to write a PIN that another employee already owns.
+            clash = (
+                db.query(Employee)
+                  .filter(Employee.FINGERPRINT_ID == pin)
+                  .first()
+            )
+
+            if clash:
+                print(
+                    f"[startup] essl-seed: PIN {pin} already owned by "
+                    f"{clash.EMPLOYEE_CODE} — skipping {code}"
+                )
+                continue
+
+            emp.FINGERPRINT_ID = pin
+            print(f"[startup] essl-seed: {code} ← PIN {pin}")
+
+        db.commit()
+
+    except Exception as exc:
+        db.rollback()
+        print(f"[startup] essl-seed: failed — {exc}")
+
+    finally:
+        db.close()
+
+
+_seed_essl_fingerprint_ids()
+
+
+# Canonical Work Center catalog for a manufacturing shop. Inserted
+# additively — existing custom work centers are kept. Vendor-scoped.
+_MFG_WORK_CENTERS = [
+    ("Laser Cutting",   "LC",    "FABRICATION", 5.0),
+    ("Welding",         "WLD",   "WELDING",     3.0),
+    ("Fitting",         "FIT",   "ASSEMBLY",    4.0),
+    ("Painting",        "PAINT", "PAINTING",    2.0),
+    ("Assembly",        "ASM",   "ASSEMBLY",    2.0),
+    ("Testing",         "TEST",  "TESTING",     6.0),
+    ("Quality Control", "QC",    "QC",          8.0),
+    ("Packaging",       "PKG",   "PACKAGING",   10.0),
+    ("Dispatch",        "DSP",   "OTHER",       12.0),
+]
+
+
+def _auto_seed_work_centers():
+    """Top up the work_center table with the canonical manufacturing
+    list. Existing entries are NEVER modified; only missing names
+    get inserted. Safe to re-run on every boot."""
+
+    from sqlalchemy.orm import sessionmaker
+    from app.models.models import WorkCenter
+
+    Session = sessionmaker(bind=engine)
+    db = Session()
+
+    try:
+
+        existing_names = {
+            (w.NAME or "").strip().lower()
+            for w in db.query(WorkCenter).filter(WorkCenter.VENDOR_ID == 1).all()
+        }
+
+        added = 0
+        for name, code, category, capacity in _MFG_WORK_CENTERS:
+            if name.strip().lower() in existing_names:
+                continue
+            db.add(WorkCenter(
+                NAME=name,
+                CODE=code,
+                CATEGORY=category,
+                CAPACITY_PER_HOUR=capacity,
+                IS_ACTIVE=1,
+                VENDOR_ID=1,
+            ))
+            added += 1
+
+        if added:
+            db.commit()
+            import logging
+            logging.getLogger("uvicorn").info(
+                "auto-seed-work-centers: +%d work centers", added
+            )
+
+    except Exception as exc:
+
+        db.rollback()
+
+        import logging
+        logging.getLogger("uvicorn").warning(
+            "auto-seed-work-centers skipped: %s", exc
+        )
+
+    finally:
+
+        db.close()
+
+
+_auto_seed_work_centers()
+
+
 
 
 def _auto_seed_quotation_settings():
@@ -913,13 +1303,328 @@ def _auto_seed_sales_order_settings():
 _auto_seed_sales_order_settings()
 
 
+def _auto_seed_defaults():
+    """Seed the single default Vendor → Department → Role → Employee
+    chain on first boot.  Each step is guarded by a name/code lookup:
+    if the record already exists it is reused so a partial seed can be
+    completed without creating duplicates."""
+
+    import logging
+    import uuid
+    from datetime import date, time as dtime
+    from sqlalchemy.orm import sessionmaker
+    from app.models.models import Vendor, Department, Role, Employee
+    from app.services.auth_service import hash_password
+
+    log = logging.getLogger("uvicorn")
+    Session = sessionmaker(bind=engine)
+    db = Session()
+
+    try:
+        # ── 1. Vendor ─────────────────────────────────────────────────
+        vendor = (
+            db.query(Vendor)
+              .filter(Vendor.VENDOR_NAME == "Bharath Vending Corporation")
+              .first()
+        )
+        if vendor is None:
+            vendor = Vendor(VENDOR_NAME="Bharath Vending Corporation")
+            db.add(vendor)
+            db.flush()
+            log.info("auto-seed-defaults: vendor created (ID=%s)", vendor.ID)
+
+        # ── 2. Department ─────────────────────────────────────────────
+        dept = (
+            db.query(Department)
+              .filter(
+                  Department.VENDOR_ID == vendor.ID,
+                  Department.DEPARTMENT_CODE == "HRD",
+              )
+              .first()
+        )
+        if dept is None:
+            dept = Department(
+                VENDOR_ID=vendor.ID,
+                DEPARTMENT_CODE="HRD",
+                NAME="HR",
+                DESCRIPTION=(
+                    "Human Resources department responsible for employee "
+                    "recruitment, onboarding, payroll, and compliance."
+                ),
+            )
+            db.add(dept)
+            db.flush()
+            log.info("auto-seed-defaults: department created (ID=%s)", dept.ID)
+
+        # ── 3. Role ───────────────────────────────────────────────────
+        role = (
+            db.query(Role)
+              .filter(
+                  Role.VENDOR_ID == vendor.ID,
+                  Role.NAME == "SUPER_ADMIN",
+              )
+              .first()
+        )
+        if role is None:
+            role = Role(
+                VENDOR_ID=vendor.ID,
+                DEPARTMENT_ID=dept.ID,
+                NAME="SUPER_ADMIN",
+                DESCRIPTION=(
+                    "Super Administrator role with full access to all modules, "
+                    "settings, and system configuration."
+                ),
+            )
+            db.add(role)
+            db.flush()
+            log.info("auto-seed-defaults: role created (ID=%s)", role.ID)
+
+        # ── 4. Employee ───────────────────────────────────────────────
+        emp = (
+            db.query(Employee)
+              .filter(
+                  Employee.VENDOR_ID == vendor.ID,
+                  Employee.EMPLOYEE_CODE == "SA001",
+              )
+              .first()
+        )
+        if emp is None:
+            emp = Employee(
+                ID=str(uuid.uuid4()),
+                EMPLOYEE_CODE="SA001",
+                NAME="SUPERADMIN",
+                PASSWORD=hash_password("SuperAdmin@123"),
+                DEPARTMENT_ID=dept.ID,
+                ROLE_ID=role.ID,
+                VENDOR_ID=vendor.ID,
+                JOINING_DATE=date.today(),
+                SALARY=0.0,
+                SHIFT_START=dtime(10, 0),
+                SHIFT_END=dtime(18, 0),
+                STATUS="ACTIVE",
+                PROFILE_SUBMITTED=0,
+            )
+            db.add(emp)
+            log.info("auto-seed-defaults: employee created (CODE=SA001)")
+
+        db.commit()
+
+    except Exception as exc:
+        db.rollback()
+        log.warning("auto-seed-defaults skipped: %s", exc)
+
+    finally:
+        db.close()
+
+
+_auto_seed_defaults()
+
+
+# =====================================================================
+# Weekly memo-automation scheduler
+# ---------------------------------------------------------------------
+# Fires once every Monday at 06:00 local server time. Idempotent — each
+# memo is keyed on ISO week + employee + type via AUTOMATION_KEY, so a
+# duplicate wake-up (server restart mid-morning, manual admin trigger
+# earlier, etc.) never issues the same memo twice.
+# =====================================================================
+def _start_memo_automation_scheduler():
+
+    import logging
+    import threading
+    import time as _time
+    from datetime import datetime, timedelta
+    from sqlalchemy.orm import sessionmaker
+
+    log = logging.getLogger("uvicorn")
+
+    RUN_HOUR   = 6      # 06:00
+    RUN_WEEKDAY = 0     # Monday
+    POLL_SECONDS = 60 * 30   # check every 30 minutes
+
+    SessionLocal = sessionmaker(bind=engine)
+
+    def _last_run_at(db):
+        """Return the datetime of the previous automation run, or None."""
+        from app.models.models import Setting
+        row = db.query(Setting).filter(
+            Setting.KEY == "memo_automation.last_run"
+        ).first()
+        if not row or not row.VALUE:
+            return None
+        try:
+            import json
+            payload = json.loads(row.VALUE)
+            return datetime.fromisoformat(payload.get("ran_at"))
+        except Exception:
+            return None
+
+    def _tick():
+        while True:
+            try:
+                now = datetime.now()
+                # Only fire on Monday, at or after 06:00
+                if now.weekday() == RUN_WEEKDAY and now.hour >= RUN_HOUR:
+                    db = SessionLocal()
+                    try:
+                        last = _last_run_at(db)
+                        # If we already ran within the last 48h, skip —
+                        # this covers manual runs and server restarts.
+                        if not last or (now - last) > timedelta(hours=48):
+                            log.info(
+                                "memo-automation: weekly scheduler firing at %s",
+                                now.isoformat(timespec="seconds"),
+                            )
+                            from app.services.memo_automation import run_weekly_automation
+                            from app.routes.memo_automation import _store_last_run
+                            summary = run_weekly_automation(db)
+                            _store_last_run(db, summary)
+                            log.info(
+                                "memo-automation: created %d warnings, %d appreciations "
+                                "(skipped %d already-issued)",
+                                summary.warnings_created,
+                                summary.appreciations_created,
+                                summary.skipped_existing,
+                            )
+                    finally:
+                        db.close()
+            except Exception as exc:
+                log.warning("memo-automation scheduler tick failed: %s", exc)
+            _time.sleep(POLL_SECONDS)
+
+    t = threading.Thread(
+        target=_tick,
+        name="memo-automation-scheduler",
+        daemon=True,
+    )
+    t.start()
+    log.info("memo-automation scheduler started (weekly, Monday 06:00)")
+
+
+_start_memo_automation_scheduler()
+
+
+# =====================================================================
+# Monthly memo-automation scheduler
+# ---------------------------------------------------------------------
+# Fires on the 1st of each month at 06:00, evaluates the PREVIOUS month
+# for every ACTIVE employee, and issues AI-personalised WARNING /
+# APPRECIATION memos. Idempotent per (year, month, type, employee)
+# via AUTOMATION_KEY. HR can also trigger runs on demand from the UI —
+# both paths call the same run_monthly_evaluation() function.
+# =====================================================================
+def _start_monthly_memo_scheduler():
+
+    import logging
+    import threading
+    import time as _time
+    from datetime import datetime, timedelta
+    from sqlalchemy.orm import sessionmaker
+
+    log = logging.getLogger("uvicorn")
+
+    RUN_HOUR = 6           # 06:00
+    RUN_DAY_OF_MONTH = 1   # the 1st
+    POLL_SECONDS = 60 * 30
+
+    SessionLocal = sessionmaker(bind=engine)
+
+    def _last_monthly_run_at(db):
+        from app.models.models import Setting
+        row = db.query(Setting).filter(
+            Setting.KEY == "memo_automation.last_monthly_run"
+        ).first()
+        if not row or not row.VALUE:
+            return None
+        try:
+            import json
+            payload = json.loads(row.VALUE)
+            return datetime.fromisoformat(payload.get("ran_at"))
+        except Exception:
+            return None
+
+    def _previous_month(today: datetime) -> tuple[int, int]:
+        """Return (year, month) of the calendar month BEFORE today's."""
+        y, m = today.year, today.month
+        if m == 1:
+            return y - 1, 12
+        return y, m - 1
+
+    def _tick():
+        while True:
+            try:
+                now = datetime.now()
+                if now.day == RUN_DAY_OF_MONTH and now.hour >= RUN_HOUR:
+                    db = SessionLocal()
+                    try:
+                        last = _last_monthly_run_at(db)
+                        # Skip if we already ran within the last 20 days
+                        # (covers manual runs + restarts within the month).
+                        if not last or (now - last) > timedelta(days=20):
+                            year, month = _previous_month(now)
+                            log.info(
+                                "monthly-memo-automation: firing for %04d-%02d at %s",
+                                year, month, now.isoformat(timespec="seconds"),
+                            )
+                            from app.services.monthly_memo_automation import (
+                                run_monthly_evaluation,
+                            )
+                            result = run_monthly_evaluation(db, year, month)
+
+                            # Persist last-run marker
+                            import json
+                            from app.models.models import Setting
+                            payload = json.dumps({
+                                **result.as_dict(),
+                                "ran_at": now.isoformat(),
+                            })
+                            row = db.query(Setting).filter(
+                                Setting.KEY == "memo_automation.last_monthly_run"
+                            ).first()
+                            if row:
+                                row.VALUE = payload
+                                row.UPDATED_AT = now
+                            else:
+                                db.add(Setting(
+                                    KEY="memo_automation.last_monthly_run",
+                                    VALUE=payload,
+                                    UPDATED_AT=now,
+                                ))
+                            db.commit()
+
+                            log.info(
+                                "monthly-memo-automation: %d warnings, %d appreciations "
+                                "(skipped %d already-issued, %d errors)",
+                                result.warnings_created,
+                                result.appreciations_created,
+                                result.skipped_already_issued,
+                                len(result.errors),
+                            )
+                    finally:
+                        db.close()
+            except Exception as exc:
+                log.warning("monthly-memo-automation tick failed: %s", exc)
+            _time.sleep(POLL_SECONDS)
+
+    t = threading.Thread(
+        target=_tick,
+        name="monthly-memo-automation-scheduler",
+        daemon=True,
+    )
+    t.start()
+    log.info("monthly-memo-automation scheduler started (1st of month, 06:00)")
+
+
+_start_monthly_memo_scheduler()
+
+
 app.include_router(auth_router, tags=["Auth"])
 app.include_router(organization_router, tags=["Organization"])
 app.include_router(employee.router, tags=["Employees (IAM)"])
 app.include_router(employee_task_router, tags=["Employee Workflow"])
 app.include_router(task_approval_router, tags=["Task Approval"])
 app.include_router(task_router, tags=["Project Tasks"])
-app.include_router(project_router, tags=["Projects"])
+# app.include_router(project_router, tags=["Projects"])  # removed — customer projects replaced by Project template hierarchy
 app.include_router(project_template_router, tags=["Project Templates"])
 app.include_router(users_router, tags=["Users"])
 app.include_router(vendor_router, tags=["Vendors"])
@@ -927,11 +1632,13 @@ app.include_router(inventory_router, tags=["Inventory"])
 app.include_router(machine_router, tags=["Machines"])
 app.include_router(attendance_router, tags=["Attendance"])
 app.include_router(notification_router, tags=["Notifications"])
+app.include_router(announcement_router)
 app.include_router(analytics_router, tags=["Analytics"])
 app.include_router(reports_router, tags=["Reports"])
 app.include_router(settings_router, tags=["Settings"])
 app.include_router(chatbot_router, tags=["Chatbot"])
 app.include_router(biometric_router)
+app.include_router(iclock_router)  # ADMS Push (biometric device -> ERP)
 app.include_router(bvc24_seed_router)
 app.include_router(performance_router)
 app.include_router(production_router)
@@ -952,7 +1659,7 @@ app.include_router(employee_onboarding_router, tags=["Employee Onboarding Portal
 app.include_router(employee_documents_router, tags=["Employee Documents"])
 app.include_router(admin_dashboard_router)
 app.include_router(approvals_router)
-app.include_router(ai_command_router)
+# app.include_router(ai_command_router)  # removed Phase 2
 app.include_router(dashboard_aggregators_router)
 app.include_router(ai_router)
 app.include_router(public_enquiry_router)
@@ -962,6 +1669,24 @@ app.include_router(leave_chatbot_router)
 app.include_router(employee_portal_router, tags=["Employee Portal"])
 app.include_router(audit_router)
 app.include_router(rbac_router)
+app.include_router(holiday_router)
+app.include_router(chatbot_ai_router)
+app.include_router(work_center_router)
+app.include_router(allowance_router, tags=["Allowances"])
+app.include_router(leave_agent_router)
+app.include_router(hr_chat_router)
+app.include_router(recruitment_router)
+app.include_router(my_payslips_router)
+app.include_router(onboarding_checklist_router)
+app.include_router(attendance_ai_router)
+app.include_router(leave_decisions_router)
+app.include_router(monthly_reports_router)
+app.include_router(employee_status_router)
+app.include_router(employee_insights_router)
+app.include_router(custom_fields_router, tags=["Custom Fields"])
+app.include_router(helpdesk_router)
+app.include_router(memo_automation_router)
+app.include_router(voice_assistant_router)
 
 
 @app.get("/", tags=["Health"])

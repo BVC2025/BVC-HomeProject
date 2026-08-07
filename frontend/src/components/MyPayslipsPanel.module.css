@@ -1,0 +1,754 @@
+/* ==================================================================
+   MyPayslipsPanel — redesigned Payslips page for the ESS
+   Consistent with the rest of the redesigned pages: cream page bg,
+   elevated white cards, Inter typography, tightly-controlled palette.
+   ================================================================== */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 940px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 4px 2px 32px;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, sans-serif;
+  color: #1e293b;
+}
+
+
+/* ==================================================================
+   1. HERO
+   ================================================================== */
+
+.hero {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 22px;
+  align-items: center;
+  padding: 18px 24px;
+  /* White card body, red border only — plain, professional. */
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #dc2626;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: none;
+}
+
+.heroLeft { min-width: 0; position: relative; z-index: 1; }
+
+.heroEyebrow {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: #dc2626;
+  margin-bottom: 4px;
+}
+
+.heroTitle {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  line-height: 1.15;
+  color: #0f172a;
+}
+
+.heroSub {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #64748b;
+  max-width: 480px;
+}
+
+.heroRight {
+  position: relative;
+  z-index: 1;
+  min-width: 180px;
+  text-align: right;
+  padding-left: 22px;
+  border-left: 1px solid #e2e8f0;
+}
+
+.heroBigLabel {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #dc2626;
+  margin-bottom: 4px;
+}
+
+.heroBigValue {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: #0f172a;
+}
+
+.heroBigSub {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+
+/* ==================================================================
+   2. STAT STRIP
+   ================================================================== */
+
+.statRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.stat {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.statHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.statIcon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.tint_red   { background: #fef2f2; color: #b91c1c; }
+.tint_green { background: #ecfdf5; color: #047857; }
+.tint_blue  { background: #eff6ff; color: #1d4ed8; }
+
+.statLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.statValue {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.4px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+
+.statSub {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+
+/* ==================================================================
+   3. FILTER ROW
+   ================================================================== */
+
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  flex-wrap: wrap;
+}
+
+.filterLabel {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.filterChips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.chipBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.chipBtn:hover:not(.chipBtn_active) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+.chipBtn_active {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #ffffff;
+}
+
+.filterCount {
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ---- Custom month picker ---- */
+
+.monthPicker {
+  position: relative;
+  display: inline-block;
+}
+
+.monthTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px 7px 16px;
+  background: #ffffff;
+  color: #dc2626;
+  border: 1.5px solid #dc2626;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.monthTrigger:hover  { background: #fef2f2; }
+.monthTrigger:focus  { outline: none; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15); }
+.monthTrigger svg    { transition: transform 0.15s ease; }
+
+.monthMenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 180px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+  padding: 4px;
+  margin: 0;
+  list-style: none;
+  z-index: 40;
+}
+
+.monthItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+.monthItem:hover        { background: #fef2f2; color: #b91c1c; }
+.monthItem_active       { background: #dc2626; color: #ffffff; font-weight: 700; }
+.monthItem_active:hover { background: #b91c1c; color: #ffffff; }
+.monthItem_hasData      { font-weight: 600; color: #0f172a; }
+.monthItem_hasData:hover { color: #b91c1c; }
+.monthItem_hasData.monthItem_active { color: #ffffff; }
+
+.monthDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #dc2626;
+  flex-shrink: 0;
+}
+.monthItem_active .monthDot { background: #ffffff; }
+
+
+/* ==================================================================
+   4. PAYSLIP LIST
+   ================================================================== */
+
+.slipList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.slip {
+  display: grid;
+  grid-template-columns: 180px 1fr auto;
+  gap: 24px;
+  align-items: center;
+  padding: 20px 22px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.slip:hover {
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+  border-color: #cbd5e1;
+}
+
+
+/* ---- Left column: month + payslip # ---- */
+
+.slipHead { min-width: 0; }
+
+.slipMonth {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.3px;
+  line-height: 1.15;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.slipYear {
+  font-size: 13px;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0;
+}
+
+.slipNumber {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: #64748b;
+  letter-spacing: 0.2px;
+}
+
+
+/* ---- Middle column: net-pay block + stats ---- */
+
+.slipBody {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 22px;
+  align-items: center;
+  min-width: 0;
+}
+
+.slipNetBlock {
+  padding: 12px 16px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.slipNetLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: #059669;
+  margin-bottom: 2px;
+}
+
+.slipNetValue {
+  font-size: 20px;
+  font-weight: 800;
+  color: #047857;
+  letter-spacing: -0.3px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+
+.slipStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  min-width: 0;
+}
+
+.slipStat {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.slipStatLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.slipStatValue {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.slipStatValue small {
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+  margin-left: 2px;
+  letter-spacing: 0;
+}
+
+.deduction { color: #b91c1c; }
+
+.slipStatHint {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: #94a3b8;
+  margin-top: 1px;
+}
+
+
+/* ---- Right column: status chip + action buttons ---- */
+
+.slipRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+.chip_success { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+.chip_warn    { background: #fffbeb; color: #b45309; border-color: #fcd34d; }
+.chip_info    { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.chip_muted   { background: #f1f5f9; color: #64748b; border-color: #cbd5e1; }
+
+
+.actions {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.actionGhost,
+.actionPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, filter 0.15s ease, transform 0.08s ease;
+  white-space: nowrap;
+}
+.actionGhost:disabled,
+.actionPrimary:disabled { opacity: 0.55; cursor: not-allowed; }
+.actionGhost:active:not(:disabled),
+.actionPrimary:active:not(:disabled) { transform: translateY(1px); }
+
+.actionGhost {
+  background: #ffffff;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+.actionGhost:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.actionPrimary {
+  background: #dc2626;
+  color: #ffffff;
+  border: 1px solid #dc2626;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.22);
+}
+.actionPrimary:hover:not(:disabled) { background: #b91c1c; }
+
+
+/* ==================================================================
+   Loading / error / empty states
+   ================================================================== */
+
+.loading {
+  padding: 30px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13.5px;
+  background: #ffffff;
+  border: 1px dashed #e2e8f0;
+  border-radius: 12px;
+}
+
+.error {
+  padding: 14px 16px;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 28px 22px;
+  background: #ffffff;
+  border: 1px dashed #e2e8f0;
+  border-radius: 14px;
+  color: #64748b;
+}
+.emptyIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: #f1f5f9;
+  color: #94a3b8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.emptyTitle { font-size: 14px; font-weight: 600; color: #334155; margin-bottom: 3px; }
+.emptyBody  { font-size: 12.5px; color: #94a3b8; line-height: 1.5; }
+
+
+/* ==================================================================
+   MOBILE
+   ================================================================== */
+
+@media (max-width: 900px) {
+  .wrap { gap: 12px; padding: 4px 0 32px; }
+
+  .hero {
+    grid-template-columns: 1fr;
+    padding: 20px 20px;
+    gap: 16px;
+  }
+  .heroRight {
+    text-align: left;
+    padding-left: 0;
+    border-left: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.22);
+    padding-top: 12px;
+    min-width: 0;
+  }
+  .heroTitle    { font-size: 20px; }
+  .heroBigValue { font-size: 24px; }
+
+  /* 4 tiles → 2 columns on tablet, 1 column on very small screens */
+  .statRow { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .statValue { font-size: 20px; }
+
+  /* Payslip card stacks: month header, then body, then right column */
+  .slip {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 18px 18px;
+  }
+  .slipBody {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .slipStats { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .slipStatValue { font-size: 13px; }
+
+  .slipRight { align-items: flex-start; }
+  .actions { justify-content: flex-start; }
+  .actions button { flex: 1 1 auto; justify-content: center; }
+}
+
+@media (max-width: 480px) {
+  .statRow { grid-template-columns: 1fr; }
+  .slipStats { grid-template-columns: 1fr 1fr; }
+  .slipStats .slipStat:nth-child(3) { grid-column: span 2; }
+  .slipMonth { font-size: 18px; }
+}
+
+
+/* ==================================================================
+   DARK MODE — module-scoped overrides (bulletproof: uses the module's
+   actual class names, not substring guesses).
+   ================================================================== */
+
+:global(html[data-theme="dark"]) .wrap { color: #e2e8f0; }
+
+/* Hero on dark theme — dark navy card with red border, mirrors the
+   light-mode "white card + red border" idea. */
+:global(html[data-theme="dark"]) .hero {
+  background: #131c2c;
+  border-color: #dc2626;
+  box-shadow: 0 8px 24px rgba(220, 38, 38, 0.20);
+}
+:global(html[data-theme="dark"]) .heroEyebrow  { color: #fca5a5; }
+:global(html[data-theme="dark"]) .heroTitle    { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .heroSub      { color: #94a3b8; }
+:global(html[data-theme="dark"]) .heroRight    { border-left-color: rgba(255, 255, 255, 0.10); }
+:global(html[data-theme="dark"]) .heroBigLabel { color: #fca5a5; }
+:global(html[data-theme="dark"]) .heroBigValue { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .heroBigSub   { color: #94a3b8; }
+
+/* Stat tiles — Latest / PF / ESI / Bonus */
+:global(html[data-theme="dark"]) .stat {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .statLabel { color: #94a3b8; }
+:global(html[data-theme="dark"]) .statValue { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .statSub   { color: #94a3b8; }
+:global(html[data-theme="dark"]) .statIcon.tint_red   { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
+:global(html[data-theme="dark"]) .statIcon.tint_green { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+:global(html[data-theme="dark"]) .statIcon.tint_blue  { background: rgba(59, 130, 246, 0.18); color: #93c5fd; }
+
+/* Filter row — the FILTER · All years · 2026 · 1 of 1 strip */
+:global(html[data-theme="dark"]) .filterRow {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .filterLabel { color: #94a3b8; }
+:global(html[data-theme="dark"]) .chipBtn {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: #cbd5e1;
+}
+:global(html[data-theme="dark"]) .chipBtn:hover:not(.chipBtn_active) {
+  background: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .chipBtn_active {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #ffffff;
+}
+:global(html[data-theme="dark"]) .filterCount { color: #94a3b8; }
+:global(html[data-theme="dark"]) .monthTrigger {
+  background: transparent;
+  color: #fca5a5;
+  border-color: #dc2626;
+}
+:global(html[data-theme="dark"]) .monthTrigger:hover {
+  background: rgba(220, 38, 38, 0.10);
+}
+:global(html[data-theme="dark"]) .monthMenu {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.10);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
+}
+:global(html[data-theme="dark"]) .monthItem         { color: #cbd5e1; }
+:global(html[data-theme="dark"]) .monthItem:hover   { background: rgba(220, 38, 38, 0.14); color: #fca5a5; }
+:global(html[data-theme="dark"]) .monthItem_hasData { color: #f1f5f9; }
+
+/* Slip row card */
+:global(html[data-theme="dark"]) .slip {
+  background: #131c2c;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .slip:hover {
+  border-color: rgba(255, 255, 255, 0.20);
+}
+:global(html[data-theme="dark"]) .slipMonth   { color: #f1f5f9; }
+:global(html[data-theme="dark"]) .slipYear    { color: #94a3b8; }
+:global(html[data-theme="dark"]) .slipNumber  { color: #64748b; }
+
+/* Net-pay block — keep emerald tint */
+:global(html[data-theme="dark"]) .slipNetBlock {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.32);
+}
+:global(html[data-theme="dark"]) .slipNetLabel { color: #6ee7b7; }
+:global(html[data-theme="dark"]) .slipNetValue { color: #6ee7b7; }
+
+/* Slip stats block (Gross / Deductions / OT / PF / ESI / Tax etc.) */
+:global(html[data-theme="dark"]) .slipStat {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+:global(html[data-theme="dark"]) .slipStatLabel { color: #94a3b8; }
+:global(html[data-theme="dark"]) .slipStatValue { color: #e2e8f0; }
+:global(html[data-theme="dark"]) .slipStatValue small { color: #94a3b8; }
+:global(html[data-theme="dark"]) .slipStatHint  { color: #94a3b8; }
+:global(html[data-theme="dark"]) .deduction     { color: #fca5a5; }
+
+/* Chip variants next to the slip */
+:global(html[data-theme="dark"]) .chip_success { background: rgba(16, 185, 129, 0.14); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.32); }
+:global(html[data-theme="dark"]) .chip_warn    { background: rgba(251, 191, 36, 0.14); color: #fbbf24; border-color: rgba(251, 191, 36, 0.34); }
+:global(html[data-theme="dark"]) .chip_info    { background: rgba(59, 130, 246, 0.14); color: #93c5fd; border-color: rgba(59, 130, 246, 0.32); }
+:global(html[data-theme="dark"]) .chip_muted   { background: rgba(148, 163, 184, 0.14); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.28); }
+
+/* Action buttons */
+:global(html[data-theme="dark"]) .actionGhost {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+}
+:global(html[data-theme="dark"]) .actionGhost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.20);
+}
+:global(html[data-theme="dark"]) .actionPrimary {
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #ffffff;
+}
+:global(html[data-theme="dark"]) .actionPrimary:hover:not(:disabled) {
+  background: #b91c1c;
+  border-color: #b91c1c;
+}

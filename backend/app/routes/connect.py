@@ -32,7 +32,7 @@ from app.database.database import get_db
 from app.models.models import (
     Employee,
     Department,
-    Project,
+    CustomerProject,
     Customer,
     TaskAssignment,
     Attendance,
@@ -118,8 +118,8 @@ def employee_360(employee_id: str, db: Session = Depends(get_db)):
 
     # ---- Active + recent tasks ----
     active_tasks = (
-        db.query(TaskAssignment, Project)
-        .outerjoin(Project, TaskAssignment.PROJECT_ID == Project.ID)
+        db.query(TaskAssignment, CustomerProject)
+        .outerjoin(CustomerProject, TaskAssignment.PROJECT_ID == CustomerProject.ID)
         .filter(
             TaskAssignment.EMPLOYEE_ID == emp.ID,
             TaskAssignment.TASK_STATUS.in_(
@@ -211,7 +211,7 @@ def employee_360(employee_id: str, db: Session = Depends(get_db)):
             "EMAIL": emp.EMAIL,
             "PHONE": emp.PHONE,
             "DEPARTMENT": dept.NAME if dept else None,
-            "DEPARTMENT_CODE": dept.CODE if dept else None,
+            "DEPARTMENT_CODE": dept.DEPARTMENT_CODE if dept else None,
             "SKILLS": emp.SKILLS,
             "FINGERPRINT_ID": emp.FINGERPRINT_ID,
             "STATUS": emp.STATUS,
@@ -308,7 +308,7 @@ def employee_360(employee_id: str, db: Session = Depends(get_db)):
 @router.get("/project/{project_id}/360")
 def project_360(project_id: int, db: Session = Depends(get_db)):
 
-    proj = db.query(Project).filter(Project.ID == project_id).first()
+    proj = db.query(CustomerProject).filter(CustomerProject.ID == project_id).first()
 
     if not proj:
 
@@ -555,10 +555,10 @@ def customer_360(customer_id: int, db: Session = Depends(get_db)):
 
     # ---- Projects belonging to this customer ----
     projects = (
-        db.query(Project, Department)
-        .outerjoin(Department, Project.DEPARTMENT_ID == Department.ID)
-        .filter(Project.CUSTOMER_ID == customer.ID)
-        .order_by(Project.ID.desc())
+        db.query(CustomerProject, Department)
+        .outerjoin(Department, CustomerProject.DEPARTMENT_ID == Department.ID)
+        .filter(CustomerProject.CUSTOMER_ID == customer.ID)
+        .order_by(CustomerProject.ID.desc())
         .all()
     )
 
@@ -570,12 +570,12 @@ def customer_360(customer_id: int, db: Session = Depends(get_db)):
     if project_ids:
 
         work_orders = (
-            db.query(WorkOrder, ProductModel, Project)
+            db.query(WorkOrder, ProductModel, CustomerProject)
             .outerjoin(
                 ProductModel,
                 WorkOrder.PRODUCT_MODEL_ID == ProductModel.ID
             )
-            .outerjoin(Project, WorkOrder.PROJECT_ID == Project.ID)
+            .outerjoin(CustomerProject, WorkOrder.PROJECT_ID == CustomerProject.ID)
             .filter(WorkOrder.PROJECT_ID.in_(project_ids))
             .order_by(WorkOrder.CREATED_AT.desc())
             .all()
@@ -782,12 +782,12 @@ def customer_360(customer_id: int, db: Session = Depends(get_db)):
 def work_order_360(wo_id: int, db: Session = Depends(get_db)):
 
     row = (
-        db.query(WorkOrder, ProductModel, Project)
+        db.query(WorkOrder, ProductModel, CustomerProject)
         .outerjoin(
             ProductModel,
             WorkOrder.PRODUCT_MODEL_ID == ProductModel.ID
         )
-        .outerjoin(Project, WorkOrder.PROJECT_ID == Project.ID)
+        .outerjoin(CustomerProject, WorkOrder.PROJECT_ID == CustomerProject.ID)
         .filter(WorkOrder.ID == wo_id)
         .first()
     )
@@ -1078,9 +1078,9 @@ def workflow_snapshot(db: Session = Depends(get_db)):
         },
 
         "sales": {
-            "projects_total": db.query(Project).count(),
-            "projects_active": db.query(Project).filter(
-                Project.STATUS.in_(["PENDING", "IN_PROGRESS", "ACTIVE"])
+            "projects_total": db.query(CustomerProject).count(),
+            "projects_active": db.query(CustomerProject).filter(
+                CustomerProject.STATUS.in_(["PENDING", "IN_PROGRESS", "ACTIVE"])
             ).count()
         },
 
