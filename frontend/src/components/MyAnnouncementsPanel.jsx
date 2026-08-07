@@ -161,11 +161,32 @@ export default function MyAnnouncementsPanel({ employeeId }) {
         })
       );
 
-      // Split HR-authored announcements by type.
+      // Split HR-authored announcements by type. The bell dropdown
+      // and every category outside Meeting/Event get funnelled into
+      // the Notice tab where the AnnouncementRow's type pill tells
+      // the employee what kind of message it is. HOLIDAY-typed
+      // announcements are HR *messages* about holidays (greetings,
+      // schedule notes) — separate from the actual holiday calendar
+      // in /holidays which the Holiday tab still owns.
       const ans = Array.isArray(annRes.data) ? annRes.data : [];
-      setMeetings(ans.filter((a) => (a.TYPE || "").toUpperCase() === "MEETING"));
-      setEvents(  ans.filter((a) => (a.TYPE || "").toUpperCase() === "EVENT"));
-      setNoticeAnnouncements(ans.filter((a) => (a.TYPE || "").toUpperCase() === "NOTICE"));
+      const upper = (a) => (a.TYPE || "").toUpperCase();
+      setMeetings(ans.filter((a) => upper(a) === "MEETING"));
+      setEvents(  ans.filter((a) => upper(a) === "EVENT"));
+      // Everything else (GENERAL, HR, SAFETY, IT, ACHIEVEMENT,
+      // OPERATIONAL, URGENT, COMMUNICATION, CORPORATE, HOLIDAY,
+      // legacy NOTICE) lands under Notices. Urgent ones bubble to
+      // the top; the rest keep the backend's date/created order.
+      const NOTICE_BUCKET = new Set([
+        "GENERAL", "HR", "HOLIDAY", "SAFETY", "IT", "ACHIEVEMENT",
+        "OPERATIONAL", "URGENT", "COMMUNICATION", "CORPORATE", "NOTICE",
+      ]);
+      const noticeRows = ans.filter((a) => NOTICE_BUCKET.has(upper(a)));
+      noticeRows.sort((a, b) => {
+        const au = upper(a) === "URGENT" ? 1 : 0;
+        const bu = upper(b) === "URGENT" ? 1 : 0;
+        return bu - au;
+      });
+      setNoticeAnnouncements(noticeRows);
     } catch (e) {
       setError(e?.response?.data?.detail || "Failed to load announcements.");
     } finally {
@@ -445,13 +466,36 @@ function AnnouncementList({ items, kind }) {
 }
 
 
+// Inline pill palette — kept in sync with the HR page's TYPE_PILLS
+// so the same category reads visually the same on both sides.
+const ESS_PILL_COLOR = {
+  GENERAL:       { bg: "#f1f5f9", fg: "#334155", label: "General" },
+  HR:            { bg: "#eff6ff", fg: "#1d4ed8", label: "HR" },
+  MEETING:       { bg: "#eef2ff", fg: "#4338ca", label: "Meeting" },
+  EVENT:         { bg: "#f5f3ff", fg: "#6d28d9", label: "Event" },
+  HOLIDAY:       { bg: "#fffbeb", fg: "#b45309", label: "Holiday" },
+  SAFETY:        { bg: "#fef2f2", fg: "#b91c1c", label: "Safety" },
+  IT:            { bg: "#ecfeff", fg: "#0e7490", label: "IT" },
+  ACHIEVEMENT:   { bg: "#ecfdf5", fg: "#047857", label: "Achievement" },
+  OPERATIONAL:   { bg: "#f0fdfa", fg: "#0f766e", label: "Operational" },
+  URGENT:        { bg: "#dc2626", fg: "#ffffff", label: "Urgent" },
+  COMMUNICATION: { bg: "#f0f9ff", fg: "#0369a1", label: "Communication" },
+  CORPORATE:     { bg: "#faf5ff", fg: "#7e22ce", label: "Corporate" },
+  NOTICE:        { bg: "#f1f5f9", fg: "#334155", label: "General" },  // legacy
+};
+
 function AnnouncementRow({ item }) {
 
   const d = parseDateSafe(item.EVENT_DATE);
   const rel = item.EVENT_DATE ? relativeLabel(item.EVENT_DATE) : "";
+  const type = (item.TYPE || "").toUpperCase();
+  const pill = ESS_PILL_COLOR[type] || { bg: "#f1f5f9", fg: "#334155", label: type || "Notice" };
+  const isUrgent = type === "URGENT";
 
   return (
-    <li className={styles.holRow}>
+    <li className={styles.holRow} style={
+      isUrgent ? { borderLeft: "3px solid #dc2626", paddingLeft: 9 } : undefined
+    }>
       {d ? (
         <div className={styles.dateTile}>
           <div className={styles.dateTileDay}>{d.getDate()}</div>
@@ -466,8 +510,19 @@ function AnnouncementRow({ item }) {
       <div className={styles.holBody}>
         <div className={styles.holTitle}>
           {item.TITLE || "Announcement"}
-          <span className={`${styles.tinyPill} ${styles.tinyPill_slate}`}>
-            {(item.TYPE || "").replace(/_/g, " ")}
+          <span style={{
+            display: "inline-block",
+            marginLeft: 8,
+            padding: "2px 8px",
+            background: pill.bg,
+            color: pill.fg,
+            borderRadius: 999,
+            fontSize: 10,
+            fontWeight: 800,
+            letterSpacing: 0.4,
+            textTransform: "uppercase",
+          }}>
+            {pill.label}
           </span>
         </div>
         <div className={styles.holMeta}>

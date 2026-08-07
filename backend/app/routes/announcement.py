@@ -28,7 +28,28 @@ from app.models.models import Announcement, Employee, Notification
 router = APIRouter(prefix="/announcements", tags=["Announcements"])
 
 
-ALLOWED_TYPES = {"MEETING", "EVENT", "NOTICE"}
+# Twelve category buckets covering the announcement space HR uses in
+# practice. NOTICE kept as an alias for GENERAL so any rows written
+# by the earlier three-type version stay valid — normalize on read
+# in the frontend if you need consistency.
+ALLOWED_TYPES = {
+    "GENERAL",         # Policies, procedures, reminders, org updates
+    "HR",              # New hires, promotions, benefits, leave policy, training
+    "MEETING",         # Team / department meetings, town halls
+    "EVENT",           # Parties, celebrations, engagement activities
+    "HOLIDAY",         # Holiday schedules, closures, greetings
+    "SAFETY",          # Safety & security notices, drills
+    "IT",              # System maintenance, software updates, downtime
+    "ACHIEVEMENT",     # Milestones, awards, recognitions
+    "OPERATIONAL",     # Process changes, relocations, new equipment
+    "URGENT",          # Emergency / immediate action required
+    "COMMUNICATION",   # Surveys, feedback requests, internal campaigns
+    "CORPORATE",       # Strategy, leadership changes, mergers
+    "NOTICE",          # Legacy alias — treat as GENERAL going forward
+}
+
+# Types that carry a scheduled date/time. All others are dateless.
+DATED_TYPES = {"MEETING", "EVENT", "HOLIDAY"}
 
 
 # ============================================================
@@ -187,7 +208,16 @@ def create_announcement(
             .all()
         )
 
-        type_label = a_type.title()
+        # URGENT and SAFETY get the amber WARNING band on the toast +
+        # bell dot so employees see they're not routine posts.
+        notif_type = (
+            "WARNING" if a_type in {"URGENT", "SAFETY"}
+            else "SUCCESS" if a_type == "ACHIEVEMENT"
+            else "INFO"
+        )
+        # Human-readable label — 'HR', 'IT' stay uppercase; the rest
+        # title-case.
+        type_label = a_type if a_type in {"HR", "IT"} else a_type.title()
         notif_title = f"{type_label}: {title[:80]}"
         notif_msg_parts = [title]
         if row.EVENT_DATE:
@@ -203,7 +233,7 @@ def create_announcement(
                 EMPLOYEE_ID=emp.ID,
                 TITLE=notif_title[:150],
                 MESSAGE=notif_msg,
-                TYPE="INFO",
+                TYPE=notif_type,
                 VENDOR_ID=vendor_id,
             ))
         db.commit()

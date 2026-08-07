@@ -21,11 +21,31 @@ import API from "../services/api";
 const BVC_RED  = "#dc2626";
 const BVC_DARK = "#b91c1c";
 
+// Full announcement taxonomy. Ordered by frequency of expected use so
+// the top of the dropdown feels familiar. Placeholder examples come
+// straight from the industry-standard titles list HR uses.
 const TYPES = [
-  { value: "MEETING", label: "Meeting" },
-  { value: "EVENT",   label: "Event" },
-  { value: "NOTICE",  label: "Notice" },
+  { value: "GENERAL",       label: "General",           hint: "Office updates, policy reminders" },
+  { value: "HR",            label: "HR",                hint: "New hires, promotions, benefits, training" },
+  { value: "MEETING",       label: "Meeting",           hint: "Team, department, town hall" },
+  { value: "EVENT",         label: "Event",             hint: "Parties, celebrations, engagement" },
+  { value: "HOLIDAY",       label: "Holiday",           hint: "Closures, festival greetings" },
+  { value: "SAFETY",        label: "Safety & Security", hint: "Drills, emergency procedures" },
+  { value: "IT",            label: "IT & Technology",   hint: "Maintenance, updates, downtime" },
+  { value: "ACHIEVEMENT",   label: "Achievement",       hint: "Milestones, awards, recognitions" },
+  { value: "OPERATIONAL",   label: "Operational",       hint: "Process changes, relocations, equipment" },
+  { value: "URGENT",        label: "Urgent",            hint: "Emergency / immediate action" },
+  { value: "COMMUNICATION", label: "Communication",     hint: "Surveys, feedback, internal campaigns" },
+  { value: "CORPORATE",     label: "Corporate",         hint: "Strategy, leadership, mergers" },
 ];
+
+// Types that carry a scheduled date/time. All others are dateless —
+// the modal hides the Date/Time/Location block when the picker sits
+// on one of these.
+const DATELESS_TYPES = new Set([
+  "GENERAL", "HR", "SAFETY", "IT", "ACHIEVEMENT",
+  "OPERATIONAL", "URGENT", "COMMUNICATION", "CORPORATE",
+]);
 
 
 function todayLocalISO() {
@@ -58,7 +78,7 @@ function fmtDateTime(iso) {
 
 const EMPTY_FORM = {
   ID: null,
-  TYPE: "MEETING",
+  TYPE: "GENERAL",
   TITLE: "",
   DESCRIPTION: "",
   EVENT_DATE: todayLocalISO(),
@@ -134,9 +154,9 @@ export default function Announcements() {
         TYPE: form.TYPE,
         TITLE: form.TITLE.trim(),
         DESCRIPTION: form.DESCRIPTION.trim() || null,
-        EVENT_DATE: form.TYPE === "NOTICE" ? null : (form.EVENT_DATE || null),
-        EVENT_TIME: form.TYPE === "NOTICE" ? null : (form.EVENT_TIME.trim() || null),
-        LOCATION:   form.TYPE === "NOTICE" ? null : (form.LOCATION.trim() || null),
+        EVENT_DATE: DATELESS_TYPES.has(form.TYPE) ? null : (form.EVENT_DATE || null),
+        EVENT_TIME: DATELESS_TYPES.has(form.TYPE) ? null : (form.EVENT_TIME.trim() || null),
+        LOCATION:   DATELESS_TYPES.has(form.TYPE) ? null : (form.LOCATION.trim() || null),
       };
       if (form.ID) {
         await API.patch(`/announcements/${form.ID}`, payload);
@@ -184,14 +204,24 @@ export default function Announcements() {
         </button>
       </div>
 
-      {/* Filter chips */}
+      {/* Filter chips — All + one per type. Uses the same TYPES list
+          the modal uses, so the two stay in sync automatically. */}
       <div style={styles.filterRow}>
         <span style={styles.filterLabel}>Filter</span>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          <FilterChip label="All"      active={filterType === "ALL"}     onClick={() => setFilterType("ALL")} />
-          <FilterChip label="Meetings" active={filterType === "MEETING"} onClick={() => setFilterType("MEETING")} />
-          <FilterChip label="Events"   active={filterType === "EVENT"}   onClick={() => setFilterType("EVENT")} />
-          <FilterChip label="Notices"  active={filterType === "NOTICE"}  onClick={() => setFilterType("NOTICE")} />
+          <FilterChip
+            label="All"
+            active={filterType === "ALL"}
+            onClick={() => setFilterType("ALL")}
+          />
+          {TYPES.map((t) => (
+            <FilterChip
+              key={t.value}
+              label={t.label}
+              active={filterType === t.value}
+              onClick={() => setFilterType(t.value)}
+            />
+          ))}
         </div>
         <span style={styles.filterCount}>
           {filteredRows.length} total
@@ -290,6 +320,9 @@ export default function Announcements() {
                     <option key={t.value} value={t.value}>{t.label}</option>
                   ))}
                 </select>
+                <div style={{ fontSize: 11.5, color: "#94a3b8", marginTop: 4 }}>
+                  {TYPES.find((t) => t.value === form.TYPE)?.hint || ""}
+                </div>
               </FormField>
 
               <FormField label="Title" required>
@@ -298,11 +331,7 @@ export default function Announcements() {
                   style={styles.input}
                   value={form.TITLE}
                   onChange={(e) => setForm({ ...form, TITLE: e.target.value })}
-                  placeholder={
-                    form.TYPE === "MEETING" ? "e.g. All-hands review — August"
-                    : form.TYPE === "EVENT" ? "e.g. Annual day 2026"
-                    : "e.g. Office closed on Friday"
-                  }
+                  placeholder={placeholderFor(form.TYPE)}
                   maxLength={200}
                 />
               </FormField>
@@ -318,7 +347,7 @@ export default function Announcements() {
                 />
               </FormField>
 
-              {form.TYPE !== "NOTICE" && (
+              {!DATELESS_TYPES.has(form.TYPE) && (
                 <>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <FormField label="Date">
@@ -403,13 +432,50 @@ function FilterChip({ label, active, onClick }) {
 }
 
 
+// Industry-standard example titles per category — used as the input
+// placeholder so HR gets a concrete starting point when composing.
+function placeholderFor(type) {
+  switch (type) {
+    case "GENERAL":       return "e.g. Important Notice: Updated Office Timings";
+    case "HR":            return "e.g. Welcome Our New Team Member";
+    case "MEETING":       return "e.g. All-hands review — August";
+    case "EVENT":         return "e.g. Annual day 2026";
+    case "HOLIDAY":       return "e.g. Office Closed on Public Holiday";
+    case "SAFETY":        return "e.g. Emergency Safety Drill Notification";
+    case "IT":            return "e.g. Scheduled System Maintenance";
+    case "ACHIEVEMENT":   return "e.g. Congratulations on the Team Achievement";
+    case "OPERATIONAL":   return "e.g. New equipment installation on Monday";
+    case "URGENT":        return "e.g. Immediate action: office access change";
+    case "COMMUNICATION": return "e.g. Employee engagement survey — 5 minutes";
+    case "CORPORATE":     return "e.g. Leadership announcement — Q3 update";
+    default:              return "Announcement title";
+  }
+}
+
+
+// Colour palette per type. Kept in sync with the ESS panel so the
+// same category reads visually the same on both sides.
+const TYPE_PILLS = {
+  GENERAL:       { bg: "#f1f5f9", fg: "#334155", label: "General" },
+  HR:            { bg: "#eff6ff", fg: "#1d4ed8", label: "HR" },
+  MEETING:       { bg: "#eef2ff", fg: "#4338ca", label: "Meeting" },
+  EVENT:         { bg: "#f5f3ff", fg: "#6d28d9", label: "Event" },
+  HOLIDAY:       { bg: "#fffbeb", fg: "#b45309", label: "Holiday" },
+  SAFETY:        { bg: "#fef2f2", fg: "#b91c1c", label: "Safety" },
+  IT:            { bg: "#ecfeff", fg: "#0e7490", label: "IT" },
+  ACHIEVEMENT:   { bg: "#ecfdf5", fg: "#047857", label: "Achievement" },
+  OPERATIONAL:   { bg: "#f0fdfa", fg: "#0f766e", label: "Operational" },
+  URGENT:        { bg: "#dc2626", fg: "#ffffff", label: "Urgent" },
+  COMMUNICATION: { bg: "#f0f9ff", fg: "#0369a1", label: "Communication" },
+  CORPORATE:     { bg: "#faf5ff", fg: "#7e22ce", label: "Corporate" },
+  // Legacy alias — a NOTICE row from the earlier three-type version
+  // reads as General so nothing shows up as an unknown pill.
+  NOTICE:        { bg: "#f1f5f9", fg: "#334155", label: "General" },
+};
+
 function TypePill({ type }) {
-  const map = {
-    MEETING: { bg: "#eff6ff", fg: "#1d4ed8", label: "Meeting" },
-    EVENT:   { bg: "#f5f3ff", fg: "#6d28d9", label: "Event" },
-    NOTICE:  { bg: "#ecfdf5", fg: "#047857", label: "Notice" },
-  };
-  const t = map[type] || { bg: "#f1f5f9", fg: "#334155", label: type };
+  const t = TYPE_PILLS[type] || { bg: "#f1f5f9", fg: "#334155", label: type };
+  const isUrgent = type === "URGENT";
   return (
     <span style={{
       display: "inline-block",
@@ -421,6 +487,7 @@ function TypePill({ type }) {
       fontWeight: 800,
       letterSpacing: 0.4,
       textTransform: "uppercase",
+      boxShadow: isUrgent ? "0 4px 10px rgba(220,38,38,0.25)" : undefined,
     }}>
       {t.label}
     </span>
