@@ -380,10 +380,11 @@ def generate_for_employee(
         ]
         m_name = month_names[month - 1]
         db.add(Notification(
+            EMPLOYEE_ID=slip.EMPLOYEE_ID,
             TYPE="INFO",
             TITLE=f"New payslip — {m_name} {year}",
             MESSAGE=(
-                f"{emp.NAME}'s {m_name} {year} payslip has been generated. "
+                f"Your {m_name} {year} payslip has been generated. "
                 f"Net pay: INR {slip.NET_PAY:,.2f}. "
                 f"View it in Employee Portal -> Payslips."
             ),

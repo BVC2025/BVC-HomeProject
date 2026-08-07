@@ -798,6 +798,26 @@ function EmployeeDashboardBody() {
   }, []);
 
 
+  // Near-real-time refresh — when the user returns to this tab
+  // (window focus or the document becomes visible again after being
+  // backgrounded), pull the latest notifications immediately instead
+  // of waiting for the next 15-second poll. Combined with the 15s
+  // interval this keeps the bell feeling live without pulling in a
+  // WebSocket/SSE stack.
+  useEffect(() => {
+    const refetch = () => {
+      if (document.visibilityState === "visible") fetchNotifications();
+    };
+    window.addEventListener("focus", refetch);
+    document.addEventListener("visibilitychange", refetch);
+    return () => {
+      window.removeEventListener("focus", refetch);
+      document.removeEventListener("visibilitychange", refetch);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
   // -------------------------------------------------------------
   // DERIVED VIEW DATA
   // -------------------------------------------------------------

@@ -119,7 +119,9 @@ def list_notifications(
         None,
         description=(
             "If set, returns notifications targeted at this employee "
-            "PLUS global (EMPLOYEE_ID IS NULL) broadcasts. "
+            "ONLY. Notifications with EMPLOYEE_ID IS NULL (orphan / "
+            "broadcast rows produced by bugs in older producers) are "
+            "NOT returned here — they were leaking cross-employee. "
             "If omitted, returns every notification (admin/legacy view)."
         ),
     ),
@@ -139,12 +141,11 @@ def list_notifications(
             .first()
         )
         target_id = emp.ID if emp else employee_id
-        q = q.filter(
-            or_(
-                Notification.EMPLOYEE_ID == target_id,
-                Notification.EMPLOYEE_ID.is_(None),
-            )
-        )
+        # Strict per-employee filter. No IS NULL fallback — orphan
+        # rows are invisible to employees. If we ever need genuine
+        # org-wide broadcasts we'll add an explicit IS_BROADCAST flag
+        # rather than reusing the null-target hole.
+        q = q.filter(Notification.EMPLOYEE_ID == target_id)
 
     rows = q.order_by(Notification.CREATED_AT.desc()).limit(100).all()
 
@@ -189,12 +190,9 @@ def unread_count(
             .first()
         )
         target_id = emp.ID if emp else employee_id
-        q = q.filter(
-            or_(
-                Notification.EMPLOYEE_ID == target_id,
-                Notification.EMPLOYEE_ID.is_(None),
-            )
-        )
+        # Strict per-employee — matches the list endpoint. Legacy
+        # orphan (EMPLOYEE_ID IS NULL) rows are excluded.
+        q = q.filter(Notification.EMPLOYEE_ID == target_id)
 
     return {"count": q.count()}
 
@@ -233,12 +231,33 @@ def mark_read(
 
 @router.put("/notifications/mark-all-read")
 def mark_all_read(
-    db: Session = Depends(get_db)
+    employee_id: Optional[str] = Query(
+        None,
+        description=(
+            "If set, marks read only for THIS employee. If omitted, "
+            "marks every unread notification in the DB (admin action)."
+        ),
+    ),
+    db: Session = Depends(get_db),
 ):
 
-    db.query(Notification).filter(
-        Notification.IS_READ == 0
-    ).update({Notification.IS_READ: 1})
+    q = db.query(Notification).filter(Notification.IS_READ == 0)
+
+    if employee_id:
+        emp = (
+            db.query(Employee)
+            .filter(
+                (Employee.ID == employee_id)
+                | (Employee.EMPLOYEE_CODE == employee_id)
+            )
+            .first()
+        )
+        target_id = emp.ID if emp else employee_id
+        # Only mark this employee's rows — prevents one employee
+        # clearing the badge for everyone.
+        q = q.filter(Notification.EMPLOYEE_ID == target_id)
+
+    q.update({Notification.IS_READ: 1}, synchronize_session=False)
 
     db.commit()
 
