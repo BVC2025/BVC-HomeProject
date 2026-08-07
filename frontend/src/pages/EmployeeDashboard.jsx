@@ -21,6 +21,7 @@ import MyAnnouncementsPanel from "../components/MyAnnouncementsPanel";
 import MyHelpDeskPanel from "../components/MyHelpDeskPanel";
 import VoiceAssistant from "../components/VoiceAssistant";
 import MyDocumentsPanel from "../components/MyDocumentsPanel";
+import MyOrgChartPanel from "../components/MyOrgChartPanel";
 import MySettingsPanel from "../components/MySettingsPanel";
 import EmployeeSidebar from "../components/EmployeeSidebar";
 import EmployeeHomeDashboard from "../components/EmployeeHomeDashboard";
@@ -1306,16 +1307,7 @@ function EmployeeDashboardBody() {
           )}
           {/* Performance now handled above by MyPerformancePanel. */}
           {mainTab === "orgchart" && (
-            <ComingSoonPanel
-              title="Organization Chart"
-              iconKey="tree"
-              description="See the reporting hierarchy from CEO down to your seat."
-              bullets={[
-                "Interactive drill-down by department",
-                "Photos, names and designations",
-                "Your position highlighted",
-              ]}
-            />
+            <MyOrgChartPanel />
           )}
           {mainTab === "myteam" && (
             hasPerm(["team.view", "team.manage"]) ? (
