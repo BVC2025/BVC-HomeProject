@@ -1035,14 +1035,18 @@ function EmployeeDashboardBody() {
               display: "flex", alignItems: "center", justifyContent: "center",
               flexShrink: 0,
             }}>
+              {/* Megaphone — the professional 'announcement /
+                  broadcast' icon. Reads as HR-authored push rather
+                  than generic app notification (which a bell would). */}
               <svg
                 width="16" height="16" viewBox="0 0 24 24"
                 fill="none" stroke="#fff" strokeWidth="2.2"
                 strokeLinecap="round" strokeLinejoin="round"
                 aria-hidden="true"
               >
-                <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 01-3.46 0" />
+                <path d="M3 11v2a1 1 0 0 0 1 1h2l6 4V6L6 10H4a1 1 0 0 0-1 1z" />
+                <path d="M16 8a5 5 0 0 1 0 8" />
+                <path d="M19.5 5.5a9 9 0 0 1 0 13" />
               </svg>
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
