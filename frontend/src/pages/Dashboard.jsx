@@ -45,7 +45,6 @@ import Customers from "./Customers";
 import Quotations from "./Quotations";
 import SalesOrders from "./SalesOrders";
 import InvoiceOrder from "./InvoiceOrder";
-import Projects from "./Projects";
 import Inventory from "./Inventory";
 import Attendance from "./Attendance";
 import Machines from "./Machines";
@@ -1682,12 +1681,16 @@ const NAV_TOP = [
 const NAV_GROUPS = [
   {
     key: "org",
-    label: "HRMS",
+    label: "Organization",
     items: [
+
+      { to: "/approvals", icon: <SidebarIcon name="approvals" />, label: "Approval Center" },
 
       // { to: "/roles", icon: <SidebarIcon name="roles" />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
 
       { to: "/rbac", icon: <SidebarIcon name="rbac" />, label: "RBAC" },
+      { to: "/departments", icon: <SidebarIcon name="departments" />, label: "Department Management" },
+      { to: "/org-roles", icon: <SidebarIcon name="org-roles" />, label: "Role Management" },
       { to: "/employees", icon: <SidebarIcon name="employees" />, label: "Employees" },
       { to: "/memos", icon: <SidebarIcon name="memos" />, label: "Memos" },
       { to: "/attendance", icon: <SidebarIcon name="attendance" />, label: "Attendance" },
@@ -1704,9 +1707,6 @@ const NAV_GROUPS = [
 
       // { to: "/workforce-analytics", icon: <SidebarIcon name="star" />, label: "Workforce Analytics" }  // temporarily hidden per request
       { to: "/help-desk", icon: <SidebarIcon name="helpdesk" />, label: "Help Desk" },
-      { to: "/approvals", icon: <SidebarIcon name="approvals" />, label: "Approval Center" },
-      { to: "/departments", icon: <SidebarIcon name="departments" />, label: "Department Management" },
-      { to: "/org-roles", icon: <SidebarIcon name="org-roles" />, label: "Role Management" },
     ]
   },
   {
@@ -1764,9 +1764,8 @@ const NAV_GROUPS = [
   },
   {
     key: "manufacturing",
-    label: "Project & Manufacturing",
+    label: "Manufacturing",
     items: [
-      { to: "/projects", icon: <SidebarIcon name="projects" />, label: "Projects" },
       { to: "/machines", icon: <SidebarIcon name="machines" />, label: "Machines" },
       { to: "/work-centers", icon: <SidebarIcon name="workcenters" />, label: "Work Centers" },
       { to: "/production", icon: <SidebarIcon name="production" />, label: "Production & BOM" },
@@ -1778,9 +1777,6 @@ const NAV_GROUPS = [
     label: "Purchase & Inventory",
     items: [
 
-      { to: "/suppliers", icon: <SidebarIcon name="suppliers" />, label: "Suppliers" },
-      { to: "/purchase", icon: <SidebarIcon name="purchase" />, label: "BOM-Supplier Map" },
-      { to: "/purchase-orders", icon: <SidebarIcon name="purchaseorders" />, label: "Purchase Orders" },
       { to: "/inventory", icon: <SidebarIcon name="inventory" />, label: "Inventory" },
       { to: "/supplier-management", icon: <SidebarIcon name="suppliers" />, label: "Supplier Management" },
       { to: "/inventory-categories", icon: <SidebarIcon name="inventory" />, label: "Inv. Categories" },
@@ -1800,8 +1796,6 @@ const NAV_GROUPS = [
     key: "system",
     label: "System",
     items: [
-
-      { to: "/company-settings", icon: <SidebarIcon name="company" />, label: "Company Settings" },
 
       { to: "/company-profile", icon: <SidebarIcon name="company" />, label: "Company Profile" },
       { to: "/email-config", icon: <SidebarIcon name="settings" />, label: "Email Config" },
@@ -2137,7 +2131,7 @@ function Dashboard() {
 
           <Route
             path="/projects"
-            element={<Projects />}
+            element={<Suspense fallback={null}><ProjectPage /></Suspense>}
           />
 
           <Route
