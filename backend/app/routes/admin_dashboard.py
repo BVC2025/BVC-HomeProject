@@ -81,7 +81,7 @@ def admin_dashboard_stats(
         db.query(func.count(CustomerProject.ID)).filter(
             ~CustomerProject.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"])
         ),
-        Project
+        CustomerProject
     ).scalar() or 0
 
     # 5. Purchase Orders (exclude CANCELLED)

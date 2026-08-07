@@ -375,6 +375,8 @@ class Department(Base):
 
     CREATED_AT = Column(DateTime, default=datetime.utcnow)
 
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 
 class Designation(Base):
 

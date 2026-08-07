@@ -44,6 +44,7 @@ from app.routes.reports import router as reports_router
 from app.routes.settings import router as settings_router
 from app.routes.employee_task import router as employee_task_router
 from app.routes.project_template import router as project_template_router
+from app.routes.project_quotation import router as project_quotation_router
 from app.routes.organization import router as organization_router
 from app.routes.task_approval import router as task_approval_router
 from app.routes.chatbot import router as chatbot_router
@@ -924,7 +925,7 @@ def _auto_migrate():
                 )
 
             # ---- 1b. Rename legacy columns ----
-            for table, new_col, old_col, ddl in rename_columns:
+            for table, old_col, new_col, ddl in rename_columns:
 
                 if not insp.has_table(table):
 
@@ -1160,130 +1161,6 @@ def _auto_seed_holidays():
 _auto_seed_holidays()
 
 
-# Canonical department + designation lists for a manufacturing company.
-# Inserted ADDITIVELY — existing custom entries are kept, missing ones
-# are added. Order doesn't matter; we de-dupe by (VENDOR_ID, NAME).
-_MFG_DEPARTMENTS = [
-    ("Software Development",          "SW"),
-    ("Accounts & Finance",            "FIN"),
-    ("Sales",                         "SAL"),
-    ("Purchase / Procurement",        "PUR"),
-    ("Design & Engineering",          "DSN"),
-    ("Electrical",                    "ELE"),
-    ("Welding",                       "WLD"),
-    ("Fitting",                       "FIT"),
-    ("Assembly",                      "ASM"),
-    ("Production",                    "PRD"),
-    ("Quality Control",               "QC"),
-    ("Quality Assurance",             "QA"),
-    ("Maintenance",                   "MNT"),
-    ("Manufacturing",                 "MFG"),
-    ("Operations",                    "OPS"),
-    ("Stores / Inventory",            "INV"),
-    ("Logistics",                     "LOG"),
-    ("Supply Chain Management",       "SCM"),
-    ("Research & Development",        "RND"),
-    ("Human Resources",               "HR"),
-    ("Administration",                "ADM"),
-    ("Safety (EHS)",                  "EHS"),
-    ("Planning",                      "PLN"),
-    ("Project Management",            "PM"),
-    ("Tool Room",                     "TR"),
-    ("Machine Shop",                  "MS"),
-    ("Fabrication",                   "FAB"),
-    ("Inspection",                    "INSP"),
-    ("Packaging",                     "PKG"),
-    ("Dispatch",                      "DSP"),
-    ("Customer Support / Service",    "CS"),
-    ("Information Technology",        "IT"),
-]
-
-_MFG_DESIGNATIONS = [
-    "Trainee", "Apprentice", "Operator", "Technician", "Fitter",
-    "Welder", "Electrician", "Supervisor", "Senior Supervisor",
-    "Engineer", "Senior Engineer", "Design Engineer", "Production Engineer",
-    "Quality Engineer", "Maintenance Engineer", "Team Leader",
-    "Shift In-Charge", "Assistant Manager", "Deputy Manager", "Manager",
-    "Senior Manager", "General Manager", "Department Head", "Executive",
-    "Senior Executive", "Accountant", "Purchase Executive",
-    "Sales Executive", "HR Executive", "HR Manager", "IT Administrator",
-    "Project Engineer", "Project Manager", "Plant Head", "Factory Manager",
-    "Director",
-]
-
-
-def _auto_seed_org_catalog():
-    """Top up Department + Designation tables with the canonical
-    manufacturing-industry list. Existing entries are NEVER modified;
-    only missing names get inserted. Safe to re-run on every boot."""
-
-    from sqlalchemy.orm import sessionmaker
-    from app.models.models import Department, Designation
-
-    Session = sessionmaker(bind=engine)
-    db = Session()
-
-    try:
-
-        # ---- Departments ------------------------------------------
-        existing_dept_names = {
-            (d.NAME or "").strip().lower()
-            for d in db.query(Department).filter(Department.VENDOR_ID == 1).all()
-        }
-
-        dept_added = 0
-        for name, code in _MFG_DEPARTMENTS:
-            if name.strip().lower() in existing_dept_names:
-                continue
-            db.add(Department(NAME=name, DEPARTMENT_CODE=code, VENDOR_ID=1))
-            dept_added += 1
-
-        if dept_added:
-            db.commit()
-
-        # ---- Designations -----------------------------------------
-        # Designation is keyed by TITLE alone (no vendor scope on the
-        # model — it's company-agnostic). Use a case-insensitive set.
-        existing_des_titles = {
-            (d.TITLE or "").strip().lower()
-            for d in db.query(Designation).all()
-        }
-
-        des_added = 0
-        for title in _MFG_DESIGNATIONS:
-            if title.strip().lower() in existing_des_titles:
-                continue
-            db.add(Designation(TITLE=title))
-            des_added += 1
-
-        if des_added:
-            db.commit()
-
-        if dept_added or des_added:
-
-            import logging
-            logging.getLogger("uvicorn").info(
-                "auto-seed-org-catalog: +%d departments, +%d designations",
-                dept_added, des_added,
-            )
-
-    except Exception as exc:
-
-        db.rollback()
-
-        import logging
-        logging.getLogger("uvicorn").warning(
-            "auto-seed-org-catalog skipped: %s", exc
-        )
-
-    finally:
-
-        db.close()
-
-
-_auto_seed_org_catalog()
-
-
 # Canonical Work Center catalog for a manufacturing shop. Inserted
 # additively — existing custom work centers are kept. Vendor-scoped.
 _MFG_WORK_CENTERS = [
@@ -1353,67 +1230,6 @@ def _auto_seed_work_centers():
 
 
 _auto_seed_work_centers()
-
-
-def _auto_seed_org():
-    """If Department / Role / Designation are empty for vendor 1,
-    seed the MANUFACTURING preset. Idempotent — only runs when the
-    tables are actually empty so existing tenant data is never
-    overwritten."""
-
-    import logging
-
-    from sqlalchemy.orm import sessionmaker
-
-    from app.models.models import Department, Role, Designation
-
-    from app.routes.organization import do_seed_org
-
-    log = logging.getLogger("uvicorn")
-
-    SessionLocal = sessionmaker(bind=engine)
-
-    db = SessionLocal()
-
-    try:
-
-        has_dept = db.query(Department).filter(
-            Department.VENDOR_ID == 1
-        ).first()
-
-        has_role = db.query(Role).filter(
-            Role.VENDOR_ID == 1
-        ).first()
-
-        has_desg = db.query(Designation).filter(
-            Designation.VENDOR_ID == 1
-        ).first()
-
-        if has_dept and has_role and has_desg:
-
-            return  # everything's there — nothing to do
-
-        result = do_seed_org(db, "MANUFACTURING", 1)
-
-        log.info(
-            "auto-seed-org: added %s depts, %s designations, "
-            "%s roles, %s permissions",
-            result["departments_added"],
-            result["designations_added"],
-            result["roles_added"],
-            result["permissions_added"]
-        )
-
-    except Exception as exc:
-
-        log.warning("auto-seed-org skipped: %s", exc)
-
-    finally:
-
-        db.close()
-
-
-_auto_seed_org()
 
 
 def _auto_seed_quotation_settings():
@@ -2046,8 +1862,12 @@ app.include_router(employee.router, tags=["Employees (IAM)"])
 app.include_router(employee_task_router, tags=["Employee Workflow"])
 app.include_router(task_approval_router, tags=["Task Approval"])
 app.include_router(task_router, tags=["Project Tasks"])
-app.include_router(project_router, tags=["Projects"])
 app.include_router(project_template_router, tags=["Project Templates"])
+app.include_router(project_quotation_router, tags=["Project Quotation Templates"])
+# project_router registered AFTER project_template_router so the unified
+# GET /projects handler (project_template.py) wins the route collision —
+# project.py still owns its other unique paths (customer CRUD, etc.).
+app.include_router(project_router, tags=["Projects"])
 app.include_router(users_router, tags=["Users"])
 app.include_router(vendor_router, tags=["Vendors"])
 app.include_router(inventory_router, tags=["Inventory"])
