@@ -1,0 +1,183 @@
+INFO:uvicorn:auto-migrate: ensured table supplier_payment exists
+INFO:uvicorn:auto-migrate: ensured table discount_request exists
+INFO:uvicorn:auto-migrate: ensured table company_master exists
+INFO:uvicorn:auto-migrate: ensured table salary_structure exists
+INFO:uvicorn:auto-migrate: ensured table leave_quota_policy exists
+INFO:uvicorn:auto-migrate: ensured table employee_document exists
+INFO:uvicorn:auto-migrate: ensured table employee_onboarding_session exists
+INFO:uvicorn:auto-migrate: ensured table geofence_settings exists
+INFO:uvicorn:auto-migrate: ensured table employee_memos exists
+INFO:uvicorn:auto-migrate: ensured table attendance_security_logs exists
+INFO:uvicorn:auto-migrate: widened custom_fields.FIELD_TYPE \u2192 ENUM('TEXT','NUMBER','DATE','DATETIME','CHECKBOX','RADIO','SELECT','TEXTAREA','EMAIL','PHONE') NOT NULL
+DEBUG:tzlocal:Looking up time zone info from registry
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Adding job tentatively -- it will be properly scheduled when the scheduler starts
+INFO:apscheduler.scheduler:Added job "_tick" to job store "default"
+INFO:apscheduler.scheduler:Added job "_truncate_polling_log" to job store "default"
+INFO:apscheduler.scheduler:Scheduler started
+DEBUG:apscheduler.scheduler:Looking for jobs to run
+INFO:app.scheduler:Lead polling scheduler started (tick every 1 minute, log cleanup at 00:00 & 12:00 IST)
+DEBUG:apscheduler.scheduler:Next wakeup is due at 2026-07-18 17:53:22.514324+05:30 (in 59.927443 seconds)
+DEBUG:asyncio:Using proactor: IocpProactor
+INFO:httpx:HTTP Request: POST http://testserver/projects "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+INFO:httpx:HTTP Request: GET http://testserver/projects/5eb37b26-69c1-4ed9-a979-2307f0a8f4e8/quotation "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+INFO:httpx:HTTP Request: PUT http://testserver/projects/5eb37b26-69c1-4ed9-a979-2307f0a8f4e8/quotation "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+DEBUG:xhtml2pdf.document:pisaDocument options:
+  src = '\n<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8"/>\n<title>Quotation BVC24/QTN/26-27/pdf-inline-remote-broken-43243</title>\n<style>\n  @page { size: A4; margin: 18mm 14mm; }\n  body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #0f172a; }\n  h1, h2, h3 { margin: 0; }\n  .header { background-color: #C8102E; color: white; padding: 14px 18px; }\n  .header h1 { font-size: 18pt; }\n  .header .num { font-size: 9pt; opacity: 0.9; }\n  table { width: 100%; border-collapse: collapse; }\n  .meta td { padding: 4px 8px; vertical-align: top; }\n  .label { color: #64748b; font-size: 8pt; }\n  .items th { background-color: #fef2f2; color: #8B0B1F; padding: 8px; text-align: left; font-size: 9pt; border-bottom: 1px solid #fecaca; }\n  .items td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }\n  .section-title { font-weight: bold; color: #C8102E; margin: 14px 0 6px; }\n  .section-body { font-size: 9.5pt; line-height: 1.5; }\n  .terms { margin-top: 16px; background-color: #f8fafc; padding: 10px 12px; border-left: 3px solid #C8102E; font-size: 9pt; }\n  .terms ol { margin: 4px 0 0 18px; padding: 0; }\n  .signature { margin-top: 24px; font-size: 9.5pt; }\n  .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 8pt; color: #94a3b8; text-align: center; }\n</style>\n</head>\n<body>\n  <div class="header">\n    \n    <h1>QUOTATION</h1>\n    <div class="num">PDF Inline remote-broken 43243</div>\n  </div>\n\n  <table class="meta" style="margin-top: 14px;">\n    <tr>\n      <td style="width: 50%;">\n        <div class="label">BILL TO</div>\n        <div style="font-weight:bold;">{{customer_name}}</div>\n        <div>{{customer_address}}</div>\n        \n        </td>\n      <td style="width: 50%; text-align: right;">\n        <div class="label">QUOTE REFERENCE NUMBER</div>\n        <div style="font-weight: bold;">BVC24/QTN/26-27/pdf-inline-remote-broken-43243</div>\n        <div class="label" style="margin-top: 6px;">QUOTE DATE</div>\n        <div>2026-07-18</div>\n      </td>\n    </tr>\n  </table>\n\n  <div class="section-body" style="margin-top: 14px;"><p>Dear Sir/Madam,</p><p>We are pleased to submit our quotation for <strong>PDF Inline remote-broken 43243</strong> for your kind consideration. repro</p><img src="https://this-domain-does-not-exist-xyz123.example/image.png" alt="image" style="max-width:100%;height:auto;display:block;margin:8px 0;"></div>\n\n  <div class="section-title">Price Schedule</div>\n            <table class="items">\n              <thead><tr>\n                <th style="width:30px; text-align:center;">#</th>\n                <th>Product Description</th>\n                <th style="width:60px; text-align:right;">Qty</th>\n                <th style="width:100px; text-align:right;">Unit Price</th>\n                <th style="width:100px; text-align:right;">Amount</th>\n              </tr></thead>\n              <tbody>\n                <tr>\n                  <td style="text-align:center;">1</td>\n                  <td>PDF Inline remote-broken 43243<br/>repro</td>\n                  <td style="text-align:right;">1</td>\n                  <td style="text-align:right;">0.00</td>\n                  <td style="text-align:right; font-weight:bold;">0.00</td>\n                </tr>\n                </tbody>\n            </table>\n            \n\n  <div class="terms"><div class="section-title" style="margin-top:0;">Terms &amp; Conditions</div><ol><li>Price : Ex-works.</li><li>Order : Purchase Order to be placed in the company\'s name.</li><li>Delivery : As mutually agreed upon confirmation of order with advance payment.</li><li>Change of Specification : We reserve the right to change/modify the specification necessary during design and development for betterment/improvement without prior notice.</li><li>Inspection : To be carried out at our works prior to dispatch, subject to acceptance by the visiting authority.</li><li>Local Taxes : GST as applicable, extra.</li><li>Packing &amp; Handling : Extra, at actuals.</li><li>Branding : At actual, to your account.</li><li>Freight : At actual, to your account.</li><li>Insurance : At actual, to your account.</li><li>Payment Terms : As mutually agreed, along with Purchase Order.</li><li>Installation Charges : Installation and commissioning charges, if applicable, to your account.</li><li>Validity : 15 days from the quotation date.</li><li>Warranty : Manufacturing defects covered for 12 months from the date of supply.</li><li>Cancellation : Once placed, an order cannot be cancelled. Advance payment will be adjusted against expenses incurred till then.</li><li>Bank Details : To be provided</li></ol></div>\n\n  \n\n  \n\n  <div class="footer"><p>www.bvc24.in &middot; Plot No. 14, Industrial Estate, Chennai, Tamil Nadu, 600032, India</p></div>\n</body>\n</html>\n'
+  dest = <_io.BytesIO object at 0x00000147F136BAB0>
+  path = ''
+  link_callback = None
+  xhtml = False
+  context_meta = None
+DEBUG:xhtml2pdf.tables:Col 0 has width 50%
+DEBUG:xhtml2pdf.tables:Col 1 has width 50%
+DEBUG:xhtml2pdf.tables:Col widths: ['50%', '50%']
+DEBUG:xhtml2pdf.files:FileObject 'https://this-domain-does-not-exist-xyz123.example/image.png', Basepath: 'D:\\Ram-Productions\\React_Web_Application\\BVC-HOME-PROJECT\\HOME_PROJECT_NEW\\backend\\__dummy__'
+DEBUG:xhtml2pdf.files:URLParts: ParseResult(scheme='https', netloc='this-domain-does-not-exist-xyz123.example', path='/image.png', params='', query='', fragment=''), 'https'
+DEBUG:xhtml2pdf.tags:Parsing img tag, src: <xhtml2pdf.files.pisaFileObject object at 0x00000147F3363B00>
+DEBUG:xhtml2pdf.tags:Attrs: {'src': <xhtml2pdf.files.pisaFileObject object at 0x00000147F3363B00>, 'width': None, 'height': None, 'align': None, 'id': None}
+DEBUG:xhtml2pdf.files:Sending request for 'https://this-domain-does-not-exist-xyz123.example/image.png' with httplib
+ERROR:xhtml2pdf.files:gaierror: [Errno 11001] getaddrinfo failed while extracting data from NetworkFileUri: 'https://this-domain-does-not-exist-xyz123.example/image.png' on attempt 1
+DEBUG:xhtml2pdf.files:Sending request for 'https://this-domain-does-not-exist-xyz123.example/image.png' with httplib
+ERROR:xhtml2pdf.files:gaierror: [Errno 11001] getaddrinfo failed while extracting data from NetworkFileUri: 'https://this-domain-does-not-exist-xyz123.example/image.png' on attempt 2
+DEBUG:xhtml2pdf.files:Sending request for 'https://this-domain-does-not-exist-xyz123.example/image.png' with httplib
+ERROR:xhtml2pdf.files:gaierror: [Errno 11001] getaddrinfo failed while extracting data from NetworkFileUri: 'https://this-domain-does-not-exist-xyz123.example/image.png' on attempt 3
+WARNING:xhtml2pdf.tags:Could not get image data from src attribute: https://this-domain-does-not-exist-xyz123.example/image.png
+'<img src="https://this-domain-does-not-exist-xyz123.example/image.png" alt="image" style="max-width:100%;height:auto;display:block;margin:8px 0;"/>'
+DEBUG:xhtml2pdf.tables:Col 0 has width 30px
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:Col 2 has width 60px
+DEBUG:xhtml2pdf.tables:Col 3 has width 100px
+DEBUG:xhtml2pdf.tables:Col 4 has width 100px
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:Col widths: [22.5, None, 45.0, 75.0, 75.0]
+INFO:httpx:HTTP Request: GET http://testserver/projects/5eb37b26-69c1-4ed9-a979-2307f0a8f4e8/quotation/pdf "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+INFO:httpx:HTTP Request: GET http://testserver/projects/5eb37b26-69c1-4ed9-a979-2307f0a8f4e8/quotation/docx "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+INFO:httpx:HTTP Request: DELETE http://testserver/projects/5eb37b26-69c1-4ed9-a979-2307f0a8f4e8 "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+INFO:httpx:HTTP Request: POST http://testserver/projects "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+INFO:httpx:HTTP Request: GET http://testserver/projects/b6d35784-6130-4029-a53a-b7a3e04df450/quotation "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+INFO:httpx:HTTP Request: PUT http://testserver/projects/b6d35784-6130-4029-a53a-b7a3e04df450/quotation "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+DEBUG:xhtml2pdf.document:pisaDocument options:
+  src = '\n<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8"/>\n<title>Quotation BVC24/QTN/26-27/pdf-inline-relative-in-richtext-45074</title>\n<style>\n  @page { size: A4; margin: 18mm 14mm; }\n  body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #0f172a; }\n  h1, h2, h3 { margin: 0; }\n  .header { background-color: #C8102E; color: white; padding: 14px 18px; }\n  .header h1 { font-size: 18pt; }\n  .header .num { font-size: 9pt; opacity: 0.9; }\n  table { width: 100%; border-collapse: collapse; }\n  .meta td { padding: 4px 8px; vertical-align: top; }\n  .label { color: #64748b; font-size: 8pt; }\n  .items th { background-color: #fef2f2; color: #8B0B1F; padding: 8px; text-align: left; font-size: 9pt; border-bottom: 1px solid #fecaca; }\n  .items td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }\n  .section-title { font-weight: bold; color: #C8102E; margin: 14px 0 6px; }\n  .section-body { font-size: 9.5pt; line-height: 1.5; }\n  .terms { margin-top: 16px; background-color: #f8fafc; padding: 10px 12px; border-left: 3px solid #C8102E; font-size: 9pt; }\n  .terms ol { margin: 4px 0 0 18px; padding: 0; }\n  .signature { margin-top: 24px; font-size: 9.5pt; }\n  .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 8pt; color: #94a3b8; text-align: center; }\n</style>\n</head>\n<body>\n  <div class="header">\n    \n    <h1>QUOTATION</h1>\n    <div class="num">PDF Inline relative-in-richtext 45074</div>\n  </div>\n\n  <table class="meta" style="margin-top: 14px;">\n    <tr>\n      <td style="width: 50%;">\n        <div class="label">BILL TO</div>\n        <div style="font-weight:bold;">{{customer_name}}</div>\n        <div>{{customer_address}}</div>\n        \n        </td>\n      <td style="width: 50%; text-align: right;">\n        <div class="label">QUOTE REFERENCE NUMBER</div>\n        <div style="font-weight: bold;">BVC24/QTN/26-27/pdf-inline-relative-in-richtext-45074</div>\n        <div class="label" style="margin-top: 6px;">QUOTE DATE</div>\n        <div>2026-07-18</div>\n      </td>\n    </tr>\n  </table>\n\n  <div class="section-body" style="margin-top: 14px;"><p>Dear Sir/Madam,</p><p>We are pleased to submit our quotation for <strong>PDF Inline relative-in-richtext 45074</strong> for your kind consideration. repro</p></div>\n\n  <div class="section-title">Price Schedule</div>\n            <table class="items">\n              <thead><tr>\n                <th style="width:30px; text-align:center;">#</th>\n                <th>Product Description</th>\n                <th style="width:60px; text-align:right;">Qty</th>\n                <th style="width:100px; text-align:right;">Unit Price</th>\n                <th style="width:100px; text-align:right;">Amount</th>\n              </tr></thead>\n              <tbody>\n                <tr>\n                  <td style="text-align:center;">1</td>\n                  <td>PDF Inline relative-in-richtext 45074<br/>repro</td>\n                  <td style="text-align:right;">1</td>\n                  <td style="text-align:right;">0.00</td>\n                  <td style="text-align:right; font-weight:bold;">0.00</td>\n                </tr>\n                </tbody>\n            </table>\n            \n\n  <div class="terms"><div class="section-title" style="margin-top:0;">Terms &amp; Conditions</div><ol><li>Price : Ex-works.</li><li>Order : Purchase Order to be placed in the company\'s name.</li><li>Delivery : As mutually agreed upon confirmation of order with advance payment.</li><li>Change of Specification : We reserve the right to change/modify the specification necessary during design and development for betterment/improvement without prior notice.</li><li>Inspection : To be carried out at our works prior to dispatch, subject to acceptance by the visiting authority.</li><li>Local Taxes : GST as applicable, extra.</li><li>Packing &amp; Handling : Extra, at actuals.</li><li>Branding : At actual, to your account.</li><li>Freight : At actual, to your account.</li><li>Insurance : At actual, to your account.</li><li>Payment Terms : As mutually agreed, along with Purchase Order.</li><li>Installation Charges : Installation and commissioning charges, if applicable, to your account.</li><li>Validity : 15 days from the quotation date.</li><li>Warranty : Manufacturing defects covered for 12 months from the date of supply.</li><li>Cancellation : Once placed, an order cannot be cancelled. Advance payment will be adjusted against expenses incurred till then.</li><li>Bank Details : To be provided</li></ol><img src="/static/quotation/does-not-exist.png" alt="image"></div>\n\n  \n\n  \n\n  <div class="footer"><p>www.bvc24.in &middot; Plot No. 14, Industrial Estate, Chennai, Tamil Nadu, 600032, India</p></div>\n</body>\n</html>\n'
+  dest = <_io.BytesIO object at 0x00000147F07428E0>
+  path = ''
+  link_callback = None
+  xhtml = False
+  context_meta = None
+DEBUG:xhtml2pdf.tables:Col 0 has width 50%
+DEBUG:xhtml2pdf.tables:Col 1 has width 50%
+DEBUG:xhtml2pdf.tables:Col widths: ['50%', '50%']
+DEBUG:xhtml2pdf.tables:Col 0 has width 30px
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:Col 2 has width 60px
+DEBUG:xhtml2pdf.tables:Col 3 has width 100px
+DEBUG:xhtml2pdf.tables:Col 4 has width 100px
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:Col widths: [22.5, None, 45.0, 75.0, 75.0]
+DEBUG:xhtml2pdf.files:FileObject '/static/quotation/does-not-exist.png', Basepath: 'D:\\Ram-Productions\\React_Web_Application\\BVC-HOME-PROJECT\\HOME_PROJECT_NEW\\backend\\__dummy__'
+DEBUG:xhtml2pdf.files:URLParts: ParseResult(scheme='d', netloc='', path='\\Ram-Productions\\React_Web_Application\\BVC-HOME-PROJECT\\HOME_PROJECT_NEW\\backend\\__dummy__', params='', query='', fragment=''), 'd'
+DEBUG:xhtml2pdf.tags:Parsing img tag, src: <xhtml2pdf.files.pisaFileObject object at 0x00000147F35F6F60>
+DEBUG:xhtml2pdf.tags:Attrs: {'src': <xhtml2pdf.files.pisaFileObject object at 0x00000147F35F6F60>, 'width': None, 'height': None, 'align': None, 'id': None}
+DEBUG:xhtml2pdf.files:Unrecognized scheme, assuming local file path
+WARNING:xhtml2pdf.tags:Could not get image data from src attribute: /static/quotation/does-not-exist.png
+'<img src="/static/quotation/does-not-exist.png" alt="image"/>'
+INFO:httpx:HTTP Request: GET http://testserver/projects/b6d35784-6130-4029-a53a-b7a3e04df450/quotation/pdf "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+INFO:httpx:HTTP Request: GET http://testserver/projects/b6d35784-6130-4029-a53a-b7a3e04df450/quotation/docx "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+INFO:httpx:HTTP Request: DELETE http://testserver/projects/b6d35784-6130-4029-a53a-b7a3e04df450 "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+INFO:httpx:HTTP Request: POST http://testserver/projects "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+INFO:httpx:HTTP Request: GET http://testserver/projects/a01742d2-39c7-4d75-b1ab-3a52bdce07d3/quotation "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+INFO:httpx:HTTP Request: PUT http://testserver/projects/a01742d2-39c7-4d75-b1ab-3a52bdce07d3/quotation "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+DEBUG:xhtml2pdf.document:pisaDocument options:
+  src = '\n<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8"/>\n<title>Quotation BVC24/QTN/26-27/pdf-inline-longword-45437</title>\n<style>\n  @page { size: A4; margin: 18mm 14mm; }\n  body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #0f172a; }\n  h1, h2, h3 { margin: 0; }\n  .header { background-color: #C8102E; color: white; padding: 14px 18px; }\n  .header h1 { font-size: 18pt; }\n  .header .num { font-size: 9pt; opacity: 0.9; }\n  table { width: 100%; border-collapse: collapse; }\n  .meta td { padding: 4px 8px; vertical-align: top; }\n  .label { color: #64748b; font-size: 8pt; }\n  .items th { background-color: #fef2f2; color: #8B0B1F; padding: 8px; text-align: left; font-size: 9pt; border-bottom: 1px solid #fecaca; }\n  .items td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }\n  .section-title { font-weight: bold; color: #C8102E; margin: 14px 0 6px; }\n  .section-body { font-size: 9.5pt; line-height: 1.5; }\n  .terms { margin-top: 16px; background-color: #f8fafc; padding: 10px 12px; border-left: 3px solid #C8102E; font-size: 9pt; }\n  .terms ol { margin: 4px 0 0 18px; padding: 0; }\n  .signature { margin-top: 24px; font-size: 9.5pt; }\n  .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 8pt; color: #94a3b8; text-align: center; }\n</style>\n</head>\n<body>\n  <div class="header">\n    \n    <h1>QUOTATION</h1>\n    <div class="num">PDF Inline longword 45437</div>\n  </div>\n\n  <table class="meta" style="margin-top: 14px;">\n    <tr>\n      <td style="width: 50%;">\n        <div class="label">BILL TO</div>\n        <div style="font-weight:bold;">{{customer_name}}</div>\n        <div>{{customer_address}}</div>\n        \n        </td>\n      <td style="width: 50%; text-align: right;">\n        <div class="label">QUOTE REFERENCE NUMBER</div>\n        <div style="font-weight: bold;">BVC24/QTN/26-27/pdf-inline-longword-45437</div>\n        <div class="label" style="margin-top: 6px;">QUOTE DATE</div>\n        <div>2026-07-18</div>\n      </td>\n    </tr>\n  </table>\n\n  <div class="section-body" style="margin-top: 14px;"><p>Dear Sir/Madam,</p><p>We are pleased to submit our quotation for <strong>PDF Inline longword 45437</strong> for your kind consideration. repro</p></div>\n\n  <div class="section-title">Price Schedule</div>\n            <table class="items">\n              <thead><tr>\n                <th style="width:30px; text-align:center;">#</th>\n                <th>Product Description</th>\n                <th style="width:60px; text-align:right;">Qty</th>\n                <th style="width:100px; text-align:right;">Unit Price</th>\n                <th style="width:100px; text-align:right;">Amount</th>\n              </tr></thead>\n              <tbody>\n                <tr>\n                  <td style="text-align:center;">1</td>\n                  <td>XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX</td>\n                  <td style="text-align:right;">1</td>\n                  <td style="text-align:right;">0.00</td>\n                  <td style="text-align:right; font-weight:bold;">0.00</td>\n                </tr>\n                </tbody>\n            </table>\n            \n\n  <div class="terms"><div class="section-title" style="margin-top:0;">Terms &amp; Conditions</div><ol><li>Price : Ex-works.</li><li>Order : Purchase Order to be placed in the company\'s name.</li><li>Delivery : As mutually agreed upon confirmation of order with advance payment.</li><li>Change of Specification : We reserve the right to change/modify the specification necessary during design and development for betterment/improvement without prior notice.</li><li>Inspection : To be carried out at our works prior to dispatch, subject to acceptance by the visiting authority.</li><li>Local Taxes : GST as applicable, extra.</li><li>Packing &amp; Handling : Extra, at actuals.</li><li>Branding : At actual, to your account.</li><li>Freight : At actual, to your account.</li><li>Insurance : At actual, to your account.</li><li>Payment Terms : As mutually agreed, along with Purchase Order.</li><li>Installation Charges : Installation and commissioning charges, if applicable, to your account.</li><li>Validity : 15 days from the quotation date.</li><li>Warranty : Manufacturing defects covered for 12 months from the date of supply.</li><li>Cancellation : Once placed, an order cannot be cancelled. Advance payment will be adjusted against expenses incurred till then.</li><li>Bank Details : To be provided</li></ol></div>\n\n  \n\n  \n\n  <div class="footer"><p>www.bvc24.in &middot; Plot No. 14, Industrial Estate, Chennai, Tamil Nadu, 600032, India</p></div>\n</body>\n</html>\n'
+  dest = <_io.BytesIO object at 0x00000147F3577D30>
+  path = ''
+  link_callback = None
+  xhtml = False
+  context_meta = None
+DEBUG:xhtml2pdf.tables:Col 0 has width 50%
+DEBUG:xhtml2pdf.tables:Col 1 has width 50%
+DEBUG:xhtml2pdf.tables:Col widths: ['50%', '50%']
+DEBUG:xhtml2pdf.tables:Col 0 has width 30px
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:Col 2 has width 60px
+DEBUG:xhtml2pdf.tables:Col 3 has width 100px
+DEBUG:xhtml2pdf.tables:Col 4 has width 100px
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:Col widths: [22.5, None, 45.0, 75.0, 75.0]
+INFO:httpx:HTTP Request: GET http://testserver/projects/a01742d2-39c7-4d75-b1ab-3a52bdce07d3/quotation/pdf "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+INFO:httpx:HTTP Request: GET http://testserver/projects/a01742d2-39c7-4d75-b1ab-3a52bdce07d3/quotation/docx "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+INFO:httpx:HTTP Request: DELETE http://testserver/projects/a01742d2-39c7-4d75-b1ab-3a52bdce07d3 "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+INFO:httpx:HTTP Request: POST http://testserver/projects "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+INFO:httpx:HTTP Request: GET http://testserver/projects/f1f5921a-e94f-4b79-b6aa-10d26eb2eab4/quotation "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+INFO:httpx:HTTP Request: PUT http://testserver/projects/f1f5921a-e94f-4b79-b6aa-10d26eb2eab4/quotation "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+DEBUG:xhtml2pdf.document:pisaDocument options:
+  src = '\n<!DOCTYPE html>\n<html>\n<head>\n<meta charset="utf-8"/>\n<title>Quotation BVC24/QTN/26-27/pdf-inline-customimg-46067</title>\n<style>\n  @page { size: A4; margin: 18mm 14mm; }\n  body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #0f172a; }\n  h1, h2, h3 { margin: 0; }\n  .header { background-color: #C8102E; color: white; padding: 14px 18px; }\n  .header h1 { font-size: 18pt; }\n  .header .num { font-size: 9pt; opacity: 0.9; }\n  table { width: 100%; border-collapse: collapse; }\n  .meta td { padding: 4px 8px; vertical-align: top; }\n  .label { color: #64748b; font-size: 8pt; }\n  .items th { background-color: #fef2f2; color: #8B0B1F; padding: 8px; text-align: left; font-size: 9pt; border-bottom: 1px solid #fecaca; }\n  .items td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }\n  .section-title { font-weight: bold; color: #C8102E; margin: 14px 0 6px; }\n  .section-body { font-size: 9.5pt; line-height: 1.5; }\n  .terms { margin-top: 16px; background-color: #f8fafc; padding: 10px 12px; border-left: 3px solid #C8102E; font-size: 9pt; }\n  .terms ol { margin: 4px 0 0 18px; padding: 0; }\n  .signature { margin-top: 24px; font-size: 9.5pt; }\n  .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #e2e8f0; font-size: 8pt; color: #94a3b8; text-align: center; }\n</style>\n</head>\n<body>\n  <div class="header">\n    \n    <h1>QUOTATION</h1>\n    <div class="num">PDF Inline customimg 46067</div>\n  </div>\n\n  <table class="meta" style="margin-top: 14px;">\n    <tr>\n      <td style="width: 50%;">\n        <div class="label">BILL TO</div>\n        <div style="font-weight:bold;">{{customer_name}}</div>\n        <div>{{customer_address}}</div>\n        \n        </td>\n      <td style="width: 50%; text-align: right;">\n        <div class="label">QUOTE REFERENCE NUMBER</div>\n        <div style="font-weight: bold;">BVC24/QTN/26-27/pdf-inline-customimg-46067</div>\n        <div class="label" style="margin-top: 6px;">QUOTE DATE</div>\n        <div>2026-07-18</div>\n      </td>\n    </tr>\n  </table>\n\n  <div class="section-body" style="margin-top: 14px;"><p>Dear Sir/Madam,</p><p>We are pleased to submit our quotation for <strong>PDF Inline customimg 46067</strong> for your kind consideration. repro</p></div>\n\n  <div class="section-title">Price Schedule</div>\n            <table class="items">\n              <thead><tr>\n                <th style="width:30px; text-align:center;">#</th>\n                <th>Product Description</th>\n                <th style="width:60px; text-align:right;">Qty</th>\n                <th style="width:100px; text-align:right;">Unit Price</th>\n                <th style="width:100px; text-align:right;">Amount</th>\n              </tr></thead>\n              <tbody>\n                <tr>\n                  <td style="text-align:center;">1</td>\n                  <td>PDF Inline customimg 46067<br/>repro</td>\n                  <td style="text-align:right;">1</td>\n                  <td style="text-align:right;">0.00</td>\n                  <td style="text-align:right; font-weight:bold;">0.00</td>\n                </tr>\n                </tbody>\n            </table>\n            <div class="section-title">Custom</div><div class="section-body"><p>Some text</p><img src="https://nonexistent-host-abc-999.invalid/pic.jpg"></div>\n\n  <div class="terms"><div class="section-title" style="margin-top:0;">Terms &amp; Conditions</div><ol><li>Price : Ex-works.</li><li>Order : Purchase Order to be placed in the company\'s name.</li><li>Delivery : As mutually agreed upon confirmation of order with advance payment.</li><li>Change of Specification : We reserve the right to change/modify the specification necessary during design and development for betterment/improvement without prior notice.</li><li>Inspection : To be carried out at our works prior to dispatch, subject to acceptance by the visiting authority.</li><li>Local Taxes : GST as applicable, extra.</li><li>Packing &amp; Handling : Extra, at actuals.</li><li>Branding : At actual, to your account.</li><li>Freight : At actual, to your account.</li><li>Insurance : At actual, to your account.</li><li>Payment Terms : As mutually agreed, along with Purchase Order.</li><li>Installation Charges : Installation and commissioning charges, if applicable, to your account.</li><li>Validity : 15 days from the quotation date.</li><li>Warranty : Manufacturing defects covered for 12 months from the date of supply.</li><li>Cancellation : Once placed, an order cannot be cancelled. Advance payment will be adjusted against expenses incurred till then.</li><li>Bank Details : To be provided</li></ol></div>\n\n  \n\n  \n\n  <div class="footer"><p>www.bvc24.in &middot; Plot No. 14, Industrial Estate, Chennai, Tamil Nadu, 600032, India</p></div>\n</body>\n</html>\n'
+  dest = <_io.BytesIO object at 0x00000147F0328A40>
+  path = ''
+  link_callback = None
+  xhtml = False
+  context_meta = None
+DEBUG:xhtml2pdf.tables:Col 0 has width 50%
+DEBUG:xhtml2pdf.tables:Col 1 has width 50%
+DEBUG:xhtml2pdf.tables:Col widths: ['50%', '50%']
+DEBUG:xhtml2pdf.tables:Col 0 has width 30px
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:Col 2 has width 60px
+DEBUG:xhtml2pdf.tables:Col 3 has width 100px
+DEBUG:xhtml2pdf.tables:Col 4 has width 100px
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:None
+DEBUG:xhtml2pdf.tables:Col widths: [22.5, None, 45.0, 75.0, 75.0]
+DEBUG:xhtml2pdf.files:FileObject 'https://nonexistent-host-abc-999.invalid/pic.jpg', Basepath: 'D:\\Ram-Productions\\React_Web_Application\\BVC-HOME-PROJECT\\HOME_PROJECT_NEW\\backend\\__dummy__'
+DEBUG:xhtml2pdf.files:URLParts: ParseResult(scheme='https', netloc='nonexistent-host-abc-999.invalid', path='/pic.jpg', params='', query='', fragment=''), 'https'
+DEBUG:xhtml2pdf.tags:Parsing img tag, src: <xhtml2pdf.files.pisaFileObject object at 0x00000147F3639490>
+DEBUG:xhtml2pdf.tags:Attrs: {'src': <xhtml2pdf.files.pisaFileObject object at 0x00000147F3639490>, 'width': None, 'height': None, 'align': None, 'id': None}
+DEBUG:xhtml2pdf.files:Sending request for 'https://nonexistent-host-abc-999.invalid/pic.jpg' with httplib
+ERROR:xhtml2pdf.files:gaierror: [Errno 11001] getaddrinfo failed while extracting data from NetworkFileUri: 'https://nonexistent-host-abc-999.invalid/pic.jpg' on attempt 1
+DEBUG:xhtml2pdf.files:Sending request for 'https://nonexistent-host-abc-999.invalid/pic.jpg' with httplib
+ERROR:xhtml2pdf.files:gaierror: [Errno 11001] getaddrinfo failed while extracting data from NetworkFileUri: 'https://nonexistent-host-abc-999.invalid/pic.jpg' on attempt 2
+DEBUG:xhtml2pdf.files:Sending request for 'https://nonexistent-host-abc-999.invalid/pic.jpg' with httplib
+ERROR:xhtml2pdf.files:gaierror: [Errno 11001] getaddrinfo failed while extracting data from NetworkFileUri: 'https://nonexistent-host-abc-999.invalid/pic.jpg' on attempt 3
+WARNING:xhtml2pdf.tags:Could not get image data from src attribute: https://nonexistent-host-abc-999.invalid/pic.jpg
+'<img src="https://nonexistent-host-abc-999.invalid/pic.jpg"/>'
+INFO:httpx:HTTP Request: GET http://testserver/projects/f1f5921a-e94f-4b79-b6aa-10d26eb2eab4/quotation/pdf "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+INFO:httpx:HTTP Request: GET http://testserver/projects/f1f5921a-e94f-4b79-b6aa-10d26eb2eab4/quotation/docx "HTTP/1.1 200 OK"
+DEBUG:asyncio:Using proactor: IocpProactor
+INFO:httpx:HTTP Request: DELETE http://testserver/projects/f1f5921a-e94f-4b79-b6aa-10d26eb2eab4 "HTTP/1.1 200 OK"
