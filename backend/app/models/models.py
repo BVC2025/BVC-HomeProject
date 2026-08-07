@@ -1039,7 +1039,7 @@ class TaskAssignment(Base):
 
     PROJECT_ID = Column(
         Integer,
-        ForeignKey("project.ID"),
+        ForeignKey("project_legacy.ID"),
         nullable=True,
         index=True
     )
@@ -1455,7 +1455,7 @@ class WorkOrder(Base):
 
     PROJECT_ID = Column(
         Integer,
-        ForeignKey("project.ID"),
+        ForeignKey("project_legacy.ID"),
         nullable=True,
         index=True
     )
@@ -2154,7 +2154,7 @@ class DailyAllocation(Base):
 
     PROJECT_ID = Column(
         Integer,
-        ForeignKey("project.ID"),
+        ForeignKey("project_legacy.ID"),
         nullable=True
     )
 
@@ -2888,7 +2888,7 @@ class PurchaseOrder(Base):
 
     LINKED_PROJECT_ID = Column(
         Integer,
-        ForeignKey("project.ID"),
+        ForeignKey("project_legacy.ID"),
         nullable=True,
         index=True
     )
@@ -3276,7 +3276,7 @@ class SalesOrderLine(Base):
 
     SPAWNED_PROJECT_ID = Column(
         Integer,
-        ForeignKey("project.ID"),
+        ForeignKey("project_legacy.ID"),
         nullable=True,
         index=True
     )
