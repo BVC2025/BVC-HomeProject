@@ -1,4 +1,4 @@
-.page {
+﻿.page {
   display: flex;
   flex-direction: column;
   min-height: 100%;
@@ -23,7 +23,12 @@
   display: flex;
   gap: var(--sp-2);
   flex-wrap: wrap;
-  flex: 1;
+  flex-shrink: 0;
+}
+
+.filters > * {
+  width: 200px;
+  flex-shrink: 0;
 }
 
 .count {
@@ -268,3 +273,15 @@
   .toolbar { flex-direction: column; align-items: flex-start; }
   .drawer { width: 100%; }
 }
+.dateFilters { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.dateLabel { font-size: var(--font-sm); font-weight: var(--fw-medium); color: var(--text-secondary); white-space: nowrap; }
+.dateInput { padding: 5px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-xs); background: var(--surface); color: var(--text-primary); cursor: pointer; accent-color: var(--clr-primary); color-scheme: light; }
+.dateInput:focus { outline: none; border-color: var(--clr-primary); box-shadow: 0 0 0 3px var(--clr-primary-muted, rgba(220,38,38,0.15)); }
+.dateInput::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.7; filter: invert(27%) sepia(90%) saturate(5000%) hue-rotate(338deg) brightness(90%); }
+.dateInput::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+.clearFilter { padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-muted); font-size: var(--font-xs); cursor: pointer; }
+.clearFilter:hover { background: var(--danger-bg); color: var(--danger); }
+
+/* ── Form validation ─────────────────────────────────────────────── */
+.fieldError { color: var(--danger, #dc2626); font-size: var(--font-xs); margin-top: 3px; display: block; line-height: 1.4; }
+.inputError { border-color: var(--danger, #dc2626) !important; box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.12) !important; }
