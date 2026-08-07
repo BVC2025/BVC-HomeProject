@@ -104,21 +104,43 @@ def _serialize(row: Announcement) -> dict:
 def list_announcements(
     type: Optional[str] = Query(
         None,
-        description="MEETING | EVENT | NOTICE — omit for all types.",
+        description="One of the ALLOWED_TYPES values, omit for all.",
     ),
     upcoming_only: bool = Query(
         False,
         description=(
-            "If true, hide MEETING / EVENT rows whose EVENT_DATE is in "
-            "the past. NOTICE rows are unaffected (they have no date)."
+            "If true, hide dated rows whose EVENT_DATE is in the past. "
+            "Dateless rows are unaffected."
         ),
     ),
     include_inactive: bool = Query(False),
-    vendor_id: Optional[int] = Query(None),
+    vendor_id: Optional[int] = Query(
+        None,
+        description=(
+            "Admins can pass this to cross-scope; regular employees "
+            "have it silently overwritten with their JWT vendor_id."
+        ),
+    ),
+    payload: dict = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """List announcements the caller is allowed to see.
 
-    q = db.query(Announcement)
+    Vendor scoping is enforced from the caller's JWT — announcements
+    never leak across vendors. An admin-role caller (ADMIN /
+    SUPER_ADMIN) can override the vendor_id query param to inspect
+    another vendor; everyone else has it clamped to their own vendor.
+    """
+
+    caller_vendor = payload.get("vendor_id") or 1
+    caller_role   = (payload.get("role") or "").upper()
+    is_admin      = caller_role in {"ADMIN", "SUPER_ADMIN"}
+
+    # Non-admins can NEVER see other vendors' announcements. Admins
+    # can pass a different vendor_id to inspect if they need to.
+    effective_vendor = vendor_id if (is_admin and vendor_id is not None) else caller_vendor
+
+    q = db.query(Announcement).filter(Announcement.VENDOR_ID == effective_vendor)
 
     if not include_inactive:
         q = q.filter(Announcement.IS_ACTIVE == 1)
@@ -131,9 +153,6 @@ def list_announcements(
                 detail=f"type must be one of {sorted(ALLOWED_TYPES)}",
             )
         q = q.filter(Announcement.TYPE == t)
-
-    if vendor_id is not None:
-        q = q.filter(Announcement.VENDOR_ID == vendor_id)
 
     if upcoming_only:
         # Rows with no EVENT_DATE (NOTICE type) stay in; rows with an
@@ -236,6 +255,11 @@ def create_announcement(
                 MESSAGE=notif_msg,
                 TYPE=notif_type,
                 VENDOR_ID=vendor_id,
+                # Backlink so DELETE announcement can also delete the
+                # notifications it spawned. Keeps the bell tidy when
+                # HR cancels a post.
+                REF_TYPE="ANNOUNCEMENT",
+                REF_ID=row.ID,
             ))
         db.commit()
     except Exception:
@@ -307,6 +331,17 @@ def delete_announcement(
         raise HTTPException(status_code=404, detail="Announcement not found")
 
     row.IS_ACTIVE = 0
+
+    # Also clear the notifications that were fanned out when this
+    # announcement was posted, so employee bells don't keep showing a
+    # message that has been officially withdrawn.
+    (
+        db.query(Notification)
+        .filter(Notification.REF_TYPE == "ANNOUNCEMENT")
+        .filter(Notification.REF_ID == ann_id)
+        .delete(synchronize_session=False)
+    )
+
     db.commit()
 
     return {"message": "Announcement removed"}
