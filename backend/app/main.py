@@ -530,6 +530,7 @@ def _auto_migrate():
         ("role",       "DEPARTMENT_ID",      "INT NULL"),
         ("role",       "CREATED_AT",         "DATETIME NULL"),
         ("role",       "UPDATED_AT",         "DATETIME NULL"),
+        ("role",       "IS_SYSTEM",          "INT NULL DEFAULT 0"),
         # ---- Help Desk (2026-07): new columns added when the module
         # was rebuilt after the ram-development merge deleted it.
         ("helpdesk_ticket", "INTERNAL_NOTES", "TEXT NULL"),
@@ -547,8 +548,6 @@ def _auto_migrate():
     # since replaced. Each entry: (table, old_col, new_col, new_ddl).
     # Idempotent: if old_col is absent (already renamed) we skip.
     rename_columns = [
-        ("department", "CODE",      "DEPARTMENT_CODE", "VARCHAR(20) NULL"),
-        ("role",       "ROLE_NAME", "NAME",            "VARCHAR(100) NOT NULL DEFAULT ''"),
         # WhatsApp models generalized to a polymorphic (MODULE_CODE, SOURCE_RECORD_ID)
         # reference instead of a hardcoded FK to `lead` — see whatsapp_models.py.
         ("whatsapp_conversation", "LEAD_ID", "SOURCE_RECORD_ID", "VARCHAR(36) NULL"),
@@ -924,6 +923,45 @@ def _auto_migrate():
                     "auto-migrate: added %s.%s", table, column
                 )
 
+            # ---- 1b. Rename legacy columns ----
+            for table, new_col, old_col, ddl in rename_columns:
+
+                if not insp.has_table(table):
+
+                    continue
+
+                existing_cols = {
+                    c["name"].lower()
+                    for c in insp.get_columns(table)
+                }
+
+                if new_col.lower() in existing_cols:
+
+                    continue  # already renamed
+
+                if old_col.lower() not in existing_cols:
+
+                    continue  # neither name present — nothing to rename
+
+                try:
+
+                    conn.execute(text(
+                        f"ALTER TABLE `{table}` "
+                        f"CHANGE `{old_col}` `{new_col}` {ddl}"
+                    ))
+
+                    log.info(
+                        "auto-migrate: renamed %s.%s -> %s.%s",
+                        table, old_col, table, new_col
+                    )
+
+                except Exception as exc_inner:
+
+                    log.warning(
+                        "auto-migrate: could not rename %s.%s -> %s: %s",
+                        table, old_col, new_col, exc_inner
+                    )
+
             # ---- 2. Drop stale indexes / unique constraints ----
             for table, index_name in stale_indexes:
 
@@ -1197,7 +1235,7 @@ def _auto_seed_org_catalog():
         for name, code in _MFG_DEPARTMENTS:
             if name.strip().lower() in existing_dept_names:
                 continue
-            db.add(Department(NAME=name, CODE=code, VENDOR_ID=1))
+            db.add(Department(NAME=name, DEPARTMENT_CODE=code, VENDOR_ID=1))
             dept_added += 1
 
         if dept_added:

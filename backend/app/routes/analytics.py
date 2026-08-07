@@ -213,14 +213,14 @@ def chart_data(
 
     # Employees per role (pie chart)
     role_rows = db.query(
-        Role.ROLE_NAME,
+        Role.NAME,
         func.count(Employee.ID)
     ).outerjoin(
         Employee,
         Employee.ROLE_ID == Role.ID
     ).group_by(
         Role.ID,
-        Role.ROLE_NAME
+        Role.NAME
     ).all()
 
     employees_per_role = [

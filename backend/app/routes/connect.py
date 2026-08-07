@@ -211,7 +211,7 @@ def employee_360(employee_id: str, db: Session = Depends(get_db)):
             "EMAIL": emp.EMAIL,
             "PHONE": emp.PHONE,
             "DEPARTMENT": dept.NAME if dept else None,
-            "DEPARTMENT_CODE": dept.CODE if dept else None,
+            "DEPARTMENT_CODE": dept.DEPARTMENT_CODE if dept else None,
             "SKILLS": emp.SKILLS,
             "FINGERPRINT_ID": emp.FINGERPRINT_ID,
             "STATUS": emp.STATUS,

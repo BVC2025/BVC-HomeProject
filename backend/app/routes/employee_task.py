@@ -307,7 +307,7 @@ def seed_employees(
     """
 
     employee_role = db.query(Role).filter(
-        Role.ROLE_NAME == "EMPLOYEE"
+        Role.NAME == "EMPLOYEE"
     ).first()
 
     if not employee_role:
@@ -531,7 +531,7 @@ def seed_admin(
     """
 
     super_role = db.query(Role).filter(
-        Role.ROLE_NAME == "SUPER_ADMIN"
+        Role.NAME == "SUPER_ADMIN"
     ).first()
 
     if not super_role:

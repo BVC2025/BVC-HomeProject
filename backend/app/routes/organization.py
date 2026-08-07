@@ -54,7 +54,7 @@ def list_departments(
         {
             "ID": d.ID,
             "NAME": d.NAME,
-            "CODE": d.CODE,
+            "CODE": d.DEPARTMENT_CODE,
             "DESCRIPTION": d.DESCRIPTION,
             "HEAD_EMPLOYEE_ID": d.HEAD_EMPLOYEE_ID,
             "VENDOR_ID": d.VENDOR_ID
@@ -71,7 +71,7 @@ def create_department(
 
     existing = db.query(Department).filter(
         Department.VENDOR_ID == data.VENDOR_ID,
-        Department.CODE == data.CODE.upper()
+        Department.DEPARTMENT_CODE == data.CODE.upper()
     ).first()
 
     if existing:
@@ -83,7 +83,7 @@ def create_department(
 
     dept = Department(
         NAME=data.NAME,
-        CODE=data.CODE.upper(),
+        DEPARTMENT_CODE=data.CODE.upper(),
         DESCRIPTION=data.DESCRIPTION,
         HEAD_EMPLOYEE_ID=data.HEAD_EMPLOYEE_ID,
         VENDOR_ID=data.VENDOR_ID
@@ -117,7 +117,7 @@ def update_department(
         dept.NAME = data.NAME
 
     if data.CODE is not None:
-        dept.CODE = data.CODE.upper()
+        dept.DEPARTMENT_CODE = data.CODE.upper()
 
     if data.DESCRIPTION is not None:
         dept.DESCRIPTION = data.DESCRIPTION
@@ -331,7 +331,7 @@ def list_roles(
 
         q = q.filter(Role.VENDOR_ID == vendor_id)
 
-    rows = q.order_by(Role.ROLE_NAME).all()
+    rows = q.order_by(Role.NAME).all()
 
     out = []
 
@@ -346,7 +346,7 @@ def list_roles(
 
         out.append({
             "ID": r.ID,
-            "ROLE_NAME": r.ROLE_NAME,
+            "ROLE_NAME": r.NAME,
             "DESCRIPTION": r.DESCRIPTION,
             "IS_SYSTEM": bool(r.IS_SYSTEM),
             "VENDOR_ID": r.VENDOR_ID,
@@ -363,7 +363,7 @@ def create_role(
 ):
 
     role = Role(
-        ROLE_NAME=data.ROLE_NAME,
+        NAME=data.ROLE_NAME,
         DESCRIPTION=data.DESCRIPTION,
         IS_SYSTEM=0,
         VENDOR_ID=data.VENDOR_ID
@@ -513,14 +513,14 @@ def do_seed_org(db: Session, preset_key: str, vendor_id: int) -> dict:
 
         dept = db.query(Department).filter(
             Department.VENDOR_ID == vendor_id,
-            Department.CODE == dept_code
+            Department.DEPARTMENT_CODE == dept_code
         ).first()
 
         if not dept:
 
             dept = Department(
                 NAME=dept_name,
-                CODE=dept_code,
+                DEPARTMENT_CODE=dept_code,
                 VENDOR_ID=vendor_id
             )
 
@@ -560,13 +560,13 @@ def do_seed_org(db: Session, preset_key: str, vendor_id: int) -> dict:
 
         role = db.query(Role).filter(
             Role.VENDOR_ID == vendor_id,
-            Role.ROLE_NAME == role_name
+            Role.NAME == role_name
         ).first()
 
         if not role:
 
             role = Role(
-                ROLE_NAME=role_name,
+                NAME=role_name,
                 DESCRIPTION=role_desc,
                 IS_SYSTEM=1,
                 VENDOR_ID=vendor_id
@@ -713,13 +713,13 @@ def seed_bvc24_role_catalogue(
 
         role = db.query(Role).filter(
             Role.VENDOR_ID == vendor_id,
-            Role.ROLE_NAME == role_name
+            Role.NAME == role_name
         ).first()
 
         if not role:
 
             role = Role(
-                ROLE_NAME=role_name,
+                NAME=role_name,
                 DESCRIPTION=role_desc,
                 IS_SYSTEM=1,
                 VENDOR_ID=vendor_id
@@ -731,7 +731,7 @@ def seed_bvc24_role_catalogue(
 
             roles_added += 1
 
-        roles_touched.append(role.ROLE_NAME)
+        roles_touched.append(role.NAME)
 
         if perm_codes == "*":
 
