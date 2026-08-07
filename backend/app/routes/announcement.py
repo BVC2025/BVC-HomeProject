@@ -144,15 +144,16 @@ def list_announcements(
             | (Announcement.EVENT_DATE >= today)
         )
 
-    # Ordering: event-based types by date ascending (soonest first);
-    # NOTICE by creation time descending (newest first). Handled by
-    # ordering on EVENT_DATE first (nulls last) then CREATED_AT desc.
-    rows = q.order_by(
-        Announcement.EVENT_DATE.asc().nulls_last()
-        if hasattr(Announcement.EVENT_DATE, "nulls_last")
-        else Announcement.EVENT_DATE.asc(),
-        Announcement.CREATED_AT.desc(),
-    ).limit(500).all()
+    # Ordering: newest first by CREATED_AT. That works uniformly for
+    # dated and dateless types, and it's what employees expect on an
+    # 'announcements' surface — freshest post at the top. Attempting
+    # to sort dated rows by EVENT_DATE first ran into MySQL / SQLAlchemy
+    # nulls-last quirks; a plain CREATED_AT desc is boring and robust.
+    rows = (
+        q.order_by(Announcement.CREATED_AT.desc())
+         .limit(500)
+         .all()
+    )
 
     return [_serialize(r) for r in rows]
 
