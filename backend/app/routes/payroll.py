@@ -388,7 +388,10 @@ def generate_for_employee(
                 f"Net pay: INR {slip.NET_PAY:,.2f}. "
                 f"View it in Employee Portal -> Payslips."
             ),
-            CREATED_AT=datetime.utcnow(),
+            # datetime.now() — server clock is IST; utcnow() here made
+            # the frontend read the timestamp as IST wall-clock and
+            # then show '5h ago' for a slip that had just been generated.
+            CREATED_AT=datetime.now(),
             IS_READ=0,
             VENDOR_ID=vendor_id,
         ))

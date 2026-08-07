@@ -1125,7 +1125,13 @@ class Notification(Base):
 
     CREATED_AT = Column(
         DateTime,
-        default=datetime.utcnow
+        # datetime.now() — the server clock is IST, and every other
+        # DateTime column in this schema stores IST wall-clock. Using
+        # utcnow() here made notification timestamps show up 5:30 h
+        # behind reality on the frontend ('5h ago' for a just-issued
+        # payslip). Local-clock keeps timestamps consistent with
+        # ATTENDANCE, PAYROLL_RUN, MEMO, ALLOWANCE, etc.
+        default=datetime.now
     )
 
     VENDOR_ID = Column(
