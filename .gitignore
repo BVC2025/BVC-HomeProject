@@ -1,0 +1,32 @@
+# Python
+backend/venv/
+backend/venv2/
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Node / frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+dist/
+
+# Logs
+*.log
+backend/logs/
+backend/logs/service/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/settings.json
+
+# Build artifacts
+*.egg-info/
+build/
