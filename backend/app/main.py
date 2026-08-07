@@ -31,6 +31,7 @@ from app.routes.analytics import router as analytics_router
 from app.routes.attendance import router as attendance_router
 from app.routes.machine import router as machine_router
 from app.routes.notification import router as notification_router
+from app.routes.announcement import router as announcement_router
 from app.routes.reports import router as reports_router
 from app.routes.settings import router as settings_router
 from app.routes.employee_task import router as employee_task_router
@@ -1631,6 +1632,7 @@ app.include_router(inventory_router, tags=["Inventory"])
 app.include_router(machine_router, tags=["Machines"])
 app.include_router(attendance_router, tags=["Attendance"])
 app.include_router(notification_router, tags=["Notifications"])
+app.include_router(announcement_router)
 app.include_router(analytics_router, tags=["Analytics"])
 app.include_router(reports_router, tags=["Reports"])
 app.include_router(settings_router, tags=["Settings"])

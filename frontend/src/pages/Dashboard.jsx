@@ -68,6 +68,7 @@ import WorkCenters from "./WorkCenters";
 import GeofenceSettings from "./GeofenceSettings";
 import BiometricImport from "./BiometricImport";
 import EmployeeMemos from "./EmployeeMemos";
+import Announcements from "./Announcements";
 import ApprovalCenter from "./ApprovalCenter";
 // AICommandCenter + Workflow removed Phase 2 — were placeholder stubs
 import Payroll from "./Payroll";
@@ -1598,6 +1599,7 @@ const NAV_GROUPS = [
       { to: "/rbac", icon: <SidebarIcon name="rbac" />, label: "RBAC" },
       { to: "/employees", icon: <SidebarIcon name="employees" />, label: "Employees" },
       { to: "/memos", icon: <SidebarIcon name="memos" />, label: "Memos" },
+      { to: "/announcements", icon: <SidebarIcon name="memos" />, label: "Announcements" },
       { to: "/attendance", icon: <SidebarIcon name="attendance" />, label: "Attendance" },
       { to: "/biometric-import", icon: <SidebarIcon name="attendance" />, label: "Biometric Import (USB)" },
       { to: "/shifts", icon: <SidebarIcon name="attendance" />, label: "Shift Management" },
@@ -1990,6 +1992,7 @@ function Dashboard() {
             <Route path="/attendance" element={<Attendance />} />
             <Route path="/shifts" element={<ShiftManagement />} />
             <Route path="/memos" element={<EmployeeMemos />} />
+            <Route path="/announcements" element={<Announcements />} />
             <Route path="/leave-management" element={<LeaveManagement />} />
             <Route path="/allowances" element={<Allowances />} />
             <Route path="/star-performance" element={<StarPerformance />} />

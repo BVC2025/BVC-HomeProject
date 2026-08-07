@@ -4225,6 +4225,61 @@ class EmployeeAllowance(Base):
 
 
 # ====================================================================
+# Announcement — HR-authored company-wide posts
+# ====================================================================
+# One row per HR announcement. Powers the ESS "Announcements" panel
+# (Meeting / Event / Notice tabs) and the HR-side "Announcements"
+# admin page. Notice-type is the lightweight alternative to issuing
+# a formal INFORMATION memo — no employee ack required, just an
+# announcement everyone can read.
+#
+# Soft-delete via IS_ACTIVE — HR can restore accidentally-removed
+# posts by flipping the flag back in the DB. Hard deletes are not
+# exposed.
+
+class Announcement(Base):
+
+    __tablename__ = "announcement"
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    VENDOR_ID = Column(
+        Integer,
+        ForeignKey("vendor.ID"),
+        nullable=False,
+        index=True,
+    )
+
+    # MEETING / EVENT / NOTICE — one enum, three lanes.
+    TYPE = Column(String(20), nullable=False, index=True)
+
+    TITLE = Column(String(200), nullable=False)
+
+    DESCRIPTION = Column(String(2000), nullable=True)
+
+    # For MEETING / EVENT — when it happens. Null for NOTICE.
+    EVENT_DATE = Column(Date, nullable=True, index=True)
+
+    # 'HH:MM' — free-form so HR can leave it blank when time is TBD.
+    EVENT_TIME = Column(String(10), nullable=True)
+
+    LOCATION = Column(String(200), nullable=True)
+
+    # Soft delete. Default 1 (active). Toggle to 0 to hide from list.
+    IS_ACTIVE = Column(Integer, default=1, nullable=False, index=True)
+
+    CREATED_BY_ID = Column(
+        String(36),
+        ForeignKey("employee.ID"),
+        nullable=True,
+    )
+
+    CREATED_AT = Column(DateTime, default=datetime.now, index=True)
+
+    UPDATED_AT = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+# ====================================================================
 # AI Leave Agent — conversation state + audit trail
 # ====================================================================
 # One row per "session" of an employee chatting with the leave agent.

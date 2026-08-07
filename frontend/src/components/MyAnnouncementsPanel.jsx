@@ -122,8 +122,11 @@ export default function MyAnnouncementsPanel({ employeeId }) {
   const [tab, setTab]       = useState("holiday");   // holiday | notice | meeting | event | birthday
   const [year, setYear]     = useState(new Date().getFullYear());
 
-  const [holidays, setHolidays]   = useState([]);
-  const [notices,  setNotices]    = useState([]);
+  const [holidays,     setHolidays]     = useState([]);
+  const [notices,      setNotices]      = useState([]);
+  const [meetings,     setMeetings]     = useState([]);
+  const [events,       setEvents]       = useState([]);
+  const [noticeAnnouncements, setNoticeAnnouncements] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState("");
@@ -134,15 +137,16 @@ export default function MyAnnouncementsPanel({ employeeId }) {
     setLoading(true);
     setError("");
     try {
-      // Kick off both requests in parallel; each is independently
+      // Kick off all requests in parallel; each is independently
       // resilient — a failure on one side doesn't blank the whole page.
-      const [holRes, memRes] = await Promise.all([
+      const [holRes, memRes, annRes] = await Promise.all([
         API.get(`/holidays?year=${encodeURIComponent(year)}`)
           .catch(() => ({ data: null })),
         employeeId
           ? API.get(`/memos/employee/${encodeURIComponent(employeeId)}`)
               .catch(() => ({ data: [] }))
           : Promise.resolve({ data: [] }),
+        API.get("/announcements").catch(() => ({ data: [] })),
       ]);
 
       const hs = Array.isArray(holRes.data?.holidays) ? holRes.data.holidays : [];
@@ -156,6 +160,12 @@ export default function MyAnnouncementsPanel({ employeeId }) {
           return t === "INFORMATION" || t === "NOTICE" || t === "SHOW_CAUSE_NOTICE";
         })
       );
+
+      // Split HR-authored announcements by type.
+      const ans = Array.isArray(annRes.data) ? annRes.data : [];
+      setMeetings(ans.filter((a) => (a.TYPE || "").toUpperCase() === "MEETING"));
+      setEvents(  ans.filter((a) => (a.TYPE || "").toUpperCase() === "EVENT"));
+      setNoticeAnnouncements(ans.filter((a) => (a.TYPE || "").toUpperCase() === "NOTICE"));
     } catch (e) {
       setError(e?.response?.data?.detail || "Failed to load announcements.");
     } finally {
@@ -170,11 +180,11 @@ export default function MyAnnouncementsPanel({ employeeId }) {
 
   const counts = useMemo(() => ({
     holiday:  holidays.length,
-    notice:   notices.length,
-    meeting:  0,
-    event:    0,
+    notice:   notices.length + noticeAnnouncements.length,
+    meeting:  meetings.length,
+    event:    events.length,
     birthday: 0,
-  }), [holidays, notices]);
+  }), [holidays, notices, meetings, events, noticeAnnouncements]);
 
   // Split holidays into upcoming vs past for cleaner scanning
   const holidayGroups = useMemo(() => {
@@ -273,23 +283,32 @@ export default function MyAnnouncementsPanel({ employeeId }) {
       )}
 
       {!loading && !error && tab === "notice" && (
-        <NoticeView notices={notices} />
+        <>
+          {noticeAnnouncements.length > 0 && (
+            <AnnouncementList items={noticeAnnouncements} kind="notice" />
+          )}
+          <NoticeView notices={notices} />
+        </>
       )}
 
       {!loading && !error && tab === "meeting" && (
-        <PlaceholderView
-          icon={I.meeting}
-          title="No meetings scheduled"
-          body="Company-wide meetings posted by HR will appear here with time, venue and the agenda."
-        />
+        meetings.length > 0
+          ? <AnnouncementList items={meetings} kind="meeting" />
+          : <PlaceholderView
+              icon={I.meeting}
+              title="No meetings scheduled"
+              body="Company-wide meetings posted by HR will appear here with time, venue and the agenda."
+            />
       )}
 
       {!loading && !error && tab === "event" && (
-        <PlaceholderView
-          icon={I.event}
-          title="No upcoming events"
-          body="Town halls, celebrations, training days and other events will appear here as HR publishes them."
-        />
+        events.length > 0
+          ? <AnnouncementList items={events} kind="event" />
+          : <PlaceholderView
+              icon={I.event}
+              title="No upcoming events"
+              body="Town halls, celebrations, training days and other events will appear here as HR publishes them."
+            />
       )}
 
       {!loading && !error && tab === "birthday" && (
@@ -400,6 +419,87 @@ function HolidayRow({ holiday, muted = false }) {
 // ==================================================================
 // Notice view
 // ==================================================================
+// ==================================================================
+// Meeting / Event / Notice list — HR-authored posts from /announcements
+// ==================================================================
+function AnnouncementList({ items, kind }) {
+
+  const label =
+    kind === "meeting" ? "Upcoming meetings" :
+    kind === "event"   ? "Upcoming events"   :
+                          "Notices from HR";
+
+  return (
+    <section className={styles.card}>
+      <div className={styles.cardHead}>
+        <div className={styles.cardTitle}>{label}</div>
+        <div className={styles.cardSub}>{items.length} posted</div>
+      </div>
+      <ul className={styles.list}>
+        {items.map((a) => (
+          <AnnouncementRow key={a.ID} item={a} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+
+function AnnouncementRow({ item }) {
+
+  const d = parseDateSafe(item.EVENT_DATE);
+  const rel = item.EVENT_DATE ? relativeLabel(item.EVENT_DATE) : "";
+
+  return (
+    <li className={styles.holRow}>
+      {d ? (
+        <div className={styles.dateTile}>
+          <div className={styles.dateTileDay}>{d.getDate()}</div>
+          <div className={styles.dateTileMon}>{MONTH_SHORT[d.getMonth()].toUpperCase()}</div>
+        </div>
+      ) : (
+        <div className={styles.dateTile} style={{ opacity: 0.5 }}>
+          <div className={styles.dateTileMon} style={{ fontSize: 9 }}>NOTE</div>
+        </div>
+      )}
+
+      <div className={styles.holBody}>
+        <div className={styles.holTitle}>
+          {item.TITLE || "Announcement"}
+          <span className={`${styles.tinyPill} ${styles.tinyPill_slate}`}>
+            {(item.TYPE || "").replace(/_/g, " ")}
+          </span>
+        </div>
+        <div className={styles.holMeta}>
+          {d && <span>{fmtDateFull(item.EVENT_DATE)}</span>}
+          {item.EVENT_TIME && (
+            <>
+              {d && <span className={styles.dot}>·</span>}
+              <span>{item.EVENT_TIME}</span>
+            </>
+          )}
+          {rel && (
+            <>
+              <span className={styles.dot}>·</span>
+              <span className={styles.rel}>{rel}</span>
+            </>
+          )}
+          {item.LOCATION && (
+            <>
+              <span className={styles.dot}>·</span>
+              <span>{item.LOCATION}</span>
+            </>
+          )}
+        </div>
+        {item.DESCRIPTION && (
+          <div className={styles.holNotes}>{item.DESCRIPTION}</div>
+        )}
+      </div>
+    </li>
+  );
+}
+
+
 function NoticeView({ notices }) {
 
   if (notices.length === 0) {
