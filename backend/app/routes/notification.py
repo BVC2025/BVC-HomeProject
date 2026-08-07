@@ -293,6 +293,52 @@ def delete_notification(
 
 
 # =========================
+# BULK DELETE (Clear all for one employee)
+# =========================
+
+@router.delete("/notifications")
+def bulk_delete_notifications(
+    employee_id: Optional[str] = Query(
+        None,
+        description=(
+            "If set, deletes ONLY this employee's notifications. "
+            "If omitted, refuses — we don't want a stray call from "
+            "a UI to wipe every notification in the system."
+        ),
+    ),
+    db: Session = Depends(get_db),
+):
+    """Clear all notifications for a single employee. Called by the
+    'Clear all' button in the bell dropdown."""
+
+    if not employee_id:
+        raise HTTPException(
+            status_code=400,
+            detail="employee_id is required for bulk delete.",
+        )
+
+    emp = (
+        db.query(Employee)
+        .filter(
+            (Employee.ID == employee_id)
+            | (Employee.EMPLOYEE_CODE == employee_id)
+        )
+        .first()
+    )
+    target_id = emp.ID if emp else employee_id
+
+    deleted = (
+        db.query(Notification)
+        .filter(Notification.EMPLOYEE_ID == target_id)
+        .delete(synchronize_session=False)
+    )
+
+    db.commit()
+
+    return {"message": "All notifications cleared", "deleted": deleted}
+
+
+# =========================
 # GENERATE SYSTEM ALERTS
 # =========================
 

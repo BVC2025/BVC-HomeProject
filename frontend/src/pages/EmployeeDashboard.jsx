@@ -937,6 +937,25 @@ function EmployeeDashboardBody() {
     });
   }, [employeeId]);
 
+  // Clear every notification for this employee. Backend deletes the
+  // rows from the DB and returns a count. UI empties immediately so
+  // the panel closes to its 'no notifications yet' state without
+  // waiting for the next poll.
+  const clearAllNotifications = useCallback(async () => {
+    if (!employeeId) return;
+    if (!window.confirm("Delete every notification? This can't be undone.")) return;
+    try {
+      await API.delete(
+        `/notifications?employee_id=${encodeURIComponent(employeeId)}`
+      );
+      setNotifications([]);
+      setUnreadCount(0);
+      setLastSeenId(0);
+    } catch (e) {
+      alert(e?.response?.data?.detail || "Could not clear notifications.");
+    }
+  }, [employeeId]);
+
 
   // =============================================================
   // RENDER
@@ -1084,6 +1103,7 @@ function EmployeeDashboardBody() {
           notifPanelOpen={notifPanelOpen}
           onBellClick={toggleNotifPanel}
           onCloseNotifPanel={() => setNotifPanelOpen(false)}
+          onClearNotifs={clearAllNotifications}
           onNotifClick={(n) => {
             setNotifPanelOpen(false);
             setMainTab("notifications");
@@ -1731,7 +1751,7 @@ function ZMainHeader({
   voiceOn, onToggleVoice, voiceSupported,
   notifications = [], notifUnreadCount = 0,
   notifPanelOpen = false,
-  onBellClick, onCloseNotifPanel, onNotifClick,
+  onBellClick, onCloseNotifPanel, onNotifClick, onClearNotifs,
   onGoHome, onLogout,
   onMenuToggle,
 }) {
@@ -1830,6 +1850,7 @@ function ZMainHeader({
             <NotifDropdown
               notifications={notifications}
               onItemClick={onNotifClick}
+              onClearAll={onClearNotifs}
             />
           )}
         </div>
@@ -1873,7 +1894,7 @@ function formatRelativeTime(iso) {
   return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function NotifDropdown({ notifications = [], onItemClick }) {
+function NotifDropdown({ notifications = [], onItemClick, onClearAll }) {
 
   const dotColor = (type) => {
     const t = (type || "INFO").toUpperCase();
@@ -1913,8 +1934,34 @@ function NotifDropdown({ notifications = [], onItemClick }) {
         letterSpacing: 0.6,
         textTransform: "uppercase",
         color: "#64748b",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 8,
       }}>
-        HR Notifications
+        <span>HR Notifications</span>
+        {notifications.length > 0 && (
+          <button
+            type="button"
+            onClick={onClearAll}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#dc2626",
+              fontFamily: "inherit",
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: 0.4,
+              textTransform: "uppercase",
+              cursor: "pointer",
+              padding: "2px 6px",
+              borderRadius: 4,
+            }}
+            title="Clear all notifications"
+          >
+            Clear all
+          </button>
+        )}
       </div>
 
       <div style={{ overflowY: "auto", flex: "1 1 auto" }}>
