@@ -235,6 +235,36 @@ def decide_allowance(
 
     emp = db.query(Employee).filter(Employee.ID == row.EMPLOYEE_ID).first()
 
+    # Push a Notification row so the employee sees an entry in their
+    # bell + gets the WhatsApp-style toast on their next poll. The
+    # MD's REVIEW_NOTES (if any) is embedded verbatim so the employee
+    # sees exactly what the reviewer wrote, not just the status flip.
+    try:
+        from app.models.models import Notification
+
+        category = (row.CATEGORY or "").replace("_", " ").title() or "expense"
+        amount   = f"₹{float(row.AMOUNT or 0):,.2f}"
+        approved = row.STATUS == "APPROVED"
+
+        title = "Allowance approved" if approved else "Allowance rejected"
+        summary = f"{amount} · {category} — {row.STATUS.lower()}"
+        message = (
+            f"{summary}. MD: {row.REVIEW_NOTES}"
+            if row.REVIEW_NOTES else summary
+        )
+
+        db.add(Notification(
+            EMPLOYEE_ID=row.EMPLOYEE_ID,
+            TITLE=title,
+            MESSAGE=message[:500],
+            TYPE="SUCCESS" if approved else "WARNING",
+            VENDOR_ID=row.VENDOR_ID,
+        ))
+        db.commit()
+    except Exception:
+        # Notification failure must never block the decision itself
+        db.rollback()
+
     return {
         "message": f"Allowance {row.STATUS.lower()}.",
         "allowance": _serialize(row, emp.NAME if emp else None),
