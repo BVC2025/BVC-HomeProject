@@ -1,16 +1,19 @@
 // =====================================================================
 // MyAnnouncementsPanel — company-wide announcements for employees.
 // ---------------------------------------------------------------------
-// Five category tabs:
-//   • Holiday    — pulled from /holidays?year=YYYY
-//   • Notice     — INFORMATION-type memos from /memos/employee/{id}
-//   • Meeting    — placeholder until a meetings endpoint exists
-//   • Event      — placeholder until a company-events endpoint exists
-//   • Birthday   — placeholder until a birthdays endpoint exists
+// Tabs mirror the HR-side filter chips 1:1 so both sides speak the
+// same taxonomy:
 //
-// The three placeholder tabs show a friendly "will populate when
-// HR posts one" empty state so the module reads as complete rather
-// than half-broken.
+//   ALL · GENERAL · HR · MEETING · EVENT · HOLIDAY · SAFETY & SECURITY
+//   IT & TECHNOLOGY · ACHIEVEMENT · OPERATIONAL · URGENT
+//   COMMUNICATION · CORPORATE
+//
+// Two tabs merge data from more than one source:
+//   • HOLIDAY combines HR-authored HOLIDAY announcements with the
+//             /holidays?year= calendar.
+//   • GENERAL combines HR-authored GENERAL announcements with the
+//             legacy memo-derived notices (INFORMATION memos), so
+//             notices HR historically posted via memos stay visible.
 // =====================================================================
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -117,16 +120,38 @@ function relativeLabel(value) {
 // ==================================================================
 // Component
 // ==================================================================
+// Tab list mirrors the HR filter chips 1:1 so employees see the same
+// taxonomy on their side. 'ALL' surfaces every announcement + memo
+// notice + holiday together; 'HOLIDAY' merges the HR-authored
+// announcements with the /holidays calendar; 'GENERAL' includes
+// INFORMATION-type memos alongside GENERAL-type announcements so
+// nothing HR historically posted via memos vanishes.
+const ESS_TABS = [
+  { key: "ALL",           label: "All" },
+  { key: "GENERAL",       label: "General" },
+  { key: "HR",            label: "HR" },
+  { key: "MEETING",       label: "Meeting" },
+  { key: "EVENT",         label: "Event" },
+  { key: "HOLIDAY",       label: "Holiday" },
+  { key: "SAFETY",        label: "Safety & Security" },
+  { key: "IT",            label: "IT & Technology" },
+  { key: "ACHIEVEMENT",   label: "Achievement" },
+  { key: "OPERATIONAL",   label: "Operational" },
+  { key: "URGENT",        label: "Urgent" },
+  { key: "COMMUNICATION", label: "Communication" },
+  { key: "CORPORATE",     label: "Corporate" },
+];
+
+
 export default function MyAnnouncementsPanel({ employeeId }) {
 
-  const [tab, setTab]       = useState("holiday");   // holiday | notice | meeting | event | birthday
+  // Selected tab — one of the ESS_TABS keys above.
+  const [tab, setTab]       = useState("ALL");
   const [year, setYear]     = useState(new Date().getFullYear());
 
-  const [holidays,     setHolidays]     = useState([]);
-  const [notices,      setNotices]      = useState([]);
-  const [meetings,     setMeetings]     = useState([]);
-  const [events,       setEvents]       = useState([]);
-  const [noticeAnnouncements, setNoticeAnnouncements] = useState([]);
+  const [holidays,      setHolidays]      = useState([]);
+  const [notices,       setNotices]       = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState("");
@@ -161,32 +186,16 @@ export default function MyAnnouncementsPanel({ employeeId }) {
         })
       );
 
-      // Split HR-authored announcements by type. The bell dropdown
-      // and every category outside Meeting/Event get funnelled into
-      // the Notice tab where the AnnouncementRow's type pill tells
-      // the employee what kind of message it is. HOLIDAY-typed
-      // announcements are HR *messages* about holidays (greetings,
-      // schedule notes) — separate from the actual holiday calendar
-      // in /holidays which the Holiday tab still owns.
+      // Keep the full announcement list in one bucket; the tab
+      // switcher filters against it below. Urgent items float to
+      // the top no matter which tab you're on.
       const ans = Array.isArray(annRes.data) ? annRes.data : [];
-      const upper = (a) => (a.TYPE || "").toUpperCase();
-      setMeetings(ans.filter((a) => upper(a) === "MEETING"));
-      setEvents(  ans.filter((a) => upper(a) === "EVENT"));
-      // Everything else (GENERAL, HR, SAFETY, IT, ACHIEVEMENT,
-      // OPERATIONAL, URGENT, COMMUNICATION, CORPORATE, HOLIDAY,
-      // legacy NOTICE) lands under Notices. Urgent ones bubble to
-      // the top; the rest keep the backend's date/created order.
-      const NOTICE_BUCKET = new Set([
-        "GENERAL", "HR", "HOLIDAY", "SAFETY", "IT", "ACHIEVEMENT",
-        "OPERATIONAL", "URGENT", "COMMUNICATION", "CORPORATE", "NOTICE",
-      ]);
-      const noticeRows = ans.filter((a) => NOTICE_BUCKET.has(upper(a)));
-      noticeRows.sort((a, b) => {
-        const au = upper(a) === "URGENT" ? 1 : 0;
-        const bu = upper(b) === "URGENT" ? 1 : 0;
+      ans.sort((a, b) => {
+        const au = (a.TYPE || "").toUpperCase() === "URGENT" ? 1 : 0;
+        const bu = (b.TYPE || "").toUpperCase() === "URGENT" ? 1 : 0;
         return bu - au;
       });
-      setNoticeAnnouncements(noticeRows);
+      setAnnouncements(ans);
     } catch (e) {
       setError(e?.response?.data?.detail || "Failed to load announcements.");
     } finally {
@@ -199,13 +208,46 @@ export default function MyAnnouncementsPanel({ employeeId }) {
 
   // ---- Derived ----
 
-  const counts = useMemo(() => ({
-    holiday:  holidays.length,
-    notice:   notices.length + noticeAnnouncements.length,
-    meeting:  meetings.length,
-    event:    events.length,
-    birthday: 0,
-  }), [holidays, notices, meetings, events, noticeAnnouncements]);
+  // Count per tab. ALL = total across every source (announcements +
+  // memos-as-notices + holidays). HOLIDAY = the count of HR-authored
+  // HOLIDAY announcements plus rows from /holidays. GENERAL rolls in
+  // the memo-derived notices so nothing HR historically posted via
+  // memos disappears from view.
+  const counts = useMemo(() => {
+    const byType = {};
+    for (const a of announcements) {
+      const t = (a.TYPE || "").toUpperCase();
+      const key = t === "NOTICE" ? "GENERAL" : t;   // legacy alias
+      byType[key] = (byType[key] || 0) + 1;
+    }
+    return {
+      ALL:           announcements.length + notices.length + holidays.length,
+      GENERAL:       (byType.GENERAL || 0) + notices.length,
+      HR:             byType.HR            || 0,
+      MEETING:        byType.MEETING       || 0,
+      EVENT:          byType.EVENT         || 0,
+      HOLIDAY:       (byType.HOLIDAY || 0) + holidays.length,
+      SAFETY:         byType.SAFETY        || 0,
+      IT:             byType.IT            || 0,
+      ACHIEVEMENT:    byType.ACHIEVEMENT   || 0,
+      OPERATIONAL:    byType.OPERATIONAL   || 0,
+      URGENT:         byType.URGENT        || 0,
+      COMMUNICATION:  byType.COMMUNICATION || 0,
+      CORPORATE:      byType.CORPORATE     || 0,
+    };
+  }, [announcements, notices, holidays]);
+
+  // Rows to render inside the selected tab. Filtered on TYPE, with
+  // legacy NOTICE folded into GENERAL. Holiday/general also merge
+  // their sibling data sources (see Render section).
+  const tabRows = useMemo(() => {
+    if (tab === "ALL") return announcements;
+    return announcements.filter((a) => {
+      const t = (a.TYPE || "").toUpperCase();
+      const normalized = t === "NOTICE" ? "GENERAL" : t;
+      return normalized === tab;
+    });
+  }, [tab, announcements]);
 
   // Split holidays into upcoming vs past for cleaner scanning
   const holidayGroups = useMemo(() => {
@@ -229,13 +271,12 @@ export default function MyAnnouncementsPanel({ employeeId }) {
   // Render
   // ==================================================================
 
-  const tabs = [
-    { key: "holiday",  label: "Holidays", icon: I.holiday, count: counts.holiday },
-    { key: "notice",   label: "Notices",  icon: I.notice,  count: counts.notice  },
-    { key: "meeting",  label: "Meetings", icon: I.meeting, count: counts.meeting },
-    { key: "event",    label: "Events",   icon: I.event,   count: counts.event   },
-    { key: "birthday", label: "Birthdays", icon: I.cake,   count: counts.birthday },
-  ];
+  // Build the tab list from ESS_TABS + live counts so counts stay
+  // consistent with what actually renders below.
+  const tabs = ESS_TABS.map((t) => ({
+    ...t,
+    count: counts[t.key] ?? 0,
+  }));
 
   return (
     <div className={styles.wrap}>
@@ -246,12 +287,12 @@ export default function MyAnnouncementsPanel({ employeeId }) {
           <div className={styles.headEyebrow}>Employee Self-Service</div>
           <h1 className={styles.headTitle}>Company Announcements</h1>
           <p className={styles.headSub}>
-            Holidays, HR notices, meetings, upcoming events and team
-            birthdays — the whole company diary in one place.
+            Meetings, events, holidays, HR updates, safety notices —
+            everything HR posts, one tab per category.
           </p>
         </div>
 
-        {tab === "holiday" && (
+        {tab === "HOLIDAY" && (
           <div className={styles.yearPicker}>
             <span className={styles.yearLabel}>Year</span>
             <div className={styles.yearChips}>
@@ -271,7 +312,7 @@ export default function MyAnnouncementsPanel({ employeeId }) {
       </header>
 
 
-      {/* ---------- Category tabs ---------- */}
+      {/* ---------- Category tabs — matches the HR filter chips ---------- */}
       <div className={styles.tabs} role="tablist">
         {tabs.map((t) => (
           <button
@@ -282,9 +323,10 @@ export default function MyAnnouncementsPanel({ employeeId }) {
             className={`${styles.tab} ${tab === t.key ? styles.tab_active : ""}`}
             onClick={() => setTab(t.key)}
           >
-            <span className={styles.tabIcon}>{t.icon}</span>
             <span>{t.label}</span>
-            <span className={styles.tabCount}>{t.count}</span>
+            {t.count > 0 && (
+              <span className={styles.tabCount}>{t.count}</span>
+            )}
           </button>
         ))}
       </div>
@@ -299,44 +341,14 @@ export default function MyAnnouncementsPanel({ employeeId }) {
         <div className={styles.error}>{error}</div>
       )}
 
-      {!loading && !error && tab === "holiday" && (
-        <HolidayView groups={holidayGroups} year={year} />
-      )}
-
-      {!loading && !error && tab === "notice" && (
-        <>
-          {noticeAnnouncements.length > 0 && (
-            <AnnouncementList items={noticeAnnouncements} kind="notice" />
-          )}
-          <NoticeView notices={notices} />
-        </>
-      )}
-
-      {!loading && !error && tab === "meeting" && (
-        meetings.length > 0
-          ? <AnnouncementList items={meetings} kind="meeting" />
-          : <PlaceholderView
-              icon={I.meeting}
-              title="No meetings scheduled"
-              body="Company-wide meetings posted by HR will appear here with time, venue and the agenda."
-            />
-      )}
-
-      {!loading && !error && tab === "event" && (
-        events.length > 0
-          ? <AnnouncementList items={events} kind="event" />
-          : <PlaceholderView
-              icon={I.event}
-              title="No upcoming events"
-              body="Town halls, celebrations, training days and other events will appear here as HR publishes them."
-            />
-      )}
-
-      {!loading && !error && tab === "birthday" && (
-        <PlaceholderView
-          icon={I.cake}
-          title="No birthdays this month"
-          body="Team birthdays will show up here so you never miss a celebration."
+      {!loading && !error && (
+        <TabView
+          tab={tab}
+          rows={tabRows}
+          notices={notices}
+          holidayGroups={holidayGroups}
+          year={year}
+          announcements={announcements}
         />
       )}
 
@@ -441,6 +453,117 @@ function HolidayRow({ holiday, muted = false }) {
 // Notice view
 // ==================================================================
 // ==================================================================
+// TabView — one component that knows how to render each of the 13
+// category tabs (ALL + 12 types), including the two special tabs:
+//   • HOLIDAY  merges HR-authored HOLIDAY announcements with the
+//              /holidays calendar (upcoming + past groups).
+//   • GENERAL  merges HR-authored GENERAL announcements with the
+//              legacy memo-derived notices, so notices HR still
+//              posts as INFORMATION-type memos remain visible.
+// Everything else is a straight filter on TYPE.
+// ==================================================================
+const EMPTY_STATES = {
+  ALL:           { icon: I.megaphone, title: "Nothing to show yet", body: "As HR posts announcements, holidays or notices, they'll all appear here." },
+  GENERAL:       { icon: I.notice,   title: "No general announcements", body: "Office updates, policies and reminders posted by HR will appear here." },
+  HR:            { icon: I.notice,   title: "No HR announcements",     body: "New hires, promotions and benefit updates will land here." },
+  MEETING:       { icon: I.meeting,  title: "No meetings scheduled",   body: "Company-wide meetings posted by HR will appear here with time, venue and the agenda." },
+  EVENT:         { icon: I.event,    title: "No upcoming events",      body: "Town halls, celebrations, training days and other events will appear here as HR publishes them." },
+  HOLIDAY:       { icon: I.holiday,  title: "No holidays configured",  body: "Holiday closures and greetings from HR will show up here." },
+  SAFETY:        { icon: I.notice,   title: "No safety notices",       body: "Emergency procedures and safety drills will land here." },
+  IT:            { icon: I.notice,   title: "No IT notices",           body: "Maintenance windows, software updates and downtime notices will appear here." },
+  ACHIEVEMENT:   { icon: I.notice,   title: "No achievements yet",     body: "Company milestones, awards and recognitions will surface here." },
+  OPERATIONAL:   { icon: I.notice,   title: "No operational updates",  body: "Process changes, relocations and new equipment notices will appear here." },
+  URGENT:        { icon: I.notice,   title: "Nothing urgent",          body: "Emergency notices and immediate-action items will surface here." },
+  COMMUNICATION: { icon: I.notice,   title: "No campaigns yet",        body: "Surveys, feedback requests and internal campaigns will appear here." },
+  CORPORATE:     { icon: I.notice,   title: "No corporate news",       body: "Strategy updates, leadership changes and major business news will appear here." },
+};
+
+function TabView({ tab, rows, notices, holidayGroups, year, announcements }) {
+
+  // ALL — show everything grouped by source, so the employee gets
+  // one comprehensive scan of the entire announcement surface.
+  if (tab === "ALL") {
+    const hasContent =
+      announcements.length > 0 || notices.length > 0 ||
+      holidayGroups.upcoming.length > 0 || holidayGroups.past.length > 0;
+    if (!hasContent) {
+      return (
+        <PlaceholderView
+          icon={EMPTY_STATES.ALL.icon}
+          title={EMPTY_STATES.ALL.title}
+          body={EMPTY_STATES.ALL.body}
+        />
+      );
+    }
+    return (
+      <>
+        {announcements.length > 0 && (
+          <AnnouncementList items={announcements} kind="all" />
+        )}
+        {notices.length > 0 && (
+          <NoticeView notices={notices} />
+        )}
+        {(holidayGroups.upcoming.length > 0 || holidayGroups.past.length > 0) && (
+          <HolidayView groups={holidayGroups} year={year} />
+        )}
+      </>
+    );
+  }
+
+  // HOLIDAY — announcements + the /holidays calendar side-by-side.
+  if (tab === "HOLIDAY") {
+    const noRows = rows.length === 0
+      && holidayGroups.upcoming.length === 0
+      && holidayGroups.past.length === 0;
+    if (noRows) {
+      return (
+        <PlaceholderView
+          icon={EMPTY_STATES.HOLIDAY.icon}
+          title={`No holidays for ${year}`}
+          body="HR maintains the calendar. Once holidays are added or announcements posted, they'll appear here."
+        />
+      );
+    }
+    return (
+      <>
+        {rows.length > 0 && <AnnouncementList items={rows} kind="notice" />}
+        <HolidayView groups={holidayGroups} year={year} />
+      </>
+    );
+  }
+
+  // GENERAL — announcements + memo-derived notices merged.
+  if (tab === "GENERAL") {
+    if (rows.length === 0 && notices.length === 0) {
+      const s = EMPTY_STATES.GENERAL;
+      return <PlaceholderView icon={s.icon} title={s.title} body={s.body} />;
+    }
+    return (
+      <>
+        {rows.length > 0 && <AnnouncementList items={rows} kind="notice" />}
+        {notices.length > 0 && <NoticeView notices={notices} />}
+      </>
+    );
+  }
+
+  // Every remaining tab — straight filter on TYPE.
+  if (rows.length === 0) {
+    const s = EMPTY_STATES[tab] || EMPTY_STATES.ALL;
+    return <PlaceholderView icon={s.icon} title={s.title} body={s.body} />;
+  }
+
+  // Map the tab key to the kind the AnnouncementList expects for its
+  // section label. Anything outside meeting/event/notice gets the
+  // generic 'notice' label because that's the closest match.
+  const kind =
+    tab === "MEETING" ? "meeting" :
+    tab === "EVENT"   ? "event"   :
+                         "notice";
+  return <AnnouncementList items={rows} kind={kind} />;
+}
+
+
+// ==================================================================
 // Meeting / Event / Notice list — HR-authored posts from /announcements
 // ==================================================================
 function AnnouncementList({ items, kind }) {
@@ -448,7 +571,8 @@ function AnnouncementList({ items, kind }) {
   const label =
     kind === "meeting" ? "Upcoming meetings" :
     kind === "event"   ? "Upcoming events"   :
-                          "Notices from HR";
+    kind === "all"     ? "All announcements" :
+                          "Announcements from HR";
 
   return (
     <section className={styles.card}>
