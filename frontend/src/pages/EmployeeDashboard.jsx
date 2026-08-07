@@ -977,105 +977,126 @@ function EmployeeDashboardBody() {
     <div className={styles.zShell}>
 
       {/* WhatsApp-style banner for freshly-arrived notifications.
-          Sits above everything else. Auto-hides after 6s, or on click
-          — a click jumps to the Notifications tab. */}
-      {notifToast && (
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => {
-            setMainTab("notifications");
-            setNotifToast(null);
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
+          Mobile-first: hugs the top of the viewport with 10px of
+          side margin on every screen so it never overflows on
+          narrow phones. On desktop it caps at 440px and centres
+          under the header. White card, coloured left-stripe per
+          type (green success / amber warning / red error / blue
+          info) — matches WhatsApp's push style. Click anywhere on
+          the card to jump to the Notifications tab; click ✕ to
+          dismiss without navigating. Auto-hides after 8s. */}
+      {notifToast && (() => {
+        const accent =
+          notifToast.type === "WARNING" ? "#f59e0b" :
+          notifToast.type === "ERROR"   ? "#dc2626" :
+          notifToast.type === "SUCCESS" ? "#10b981" :
+                                          "#dc2626";   // INFO → BVC red
+        return (
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => {
               setMainTab("notifications");
               setNotifToast(null);
-            }
-          }}
-          style={{
-            position: "fixed",
-            top: 16,
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 9999,
-            minWidth: 320,
-            maxWidth: 460,
-            background: "#0f172a",
-            color: "#fff",
-            borderRadius: 14,
-            padding: "14px 18px",
-            display: "flex",
-            gap: 12,
-            alignItems: "flex-start",
-            boxShadow: "0 20px 40px rgba(15,23,42,0.28)",
-            cursor: "pointer",
-            fontFamily: "inherit",
-            animation: "bvcSlideDown 0.25s ease-out",
-          }}
-        >
-          <div style={{
-            width: 34, height: 34, borderRadius: 999,
-            background: notifToast.type === "WARNING" ? "#f59e0b"
-                       : notifToast.type === "ERROR"   ? "#dc2626"
-                       : notifToast.type === "SUCCESS" ? "#10b981"
-                       : "#3b82f6",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            flexShrink: 0,
-          }}>
-            <svg
-              width="18" height="18" viewBox="0 0 24 24"
-              fill="none" stroke="#fff" strokeWidth="2"
-              strokeLinecap="round" strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
-              <path d="M13.73 21a2 2 0 01-3.46 0" />
-            </svg>
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                setMainTab("notifications");
+                setNotifToast(null);
+              }
+            }}
+            style={{
+              position: "fixed",
+              top: 10,
+              left: 10,
+              right: 10,
+              marginInline: "auto",
+              maxWidth: 440,
+              zIndex: 9999,
+              background: "#ffffff",
+              color: "#0f172a",
+              borderRadius: 12,
+              padding: "12px 12px 12px 16px",
+              display: "flex",
+              gap: 10,
+              alignItems: "flex-start",
+              boxShadow: "0 12px 28px rgba(15,23,42,0.16), 0 2px 6px rgba(15,23,42,0.08)",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              animation: "bvcSlideDown 0.25s ease-out",
+              overflow: "hidden",
+              boxSizing: "border-box",
+              borderLeft: `4px solid ${accent}`,
+            }}
+          >
             <div style={{
-              fontSize: 10.5, fontWeight: 800, letterSpacing: 0.6,
-              textTransform: "uppercase", opacity: 0.65,
+              width: 32, height: 32, borderRadius: 999,
+              background: accent,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
             }}>
-              New from HR
+              <svg
+                width="16" height="16" viewBox="0 0 24 24"
+                fill="none" stroke="#fff" strokeWidth="2.2"
+                strokeLinecap="round" strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 01-3.46 0" />
+              </svg>
             </div>
-            <div style={{ fontSize: 14, fontWeight: 700, marginTop: 2 }}>
-              {notifToast.title}
-            </div>
-            {notifToast.message && (
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{
-                fontSize: 12.5, opacity: 0.85, marginTop: 3,
+                fontSize: 10, fontWeight: 800, letterSpacing: 0.6,
+                textTransform: "uppercase", color: accent,
+              }}>
+                New from HR
+              </div>
+              <div style={{
+                fontSize: 13.5, fontWeight: 700, marginTop: 2, color: "#0f172a",
                 overflow: "hidden", textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
               }}>
-                {notifToast.message}
+                {notifToast.title}
               </div>
-            )}
+              {notifToast.message && (
+                <div style={{
+                  fontSize: 12, color: "#64748b", marginTop: 2,
+                  lineHeight: 1.35,
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }}>
+                  {notifToast.message}
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setNotifToast(null);
+              }}
+              style={{
+                background: "transparent", border: "none", color: "#94a3b8",
+                fontSize: 20, lineHeight: 1, cursor: "pointer",
+                padding: 4, margin: "-4px -4px 0 0", flexShrink: 0,
+                borderRadius: 6,
+              }}
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+            <style>{`
+              @keyframes bvcSlideDown {
+                from { opacity: 0; transform: translateY(-20px); }
+                to   { opacity: 1; transform: translateY(0); }
+              }
+            `}</style>
           </div>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setNotifToast(null);
-            }}
-            style={{
-              background: "transparent", border: "none", color: "#fff",
-              opacity: 0.6, fontSize: 20, lineHeight: 1, cursor: "pointer",
-              padding: 0, marginLeft: 4,
-            }}
-            aria-label="Dismiss"
-          >
-            ×
-          </button>
-          <style>{`
-            @keyframes bvcSlideDown {
-              from { opacity: 0; transform: translate(-50%, -20px); }
-              to   { opacity: 1; transform: translate(-50%, 0); }
-            }
-          `}</style>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ---------- Left rail — Employee Self-Service navigation ---------- */}
       <EmployeeSidebar
