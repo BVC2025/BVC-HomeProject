@@ -1202,7 +1202,7 @@ def top_performers(db: Session = Depends(get_db)):
             best_team = {
                 "id":          dept.ID,
                 "name":        dept.NAME,
-                "code":        dept.CODE if hasattr(dept, "CODE") else None,
+                "code":        dept.DEPARTMENT_CODE if hasattr(dept, "DEPARTMENT_CODE") else None,
                 "designation": f"{dept_row[2]} members rated",
                 "photo_url":   None,
                 "score":       round(avg, 1),

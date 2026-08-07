@@ -304,9 +304,26 @@ class Role(Base):
 
     __tablename__ = "role"
 
+    __table_args__ = (
+        UniqueConstraint("VENDOR_ID", "NAME", name="uq_role_vendor_name"),
+    )
+
     ID = Column(Integer, primary_key=True, index=True)
 
-    ROLE_NAME = Column(String(100))
+    VENDOR_ID = Column(
+        Integer,
+        ForeignKey("vendor.ID"),
+        index=True
+    )
+
+    DEPARTMENT_ID = Column(
+        Integer,
+        ForeignKey("department.ID", ondelete="SET NULL"),
+        nullable=True,
+        index=True
+    )
+
+    NAME = Column(String(100))
 
     DESCRIPTION = Column(String(255), nullable=True)
 
@@ -314,11 +331,8 @@ class Role(Base):
     # 1 = standard role seeded by us (cannot be deleted)
     # 0 = custom role created by admin
 
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID"),
-        index=True
-    )
+    CREATED_AT = Column(DateTime, default=now_ist)
+    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
 
 
 class Department(Base):
@@ -327,7 +341,7 @@ class Department(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "VENDOR_ID", "CODE",
+            "VENDOR_ID", "DEPARTMENT_CODE",
             name="uq_dept_vendor_code"
         ),
     )
@@ -341,7 +355,7 @@ class Department(Base):
 
     NAME = Column(String(100))
 
-    CODE = Column(String(20))
+    DEPARTMENT_CODE = Column(String(20))
     # short code per vendor — e.g. "SW", "WLD", "PRD"
 
     DESCRIPTION = Column(String(255), nullable=True)

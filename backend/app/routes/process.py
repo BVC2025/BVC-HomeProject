@@ -859,7 +859,7 @@ def wo_gantt(
 
     def _is_sales(emp_row):
         """emp_row = (Employee, Department.NAME, Designation.TITLE,
-        Role.ROLE_NAME). True if any text hints at a sales role, or
+        Role.NAME). True if any text hints at a sales role, or
         if the employee is named Ragul (per business rule)."""
 
         emp, dept_name, des_title, role_name = emp_row
@@ -880,7 +880,7 @@ def wo_gantt(
         )
 
     employee_rows = (
-        db.query(Employee, Department.NAME, Designation.TITLE, Role.ROLE_NAME)
+        db.query(Employee, Department.NAME, Designation.TITLE, Role.NAME)
         .outerjoin(Department, Employee.DEPARTMENT_ID == Department.ID)
         .outerjoin(Designation, Employee.DESIGNATION_ID == Designation.ID)
         .outerjoin(Role, Employee.ROLE_ID == Role.ID)

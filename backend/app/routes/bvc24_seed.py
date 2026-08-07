@@ -520,7 +520,7 @@ def _get_or_create_vendor(db: Session) -> Vendor:
 def _get_or_create_role(db: Session, vendor: Vendor) -> Role:
 
     role = db.query(Role).filter(
-        Role.ROLE_NAME == "WORKER",
+        Role.NAME == "WORKER",
         Role.VENDOR_ID == vendor.ID
     ).first()
 
@@ -529,7 +529,7 @@ def _get_or_create_role(db: Session, vendor: Vendor) -> Role:
         return role
 
     role = Role(
-        ROLE_NAME="WORKER",
+        NAME="WORKER",
         DESCRIPTION="Execution-tier employee eligible for auto-allocation.",
         IS_SYSTEM=1,
         VENDOR_ID=vendor.ID
@@ -552,7 +552,7 @@ def _seed_departments(db: Session, vendor: Vendor) -> dict:
     for name, code, desc in BVC24_DEPARTMENTS:
 
         existing = db.query(Department).filter(
-            Department.CODE == code,
+            Department.DEPARTMENT_CODE == code,
             Department.VENDOR_ID == vendor.ID
         ).first()
 
