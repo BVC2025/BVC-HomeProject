@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import API, { API_BASE_URL } from "../services/api";
@@ -469,9 +469,14 @@ function EmployeeDashboardBody() {
   // When a notification deep-links to a memo, MyMemosPanel opens this ID.
   const [focusMemoId, setFocusMemoId] = useState(null);
   // WhatsApp-style toast for freshly-arrived notifications. Shows at
-  // the top of the dashboard for ~6 seconds, then auto-dismisses.
+  // the top of the dashboard for ~8 seconds, then auto-dismisses.
   // Clicking it jumps to the Notifications tab.
   const [notifToast, setNotifToast] = useState(null);
+
+  // Bell dropdown — social-media-style panel that lists every HR
+  // notification (message + timestamp) so employees can catch up on
+  // anything they missed while the toast was on screen.
+  const [notifPanelOpen, setNotifPanelOpen] = useState(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const [voiceOn, setVoiceOn] = useState(
@@ -884,21 +889,47 @@ function EmployeeDashboardBody() {
     const others = overdueCount > 1 ? ` (+${overdueCount - 1} more)` : "";
     const title = first?.title ? `“${first.title}”` : "a task";
     setToast({
-      message: `⚠ Time is over — your task ${title} is still pending.${others}`
+      message: `Time is over — your task ${title} is still pending.${others}`
     });
   };
+
+  // Bell click on the main header — opens/closes the notification
+  // dropdown. On open, mark everything as read so the badge clears
+  // (the messages themselves stay in the list until the user
+  // explicitly dismisses one, matching the social-media inbox model).
+  const toggleNotifPanel = useCallback(async () => {
+    setNotifPanelOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        setNotifToast(null);
+        // Fire-and-forget mark-all-read. If the endpoint fails the UI
+        // still shows the messages — just the red badge won't clear
+        // until the next poll.
+        const empParam = employeeId
+          ? `?employee_id=${encodeURIComponent(employeeId)}`
+          : "";
+        API.put(`/notifications/mark-all-read${empParam}`).then(
+          () => setUnreadCount(0),
+          () => { /* silent */ }
+        );
+      }
+      return next;
+    });
+  }, [employeeId]);
 
 
   // =============================================================
   // RENDER
   // =============================================================
 
-  // Auto-dismiss the top notification toast after 6 seconds. Also
+  // Auto-dismiss the top notification toast after 8 seconds. Also
   // clears when the user clicks it (which jumps to the Notifications
-  // tab — see onClick below).
+  // tab — see onClick below). The message is also preserved in the
+  // bell dropdown for later — the toast is the "push", the dropdown
+  // is the "inbox".
   useEffect(() => {
     if (!notifToast) return undefined;
-    const t = setTimeout(() => setNotifToast(null), 6000);
+    const t = setTimeout(() => setNotifToast(null), 8000);
     return () => clearTimeout(t);
   }, [notifToast]);
 
@@ -1028,8 +1059,16 @@ function EmployeeDashboardBody() {
           voiceOn={voiceOn}
           onToggleVoice={toggleVoice}
           voiceSupported={isVoiceSupported()}
-          overdueCount={overdueCount}
-          onBellClick={showOverdueToast}
+          notifications={notifications}
+          notifUnreadCount={unreadCount}
+          notifPanelOpen={notifPanelOpen}
+          onBellClick={toggleNotifPanel}
+          onCloseNotifPanel={() => setNotifPanelOpen(false)}
+          onNotifClick={(n) => {
+            setNotifPanelOpen(false);
+            setMainTab("notifications");
+            if (n?.MEMO_ID) setFocusMemoId(n.MEMO_ID);
+          }}
           onGoHome={() => setMainTab("home")}
           onLogout={handleLogout}
           onMenuToggle={() => setSidebarOpen((v) => !v)}
@@ -1670,13 +1709,29 @@ function ZMainHeader({
   attendanceStatus, loginTime,
   productivity,
   voiceOn, onToggleVoice, voiceSupported,
-  overdueCount, onBellClick,
+  notifications = [], notifUnreadCount = 0,
+  notifPanelOpen = false,
+  onBellClick, onCloseNotifPanel, onNotifClick,
   onGoHome, onLogout,
   onMenuToggle,
 }) {
 
   const isLate = attendanceStatus === "LATE";
   const score = Math.max(0, Math.min(100, Number(productivity?.score || 0)));
+
+  // Close the notification dropdown when the user clicks outside it.
+  // Listener attached only while open so we don't leak.
+  const notifWrapRef = useRef(null);
+  useEffect(() => {
+    if (!notifPanelOpen) return undefined;
+    const onDocClick = (e) => {
+      if (notifWrapRef.current && !notifWrapRef.current.contains(e.target)) {
+        onCloseNotifPanel?.();
+      }
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [notifPanelOpen, onCloseNotifPanel]);
 
   return (
     <header className={styles.zMainHeader}>
@@ -1730,24 +1785,34 @@ function ZMainHeader({
           </button>
         )}
 
-        <button
-          type="button"
-          className={styles.zIconBtn}
-          onClick={onBellClick}
-          title={
-            overdueCount > 0
-              ? `${overdueCount} overdue task${overdueCount === 1 ? "" : "s"}`
-              : "No overdue tasks"
-          }
-          aria-label="Overdue task alerts"
-        >
-          <Ico name="bell" size={14} />
-          {overdueCount > 0 && (
-            <span className={styles.zIconBtnBadge}>
-              {overdueCount > 99 ? "99+" : overdueCount}
-            </span>
+        <div ref={notifWrapRef} style={{ position: "relative", display: "inline-block" }}>
+          <button
+            type="button"
+            className={styles.zIconBtn}
+            onClick={onBellClick}
+            title={
+              notifUnreadCount > 0
+                ? `${notifUnreadCount} new HR notification${notifUnreadCount === 1 ? "" : "s"}`
+                : "Notifications"
+            }
+            aria-label="Notifications"
+            aria-expanded={notifPanelOpen}
+          >
+            <Ico name="bell" size={14} />
+            {notifUnreadCount > 0 && (
+              <span className={styles.zIconBtnBadge}>
+                {notifUnreadCount > 99 ? "99+" : notifUnreadCount}
+              </span>
+            )}
+          </button>
+
+          {notifPanelOpen && (
+            <NotifDropdown
+              notifications={notifications}
+              onItemClick={onNotifClick}
+            />
           )}
-        </button>
+        </div>
 
         <button
           type="button"
@@ -1760,6 +1825,151 @@ function ZMainHeader({
         </button>
       </div>
     </header>
+  );
+}
+
+
+// =================================================================
+// NotifDropdown — social-media-style HR notification list
+// -----------------------------------------------------------------
+// Anchored below the bell button. Scrollable inner list, one item
+// per notification, newest first. Each row shows a colour dot for
+// the type (INFO/SUCCESS/WARNING/ERROR), the title, the message
+// body, and a relative timestamp ("2 minutes ago"). Clicking a
+// row calls onItemClick — the parent jumps to the Notifications
+// tab. If there are no notifications the panel shows an empty
+// state.
+// =================================================================
+
+function formatRelativeTime(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60)    return "just now";
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`;
+  return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function NotifDropdown({ notifications = [], onItemClick }) {
+
+  const dotColor = (type) => {
+    const t = (type || "INFO").toUpperCase();
+    if (t === "SUCCESS") return "#10b981";
+    if (t === "WARNING") return "#f59e0b";
+    if (t === "ERROR")   return "#dc2626";
+    return "#3b82f6";
+  };
+
+  return (
+    <div
+      role="menu"
+      style={{
+        position: "absolute",
+        top: "calc(100% + 8px)",
+        right: 0,
+        minWidth: 320,
+        maxWidth: 380,
+        maxHeight: 440,
+        background: "#ffffff",
+        border: "1px solid #e2e8f0",
+        borderRadius: 12,
+        boxShadow: "0 20px 40px rgba(15, 23, 42, 0.18)",
+        zIndex: 60,
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        color: "#0f172a",
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div style={{
+        padding: "12px 16px",
+        borderBottom: "1px solid #f1f5f9",
+        fontSize: 12,
+        fontWeight: 800,
+        letterSpacing: 0.6,
+        textTransform: "uppercase",
+        color: "#64748b",
+      }}>
+        HR Notifications
+      </div>
+
+      <div style={{ overflowY: "auto", flex: "1 1 auto" }}>
+        {notifications.length === 0 ? (
+          <div style={{
+            padding: "22px 20px",
+            fontSize: 13,
+            color: "#94a3b8",
+            textAlign: "center",
+          }}>
+            No notifications yet. HR messages will appear here.
+          </div>
+        ) : (
+          notifications.map((n) => (
+            <button
+              key={n.ID}
+              type="button"
+              onClick={() => onItemClick?.(n)}
+              style={{
+                width: "100%",
+                padding: "12px 16px",
+                display: "flex",
+                gap: 10,
+                alignItems: "flex-start",
+                background: "transparent",
+                border: "none",
+                borderBottom: "1px solid #f1f5f9",
+                cursor: "pointer",
+                textAlign: "left",
+                fontFamily: "inherit",
+                color: "inherit",
+                transition: "background 0.12s ease",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "#f8fafc"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+            >
+              <span style={{
+                width: 8, height: 8, borderRadius: 999,
+                background: dotColor(n.TYPE),
+                flexShrink: 0, marginTop: 6,
+              }} />
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{
+                  display: "block",
+                  fontSize: 13, fontWeight: 700, color: "#0f172a",
+                  marginBottom: 2,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}>
+                  {n.TITLE || "Notification"}
+                </span>
+                {n.MESSAGE && (
+                  <span style={{
+                    display: "block",
+                    fontSize: 12, color: "#475569",
+                    lineHeight: 1.4,
+                    marginBottom: 4,
+                    whiteSpace: "normal",
+                    wordBreak: "break-word",
+                  }}>
+                    {n.MESSAGE}
+                  </span>
+                )}
+                <span style={{
+                  fontSize: 11, color: "#94a3b8", fontWeight: 500,
+                }}>
+                  {formatRelativeTime(n.CREATED_AT)}
+                </span>
+              </span>
+            </button>
+          ))
+        )}
+      </div>
+    </div>
   );
 }
 
