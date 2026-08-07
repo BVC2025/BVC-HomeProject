@@ -1,8 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+import "react-toastify/dist/ReactToastify.css";
 
 import App from "./App";
+import ThemedToastContainer from "./components/ThemedToastContainer";
 import "./tailwind.css";
 import "./App.css";
 
@@ -22,5 +24,6 @@ ReactDOM.createRoot(
 
   <BrowserRouter>
     <App />
+    <ThemedToastContainer />
   </BrowserRouter>
 );
