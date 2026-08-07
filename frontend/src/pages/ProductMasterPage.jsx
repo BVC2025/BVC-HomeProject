@@ -10,11 +10,13 @@ import { inventoryCategoryService } from "../services/inventoryCategoryService";
 import { useToast } from "../hooks/useToast";
 import { useCustomFields, useTableCfValues } from "../hooks/useCustomFields";
 import { exportToExcel, downloadTemplate as dlTemplate } from "../utils/exportExcel";
+import { formatDateTime } from "../utils/formatDateTime";
 import ProductMasterIcon from "../assets/Icons/productMasterIcon.webp";
 import EditIcon from "../assets/Icons/editIcon.webp";
 import DeleteIcon from "../assets/Icons/deleteIcon.webp";
 import UploadIcon from "../assets/Icons/uploadIcon.webp";
 import styles from "./ProductMasterPage.module.css";
+import { validateForm, clearFieldError, PRODUCT_RULES } from "../utils/formValidation";
 
 const EMPTY_FORM = {
   PRODUCT_CODE: "", PRODUCT_NAME: "", CATEGORY_ID: "",
@@ -54,11 +56,14 @@ export default function ProductMasterPage() {
   const [modal, setModal] = useState(null); // null | "add" | "edit"
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [cfOpen, setCfOpen] = useState(false);
   const [confirmModal, setConfirmModal] = useState(null);
+  const [filterFrom, setFilterFrom] = useState("");
+  const [filterTo, setFilterTo] = useState("");
 
   // Detail drawer
   const [drawerProduct, setDrawerProduct] = useState(null); // product row
@@ -94,10 +99,12 @@ export default function ProductMasterPage() {
     else setRefreshing(true);
     try {
       const [prodRes, catRes] = await Promise.all([
-        productMasterService.getAll(),
+        productMasterService.getAll({ page_size: 1000 }),
         inventoryCategoryService.getAll(),
       ]);
-      setRows(prodRes.data || []);
+      // Backend returns { items: [...], total, page, page_size }
+      const prodData = prodRes.data;
+      setRows(Array.isArray(prodData) ? prodData : (prodData?.items || []));
       setCategories(catRes.data || []);
     } catch {
       toast.showError("Failed to load products");
@@ -129,8 +136,19 @@ export default function ProductMasterPage() {
     }
     if (filterCategory) list = list.filter((r) => r.CATEGORY_ID === filterCategory);
     if (filterStatus) list = list.filter((r) => r.STATUS === filterStatus);
+    if (filterFrom || filterTo) {
+      const from = filterFrom ? new Date(filterFrom) : null;
+      const to = filterTo ? new Date(filterTo) : null;
+      list = list.filter((r) => {
+        if (!r.CREATED_AT) return false;
+        const d = new Date(r.CREATED_AT);
+        if (from && d < from) return false;
+        if (to && d > to) return false;
+        return true;
+      });
+    }
     return list;
-  }, [rows, search, filterCategory, filterStatus]);
+  }, [rows, search, filterCategory, filterStatus, filterFrom, filterTo]);
 
   const paginated = useMemo(
     () => pageSize === 0 ? filtered : filtered.slice((page - 1) * pageSize, page * pageSize),
@@ -170,17 +188,17 @@ export default function ProductMasterPage() {
   const closeModal = useCallback(() => {
     setModal(null);
     setSelected(null);
+    setErrors({});
   }, []);
 
   const handleFormChange = useCallback((field, val) => {
     setForm((prev) => ({ ...prev, [field]: val }));
+    clearFieldError(setErrors, field);
   }, []);
 
   const handleSave = useCallback(async () => {
-    if (!form.PRODUCT_CODE.trim() || !form.PRODUCT_NAME.trim()) {
-      toast.showWarning("Product Code and Name are required");
-      return;
-    }
+    const { isValid, errors: validErrors } = validateForm(PRODUCT_RULES, form);
+    if (!isValid) { setErrors(validErrors); return; }
     const cfError = validateCf();
     if (cfError) { toast.showWarning(cfError); return; }
     setSaving(true);
@@ -411,6 +429,13 @@ export default function ProductMasterPage() {
               placeholder="All Statuses"
             />
           </div>
+          <div className={styles.dateFilters}>
+            <label className={styles.dateLabel}>From</label>
+            <input type="datetime-local" className={styles.dateInput} value={filterFrom} onChange={(e) => { setFilterFrom(e.target.value); setPage(1); }} />
+            <label className={styles.dateLabel}>To</label>
+            <input type="datetime-local" className={styles.dateInput} value={filterTo} onChange={(e) => { setFilterTo(e.target.value); setPage(1); }} />
+            {(filterFrom || filterTo) && <button className={styles.clearFilter} onClick={() => { setFilterFrom(""); setFilterTo(""); }}>✕</button>}
+          </div>
           <span className={styles.count}>{filtered.length} product{filtered.length !== 1 ? "s" : ""}</span>
         </div>
 
@@ -425,16 +450,17 @@ export default function ProductMasterPage() {
                 <th>Unit</th>
                 <th>HSN</th>
                 <th>Status</th>
+                <th>Created Date</th>
                 {cfFields.map((f) => <th key={f.ID}>{f.FIELD_NAME}</th>)}
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9 + cfFields.length}><Loader /></td></tr>
+                <tr><td colSpan={10 + cfFields.length}><Loader /></td></tr>
               ) : paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={9 + cfFields.length}>
+                  <td colSpan={10 + cfFields.length}>
                     <EmptyState
                       icon={ProductMasterIcon}
                       iconAlt="Products"
@@ -457,6 +483,7 @@ export default function ProductMasterPage() {
                         {r.STATUS || "—"}
                       </span>
                     </td>
+                    <td>{formatDateTime(r.CREATED_AT)}</td>
                     {cfFields.map((f) => {
                       const val = cfValuesMap[String(r.ID)]?.[f.ID];
                       return (
@@ -674,21 +701,23 @@ export default function ProductMasterPage() {
           <div className={styles.formGroup}>
             <label>Product Code <span className={styles.req}>*</span></label>
             <input
-              className={styles.input}
+              className={`${styles.input}${errors.PRODUCT_CODE ? " " + styles.inputError : ""}`}
               value={form.PRODUCT_CODE}
               onChange={(e) => handleFormChange("PRODUCT_CODE", e.target.value.toUpperCase())}
               placeholder="e.g. BOLT-M6-SS"
               maxLength={50}
             />
+            {errors.PRODUCT_CODE && <span className={styles.fieldError}>{errors.PRODUCT_CODE}</span>}
           </div>
           <div className={styles.formGroup}>
             <label>Product Name <span className={styles.req}>*</span></label>
             <input
-              className={styles.input}
+              className={`${styles.input}${errors.PRODUCT_NAME ? " " + styles.inputError : ""}`}
               value={form.PRODUCT_NAME}
               onChange={(e) => handleFormChange("PRODUCT_NAME", e.target.value)}
               placeholder="e.g. SS Bolt M6×25"
             />
+            {errors.PRODUCT_NAME && <span className={styles.fieldError}>{errors.PRODUCT_NAME}</span>}
           </div>
           <div className={styles.formGroup}>
             <label>Category</label>
@@ -700,23 +729,25 @@ export default function ProductMasterPage() {
             />
           </div>
           <div className={styles.formGroup}>
-            <label>Unit</label>
+            <label>Unit <span className={styles.req}>*</span></label>
             <PMSelect
               value={form.UNIT}
               onChange={(v) => handleFormChange("UNIT", v)}
               options={UNIT_OPTIONS}
               placeholder="Select Unit"
             />
+            {errors.UNIT && <span className={styles.fieldError}>{errors.UNIT}</span>}
           </div>
           <div className={styles.formGroup}>
             <label>HSN Code</label>
             <input
-              className={styles.input}
+              className={`${styles.input}${errors.HSN_CODE ? " " + styles.inputError : ""}`}
               value={form.HSN_CODE}
               onChange={(e) => handleFormChange("HSN_CODE", e.target.value)}
               placeholder="e.g. 7318"
               maxLength={20}
             />
+            {errors.HSN_CODE && <span className={styles.fieldError}>{errors.HSN_CODE}</span>}
           </div>
           <div className={styles.formGroup}>
             <label>Status</label>
