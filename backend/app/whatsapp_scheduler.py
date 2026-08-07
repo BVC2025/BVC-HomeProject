@@ -137,3 +137,13 @@ def start_whatsapp_scheduler():
     )
     _scheduler.start()
     log.info("WhatsApp automation scheduler started (outbound/inbound every 2s, reaper every 60s, prune at 02:30 IST)")
+
+
+def stop_whatsapp_scheduler():
+    """Shut the scheduler down cleanly before the process's thread pools
+    are torn down, so it stops submitting new ticks instead of spamming
+    'cannot schedule new futures after shutdown' during interpreter exit."""
+    global _scheduler
+    if _scheduler is not None:
+        _scheduler.shutdown(wait=False)
+        _scheduler = None

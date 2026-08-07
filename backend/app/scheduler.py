@@ -94,3 +94,13 @@ def start_scheduler():
     )
     _scheduler.start()
     log.info("Lead polling scheduler started (tick every 1 minute, log cleanup at 00:00 & 12:00 IST)")
+
+
+def stop_scheduler():
+    """Shut the scheduler down cleanly before the process's thread pools
+    are torn down, so it stops submitting new ticks instead of spamming
+    'cannot schedule new futures after shutdown' during interpreter exit."""
+    global _scheduler
+    if _scheduler is not None:
+        _scheduler.shutdown(wait=False)
+        _scheduler = None

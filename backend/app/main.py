@@ -1847,11 +1847,21 @@ _migrate_add_conversation_preferred_language()
 from app.services.speech_service import speech_service  # noqa: E402
 speech_service.initialize()  # non-blocking — Piper models load on a background thread
 
-from app.scheduler import start_scheduler  # noqa: E402 — started after seeding, before routers
+from app.scheduler import start_scheduler, stop_scheduler  # noqa: E402 — started after seeding, before routers
 start_scheduler()
 
-from app.whatsapp_scheduler import start_whatsapp_scheduler  # noqa: E402 — separate scheduler instance, see module docstring
+from app.whatsapp_scheduler import start_whatsapp_scheduler, stop_whatsapp_scheduler  # noqa: E402 — separate scheduler instance, see module docstring
 start_whatsapp_scheduler()
+
+
+@app.on_event("shutdown")
+def _stop_background_schedulers():
+    """Stop both BackgroundScheduler instances before the process's thread
+    pools are torn down — without this, their interval jobs keep firing
+    during interpreter shutdown and spam 'cannot schedule new futures
+    after shutdown', which is what makes Ctrl+C take a while to land."""
+    stop_scheduler()
+    stop_whatsapp_scheduler()
 
 
 
