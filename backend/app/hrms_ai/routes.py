@@ -98,7 +98,7 @@ def _save_turn(
         EMPLOYEE_ID=employee_id,
         VENDOR_ID=vendor_id,
         ROLE=role,
-        CONTENT=(content or "")[:8000],
+        CONTENT=(content or "")[:8001],
         LANGUAGE=(language or "")[:8] or None,
     )
     db.add(row)
@@ -216,15 +216,21 @@ def ask(
     answer = (raw_answer or "").strip() or NO_CONTEXT_REPLY
 
     # ---- 5. Grounding check --------------------------------------------
-    grounded = True
+    # Fail-CLOSED on verifier errors: if the second Gemini call can't
+    # confirm the answer is supported by the retrieved chunks, we
+    # substitute the canned reply. Worse UX than passing through, but
+    # this is the last line of defence against a plausible-but-wrong
+    # response. The primary answer call reaching Gemini successfully
+    # while the verifier call fails is a rare middle case (Gemini is
+    # usually all-or-nothing), so this shouldn't hit users often.
+    grounded = False
     try:
         grounded = chat_yes_no(
             build_grounding_prompt(question=question, answer=answer, retrieved=retrieved)
         )
     except Exception as e:
-        # Never fail the ask flow on a verifier hiccup — just note it.
-        log.warning("Grounding check failed to run: %s", e)
-        grounded = True
+        log.error("Grounding check errored — treating as ungrounded: %s", e)
+        grounded = False
 
     if not grounded:
         answer = NO_CONTEXT_REPLY
@@ -234,10 +240,17 @@ def ask(
                role="assistant", content=answer, language=body.language)
 
     # ---- 7. Build response ---------------------------------------------
-    sources = [
-        SourceRef(module=c.get("module", ""), section=c.get("section", ""), score=float(s))
-        for c, s in retrieved
-    ]
+    # When we substituted the canned reply, the retrieved chunks weren't
+    # actually used to form the answer — surface an empty source list
+    # so the frontend doesn't confusingly attribute the refusal to
+    # unrelated modules.
+    sources = (
+        [
+            SourceRef(module=c.get("module", ""), section=c.get("section", ""), score=float(s))
+            for c, s in retrieved
+        ]
+        if grounded else []
+    )
     return AskResponse(
         answer=answer,
         sources=sources,
