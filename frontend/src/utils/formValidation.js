@@ -79,6 +79,14 @@ function _productCode(value) {
     : "Product code can only contain letters, numbers, hyphens, underscores, and dots.";
 }
 
+function _moduleCode(value) {
+  if (!value || String(value).trim() === "") return null; // "required" rule handles emptiness
+  const re = /^[a-z][a-z0-9_]{1,49}$/;
+  return re.test(String(value).trim())
+    ? null
+    : "Use lowercase letters, numbers, and underscores only, starting with a letter (e.g. lead_module).";
+}
+
 function _nonNegativeNumber(value) {
   const n = Number(value);
   return !isNaN(n) && n >= 0 ? null : "Must be a valid number (0 or greater).";
@@ -112,6 +120,7 @@ const VALIDATORS = {
   hsnCode: _hsnCode,
   categoryCode: _categoryCode,
   productCode: _productCode,
+  moduleCode: _moduleCode,
   nonNegativeNumber: _nonNegativeNumber,
   nonNegativeInt: _nonNegativeInt,
   positiveNumber: _positiveNumber,
@@ -325,6 +334,61 @@ export const LEAD_POLLING_CONFIG_RULES = {
 /** Polling config PULL_API_KEY is validated separately (required on Add,
  * optional on Edit — blank preserves the existing key) */
 export const LEAD_POLLING_API_KEY_RULE = ["required", minLength(5)];
+
+/** WhatsApp Configuration Add/Edit modal */
+export const WHATSAPP_CONFIG_RULES = {
+  ACCOUNT_LABEL: ["required", minLength(2), maxLength(150)],
+  PHONE_NUMBER_ID: ["required", maxLength(64)],
+  WABA_ID: ["required", maxLength(64)],
+  VERIFY_TOKEN: ["required", minLength(8), maxLength(200)],
+  API_BASE_URL: ["required", "url"],
+  GRAPH_API_VERSION: ["required", maxLength(10)],
+  DEFAULT_COUNTRY_CODE: ["required", maxLength(5)],
+  DEFAULT_LANGUAGE: ["required", maxLength(10)],
+  MAX_SEND_PER_SECOND: [rangeNumber(1, 80)],
+  DAILY_SEND_CAP: [rangeNumber(1, 100000)],
+};
+
+/** Per-module WhatsApp automation settings (e.g. Lead Management's
+ * "WhatsApp Automation" section) — WELCOME_TEMPLATE_NAME is required only
+ * when auto-trigger is enabled. */
+export const WHATSAPP_MODULE_SETTING_RULES = {
+  WELCOME_TEMPLATE_NAME: [
+    (value, data) => {
+      if (data.AUTO_TRIGGER_ENABLED && !String(value || "").trim()) {
+        return "Required when auto-trigger is enabled.";
+      }
+      return null;
+    },
+  ],
+};
+
+/** WhatsApp Module Settings admin page (full CRUD, any MODULE_CODE) — a
+ * separate rule set from WHATSAPP_MODULE_SETTING_RULES above (which stays
+ * unchanged for LeadManagementConfig's singleton form) since this page also
+ * needs to validate a user-entered MODULE_CODE. Field widths match the
+ * backend columns exactly (str(50)/str(100)/str(15)/str(500)/str(200)). */
+export const WHATSAPP_MODULE_SETTING_ADMIN_RULES = {
+  MODULE_CODE: ["required", "moduleCode", maxLength(50)],
+  WELCOME_TEMPLATE_NAME: [
+    maxLength(100),
+    (value, data) => {
+      if (data.AUTO_TRIGGER_ENABLED && !String(value || "").trim()) {
+        return "Required when auto-trigger is enabled.";
+      }
+      return null;
+    },
+  ],
+  WELCOME_TEMPLATE_LANG: ["required", maxLength(15)],
+  WELCOME_TEMPLATE_PARAMS: [maxLength(500)],
+  REENGAGE_TEMPLATE_NAME: [maxLength(100)],
+  REENGAGE_TEMPLATE_LANG: [maxLength(15)],
+  SUPPORTED_LANGUAGES: ["required", maxLength(200)],
+};
+
+/** WhatsApp config ACCESS_TOKEN is validated separately (required on Add,
+ * optional on Edit — blank preserves the existing token) */
+export const WHATSAPP_ACCESS_TOKEN_RULE = ["required", minLength(20)];
 
 /** Manual Lead Management Add/Edit modal */
 export const LEAD_RULES = {

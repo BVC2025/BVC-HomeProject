@@ -21,10 +21,19 @@ from fastapi.staticfiles import StaticFiles
 from app.routes import employee
 from app.database.database import engine
 from app.models.models import Base
+# Register new module models into Base.metadata BEFORE create_all()
+import app.models.project_models     # noqa: F401 — registers project_category, project, project_pricing, task_template tables
+import app.models.inventory_models   # noqa: F401 — registers inventory tables
+import app.models.supplier_models    # noqa: F401 — registers supplier/procurement tables
+import app.models.email_models       # noqa: F401 — registers vendor_email_config table
+import app.models.lead_models        # noqa: F401 — registers lead_polling_config, lead, lead_polling_log tables
+import app.models.project_quotation_models  # noqa: F401 — registers project_quotation_template table
+import app.models.rag_models         # noqa: F401 — registers ai_modules, ai_documents, ai_chat_history, ai_training_job tables
+import app.models.whatsapp_models    # noqa: F401 — registers vendor_whatsapp_config, whatsapp_conversation, whatsapp_message, whatsapp_webhook_event tables
 from app.routes.users import router as users_router
 from app.routes.auth import router as auth_router
 from app.routes.vendor import router as vendor_router
-# project_router (customer projects) removed — ProjectCategory→Project hierarchy now owns the "project" table
+from app.routes.project import router as project_router
 from app.routes.task import router as task_router
 from app.routes.inventory import router as inventory_router
 from app.routes.analytics import router as analytics_router
@@ -36,6 +45,7 @@ from app.routes.reports import router as reports_router
 from app.routes.settings import router as settings_router
 from app.routes.employee_task import router as employee_task_router
 from app.routes.project_template import router as project_template_router
+from app.routes.project_quotation import router as project_quotation_router
 from app.routes.organization import router as organization_router
 from app.routes.task_approval import router as task_approval_router
 from app.routes.chatbot import router as chatbot_router
@@ -89,6 +99,22 @@ from app.routes.custom_fields import router as custom_fields_router  # Custom Fi
 from app.routes.helpdesk import router as helpdesk_router  # Help Desk (employee tickets + admin triage)
 from app.routes.memo_automation import router as memo_automation_router  # Weekly warning/appreciation memo automation
 from app.voice_assistant.routes import router as voice_assistant_router  # Voice-first ERP assistant (Siri-style)
+from app.routes.rag import router as rag_router  # Common Enterprise RAG AI Platform
+from app.routes.speech import router as speech_router  # Offline Piper TTS
+# ── New Inventory & Supplier Procurement Module ──────────────────────
+from app.routes.supplier_onboarding import router as supplier_onboarding_router
+from app.routes.supplier_products import router as supplier_products_router
+from app.routes.supplier_ranking import router as supplier_ranking_router
+from app.routes.inventory_items import router as inventory_items_router
+from app.routes.inventory_movements import router as inventory_movements_router
+from app.routes.inventory_batches import router as inventory_batches_router
+from app.routes.email_config import router as email_config_router
+from app.routes.email_templates import router as email_templates_router
+from app.routes.lead_management import router as lead_management_router
+from app.routes.whatsapp_config import router as whatsapp_config_router
+from app.routes.whatsapp_module_settings import router as whatsapp_module_settings_router
+from app.routes.whatsapp_webhook import router as whatsapp_webhook_router
+from app.routes.whatsapp_inbox import router as whatsapp_inbox_router
 from fastapi.middleware.cors import CORSMiddleware
 
 # Phase 3 — Audit log
@@ -235,6 +261,11 @@ _STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 (_STATIC_DIR / "company").mkdir(parents=True, exist_ok=True)
 
+
+(_STATIC_DIR / "quotation").mkdir(parents=True, exist_ok=True)
+
+(_STATIC_DIR / "ai-documents").mkdir(parents=True, exist_ok=True)
+
 app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
 
@@ -278,6 +309,34 @@ def _rename_legacy_project_table():
 
 
 _rename_legacy_project_table()
+
+
+def _drop_legacy_lead_tables():
+    """One-time cleanup: the Lead Management module was renamed/restructured
+    (IndiamartConfig/IndiamartLead -> LeadPollingConfig/Lead/LeadPollingLog,
+    with a changed schema — CONFIG_ID removed from the lead table, columns
+    renamed, unique constraints changed). The old tables held no production
+    data (pre-launch scaffolding only), so they're dropped here rather than
+    migrated in place; create_all() below then creates the new tables fresh.
+    Guarded and idempotent — a no-op once the old tables are gone.
+    """
+    from sqlalchemy import text, inspect
+    insp = inspect(engine)
+    existing = set(insp.get_table_names())
+    try:
+        with engine.begin() as conn:
+            if "indiamart_lead" in existing:
+                conn.execute(text("DROP TABLE IF EXISTS `indiamart_lead`"))
+                print("[startup] Dropped legacy 'indiamart_lead' table")
+            if "indiamart_config" in existing:
+                conn.execute(text("DROP TABLE IF EXISTS `indiamart_config`"))
+                print("[startup] Dropped legacy 'indiamart_config' table")
+    except Exception as exc:
+        print(f"[startup] legacy lead table cleanup skipped: {exc}")
+
+
+_drop_legacy_lead_tables()
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -448,9 +507,11 @@ def _auto_migrate():
         ("attendance", "OT_CHECK_OUT",       "DATETIME NULL"),
         # ---- Project Management Module (2026-06) ----
         ("department", "UPDATED_AT",         "DATETIME NULL"),
+        ("department", "HEAD_EMPLOYEE_ID",   "VARCHAR(36) NULL"),
         ("role",       "DEPARTMENT_ID",      "INT NULL"),
         ("role",       "CREATED_AT",         "DATETIME NULL"),
         ("role",       "UPDATED_AT",         "DATETIME NULL"),
+        ("role",       "IS_SYSTEM",          "INT NULL DEFAULT 0"),
         # ---- Help Desk (2026-07): new columns added when the module
         # was rebuilt after the ram-development merge deleted it.
         ("helpdesk_ticket", "INTERNAL_NOTES", "TEXT NULL"),
@@ -470,6 +531,10 @@ def _auto_migrate():
     rename_columns = [
         ("department", "CODE",      "DEPARTMENT_CODE", "VARCHAR(20) NULL"),
         ("role",       "ROLE_NAME", "NAME",            "VARCHAR(100) NOT NULL DEFAULT ''"),
+        # WhatsApp models generalized to a polymorphic (MODULE_CODE, SOURCE_RECORD_ID)
+        # reference instead of a hardcoded FK to `lead` — see whatsapp_models.py.
+        ("whatsapp_conversation", "LEAD_ID", "SOURCE_RECORD_ID", "VARCHAR(36) NULL"),
+        ("whatsapp_message",      "LEAD_ID", "SOURCE_RECORD_ID", "VARCHAR(36) NULL"),
     ]
 
     # Indexes / unique constraints that earlier model versions
@@ -843,6 +908,45 @@ def _auto_migrate():
                 log.info(
                     "auto-migrate: added %s.%s", table, column
                 )
+
+            # ---- 1b. Rename legacy columns ----
+            for table, old_col, new_col, ddl in rename_columns:
+
+                if not insp.has_table(table):
+
+                    continue
+
+                existing_cols = {
+                    c["name"].lower()
+                    for c in insp.get_columns(table)
+                }
+
+                if new_col.lower() in existing_cols:
+
+                    continue  # already renamed
+
+                if old_col.lower() not in existing_cols:
+
+                    continue  # neither name present — nothing to rename
+
+                try:
+
+                    conn.execute(text(
+                        f"ALTER TABLE `{table}` "
+                        f"CHANGE `{old_col}` `{new_col}` {ddl}"
+                    ))
+
+                    log.info(
+                        "auto-migrate: renamed %s.%s -> %s.%s",
+                        table, old_col, table, new_col
+                    )
+
+                except Exception as exc_inner:
+
+                    log.warning(
+                        "auto-migrate: could not rename %s.%s -> %s: %s",
+                        table, old_col, new_col, exc_inner
+                    )
 
             # ---- 2. Drop stale indexes / unique constraints ----
             for table, index_name in stale_indexes:
@@ -1235,8 +1339,6 @@ def _auto_seed_work_centers():
 _auto_seed_work_centers()
 
 
-
-
 def _auto_seed_quotation_settings():
     """Idempotently seed the quotation policy flags (auto-SO toggle
     + max-discount ceiling) so the new approve-time auto-SO hook has
@@ -1618,14 +1720,384 @@ def _start_monthly_memo_scheduler():
 _start_monthly_memo_scheduler()
 
 
+def _migrate_rename_lead_whatsapp_module_code():
+    """One-time, idempotent rename: MODULE_CODE 'lead_whatsapp' -> 'lead_module'
+    (plus the matching AIModule.VECTOR_COLLECTION_NAME) across every table
+    that stores it — ai_modules, whatsapp_module_setting, whatsapp_conversation.
+    Renamed per admin request to a generic "<name>_module" naming convention
+    that scales to future ERP modules (sales_module, inventory_module, ...)
+    rather than a WhatsApp-specific code. Each UPDATE only touches rows still
+    carrying the old value, so re-running this after the rename has already
+    happened is a safe no-op. Must run BEFORE _auto_seed_ai_modules() /
+    _auto_seed_whatsapp_configs() below, so their "does this row already
+    exist" checks find the renamed row instead of creating a duplicate."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        with engine.begin() as conn:
+            if insp.has_table("ai_modules"):
+                conn.execute(text(
+                    "UPDATE ai_modules SET MODULE_CODE = 'lead_module', "
+                    "VECTOR_COLLECTION_NAME = 'lead_module_rag_collection' "
+                    "WHERE MODULE_CODE = 'lead_whatsapp'"
+                ))
+            if insp.has_table("whatsapp_module_setting"):
+                conn.execute(text(
+                    "UPDATE whatsapp_module_setting SET MODULE_CODE = 'lead_module' "
+                    "WHERE MODULE_CODE = 'lead_whatsapp'"
+                ))
+            if insp.has_table("whatsapp_conversation"):
+                conn.execute(text(
+                    "UPDATE whatsapp_conversation SET MODULE_CODE = 'lead_module' "
+                    "WHERE MODULE_CODE = 'lead_whatsapp'"
+                ))
+    except Exception as exc:
+        log.warning("migrate-rename-lead-whatsapp-module-code skipped: %s", exc)
+
+
+_migrate_rename_lead_whatsapp_module_code()
+
+
+def _auto_seed_ai_modules():
+    """Seeds the first AI_MODULES row (Lead AI Assistant) so the RAG
+    platform has something to onboard against on a fresh install. Follows
+    the same idempotent shape as the other _auto_seed_* functions above:
+    own session, try/except/log.warning, safe to re-run any number of
+    times."""
+
+    import logging
+    from sqlalchemy.orm import sessionmaker
+    from app.models.rag_models import AIModule
+    from app.rag_modules.core.llm_client import DEFAULT_MODEL as RAG_DEFAULT_LLM_MODEL
+
+    log = logging.getLogger("uvicorn")
+    Session = sessionmaker(bind=engine)
+    db = Session()
+
+    try:
+        existing = db.query(AIModule).filter(AIModule.MODULE_CODE == "lead").first()
+
+        if existing is None:
+            db.add(AIModule(
+                MODULE_NAME="Lead AI Assistant",
+                MODULE_CODE="lead",
+                DESCRIPTION=(
+                    "Answers questions about the lead management process "
+                    "from uploaded SOPs/FAQs."
+                ),
+                VECTOR_COLLECTION_NAME="lead_rag_collection",
+                EMBEDDING_MODEL="BAAI/bge-small-en-v1.5",
+                LLM_MODEL=RAG_DEFAULT_LLM_MODEL,
+                IS_ACTIVE=True,
+            ))
+            db.commit()
+            log.info("auto-seed-ai-modules: 'lead' module created")
+
+        existing_wa = db.query(AIModule).filter(AIModule.MODULE_CODE == "lead_module").first()
+
+        if existing_wa is None:
+            db.add(AIModule(
+                MODULE_NAME="Lead WhatsApp Sales Assistant",
+                MODULE_CODE="lead_module",
+                DESCRIPTION=(
+                    "Customer-facing WhatsApp sales assistant — a separate "
+                    "knowledge base/collection from the internal 'lead' "
+                    "module so internal SOP documents are never exposed to "
+                    "customers. Admins upload customer-facing brochures/"
+                    "company info here through the existing Knowledge Base UI."
+                ),
+                VECTOR_COLLECTION_NAME="lead_module_rag_collection",
+                EMBEDDING_MODEL="BAAI/bge-small-en-v1.5",
+                LLM_MODEL=RAG_DEFAULT_LLM_MODEL,
+                IS_ACTIVE=True,
+            ))
+            db.commit()
+            log.info("auto-seed-ai-modules: 'lead_module' module created")
+
+    except Exception as exc:
+        db.rollback()
+        log.warning("auto-seed-ai-modules skipped: %s", exc)
+
+    finally:
+        db.close()
+
+
+_auto_seed_ai_modules()
+
+
+def _auto_seed_whatsapp_configs():
+    """Seeds one SAMPLE VendorWhatsAppConfig row (the shared Meta connection)
+    plus a matching WhatsAppModuleSetting row (module_code="lead_module" —
+    Lead Management's own welcome-template/AI-toggle behavior) per vendor
+    that doesn't already have them, so the WhatsApp Configuration page isn't
+    empty on a fresh install and shows a realistic example of what a
+    filled-in row looks like. Deliberately created with IS_ACTIVE=False and
+    WEBHOOK_ENABLED=False — these are placeholder credentials, not real
+    Meta ones, so nothing here may ever attempt to actually send/receive
+    until an admin edits the row with real values and activates it.
+
+    Skips entirely (with a warning) if WA_ENCRYPTION_KEY isn't configured —
+    the two secret columns can't be persisted without it, and this function
+    must never crash app startup. Idempotent per vendor: a vendor that
+    already has ANY config row (including a real admin-created one) is
+    left untouched, so this never clobbers real data on restart."""
+
+    import logging
+    from sqlalchemy.orm import sessionmaker
+    from app.models.models import Vendor
+    from app.models.whatsapp_models import VendorWhatsAppConfig, WhatsAppModuleSetting
+    from app.utils.crypto_utils import encrypt_secret, fingerprint, is_encryption_configured
+
+    log = logging.getLogger("uvicorn")
+
+    if not is_encryption_configured():
+        log.warning(
+            "auto-seed-whatsapp-configs skipped: WA_ENCRYPTION_KEY not configured "
+            "in backend/.env — set it to enable sample WhatsApp configuration rows."
+        )
+        return
+
+    Session = sessionmaker(bind=engine)
+    db = Session()
+
+    try:
+        vendors = db.query(Vendor).all()
+
+        for vendor in vendors:
+            existing = db.query(VendorWhatsAppConfig).filter(
+                VendorWhatsAppConfig.VENDOR_ID == vendor.ID
+            ).first()
+
+            if existing is None:
+                sample_access_token = f"EAAGSampleAccessTokenForVendor{vendor.ID}ChangeMeBeforeUse0000"
+                sample_app_secret = f"sample_app_secret_vendor_{vendor.ID}_change_me"
+
+                db.add(VendorWhatsAppConfig(
+                    VENDOR_ID=vendor.ID,
+                    ACCOUNT_LABEL=f"{vendor.VENDOR_NAME} — Sample WhatsApp Account",
+                    BUSINESS_DISPLAY_NAME=vendor.VENDOR_NAME,
+                    BUSINESS_PHONE_NUMBER=f"+91 90000 {vendor.ID:05d}",
+                    PHONE_NUMBER_ID=f"10{vendor.ID:014d}",
+                    WABA_ID=f"20{vendor.ID:014d}",
+                    APP_ID=f"30{vendor.ID:014d}",
+                    APP_SECRET=encrypt_secret(sample_app_secret),
+                    ACCESS_TOKEN=encrypt_secret(sample_access_token),
+                    ACCESS_TOKEN_FINGERPRINT=fingerprint(sample_access_token),
+                    VERIFY_TOKEN=f"bvc24_wa_verify_vendor_{vendor.ID}_change_me",
+                    API_BASE_URL="https://graph.facebook.com",
+                    GRAPH_API_VERSION="v25.0",
+                    WEBHOOK_CALLBACK_URL="https://api.bvc24.com/whatsapp-webhook",
+                    WEBHOOK_ENABLED=False,
+                    DEFAULT_COUNTRY_CODE="91",
+                    DEFAULT_LANGUAGE="en",
+                    MAX_SEND_PER_SECOND=8,
+                    DAILY_SEND_CAP=900,
+                    HEALTH_STATUS="UNKNOWN",
+                    IS_ACTIVE=False,
+                ))
+                db.commit()
+                log.info("auto-seed-whatsapp-configs: sample config row created for vendor %s (%s)", vendor.ID, vendor.VENDOR_NAME)
+
+            existing_setting = db.query(WhatsAppModuleSetting).filter(
+                WhatsAppModuleSetting.VENDOR_ID == vendor.ID,
+                WhatsAppModuleSetting.MODULE_CODE == "lead_module",
+            ).first()
+
+            if existing_setting is None:
+                db.add(WhatsAppModuleSetting(
+                    VENDOR_ID=vendor.ID,
+                    MODULE_CODE="lead_module",
+                    IS_ENABLED=True,
+                    AUTO_TRIGGER_ENABLED=True,
+                    WELCOME_TEMPLATE_NAME="lead_welcome",
+                    WELCOME_TEMPLATE_LANG="en_US",
+                    WELCOME_TEMPLATE_PARAMS="CONTACT_NAME",
+                    REENGAGE_TEMPLATE_NAME="lead_followup",
+                    REENGAGE_TEMPLATE_LANG="en_US",
+                    AI_REPLY_ENABLED=True,
+                    SUPPORTED_LANGUAGES="en,ta",
+                ))
+                db.commit()
+                log.info("auto-seed-whatsapp-configs: sample lead_module module setting created for vendor %s", vendor.ID)
+
+    except Exception as exc:
+        db.rollback()
+        log.warning("auto-seed-whatsapp-configs skipped: %s", exc)
+
+    finally:
+        db.close()
+
+
+_auto_seed_whatsapp_configs()
+
+
+def _migrate_whatsapp_module_settings():
+    """One-time, idempotent migration: copies the 7 Lead-flow-specific
+    columns that used to live on VendorWhatsAppConfig (WELCOME_TEMPLATE_*,
+    REENGAGE_TEMPLATE_*, SEND_WELCOME_ENABLED, AI_REPLY_ENABLED) into a new
+    per-vendor WhatsAppModuleSetting row (MODULE_CODE="lead_module"), then
+    drops those columns from vendor_whatsapp_config now that they live in
+    the generic per-module table (see whatsapp_models.py's class docstrings
+    for why). Reads the legacy columns via raw SQL rather than the ORM
+    model — the ORM no longer declares them, so a normal query would raise
+    AttributeError even though the physical columns may still exist on an
+    un-migrated deployment. Safe to re-run: does nothing once the legacy
+    columns are gone (a brand-new install never has them at all, since
+    create_all() creates the table from today's model directly)."""
+
+    import logging
+    from sqlalchemy import text, inspect
+    from sqlalchemy.orm import sessionmaker
+    from app.models.whatsapp_models import WhatsAppModuleSetting
+
+    log = logging.getLogger("uvicorn")
+    Session = sessionmaker(bind=engine)
+    db = Session()
+
+    _LEGACY_FIELDS = [
+        "WELCOME_TEMPLATE_NAME", "WELCOME_TEMPLATE_LANG", "WELCOME_TEMPLATE_PARAMS",
+        "REENGAGE_TEMPLATE_NAME", "REENGAGE_TEMPLATE_LANG",
+        "SEND_WELCOME_ENABLED", "AI_REPLY_ENABLED",
+    ]
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("vendor_whatsapp_config"):
+            return
+
+        existing_cols = {c["name"] for c in insp.get_columns("vendor_whatsapp_config")}
+        legacy_present = [f for f in _LEGACY_FIELDS if f in existing_cols]
+
+        if legacy_present:
+            with engine.connect() as conn:
+                rows = conn.execute(text(
+                    "SELECT ID, VENDOR_ID, WELCOME_TEMPLATE_NAME, WELCOME_TEMPLATE_LANG, "
+                    "WELCOME_TEMPLATE_PARAMS, REENGAGE_TEMPLATE_NAME, REENGAGE_TEMPLATE_LANG, "
+                    "SEND_WELCOME_ENABLED, AI_REPLY_ENABLED FROM vendor_whatsapp_config"
+                )).mappings().all()
+
+            for row in rows:
+                already = db.query(WhatsAppModuleSetting).filter(
+                    WhatsAppModuleSetting.VENDOR_ID == row["VENDOR_ID"],
+                    WhatsAppModuleSetting.MODULE_CODE == "lead_module",
+                ).first()
+                if already:
+                    continue
+
+                db.add(WhatsAppModuleSetting(
+                    VENDOR_ID=row["VENDOR_ID"],
+                    MODULE_CODE="lead_module",
+                    IS_ENABLED=True,
+                    AUTO_TRIGGER_ENABLED=bool(row["SEND_WELCOME_ENABLED"]) if row["SEND_WELCOME_ENABLED"] is not None else True,
+                    WELCOME_TEMPLATE_NAME=row["WELCOME_TEMPLATE_NAME"],
+                    WELCOME_TEMPLATE_LANG=row["WELCOME_TEMPLATE_LANG"] or "en_US",
+                    WELCOME_TEMPLATE_PARAMS=row["WELCOME_TEMPLATE_PARAMS"],
+                    REENGAGE_TEMPLATE_NAME=row["REENGAGE_TEMPLATE_NAME"],
+                    REENGAGE_TEMPLATE_LANG=row["REENGAGE_TEMPLATE_LANG"] or "en_US",
+                    AI_REPLY_ENABLED=bool(row["AI_REPLY_ENABLED"]) if row["AI_REPLY_ENABLED"] is not None else True,
+                    SUPPORTED_LANGUAGES="en",
+                ))
+                log.info("migrate-whatsapp-module-settings: backfilled vendor %s", row["VENDOR_ID"])
+
+            db.commit()
+
+            # Now that the data lives in whatsapp_module_setting, drop the
+            # legacy columns. Idempotent: re-checks column existence right
+            # before each DROP, and one column failing to drop doesn't stop
+            # the others.
+            insp2 = inspect(engine)
+            still_present = {c["name"] for c in insp2.get_columns("vendor_whatsapp_config")}
+            with engine.begin() as conn:
+                for col in _LEGACY_FIELDS:
+                    if col not in still_present:
+                        continue
+                    try:
+                        conn.execute(text(f"ALTER TABLE `vendor_whatsapp_config` DROP COLUMN `{col}`"))
+                        log.info("migrate-whatsapp-module-settings: dropped vendor_whatsapp_config.%s", col)
+                    except Exception as exc_inner:
+                        log.warning("migrate-whatsapp-module-settings: could not drop %s: %s", col, exc_inner)
+
+    except Exception as exc:
+        db.rollback()
+        log.warning("migrate-whatsapp-module-settings skipped: %s", exc)
+
+    finally:
+        db.close()
+
+
+_migrate_whatsapp_module_settings()
+
+
+def _migrate_add_conversation_preferred_language():
+    """One-time, idempotent: adds WhatsAppConversation.PREFERRED_LANGUAGE if
+    the physical column doesn't exist yet. A brand-new install already gets
+    it from create_all() since the ORM model declares it — this only matters
+    for an existing whatsapp_conversation table. Safe to re-run: checks
+    column existence first, same pattern as _migrate_whatsapp_module_settings
+    above."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("whatsapp_conversation"):
+            return
+
+        existing_cols = {c["name"] for c in insp.get_columns("whatsapp_conversation")}
+        if "PREFERRED_LANGUAGE" not in existing_cols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `whatsapp_conversation` ADD COLUMN `PREFERRED_LANGUAGE` VARCHAR(10) NULL"
+                ))
+            log.info("migrate-add-conversation-preferred-language: added whatsapp_conversation.PREFERRED_LANGUAGE")
+
+    except Exception as exc:
+        log.warning("migrate-add-conversation-preferred-language skipped: %s", exc)
+
+
+_migrate_add_conversation_preferred_language()
+
+from app.services.speech_service import speech_service  # noqa: E402
+speech_service.initialize()  # non-blocking — Piper models load on a background thread
+
+from app.scheduler import start_scheduler, stop_scheduler  # noqa: E402 — started after seeding, before routers
+start_scheduler()
+
+from app.whatsapp_scheduler import start_whatsapp_scheduler, stop_whatsapp_scheduler  # noqa: E402 — separate scheduler instance, see module docstring
+start_whatsapp_scheduler()
+
+
+@app.on_event("shutdown")
+def _stop_background_schedulers():
+    """Stop both BackgroundScheduler instances before the process's thread
+    pools are torn down — without this, their interval jobs keep firing
+    during interpreter shutdown and spam 'cannot schedule new futures
+    after shutdown', which is what makes Ctrl+C take a while to land."""
+    stop_scheduler()
+    stop_whatsapp_scheduler()
+
+
+
 app.include_router(auth_router, tags=["Auth"])
 app.include_router(organization_router, tags=["Organization"])
 app.include_router(employee.router, tags=["Employees (IAM)"])
 app.include_router(employee_task_router, tags=["Employee Workflow"])
 app.include_router(task_approval_router, tags=["Task Approval"])
 app.include_router(task_router, tags=["Project Tasks"])
-# app.include_router(project_router, tags=["Projects"])  # removed — customer projects replaced by Project template hierarchy
 app.include_router(project_template_router, tags=["Project Templates"])
+app.include_router(project_quotation_router, tags=["Project Quotation Templates"])
+# project_router registered AFTER project_template_router so the unified
+# GET /projects handler (project_template.py) wins the route collision —
+# project.py still owns its other unique paths (customer CRUD, etc.).
+app.include_router(project_router, tags=["Projects"])
 app.include_router(users_router, tags=["Users"])
 app.include_router(vendor_router, tags=["Vendors"])
 app.include_router(inventory_router, tags=["Inventory"])
@@ -1687,6 +2159,24 @@ app.include_router(custom_fields_router, tags=["Custom Fields"])
 app.include_router(helpdesk_router)
 app.include_router(memo_automation_router)
 app.include_router(voice_assistant_router)
+
+app.include_router(email_config_router, tags=["Email Configuration"])
+app.include_router(email_templates_router, tags=["Email Templates"])
+app.include_router(lead_management_router, tags=["Lead Management"])
+app.include_router(whatsapp_config_router, tags=["WhatsApp Configuration"])
+app.include_router(whatsapp_module_settings_router, tags=["WhatsApp Module Settings"])
+app.include_router(whatsapp_webhook_router, tags=["WhatsApp Webhook"])
+app.include_router(whatsapp_inbox_router, tags=["WhatsApp Inbox"])
+app.include_router(rag_router, tags=["AI Platform"])
+app.include_router(speech_router, tags=["Speech (TTS)"])
+
+# ── Inventory & Supplier Procurement Module ───────────────────────────────
+app.include_router(supplier_onboarding_router, prefix="/api")
+app.include_router(supplier_products_router, prefix="/api")
+app.include_router(supplier_ranking_router, prefix="/api")
+app.include_router(inventory_items_router, prefix="/api")
+app.include_router(inventory_movements_router, prefix="/api")
+app.include_router(inventory_batches_router, prefix="/api")
 
 
 @app.get("/", tags=["Health"])

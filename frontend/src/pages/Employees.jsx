@@ -20,34 +20,30 @@ const MARITAL_STATUSES = ["SINGLE", "MARRIED", "DIVORCED", "WIDOWED"];
 // =====================================================================
 
 function initials(name) {
-
-  return (name || "")
-    .split(/\s+/)
-    .map((w) => w[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase() || "?";
+  return (
+    (name || "")
+      .split(/\s+/)
+      .map((w) => w[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "?"
+  );
 }
 
 
 function avatarGradient(name) {
-
   const palette = [
-    "#ef4444",
     "#ef4444",
     "#10b981",
     "var(--text-secondary)",
     "#06b6d4",
     "#ef4444",
-    "#ef4444",
-    "#0ea5e9"
+    "#0ea5e9",
   ];
 
   let hash = 0;
-
   const txt = (name || "").toString();
-
   for (let i = 0; i < txt.length; i++) hash = (hash * 31 + txt.charCodeAt(i)) >>> 0;
 
   return palette[hash % palette.length];
@@ -55,15 +51,11 @@ function avatarGradient(name) {
 
 
 function Avatar({ employee, size = 56, dataUrl }) {
-
-  const photoUrl = dataUrl || (
-    employee?.PHOTO_URL ? `${API_BASE_URL}${employee.PHOTO_URL}` : null
-  );
+  const photoUrl =
+    dataUrl || (employee?.PHOTO_URL ? `${API_BASE_URL}${employee.PHOTO_URL}` : null);
 
   if (photoUrl) {
-
     return (
-
       <img
         src={photoUrl}
         alt={employee?.NAME || ""}
@@ -74,7 +66,6 @@ function Avatar({ employee, size = 56, dataUrl }) {
   }
 
   return (
-
     <div
       className={styles.avatarInitials}
       style={{
@@ -91,9 +82,7 @@ function Avatar({ employee, size = 56, dataUrl }) {
 
 
 function Pill({ children, bg = "#e0e7ff", fg = "#4338ca" }) {
-
   return (
-
     <span className={styles.pill} style={{ background: bg, color: fg }}>
       {children}
     </span>
@@ -102,9 +91,7 @@ function Pill({ children, bg = "#e0e7ff", fg = "#4338ca" }) {
 
 
 function StatTile({ label, value, sub, color }) {
-
   return (
-
     <div className={styles.statTile} style={{ borderTop: `3px solid ${color}` }}>
       <div className={styles.statTileLabel}>{label}</div>
       <div className={styles.statTileValue}>{value}</div>
@@ -141,20 +128,22 @@ function fmtJoinDate(iso) {
     const d = new Date(iso);
     if (isNaN(d.getTime())) return null;
     return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 // Lifecycle status → display label + dot colour + text colour + pill bg.
 // Aligned with backend ALLOWED_STATUSES (see employee_status.py).
 const STATUS_THEMES = {
-  ACTIVE:        { label: "Active",        dot: "#10b981", fg: "#166534", bg: "#dcfce7" },
-  ON_NOTICE:     { label: "On Notice",     dot: "#f59e0b", fg: "#92400e", bg: "#fef3c7" },
-  RESIGNED:      { label: "Resigned",      dot: "#94a3b8", fg: "#475569", bg: "#e2e8f0" },
-  TERMINATED:    { label: "Terminated",    dot: "#dc2626", fg: "#991b1b", bg: "#fee2e2" },
-  RETIRED:       { label: "Retired",       dot: "#3b82f6", fg: "#1e40af", bg: "#dbeafe" },
+  ACTIVE: { label: "Active", dot: "#10b981", fg: "#166534", bg: "#dcfce7" },
+  ON_NOTICE: { label: "On Notice", dot: "#f59e0b", fg: "#92400e", bg: "#fef3c7" },
+  RESIGNED: { label: "Resigned", dot: "#94a3b8", fg: "#475569", bg: "#e2e8f0" },
+  TERMINATED: { label: "Terminated", dot: "#dc2626", fg: "#991b1b", bg: "#fee2e2" },
+  RETIRED: { label: "Retired", dot: "#3b82f6", fg: "#1e40af", bg: "#dbeafe" },
   ON_LEAVE_LONG: { label: "On Long Leave", dot: "#8b5cf6", fg: "#6b21a8", bg: "#f3e8ff" },
-  INACTIVE:      { label: "Inactive",      dot: "#94a3b8", fg: "#64748b", bg: "#f1f5f9" },
-  ON_LEAVE:      { label: "On Leave",      dot: "#f59e0b", fg: "#92400e", bg: "#fef3c7" },
+  INACTIVE: { label: "Inactive", dot: "#94a3b8", fg: "#64748b", bg: "#f1f5f9" },
+  ON_LEAVE: { label: "On Leave", dot: "#f59e0b", fg: "#92400e", bg: "#fef3c7" },
 };
 
 function statusBadge(emp) {
@@ -201,10 +190,7 @@ function EmployeeCard({ employee, onView, onEdit, onDelete }) {
             style={{ background: status.bg, color: status.fg }}
             title={status.label}
           >
-            <span
-              className={styles.cardStatusDot}
-              style={{ background: status.dot }}
-            />
+            <span className={styles.cardStatusDot} style={{ background: status.dot }} />
             {status.label}
           </span>
 
@@ -237,10 +223,7 @@ function EmployeeCard({ employee, onView, onEdit, onDelete }) {
 
       {/* ====== BOTTOM: single primary action + secondary controls ====== */}
       <div className={styles.cardFooter}>
-        <Link
-          to={`/employees/${employee.ID}/profile`}
-          className={styles.cardViewDetailsBtn}
-        >
+        <Link to={`/employees/${employee.ID}/profile`} className={styles.cardViewDetailsBtn}>
           View Details
           <ArrowRightIcon />
         </Link>
@@ -282,9 +265,14 @@ function EmployeeCard({ employee, onView, onEdit, onDelete }) {
 
 // ===== Inline SVG icons (replaces emoji + per-card colours) =====
 const ICON_PROPS = {
-  width: 14, height: 14, viewBox: "0 0 24 24", fill: "none",
-  stroke: "currentColor", strokeWidth: 1.8,
-  strokeLinecap: "round", strokeLinejoin: "round",
+  width: 14,
+  height: 14,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.8,
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
 };
 
 function BriefcaseIcon() {
@@ -352,9 +340,6 @@ function TrashIcon() {
 }
 
 
-// ---- EmployeeCard style helpers moved to Employees.module.css ----
-
-
 // =====================================================================
 // Resume-style "View Data" modal
 // =====================================================================
@@ -405,7 +390,6 @@ const DOC_TYPE_LABEL = Object.fromEntries(
 );
 
 function EmployeeDocumentsSection({ employee }) {
-
   const empId = employee?.ID;
 
   const [docs, setDocs] = useState([]);
@@ -416,99 +400,73 @@ function EmployeeDocumentsSection({ employee }) {
     doc_type: "RESUME",
     title: "",
     notes: "",
-    file: null
+    file: null,
   });
 
   const fetchDocs = async () => {
-
     if (!empId) return;
 
     setLoading(true);
-
     setError("");
 
     try {
-
       const res = await API.get(`/employees/${empId}/documents`);
-
       setDocs(res.data || []);
-
     } catch (e) {
-
       setError(e?.response?.data?.detail || "Could not load documents.");
-
     } finally {
-
       setLoading(false);
     }
   };
 
-  useEffect(() => { fetchDocs(); /* eslint-disable-next-line */ }, [empId]);
+  useEffect(() => {
+    fetchDocs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empId]);
 
   const upload = async (e) => {
-
     e?.preventDefault?.();
 
     if (!draft.file) {
-
       setError("Pick a file first.");
-
       return;
     }
 
     setPending(true);
-
     setError("");
 
     const fd = new FormData();
-
     fd.append("file", draft.file);
-
     fd.append("doc_type", draft.doc_type);
-
     if (draft.title.trim()) fd.append("title", draft.title.trim());
-
     if (draft.notes.trim()) fd.append("notes", draft.notes.trim());
 
     try {
-
       await API.post(`/employees/${empId}/documents`, fd, {
-        headers: { "Content-Type": "multipart/form-data" }
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
       setDraft({ doc_type: draft.doc_type, title: "", notes: "", file: null });
 
       // reset the file input visually
       const input = document.getElementById(`emp-doc-file-${empId}`);
-
       if (input) input.value = "";
 
       fetchDocs();
-
     } catch (e) {
-
       setError(e?.response?.data?.detail || "Upload failed.");
-
     } finally {
-
       setPending(false);
     }
   };
 
   const removeDoc = async (doc) => {
-
-    if (!window.confirm(
-      `Delete "${doc.TITLE || doc.FILE_NAME || "this document"}"?`
-    )) return;
+    if (!window.confirm(`Delete "${doc.TITLE || doc.FILE_NAME || "this document"}"?`)) return;
 
     try {
-
       await API.delete(`/employees/${empId}/documents/${doc.ID}`);
-
       fetchDocs();
-
     } catch (e) {
-
       alert(e?.response?.data?.detail || "Delete failed.");
     }
   };
@@ -538,25 +496,23 @@ function EmployeeDocumentsSection({ employee }) {
             onChange={(e) => setDraft((d) => ({ ...d, doc_type: e.target.value }))}
             className={styles.docUploadSelect}
           >
-            {/* Render as grouped <optgroup> so the 24 types scan easily */}
+            {/* Render as grouped <optgroup> so the types scan easily */}
             {(() => {
-
-              const grouped = DOC_TYPES.reduce((acc, t) => {
-
+              const groupedTypes = DOC_TYPES.reduce((acc, t) => {
                 (acc[t.group || "Other"] ||= []).push(t);
-
                 return acc;
               }, {});
 
               const order = ["Identity", "Education", "Employment", "Personal", "Other"];
 
               return order
-                .filter((g) => grouped[g])
+                .filter((g) => groupedTypes[g])
                 .map((g) => (
-
                   <optgroup key={g} label={g}>
-                    {grouped[g].map((t) => (
-                      <option key={t.key} value={t.key}>{t.icon} {t.label}</option>
+                    {groupedTypes[g].map((t) => (
+                      <option key={t.key} value={t.key}>
+                        {t.icon} {t.label}
+                      </option>
                     ))}
                   </optgroup>
                 ));
@@ -583,27 +539,19 @@ function EmployeeDocumentsSection({ employee }) {
             className={styles.docUploadFileInput}
           />
         </label>
-        <button
-          type="submit"
-          disabled={pending || !draft.file}
-          className={styles.docUploadBtn}
-        >
+        <button type="submit" disabled={pending || !draft.file} className={styles.docUploadBtn}>
           {pending ? "Uploading…" : "⬆ Upload"}
         </button>
       </form>
 
-      {error && (
-        <div className={styles.docErrorBanner}>⚠ {error}</div>
-      )}
+      {error && <div className={styles.docErrorBanner}>⚠ {error}</div>}
 
-      {loading && (
-        <div className={styles.docLoadingText}>Loading documents…</div>
-      )}
+      {loading && <div className={styles.docLoadingText}>Loading documents…</div>}
 
       {!loading && docs.length === 0 && !error && (
         <div className={styles.docEmpty}>
-          No documents uploaded yet. Use the form above to add Aadhaar, PAN,
-          Resume, Offer Letter, etc.
+          No documents uploaded yet. Use the form above to add Aadhaar, PAN, Resume,
+          Offer Letter, etc.
         </div>
       )}
 
@@ -620,13 +568,9 @@ function EmployeeDocumentsSection({ employee }) {
                     {d.TITLE || d.FILE_NAME || `Document #${d.ID}`}
                   </div>
                   <div className={styles.docItemMeta}>
-                    {d.FILE_NAME && d.FILE_NAME !== d.TITLE
-                      ? `${d.FILE_NAME} · `
-                      : ""}
+                    {d.FILE_NAME && d.FILE_NAME !== d.TITLE ? `${d.FILE_NAME} · ` : ""}
                     {formatBytes(d.SIZE_BYTES)}
-                    {d.UPLOADED_AT
-                      ? ` · ${d.UPLOADED_AT.slice(0, 10)}`
-                      : ""}
+                    {d.UPLOADED_AT ? ` · ${d.UPLOADED_AT.slice(0, 10)}` : ""}
                     {d.NOTES ? ` · ${d.NOTES}` : ""}
                   </div>
                 </div>
@@ -645,11 +589,7 @@ function EmployeeDocumentsSection({ employee }) {
                 >
                   ⬇ Download
                 </a>
-                <button
-                  type="button"
-                  onClick={() => removeDoc(d)}
-                  className={styles.docDeleteBtn}
-                >
+                <button type="button" onClick={() => removeDoc(d)} className={styles.docDeleteBtn}>
                   🗑 Delete
                 </button>
               </div>
@@ -657,14 +597,12 @@ function EmployeeDocumentsSection({ employee }) {
           </div>
         </div>
       ))}
-
     </ResumeBlock>
   );
 }
 
 
 function ResumeModal({ employee, photoDataUrl, onClose }) {
-
   if (!employee) return null;
 
   const skills = (employee.SKILLS || "")
@@ -673,9 +611,9 @@ function ResumeModal({ employee, photoDataUrl, onClose }) {
     .filter(Boolean);
 
   return (
-
     <div onClick={onClose} className={styles.modalBackdrop}>
       <div onClick={(e) => e.stopPropagation()} className={styles.resumeModalPanel}>
+
         {/* Fixed header — stays visible while body scrolls */}
         <div className={styles.resumeModalHeader}>
           <button onClick={onClose} className={styles.resumeCloseBtn}>×</button>
@@ -687,19 +625,16 @@ function ResumeModal({ employee, photoDataUrl, onClose }) {
               <h1 className={styles.resumeName}>{employee.NAME}</h1>
               <div className={styles.resumeSubTitle}>
                 {employee.DESIGNATION?.TITLE || "—"}
-                {employee.DEPARTMENT?.NAME && (
-                  <> · {employee.DEPARTMENT.NAME}</>
-                )}
+                {employee.DEPARTMENT?.NAME && <> · {employee.DEPARTMENT.NAME}</>}
               </div>
               <div className={styles.resumeCodeBadge}>{employee.EMPLOYEE_CODE}</div>
             </div>
           </div>
         </div>
 
-        {/* Body: balanced 2-column identity grid at top, then
-            full-width content sections below. Scrollable area —
-            only this part scrolls, keeping the red profile header
-            pinned in view. */}
+        {/* Body: balanced 2-column identity grid at top, then full-width
+            content sections below. Scrollable area — only this part scrolls,
+            keeping the profile header pinned in view. */}
         <div className={styles.resumeBody}>
 
           {/* Top — identity grid: Contact | Personal */}
@@ -760,7 +695,6 @@ function ResumeModal({ employee, photoDataUrl, onClose }) {
                   </div>
                 )}
             </div>
-
           </div>
 
           {/* Middle — Education | Employment side by side */}
@@ -783,11 +717,12 @@ function ResumeModal({ employee, photoDataUrl, onClose }) {
                 {employee.PERCENTAGE != null && employee.PERCENTAGE !== "" && (
                   <ResumeRow icon="📊" label="Score" value={`${employee.PERCENTAGE}%`} />
                 )}
-                {!employee.QUALIFICATION && !employee.YEAR_OF_PASSING &&
-                  !employee.COLLEGE && !employee.UNIVERSITY && employee.PERCENTAGE == null && (
-                    <div className={styles.noEduInfo}>
-                      No education info on file
-                    </div>
+                {!employee.QUALIFICATION &&
+                  !employee.YEAR_OF_PASSING &&
+                  !employee.COLLEGE &&
+                  !employee.UNIVERSITY &&
+                  employee.PERCENTAGE == null && (
+                    <div className={styles.noEduInfo}>No education info on file</div>
                   )}
               </ResumeBlock>
             </div>
@@ -800,9 +735,7 @@ function ResumeModal({ employee, photoDataUrl, onClose }) {
                 {employee.EMPLOYMENT_TYPE && (
                   <ResumeRow icon="📋" label="Type" value={employee.EMPLOYMENT_TYPE} />
                 )}
-                {employee.STATUS && (
-                  <ResumeRow icon="⚡" label="Status" value={employee.STATUS} />
-                )}
+                {employee.STATUS && <ResumeRow icon="⚡" label="Status" value={employee.STATUS} />}
                 {employee.JOINING_DATE && (
                   <ResumeRow icon="📆" label="Joined" value={employee.JOINING_DATE} />
                 )}
@@ -813,11 +746,7 @@ function ResumeModal({ employee, photoDataUrl, onClose }) {
                   <ResumeRow icon="📍" label="Location" value={employee.WORK_LOCATION} />
                 )}
                 {(Number(employee.EXPERIENCE_YEARS) || 0) > 0 && (
-                  <ResumeRow
-                    icon="⏳"
-                    label="Experience"
-                    value={`${employee.EXPERIENCE_YEARS} year(s)`}
-                  />
+                  <ResumeRow icon="⏳" label="Experience" value={`${employee.EXPERIENCE_YEARS} year(s)`} />
                 )}
                 {employee.PREVIOUS_COMPANY && (
                   <ResumeRow icon="🏢" label="Prev. Company" value={employee.PREVIOUS_COMPANY} />
@@ -831,7 +760,6 @@ function ResumeModal({ employee, photoDataUrl, onClose }) {
                 )}
               </ResumeBlock>
             </div>
-
           </div>
 
           {/* Bottom — full-width content-heavy sections */}
@@ -876,14 +804,14 @@ function ResumeModal({ employee, photoDataUrl, onClose }) {
 
           {employee.NOTES && (
             <ResumeBlock title="📝 Notes">
-              <div className={`${styles.preBlock} ${styles.preBlockNotes}`}>
-                {employee.NOTES}
-              </div>
+              <div className={`${styles.preBlock} ${styles.preBlockNotes}`}>{employee.NOTES}</div>
             </ResumeBlock>
           )}
 
-          {(employee.BANK_ACCOUNT_NUMBER || employee.BANK_NAME ||
-            employee.IFSC_CODE || employee.PAN_NUMBER ||
+          {(employee.BANK_ACCOUNT_NUMBER ||
+            employee.BANK_NAME ||
+            employee.IFSC_CODE ||
+            employee.PAN_NUMBER ||
             employee.AADHAAR_NUMBER) && (
               <ResumeBlock title="🏦 Bank & Identity">
                 <div className={styles.bankGrid}>
@@ -917,7 +845,6 @@ function ResumeModal({ employee, photoDataUrl, onClose }) {
               </div>
             </ResumeBlock>
           )}
-
         </div>
       </div>
     </div>
@@ -926,13 +853,9 @@ function ResumeModal({ employee, photoDataUrl, onClose }) {
 
 
 function ResumeBlock({ title, children }) {
-
   return (
-
     <div className={styles.resumeBlock}>
-      <div className={styles.resumeBlockTitle}>
-        {title}
-      </div>
+      <div className={styles.resumeBlockTitle}>{title}</div>
       {children}
     </div>
   );
@@ -940,9 +863,7 @@ function ResumeBlock({ title, children }) {
 
 
 function ResumeRow({ icon, label, value }) {
-
   return (
-
     <div className={styles.resumeRow}>
       <span className={styles.resumeRowIcon}>{icon}</span>
       <div className={styles.resumeRowBody}>
@@ -959,7 +880,6 @@ function ResumeRow({ icon, label, value }) {
 // =====================================================================
 
 function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
-
   // Dual-mode: create-new vs edit-existing. When editingEmployee is
   // passed, the form pre-fills with its values, EMPLOYEE_CODE +
   // PASSWORD become read-only/hidden, and submit hits PUT
@@ -1007,7 +927,6 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
     PREVIOUS_COMPANY: editingEmployee?.PREVIOUS_COMPANY || "",
     PREVIOUS_SALARY: editingEmployee?.PREVIOUS_SALARY ?? "",
     // Current monthly salary — drives payroll BASE_SALARY snapshot.
-    // Editable here so HR can adjust without re-running the seed script.
     SALARY: editingEmployee?.SALARY ?? "",
     BANK_ACCOUNT_NUMBER: editingEmployee?.BANK_ACCOUNT_NUMBER || "",
     BANK_NAME: editingEmployee?.BANK_NAME || "",
@@ -1026,20 +945,17 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
     SAL_ANNUAL_BONUS: "",
     SAL_PT_STATE: "TAMIL_NADU",
     SAL_PF_APPLICABLE: true,
-    SAL_ESI_APPLICABLE: true
+    SAL_ESI_APPLICABLE: true,
   });
 
   // When opening for edit, fetch the existing salary structure (if any)
   // and prefill the SAL_* fields. Errors are non-fatal (no structure yet).
   useEffect(() => {
-
     if (!editingEmployee?.ID) return;
 
     API.get(`/payroll/salary-structures/${editingEmployee.ID}`)
       .then((res) => {
-
         const s = res.data || {};
-
         setForm((f) => ({
           ...f,
           SAL_BASIC: s.BASIC ?? "",
@@ -1053,95 +969,67 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
           SAL_ANNUAL_BONUS: s.ANNUAL_BONUS ?? "",
           SAL_PT_STATE: s.PT_STATE || "TAMIL_NADU",
           SAL_PF_APPLICABLE: s.PF_APPLICABLE !== false,
-          SAL_ESI_APPLICABLE: s.ESI_APPLICABLE !== false
+          SAL_ESI_APPLICABLE: s.ESI_APPLICABLE !== false,
         }));
       })
-      .catch(() => { /* 404 = no structure yet, leave fields blank */ });
-
+      .catch(() => {
+        /* 404 = no structure yet, leave fields blank */
+      });
   }, [editingEmployee?.ID]);
 
   const [photoFile, setPhotoFile] = useState(null);
-
   const [photoPreview, setPhotoPreview] = useState(null);
-
   const [departments, setDepartments] = useState([]);
-
   const [designations, setDesignations] = useState([]);
-
   const [roles, setRoles] = useState([]);
-
   const [saving, setSaving] = useState(false);
-
   const [error, setError] = useState("");
-
   const [phoneErrors, setPhoneErrors] = useState({ PHONE: "", EMERGENCY_CONTACT_PHONE: "" });
-
   const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
-
     Promise.all([
       API.get("/departments").catch(() => ({ data: [] })),
       API.get("/designations").catch(() => ({ data: [] })),
-      API.get("/roles").catch(() => ({ data: [] }))
+      API.get("/roles").catch(() => ({ data: [] })),
     ]).then(([d, dg, r]) => {
-
       setDepartments(d.data || []);
-
       setDesignations(dg.data || []);
-
       setRoles(r.data || []);
     });
-
   }, []);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const handlePhoto = (e) => {
-
     const file = e.target.files?.[0];
-
     if (!file) return;
 
     setPhotoFile(file);
 
     const reader = new FileReader();
-
     reader.onload = (ev) => setPhotoPreview(ev.target.result);
-
     reader.readAsDataURL(file);
   };
 
   const submit = async (e) => {
-
     e?.preventDefault?.();
-
     setError("");
 
-    // Create-mode validation requires PASSWORD; edit-mode doesn't
+    // Create-mode validation requires PASSWORD + ROLE; edit-mode doesn't
     // touch the password here (admin uses /reset-password if needed).
     if (isEdit) {
-
       if (!form.NAME.trim()) {
-
         setError("Name is required.");
-
         return;
       }
-
     } else {
-
       if (!form.EMPLOYEE_CODE.trim() || !form.NAME.trim() || !form.PASSWORD.trim()) {
-
         setError("Employee ID, Name and Password are required.");
-
         return;
       }
-
       if (!form.ROLE_ID) {
-
         setError("Role is required.");
-
         return;
       }
     }
@@ -1149,7 +1037,6 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
     setSaving(true);
 
     try {
-
       // Common numeric / date coercions
       const basePayload = {
         ...form,
@@ -1159,82 +1046,67 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
         EXPERIENCE_YEARS: Number(form.EXPERIENCE_YEARS) || 0,
         DOB: form.DOB || null,
         ROLE_ID: form.ROLE_ID ? Number(form.ROLE_ID) : null,
-        // Phase A — HR Module expansion: coerce numbers + nullable date
-        PERCENTAGE: form.PERCENTAGE === "" || form.PERCENTAGE == null
-          ? null : Number(form.PERCENTAGE),
-        PREVIOUS_SALARY: form.PREVIOUS_SALARY === "" || form.PREVIOUS_SALARY == null
-          ? null : Number(form.PREVIOUS_SALARY),
-        SALARY: form.SALARY === "" || form.SALARY == null
-          ? 0 : Number(form.SALARY),
-        CONFIRMATION_DATE: form.CONFIRMATION_DATE || null
+        PERCENTAGE:
+          form.PERCENTAGE === "" || form.PERCENTAGE == null ? null : Number(form.PERCENTAGE),
+        PREVIOUS_SALARY:
+          form.PREVIOUS_SALARY === "" || form.PREVIOUS_SALARY == null
+            ? null
+            : Number(form.PREVIOUS_SALARY),
+        SALARY: form.SALARY === "" || form.SALARY == null ? 0 : Number(form.SALARY),
+        CONFIRMATION_DATE: form.CONFIRMATION_DATE || null,
       };
 
       let empId;
 
       if (isEdit) {
-
         // EmployeeUpdate schema doesn't take EMPLOYEE_CODE / PASSWORD
         // — strip them. Admin can use /reset-password for that.
         const { EMPLOYEE_CODE, PASSWORD, ...editPayload } = basePayload;
 
-        await API.put(
-          `/update-employee/${editingEmployee.ID}`,
-          editPayload
-        );
-
+        await API.put(`/update-employee/${editingEmployee.ID}`, editPayload);
         empId = editingEmployee.ID;
-
       } else {
-
         const payload = {
           ...basePayload,
           EMPLOYEE_CODE: form.EMPLOYEE_CODE.trim().toUpperCase(),
-          VENDOR_ID
+          VENDOR_ID,
         };
 
         const res = await API.post("/create-employee", payload);
-
         empId = res.data?.employee_id;
       }
 
+      // Photo upload — non-fatal (employee already saved).
       if (photoFile && empId) {
-
         try {
-
           const fd = new FormData();
-
           fd.append("file", photoFile);
-
-          await API.post(
-            `/employees/${empId}/upload-photo`,
-            fd,
-            { headers: { "Content-Type": "multipart/form-data" } }
-          );
-
+          await API.post(`/employees/${empId}/upload-photo`, fd, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
         } catch {
           // non-fatal — employee saved, photo couldn't upload
         }
       }
 
-      // Save salary structure (if any earnings field was filled).
-      // Non-fatal: employee is already saved, so a salary failure
-      // just means HR can come back and configure it later.
+      // Salary structure — non-fatal, runs regardless of photo.
       if (empId) {
-
         const salFields = [
-          form.SAL_BASIC, form.SAL_HRA, form.SAL_DA,
-          form.SAL_CONVEYANCE, form.SAL_MEDICAL, form.SAL_SPECIAL,
-          form.SAL_OTHER, form.SAL_INCENTIVES, form.SAL_ANNUAL_BONUS
+          form.SAL_BASIC,
+          form.SAL_HRA,
+          form.SAL_DA,
+          form.SAL_CONVEYANCE,
+          form.SAL_MEDICAL,
+          form.SAL_SPECIAL,
+          form.SAL_OTHER,
+          form.SAL_INCENTIVES,
+          form.SAL_ANNUAL_BONUS,
         ];
 
-        const hasAnySalary = salFields.some(
-          (v) => v !== "" && v != null && Number(v) > 0
-        );
+        const hasAnySalary = salFields.some((v) => v !== "" && v != null && Number(v) > 0);
 
         if (hasAnySalary) {
-
           try {
-
             await API.put(`/payroll/salary-structures/${empId}`, {
               BASIC: Number(form.SAL_BASIC) || 0,
               HRA: Number(form.SAL_HRA) || 0,
@@ -1247,11 +1119,9 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
               ANNUAL_BONUS: Number(form.SAL_ANNUAL_BONUS) || 0,
               PT_STATE: form.SAL_PT_STATE || "TAMIL_NADU",
               PF_APPLICABLE: form.SAL_PF_APPLICABLE ? 1 : 0,
-              ESI_APPLICABLE: form.SAL_ESI_APPLICABLE ? 1 : 0
+              ESI_APPLICABLE: form.SAL_ESI_APPLICABLE ? 1 : 0,
             });
-
           } catch (salErr) {
-
             console.error("Salary structure save failed:", salErr);
             // non-fatal — surface but don't block
           }
@@ -1259,93 +1129,74 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
       }
 
       onCreated?.();
-
     } catch (err) {
-
       console.error("Save employee failed:", err);
 
       const resp = err?.response;
-
       let message;
 
       if (!resp) {
-
         // No HTTP response at all — backend unreachable, CORS, etc.
         message = `Cannot reach server: ${err?.message || "network error"}`;
-
       } else if (Array.isArray(resp.data?.detail)) {
-
         // FastAPI / Pydantic 422 — detail is an array of field errors.
-        // Convert to a human-readable list so the user sees exactly
-        // which field is wrong instead of a generic "Failed" message.
         message = resp.data.detail
           .map((d) => {
-
-            const field = (d.loc || [])
-              .slice(1)
-              .join(".") || "field";
-
+            const field = (d.loc || []).slice(1).join(".") || "field";
             return `${field}: ${d.msg}`;
           })
           .join(" · ");
-
       } else if (typeof resp.data?.detail === "string") {
-
-        // Standard FastAPI HTTPException — show the backend's message.
         message = resp.data.detail;
-
       } else if (resp.data?.message) {
-
         message = resp.data.message;
-
       } else {
-
         message = `Server error ${resp.status} — see browser console for details`;
       }
 
       setError(message);
-
     } finally {
-
       setSaving(false);
     }
   };
 
   // Synthesize a preview "employee" for the View Data modal
-  const previewEmployee = useMemo(() => ({
-    NAME: form.NAME || "(Name)",
-    EMPLOYEE_CODE: form.EMPLOYEE_CODE || "EMP???",
-    FATHER_NAME: form.FATHER_NAME,
-    MOTHER_NAME: form.MOTHER_NAME,
-    EMAIL: form.EMAIL,
-    PHONE: form.PHONE,
-    ADDRESS: form.ADDRESS,
-    CITY: form.CITY,
-    STATE: form.STATE,
-    PINCODE: form.PINCODE,
-    DOB: form.DOB,
-    GENDER: form.GENDER,
-    MARITAL_STATUS: form.MARITAL_STATUS,
-    OCCUPATION: form.OCCUPATION,
-    QUALIFICATION: form.QUALIFICATION,
-    YEAR_OF_PASSING: form.YEAR_OF_PASSING,
-    EXPERIENCE_YEARS: form.EXPERIENCE_YEARS,
-    EXPERIENCE_DETAILS: form.EXPERIENCE_DETAILS,
-    PAST_PROJECTS: form.PAST_PROJECTS,
-    EMPLOYMENT_TYPE: form.EMPLOYMENT_TYPE,
-    SKILLS: form.SKILLS,
-    NOTES: form.NOTES,
-    DEPARTMENT: departments.find((d) => d.ID === Number(form.DEPARTMENT_ID)) || null,
-    DESIGNATION: designations.find((d) => d.ID === Number(form.DESIGNATION_ID)) || null,
-    ROLE: (() => {
-      const r = roles.find((x) => x.ID === Number(form.ROLE_ID));
-      return r ? { NAME: r.ROLE_NAME } : null;
-    })(),
-    STATUS: "ACTIVE"
-  }), [form, departments, designations, roles]);
+  const previewEmployee = useMemo(
+    () => ({
+      NAME: form.NAME || "(Name)",
+      EMPLOYEE_CODE: form.EMPLOYEE_CODE || "EMP???",
+      FATHER_NAME: form.FATHER_NAME,
+      MOTHER_NAME: form.MOTHER_NAME,
+      EMAIL: form.EMAIL,
+      PHONE: form.PHONE,
+      ADDRESS: form.ADDRESS,
+      CITY: form.CITY,
+      STATE: form.STATE,
+      PINCODE: form.PINCODE,
+      DOB: form.DOB,
+      GENDER: form.GENDER,
+      MARITAL_STATUS: form.MARITAL_STATUS,
+      OCCUPATION: form.OCCUPATION,
+      QUALIFICATION: form.QUALIFICATION,
+      YEAR_OF_PASSING: form.YEAR_OF_PASSING,
+      EXPERIENCE_YEARS: form.EXPERIENCE_YEARS,
+      EXPERIENCE_DETAILS: form.EXPERIENCE_DETAILS,
+      PAST_PROJECTS: form.PAST_PROJECTS,
+      EMPLOYMENT_TYPE: form.EMPLOYMENT_TYPE,
+      SKILLS: form.SKILLS,
+      NOTES: form.NOTES,
+      DEPARTMENT: departments.find((d) => d.ID === Number(form.DEPARTMENT_ID)) || null,
+      DESIGNATION: designations.find((d) => d.ID === Number(form.DESIGNATION_ID)) || null,
+      ROLE: (() => {
+        const r = roles.find((x) => x.ID === Number(form.ROLE_ID));
+        return r ? { NAME: r.ROLE_NAME } : null;
+      })(),
+      STATUS: "ACTIVE",
+    }),
+    [form, departments, designations, roles]
+  );
 
   return (
-
     <div onClick={onClose} className={styles.drawerBackdrop}>
       <form
         onClick={(e) => e.stopPropagation()}
@@ -1371,11 +1222,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
             >
               👁 View Data
             </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className={styles.drawerCloseBtn}
-            >
+            <button type="button" onClick={onClose} className={styles.drawerCloseBtn}>
               ×
             </button>
           </div>
@@ -1383,9 +1230,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
 
         <div className={styles.drawerBody}>
 
-          {error && (
-            <div className={styles.formErrorBanner}>{error}</div>
-          )}
+          {error && <div className={styles.formErrorBanner}>{error}</div>}
 
           <div className={styles.photoStrip}>
             <div
@@ -1405,8 +1250,8 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
             <div className={styles.photoStripInfo}>
               <div className={styles.photoStripTitle}>Passport-size photo</div>
               <div className={styles.photoStripHint}>
-                PNG / JPG / WEBP. Saved to the employee's profile.
-                Will appear on cards, attendance views, and the resume.
+                PNG / JPG / WEBP. Saved to the employee's profile. Will appear on cards,
+                attendance views, and the resume.
               </div>
               <label htmlFor="emp-photo-input" className={styles.photoUploadLabel}>
                 {photoPreview ? "🔄 Change photo" : "📷 Upload photo"}
@@ -1462,22 +1307,15 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                 />
               </FormField>
               <FormField label="Date of Birth">
-                <input
-                  type="date"
-                  value={form.DOB}
-                  onChange={set("DOB")}
-                  className={styles.formInput}
-                />
+                <input type="date" value={form.DOB} onChange={set("DOB")} className={styles.formInput} />
               </FormField>
               <FormField label="Gender">
-                <select
-                  value={form.GENDER}
-                  onChange={set("GENDER")}
-                  className={styles.formInput}
-                >
+                <select value={form.GENDER} onChange={set("GENDER")} className={styles.formInput}>
                   <option value="">— pick —</option>
                   {GENDERS.map((g) => (
-                    <option key={g} value={g}>{g.replace("_", " ")}</option>
+                    <option key={g} value={g}>
+                      {g.replace("_", " ")}
+                    </option>
                   ))}
                 </select>
               </FormField>
@@ -1489,7 +1327,9 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                 >
                   <option value="">— pick —</option>
                   {MARITAL_STATUSES.map((m) => (
-                    <option key={m} value={m}>{m}</option>
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
                   ))}
                 </select>
               </FormField>
@@ -1510,7 +1350,9 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                 >
                   <option value="">— pick —</option>
                   {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((b) => (
-                    <option key={b} value={b}>{b}</option>
+                    <option key={b} value={b}>
+                      {b}
+                    </option>
                   ))}
                 </select>
               </FormField>
@@ -1541,15 +1383,21 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                     setForm((f) => ({ ...f, EMERGENCY_CONTACT_PHONE: digits }));
                     setPhoneErrors((err) => ({
                       ...err,
-                      EMERGENCY_CONTACT_PHONE: digits.length > 0 && digits.length < 10 ? "Mobile number must be 10 digits" : ""
+                      EMERGENCY_CONTACT_PHONE:
+                        digits.length > 0 && digits.length < 10
+                          ? "Mobile number must be 10 digits"
+                          : "",
                     }));
                   }}
                   placeholder="9876543210"
                   inputMode="numeric"
-                  className={`${styles.formInput}${phoneErrors.EMERGENCY_CONTACT_PHONE ? ` ${styles.formInputError}` : ""}`}
+                  className={`${styles.formInput}${phoneErrors.EMERGENCY_CONTACT_PHONE ? ` ${styles.formInputError}` : ""
+                    }`}
                 />
                 {phoneErrors.EMERGENCY_CONTACT_PHONE && (
-                  <div className={styles.fieldValidationMsg}>{phoneErrors.EMERGENCY_CONTACT_PHONE}</div>
+                  <div className={styles.fieldValidationMsg}>
+                    {phoneErrors.EMERGENCY_CONTACT_PHONE}
+                  </div>
                 )}
               </FormField>
               <FormField label="Relationship" span={2}>
@@ -1576,12 +1424,16 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                     setForm((f) => ({ ...f, PHONE: digits }));
                     setPhoneErrors((err) => ({
                       ...err,
-                      PHONE: digits.length > 0 && digits.length < 10 ? "Mobile number must be 10 digits" : ""
+                      PHONE:
+                        digits.length > 0 && digits.length < 10
+                          ? "Mobile number must be 10 digits"
+                          : "",
                     }));
                   }}
                   placeholder="9876543210"
                   inputMode="numeric"
-                  className={`${styles.formInput}${phoneErrors.PHONE ? ` ${styles.formInputError}` : ""}`}
+                  className={`${styles.formInput}${phoneErrors.PHONE ? ` ${styles.formInputError}` : ""
+                    }`}
                 />
                 {phoneErrors.PHONE && (
                   <div className={styles.fieldValidationMsg}>{phoneErrors.PHONE}</div>
@@ -1714,7 +1566,9 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   className={styles.formInput}
                 >
                   {EMPLOYMENT_TYPES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
                   ))}
                 </select>
               </FormField>
@@ -1806,20 +1660,18 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
             </FormField>
           </FormSection>
 
-          {/* ============== System: Organization Assignment ============== */}
+          {/* ============== 6. Organization Assignment (system) ============== */}
           {/* Required for backend role mapping. Kept at bottom so the
               user-facing form follows the requested professional order. */}
           <FormSection title="⑥ Organization Assignment (system)" color="#ec4899">
             <FormGrid cols={3}>
               <FormField label="Role *">
-                <select
-                  value={form.ROLE_ID}
-                  onChange={set("ROLE_ID")}
-                  className={styles.formInput}
-                >
+                <select value={form.ROLE_ID} onChange={set("ROLE_ID")} className={styles.formInput}>
                   <option value="">— pick role —</option>
                   {roles.map((r) => (
-                    <option key={r.ID} value={r.ID}>{r.ROLE_NAME}</option>
+                    <option key={r.ID} value={r.ID}>
+                      {r.ROLE_NAME}
+                    </option>
                   ))}
                 </select>
               </FormField>
@@ -1831,7 +1683,9 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                 >
                   <option value="">— pick department —</option>
                   {departments.map((d) => (
-                    <option key={d.ID} value={d.ID}>{d.NAME}</option>
+                    <option key={d.ID} value={d.ID}>
+                      {d.NAME}
+                    </option>
                   ))}
                 </select>
               </FormField>
@@ -1843,7 +1697,9 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                 >
                   <option value="">— pick designation —</option>
                   {designations.map((d) => (
-                    <option key={d.ID} value={d.ID}>{d.TITLE}</option>
+                    <option key={d.ID} value={d.ID}>
+                      {d.TITLE}
+                    </option>
                   ))}
                 </select>
               </FormField>
@@ -1918,7 +1774,10 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                     setForm((f) => ({ ...f, AADHAAR_NUMBER: digits }));
                   }}
                   placeholder="123456789012"
-                  className={`${styles.formInput}${form.AADHAAR_NUMBER.length > 0 && form.AADHAAR_NUMBER.length < 12 ? ` ${styles.formInputError}` : ""}`}
+                  className={`${styles.formInput}${form.AADHAAR_NUMBER.length > 0 && form.AADHAAR_NUMBER.length < 12
+                    ? ` ${styles.formInputError}`
+                    : ""
+                    }`}
                 />
                 {form.AADHAAR_NUMBER.length > 0 && form.AADHAAR_NUMBER.length < 12 && (
                   <div className={styles.fieldValidationMsg}>
@@ -1933,10 +1792,10 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
           <FormSection title="⑧ Salary Structure (Payroll)" color="#10b981">
 
             <div className={styles.salaryNote}>
-              These monthly amounts drive payroll generation.
-              Leave blank if not yet decided — payroll will fall back to
-              <b> Employee.Salary</b> or treat as zero. Statutory deductions
-              (PF / ESI / PT) are calculated automatically from the basic and gross.
+              These monthly amounts drive payroll generation. Leave blank if not yet
+              decided — payroll will fall back to <b> Employee.Salary</b> or treat as zero.
+              Statutory deductions (PF / ESI / PT) are calculated automatically from the
+              basic and gross.
             </div>
 
             <FormGrid cols={3}>
@@ -2066,9 +1925,9 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   <input
                     type="checkbox"
                     checked={!!form.SAL_PF_APPLICABLE}
-                    onChange={(e) => setForm((f) => ({
-                      ...f, SAL_PF_APPLICABLE: e.target.checked
-                    }))}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, SAL_PF_APPLICABLE: e.target.checked }))
+                    }
                   />
                   <span>{form.SAL_PF_APPLICABLE ? "Yes — deduct PF" : "No — skip PF"}</span>
                 </label>
@@ -2078,9 +1937,9 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   <input
                     type="checkbox"
                     checked={!!form.SAL_ESI_APPLICABLE}
-                    onChange={(e) => setForm((f) => ({
-                      ...f, SAL_ESI_APPLICABLE: e.target.checked
-                    }))}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, SAL_ESI_APPLICABLE: e.target.checked }))
+                    }
                   />
                   <span>{form.SAL_ESI_APPLICABLE ? "Yes — deduct ESI" : "No — skip ESI"}</span>
                 </label>
@@ -2089,7 +1948,6 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
 
             {/* Live-calculated gross — re-renders whenever any earnings field changes */}
             {(() => {
-
               const sum =
                 (Number(form.SAL_BASIC) || 0) +
                 (Number(form.SAL_HRA) || 0) +
@@ -2103,19 +1961,19 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
 
               if (sum <= 0) return null;
 
-              const inr = (n) => `₹${Number(n).toLocaleString("en-IN", {
-                maximumFractionDigits: 2, minimumFractionDigits: 2
-              })}`;
+              const inr = (n) =>
+                `₹${Number(n).toLocaleString("en-IN", {
+                  maximumFractionDigits: 2,
+                  minimumFractionDigits: 2,
+                })}`;
 
               return (
-
                 <div className={styles.grossBar}>
                   <span>Gross / month (auto-calculated)</span>
                   <span className={styles.grossAmount}>{inr(sum)}</span>
                 </div>
               );
             })()}
-
           </FormSection>
 
           <div className={styles.formFooter}>
@@ -2126,14 +1984,8 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
             >
               👁 View Data (preview)
             </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className={styles.formSaveBtn}
-            >
-              {saving
-                ? "Saving…"
-                : (isEdit ? "💾 Save Changes" : "✓ Save Employee")}
+            <button type="submit" disabled={saving} className={styles.formSaveBtn}>
+              {saving ? "Saving…" : isEdit ? "💾 Save Changes" : "✓ Save Employee"}
             </button>
           </div>
         </div>
@@ -2152,9 +2004,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
 
 
 function FormSection({ title, color, children }) {
-
   return (
-
     <div className={styles.formSection}>
       <div
         className={styles.formSectionTitle}
@@ -2169,13 +2019,8 @@ function FormSection({ title, color, children }) {
 
 
 function FormGrid({ cols, children }) {
-
   return (
-
-    <div
-      className={styles.formGrid}
-      style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}
-    >
+    <div className={styles.formGrid} style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
       {children}
     </div>
   );
@@ -2183,9 +2028,7 @@ function FormGrid({ cols, children }) {
 
 
 function FormField({ label, span, children }) {
-
   return (
-
     <div
       className={styles.formField}
       style={{ gridColumn: span ? `span ${span}` : undefined }}
@@ -2202,71 +2045,63 @@ function FormField({ label, span, children }) {
 // =====================================================================
 
 function Employees() {
-
   const [employees, setEmployees] = useState([]);
-
   const [loading, setLoading] = useState(true);
-
   const [search, setSearch] = useState("");
-
   const [deptFilter, setDeptFilter] = useState("");
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
 
   const [showAdd, setShowAdd] = useState(false);
-
   const [showInvite, setShowInvite] = useState(false);
-
   // null = closed; employee object = open in edit mode
   const [editingEmployee, setEditingEmployee] = useState(null);
-
   const [viewing, setViewing] = useState(null);
 
   const fetchAll = () => {
-
     setLoading(true);
-
     API.get("/employees")
       .then((r) => setEmployees(r.data || []))
       .catch(() => setEmployees([]))
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    fetchAll();
+  }, []);
 
   const departments = useMemo(() => {
-
     const set = new Set();
-
     employees.forEach((e) => {
-
       if (e.DEPARTMENT?.NAME) set.add(e.DEPARTMENT.NAME);
     });
-
     return [...set].sort();
-
   }, [employees]);
 
   const filtered = useMemo(() => {
-
     const q = search.trim().toLowerCase();
 
     return employees.filter((e) => {
-
       if (deptFilter && e.DEPARTMENT?.NAME !== deptFilter) return false;
-
       if (!q) return true;
 
       const hay = [
-        e.NAME, e.EMPLOYEE_CODE, e.EMAIL, e.PHONE,
-        e.SKILLS, e.QUALIFICATION,
-        e.DEPARTMENT?.NAME, e.ROLE?.NAME
-      ].filter(Boolean).join(" ").toLowerCase();
+        e.NAME,
+        e.EMPLOYEE_CODE,
+        e.EMAIL,
+        e.PHONE,
+        e.SKILLS,
+        e.QUALIFICATION,
+        e.DEPARTMENT?.NAME,
+        e.ROLE?.NAME,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
 
       return hay.includes(q);
     });
-
   }, [employees, search, deptFilter]);
 
   // Reset to page 1 whenever the filter changes (so we don't land on
@@ -2280,39 +2115,31 @@ function Employees() {
   }, [filtered, page, pageSize]);
 
   const stats = useMemo(() => {
-
     const total = employees.length;
-
     const active = employees.filter((e) => e.STATUS === "ACTIVE").length;
-
     const freshers = employees.filter((e) => e.EMPLOYMENT_TYPE === "FRESHER").length;
-
     const avgExp = employees.length
-      ? (employees.reduce((s, e) => s + (Number(e.EXPERIENCE_YEARS) || 0), 0) / employees.length).toFixed(1)
+      ? (
+        employees.reduce((s, e) => s + (Number(e.EXPERIENCE_YEARS) || 0), 0) /
+        employees.length
+      ).toFixed(1)
       : 0;
 
     return { total, active, freshers, avgExp };
-
   }, [employees]);
 
   const handleDelete = async (emp) => {
-
     if (!window.confirm(`Delete employee ${emp.NAME} (${emp.EMPLOYEE_CODE})?`)) return;
 
     try {
-
       await API.delete(`/delete-employee/${emp.ID}`);
-
       fetchAll();
-
     } catch (err) {
-
       alert(err?.response?.data?.detail || "Delete failed");
     }
   };
 
   return (
-
     <div className={styles.pageWrapper}>
 
       <div className={styles.pageBanner}>
@@ -2330,22 +2157,32 @@ function Employees() {
             onClick={() => setShowInvite(true)}
             className={styles.bannerInviteBtn}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" strokeWidth="2"
-                 strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
               <polyline points="22,6 12,13 2,6" />
             </svg>
             Invite via Onboarding
           </button>
-          <button
-            type="button"
-            onClick={() => setShowAdd(true)}
-            className={styles.bannerAddBtn}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" strokeWidth="2.4"
-                 strokeLinecap="round" strokeLinejoin="round">
+          <button type="button" onClick={() => setShowAdd(true)} className={styles.bannerAddBtn}>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
@@ -2358,27 +2195,22 @@ function Employees() {
         <StatTile label="Total Employees" value={stats.total} color="#6366f1" />
         <StatTile label="Active" value={stats.active} sub="working" color="#10b981" />
         <StatTile label="Freshers" value={stats.freshers} sub="new joinees" color="#06b6d4" />
-        <StatTile label="Avg Experience" value={`${stats.avgExp} yr`} sub="across team" color="var(--text-secondary)" />
+        <StatTile
+          label="Avg Experience"
+          value={`${stats.avgExp} yr`}
+          sub="across team"
+          color="var(--text-secondary)"
+        />
       </div>
 
       <div className={styles.filterBar}>
-        <div className={styles.filterSearchWrap}>
-          <span className={styles.filterSearchIcon} aria-hidden="true">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" strokeWidth="2.2"
-                 strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m21 21-4.3-4.3" />
-            </svg>
-          </span>
-          <input
-            type="text"
-            placeholder="Search by name, code, email, skill…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className={styles.filterInput}
-          />
-        </div>
+        <input
+          type="text"
+          placeholder="🔍 Search by name, code, email, skill, qualification..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className={styles.filterInput}
+        />
         <select
           value={deptFilter}
           onChange={(e) => setDeptFilter(e.target.value)}
@@ -2386,7 +2218,9 @@ function Employees() {
         >
           <option value="">All departments</option>
           {departments.map((d) => (
-            <option key={d} value={d}>{d}</option>
+            <option key={d} value={d}>
+              {d}
+            </option>
           ))}
         </select>
         <div className={styles.filterCount}>
@@ -2394,23 +2228,28 @@ function Employees() {
         </div>
       </div>
 
-      {
-        loading && (
-          <div className={styles.loadingState}>
-            Loading employees…
-          </div>
-        )
-      }
+      {loading && <div className={styles.loadingState}>Loading employees…</div>}
 
-      {
-        !loading && filtered.length === 0 && (
-          <div className={styles.emptyState}>
-            {employees.length === 0
-              ? <>No employees yet. Click <strong>+ Add Employee</strong> to start the directory.</>
-              : "No employees match these filters."}
-          </div>
-        )
-      }
+      {showAdd && (
+        <AddEmployeeModal
+          onClose={() => setShowAdd(false)}
+          onCreated={() => {
+            setShowAdd(false);
+            fetchAll();
+          }}
+        />
+      )}
+
+      {editingEmployee && (
+        <AddEmployeeModal
+          editingEmployee={editingEmployee}
+          onClose={() => setEditingEmployee(null)}
+          onCreated={() => {
+            setEditingEmployee(null);
+            fetchAll();
+          }}
+        />
+      )}
 
       {
         !loading && filtered.length > 0 && (
@@ -2437,48 +2276,8 @@ function Employees() {
         )
       }
 
-      {
-        showAdd && (
-          <AddEmployeeModal
-            onClose={() => setShowAdd(false)}
-            onCreated={() => {
-              setShowAdd(false);
-              fetchAll();
-            }}
-          />
-        )
-      }
-
-      {
-        editingEmployee && (
-          <AddEmployeeModal
-            editingEmployee={editingEmployee}
-            onClose={() => setEditingEmployee(null)}
-            onCreated={() => {
-              setEditingEmployee(null);
-              fetchAll();
-            }}
-          />
-        )
-      }
-
-      {
-        viewing && (
-          <ResumeModal
-            employee={viewing}
-            onClose={() => setViewing(null)}
-          />
-        )
-      }
-
-      {
-        showInvite && (
-          <InviteEmployeeModal
-            onClose={() => setShowInvite(false)}
-          />
-        )
-      }
-    </div >
+      {showInvite && <InviteEmployeeModal onClose={() => setShowInvite(false)} />}
+    </div>
   );
 }
 
@@ -2490,7 +2289,6 @@ function Employees() {
 // =====================================================================
 
 function InviteEmployeeModal({ onClose }) {
-
   const [form, setForm] = useState({
     INVITED_NAME: "",
     EMPLOYEE_CODE: "",
@@ -2498,7 +2296,7 @@ function InviteEmployeeModal({ onClose }) {
     PASSWORD: "",
     EXPIRES_IN_DAYS: 2,
     DEPARTMENT_ID: "",
-    DESIGNATION_ID: ""
+    DESIGNATION_ID: "",
   });
 
   // Departments + Designations are loaded from the org catalog
@@ -2508,22 +2306,17 @@ function InviteEmployeeModal({ onClose }) {
   const [designations, setDesignations] = useState([]);
 
   const [result, setResult] = useState(null);
-
   const [submitting, setSubmitting] = useState(false);
-
   const [error, setError] = useState("");
 
   // Toggle for the password field's eye icon — admin can verify the
   // 6+ char password they're sending the candidate before submitting.
   const [showPassword, setShowPassword] = useState(false);
-
   const [copied, setCopied] = useState(false);
-
   const [emailMsg, setEmailMsg] = useState("");
 
   // Fetch dropdown options once when the modal opens
   useEffect(() => {
-
     API.get("/departments")
       .then((r) => setDepartments(Array.isArray(r.data) ? r.data : []))
       .catch(() => setDepartments([]));
@@ -2531,67 +2324,41 @@ function InviteEmployeeModal({ onClose }) {
     API.get("/designations")
       .then((r) => setDesignations(Array.isArray(r.data) ? r.data : []))
       .catch(() => setDesignations([]));
-
   }, []);
 
   // ESC closes the modal
   useEffect(() => {
-
     const onKey = (e) => {
-
       if (e.key === "Escape") onClose?.();
     };
-
     window.addEventListener("keydown", onKey);
-
     return () => window.removeEventListener("keydown", onKey);
-
   }, [onClose]);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const submit = async (e) => {
-
     e?.preventDefault?.();
-
     setError("");
-
     setEmailMsg("");
 
     if (!form.INVITED_NAME.trim()) {
-
       setError("Candidate name is required.");
-
       return;
     }
-
     if (!form.EMPLOYEE_CODE.trim()) {
-
       setError("Employee ID is required.");
-
-      return;
-    }
-
-    const emailTrim = form.EMAIL.trim();
-
-    if (!emailTrim || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailTrim)) {
-
-      setError("A valid candidate email is required — the invite link is sent automatically.");
-
       return;
     }
 
     if (form.PASSWORD.trim().length < 6) {
-
       setError("Password must be at least 6 characters.");
-
       return;
     }
 
     setSubmitting(true);
 
     try {
-
       const res = await API.post("/employee-onboarding/invite", {
         INVITED_NAME: form.INVITED_NAME.trim(),
         EMPLOYEE_CODE: form.EMPLOYEE_CODE.trim() || null,
@@ -2599,45 +2366,34 @@ function InviteEmployeeModal({ onClose }) {
         PASSWORD: form.PASSWORD,
         EXPIRES_IN_DAYS: Number(form.EXPIRES_IN_DAYS) || 2,
         DEPARTMENT_ID: form.DEPARTMENT_ID ? Number(form.DEPARTMENT_ID) : null,
-        DESIGNATION_ID: form.DESIGNATION_ID ? Number(form.DESIGNATION_ID) : null
+        DESIGNATION_ID: form.DESIGNATION_ID ? Number(form.DESIGNATION_ID) : null,
       });
 
       setResult(res.data);
-
     } catch (err) {
-
       setError(
         err?.response?.data?.detail ||
         err?.message ||
         "Could not generate the invite link."
       );
-
     } finally {
-
       setSubmitting(false);
     }
   };
 
   const copyLink = async () => {
-
     if (!result?.invite_link) return;
 
     try {
-
       await navigator.clipboard.writeText(result.invite_link);
-
       setCopied(true);
-
       setTimeout(() => setCopied(false), 2200);
-
     } catch {
-
       setCopied(false);
     }
   };
 
   return (
-
     <div onClick={onClose} className={styles.inviteBackdrop}>
       <div onClick={(e) => e.stopPropagation()} className={styles.invitePanel}>
 
@@ -2645,21 +2401,20 @@ function InviteEmployeeModal({ onClose }) {
         <div className={styles.inviteHeader}>
           <div>
             <div className={styles.inviteHeaderEyebrow}>EMPLOYEE AI ONBOARDING</div>
-            <h2 className={styles.inviteHeaderTitle}>
-              Invite candidate to self-onboard
-            </h2>
+            <h2 className={styles.inviteHeaderTitle}>Invite candidate to self-onboard</h2>
           </div>
-          <button onClick={onClose} className={styles.inviteCloseBtn}>×</button>
+          <button onClick={onClose} className={styles.inviteCloseBtn}>
+            ×
+          </button>
         </div>
 
         {/* Body — only this scrolls so the header stays pinned */}
         <div className={styles.inviteBody}>
 
           <p className={styles.inviteIntro}>
-            Generate a one-time link the candidate opens in their
-            browser. Our AI assistant walks them through every field —
-            once they hit <b>Submit</b>, the session appears under
-            <b> Onboarding Review</b> for HR approval.
+            Generate a one-time link the candidate opens in their browser. Our AI assistant
+            walks them through every field — once they hit <b>Submit</b>, the session appears
+            under <b> Onboarding Review</b> for HR approval.
           </p>
 
           {!result && (
@@ -2738,9 +2493,16 @@ function InviteEmployeeModal({ onClose }) {
                     >
                       {showPassword ? (
                         // eye-off (currently visible -> click to hide)
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                          stroke="currentColor" strokeWidth="1.8"
-                          strokeLinecap="round" strokeLinejoin="round">
+                        <svg
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
                           <path d="M3 3l18 18" />
                           <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" />
                           <path d="M9.9 4.2A9.5 9.5 0 0 1 12 4c5 0 9.3 3 11 8a14 14 0 0 1-3.4 4.8" />
@@ -2748,9 +2510,16 @@ function InviteEmployeeModal({ onClose }) {
                         </svg>
                       ) : (
                         // eye (currently hidden -> click to show)
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                          stroke="currentColor" strokeWidth="1.8"
-                          strokeLinecap="round" strokeLinejoin="round">
+                        <svg
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.8"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
                           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" />
                           <circle cx="12" cy="12" r="3" />
                         </svg>
@@ -2771,26 +2540,17 @@ function InviteEmployeeModal({ onClose }) {
               </div>
 
               <div className={styles.inviteInfoBox}>
-                🔑 The candidate will sign in with this Employee ID + Password to open their registration form.
+                🔑 The candidate will sign in with this Employee ID + Password to open their
+                registration form.
               </div>
 
-              {error && (
-                <div className={styles.inviteErrorBox}>⚠ {error}</div>
-              )}
+              {error && <div className={styles.inviteErrorBox}>⚠ {error}</div>}
 
               <div className={styles.inviteFormActions}>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className={styles.inviteCancelBtn}
-                >
+                <button type="button" onClick={onClose} className={styles.inviteCancelBtn}>
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className={styles.inviteSubmitBtn}
-                >
+                <button type="submit" disabled={submitting} className={styles.inviteSubmitBtn}>
                   {submitting ? "Generating…" : "🔗 Generate Invite Link"}
                 </button>
               </div>
@@ -2874,12 +2634,9 @@ function InviteEmployeeModal({ onClose }) {
                 </button>
               </div>
 
-              {emailMsg && (
-                <div className={styles.inviteEmailMsg}>{emailMsg}</div>
-              )}
+              {emailMsg && <div className={styles.inviteEmailMsg}>{emailMsg}</div>}
             </div>
           )}
-
         </div>
       </div>
     </div>
@@ -2888,19 +2645,13 @@ function InviteEmployeeModal({ onClose }) {
 
 
 function InviteField({ label, span, children }) {
-
   return (
-
-    <div
-      className={styles.inviteField}
-      style={{ gridColumn: span ? `span ${span}` : undefined }}
-    >
+    <div className={styles.inviteField} style={{ gridColumn: span ? `span ${span}` : undefined }}>
       <label className={styles.inviteFieldLabel}>{label}</label>
       {children}
     </div>
   );
 }
-
 
 
 export default Employees;

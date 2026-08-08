@@ -370,7 +370,9 @@ function KpiIcon({ name, color }) {
 }
 
 
-function ExecKPI({ label, value, accent, iconName, trend, onClick }) {
+function ExecKPI({ label, value, accent, iconName, trend, delta = 0, deltaLabel = "vs last month", onClick }) {
+
+  const positive = Number(delta) >= 0;
 
   return (
     <div
@@ -390,9 +392,19 @@ function ExecKPI({ label, value, accent, iconName, trend, onClick }) {
         <div className={styles.execKpiValue}>
           {value}
         </div>
+        {delta !== 0 && (
+          <div style={{
+            fontSize: 11,
+            fontWeight: 700,
+            marginTop: 4,
+            color: positive ? T.green : T.red
+          }}>
+            {positive ? "▲" : "▼"} {Math.abs(delta)}% {deltaLabel}
+          </div>
+        )}
       </div>
 
-      {/* Right — mini sparkline */}
+      {/* Right — trend sparkline */}
       <Sparkline color={accent} data={trend} />
     </div>
   );
@@ -1739,11 +1751,19 @@ export default function EnterpriseCommandCenter() {
 
       <BusinessHealthGrid stats={stats} factory={factory} />
 
+
       {/* Health gauge + Production pipeline side-by-side */}
       <div className={`${styles.twoColGrid} ${styles.twoColGrid12}`}>
         <HealthGauge health={health} />
         <FactoryFloor factory={factory} />
       </div>
+
+      {/* Health gauge + Production pipeline side-by-side */}
+      <div className={`${styles.twoColGrid} ${styles.twoColGrid12}`}>
+        <HealthGauge health={health} />
+        <FactoryFloor factory={factory} />
+      </div>
+
 
       {/* CRM funnel */}
       <div className={styles.singleColSection}>

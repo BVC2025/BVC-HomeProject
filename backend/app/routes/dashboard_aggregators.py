@@ -619,7 +619,7 @@ def insights(db: Session = Depends(get_db)):
             })
 
     # --- 3. Delayed projects ----------------------------------------
-    delayed_rows = db.query(Project).filter(
+    delayed_rows = db.query(CustomerProject).filter(
         ~CustomerProject.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"]),
         CustomerProject.TARGET_DATE.isnot(None),
         CustomerProject.TARGET_DATE < today,

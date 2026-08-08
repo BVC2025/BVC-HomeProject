@@ -235,7 +235,7 @@
 .filterInput:focus {
   background: var(--card-bg, white);
   border-color: var(--clr-primary, #C8102E);
-  box-shadow: 0 0 0 3px var(--clr-primary-muted, rgba(200,16,46,0.10));
+  box-shadow: 0 0 0 3px var(--clr-primary-muted, rgba(200, 16, 46, 0.10));
 }
 
 /* Department — wider, takes the remaining space */

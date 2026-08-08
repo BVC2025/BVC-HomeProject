@@ -80,6 +80,7 @@ def list_departments(
             "NAME": d.NAME,
             "DEPARTMENT_CODE": d.DEPARTMENT_CODE,
             "DESCRIPTION": d.DESCRIPTION,
+            "HEAD_EMPLOYEE_ID": d.HEAD_EMPLOYEE_ID,
             "VENDOR_ID": d.VENDOR_ID,
             "CREATED_AT": d.CREATED_AT.isoformat() if d.CREATED_AT else None,
             "UPDATED_AT": d.UPDATED_AT.isoformat() if d.UPDATED_AT else None
@@ -110,6 +111,7 @@ def create_department(
         NAME=data.NAME,
         DEPARTMENT_CODE=data.DEPARTMENT_CODE.upper(),
         DESCRIPTION=data.DESCRIPTION,
+        HEAD_EMPLOYEE_ID=data.HEAD_EMPLOYEE_ID,
         VENDOR_ID=data.VENDOR_ID
     )
 
@@ -145,6 +147,9 @@ def update_department(
 
     if data.DESCRIPTION is not None:
         dept.DESCRIPTION = data.DESCRIPTION
+
+    if data.HEAD_EMPLOYEE_ID is not None:
+        dept.HEAD_EMPLOYEE_ID = data.HEAD_EMPLOYEE_ID
 
     db.commit()
 
@@ -370,8 +375,9 @@ def list_roles(
 
         out.append({
             "ID": r.ID,
-            "NAME": r.NAME,
+            "ROLE_NAME": r.NAME,
             "DESCRIPTION": r.DESCRIPTION,
+            "IS_SYSTEM": bool(r.IS_SYSTEM),
             "VENDOR_ID": r.VENDOR_ID,
             "DEPARTMENT_ID": r.DEPARTMENT_ID,
             "PERMISSION_IDS": perm_ids
@@ -387,8 +393,9 @@ def create_role(
 ):
 
     role = Role(
-        NAME=data.NAME,
+        NAME=data.ROLE_NAME,
         DESCRIPTION=data.DESCRIPTION,
+        IS_SYSTEM=0,
         VENDOR_ID=data.VENDOR_ID
     )
 
@@ -412,6 +419,13 @@ def delete_role(
     if not role:
 
         raise HTTPException(status_code=404, detail="Role not found")
+
+    if role.IS_SYSTEM:
+
+        raise HTTPException(
+            status_code=400,
+            detail="System roles cannot be deleted"
+        )
 
     db.query(RolePermission).filter(
         RolePermission.ROLE_ID == role_id
@@ -584,6 +598,7 @@ def do_seed_org(db: Session, preset_key: str, vendor_id: int) -> dict:
             role = Role(
                 NAME=role_name,
                 DESCRIPTION=role_desc,
+                IS_SYSTEM=1,
                 VENDOR_ID=vendor_id
             )
 
@@ -736,6 +751,7 @@ def seed_bvc24_role_catalogue(
             role = Role(
                 NAME=role_name,
                 DESCRIPTION=role_desc,
+                IS_SYSTEM=1,
                 VENDOR_ID=vendor_id
             )
 
@@ -1058,7 +1074,8 @@ def list_org_roles(
             "DESCRIPTION": r.DESCRIPTION,
             "DEPARTMENT_ID": r.DEPARTMENT_ID,
             "DEPARTMENT_NAME": d.NAME if d else None,
-            "VENDOR_ID": r.VENDOR_ID
+            "VENDOR_ID": r.VENDOR_ID,
+            "CREATED_AT": r.CREATED_AT.isoformat() if r.CREATED_AT else None,
         }
         for r, d in rows
     ]

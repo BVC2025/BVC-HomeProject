@@ -573,7 +573,7 @@ def _set_expiry(q: Quotation) -> None:
 def _bom_cost_per_unit(db: Session, product_model_id: int, vendor_id: int) -> float:
     """Compute raw material cost for ONE unit of a product from its BOM.
 
-    Looks up Inventory.UNIT_PRICE for each BOMItem.MATERIAL_ID.
+    Looks up Inventory.UNIT_PRICE for each BOMItem.PRODUCT_ID.
     Missing prices contribute 0 (we don't fail loudly — better to
     return a low estimate than throw)."""
 
@@ -585,14 +585,14 @@ def _bom_cost_per_unit(db: Session, product_model_id: int, vendor_id: int) -> fl
 
         return 0.0
 
-    material_ids = [r.MATERIAL_ID for r in rows if r.MATERIAL_ID]
+    material_ids = [r.PRODUCT_ID for r in rows if r.PRODUCT_ID]
 
     price_by_mat = {}
 
     if material_ids:
 
         invs = db.query(Inventory).filter(
-            Inventory.MATERIAL_ID.in_(material_ids),
+            Inventory.PRODUCT_ID.in_(material_ids),
             Inventory.VENDOR_ID == vendor_id
         ).all()
 
@@ -600,11 +600,11 @@ def _bom_cost_per_unit(db: Session, product_model_id: int, vendor_id: int) -> fl
 
             # If a material has multiple inventory rows, keep the
             # latest (max) price — a safer estimate for quoting.
-            current = price_by_mat.get(inv.MATERIAL_ID, 0.0)
+            current = price_by_mat.get(inv.PRODUCT_ID, 0.0)
 
             if (inv.UNIT_PRICE or 0) > current:
 
-                price_by_mat[inv.MATERIAL_ID] = inv.UNIT_PRICE or 0.0
+                price_by_mat[inv.PRODUCT_ID] = inv.UNIT_PRICE or 0.0
 
     total = 0.0
 
@@ -612,7 +612,7 @@ def _bom_cost_per_unit(db: Session, product_model_id: int, vendor_id: int) -> fl
 
         qty = float(r.QUANTITY or 0)
 
-        price = price_by_mat.get(r.MATERIAL_ID, 0.0) if r.MATERIAL_ID else 0.0
+        price = price_by_mat.get(r.PRODUCT_ID, 0.0) if r.PRODUCT_ID else 0.0
 
         total += qty * price
 

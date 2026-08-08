@@ -18,11 +18,12 @@ from app.database.database import get_db
 
 from app.models.models import (
     Supplier,
-    MaterialCatalog,
     Inventory,
     ProductModel,
     BOMItem
 )
+
+from app.models.inventory_models import ProductMaster
 
 from app.services.vending_seed_data import (
     SUPPLIERS,
@@ -46,17 +47,24 @@ def reset_and_seed(
     Wipes (in this order, FK-safe via MySQL SET FOREIGN_KEY_CHECKS=0):
       - purchase_order_activity, goods_receipt_line, goods_receipt_note,
         purchase_order_line, purchase_order
-      - inventory, material_department, bom_item, material_catalog,
-        product_model, supplier
+      - inventory, bom_item, product_master (seed-created rows only —
+        see caution below), product_model, supplier
       - Nulls out PRODUCT_MODEL_ID on quotation_line, project,
         customer_requirement (and clears PREFERRED_SUPPLIER_ID on
         any orphan BOM rows that survived a partial wipe).
 
     Seeds:
       - 20 suppliers (Tata Steel, Bosch, Emerson, Pine Labs, …)
-      - 47 materials with starting Inventory rows (qty=0, real prices)
+      - 47 materials as ProductMaster rows with starting Inventory
+        rows (qty=0, real prices)
       - 2 vending machine ProductModels (Snack-Beverage Combo, Coffee Pro)
       - Full BOM lines mapped to materials + preferred suppliers
+
+    CAUTION: product_master is the shared catalog used by the real
+    Supplier/Inventory module (supplier_products.py, inventory_items.py),
+    not a seed-only table. Wiping it here deletes ANY product in that
+    catalog for this vendor, not just demo rows — only run this against
+    a fresh/demo vendor, never against a vendor with real product data.
 
     Returns counts so the UI can show a summary.
     """
@@ -133,9 +141,8 @@ def reset_and_seed(
                 "purchase_order",
                 # BOM + materials + inventory
                 "inventory",
-                "material_department",
                 "bom_item",
-                "material_catalog",
+                "product_master",
                 # Products + suppliers
                 "product_model",
                 "supplier",
@@ -204,22 +211,44 @@ def reset_and_seed(
 
     summary["created"]["suppliers"] = len(code_to_supplier)
 
-    # ---- 3. SEED materials + matching Inventory rows ----
+    # ---- 3. SEED materials (as ProductMaster rows) + matching Inventory rows ----
     name_to_material = {}
 
     name_to_supplier_id = {}
 
     inventory_created = 0
 
+    existing_codes = {
+        code for (code,) in db.query(ProductMaster.PRODUCT_CODE).filter(
+            ProductMaster.VENDOR_ID == vendor_id
+        ).all()
+    }
+
+    def _next_seed_code():
+        i = 1
+        while f"SEED-MAT-{i:03d}" in existing_codes:
+            i += 1
+        code = f"SEED-MAT-{i:03d}"
+        existing_codes.add(code)
+        return code
+
     for name, price, supplier_code, unit, hsn in MATERIALS:
 
-        mat = db.query(MaterialCatalog).filter(
-            MaterialCatalog.MATERIAL_NAME == name
+        mat = db.query(ProductMaster).filter(
+            ProductMaster.VENDOR_ID == vendor_id,
+            ProductMaster.PRODUCT_NAME == name
         ).first()
 
         if not mat:
 
-            mat = MaterialCatalog(MATERIAL_NAME=name)
+            mat = ProductMaster(
+                VENDOR_ID=vendor_id,
+                PRODUCT_CODE=_next_seed_code(),
+                PRODUCT_NAME=name,
+                UNIT=unit,
+                HSN_CODE=hsn,
+                STATUS="ACTIVE"
+            )
 
             db.add(mat)
 
@@ -237,14 +266,14 @@ def reset_and_seed(
         # so PO+GRN flow has a starting point (Inventory price is
         # used by Auto-from-Project for PO line unit prices).
         inv = db.query(Inventory).filter(
-            Inventory.MATERIAL_ID == mat.ID,
+            Inventory.PRODUCT_ID == mat.ID,
             Inventory.VENDOR_ID == vendor_id
         ).first()
 
         if not inv:
 
             db.add(Inventory(
-                MATERIAL_ID=mat.ID,
+                PRODUCT_ID=mat.ID,
                 MATERIAL_NAME=name,
                 QUANTITY=0,
                 UNIT_PRICE=float(price),
@@ -309,7 +338,7 @@ def reset_and_seed(
 
             db.add(BOMItem(
                 PRODUCT_MODEL_ID=prod.ID,
-                MATERIAL_ID=mat.ID,
+                PRODUCT_ID=mat.ID,
                 MATERIAL_NAME=mat_name,
                 QUANTITY=float(qty),
                 UNIT=unit,

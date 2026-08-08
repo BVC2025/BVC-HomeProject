@@ -1,6 +1,3 @@
-
-
-
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 
 
@@ -47,6 +44,7 @@ import EmployeeOnboardingReview from "./EmployeeOnboardingReview";
 import Customers from "./Customers";
 import Quotations from "./Quotations";
 import SalesOrders from "./SalesOrders";
+import InvoiceOrder from "./InvoiceOrder";
 import Inventory from "./Inventory";
 import Attendance from "./Attendance";
 import Machines from "./Machines";
@@ -74,6 +72,7 @@ import ApprovalCenter from "./ApprovalCenter";
 import Payroll from "./Payroll";
 import StarPerformance from "./StarPerformance";
 import Allowances from "./Allowances";
+import ChatBot from "../components/ChatBot";
 import EmployeeProfile from "./EmployeeProfile";
 import Recruitment from "./Recruitment";
 import PayslipGenerator from "./PayslipGenerator";
@@ -94,8 +93,18 @@ const OrgRoleManagement = lazy(() => import("./OrgRoleManagement"));
 const ProjectCategoryManagement = lazy(() => import("./ProjectCategoryManagement"));
 const ProjectPage = lazy(() => import("./ProjectPage"));
 const LeadManagementConfig = lazy(() => import("./LeadManagementConfig"));
+const WhatsAppConfigManagement = lazy(() => import("./WhatsAppConfigManagement"));
+const WhatsAppModuleSettingsManagement = lazy(() => import("./WhatsAppModuleSettingsManagement"));
 const LiveLeadViewer = lazy(() => import("./LiveLeadViewer"));
 const ManualLeadManagement = lazy(() => import("./ManualLeadManagement"));
+
+const AIModulesPage = lazy(() => import("./AIModulesPage"));
+const AIKnowledgeBasePage = lazy(() => import("./AIKnowledgeBasePage"));
+const AITrainingJobsPage = lazy(() => import("./AITrainingJobsPage"));
+const AIChatHistoryPage = lazy(() => import("./AIChatHistoryPage"));
+const AIPlaygroundPage = lazy(() => import("./AIPlaygroundPage"));
+const AISettingsPage = lazy(() => import("./AISettingsPage"));
+
 const PollingActivityLog = lazy(() => import("./PollingActivityLog"));
 const TaskTemplatePage = lazy(() => import("./TaskTemplatePage"));
 const ProjectQuotationManagement = lazy(() => import("./ProjectQuotationManagement"));
@@ -107,7 +116,6 @@ const InventoryItemsPage = lazy(() => import("./InventoryItemsPage"));
 const CompanyProfilePage = lazy(() => import("./CompanyProfilePage"));
 const EmailConfigManagement = lazy(() => import("./EmailConfigManagement"));
 const EmailTemplatePage = lazy(() => import("./EmailTemplatePage"));
-
 
 import styles from "./Dashboard.module.css";
 import {
@@ -1524,6 +1532,13 @@ function SidebarIcon({ name }) {
           <path d="M12 7v5l3 2" />
         </svg>
       );
+    case "whatsapp-config":
+      return (
+        <svg {...props}>
+          <path d="M20.5 3.5a10 10 0 0 0-16.9 10.6L3 21l7.1-1.9A10 10 0 1 0 20.5 3.5z" />
+          <path d="M8.5 8.8c.2-.6.6-.6 1-.6h.6c.2 0 .5 0 .7.5.3.6.9 2 1 2.1.1.2.1.4 0 .6-.2.3-.3.4-.5.6-.2.2-.4.4-.2.7.3.5 1 1.4 2.1 2.2 1.4 1 2 1.1 2.4.9.3-.2.5-.5.7-.8.2-.2.4-.3.6-.2l1.9.9c.2.1.4.2.4.4.1.7-.1 1.5-.6 2-.5.5-1.6 1-2.9.5-2.3-.8-4.5-2.5-6.1-4.8-1.3-1.8-1.9-3.4-2-4.1 0-.6.1-1.2.5-1.6z" />
+        </svg>
+      );
     case "sub-template":
       return (
         <svg {...props}>
@@ -1575,6 +1590,52 @@ function SidebarIcon({ name }) {
           <path d="M13 6v2M13 12v2M13 18v-2" />
         </svg>
       );
+
+    case "ai-modules":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
+        </svg>
+      );
+    case "ai-kb":
+      return (
+        <svg {...props}>
+          <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5v-16z" />
+          <path d="M4 5.5v16M9 8h7M9 12h7" />
+        </svg>
+      );
+    case "ai-jobs":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+          <path d="M8 3l2 2M16 3l-2 2" />
+        </svg>
+      );
+    case "ai-history":
+      return (
+        <svg {...props}>
+          <path d="M21 12a9 9 0 1 1-3-6.7" />
+          <path d="M21 4v5h-5" />
+          <path d="M12 8v4l3 2" />
+        </svg>
+      );
+    case "ai-playground":
+      return (
+        <svg {...props}>
+          <path d="M9 2v6L4 20a1 1 0 0 0 1 2h14a1 1 0 0 0 1-2L15 8V2" />
+          <path d="M9 2h6M8 15h8" />
+        </svg>
+      );
+    case "ai-settings":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.36a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.64 15a1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.64 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.64a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.64a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.36 9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z" />
+        </svg>
+      );
+
     default:
       return (
         <svg {...props}>
@@ -1592,7 +1653,7 @@ const NAV_TOP = [
 const NAV_GROUPS = [
   {
     key: "org",
-    label: "HRMS",
+    label: "Organization",
     items: [
 
       // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
@@ -1618,10 +1679,6 @@ const NAV_GROUPS = [
       // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
       { to: "/departments", icon: <SidebarIcon name="departments" />, label: "Department Management" },
       { to: "/org-roles", icon: <SidebarIcon name="org-roles" />, label: "Role Management" },
-
-
-
-
     ]
   },
   {
@@ -1644,6 +1701,18 @@ const NAV_GROUPS = [
       { to: "/lead-management/polling-activity", icon: <SidebarIcon name="polling-activity" />, label: "Polling Activity" }
     ]
   },
+  {
+    key: "ai-platform",
+    label: "AI Platform",
+    items: [
+      { to: "/ai-platform/modules", icon: <SidebarIcon name="ai-modules" />, label: "AI Modules" },
+      { to: "/ai-platform/knowledge-base", icon: <SidebarIcon name="ai-kb" />, label: "Knowledge Base" },
+      { to: "/ai-platform/training-jobs", icon: <SidebarIcon name="ai-jobs" />, label: "AI Training Jobs" },
+      { to: "/ai-platform/chat-history", icon: <SidebarIcon name="ai-history" />, label: "AI Chat History" },
+      { to: "/ai-platform/playground", icon: <SidebarIcon name="ai-playground" />, label: "AI Playground" },
+      { to: "/ai-platform/settings", icon: <SidebarIcon name="ai-settings" />, label: "AI Settings" }
+    ]
+  },
   // {
   //   key: "organization",
   //   label: "Org Structure",
@@ -1661,7 +1730,16 @@ const NAV_GROUPS = [
       { to: "/task-templates", icon: <SidebarIcon name="task-tmpl" />, label: "Task Templates" },
       { to: "/project-pricing", icon: <SidebarIcon name="proj-pricing" />, label: "Project Pricing" },
       { to: "/project-quotations", icon: <SidebarIcon name="proj-quotation" />, label: "Quotation Templates" },
-
+    ]
+  },
+  {
+    key: "manufacturing",
+    label: "Manufacturing",
+    items: [
+      { to: "/machines", icon: <SidebarIcon name="machines" />, label: "Machines" },
+      { to: "/work-centers", icon: <SidebarIcon name="workcenters" />, label: "Work Centers" },
+      { to: "/production", icon: <SidebarIcon name="production" />, label: "Production & BOM" },
+      { to: "/quality", icon: <SidebarIcon name="quality" />, label: "Quality Management" }
     ]
   },
   {
@@ -1669,9 +1747,6 @@ const NAV_GROUPS = [
     label: "Purchase & Inventory",
     items: [
 
-      { to: "/suppliers", icon: <SidebarIcon name="suppliers" />, label: "Suppliers" },
-      { to: "/purchase", icon: <SidebarIcon name="purchase" />, label: "BOM-Supplier Map" },
-      { to: "/purchase-orders", icon: <SidebarIcon name="purchaseorders" />, label: "Purchase Orders" },
       { to: "/inventory", icon: <SidebarIcon name="inventory" />, label: "Inventory" },
       { to: "/supplier-management", icon: <SidebarIcon name="suppliers" />, label: "Supplier Management" },
       { to: "/inventory-categories", icon: <SidebarIcon name="inventory" />, label: "Inv. Categories" },
@@ -1692,10 +1767,10 @@ const NAV_GROUPS = [
     label: "System",
     items: [
 
-      { to: "/company-settings", icon: <SidebarIcon name="company" />, label: "Company Settings" },
-
       { to: "/company-profile", icon: <SidebarIcon name="company" />, label: "Company Profile" },
       { to: "/email-config", icon: <SidebarIcon name="settings" />, label: "Email Config" },
+      { to: "/whatsapp-config", icon: <SidebarIcon name="whatsapp-config" />, label: "WhatsApp Configuration" },
+      { to: "/whatsapp-module-settings", icon: <SidebarIcon name="whatsapp-config" />, label: "WhatsApp Module Settings" },
       { to: "/email-templates", icon: <SidebarIcon name="mail" />, label: "Email Templates" },
 
       { to: "/holidays", icon: <SidebarIcon name="holidays" />, label: "Holiday Calendar" },
@@ -2112,7 +2187,6 @@ function Dashboard() {
             path="/settings"
             element={<Settings />}
           />
-
           {/* Organization & Project Management module */}
           <Route path="/departments" element={<Suspense fallback={null}><DepartmentManagement /></Suspense>} />
           <Route path="/org-roles" element={<Suspense fallback={null}><OrgRoleManagement /></Suspense>} />
@@ -2123,8 +2197,18 @@ function Dashboard() {
 
           {/* Lead Management module (multi-source lead pipeline) */}
           <Route path="/lead-management/configuration" element={<Suspense fallback={null}><LeadManagementConfig /></Suspense>} />
+          <Route path="/whatsapp-config" element={<Suspense fallback={null}><WhatsAppConfigManagement /></Suspense>} />
+          <Route path="/whatsapp-module-settings" element={<Suspense fallback={null}><WhatsAppModuleSettingsManagement /></Suspense>} />
           <Route path="/lead-management/live-leads" element={<Suspense fallback={null}><LiveLeadViewer /></Suspense>} />
           <Route path="/lead-management/leads" element={<Suspense fallback={null}><ManualLeadManagement /></Suspense>} />
+
+          <Route path="/ai-platform/modules" element={<Suspense fallback={null}><AIModulesPage /></Suspense>} />
+          <Route path="/ai-platform/knowledge-base" element={<Suspense fallback={null}><AIKnowledgeBasePage /></Suspense>} />
+          <Route path="/ai-platform/training-jobs" element={<Suspense fallback={null}><AITrainingJobsPage /></Suspense>} />
+          <Route path="/ai-platform/chat-history" element={<Suspense fallback={null}><AIChatHistoryPage /></Suspense>} />
+          <Route path="/ai-platform/playground" element={<Suspense fallback={null}><AIPlaygroundPage /></Suspense>} />
+          <Route path="/ai-platform/settings" element={<Suspense fallback={null}><AISettingsPage /></Suspense>} />
+
           <Route path="/lead-management/polling-activity" element={<Suspense fallback={null}><PollingActivityLog /></Suspense>} />
 
           {/* Company Profile */}

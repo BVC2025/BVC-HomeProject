@@ -10,6 +10,7 @@ class DepartmentCreate(BaseModel):
     NAME: str
     DEPARTMENT_CODE: str
     DESCRIPTION: Optional[str] = None
+    HEAD_EMPLOYEE_ID: Optional[str] = None
     VENDOR_ID: int = 1
 
 
@@ -17,6 +18,7 @@ class DepartmentUpdate(BaseModel):
     NAME: Optional[str] = None
     DEPARTMENT_CODE: Optional[str] = None
     DESCRIPTION: Optional[str] = None
+    HEAD_EMPLOYEE_ID: Optional[str] = None
 
 
 # =========================
@@ -43,7 +45,7 @@ class DesignationUpdate(BaseModel):
 # =========================
 
 class RoleCreate(BaseModel):
-    NAME: str
+    ROLE_NAME: str
     DESCRIPTION: Optional[str] = None
     VENDOR_ID: int = 1
 
