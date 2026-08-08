@@ -24,7 +24,7 @@ import PayslipPreview from "../components/PayslipPreview";
 import styles from "./PayslipGenerator.module.css";
 
 
-const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8001";
+const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8000";
 
 
 const MONTHS = [
@@ -42,17 +42,17 @@ const MONTHS = [
 // ------------------------------------------------------------------
 const icon = (children, size = 16) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-       stroke="currentColor" strokeWidth="2"
-       strokeLinecap="round" strokeLinejoin="round"
-       aria-hidden="true">{children}</svg>
+    stroke="currentColor" strokeWidth="2"
+    strokeLinecap="round" strokeLinejoin="round"
+    aria-hidden="true">{children}</svg>
 );
 
 const I = {
-  send:     icon(<><path d="M22 2 11 13" /><path d="M22 2 15 22l-4-9-9-4z" /></>),
-  reset:    icon(<><path d="M3 12a9 9 0 0 1 15-6.7L21 8" /><path d="M21 3v5h-5" /></>),
-  view:     icon(<><path d="M2 12s4-8 10-8 10 8 10 8-4 8-10 8-10-8-10-8z" /><circle cx="12" cy="12" r="3" /></>),
+  send: icon(<><path d="M22 2 11 13" /><path d="M22 2 15 22l-4-9-9-4z" /></>),
+  reset: icon(<><path d="M3 12a9 9 0 0 1 15-6.7L21 8" /><path d="M21 3v5h-5" /></>),
+  view: icon(<><path d="M2 12s4-8 10-8 10 8 10 8-4 8-10 8-10-8-10-8z" /><circle cx="12" cy="12" r="3" /></>),
   download: icon(<><path d="M12 3v13" /><path d="M7 12l5 5 5-5" /><path d="M5 21h14" /></>),
-  check:    icon(<>
+  check: icon(<>
     <path d="M22 11.1V12a10 10 0 1 1-5.9-9.1" />
     <path d="M22 4 12 14.01l-3-3" />
   </>, 22),
@@ -88,14 +88,14 @@ function rupeesToWords(num) {
     return ones[Math.floor(x / 100)] + " Hundred" + (x % 100 ? " " + chunk(x % 100) : "");
   };
   const crore = Math.floor(n / 10000000);
-  const lakh  = Math.floor((n % 10000000) / 100000);
-  const thou  = Math.floor((n % 100000) / 1000);
-  const hund  = n % 1000;
+  const lakh = Math.floor((n % 10000000) / 100000);
+  const thou = Math.floor((n % 100000) / 1000);
+  const hund = n % 1000;
   const parts = [];
   if (crore) parts.push(chunk(crore) + " Crore");
-  if (lakh)  parts.push(chunk(lakh)  + " Lakh");
-  if (thou)  parts.push(chunk(thou)  + " Thousand");
-  if (hund)  parts.push(chunk(hund));
+  if (lakh) parts.push(chunk(lakh) + " Lakh");
+  if (thou) parts.push(chunk(thou) + " Thousand");
+  if (hund) parts.push(chunk(hund));
   return "Indian Rupee " + parts.join(" ") + " Only";
 }
 
@@ -149,15 +149,15 @@ const BLANK_WORKING = {
 // to 0) so the backend payload shape stays complete — they just aren't
 // surfaced in the form.
 const EARNING_ROWS = [
-  { key: "BASIC",              label: "Basic Salary" },
-  { key: "MEDICAL_ALLOWANCE",  label: "Medical Allowance" },
-  { key: "BONUS",              label: "Bonus" },
-  { key: "INCENTIVES",         label: "Incentive" },
+  { key: "BASIC", label: "Basic Salary" },
+  { key: "MEDICAL_ALLOWANCE", label: "Medical Allowance" },
+  { key: "BONUS", label: "Bonus" },
+  { key: "INCENTIVES", label: "Incentive" },
 ];
 const DEDUCTION_ROWS = [
-  { key: "PF_EMPLOYEE",       label: "PF" },
-  { key: "ESI_EMPLOYEE",      label: "ESI" },
-  { key: "LATE_PENALTY",      label: "Late Penalty" },
+  { key: "PF_EMPLOYEE", label: "PF" },
+  { key: "ESI_EMPLOYEE", label: "ESI" },
+  { key: "LATE_PENALTY", label: "Late Penalty" },
   // Auto-computed from unpaid absent days × (Basic Salary / Working
   // Days). HR can override the number by typing over it — the backend
   // then uses the entered value verbatim instead of the computed one.
@@ -178,14 +178,14 @@ export default function PayslipGenerator() {
   // already targeted at the intended employee + period.
   const [searchParams] = useSearchParams();
   const qEmpId = searchParams.get("employee_id") || "";
-  const qYear  = Number(searchParams.get("year"))  || today.getFullYear();
+  const qYear = Number(searchParams.get("year")) || today.getFullYear();
   const qMonth = Number(searchParams.get("month")) || (today.getMonth() + 1);
 
   // ---- pickers ----
   const [employees, setEmployees] = useState([]);
-  const [empId, setEmpId]   = useState(qEmpId);
-  const [year,  setYear]    = useState(qYear);
-  const [month, setMonth]   = useState(qMonth);
+  const [empId, setEmpId] = useState(qEmpId);
+  const [year, setYear] = useState(qYear);
+  const [month, setMonth] = useState(qMonth);
 
   // ---- company (BVC branding, read-only) ----
   const [company, setCompany] = useState(null);
@@ -224,10 +224,10 @@ export default function PayslipGenerator() {
   const [clManualOverride, setClManualOverride] = useState(false);
 
   // ---- flow state ----
-  const [result, setResult]   = useState(null);
-  const [error,  setError]    = useState("");
-  const [busy,   setBusy]     = useState(false);
-  const [isEdit, setIsEdit]   = useState(false); // true when a slip already exists → button says "Update"
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [isEdit, setIsEdit] = useState(false); // true when a slip already exists → button says "Update"
   const [existingSlipId, setExistingSlipId] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
 
@@ -237,8 +237,8 @@ export default function PayslipGenerator() {
   // until the admin clicks the Submit button that shows next to
   // Update Payslip.
   const [submittedAt, setSubmittedAt] = useState(null);
-  const [submitBusy,  setSubmitBusy ] = useState(false);
-  const [submitDone,  setSubmitDone ] = useState(false); // green pill flash after success
+  const [submitBusy, setSubmitBusy] = useState(false);
+  const [submitDone, setSubmitDone] = useState(false); // green pill flash after success
 
   // ---- logo upload ----
   // The visible logo tile is a <label> that wraps a hidden <input type="file">
@@ -247,7 +247,7 @@ export default function PayslipGenerator() {
   // file re-fires onChange.
   const logoInputRef = useRef(null);
   const [logoBusy, setLogoBusy] = useState(false);
-  const [logoErr,  setLogoErr]  = useState("");
+  const [logoErr, setLogoErr] = useState("");
 
   const onLogoFileChosen = async (e) => {
     const file = e.target.files?.[0];
@@ -303,7 +303,7 @@ export default function PayslipGenerator() {
       if (typeof d?.detail === "string") msg = d.detail;
       else if (Array.isArray(d?.detail)) msg = d.detail.map((x) => x?.msg || String(x)).join(" · ");
       else if (err?.response?.status) msg = `Logo upload failed (HTTP ${err.response.status}).`;
-      else if (err?.message)         msg = `Logo upload failed: ${err.message}`;
+      else if (err?.message) msg = `Logo upload failed: ${err.message}`;
       setLogoErr(msg);
       // Also log so DevTools console has the full stack for deeper debugging.
       console.error("Logo upload error:", err);
@@ -317,11 +317,11 @@ export default function PayslipGenerator() {
   // ---- initial loads ----
   useEffect(() => {
     API.get("/employees?status=ACTIVE")
-       .then((r) => setEmployees(r.data || []))
-       .catch(() => setEmployees([]));
+      .then((r) => setEmployees(r.data || []))
+      .catch(() => setEmployees([]));
     API.get("/settings/company")
-       .then((r) => setCompany(r.data || null))
-       .catch(() => setCompany(null));
+      .then((r) => setCompany(r.data || null))
+      .catch(() => setCompany(null));
   }, []);
 
   const selected = useMemo(
@@ -369,88 +369,88 @@ export default function PayslipGenerator() {
     let cancelled = false;
 
     API.get(`/payroll/slip-by-period?employee_id=${encodeURIComponent(empId)}&year=${year}&month=${month}`)
-       .then((r) => {
-         if (cancelled) return;
-         const data = r.data || {};
-         if (data.exists) {
-           // Load existing slip verbatim → edit mode.
-           setIsEdit(true);
-           setExistingSlipId(data.slip_id);
-           setWorking({
-             WORKING_DAYS:      data.WORKING_DAYS      ?? 26,
-             DAYS_PRESENT:      data.DAYS_PRESENT      ?? 0,
-             DAYS_LATE:         data.DAYS_LATE         ?? 0,
-             PAID_LEAVE_DAYS:   data.PAID_LEAVE_DAYS   ?? 0,
-             UNPAID_LEAVE_DAYS: data.UNPAID_LEAVE_DAYS ?? 0,
-             ABSENT_DAYS:       data.ABSENT_DAYS       ?? 0,
-             OT_HOURS:          data.OT_HOURS          ?? 0,
-           });
-           setEarnings({
-             BASIC:              data.BASIC              ?? 0,
-             HRA:                data.HRA                ?? 0,
-             DA:                 data.DA                 ?? 0,
-             CONVEYANCE:         data.CONVEYANCE         ?? 0,
-             MEDICAL_ALLOWANCE:  data.MEDICAL_ALLOWANCE  ?? 0,
-             SPECIAL_ALLOWANCE:  data.SPECIAL_ALLOWANCE  ?? 0,
-             OTHER_ALLOWANCES:   data.OTHER_ALLOWANCES   ?? 0,
-             BONUS:              data.BONUS              ?? 0,
-             INCENTIVES:         data.INCENTIVES         ?? 0,
-             TASK_BONUS:         data.TASK_BONUS         ?? 0,
-             OT_PAY:             data.OT_PAY             ?? 0,
-           });
-           setDeductions({
-             PF_EMPLOYEE:       data.PF_EMPLOYEE       ?? 0,
-             ESI_EMPLOYEE:      data.ESI_EMPLOYEE      ?? 0,
-             PROFESSIONAL_TAX:  data.PROFESSIONAL_TAX  ?? 0,
-             LATE_PENALTY:      data.LATE_PENALTY      ?? 0,
-             ABSENCE_DEDUCTION: data.ABSENCE_DEDUCTION ?? 0,
-             OTHER_DEDUCTIONS:  data.OTHER_DEDUCTIONS  ?? 0,
-           });
-           // Pay Date from the stored slip. Backend ships ISO
-           // YYYY-MM-DD so the HTML5 <input type="date"> can consume
-           // it directly without any parsing.
-           if (data.PAY_DATE) setPayDate(data.PAY_DATE);
-           // Publish state — hides the Submit button if the slip
-           // was already pushed to Payroll Records earlier.
-           setSubmittedAt(data.SUBMITTED_AT || null);
-           // Load overrides selectively. A zero-value loaded field
-           // usually means "old slip that pre-dates the auto-rule" —
-           // we want the auto-effect to fire and fill it in. Non-zero
-           // values that differ from what auto would produce are
-           // treated as HR overrides and locked to preserve them.
-           //
-           // Working Days: lock only if the stored value differs from
-           // the calendar-derived working days for this month/year.
-           const autoWD = workingDaysInMonth(year, month);
-           setWorkingDaysManualOverride(
-             (data.WORKING_DAYS ?? autoWD) !== autoWD
-           );
+      .then((r) => {
+        if (cancelled) return;
+        const data = r.data || {};
+        if (data.exists) {
+          // Load existing slip verbatim → edit mode.
+          setIsEdit(true);
+          setExistingSlipId(data.slip_id);
+          setWorking({
+            WORKING_DAYS: data.WORKING_DAYS ?? 26,
+            DAYS_PRESENT: data.DAYS_PRESENT ?? 0,
+            DAYS_LATE: data.DAYS_LATE ?? 0,
+            PAID_LEAVE_DAYS: data.PAID_LEAVE_DAYS ?? 0,
+            UNPAID_LEAVE_DAYS: data.UNPAID_LEAVE_DAYS ?? 0,
+            ABSENT_DAYS: data.ABSENT_DAYS ?? 0,
+            OT_HOURS: data.OT_HOURS ?? 0,
+          });
+          setEarnings({
+            BASIC: data.BASIC ?? 0,
+            HRA: data.HRA ?? 0,
+            DA: data.DA ?? 0,
+            CONVEYANCE: data.CONVEYANCE ?? 0,
+            MEDICAL_ALLOWANCE: data.MEDICAL_ALLOWANCE ?? 0,
+            SPECIAL_ALLOWANCE: data.SPECIAL_ALLOWANCE ?? 0,
+            OTHER_ALLOWANCES: data.OTHER_ALLOWANCES ?? 0,
+            BONUS: data.BONUS ?? 0,
+            INCENTIVES: data.INCENTIVES ?? 0,
+            TASK_BONUS: data.TASK_BONUS ?? 0,
+            OT_PAY: data.OT_PAY ?? 0,
+          });
+          setDeductions({
+            PF_EMPLOYEE: data.PF_EMPLOYEE ?? 0,
+            ESI_EMPLOYEE: data.ESI_EMPLOYEE ?? 0,
+            PROFESSIONAL_TAX: data.PROFESSIONAL_TAX ?? 0,
+            LATE_PENALTY: data.LATE_PENALTY ?? 0,
+            ABSENCE_DEDUCTION: data.ABSENCE_DEDUCTION ?? 0,
+            OTHER_DEDUCTIONS: data.OTHER_DEDUCTIONS ?? 0,
+          });
+          // Pay Date from the stored slip. Backend ships ISO
+          // YYYY-MM-DD so the HTML5 <input type="date"> can consume
+          // it directly without any parsing.
+          if (data.PAY_DATE) setPayDate(data.PAY_DATE);
+          // Publish state — hides the Submit button if the slip
+          // was already pushed to Payroll Records earlier.
+          setSubmittedAt(data.SUBMITTED_AT || null);
+          // Load overrides selectively. A zero-value loaded field
+          // usually means "old slip that pre-dates the auto-rule" —
+          // we want the auto-effect to fire and fill it in. Non-zero
+          // values that differ from what auto would produce are
+          // treated as HR overrides and locked to preserve them.
+          //
+          // Working Days: lock only if the stored value differs from
+          // the calendar-derived working days for this month/year.
+          const autoWD = workingDaysInMonth(year, month);
+          setWorkingDaysManualOverride(
+            (data.WORKING_DAYS ?? autoWD) !== autoWD
+          );
 
-           // Casual Leave: auto is min(1, Absent). Lock only if HR
-           // stored MORE CL than the auto rule provides (e.g. 2 CL
-           // for a real 2-day sick leave). Loaded CL=0 with Absent>0
-           // is the "old slip" case — leave unlocked so auto fires.
-           const loadedAbsent = data.ABSENT_DAYS      ?? 0;
-           const loadedCL     = data.PAID_LEAVE_DAYS  ?? 0;
-           const autoCL       = loadedAbsent >= 1 ? 1 : 0;
-           setClManualOverride(loadedCL > autoCL);
+          // Casual Leave: auto is min(1, Absent). Lock only if HR
+          // stored MORE CL than the auto rule provides (e.g. 2 CL
+          // for a real 2-day sick leave). Loaded CL=0 with Absent>0
+          // is the "old slip" case — leave unlocked so auto fires.
+          const loadedAbsent = data.ABSENT_DAYS ?? 0;
+          const loadedCL = data.PAID_LEAVE_DAYS ?? 0;
+          const autoCL = loadedAbsent >= 1 ? 1 : 0;
+          setClManualOverride(loadedCL > autoCL);
 
-           // Absence Deduction: do NOT lock on load. Old slips saved
-           // before this rule was in place have stale (or zero)
-           // deduction values that don't reflect the current CL/Absent
-           // split. Leaving the override off means the auto-recompute
-           // effect fires immediately after load and produces the
-           // correct value for the loaded earnings + attendance. HR
-           // can still override any time by typing into the Absence
-           // Deduction row — that flips the lock back on.
-           setAbsenceDedManualOverride(false);
-         }
-         // No `else` branch — the synchronous reset at the top of the
-         // effect already zeroed everything, so a "no existing slip"
-         // response leaves the form blank. Same story for a network
-         // error below.
-       })
-       .catch(() => { /* form stays in its just-reset blank state */ });
+          // Absence Deduction: do NOT lock on load. Old slips saved
+          // before this rule was in place have stale (or zero)
+          // deduction values that don't reflect the current CL/Absent
+          // split. Leaving the override off means the auto-recompute
+          // effect fires immediately after load and produces the
+          // correct value for the loaded earnings + attendance. HR
+          // can still override any time by typing into the Absence
+          // Deduction row — that flips the lock back on.
+          setAbsenceDedManualOverride(false);
+        }
+        // No `else` branch — the synchronous reset at the top of the
+        // effect already zeroed everything, so a "no existing slip"
+        // response leaves the form blank. Same story for a network
+        // error below.
+      })
+      .catch(() => { /* form stays in its just-reset blank state */ });
 
     return () => { cancelled = true; };
   }, [empId, year, month, selected]);
@@ -523,7 +523,7 @@ export default function PayslipGenerator() {
   //   LOP          is folded into Absent Days (single "unpaid" bucket)
   // These derived values get shipped to the backend so its calc engine
   // sees the same numbers HR would expect from the visible form.
-  const totalDays    = Math.max(0, Number(working.WORKING_DAYS || 0) - Number(working.ABSENT_DAYS || 0));
+  const totalDays = Math.max(0, Number(working.WORKING_DAYS || 0) - Number(working.ABSENT_DAYS || 0));
   const derivedPresent = Math.max(0, totalDays - Number(working.PAID_LEAVE_DAYS || 0));
 
   // ---- submit ----
@@ -537,17 +537,17 @@ export default function PayslipGenerator() {
       // a paid CL, the value shipped as ABSENT_DAYS is the *unpaid*
       // remainder (raw Absent − CL). That keeps the backend's own
       // absence-deduction calc consistent with what the form previews.
-      const rawAbsent = Number(working.ABSENT_DAYS      || 0);
-      const rawCL     = Number(working.PAID_LEAVE_DAYS  || 0);
+      const rawAbsent = Number(working.ABSENT_DAYS || 0);
+      const rawCL = Number(working.PAID_LEAVE_DAYS || 0);
       const unpaidAbsent = Math.max(0, rawAbsent - rawCL);
       const attendancePayload = {
-        WORKING_DAYS:      Number(working.WORKING_DAYS      || 0),
-        DAYS_PRESENT:      Math.max(0, Number(working.WORKING_DAYS || 0) - rawAbsent),
-        DAYS_LATE:         Number(working.DAYS_LATE         || 0),
-        PAID_LEAVE_DAYS:   rawCL,
+        WORKING_DAYS: Number(working.WORKING_DAYS || 0),
+        DAYS_PRESENT: Math.max(0, Number(working.WORKING_DAYS || 0) - rawAbsent),
+        DAYS_LATE: Number(working.DAYS_LATE || 0),
+        PAID_LEAVE_DAYS: rawCL,
         UNPAID_LEAVE_DAYS: 0,
-        ABSENT_DAYS:       unpaidAbsent,
-        OT_HOURS:          Number(working.OT_HOURS          || 0),
+        ABSENT_DAYS: unpaidAbsent,
+        OT_HOURS: Number(working.OT_HOURS || 0),
       };
       const payload = {
         EMPLOYEE_ID: empId,
@@ -652,8 +652,8 @@ export default function PayslipGenerator() {
               {company?.LOGO_URL ? (
                 <img
                   src={company.LOGO_URL.startsWith("http")
-                        ? company.LOGO_URL
-                        : `${BACKEND_URL}${company.LOGO_URL}`}
+                    ? company.LOGO_URL
+                    : `${BACKEND_URL}${company.LOGO_URL}`}
                   alt=""
                 />
               ) : (
@@ -903,8 +903,8 @@ export default function PayslipGenerator() {
                 value={Math.max(
                   0,
                   Number(working.WORKING_DAYS || 0)
-                    - Number(working.ABSENT_DAYS || 0)
-                    + Number(working.PAID_LEAVE_DAYS || 0)
+                  - Number(working.ABSENT_DAYS || 0)
+                  + Number(working.PAID_LEAVE_DAYS || 0)
                 )}
                 title="Working Days − Absent Days + Casual Leave (CL is paid)"
               />
@@ -1032,7 +1032,7 @@ export default function PayslipGenerator() {
 
         {/* --- Alerts --- */}
         {logoErr && <div className={styles.errorAlert}>{logoErr}</div>}
-        {error   && <div className={styles.errorAlert}>{error}</div>}
+        {error && <div className={styles.errorAlert}>{error}</div>}
 
 
         {/* --- Success (after generate/update) --- */}

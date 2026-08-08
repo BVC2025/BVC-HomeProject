@@ -22,7 +22,7 @@ const BVC_RED = "#C8102E";
 const BVC_DARK = "#8B0B1F";
 const BVC_GOLD = "#F4B324";
 
-const BACKEND_URL = API.defaults.baseURL || "http://192.168.1.10:8001";
+const BACKEND_URL = API.defaults.baseURL || "http://192.168.1.10:8000";
 
 
 const STATUS_THEME = {

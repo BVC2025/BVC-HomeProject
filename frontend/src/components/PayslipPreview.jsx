@@ -37,7 +37,7 @@ import styles from "./PayslipPreview.module.css";
 
 
 // Backend base for opening the PDF in a new tab
-const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8001";
+const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8000";
 
 
 // ------------------------------------------------------------------
@@ -45,15 +45,15 @@ const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8001";
 // ------------------------------------------------------------------
 const icon = (children, size = 16) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-       stroke="currentColor" strokeWidth="2"
-       strokeLinecap="round" strokeLinejoin="round"
-       aria-hidden="true">{children}</svg>
+    stroke="currentColor" strokeWidth="2"
+    strokeLinecap="round" strokeLinejoin="round"
+    aria-hidden="true">{children}</svg>
 );
 
 const I = {
-  back:     icon(<><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></>),
+  back: icon(<><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></>),
   download: icon(<><path d="M12 3v13" /><path d="M7 12l5 5 5-5" /><path d="M5 21h14" /></>),
-  close:    icon(<path d="M18 6L6 18M6 6l12 12" />, 18),
+  close: icon(<path d="M18 6L6 18M6 6l12 12" />, 18),
 };
 
 
@@ -76,10 +76,10 @@ function inr(n) {
 
 export default function PayslipPreview({ slipId, onClose, onDownload }) {
 
-  const [data, setData]     = useState(null);
-  const [loading, setLoad]  = useState(true);
-  const [error, setError]   = useState("");
-  const [busy, setBusy]     = useState(false);
+  const [data, setData] = useState(null);
+  const [loading, setLoad] = useState(true);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   // ---- Fetch full detail ----
   useEffect(() => {
@@ -134,10 +134,10 @@ export default function PayslipPreview({ slipId, onClose, onDownload }) {
     // Inline fallback — fetches the PDF blob and forces a save.
     setBusy(true);
     try {
-      const res  = await API.get(`/my-payslips/${data.ID}/pdf`, { responseType: "blob" });
+      const res = await API.get(`/my-payslips/${data.ID}/pdf`, { responseType: "blob" });
       const blob = new Blob([res.data], { type: "application/pdf" });
-      const url  = window.URL.createObjectURL(blob);
-      const a    = document.createElement("a");
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
       a.href = url;
       a.download = `Payslip-${data.PAYSLIP_NUMBER || data.ID}.pdf`;
       document.body.appendChild(a);
@@ -233,7 +233,7 @@ export default function PayslipPreview({ slipId, onClose, onDownload }) {
                 <div className={styles.empBox}>
                   <div className={styles.empHead}>Employee Summary</div>
                   <SumRow label="Employee Name" value={data.EMPLOYEE?.NAME || "—"} />
-                  <SumRow label="Employee ID"   value={data.EMPLOYEE?.CODE || "—"} />
+                  <SumRow label="Employee ID" value={data.EMPLOYEE?.CODE || "—"} />
                   {data.EMPLOYEE?.DESIGNATION && (
                     <SumRow label="Designation" value={data.EMPLOYEE.DESIGNATION} />
                   )}
@@ -241,7 +241,7 @@ export default function PayslipPreview({ slipId, onClose, onDownload }) {
                     <SumRow label="Department" value={data.EMPLOYEE.DEPARTMENT} />
                   )}
                   <SumRow label="Pay Period" value={data.PAY_PERIOD_LABEL} />
-                  <SumRow label="Pay Date"   value={data.PAY_DATE} />
+                  <SumRow label="Pay Date" value={data.PAY_DATE} />
                 </div>
 
                 <div className={styles.netBox}>

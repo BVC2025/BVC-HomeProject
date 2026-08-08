@@ -2,7 +2,7 @@
 
 > **Architecture choice:** Cloudflare Tunnel (no local Caddy / Nginx).
 > Cloudflare's edge handles HTTPS termination; the local services
-> (FastAPI on `:8001`, Vite preview on `:4173`) stay plain HTTP and
+> (FastAPI on `:8000`, Vite preview on `:4173`) stay plain HTTP and
 > are reached over an authenticated outbound tunnel from `cloudflared`
 > on this office PC.
 >
@@ -33,7 +33,7 @@ Public internet
   ┌────────────────────────────────────────────────────────┐
   │  Office PC — runs three Windows services 24/7         │
   │                                                       │
-  │  • BVC24-Backend       uvicorn  127.0.0.1:8001        │
+  │  • BVC24-Backend       uvicorn  127.0.0.1:8000        │
   │  • BVC24-Frontend      node     127.0.0.1:4173        │
   │  • BVC24-Cloudflared   tunnel   ── connects them out  │
   │                                                       │
@@ -55,7 +55,7 @@ Before starting, confirm you have:
 |---|---|---|
 | Admin access to **bvc24.com** in Cloudflare DNS | Adding CNAME records for the two subdomains | dash.cloudflare.com → bvc24.com is listed |
 | Office PC reaches the internet | Tunnel is outbound only, but it does need to reach Cloudflare | `Test-NetConnection api.cloudflare.com -Port 443` |
-| Python venv at `backend/venv` is set up and the backend boots locally | `uvicorn` will run from this venv | `.\venv\Scripts\python.exe -m uvicorn app.main:app --port 8001` then visit `http://192.168.1.10:8001/docs` |
+| Python venv at `backend/venv` is set up and the backend boots locally | `uvicorn` will run from this venv | `.\venv\Scripts\python.exe -m uvicorn app.main:app --port 8000` then visit `http://192.168.1.10:8000/docs` |
 | `node` and `npm` on PATH, Node 18+ | Required for `npm run build` and `vite preview` | `node --version` |
 | Latest code pulled from main | Frontend `api.js` must contain the `erp.bvc24.com` mapping | `git status` should be clean |
 
@@ -199,7 +199,7 @@ cd "D:\PUVI-DOC\Vendor-based Manufacturing ERP"
 What this does (in order):
 
 1. **Build the frontend** — `npm install` then `npm run build` → `frontend/dist/`
-2. **Install `BVC24-Backend`** — uvicorn on `127.0.0.1:8001`, auto-restart on crash
+2. **Install `BVC24-Backend`** — uvicorn on `127.0.0.1:8000`, auto-restart on crash
 3. **Install `BVC24-Frontend`** — `vite preview` serving `dist/` on `127.0.0.1:4173`
 4. **Install `BVC24-Cloudflared`** — tunnel runner, reads `~/.cloudflared/config.yml`
 
@@ -209,7 +209,7 @@ duplicating).
 
 Verify locally:
 ```powershell
-curl http://127.0.0.1:8001/chat/health     # backend
+curl http://127.0.0.1:8000/chat/health     # backend
 curl http://127.0.0.1:4173                  # frontend HTML
 Get-Service BVC24-*                         # all three Running
 ```
@@ -287,7 +287,7 @@ Restart order matters if you stop and start manually:
 
 ## 10. Future improvements (out of scope for Phase 1)
 
-- **Staging tunnel** — create `bvc24-erp-staging` pointing at `staging.bvc24.com:4173` and `api-staging.bvc24.com:8001`. Run from a separate code checkout to test releases before promoting.
+- **Staging tunnel** — create `bvc24-erp-staging` pointing at `staging.bvc24.com:4173` and `api-staging.bvc24.com:8000`. Run from a separate code checkout to test releases before promoting.
 - **Cloudflare Access** — gate `/admin/*` endpoints behind a one-time-PIN-by-email so a stolen JWT can't bypass perimeter auth. Free for up to 50 users.
 - **Geo-restriction** — Cloudflare Page Rules can block traffic from outside India in 5 minutes if you ever decide to.
 

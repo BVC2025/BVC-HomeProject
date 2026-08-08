@@ -35,33 +35,33 @@ import styles from "./MyPayslipsPanel.module.css";
 // ------------------------------------------------------------------
 const icon = (children, size = 18) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-       stroke="currentColor" strokeWidth="1.9"
-       strokeLinecap="round" strokeLinejoin="round"
-       aria-hidden="true">{children}</svg>
+    stroke="currentColor" strokeWidth="1.9"
+    strokeLinecap="round" strokeLinejoin="round"
+    aria-hidden="true">{children}</svg>
 );
 
 const I = {
-  wallet:   icon(<>
+  wallet: icon(<>
     <path d="M20 6H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2z" />
     <path d="M2 10h20" />
     <circle cx="16" cy="15" r="1.5" fill="currentColor" />
   </>),
-  slips:    icon(<>
+  slips: icon(<>
     <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
     <path d="M14 3v6h6" />
     <path d="M8 13h8M8 17h5" />
   </>),
   calendar: icon(<><rect x="3" y="4" width="18" height="17" rx="3" /><path d="M3 9h18M8 2v4M16 2v4" /></>),
-  rupee:    icon(<>
+  rupee: icon(<>
     <path d="M6 4h12" />
     <path d="M6 8h12" />
     <path d="M6 13h4a4 4 0 0 0 0-8H6" />
     <path d="M6 13l8 8" />
   </>),
-  view:     icon(<><path d="M2 12s4-8 10-8 10 8 10 8-4 8-10 8-10-8-10-8z" /><circle cx="12" cy="12" r="3" /></>, 15),
+  view: icon(<><path d="M2 12s4-8 10-8 10 8 10 8-4 8-10 8-10-8-10-8z" /><circle cx="12" cy="12" r="3" /></>, 15),
   download: icon(<><path d="M12 3v13" /><path d="M7 12l5 5 5-5" /><path d="M5 21h14" /></>, 15),
-  print:    icon(<><rect x="6" y="14" width="12" height="8" rx="1" /><path d="M6 14V4h9l3 3v7" /><path d="M6 14H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1" /><path d="M18 14h2a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-1" /></>, 15),
-  empty:    icon(<>
+  print: icon(<><rect x="6" y="14" width="12" height="8" rx="1" /><path d="M6 14V4h9l3 3v7" /><path d="M6 14H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1" /><path d="M18 14h2a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-1" /></>, 15),
+  empty: icon(<>
     <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
     <path d="M14 3v6h6" />
   </>, 32),
@@ -90,14 +90,14 @@ function inrShort(n) {
 
 
 // Backend URL for opening PDFs in a new tab
-const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8001";
+const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8000";
 
 
 // Status → chip class (matches the rest of the redesigned pages)
 const STATUS_META = {
-  DRAFT:     { label: "Draft",     cls: "chip_warn"    },
-  FINALIZED: { label: "Finalized", cls: "chip_info"    },
-  PAID:      { label: "Paid",      cls: "chip_success" },
+  DRAFT: { label: "Draft", cls: "chip_warn" },
+  FINALIZED: { label: "Finalized", cls: "chip_info" },
+  PAID: { label: "Paid", cls: "chip_success" },
 };
 
 
@@ -107,16 +107,16 @@ const STATUS_META = {
 
 export default function MyPayslipsPanel({ employeeId }) {
 
-  const [rows, setRows]       = useState([]);
+  const [rows, setRows] = useState([]);
   const [summary, setSummary] = useState(null);
   const [statutory, setStatutory] = useState(null);  // CTC + YTD PF/ESI/Tax/Bonus
   const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState("");
+  const [error, setError] = useState("");
   // monthKey format: "YYYY-MM" (e.g. "2026-06"); "" means show every payslip.
   const [monthKey, setMonthKey] = useState("");
   const [monthOpen, setMonthOpen] = useState(false);
   const monthRef = useRef(null);
-  const [busyId, setBusyId]   = useState(null);
+  const [busyId, setBusyId] = useState(null);
   const [previewId, setPreviewId] = useState(null);  // slip currently being previewed
 
   // ---- Load ----
@@ -134,7 +134,7 @@ export default function MyPayslipsPanel({ employeeId }) {
           // Statutory summary — soft-fail so an older backend still
           // renders the rest of the page.
           API.get(`/my-payslips/statutory-summary?employee_id=${encodeURIComponent(employeeId)}`)
-             .catch(() => ({ data: null })),
+            .catch(() => ({ data: null })),
         ]);
         if (cancelled) return;
         setRows(list.data || []);
@@ -239,8 +239,8 @@ export default function MyPayslipsPanel({ employeeId }) {
         responseType: "blob",
       });
       const blob = new Blob([res.data], { type: "application/pdf" });
-      const url  = window.URL.createObjectURL(blob);
-      const a    = document.createElement("a");
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
       a.href = url;
       a.download = `Payslip-${slip.PAYSLIP_NUMBER}.pdf`;
       document.body.appendChild(a);
@@ -485,12 +485,12 @@ function StatTile({ icon, label, value, sub, iconTone = "red" }) {
 function PayslipCard({ slip, busy, onView, onDownload, onPrint }) {
 
   const status = (slip.RUN_STATUS || "").toUpperCase();
-  const meta   = STATUS_META[status] || { label: status || "—", cls: "chip_muted" };
+  const meta = STATUS_META[status] || { label: status || "—", cls: "chip_muted" };
 
   const daysNote = (() => {
     const parts = [];
     if (slip.ABSENT_DAYS > 0) parts.push(`${slip.ABSENT_DAYS} absent`);
-    if (slip.DAYS_LATE  > 0) parts.push(`${slip.DAYS_LATE} late`);
+    if (slip.DAYS_LATE > 0) parts.push(`${slip.DAYS_LATE} late`);
     return parts.join(" · ");
   })();
 
@@ -498,12 +498,12 @@ function PayslipCard({ slip, busy, onView, onDownload, onPrint }) {
   // employee sees WHY the number is what it is, not just "-₹17,505".
   const deductionsBreakdown = (() => {
     const parts = [];
-    if (slip.ABSENCE_DEDUCTION > 0)   parts.push(`Absence ${inr(slip.ABSENCE_DEDUCTION)}`);
-    if (slip.PF_EMPLOYEE > 0)         parts.push(`PF ${inr(slip.PF_EMPLOYEE)}`);
-    if (slip.ESI_EMPLOYEE > 0)        parts.push(`ESI ${inr(slip.ESI_EMPLOYEE)}`);
-    if (slip.PT_EMPLOYEE > 0)         parts.push(`PT ${inr(slip.PT_EMPLOYEE)}`);
+    if (slip.ABSENCE_DEDUCTION > 0) parts.push(`Absence ${inr(slip.ABSENCE_DEDUCTION)}`);
+    if (slip.PF_EMPLOYEE > 0) parts.push(`PF ${inr(slip.PF_EMPLOYEE)}`);
+    if (slip.ESI_EMPLOYEE > 0) parts.push(`ESI ${inr(slip.ESI_EMPLOYEE)}`);
+    if (slip.PT_EMPLOYEE > 0) parts.push(`PT ${inr(slip.PT_EMPLOYEE)}`);
     if (slip.PERMISSION_DEDUCTION > 0) parts.push(`Perm ${inr(slip.PERMISSION_DEDUCTION)}`);
-    if (slip.LATE_PENALTY > 0)        parts.push(`Late ${inr(slip.LATE_PENALTY)}`);
+    if (slip.LATE_PENALTY > 0) parts.push(`Late ${inr(slip.LATE_PENALTY)}`);
     return parts.join(" · ");
   })();
 

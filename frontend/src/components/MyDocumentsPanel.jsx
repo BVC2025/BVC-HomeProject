@@ -22,7 +22,7 @@ import styles from "./MyDocumentsPanel.module.css";
 
 // Backend URL for opening files directly (documents already have a
 // public FILE_URL that includes /static/employee-docs/...).
-const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8001";
+const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8000";
 
 function absoluteUrl(path) {
   if (!path) return null;
@@ -37,9 +37,9 @@ function absoluteUrl(path) {
 // ------------------------------------------------------------------
 const icon = (children, size = 18) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-       stroke="currentColor" strokeWidth="1.9"
-       strokeLinecap="round" strokeLinejoin="round"
-       aria-hidden="true">{children}</svg>
+    stroke="currentColor" strokeWidth="1.9"
+    strokeLinecap="round" strokeLinejoin="round"
+    aria-hidden="true">{children}</svg>
 );
 
 const I = {
@@ -96,39 +96,39 @@ const I = {
 
 const DOC_META = {
   // Employment
-  OFFER_LETTER:       { label: "Offer letter",         category: "employment" },
-  APPOINTMENT_LETTER: { label: "Appointment order",    category: "employment" },
-  JOINING_LETTER:     { label: "Joining letter",       category: "employment" },
-  INCREMENT_LETTER:   { label: "Increment letter",     category: "employment" },
-  PROMOTION_LETTER:   { label: "Promotion letter",     category: "employment" },
-  EXPERIENCE_LETTER:  { label: "Experience letter",    category: "employment" },
-  RELIEVING_LETTER:   { label: "Relieving letter",     category: "employment" },
+  OFFER_LETTER: { label: "Offer letter", category: "employment" },
+  APPOINTMENT_LETTER: { label: "Appointment order", category: "employment" },
+  JOINING_LETTER: { label: "Joining letter", category: "employment" },
+  INCREMENT_LETTER: { label: "Increment letter", category: "employment" },
+  PROMOTION_LETTER: { label: "Promotion letter", category: "employment" },
+  EXPERIENCE_LETTER: { label: "Experience letter", category: "employment" },
+  RELIEVING_LETTER: { label: "Relieving letter", category: "employment" },
 
   // Identity
-  AADHAAR:            { label: "Aadhaar card",         category: "identity" },
-  PAN:                { label: "PAN card",             category: "identity" },
-  VOTER_ID:           { label: "Voter ID",             category: "identity" },
-  PASSPORT:           { label: "Passport",             category: "identity" },
-  DRIVING_LICENSE:    { label: "Driving licence",      category: "identity" },
+  AADHAAR: { label: "Aadhaar card", category: "identity" },
+  PAN: { label: "PAN card", category: "identity" },
+  VOTER_ID: { label: "Voter ID", category: "identity" },
+  PASSPORT: { label: "Passport", category: "identity" },
+  DRIVING_LICENSE: { label: "Driving licence", category: "identity" },
 
   // Education
-  TENTH_MARKSHEET:    { label: "10th marksheet",       category: "education" },
-  TWELFTH_MARKSHEET:  { label: "12th marksheet",       category: "education" },
-  DIPLOMA:            { label: "Diploma",              category: "education" },
-  DEGREE:             { label: "Degree",               category: "education" },
-  POSTGRADUATE:       { label: "Postgraduate",         category: "education" },
-  EDUCATIONAL:        { label: "Educational (other)",  category: "education" },
-  CERTIFICATE:        { label: "Certificate",          category: "education" },
+  TENTH_MARKSHEET: { label: "10th marksheet", category: "education" },
+  TWELFTH_MARKSHEET: { label: "12th marksheet", category: "education" },
+  DIPLOMA: { label: "Diploma", category: "education" },
+  DEGREE: { label: "Degree", category: "education" },
+  POSTGRADUATE: { label: "Postgraduate", category: "education" },
+  EDUCATIONAL: { label: "Educational (other)", category: "education" },
+  CERTIFICATE: { label: "Certificate", category: "education" },
 
   // Others
-  RESUME:             { label: "Resume / CV",          category: "others" },
-  PHOTO:              { label: "Photograph",           category: "others" },
-  BIRTH_CERTIFICATE:  { label: "Birth certificate",    category: "others" },
-  MARRIAGE_CERTIFICATE:{ label: "Marriage certificate",category: "others" },
-  ADDRESS_PROOF:      { label: "Address proof",        category: "others" },
-  BANK_PASSBOOK:      { label: "Bank passbook",        category: "others" },
-  SALARY_SLIP:        { label: "Previous salary slip", category: "others" },
-  OTHER:              { label: "Other",                category: "others" },
+  RESUME: { label: "Resume / CV", category: "others" },
+  PHOTO: { label: "Photograph", category: "others" },
+  BIRTH_CERTIFICATE: { label: "Birth certificate", category: "others" },
+  MARRIAGE_CERTIFICATE: { label: "Marriage certificate", category: "others" },
+  ADDRESS_PROOF: { label: "Address proof", category: "others" },
+  BANK_PASSBOOK: { label: "Bank passbook", category: "others" },
+  SALARY_SLIP: { label: "Previous salary slip", category: "others" },
+  OTHER: { label: "Other", category: "others" },
 };
 
 function metaOf(docType) {
@@ -147,11 +147,11 @@ function metaOf(docType) {
 // Category → icon + tone
 // ------------------------------------------------------------------
 const CATS = [
-  { key: "employment", label: "Employment", icon: I.briefcase,  tone: "blue"  },
-  { key: "salary",     label: "Salary",     icon: I.rupee,      tone: "green" },
-  { key: "identity",   label: "Identity",   icon: I.idCard,     tone: "red"   },
-  { key: "education",  label: "Education",  icon: I.graduation, tone: "amber" },
-  { key: "others",     label: "Others",     icon: I.folder,     tone: "muted" },
+  { key: "employment", label: "Employment", icon: I.briefcase, tone: "blue" },
+  { key: "salary", label: "Salary", icon: I.rupee, tone: "green" },
+  { key: "identity", label: "Identity", icon: I.idCard, tone: "red" },
+  { key: "education", label: "Education", icon: I.graduation, tone: "amber" },
+  { key: "others", label: "Others", icon: I.folder, tone: "muted" },
 ];
 
 function catOf(key) {
@@ -186,13 +186,13 @@ function humanSize(bytes) {
 // ==================================================================
 export default function MyDocumentsPanel({ employeeId }) {
 
-  const [docs, setDocs]         = useState([]);   // /employees/{id}/documents
+  const [docs, setDocs] = useState([]);   // /employees/{id}/documents
   const [payslips, setPayslips] = useState([]);   // /my-payslips
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState("");
-  const [tab, setTab]           = useState("employment");
-  const [query, setQuery]       = useState("");
-  const [busyId, setBusyId]     = useState(null);   // for payslip PDF downloads
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [tab, setTab] = useState("employment");
+  const [query, setQuery] = useState("");
+  const [busyId, setBusyId] = useState(null);   // for payslip PDF downloads
 
 
   // ---- Fetch ----
@@ -203,9 +203,9 @@ export default function MyDocumentsPanel({ employeeId }) {
     // UUID or CODE via require_employee. Prefer UUID from localStorage
     // when available.
     const uuid =
-         (typeof window !== "undefined"
-           ? localStorage.getItem("employee_uuid")
-           : "")
+      (typeof window !== "undefined"
+        ? localStorage.getItem("employee_uuid")
+        : "")
       || employeeId;
 
     setLoading(true);
@@ -213,9 +213,9 @@ export default function MyDocumentsPanel({ employeeId }) {
     try {
       const [docRes, slipRes] = await Promise.all([
         API.get(`/employees/${encodeURIComponent(uuid)}/documents`)
-           .catch(() => ({ data: [] })),
+          .catch(() => ({ data: [] })),
         API.get(`/my-payslips?employee_id=${encodeURIComponent(employeeId)}`)
-           .catch(() => ({ data: [] })),
+          .catch(() => ({ data: [] })),
       ]);
       const dList = Array.isArray(docRes.data)
         ? docRes.data
@@ -260,14 +260,14 @@ export default function MyDocumentsPanel({ employeeId }) {
         typeLabel: "Salary slip",
         meta: `${s.RUN_STATUS || ""}`,
         // Actions
-        viewUrl:     `${BACKEND_URL}/my-payslips/${s.ID}/pdf`,
-        downloadId:  s.ID,
-        downloadName:`Payslip-${s.PAYSLIP_NUMBER || s.ID}.pdf`,
-        _raw:        s,
+        viewUrl: `${BACKEND_URL}/my-payslips/${s.ID}/pdf`,
+        downloadId: s.ID,
+        downloadName: `Payslip-${s.PAYSLIP_NUMBER || s.ID}.pdf`,
+        _raw: s,
       }));
       return qNorm
         ? list.filter((r) => r.title.toLowerCase().includes(qNorm)
-                           || (r.subtitle || "").toLowerCase().includes(qNorm))
+          || (r.subtitle || "").toLowerCase().includes(qNorm))
         : list;
     }
 

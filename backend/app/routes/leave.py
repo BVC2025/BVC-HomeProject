@@ -421,7 +421,7 @@ def _decision_html(title: str, message: str, color: str = "#10b981") -> str:
 @router.get("/decide/{token}", response_class=HTMLResponse)
 def decide_leave(
     token: str,
-    action: str = Query(..., regex="^(approve|reject)$"),
+    action: str = Query(..., pattern="^(approve|reject)$"),
     reason: Optional[str] = None,
     db: Session = Depends(get_db)
 ):

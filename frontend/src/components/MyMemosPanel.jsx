@@ -22,7 +22,7 @@ import styles from "./MyMemosPanel.module.css";
 
 // Turn a memo's ATTACHMENT_URL into a full URL the browser can open.
 // The DB stores paths like "/static/memos/xxxx.pdf" which are served
-// by the BACKEND (port 8001). If we just use the relative path, the
+// by the BACKEND (port 8000). If we just use the relative path, the
 // browser resolves it against the FRONTEND (port 4173/5173) — the SPA
 // router then matches nothing and bounces the user to the profile
 // page. Prepending API_BASE_URL fixes that.
@@ -38,20 +38,20 @@ function resolveMemoAsset(url) {
 // ------------------------------------------------------------------
 const icon = (children, size = 16) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
-       stroke="currentColor" strokeWidth="1.9"
-       strokeLinecap="round" strokeLinejoin="round"
-       aria-hidden="true">{children}</svg>
+    stroke="currentColor" strokeWidth="1.9"
+    strokeLinecap="round" strokeLinejoin="round"
+    aria-hidden="true">{children}</svg>
 );
 
 const I = {
-  warn:      icon(<><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><path d="M12 9v4M12 17h.01" /></>, 18),
-  applaud:   icon(<><path d="M14 9l-3 6h4l-3 6" /><path d="M9 3l2 2" /><path d="M15 3l-2 2" /><path d="M12 1v2" /></>, 18),
-  notice:    icon(<><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><path d="M14 3v6h6" /><path d="M9 13h6M9 17h4" /></>, 18),
+  warn: icon(<><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><path d="M12 9v4M12 17h.01" /></>, 18),
+  applaud: icon(<><path d="M14 9l-3 6h4l-3 6" /><path d="M9 3l2 2" /><path d="M15 3l-2 2" /><path d="M12 1v2" /></>, 18),
+  notice: icon(<><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><path d="M14 3v6h6" /><path d="M9 13h6M9 17h4" /></>, 18),
   paperclip: icon(<path d="M21 12.5L12.5 21a5.5 5.5 0 0 1-7.8-7.8l9-9a3.7 3.7 0 0 1 5.2 5.2l-9 9a1.8 1.8 0 0 1-2.6-2.6l7.4-7.4" />, 14),
-  check:     icon(<path d="M4 12l6 6L20 6" />, 14),
-  close:     icon(<path d="M18 6L6 18M6 6l12 12" />, 18),
-  eye:       icon(<><path d="M2 12s4-8 10-8 10 8 10 8-4 8-10 8-10-8-10-8z" /><circle cx="12" cy="12" r="3" /></>, 14),
-  empty:     icon(<>
+  check: icon(<path d="M4 12l6 6L20 6" />, 14),
+  close: icon(<path d="M18 6L6 18M6 6l12 12" />, 18),
+  eye: icon(<><path d="M2 12s4-8 10-8 10 8 10 8-4 8-10 8-10-8-10-8z" /><circle cx="12" cy="12" r="3" /></>, 14),
+  empty: icon(<>
     <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
     <path d="M14 3v6h6" />
   </>, 30),
@@ -70,7 +70,7 @@ const I = {
 function categoryOf(type) {
   const t = (type || "").toUpperCase();
   if (["WARNING", "DISCIPLINARY", "SHOW_CAUSE_NOTICE",
-       "CUSTOMER_COMPLAINT"].includes(t)) return "warning";
+    "CUSTOMER_COMPLAINT"].includes(t)) return "warning";
   if (["APPRECIATION", "PERFORMANCE_RECOGNITION"].includes(t))
     return "appreciation";
   return "notice";
@@ -79,19 +79,19 @@ function categoryOf(type) {
 function typeLabel(type) {
   const t = (type || "").toUpperCase();
   const map = {
-    WARNING:                 "Warning letter",
-    DISCIPLINARY:            "Disciplinary",
-    SHOW_CAUSE_NOTICE:       "Show-cause notice",
-    CUSTOMER_COMPLAINT:      "Customer complaint",
-    APPRECIATION:            "Appreciation letter",
+    WARNING: "Warning letter",
+    DISCIPLINARY: "Disciplinary",
+    SHOW_CAUSE_NOTICE: "Show-cause notice",
+    CUSTOMER_COMPLAINT: "Customer complaint",
+    APPRECIATION: "Appreciation letter",
     PERFORMANCE_RECOGNITION: "Performance recognition",
-    INFORMATION:             "Notice",
+    INFORMATION: "Notice",
   };
   return map[t] || t.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()) || "Memo";
 }
 
 function categoryIcon(category) {
-  if (category === "warning")      return I.warn;
+  if (category === "warning") return I.warn;
   if (category === "appreciation") return I.applaud;
   return I.notice;
 }
@@ -121,10 +121,10 @@ function fmtDateTime(value) {
 // ==================================================================
 export default function MyMemosPanel({ employeeId, initialOpenId = null, onInitialOpenConsumed }) {
 
-  const [memos, setMemos]     = useState([]);
+  const [memos, setMemos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState("");
-  const [filter, setFilter]   = useState("all");     // all | warning | appreciation | notice
+  const [error, setError] = useState("");
+  const [filter, setFilter] = useState("all");     // all | warning | appreciation | notice
   const [openMemo, setOpenMemo] = useState(null);    // the memo shown in the detail modal
   const [ackBusy, setAckBusy] = useState(false);
 
@@ -187,15 +187,19 @@ export default function MyMemosPanel({ employeeId, initialOpenId = null, onIniti
       // Optimistically flip the flag
       setMemos((prev) => prev.map((m) =>
         m.ID === memoId
-          ? { ...m,
-              ACKNOWLEDGED_BY_EMPLOYEE: true,
-              ACKNOWLEDGED_DATE: new Date().toISOString() }
+          ? {
+            ...m,
+            ACKNOWLEDGED_BY_EMPLOYEE: true,
+            ACKNOWLEDGED_DATE: new Date().toISOString()
+          }
           : m
       ));
       setOpenMemo((prev) =>
         prev && prev.ID === memoId
-          ? { ...prev, ACKNOWLEDGED_BY_EMPLOYEE: true,
-              ACKNOWLEDGED_DATE: new Date().toISOString() }
+          ? {
+            ...prev, ACKNOWLEDGED_BY_EMPLOYEE: true,
+            ACKNOWLEDGED_DATE: new Date().toISOString()
+          }
           : prev);
     } catch (e) {
       alert(e?.response?.data?.detail || "Could not acknowledge memo.");
@@ -210,10 +214,10 @@ export default function MyMemosPanel({ employeeId, initialOpenId = null, onIniti
   // ==================================================================
 
   const filters = [
-    { key: "all",          label: "All",            count: counts.all },
-    { key: "warning",      label: "Warnings",       count: counts.warning },
-    { key: "appreciation", label: "Appreciations",  count: counts.appreciation },
-    { key: "notice",       label: "Notices",        count: counts.notice },
+    { key: "all", label: "All", count: counts.all },
+    { key: "warning", label: "Warnings", count: counts.warning },
+    { key: "appreciation", label: "Appreciations", count: counts.appreciation },
+    { key: "notice", label: "Notices", count: counts.notice },
   ];
 
   return (
@@ -308,7 +312,7 @@ export default function MyMemosPanel({ employeeId, initialOpenId = null, onIniti
 // ==================================================================
 function MemoCard({ memo, onView, onAcknowledge, ackBusy }) {
 
-  const cat  = categoryOf(memo.MEMO_TYPE);
+  const cat = categoryOf(memo.MEMO_TYPE);
   const acked = !!memo.ACKNOWLEDGED_BY_EMPLOYEE;
 
   return (

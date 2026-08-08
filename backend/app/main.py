@@ -1110,6 +1110,123 @@ def _auto_migrate():
 _auto_migrate()
 
 
+def _auto_seed_defaults():
+    """Seed the single default Vendor → Department → Role → Employee
+    chain on first boot.  Each step is guarded by a name/code lookup:
+    if the record already exists it is reused so a partial seed can be
+    completed without creating duplicates."""
+
+    import logging
+    import uuid
+    from datetime import date, time as dtime
+    from sqlalchemy.orm import sessionmaker
+    from app.models.models import Vendor, Department, Role, Employee
+    from app.services.auth_service import hash_password
+
+    log = logging.getLogger("uvicorn")
+    Session = sessionmaker(bind=engine)
+    db = Session()
+
+    try:
+        # ── 1. Vendor ─────────────────────────────────────────────────
+        vendor = (
+            db.query(Vendor)
+              .filter(Vendor.VENDOR_NAME == "Bharath Vending Corporation")
+              .first()
+        )
+        if vendor is None:
+            vendor = Vendor(VENDOR_NAME="Bharath Vending Corporation")
+            db.add(vendor)
+            db.flush()
+            log.info("auto-seed-defaults: vendor created (ID=%s)", vendor.ID)
+
+        # ── 2. Department ─────────────────────────────────────────────
+        dept = (
+            db.query(Department)
+              .filter(
+                  Department.VENDOR_ID == vendor.ID,
+                  Department.DEPARTMENT_CODE == "HRD",
+              )
+              .first()
+        )
+        if dept is None:
+            dept = Department(
+                VENDOR_ID=vendor.ID,
+                DEPARTMENT_CODE="HRD",
+                NAME="HR",
+                DESCRIPTION=(
+                    "Human Resources department responsible for employee "
+                    "recruitment, onboarding, payroll, and compliance."
+                ),
+            )
+            db.add(dept)
+            db.flush()
+            log.info("auto-seed-defaults: department created (ID=%s)", dept.ID)
+
+        # ── 3. Role ───────────────────────────────────────────────────
+        role = (
+            db.query(Role)
+              .filter(
+                  Role.VENDOR_ID == vendor.ID,
+                  Role.NAME == "SUPER_ADMIN",
+              )
+              .first()
+        )
+        if role is None:
+            role = Role(
+                VENDOR_ID=vendor.ID,
+                DEPARTMENT_ID=dept.ID,
+                NAME="SUPER_ADMIN",
+                DESCRIPTION=(
+                    "Super Administrator role with full access to all modules, "
+                    "settings, and system configuration."
+                ),
+            )
+            db.add(role)
+            db.flush()
+            log.info("auto-seed-defaults: role created (ID=%s)", role.ID)
+
+        # ── 4. Employee ───────────────────────────────────────────────
+        emp = (
+            db.query(Employee)
+              .filter(
+                  Employee.VENDOR_ID == vendor.ID,
+                  Employee.EMPLOYEE_CODE == "SA001",
+              )
+              .first()
+        )
+        if emp is None:
+            emp = Employee(
+                ID=str(uuid.uuid4()),
+                EMPLOYEE_CODE="SA001",
+                NAME="SUPERADMIN",
+                PASSWORD=hash_password("SuperAdmin@123"),
+                DEPARTMENT_ID=dept.ID,
+                ROLE_ID=role.ID,
+                VENDOR_ID=vendor.ID,
+                JOINING_DATE=date.today(),
+                SALARY=0.0,
+                SHIFT_START=dtime(10, 0),
+                SHIFT_END=dtime(18, 0),
+                STATUS="ACTIVE",
+                PROFILE_SUBMITTED=0,
+            )
+            db.add(emp)
+            log.info("auto-seed-defaults: employee created (CODE=SA001)")
+
+        db.commit()
+
+    except Exception as exc:
+        db.rollback()
+        log.warning("auto-seed-defaults skipped: %s", exc)
+
+    finally:
+        db.close()
+
+
+_auto_seed_defaults()
+
+
 def _auto_seed_holidays():
     """If no holidays exist for the current year, seed the bundled
     Indian national list (NATIONAL + Tamil New Year). Idempotent —
@@ -1402,123 +1519,6 @@ def _auto_seed_sales_order_settings():
 
 
 _auto_seed_sales_order_settings()
-
-
-def _auto_seed_defaults():
-    """Seed the single default Vendor → Department → Role → Employee
-    chain on first boot.  Each step is guarded by a name/code lookup:
-    if the record already exists it is reused so a partial seed can be
-    completed without creating duplicates."""
-
-    import logging
-    import uuid
-    from datetime import date, time as dtime
-    from sqlalchemy.orm import sessionmaker
-    from app.models.models import Vendor, Department, Role, Employee
-    from app.services.auth_service import hash_password
-
-    log = logging.getLogger("uvicorn")
-    Session = sessionmaker(bind=engine)
-    db = Session()
-
-    try:
-        # ── 1. Vendor ─────────────────────────────────────────────────
-        vendor = (
-            db.query(Vendor)
-              .filter(Vendor.VENDOR_NAME == "Bharath Vending Corporation")
-              .first()
-        )
-        if vendor is None:
-            vendor = Vendor(VENDOR_NAME="Bharath Vending Corporation")
-            db.add(vendor)
-            db.flush()
-            log.info("auto-seed-defaults: vendor created (ID=%s)", vendor.ID)
-
-        # ── 2. Department ─────────────────────────────────────────────
-        dept = (
-            db.query(Department)
-              .filter(
-                  Department.VENDOR_ID == vendor.ID,
-                  Department.DEPARTMENT_CODE == "HRD",
-              )
-              .first()
-        )
-        if dept is None:
-            dept = Department(
-                VENDOR_ID=vendor.ID,
-                DEPARTMENT_CODE="HRD",
-                NAME="HR",
-                DESCRIPTION=(
-                    "Human Resources department responsible for employee "
-                    "recruitment, onboarding, payroll, and compliance."
-                ),
-            )
-            db.add(dept)
-            db.flush()
-            log.info("auto-seed-defaults: department created (ID=%s)", dept.ID)
-
-        # ── 3. Role ───────────────────────────────────────────────────
-        role = (
-            db.query(Role)
-              .filter(
-                  Role.VENDOR_ID == vendor.ID,
-                  Role.NAME == "SUPER_ADMIN",
-              )
-              .first()
-        )
-        if role is None:
-            role = Role(
-                VENDOR_ID=vendor.ID,
-                DEPARTMENT_ID=dept.ID,
-                NAME="SUPER_ADMIN",
-                DESCRIPTION=(
-                    "Super Administrator role with full access to all modules, "
-                    "settings, and system configuration."
-                ),
-            )
-            db.add(role)
-            db.flush()
-            log.info("auto-seed-defaults: role created (ID=%s)", role.ID)
-
-        # ── 4. Employee ───────────────────────────────────────────────
-        emp = (
-            db.query(Employee)
-              .filter(
-                  Employee.VENDOR_ID == vendor.ID,
-                  Employee.EMPLOYEE_CODE == "SA001",
-              )
-              .first()
-        )
-        if emp is None:
-            emp = Employee(
-                ID=str(uuid.uuid4()),
-                EMPLOYEE_CODE="SA001",
-                NAME="SUPERADMIN",
-                PASSWORD=hash_password("SuperAdmin@123"),
-                DEPARTMENT_ID=dept.ID,
-                ROLE_ID=role.ID,
-                VENDOR_ID=vendor.ID,
-                JOINING_DATE=date.today(),
-                SALARY=0.0,
-                SHIFT_START=dtime(10, 0),
-                SHIFT_END=dtime(18, 0),
-                STATUS="ACTIVE",
-                PROFILE_SUBMITTED=0,
-            )
-            db.add(emp)
-            log.info("auto-seed-defaults: employee created (CODE=SA001)")
-
-        db.commit()
-
-    except Exception as exc:
-        db.rollback()
-        log.warning("auto-seed-defaults skipped: %s", exc)
-
-    finally:
-        db.close()
-
-
-_auto_seed_defaults()
 
 
 # =====================================================================

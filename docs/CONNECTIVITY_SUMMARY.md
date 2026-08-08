@@ -266,7 +266,7 @@ After backend restart + frontend hot-reload:
 4. Inside the drawer, click a project name or WO number → drawer drills in
 5. Hit "← back" → returns to the previous entity
 
-Health check: `GET http://192.168.1.10:8001/connect/workflow/snapshot` — should return JSON with `people`, `products`, `sales`, `production`, `biometric`, `tasks`, `quality`, `leave`, `inventory` blocks.
+Health check: `GET http://192.168.1.10:8000/connect/workflow/snapshot` — should return JSON with `people`, `products`, `sales`, `production`, `biometric`, `tasks`, `quality`, `leave`, `inventory` blocks.
 
 ---
 
