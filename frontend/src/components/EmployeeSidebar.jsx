@@ -44,6 +44,7 @@ const ICONS = {
   tree:      svg(<><rect x="9" y="2" width="6" height="4" rx="1"/><rect x="3" y="18" width="6" height="4" rx="1"/><rect x="9" y="18" width="6" height="4" rx="1"/><rect x="15" y="18" width="6" height="4" rx="1"/><path d="M12 6v6M6 18v-3h12v3M12 12v3"/></>),
   memo:      svg(<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></>),
   task:      svg(<><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/><path d="M15.5 14.5l1.5 1.5 3-3"/></>),
+  sparkle:   svg(<><path d="M12 2l1.9 5.3L19 9l-5.1 1.7L12 16l-1.9-5.3L5 9l5.1-1.7L12 2z"/></>),
 };
 
 
@@ -110,7 +111,7 @@ const NAV_GROUPS = [
     items: [
       { key: "performance", label: "Performance",  icon: ICONS.chart },
       { key: "training",    label: "Training",     icon: ICONS.book,      soon: true },
-      { key: "orgchart",    label: "Org Chart",    icon: ICONS.tree,      soon: true },
+      { key: "orgchart",    label: "Org Chart",    icon: ICONS.tree },
       // My Team is manager-only — needs `team.view` or `team.manage`
       { key: "myteam",      label: "My Team",      icon: ICONS.users,     soon: true,
         permission: ["team.view", "team.manage"] },
@@ -119,6 +120,9 @@ const NAV_GROUPS = [
   {
     label: "Support",
     items: [
+      // HRMS AI Assistant — Gemini-powered Q&A grounded on the HRMS
+      // knowledge base. Read-only. Multi-language.
+      { key: "hrms_ai",     label: "HRMS Assistant", icon: ICONS.sparkle },
       { key: "assets",      label: "My Assets",    icon: ICONS.laptop },
       { key: "helpdesk",    label: "Help Desk",    icon: ICONS.ticket },
       { key: "settings",    label: "Settings",     icon: ICONS.gear },

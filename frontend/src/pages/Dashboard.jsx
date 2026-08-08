@@ -72,7 +72,6 @@ import ApprovalCenter from "./ApprovalCenter";
 import Payroll from "./Payroll";
 import StarPerformance from "./StarPerformance";
 import Allowances from "./Allowances";
-import ChatBot from "../components/ChatBot";
 import EmployeeProfile from "./EmployeeProfile";
 import Recruitment from "./Recruitment";
 import PayslipGenerator from "./PayslipGenerator";
@@ -83,7 +82,6 @@ import ShiftManagement from "./ShiftManagement";
 import HrAutomation from "./HrAutomation";
 import MonthlyReports from "./MonthlyReports";
 import WorkforceAnalytics from "./WorkforceAnalytics";
-import VoiceAssistant from "../components/VoiceAssistant";
 function HrLayout() {
   return <Outlet />;
 }
@@ -2229,16 +2227,6 @@ function Dashboard() {
         </Routes>
 
       </div>
-
-      <VoiceAssistant
-        employeeId={
-          typeof window !== "undefined"
-            ? (localStorage.getItem("employee_id")
-                || localStorage.getItem("employee_code")
-                || "")
-            : ""
-        }
-      />
 
       <ConfirmDialog
         open={logoutOpen}

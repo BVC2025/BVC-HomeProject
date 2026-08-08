@@ -32,3 +32,7 @@ xhtml2pdf==0.2.17
 reportlab==4.5.1
 python-docx==1.1.2
 piper-tts
+
+# ── HRMS AI Assistant (docs/HRMS_KNOWLEDGE.md → Gemini RAG) ───────
+# Chat + embeddings for the /hrms-ai/ endpoints. Free-tier friendly.
+google-generativeai>=0.7.0
