@@ -39,7 +39,6 @@ from app.routes.employee_task import router as employee_task_router
 from app.routes.project_template import router as project_template_router
 from app.routes.organization import router as organization_router
 from app.routes.task_approval import router as task_approval_router
-from app.routes.chatbot import router as chatbot_router
 from app.routes.biometric import router as biometric_router
 from app.routes.iclock import router as iclock_router  # ADMS Push (ZKTeco/ESSL X2008)
 from app.routes.bvc24_seed import router as bvc24_seed_router
@@ -54,7 +53,6 @@ from app.routes.payroll import router as payroll_router
 from app.routes.quotation import router as quotation_router
 from app.routes.purchase_order import router as purchase_order_router
 from app.routes.procurement_seed import router as procurement_seed_router
-from app.routes.hr_assistant import router as hr_assistant_router
 from app.routes.sales_order import router as sales_order_router
 from app.routes.whatsapp import router as whatsapp_router
 from app.routes.onboarding import router as onboarding_router
@@ -62,22 +60,16 @@ from app.routes.employee_onboarding import router as employee_onboarding_router
 from app.routes.employee_documents import router as employee_documents_router
 from app.routes.admin_dashboard import router as admin_dashboard_router
 from app.routes.approvals import router as approvals_router
-# ai_command router removed Phase 2 — front-end stub was deleted
 from app.routes.dashboard_aggregators import router as dashboard_aggregators_router
-from app.routes.ai import router as ai_router
 from app.routes.public_enquiry import router as public_enquiry_router
 from app.routes.geofence import router as geofence_router
 from app.routes.employee_memos import router as employee_memos_router
-from app.routes.leave_chatbot import router as leave_chatbot_router
 from app.routes.employee_portal import router as employee_portal_router
 from app.routes.audit import router as audit_router  # Phase 3 security
 from app.routes.rbac import router as rbac_router    # Phase 2 RBAC
 from app.routes.holiday import router as holiday_router    # Phase 2 Holiday Calendar
-from app.routes.chatbot_ai import router as chatbot_ai_router  # AI chatbot v1 (Gemini)
 from app.routes.work_center import router as work_center_router  # Mfg Phase 1 — Work Centers
 from app.routes.allowance import router as allowance_router  # Employee expense claims
-from app.routes.leave_agent import router as leave_agent_router  # AI Leave Agent
-from app.routes.hr_chat import router as hr_chat_router          # Unified HR Assistant
 from app.routes.recruitment import router as recruitment_router  # Phase 2 — AI Recruitment Assistant
 from app.routes.employee_payslips import router as my_payslips_router  # Employee self-service payslips
 from app.routes.onboarding_checklist import router as onboarding_checklist_router  # Post-joining onboarding
@@ -89,7 +81,10 @@ from app.routes.employee_insights import router as employee_insights_router  # A
 from app.routes.custom_fields import router as custom_fields_router  # Custom Fields System
 from app.routes.helpdesk import router as helpdesk_router  # Help Desk (employee tickets + admin triage)
 from app.routes.memo_automation import router as memo_automation_router  # Weekly warning/appreciation memo automation
-from app.voice_assistant.routes import router as voice_assistant_router  # Voice-first ERP assistant (Siri-style)
+
+# ── HRMS AI Assistant (Gemini + RAG over docs/HRMS_KNOWLEDGE.md) ──
+from app.hrms_ai.routes import router as hrms_ai_router
+
 from fastapi.middleware.cors import CORSMiddleware
 
 # Phase 3 — Audit log
@@ -279,6 +274,11 @@ def _rename_legacy_project_table():
 
 
 _rename_legacy_project_table()
+
+# Register the HRMS AI conversation model with the metadata BEFORE
+# create_all runs — the model lives outside models.py so it needs to
+# be imported for Base to know about it.
+from app.hrms_ai.session_store import HrmsAiConversation  # noqa: F401,E402
 
 Base.metadata.create_all(bind=engine)
 
@@ -1638,7 +1638,6 @@ app.include_router(org_chart_router)
 app.include_router(analytics_router, tags=["Analytics"])
 app.include_router(reports_router, tags=["Reports"])
 app.include_router(settings_router, tags=["Settings"])
-app.include_router(chatbot_router, tags=["Chatbot"])
 app.include_router(biometric_router)
 app.include_router(iclock_router)  # ADMS Push (biometric device -> ERP)
 app.include_router(bvc24_seed_router)
@@ -1653,7 +1652,6 @@ app.include_router(payroll_router)
 app.include_router(quotation_router, tags=["Quotations"])
 app.include_router(purchase_order_router, tags=["Purchase Orders"])
 app.include_router(procurement_seed_router, tags=["Procurement Seed"])
-app.include_router(hr_assistant_router, tags=["HR Assistant"])
 app.include_router(sales_order_router, tags=["Sales Orders"])
 app.include_router(whatsapp_router, tags=["WhatsApp Alerts"])
 app.include_router(onboarding_router, tags=["Customer Onboarding Portal"])
@@ -1661,22 +1659,16 @@ app.include_router(employee_onboarding_router, tags=["Employee Onboarding Portal
 app.include_router(employee_documents_router, tags=["Employee Documents"])
 app.include_router(admin_dashboard_router)
 app.include_router(approvals_router)
-# app.include_router(ai_command_router)  # removed Phase 2
 app.include_router(dashboard_aggregators_router)
-app.include_router(ai_router)
 app.include_router(public_enquiry_router)
 app.include_router(geofence_router)
 app.include_router(employee_memos_router)
-app.include_router(leave_chatbot_router)
 app.include_router(employee_portal_router, tags=["Employee Portal"])
 app.include_router(audit_router)
 app.include_router(rbac_router)
 app.include_router(holiday_router)
-app.include_router(chatbot_ai_router)
 app.include_router(work_center_router)
 app.include_router(allowance_router, tags=["Allowances"])
-app.include_router(leave_agent_router)
-app.include_router(hr_chat_router)
 app.include_router(recruitment_router)
 app.include_router(my_payslips_router)
 app.include_router(onboarding_checklist_router)
@@ -1688,7 +1680,9 @@ app.include_router(employee_insights_router)
 app.include_router(custom_fields_router, tags=["Custom Fields"])
 app.include_router(helpdesk_router)
 app.include_router(memo_automation_router)
-app.include_router(voice_assistant_router)
+
+# ── HRMS AI Assistant (Gemini + RAG) ──
+app.include_router(hrms_ai_router)
 
 
 @app.get("/", tags=["Health"])

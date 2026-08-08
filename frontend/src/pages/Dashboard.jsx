@@ -84,7 +84,6 @@ import ShiftManagement from "./ShiftManagement";
 import HrAutomation from "./HrAutomation";
 import MonthlyReports from "./MonthlyReports";
 import WorkforceAnalytics from "./WorkforceAnalytics";
-import VoiceAssistant from "../components/VoiceAssistant";
 function HrLayout() {
   return <Outlet />;
 }
@@ -2145,16 +2144,6 @@ function Dashboard() {
         </Routes>
 
       </div>
-
-      <VoiceAssistant
-        employeeId={
-          typeof window !== "undefined"
-            ? (localStorage.getItem("employee_id")
-                || localStorage.getItem("employee_code")
-                || "")
-            : ""
-        }
-      />
 
       <ConfirmDialog
         open={logoutOpen}

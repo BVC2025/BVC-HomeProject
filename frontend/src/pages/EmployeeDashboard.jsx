@@ -2,10 +2,6 @@
 import { useLocation, useNavigate } from "react-router-dom";
 
 import API, { API_BASE_URL } from "../services/api";
-import EmployeeAIAssistant from "../components/EmployeeAIAssistant";
-// HRAssistant replaced by EmployeeAIAssistant (voice + chat).
-import LeaveChatbot from "../components/LeaveChatbot";
-import LeaveAgentChat from "../components/LeaveAgentChat";
 import MyLeaveStatus from "../components/MyLeaveStatus";
 import MyAttendancePanel from "../components/MyAttendancePanel";
 import MyMonthlyAttendance from "../components/MyMonthlyAttendance";
@@ -19,9 +15,9 @@ import MyPerformancePanel from "../components/MyPerformancePanel";
 import MyAssetsPanel from "../components/MyAssetsPanel";
 import MyAnnouncementsPanel from "../components/MyAnnouncementsPanel";
 import MyHelpDeskPanel from "../components/MyHelpDeskPanel";
-import VoiceAssistant from "../components/VoiceAssistant";
 import MyDocumentsPanel from "../components/MyDocumentsPanel";
 import MyOrgChartPanel from "../components/MyOrgChartPanel";
+import HRMSAssistant from "../components/HRMSAssistant";
 import MySettingsPanel from "../components/MySettingsPanel";
 import EmployeeSidebar from "../components/EmployeeSidebar";
 import EmployeeHomeDashboard from "../components/EmployeeHomeDashboard";
@@ -1309,6 +1305,9 @@ function EmployeeDashboardBody() {
           {mainTab === "orgchart" && (
             <MyOrgChartPanel />
           )}
+          {mainTab === "hrms_ai" && (
+            <HRMSAssistant />
+          )}
           {mainTab === "myteam" && (
             hasPerm(["team.view", "team.manage"]) ? (
               <ComingSoonPanel
@@ -1337,9 +1336,6 @@ function EmployeeDashboardBody() {
       </main>
 
       <Toast toast={toast} onClose={() => setToast(null)} />
-      <EmployeeAIAssistant />
-
-      <VoiceAssistant employeeId={employeeId} />
 
       <ConfirmDialog
         open={logoutOpen}
@@ -1652,6 +1648,7 @@ const Z_TAB_TITLES = {
   helpdesk:      "Help Desk",
   performance:   "Performance",
   orgchart:      "Organization Chart",
+  hrms_ai:       "HRMS Assistant",
   myteam:        "My Team",
   settings:      "Settings",
 };

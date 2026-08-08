@@ -25,3 +25,10 @@ typing_extensions==4.15.0
 uvicorn==0.46.0
 python-multipart
 openpyxl==3.1.5
+
+# ── HRMS AI Assistant (docs/HRMS_KNOWLEDGE.md → Gemini RAG) ───────
+# Chat + embeddings for the /hrms-ai/ endpoints. Free-tier friendly.
+google-generativeai>=0.7.0
+# Optional — used by the "export knowledge as .docx" build script only.
+# Runtime endpoints don't need this; keep for HR handoff to non-tech folks.
+python-docx>=1.1.0
