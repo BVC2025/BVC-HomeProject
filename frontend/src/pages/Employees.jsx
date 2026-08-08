@@ -1599,7 +1599,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   step="500"
                   value={form.SALARY}
                   onChange={set("SALARY")}
-                  placeholder="18000"
+                  placeholder="18001"
                   className={styles.formInput}
                 />
                 <div className={styles.fieldHint}>

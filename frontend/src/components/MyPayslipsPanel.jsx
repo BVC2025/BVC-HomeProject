@@ -90,7 +90,7 @@ function inrShort(n) {
 
 
 // Backend URL for opening PDFs in a new tab
-const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8000";
+const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8001";
 
 
 // Status → chip class (matches the rest of the redesigned pages)

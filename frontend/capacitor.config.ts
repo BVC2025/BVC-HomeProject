@@ -8,7 +8,7 @@ const config: CapacitorConfig = {
   // androidScheme: 'http'
   //   Capacitor 5+ defaults to loading the WebView from
   //   https://localhost. Our backend is HTTP-only
-  //   (http://192.168.1.10:8000), so calls from an https page hit
+  //   (http://192.168.1.10:8001), so calls from an https page hit
   //   Chrome's Mixed Content block. Switching the WebView to
   //   http://localhost puts both origins on HTTP and eliminates the
   //   block. Secure-context APIs (geolocation, getUserMedia) still
