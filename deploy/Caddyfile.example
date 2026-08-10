@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------
 # This file:
 #   - Serves the React build (frontend/dist) at the root
-#   - Reverse-proxies /api/* to the uvicorn backend on 127.0.0.1:8000
+#   - Reverse-proxies /api/* to the uvicorn backend on 127.0.0.1:8001
 #   - Auto-provisions a Let's Encrypt cert (Caddy does this on first
 #     start; you DON'T need to install certbot)
 #   - Forces HTTPS redirect on port 80
@@ -26,7 +26,7 @@ erp.example.com {
     # Anything starting with /api goes to uvicorn. The backend doesn't
     # know about the /api prefix — strip it before forwarding.
     handle_path /api/* {
-        reverse_proxy 127.0.0.1:8000 {
+        reverse_proxy 127.0.0.1:8001 {
             # Forward the original Host + scheme so the backend builds
             # correct absolute URLs in emails (leave approval links etc.)
             header_up X-Real-IP {remote_host}
@@ -39,7 +39,7 @@ erp.example.com {
     # The backend writes /static/<things> (BOM images, employee photos,
     # memo attachments, etc.). Proxy those directly to uvicorn.
     handle_path /static/* {
-        reverse_proxy 127.0.0.1:8000
+        reverse_proxy 127.0.0.1:8001
     }
 
     # --- Frontend SPA ----------------------------------------------
@@ -98,9 +98,9 @@ erp.example.com {
 #
 # api-docs.erp.example.com {
 #     handle_path /docs* {
-#         reverse_proxy 127.0.0.1:8000
+#         reverse_proxy 127.0.0.1:8001
 #     }
 #     handle_path /openapi.json {
-#         reverse_proxy 127.0.0.1:8000
+#         reverse_proxy 127.0.0.1:8001
 #     }
 # }

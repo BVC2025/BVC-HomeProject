@@ -23,7 +23,7 @@
 param(
     [string]$ServiceName = "BVC24-Backend",
     [string]$NssmPath    = "nssm",       # assumes on PATH; override if needed
-    [int]   $Port        = 8000,
+    [int]   $Port        = 8001,
     [string]$BindHost    = "0.0.0.0",
     [int]   $Workers     = 2,
     [switch]$Uninstall,

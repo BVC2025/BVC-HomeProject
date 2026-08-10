@@ -22,7 +22,7 @@ import styles from "./MyMemosPanel.module.css";
 
 // Turn a memo's ATTACHMENT_URL into a full URL the browser can open.
 // The DB stores paths like "/static/memos/xxxx.pdf" which are served
-// by the BACKEND (port 8000). If we just use the relative path, the
+// by the BACKEND (port 8001). If we just use the relative path, the
 // browser resolves it against the FRONTEND (port 4173/5173) — the SPA
 // router then matches nothing and bounces the user to the profile
 // page. Prepending API_BASE_URL fixes that.

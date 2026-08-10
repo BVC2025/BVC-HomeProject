@@ -85,7 +85,7 @@ See [Appendix D — Roadmap](./appendix/D-roadmap.md) for details.
 
 The application is a **two-process system**:
 
-- A **FastAPI** Python backend (`uvicorn app.main:app --port 8000`)
+- A **FastAPI** Python backend (`uvicorn app.main:app --port 8001`)
 - A **React + Vite** frontend (`npm run dev` for dev, `npm run build` for production static bundle)
 - A **MySQL** database
 

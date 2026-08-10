@@ -48,7 +48,7 @@ cp .env.example .env             # or create manually
 # edit .env with database + service credentials
 
 # First run — creates tables and applies auto-migration
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 ```
 
 The backend will:
@@ -58,12 +58,12 @@ The backend will:
 3. Run `Base.metadata.create_all()` to create any missing tables
 4. Run the pending-migrations loop (idempotent `ALTER TABLE ... IF NOT EXISTS`)
 5. Mount static file serving for `static/`
-6. Start listening on port 8000
+6. Start listening on port 8001
 
 Verify:
 
-- Swagger UI: `http:///127.0.0.1:8000/docs`
-- Health check: `http:///127.0.0.1:8000/me` (returns 401 — that's correct without a token)
+- Swagger UI: `http:///127.0.0.1:8001/docs`
+- Health check: `http:///127.0.0.1:8001/me` (returns 401 — that's correct without a token)
 
 ### Step 4 — Seed initial data
 
@@ -88,7 +88,7 @@ npm install
 npm run dev
 ```
 
-Vite serves the app at `http://localhost:5173`. The Axios base URL is hard-coded to `http://192.168.1.10:8000` in `src/services/api.js` — change there if your backend runs elsewhere.
+Vite serves the app at `http://localhost:5173`. The Axios base URL is hard-coded to `http://192.168.1.10:8001` in `src/services/api.js` — change there if your backend runs elsewhere.
 
 ## 4.3 Production Deployment
 
@@ -103,7 +103,7 @@ Vite serves the app at `http://localhost:5173`. The Axios base URL is hard-coded
                 ┌──────────┴───────────┐
                 │                      │
         ┌───────┴───────┐      ┌───────┴───────┐
-        │ /api/* → 8000 │      │ / → /dist/    │
+        │ /api/* → 8001 │      │ / → /dist/    │
         │   (Uvicorn)   │      │   (static)    │
         └───────┬───────┘      └───────────────┘
                 │
@@ -133,7 +133,7 @@ Vite serves the app at `http://localhost:5173`. The Axios base URL is hard-coded
      User=www-data
      WorkingDirectory=/opt/bvc24-erp/backend
      ExecStart=/opt/bvc24-erp/backend/venv/bin/uvicorn app.main:app \
-               --host 127.0.0.1 --port 8000 --workers 2
+               --host 127.0.0.1 --port 8001 --workers 2
      Restart=always
 
      [Install]
@@ -161,7 +161,7 @@ Vite serves the app at `http://localhost:5173`. The Axios base URL is hard-coded
 
        # Backend API
        location /api/ {
-           proxy_pass http://127.0.0.1:8000/;
+           proxy_pass http://127.0.0.1:8001/;
            proxy_set_header Host $host;
            proxy_set_header X-Real-IP $remote_addr;
            proxy_set_header X-Forwarded-Proto $scheme;
@@ -170,7 +170,7 @@ Vite serves the app at `http://localhost:5173`. The Axios base URL is hard-coded
 
        # File uploads served by FastAPI under /static
        location /static/ {
-           proxy_pass http://127.0.0.1:8000/static/;
+           proxy_pass http://127.0.0.1:8001/static/;
        }
    }
    ```
@@ -266,7 +266,7 @@ sudo systemctl restart bvc24-backend
 The backend startup will:
 
 1. Apply any new auto-migrations idempotently.
-2. Resume serving on port 8000.
+2. Resume serving on port 8001.
 
 No manual schema scripts to run. No frontend cache clear required (Vite uses content-hashed filenames; browsers pick up the new bundle on next page load).
 

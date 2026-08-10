@@ -37,7 +37,7 @@ pipeline {
         stage('Deploy Backend') {
             steps {
                 dir('backend') {
-                    bat 'start cmd /c python -m uvicorn main:app --host 0.0.0.0 --port 8000'
+                    bat 'start cmd /c python -m uvicorn main:app --host 0.0.0.0 --port 8001'
                 }
             }
         }
