@@ -22,6 +22,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import API from "../services/api";
 import styles from "./HRMSAssistant.module.css";
+import DocumentLibrary from "./DocumentLibrary";
 
 
 // ---------------------------------------------------------------------
@@ -99,6 +100,12 @@ export default function HRMSAssistant() {
   const [sending, setSending]     = useState(false);
   const [status, setStatus]       = useState(null);   // /status response
   const [error, setError]         = useState("");
+
+  // Phase A — mount the DocumentLibrary section above the chat so
+  // admins can upload / manage the knowledge corpus. Employees also
+  // see the list (read-only). The chat / doc-selector integration
+  // lands in Phase B once we index each uploaded document.
+  const [showLibrary, setShowLibrary] = useState(false);
 
   const [langCode, setLangCode] = useState(
     () => localStorage.getItem(LANG_KEY) || "en-IN"
@@ -369,6 +376,22 @@ export default function HRMSAssistant() {
 
           <button
             type="button"
+            onClick={() => setShowLibrary((v) => !v)}
+            className={`${styles.iconBtn} ${showLibrary ? styles.iconBtnActive : ""}`}
+            title={showLibrary ? "Hide library" : "Show document library"}
+            aria-label="Toggle document library"
+          >
+            {/* Simple stacked-books glyph */}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                 strokeLinejoin="round" aria-hidden="true">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
             onClick={newChat}
             className={styles.newBtn}
             title="Start a new conversation"
@@ -377,6 +400,14 @@ export default function HRMSAssistant() {
           </button>
         </div>
       </div>
+
+      {/* Phase A — document library above the chat when toggled on.
+          Chat integration (pick which doc to talk to) lands in Phase B. */}
+      {showLibrary && (
+        <div className={styles.libraryWrap}>
+          <DocumentLibrary />
+        </div>
+      )}
 
       {/* Status banner (only when things are wrong) */}
       {status && !status.enabled && (

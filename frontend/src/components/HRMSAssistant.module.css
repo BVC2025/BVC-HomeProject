@@ -125,6 +125,19 @@
 
 /* ---------- Warning banner ---------- */
 
+.libraryWrap {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 14px;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+:global(html[data-theme="dark"]) .libraryWrap {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+
 .warnBanner {
   padding: 10px 14px;
   background: #fffbeb;
