@@ -172,7 +172,7 @@ DEFAULT_PRODUCT_BOM = [
     (None, "Top GRB Support_17012026",                                 2.0,   "pcs", "PURCHASE", "Sheet Metal"),
     (None, "Side GRB Support_17012026",                                1.0,   "pcs", "PURCHASE", "Sheet Metal"),
     (None, "RUBBER BEADING SUPPORT Combo 608 Bottom_17012026",         1.0,   "pcs", "PURCHASE", None),
-    (None, "MK 01BVC201208000P1_SA_C1_P05 DOOR BUSHV.02_17012026",     2.0,   "pcs", "PURCHASE", None),
+    (None, "MK 01BVC201208001P1_SA_C1_P05 DOOR BUSHV.02_17012026",     2.0,   "pcs", "PURCHASE", None),
 
     # Drag box assembly
     (None, "1.drag box fr.plat_17012026",                              1.0,   "pcs", "PURCHASE", "Sheet Metal"),

@@ -123,12 +123,12 @@ ORG_PRESETS = {
             ]),
             ("Fabrication", "FAB", [
                 ("Fabricator", 30000),
-                ("Senior Fabricator", 48000),
+                ("Senior Fabricator", 48001),
             ]),
             ("Production", "PRD", [
-                ("Production Operator", 28000),
+                ("Production Operator", 28001),
                 ("Production Supervisor", 50000),
-                ("Production Head", 80000),
+                ("Production Head", 80010),
             ]),
             ("Assembly", "ASM", [
                 ("Assembly Technician", 30000),
@@ -140,7 +140,7 @@ ORG_PRESETS = {
                 ("Senior Electrician", 50000),
             ]),
             ("Electronics", "ELTR", [
-                ("Electronics Technician", 38000),
+                ("Electronics Technician", 38001),
                 ("Senior Electronics Engineer", 65000),
             ]),
             ("Quality Control", "QC", [
@@ -154,11 +154,11 @@ ORG_PRESETS = {
             ]),
             ("Installation", "INST", [
                 ("Installation Technician", 32000),
-                ("Installation Lead", 48000),
+                ("Installation Lead", 48001),
             ]),
             ("Packaging & Dispatch", "PKG", [
                 ("Packaging Operator", 25000),
-                ("Dispatch Coordinator", 38000),
+                ("Dispatch Coordinator", 38001),
             ]),
         ]
     },
@@ -174,7 +174,7 @@ ORG_PRESETS = {
                 ("Senior Backend Developer", 110000),
             ]),
             ("DevOps", "OPS", [
-                ("DevOps Engineer", 80000),
+                ("DevOps Engineer", 80010),
                 ("Senior DevOps Engineer", 130000),
             ]),
             ("QA", "QA", [
@@ -196,7 +196,7 @@ ORG_PRESETS = {
         "departments": [
             ("Sales", "SLS", [
                 ("Sales Executive", 40000),
-                ("Sales Manager", 80000),
+                ("Sales Manager", 80010),
             ]),
             ("Operations", "OPS", [
                 ("Operations Executive", 45000),

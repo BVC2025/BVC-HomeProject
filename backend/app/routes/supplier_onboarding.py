@@ -107,7 +107,7 @@ def _build_email_logo(company):
             # Approval / Rejection templates use {{logo_html}} → substituted
             # with an HTTP URL → _extract_cid_logo finds nothing.  Fetching
             # here ensures all four email flows get CID bytes.
-            backend_base = _os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
+            backend_base = _os.getenv("BACKEND_URL", "http://localhost:8001").rstrip("/")
             http_url = (
                 company.LOGO_URL if company.LOGO_URL.startswith("http")
                 else f"{backend_base}{company.LOGO_URL}"
