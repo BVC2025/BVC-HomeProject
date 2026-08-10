@@ -19,6 +19,8 @@ from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 
+from app.auth.auth_bearer import require
+
 from app.models.models import (
     Employee,
     PayrollRun,
@@ -171,7 +173,7 @@ def _serialize_slip(slip: PayrollSlip, employee: Optional[Employee] = None) -> d
 # Endpoints
 # ----------------------------------------------------------------
 
-@router.post("/generate-for-employee")
+@router.post("/generate-for-employee", dependencies=[Depends(require("payroll.manage"))])
 def generate_for_employee(
     body: dict,
     db: Session = Depends(get_db),
@@ -412,7 +414,7 @@ def generate_for_employee(
     }
 
 
-@router.post("/generate")
+@router.post("/generate", dependencies=[Depends(require("payroll.manage"))])
 def generate_payroll(
     data: GeneratePayrollRequest,
     db: Session = Depends(get_db)
@@ -450,7 +452,7 @@ def generate_payroll(
     }
 
 
-@router.get("/runs")
+@router.get("/runs", dependencies=[Depends(require("payroll.view"))])
 def list_runs(
     vendor_id: int = 1,
     year: Optional[int] = None,
@@ -473,7 +475,7 @@ def list_runs(
     return [_serialize_run(r) for r in rows]
 
 
-@router.get("/runs/{run_id}")
+@router.get("/runs/{run_id}", dependencies=[Depends(require("payroll.view"))])
 def get_run(run_id: int, db: Session = Depends(get_db)):
 
     run = db.query(PayrollRun).filter(PayrollRun.ID == run_id).first()
@@ -497,7 +499,7 @@ def get_run(run_id: int, db: Session = Depends(get_db)):
     }
 
 
-@router.get("/runs/{run_id}/slip/{employee_id}")
+@router.get("/runs/{run_id}/slip/{employee_id}", dependencies=[Depends(require("payroll.view"))])
 def get_slip(
     run_id: int,
     employee_id: str,
@@ -529,7 +531,7 @@ def get_slip(
 # REPORTS — summary + CSV export
 # =========================
 
-@router.get("/runs/{run_id}/summary")
+@router.get("/runs/{run_id}/summary", dependencies=[Depends(require("payroll.view"))])
 def run_summary(run_id: int, db: Session = Depends(get_db)):
     """Aggregated summary for a payroll run — used by the Reports tab.
 
@@ -633,7 +635,7 @@ def run_summary(run_id: int, db: Session = Depends(get_db)):
     }
 
 
-@router.get("/runs/{run_id}/export.csv")
+@router.get("/runs/{run_id}/export.csv", dependencies=[Depends(require("payroll.view"))])
 def run_export_csv(run_id: int, db: Session = Depends(get_db)):
     """CSV export of every slip in a run. Used by HR + accounting."""
     from fastapi.responses import StreamingResponse
@@ -720,7 +722,7 @@ def run_export_csv(run_id: int, db: Session = Depends(get_db)):
     )
 
 
-@router.patch("/runs/{run_id}/finalize")
+@router.patch("/runs/{run_id}/finalize", dependencies=[Depends(require("payroll.manage"))])
 def finalize_run(run_id: int, db: Session = Depends(get_db)):
     """Lock a DRAFT run — slips can no longer be edited and the run
     can be safely referenced from accounting."""
@@ -750,7 +752,7 @@ def finalize_run(run_id: int, db: Session = Depends(get_db)):
     }
 
 
-@router.patch("/slips/{slip_id}/mark-paid")
+@router.patch("/slips/{slip_id}/mark-paid", dependencies=[Depends(require("payroll.manage"))])
 def mark_slip_paid(slip_id: int, db: Session = Depends(get_db)):
     """Mark one employee's slip as PAID. Used by the simplified
     employee-list payroll UI where each row has its own Mark Paid
@@ -778,7 +780,7 @@ def mark_slip_paid(slip_id: int, db: Session = Depends(get_db)):
     }
 
 
-@router.patch("/slips/{slip_id}/submit")
+@router.patch("/slips/{slip_id}/submit", dependencies=[Depends(require("payroll.manage"))])
 def submit_slip(slip_id: int, db: Session = Depends(get_db)):
     """Publish a draft slip to Payroll Records.
 
@@ -819,7 +821,7 @@ def submit_slip(slip_id: int, db: Session = Depends(get_db)):
     }
 
 
-@router.patch("/runs/{run_id}/mark-paid")
+@router.patch("/runs/{run_id}/mark-paid", dependencies=[Depends(require("payroll.manage"))])
 def mark_paid(run_id: int, db: Session = Depends(get_db)):
 
     run = db.query(PayrollRun).filter(PayrollRun.ID == run_id).first()
@@ -845,7 +847,7 @@ def mark_paid(run_id: int, db: Session = Depends(get_db)):
     }
 
 
-@router.delete("/runs/{run_id}")
+@router.delete("/runs/{run_id}", dependencies=[Depends(require("payroll.manage"))])
 def delete_run(run_id: int, db: Session = Depends(get_db)):
 
     run = db.query(PayrollRun).filter(PayrollRun.ID == run_id).first()
@@ -879,7 +881,7 @@ def delete_run(run_id: int, db: Session = Depends(get_db)):
 # designation) and return a paginated slice + a summary tile block.
 # ====================================================================
 
-@router.get("/records")
+@router.get("/records", dependencies=[Depends(require("payroll.view"))])
 def payroll_records_list(
     q: Optional[str]           = Query(None),
     department_id: Optional[int] = Query(None),
@@ -1004,7 +1006,7 @@ def payroll_records_list(
     }
 
 
-@router.get("/records/summary")
+@router.get("/records/summary", dependencies=[Depends(require("payroll.view"))])
 def payroll_records_summary(
     year:  Optional[int] = Query(None),
     month: Optional[int] = Query(None),
@@ -1040,7 +1042,7 @@ def payroll_records_summary(
     }
 
 
-@router.delete("/slips/{slip_id}")
+@router.delete("/slips/{slip_id}", dependencies=[Depends(require("payroll.manage"))])
 def delete_slip(slip_id: int, db: Session = Depends(get_db)):
     """Delete a single payslip row. PAID slips are protected —
     the admin must first un-pay via a direct DB action if they
@@ -1125,7 +1127,7 @@ def _serialize_structure(s: SalaryStructure) -> dict:
     }
 
 
-@router.get("/salary-structures")
+@router.get("/salary-structures", dependencies=[Depends(require("payroll.view"))])
 def list_salary_structures(db: Session = Depends(get_db)):
     """List every salary structure (one per employee)."""
 
@@ -1134,7 +1136,7 @@ def list_salary_structures(db: Session = Depends(get_db)):
     return [_serialize_structure(r) for r in rows]
 
 
-@router.get("/salary-structures/{employee_id}")
+@router.get("/salary-structures/{employee_id}", dependencies=[Depends(require("payroll.view"))])
 def get_salary_structure(
     employee_id: str,
     db: Session = Depends(get_db)
@@ -1177,7 +1179,7 @@ def get_salary_structure(
     return data
 
 
-@router.put("/salary-structures/{employee_id}")
+@router.put("/salary-structures/{employee_id}", dependencies=[Depends(require("payroll.manage"))])
 def upsert_salary_structure(
     employee_id: str,
     body: SalaryStructureBody,
@@ -1253,7 +1255,7 @@ def upsert_salary_structure(
     }
 
 
-@router.delete("/salary-structures/{employee_id}")
+@router.delete("/salary-structures/{employee_id}", dependencies=[Depends(require("payroll.manage"))])
 def delete_salary_structure(
     employee_id: str,
     db: Session = Depends(get_db)
@@ -1278,7 +1280,7 @@ def delete_salary_structure(
 # Phase E — Payslip PDF
 # ====================================================================
 
-@router.get("/runs/{run_id}/slip/{employee_id}/pdf")
+@router.get("/runs/{run_id}/slip/{employee_id}/pdf", dependencies=[Depends(require("payroll.view"))])
 def payslip_pdf(
     run_id: int,
     employee_id: str,

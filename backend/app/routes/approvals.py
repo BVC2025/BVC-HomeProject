@@ -24,6 +24,8 @@ from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 
+from app.auth.auth_bearer import get_current_admin, get_current_user
+
 from app.models.models import (
     LeaveRequest,
     Quotation,
@@ -206,7 +208,7 @@ def _serialize_discount(db: Session, dr: DiscountRequest):
 
 # ---- Pending feed --------------------------------------------------
 
-@router.get("/pending")
+@router.get("/pending", dependencies=[Depends(get_current_admin)])
 def list_pending_approvals(db: Session = Depends(get_db)):
     """Returns all 6 buckets in one call. Each bucket is an array of
     items shaped uniformly so the frontend can render one card per
@@ -286,23 +288,16 @@ class ApproveBody(BaseModel):
     NOTES: Optional[str] = None
 
 
-def _admin_id_from_request() -> Optional[str]:
-    """Stub for future role-based audit — returns None for now.
-    When admin JWT is enforced on this router we can populate via
-    Depends(get_current_admin)."""
-
-    return None
-
-
-@router.post("/{kind}/{item_id}/approve")
+@router.post("/{kind}/{item_id}/approve", dependencies=[Depends(get_current_admin)])
 def approve_item(
     kind: str,
     item_id: int,
     body: Optional[ApproveBody] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
 ):
 
-    admin_id = _admin_id_from_request()
+    admin_id = admin.get("employee_id")
 
     now = datetime.utcnow()
 
@@ -453,15 +448,16 @@ def approve_item(
     raise HTTPException(status_code=400, detail=f"Unknown approval kind: {kind}")
 
 
-@router.post("/{kind}/{item_id}/reject")
+@router.post("/{kind}/{item_id}/reject", dependencies=[Depends(get_current_admin)])
 def reject_item(
     kind: str,
     item_id: int,
     body: RejectBody,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    admin: dict = Depends(get_current_admin),
 ):
 
-    admin_id = _admin_id_from_request()
+    admin_id = admin.get("employee_id")
 
     now = datetime.utcnow()
 
@@ -613,7 +609,7 @@ class SupplierPaymentCreate(BaseModel):
     NOTES: Optional[str] = None
 
 
-@router.post("/supplier-payments")
+@router.post("/supplier-payments", dependencies=[Depends(get_current_user)])
 def create_supplier_payment(
     body: SupplierPaymentCreate,
     db: Session = Depends(get_db)
@@ -672,7 +668,7 @@ class DiscountRequestCreate(BaseModel):
     BOT_ACTION: Optional[str] = "ESCALATE"
 
 
-@router.post("/discount-requests")
+@router.post("/discount-requests", dependencies=[Depends(get_current_user)])
 def create_discount_request(
     body: DiscountRequestCreate,
     db: Session = Depends(get_db)

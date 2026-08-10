@@ -6,6 +6,8 @@ import openpyxl
 
 from app.database.database import get_db
 
+from app.auth.auth_bearer import require, get_current_user, assert_not_granting_root_only_codes
+
 from app.models.models import (
     Department,
     Designation,
@@ -348,7 +350,7 @@ def list_permissions(
 # ROLES (per-vendor)
 # =========================
 
-@router.get("/roles")
+@router.get("/roles", dependencies=[Depends(require("role.manage"))])
 def list_roles(
     vendor_id: Optional[int] = Query(None),
     db: Session = Depends(get_db)
@@ -386,7 +388,7 @@ def list_roles(
     return out
 
 
-@router.post("/roles")
+@router.post("/roles", dependencies=[Depends(require("role.manage"))])
 def create_role(
     data: RoleCreate,
     db: Session = Depends(get_db)
@@ -408,7 +410,7 @@ def create_role(
     return {"message": "Role created", "ID": role.ID}
 
 
-@router.delete("/roles/{role_id}")
+@router.delete("/roles/{role_id}", dependencies=[Depends(require("role.manage"))])
 def delete_role(
     role_id: int,
     db: Session = Depends(get_db)
@@ -438,11 +440,12 @@ def delete_role(
     return {"message": "Role deleted"}
 
 
-@router.put("/roles/{role_id}/permissions")
+@router.put("/roles/{role_id}/permissions", dependencies=[Depends(require("role.manage"))])
 def set_role_permissions(
     role_id: int,
     data: RolePermissionsSet,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
 
     role = db.query(Role).filter(Role.ID == role_id).first()
@@ -450,6 +453,11 @@ def set_role_permissions(
     if not role:
 
         raise HTTPException(status_code=404, detail="Role not found")
+
+    requested_codes = [
+        p.CODE for p in db.query(Permission).filter(Permission.ID.in_(data.PERMISSION_IDS)).all()
+    ]
+    assert_not_granting_root_only_codes(payload, requested_codes)
 
     # Wipe existing, replace with the new set
     db.query(RolePermission).filter(
@@ -686,7 +694,7 @@ def list_presets():
 # Admin Module 2 — BVC24 9-role catalogue
 # =========================
 
-@router.post("/roles/seed-bvc24-catalogue")
+@router.post("/roles/seed-bvc24-catalogue", dependencies=[Depends(require("role.manage"))])
 def seed_bvc24_role_catalogue(
     vendor_id: int = Query(1),
     db: Session = Depends(get_db)
@@ -1049,7 +1057,7 @@ async def bulk_upload_departments(
 # ORG ROLES (job-function roles, separate from RBAC)
 # =========================
 
-@router.get("/org-roles")
+@router.get("/org-roles", dependencies=[Depends(require("org.view"))])
 def list_org_roles(
     vendor_id: Optional[int] = Query(None),
     dept_id: Optional[int] = Query(None),
@@ -1081,7 +1089,7 @@ def list_org_roles(
     ]
 
 
-@router.post("/org-roles")
+@router.post("/org-roles", dependencies=[Depends(require("org.manage"))])
 def create_org_role(
     data: OrgRoleCreate,
     db: Session = Depends(get_db)
@@ -1104,7 +1112,7 @@ def create_org_role(
     return {"message": "Role created", "ID": role.ID}
 
 
-@router.put("/org-roles/{role_id}")
+@router.put("/org-roles/{role_id}", dependencies=[Depends(require("org.manage"))])
 def update_org_role(
     role_id: int,
     data: OrgRoleUpdate,
@@ -1123,7 +1131,7 @@ def update_org_role(
     return {"message": "Role updated"}
 
 
-@router.delete("/org-roles/{role_id}")
+@router.delete("/org-roles/{role_id}", dependencies=[Depends(require("org.manage"))])
 def delete_org_role(
     role_id: int,
     db: Session = Depends(get_db)
@@ -1146,7 +1154,7 @@ def delete_org_role(
     return {"message": "Role deleted"}
 
 
-@router.post("/org-roles/bulk-upload")
+@router.post("/org-roles/bulk-upload", dependencies=[Depends(require("org.manage"))])
 async def bulk_upload_org_roles(
     vendor_id: int = Query(1),
     file: UploadFile = File(...),

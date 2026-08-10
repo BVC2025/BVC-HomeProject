@@ -145,10 +145,29 @@ CATALOGUE = [
     # ---- System / Admin ----
     ("setting.modify",        "Modify system settings", "System", None),
     ("role.manage",           "Manage roles & grants",  "System", "Read + write to permission catalogue"),
+    ("iam_user.manage",       "Manage IAM users",       "System", "Create/deactivate IAM user login accounts — Root-grantable only, see self-escalation guard"),
+    ("permission.override.manage", "Manage permission overrides", "System", "Create/edit per-employee grant/deny exceptions — Root-grantable only, see self-escalation guard"),
     ("audit.view",            "View audit log",         "System", "Read /audit-logs"),
     ("audit.export",          "Export audit log",       "System", "CSV download for compliance"),
     ("report.export",         "Export reports",         "Reports","PDF / Excel exports"),
     ("notification.broadcast","Broadcast notifications","System", "Send to all staff"),
+
+    # ---- Recruitment (ATS) — RBAC plan gap, no codes existed before ----
+    ("recruitment.view",   "View recruitment/ATS", "Recruitment", "Jobs, candidates, applications, interviews, offers"),
+    ("recruitment.manage", "Manage recruitment",   "Recruitment", "Create/edit jobs, screen candidates, schedule interviews, issue offers"),
+
+    # ---- Manufacturing — production/quality/work-center CRUD (RBAC plan gap;
+    # only machine.view/machine.update.stage existed before) ----
+    ("production.view",   "View production/BOM/work orders", "Production", "Product models, BOM, work orders, process stages"),
+    ("production.manage",  "Manage production/BOM/work orders", "Production", "Create/edit/delete product models, BOM, work orders"),
+    ("quality.view",       "View quality/QC inspections", "Production", "Checklist items, inspections, NCRs"),
+    ("quality.manage",     "Manage quality/QC inspections", "Production", "Create/edit checklist items, record inspections, manage NCRs"),
+    ("work_center.view",   "View work centers",   "Production", None),
+    ("work_center.manage", "Manage work centers",  "Production", "Create/edit/delete work centers"),
+
+    # ---- Help Desk — RBAC plan gap, admin actions were role-allowlist only ----
+    ("helpdesk.view.all",  "View all help desk tickets", "System", "Admin ticket queue"),
+    ("helpdesk.manage",    "Manage help desk tickets",   "System", "Assign, close, view stats"),
 
     # ---- AI Platform (common Enterprise RAG platform) ----
     ("rag.module.manage",   "Manage AI modules",         "AI Platform", "Create/edit/deactivate AI_MODULES rows"),
@@ -184,8 +203,34 @@ DEFAULT_GRANTS = {
     # Legacy admin — gets every permission except role.manage
     "ADMIN": ALL,
 
-    # MD — operational visibility + financial sign-off
-    "MANAGING_DIRECTOR": ALL,
+    # MD — read-only oversight across every module (NOT full access —
+    # this role's own DB description says "read-only oversight"; it
+    # was previously miscoded as the ALL wildcard, which contradicted
+    # that and gave it the same unrestricted access as SUPER_ADMIN/ADMIN).
+    "MANAGING_DIRECTOR": SELF + [
+        "employee.view",
+        "memo.view.all",
+        "leave.view.all",
+        "attendance.view.all", "attendance.view.team",
+        "geofence.logs.view", "geofence.dashboard.view",
+        "onboarding.sessions.view",
+        "task.view.all", "task.view.team",
+        "org.view",
+        "project.view",
+        "inventory.view",
+        "machine.view",
+        "customer.view",
+        "sales_order.view",
+        "purchase_order.view",
+        "payroll.view",
+        "accounts.view",
+        "audit.view",
+        "report.export",
+        "rag.query",
+        "recruitment.view",
+        "production.view", "quality.view", "work_center.view",
+        "helpdesk.view.all",
+    ],
 
     # Legacy HR
     "HR": SELF + [
@@ -201,6 +246,8 @@ DEFAULT_GRANTS = {
         "payroll.view", "payroll.manage",
         "audit.view", "audit.export", "report.export",
         "org.view", "org.manage",
+        "recruitment.view", "recruitment.manage",
+        "helpdesk.view.all", "helpdesk.manage",
     ],
 
     # BVC24 HR_MANAGER — same as legacy HR
@@ -217,6 +264,8 @@ DEFAULT_GRANTS = {
         "payroll.view", "payroll.manage",
         "audit.view", "report.export",
         "org.view",
+        "recruitment.view", "recruitment.manage",
+        "helpdesk.view.all", "helpdesk.manage",
     ],
 
     # Manager (legacy + new) — approval + own-team view
@@ -232,6 +281,7 @@ DEFAULT_GRANTS = {
         "task.qc.approve", "task.qc.reject", "machine.view", "machine.update.stage",
         "leave.approve", "leave.reject", "leave.decide",
         "attendance.view.team", "org.view",
+        "production.view", "production.manage", "quality.view", "work_center.view",
     ],
 
     "PRODUCTION_MANAGER": SELF + [
@@ -239,6 +289,7 @@ DEFAULT_GRANTS = {
         "task.qc.approve", "task.qc.reject", "machine.view", "machine.update.stage",
         "leave.approve", "leave.reject", "leave.decide",
         "attendance.view.team", "org.view", "inventory.view", "inventory.consume",
+        "production.view", "production.manage", "quality.view", "work_center.view",
     ],
 
     "SALES_MANAGER": SELF + [
@@ -270,6 +321,7 @@ DEFAULT_GRANTS = {
     "QC": SELF + [
         "task.view.team", "task.qc.approve", "task.qc.reject",
         "attendance.view.self",
+        "quality.view", "quality.manage",
     ],
 
     # Plain employees — self-service only
@@ -314,7 +366,7 @@ def _ensure_catalogue(db) -> dict:
 def _apply_grants(db, code_to_id: dict) -> tuple[int, int]:
     """Insert any missing role grants. Returns (grants_added, roles_touched)."""
 
-    roles_by_name = {r.ROLE_NAME: r for r in db.query(Role).all()}
+    roles_by_name = {r.NAME: r for r in db.query(Role).all()}
 
     existing_grants = {
         (rp.ROLE_ID, rp.PERMISSION_ID)
