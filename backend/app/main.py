@@ -30,6 +30,8 @@ import app.models.lead_models        # noqa: F401 — registers lead_polling_con
 import app.models.project_quotation_models  # noqa: F401 — registers project_quotation_template table
 import app.models.rag_models         # noqa: F401 — registers ai_modules, ai_documents, ai_chat_history, ai_training_job tables
 import app.models.whatsapp_models    # noqa: F401 — registers vendor_whatsapp_config, whatsapp_conversation, whatsapp_message, whatsapp_webhook_event tables
+import app.models.rbac_models        # noqa: F401 — registers iam_user, employee_permission_override, employee_permission_override_audit tables (root_user already registered via models.py)
+import app.models.auth_models        # noqa: F401 — registers refresh_token, login_lockout tables
 from app.routes.users import router as users_router
 from app.routes.auth import router as auth_router
 from app.routes.vendor import router as vendor_router
@@ -522,6 +524,36 @@ def _auto_migrate():
         ("notification",   "EMPLOYEE_ID",    "VARCHAR(36) NULL"),
         ("notification",   "REF_TYPE",       "VARCHAR(30) NULL"),
         ("notification",   "REF_ID",         "INT NULL"),
+        # ---- RBAC Phase 1: Vendor/Account extension ----
+        ("vendor", "ACCOUNT_ID",              "VARCHAR(12) NULL"),
+        ("vendor", "PRIMARY_CONTACT_NAME",    "VARCHAR(100) NULL"),
+        ("vendor", "PRIMARY_CONTACT_EMAIL",   "VARCHAR(150) NULL"),
+        ("vendor", "PRIMARY_CONTACT_PHONE",   "VARCHAR(20) NULL"),
+        ("vendor", "ACCOUNT_STATUS",          "VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'"),
+        ("vendor", "ROOT_MFA_ENFORCED",       "INT NOT NULL DEFAULT 0"),
+        ("vendor", "IAM_PASSWORD_MIN_LENGTH", "INT NOT NULL DEFAULT 8"),
+        ("vendor", "CREATED_AT",              "DATETIME NULL"),
+        ("vendor", "UPDATED_AT",              "DATETIME NULL"),
+        # ---- RBAC Phase 1: Root User extension ----
+        ("root_user", "LAST_LOGIN_AT",              "DATETIME NULL"),
+        ("root_user", "PASSWORD_RESET_TOKEN",       "VARCHAR(100) NULL"),
+        ("root_user", "PASSWORD_RESET_EXPIRES_AT",  "DATETIME NULL"),
+        ("root_user", "MFA_ENABLED",                "INT NULL DEFAULT 0"),
+        ("root_user", "TOKEN_VERSION",              "INT NOT NULL DEFAULT 1"),
+        ("root_user", "CREATED_AT",                 "DATETIME NULL"),
+        ("root_user", "UPDATED_AT",                 "DATETIME NULL"),
+        # ---- RBAC Phase 3 (API auth/security): TOKEN_VERSION on Employee ----
+        ("employee", "TOKEN_VERSION",                "INT NOT NULL DEFAULT 1"),
+    ]
+
+    # New unique indexes on tables that already exist in production.
+    # Each entry: (table, index_name, column). Idempotent — skipped if
+    # the index is already present. Unlike the tables in `pending`
+    # above, a UNIQUE constraint can't be expressed via ADD COLUMN, so
+    # it needs its own ALTER TABLE step (see step 6 below).
+    new_unique_indexes = [
+        ("vendor",    "uq_vendor_account_id",   "ACCOUNT_ID"),
+        ("root_user", "uq_root_user_vendor_id", "VENDOR_ID"),
     ]
 
     # Columns to rename. Old names from legacy schema that the model has
@@ -1101,6 +1133,43 @@ def _auto_migrate():
                             "auto-migrate: employee.%s blank-to-null "
                             "backfill skipped: %s", col, exc_bf
                         )
+
+            # ---- 6. Add new unique indexes (RBAC Phase 1) ----
+            for table, index_name, column in new_unique_indexes:
+
+                if not insp.has_table(table):
+
+                    continue
+
+                existing_indexes = {
+                    idx["name"]
+                    for idx in insp.get_indexes(table)
+                    if idx.get("name")
+                }
+
+                if index_name in existing_indexes:
+
+                    continue
+
+                try:
+
+                    conn.execute(text(
+                        f"ALTER TABLE `{table}` "
+                        f"ADD UNIQUE INDEX `{index_name}` (`{column}`)"
+                    ))
+
+                    log.info(
+                        "auto-migrate: added unique index %s on %s.%s",
+                        index_name, table, column
+                    )
+
+                except Exception as exc_inner:
+
+                    log.warning(
+                        "auto-migrate: could not add unique index "
+                        "%s on %s.%s: %s",
+                        index_name, table, column, exc_inner
+                    )
 
     except Exception as exc:
 

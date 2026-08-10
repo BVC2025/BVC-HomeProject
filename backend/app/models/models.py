@@ -17,7 +17,11 @@ from app.models.project_quotation_models import ProjectQuotationTemplate  # noqa
 from app.models.whatsapp_models import (  # noqa: F401
     VendorWhatsAppConfig, WhatsAppModuleSetting, WhatsAppConversation, WhatsAppMessage, WhatsAppWebhookEvent,
 )
-__all__ = ["ProjectCategory", "Project", "TaskTemplate", "ProjectPricing", "Supplier", "VendorEmailConfig", "EmailTemplate", "LeadPollingConfig", "Lead", "LeadPollingLog", "ProjectQuotationTemplate", "VendorWhatsAppConfig", "WhatsAppModuleSetting", "WhatsAppConversation", "WhatsAppMessage", "WhatsAppWebhookEvent"]  # re-exported from dedicated model files
+from app.models.rbac_models import (  # noqa: F401
+    RootUser, IAMUser, EmployeePermissionOverride, EmployeePermissionOverrideAudit,
+)
+from app.models.auth_models import RefreshToken, LoginLockout  # noqa: F401
+__all__ = ["ProjectCategory", "Project", "TaskTemplate", "ProjectPricing", "Supplier", "VendorEmailConfig", "EmailTemplate", "LeadPollingConfig", "Lead", "LeadPollingLog", "ProjectQuotationTemplate", "VendorWhatsAppConfig", "WhatsAppModuleSetting", "WhatsAppConversation", "WhatsAppMessage", "WhatsAppWebhookEvent", "RootUser", "IAMUser", "EmployeePermissionOverride", "EmployeePermissionOverrideAudit", "RefreshToken", "LoginLockout"]  # re-exported from dedicated model files
 
 # ──────────────────────────────────────────────
 # Shared SQLAlchemy Enum types
@@ -74,8 +78,39 @@ ASSIGNMENT_MODE_ENUM = SAEnum(
 class Vendor(Base):
     __tablename__ = "vendor"
 
+    __table_args__ = (
+        UniqueConstraint("ACCOUNT_ID", name="uq_vendor_account_id"),
+    )
+
     ID = Column(Integer, primary_key=True)
     VENDOR_NAME = Column(String(100))
+
+    # ---- RBAC Phase 1: Account-level extension ----
+    ACCOUNT_ID = Column(String(12), nullable=True)
+    # Unique, permanent account identifier (AWS-Account-ID style).
+    # Generated once at vendor-creation time; no route ever accepts
+    # it in an update payload, so it's treated as immutable.
+
+    PRIMARY_CONTACT_NAME = Column(String(100), nullable=True)
+
+    PRIMARY_CONTACT_EMAIL = Column(String(150), nullable=True)
+
+    PRIMARY_CONTACT_PHONE = Column(String(20), nullable=True)
+
+    ACCOUNT_STATUS = Column(String(20), nullable=False, default="ACTIVE")
+    # ACTIVE / SUSPENDED / CLOSED
+
+    ROOT_MFA_ENFORCED = Column(Integer, nullable=False, default=0)
+    # Account-level policy switch (not enforced yet) — does this
+    # account require its Root User to have MFA enabled.
+
+    IAM_PASSWORD_MIN_LENGTH = Column(Integer, nullable=False, default=8)
+    # Account-level policy switch (not enforced yet) — minimum
+    # password length required for this account's IAM Users.
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     root_users = relationship("RootUser", back_populates="vendor")
     email_configurations = relationship(
@@ -118,23 +153,6 @@ class Vendor(Base):
         back_populates="vendor",
         cascade="all, delete-orphan",
     )
-
-class RootUser(Base):
-    __tablename__ = "root_user"
-
-    ID = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-
-    EMAIL = Column(String(100), unique=True)
-
-    PASSWORD = Column(String(255))
-
-    STATUS = Column(String(20), default="ACTIVE")
-    
-
-    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID"))
-
-    vendor = relationship("Vendor", back_populates="root_users")
-
 
 class Employee(Base):
     """
@@ -318,6 +336,12 @@ class Employee(Base):
         ForeignKey("vendor.ID"),
         index=True
     )
+
+    TOKEN_VERSION = Column(Integer, nullable=False, default=1)
+    # Bumped on password change / STATUS change / role or permission
+    # change. Checked once per request (indexed PK lookup) so an
+    # already-issued access token can be invalidated immediately
+    # instead of waiting out its full lifetime.
 
     CREATED_AT = Column(DateTime, default=datetime.utcnow)
 

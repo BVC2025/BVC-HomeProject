@@ -6,7 +6,10 @@ from datetime import datetime
 
 from app.database.database import get_db
 
-from app.models.models import Department
+from app.models.models import Department, Role, Employee
+from app.models.rbac_models import RootUser, IAMUser
+
+from app.auth.jwt_handler import create_token
 
 from app.auth.auth_bearer import (
     get_current_user,
@@ -16,7 +19,16 @@ from app.auth.auth_bearer import (
 from app.services.auth_service import (
     find_employee_by_login,
     verify_password,
-    build_login_response
+    hash_password,
+    build_login_response,
+    get_role_and_permissions,
+    resolve_effective_permissions,
+    issue_refresh_token,
+    rotate_refresh_token,
+    revoke_refresh_token,
+    check_lockout,
+    record_failed_login,
+    reset_lockout,
 )
 
 
@@ -28,6 +40,39 @@ class LoginRequest(BaseModel):
     EMPLOYEE_CODE: Optional[str] = None
     EMAIL: Optional[str] = None
     PASSWORD: str
+
+
+class RootLoginRequest(BaseModel):
+
+    EMAIL: str
+    PASSWORD: str
+
+
+class IAMLoginRequest(BaseModel):
+
+    USERNAME: str
+    PASSWORD: str
+
+
+class RefreshRequest(BaseModel):
+
+    refresh_token: str
+
+
+class LogoutRequest(BaseModel):
+
+    refresh_token: str
+
+
+def _locked_response(locked_until) -> HTTPException:
+
+    return HTTPException(
+        status_code=429,
+        detail=(
+            "Too many failed login attempts. Try again after "
+            f"{locked_until.strftime('%H:%M:%S')}."
+        )
+    )
 
 
 # =========================
@@ -63,6 +108,12 @@ def admin_login(
             detail="Account not found"
         )
 
+    locked_until = check_lockout(db, "EMPLOYEE", emp.ID)
+
+    if locked_until:
+
+        raise _locked_response(locked_until)
+
     if emp.STATUS and emp.STATUS.upper() != "ACTIVE":
 
         raise HTTPException(
@@ -72,10 +123,14 @@ def admin_login(
 
     if not verify_password(data.PASSWORD, emp.PASSWORD):
 
+        record_failed_login(db, "EMPLOYEE", emp.ID)
+
         raise HTTPException(
             status_code=401,
             detail="Invalid password"
         )
+
+    reset_lockout(db, "EMPLOYEE", emp.ID)
 
     response = build_login_response(db, emp)
 
@@ -128,6 +183,12 @@ def unified_login(
             detail="Account not found"
         )
 
+    locked_until = check_lockout(db, "EMPLOYEE", emp.ID)
+
+    if locked_until:
+
+        raise _locked_response(locked_until)
+
     if emp.STATUS and emp.STATUS.upper() != "ACTIVE":
 
         raise HTTPException(
@@ -137,10 +198,14 @@ def unified_login(
 
     if not verify_password(data.PASSWORD, emp.PASSWORD):
 
+        record_failed_login(db, "EMPLOYEE", emp.ID)
+
         raise HTTPException(
             status_code=401,
             detail="Invalid password"
         )
+
+    reset_lockout(db, "EMPLOYEE", emp.ID)
 
     response = build_login_response(db, emp)
 
@@ -248,3 +313,266 @@ def get_me(
         "message": "Protected route working",
         "user": current_user
     }
+
+
+# =========================
+# ROOT LOGIN — separate identity, separate table, never touches
+# Employee/IAMUser login paths above.
+# =========================
+
+@router.post("/root-login")
+def root_login(
+    data: RootLoginRequest,
+    db: Session = Depends(get_db)
+):
+
+    root = db.query(RootUser).filter(RootUser.EMAIL == data.EMAIL.strip()).first()
+
+    if not root:
+
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    locked_until = check_lockout(db, "ROOT", root.ID)
+
+    if locked_until:
+
+        raise _locked_response(locked_until)
+
+    if root.STATUS and root.STATUS.upper() != "ACTIVE":
+
+        raise HTTPException(status_code=403, detail=f"Account is {root.STATUS}")
+
+    if not verify_password(data.PASSWORD, root.PASSWORD):
+
+        record_failed_login(db, "ROOT", root.ID)
+
+        raise HTTPException(status_code=401, detail="Invalid password")
+
+    reset_lockout(db, "ROOT", root.ID)
+
+    root.LAST_LOGIN_AT = datetime.utcnow()
+    db.commit()
+
+    # Deliberately no "role"/"permissions" claims — Root is never
+    # checked against the permission catalogue at all (auth_bearer.py
+    # short-circuits on principal_type == "ROOT" before it would ever
+    # look at those fields).
+    token = create_token({
+        "principal_type": "ROOT",
+        "root_user_id": root.ID,
+        "email": root.EMAIL,
+        "vendor_id": root.VENDOR_ID,
+        "tv": root.TOKEN_VERSION,
+    })
+
+    refresh_token = issue_refresh_token(db, "ROOT", root.ID, root.VENDOR_ID)
+
+    return {
+        "access_token": token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "principal_type": "ROOT",
+        "root_user_id": root.ID,
+        "email": root.EMAIL,
+        "vendor_id": root.VENDOR_ID,
+    }
+
+
+# =========================
+# IAM USER LOGIN — separate, parallel to /login. Never modifies the
+# existing Employee login paths above.
+# =========================
+
+@router.post("/iam-login")
+def iam_login(
+    data: IAMLoginRequest,
+    db: Session = Depends(get_db)
+):
+
+    iam = db.query(IAMUser).filter(IAMUser.USERNAME == data.USERNAME.strip()).first()
+
+    if not iam:
+
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    locked_until = check_lockout(db, "IAM", iam.ID)
+
+    if locked_until:
+
+        raise _locked_response(locked_until)
+
+    if iam.STATUS and iam.STATUS.upper() != "ACTIVE":
+
+        raise HTTPException(status_code=403, detail=f"Account is {iam.STATUS}")
+
+    if not verify_password(data.PASSWORD, iam.PASSWORD):
+
+        record_failed_login(db, "IAM", iam.ID)
+
+        raise HTTPException(status_code=401, detail="Invalid password")
+
+    reset_lockout(db, "IAM", iam.ID)
+
+    iam.LAST_LOGIN_AT = datetime.utcnow()
+    db.commit()
+
+    # Role/permissions are resolved via the linked Employee record only
+    # — an IAM user carries no role/permission data of its own. An
+    # IAM user with no EMPLOYEE_ID (a pure service account) simply
+    # gets no role and no permissions.
+    role_name, role_perms, department_id = (None, [], None)
+
+    if iam.EMPLOYEE_ID:
+
+        emp = db.query(Employee).filter(Employee.ID == iam.EMPLOYEE_ID).first()
+
+        if emp:
+
+            role_name, role_perms = get_role_and_permissions(db, emp.ROLE_ID)
+            department_id = emp.DEPARTMENT_ID
+
+    perms = resolve_effective_permissions(db, iam.EMPLOYEE_ID, role_perms) if iam.EMPLOYEE_ID else role_perms
+
+    token = create_token({
+        "principal_type": "IAM",
+        "iam_user_id": iam.ID,
+        "employee_id": iam.EMPLOYEE_ID,
+        "username": iam.USERNAME,
+        "role": role_name or "EMPLOYEE",
+        "permissions": perms,
+        "department_id": department_id,
+        "vendor_id": iam.VENDOR_ID,
+        "tv": iam.TOKEN_VERSION,
+    })
+
+    refresh_token = issue_refresh_token(db, "IAM", iam.ID, iam.VENDOR_ID)
+
+    return {
+        "access_token": token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "principal_type": "IAM",
+        "iam_user_id": iam.ID,
+        "username": iam.USERNAME,
+        "role": role_name or "EMPLOYEE",
+        "permissions": perms,
+        "vendor_id": iam.VENDOR_ID,
+    }
+
+
+# =========================
+# REFRESH / LOGOUT — additive, new. Existing /login response gains a
+# refresh_token field; frontends that don't know about it are
+# unaffected.
+# =========================
+
+@router.post("/auth/refresh")
+def refresh_access_token(
+    data: RefreshRequest,
+    db: Session = Depends(get_db)
+):
+
+    status_, row, new_raw = rotate_refresh_token(db, data.refresh_token)
+
+    if status_ == "invalid":
+
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+    if status_ == "expired":
+
+        raise HTTPException(status_code=401, detail="Refresh token expired — please log in again")
+
+    if status_ == "reuse_detected":
+
+        raise HTTPException(
+            status_code=401,
+            detail="Session invalidated — this refresh token was already used. Please log in again."
+        )
+
+    # status_ == "ok" — re-derive the principal fresh from the DB
+    # (never trust the old token's claims) so a role/permission change
+    # since the last login is picked up immediately.
+    principal_type = row.PRINCIPAL_TYPE
+
+    if principal_type == "ROOT":
+
+        root = db.query(RootUser).filter(RootUser.ID == row.PRINCIPAL_ID).first()
+
+        if not root or (root.STATUS and root.STATUS.upper() != "ACTIVE"):
+
+            raise HTTPException(status_code=401, detail="Account no longer active")
+
+        token = create_token({
+            "principal_type": "ROOT",
+            "root_user_id": root.ID,
+            "email": root.EMAIL,
+            "vendor_id": root.VENDOR_ID,
+            "tv": root.TOKEN_VERSION,
+        })
+
+        return {"access_token": token, "refresh_token": new_raw, "token_type": "bearer"}
+
+    if principal_type == "IAM":
+
+        iam = db.query(IAMUser).filter(IAMUser.ID == row.PRINCIPAL_ID).first()
+
+        if not iam or (iam.STATUS and iam.STATUS.upper() != "ACTIVE"):
+
+            raise HTTPException(status_code=401, detail="Account no longer active")
+
+        role_name, role_perms, department_id = (None, [], None)
+
+        if iam.EMPLOYEE_ID:
+
+            emp = db.query(Employee).filter(Employee.ID == iam.EMPLOYEE_ID).first()
+
+            if emp:
+
+                role_name, role_perms = get_role_and_permissions(db, emp.ROLE_ID)
+                department_id = emp.DEPARTMENT_ID
+
+        perms = resolve_effective_permissions(db, iam.EMPLOYEE_ID, role_perms) if iam.EMPLOYEE_ID else role_perms
+
+        token = create_token({
+            "principal_type": "IAM",
+            "iam_user_id": iam.ID,
+            "employee_id": iam.EMPLOYEE_ID,
+            "username": iam.USERNAME,
+            "role": role_name or "EMPLOYEE",
+            "permissions": perms,
+            "department_id": department_id,
+            "vendor_id": iam.VENDOR_ID,
+            "tv": iam.TOKEN_VERSION,
+        })
+
+        return {"access_token": token, "refresh_token": new_raw, "token_type": "bearer"}
+
+    # EMPLOYEE (legacy)
+    emp = db.query(Employee).filter(Employee.ID == row.PRINCIPAL_ID).first()
+
+    if not emp or (emp.STATUS and emp.STATUS.upper() != "ACTIVE"):
+
+        raise HTTPException(status_code=401, detail="Account no longer active")
+
+    response = build_login_response(db, emp)
+
+    # build_login_response mints its own fresh refresh token too — we
+    # only want the one from rotate_refresh_token above to stay live,
+    # so revoke the extra one it just issued to avoid an orphaned row.
+    revoke_refresh_token(db, response["refresh_token"], reason="ROTATED")
+
+    response["refresh_token"] = new_raw
+
+    return response
+
+
+@router.post("/auth/logout")
+def logout(
+    data: LogoutRequest,
+    db: Session = Depends(get_db)
+):
+
+    revoke_refresh_token(db, data.refresh_token, reason="LOGOUT")
+
+    # Always 200 — never reveal whether the token existed.
+    return {"message": "Logged out."}

@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.models.models import Role, Permission, RolePermission, Employee
-from app.auth.auth_bearer import require, get_current_admin
+from app.auth.auth_bearer import require, get_current_admin, get_current_user, assert_not_granting_root_only_codes
 
 
 router = APIRouter(prefix="/rbac", tags=["RBAC"])
@@ -153,9 +153,12 @@ def replace_role_permissions(
     role_id: int,
     body: ReplaceGrantsBody,
     db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     """REPLACE the role's permission grants with exactly the supplied
     set. Codes not in the list are revoked. Idempotent."""
+
+    assert_not_granting_root_only_codes(payload, body.codes)
 
     role = db.query(Role).filter(Role.ID == role_id).first()
     if not role:
@@ -210,8 +213,11 @@ def grant_one(
     role_id: int,
     body: SingleCodeBody,
     db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     """Add a single permission to a role. Idempotent."""
+
+    assert_not_granting_root_only_codes(payload, [body.code])
 
     role = db.query(Role).filter(Role.ID == role_id).first()
     if not role:
