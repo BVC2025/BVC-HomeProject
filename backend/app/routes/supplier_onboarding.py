@@ -59,6 +59,8 @@ from app.services.email_template_service import (
 from app.services.company_settings_service import get_company_settings, format_full_address
 from app.models.email_models import VendorEmailConfig
 
+from app.auth.auth_bearer import require
+
 router = APIRouter(prefix="/supplier-onboarding", tags=["Supplier Onboarding"])
 
 import os as _os
@@ -298,7 +300,7 @@ def _serialize_invitation(
 # ADMIN ENDPOINTS
 # ─────────────────────────────────────────────────────────────────────
 
-@router.post("/invite")
+@router.post("/invite", dependencies=[Depends(require("supplier.manage"))])
 def create_invitation(payload: InvitationCreate, db: Session = Depends(get_db)):
     """Admin generates a unique onboarding link for a prospective supplier."""
     vendor = db.query(Vendor).filter(Vendor.ID == payload.VENDOR_ID).first()
@@ -494,7 +496,7 @@ def create_invitation(payload: InvitationCreate, db: Session = Depends(get_db)):
     }
 
 
-@router.get("/invitations")
+@router.get("/invitations", dependencies=[Depends(require("supplier.manage"))])
 def list_invitations(
     vendor_id: int = Query(1),
     status: Optional[str] = Query(None),
@@ -543,7 +545,7 @@ def list_invitations(
     return [_serialize_invitation(r) for r in rows]
 
 
-@router.get("/pending-review")
+@router.get("/pending-review", dependencies=[Depends(require("supplier.manage"))])
 def list_pending_review(vendor_id: int = Query(1), db: Session = Depends(get_db)):
     """Admin: list all SUBMITTED invitations awaiting review."""
     rows = (
@@ -583,7 +585,7 @@ def list_pending_review(vendor_id: int = Query(1), db: Session = Depends(get_db)
     return result
 
 
-@router.get("/invitations/{invitation_id}")
+@router.get("/invitations/{invitation_id}", dependencies=[Depends(require("supplier.manage"))])
 def get_invitation(invitation_id: str, db: Session = Depends(get_db)):
     """Admin: full invitation detail including draft preview and creator employee info."""
     inv = _check_invitation(db, invitation_id)
@@ -619,7 +621,7 @@ def get_invitation(invitation_id: str, db: Session = Depends(get_db)):
     return result
 
 
-@router.delete("/invitations/{invitation_id}")
+@router.delete("/invitations/{invitation_id}", dependencies=[Depends(require("supplier.manage"))])
 def delete_invitation(invitation_id: str, db: Session = Depends(get_db)):
     """Admin: permanently delete an invitation record. Blocked if already APPROVED."""
     inv = _check_invitation(db, invitation_id)
@@ -640,7 +642,7 @@ def delete_invitation(invitation_id: str, db: Session = Depends(get_db)):
     return {"message": "Invitation deleted"}
 
 
-@router.post("/invitations/{invitation_id}/resend")
+@router.post("/invitations/{invitation_id}/resend", dependencies=[Depends(require("supplier.manage"))])
 def resend_invitation(invitation_id: str, db: Session = Depends(get_db)):
     """Admin: resend the invitation email."""
     inv = _check_invitation(db, invitation_id)
@@ -757,7 +759,7 @@ def resend_invitation(invitation_id: str, db: Session = Depends(get_db)):
     }
 
 
-@router.post("/invitations/{invitation_id}/expire")
+@router.post("/invitations/{invitation_id}/expire", dependencies=[Depends(require("supplier.manage"))])
 def expire_invitation(invitation_id: str, db: Session = Depends(get_db)):
     """Admin: manually expire an invitation link."""
     inv = _check_invitation(db, invitation_id)
@@ -769,7 +771,7 @@ def expire_invitation(invitation_id: str, db: Session = Depends(get_db)):
     return {"message": "Invitation expired"}
 
 
-@router.post("/invitations/{invitation_id}/approve")
+@router.post("/invitations/{invitation_id}/approve", dependencies=[Depends(require("supplier.manage"))])
 def approve_invitation(
     invitation_id: str,
     payload: Optional[ApprovalRequest] = None,
@@ -980,7 +982,7 @@ def approve_invitation(
     }
 
 
-@router.post("/invitations/{invitation_id}/reject")
+@router.post("/invitations/{invitation_id}/reject", dependencies=[Depends(require("supplier.manage"))])
 def reject_invitation(
     invitation_id: str,
     payload: RejectionRequest,

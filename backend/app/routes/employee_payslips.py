@@ -29,6 +29,7 @@ from app.models.models import (
 )
 from app.utils.employee_resolver import require_employee
 from app.services.payslip_pdf_service import render_payslip_pdf
+from app.auth.auth_bearer import get_current_user, assert_self_or_admin
 
 
 router = APIRouter(prefix="/my-payslips", tags=["Employee Payslips"])
@@ -42,7 +43,10 @@ router = APIRouter(prefix="/my-payslips", tags=["Employee Payslips"])
 def list_my_payslips(
     employee_id: str,
     db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
+    assert_self_or_admin(employee_id, payload)
+
     emp = require_employee(db, employee_id)
 
     rows = (
@@ -83,7 +87,10 @@ def list_my_payslips(
 def payslip_summary(
     employee_id: str,
     db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
+    assert_self_or_admin(employee_id, payload)
+
     emp = require_employee(db, employee_id)
     rows = (
         db.query(PayrollSlip, PayrollRun)
@@ -124,6 +131,7 @@ def payslip_summary(
 def get_payslip_detail(
     slip_id: int,
     db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     pair = (
         db.query(PayrollSlip, PayrollRun)
@@ -138,6 +146,8 @@ def get_payslip_detail(
     emp = db.query(Employee).filter(Employee.ID == slip.EMPLOYEE_ID).first()
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found for this slip")
+
+    assert_self_or_admin(emp.ID, payload)
 
     dept_name = None
     if getattr(emp, "DEPARTMENT_ID", None):
@@ -309,6 +319,7 @@ def _amount_in_words(amount: float) -> str:
 def get_payslip_pdf(
     slip_id: int,
     db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     pair = (
         db.query(PayrollSlip, PayrollRun)
@@ -323,6 +334,8 @@ def get_payslip_pdf(
     emp = db.query(Employee).filter(Employee.ID == slip.EMPLOYEE_ID).first()
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found for this slip")
+
+    assert_self_or_admin(emp.ID, payload)
 
     # Resolve department + designation names
     dept_name = None

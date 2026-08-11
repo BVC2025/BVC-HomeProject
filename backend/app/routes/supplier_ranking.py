@@ -19,10 +19,12 @@ from app.models.supplier_models import (
     SupplierPerformanceMetrics,
 )
 
+from app.auth.auth_bearer import require, get_current_admin
+
 router = APIRouter(prefix="/procurement", tags=["Procurement"])
 
 
-@router.get("/recommendations")
+@router.get("/recommendations", dependencies=[Depends(require("purchase_order.view"))])
 def list_recommendations(vendor_id: int = Query(1), db: Session = Depends(get_db)):
     """All active purchase recommendations for a vendor."""
     rows = (
@@ -55,7 +57,7 @@ def list_recommendations(vendor_id: int = Query(1), db: Session = Depends(get_db
     return result
 
 
-@router.get("/recommendations/{product_id}")
+@router.get("/recommendations/{product_id}", dependencies=[Depends(require("purchase_order.view"))])
 def get_recommendation(product_id: str, db: Session = Depends(get_db)):
     """Best supplier recommendation for a specific product."""
     rec = db.query(PurchaseRecommendation).filter(
@@ -83,7 +85,7 @@ def get_recommendation(product_id: str, db: Session = Depends(get_db)):
     }
 
 
-@router.get("/rankings/{product_id}")
+@router.get("/rankings/{product_id}", dependencies=[Depends(require("purchase_order.view"))])
 def get_product_rankings(product_id: str, db: Session = Depends(get_db)):
     """Full ranking table for a product — all active suppliers ranked by composite score."""
     rows = (
@@ -117,7 +119,7 @@ def get_product_rankings(product_id: str, db: Session = Depends(get_db)):
     return result
 
 
-@router.get("/supplier-scorecard/{supplier_id}")
+@router.get("/supplier-scorecard/{supplier_id}", dependencies=[Depends(require("supplier.manage"))])
 def get_supplier_scorecard(
     supplier_id: int,
     vendor_id: int = Query(1),
@@ -176,7 +178,7 @@ def get_supplier_scorecard(
     }
 
 
-@router.post("/recalculate")
+@router.post("/recalculate", dependencies=[Depends(get_current_admin)])
 def recalculate_all(vendor_id: int = Query(1), db: Session = Depends(get_db)):
     """Admin: trigger full ranking recalculation for all products of a vendor."""
     from app.services.supplier_ranking_service import recalculate_all_for_vendor
@@ -184,7 +186,7 @@ def recalculate_all(vendor_id: int = Query(1), db: Session = Depends(get_db)):
     return {"message": f"Rankings recalculated for {count} product(s)", "products_processed": count}
 
 
-@router.post("/recalculate/{product_id}")
+@router.post("/recalculate/{product_id}", dependencies=[Depends(get_current_admin)])
 def recalculate_product(product_id: str, vendor_id: int = Query(1), db: Session = Depends(get_db)):
     """Admin: recalculate ranking for a single product."""
     from app.services.supplier_ranking_service import recalculate_ranking_for_product

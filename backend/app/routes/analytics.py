@@ -17,10 +17,12 @@ from app.models.models import (
     Attendance
 )
 
+from app.auth.auth_bearer import get_current_admin
+
 router = APIRouter()
 
 
-@router.get("/dashboard-stats")
+@router.get("/dashboard-stats", dependencies=[Depends(get_current_admin)])
 def dashboard_stats(
     db: Session = Depends(get_db)
 ):
@@ -121,7 +123,7 @@ def dashboard_stats(
     }
 
 
-@router.get("/chart-data")
+@router.get("/chart-data", dependencies=[Depends(get_current_admin)])
 def chart_data(
     vendor_id: Optional[int] = Query(None),
     db: Session = Depends(get_db)

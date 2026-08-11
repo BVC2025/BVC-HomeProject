@@ -132,7 +132,7 @@ def _parse_date(value: Optional[str]) -> Optional[datetime]:
 
 # ── AI Modules ───────────────────────────────────────────────────────────────
 
-@router.get("/modules")
+@router.get("/modules", dependencies=[Depends(require("rag.query"))])
 def list_modules(db: Session = Depends(get_db)):
 
     rows = db.query(AIModule).order_by(AIModule.MODULE_NAME).all()
@@ -192,7 +192,7 @@ def deactivate_module(module_id: str, db: Session = Depends(get_db)):
 
 # ── Documents ────────────────────────────────────────────────────────────────
 
-@router.get("/documents")
+@router.get("/documents", dependencies=[Depends(require("rag.query"))])
 def list_documents(
     module_code: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
@@ -336,7 +336,7 @@ def upload_document(
     return {"message": "Document uploaded. Ingestion started.", "document": _serialize_document(doc), "job_id": job.ID}
 
 
-@router.get("/documents/{document_id}")
+@router.get("/documents/{document_id}", dependencies=[Depends(require("rag.query"))])
 def get_document(document_id: str, db: Session = Depends(get_db)):
 
     doc = db.query(AIDocument).filter(AIDocument.ID == document_id, AIDocument.DELETED_AT.is_(None)).first()
@@ -348,7 +348,7 @@ def get_document(document_id: str, db: Session = Depends(get_db)):
     return _serialize_document(doc)
 
 
-@router.get("/documents/{document_id}/download")
+@router.get("/documents/{document_id}/download", dependencies=[Depends(require("rag.query"))])
 def download_document(document_id: str, db: Session = Depends(get_db)):
 
     doc = db.query(AIDocument).filter(AIDocument.ID == document_id, AIDocument.DELETED_AT.is_(None)).first()
@@ -586,7 +586,7 @@ def retrain_document(
 
 # ── Training Jobs ────────────────────────────────────────────────────────────
 
-@router.get("/training-jobs")
+@router.get("/training-jobs", dependencies=[Depends(require("rag.query"))])
 def list_training_jobs(
     module_code: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
@@ -624,7 +624,7 @@ def list_training_jobs(
     return [_serialize_job(j) for j in rows]
 
 
-@router.get("/training-jobs/{job_id}")
+@router.get("/training-jobs/{job_id}", dependencies=[Depends(require("rag.query"))])
 def get_training_job(job_id: str, db: Session = Depends(get_db)):
 
     job = db.query(AITrainingJob).filter(AITrainingJob.ID == job_id).first()
@@ -638,7 +638,7 @@ def get_training_job(job_id: str, db: Session = Depends(get_db)):
 
 # ── Chat History ─────────────────────────────────────────────────────────────
 
-@router.get("/chat-history")
+@router.get("/chat-history", dependencies=[Depends(require("rag.query"))])
 def list_chat_history(
     module_code: Optional[str] = Query(None),
     user_id: Optional[str] = Query(None),

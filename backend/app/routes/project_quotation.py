@@ -21,11 +21,9 @@ from app.services.project_quotation_service import (
 )
 from app.utils.datetime_utils import now_ist
 from app.utils.db_error_handler import raise_db_error
+from app.auth.auth_bearer import require
 
 router = APIRouter()
-# No auth dependency — matches every sibling route in project_template.py,
-# which is entirely unguarded today. Adding a gate here would make this the
-# only guarded route in the module family.
 
 _ALLOWED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".svg"}
 _QUOTATION_DIR = Path(__file__).resolve().parent.parent.parent / "static" / "quotation"
@@ -79,13 +77,13 @@ def _get_or_create_quotation(db: Session, project_id: str) -> ProjectQuotationTe
     return row
 
 
-@router.get("/projects/{project_id}/quotation")
+@router.get("/projects/{project_id}/quotation", dependencies=[Depends(require("project.view"))])
 def get_project_quotation(project_id: str, db: Session = Depends(get_db)):
     row = _get_or_create_quotation(db, project_id)
     return _serialize(row)
 
 
-@router.put("/projects/{project_id}/quotation")
+@router.put("/projects/{project_id}/quotation", dependencies=[Depends(require("project.update"))])
 def update_project_quotation(project_id: str, data: ProjectQuotationUpdate, db: Session = Depends(get_db)):
     row = _get_or_create_quotation(db, project_id)
 
@@ -113,7 +111,7 @@ def update_project_quotation(project_id: str, data: ProjectQuotationUpdate, db: 
     return _serialize(row)
 
 
-@router.get("/projects/{project_id}/quotation/pdf")
+@router.get("/projects/{project_id}/quotation/pdf", dependencies=[Depends(require("project.view"))])
 def download_project_quotation_pdf(
     project_id: str, db: Session = Depends(get_db),
     filename: Optional[str] = Query(None, description="Override the downloaded file's name (e.g. a customer-friendly name); defaults to the quotation number"),
@@ -135,7 +133,7 @@ def download_project_quotation_pdf(
     )
 
 
-@router.get("/projects/{project_id}/quotation/docx")
+@router.get("/projects/{project_id}/quotation/docx", dependencies=[Depends(require("project.view"))])
 def download_project_quotation_docx(project_id: str, db: Session = Depends(get_db)):
     row = _get_or_create_quotation(db, project_id)
     project = _get_project_or_404(db, project_id)
@@ -153,7 +151,7 @@ def download_project_quotation_docx(project_id: str, db: Session = Depends(get_d
     )
 
 
-@router.post("/projects/{project_id}/quotation/upload-image")
+@router.post("/projects/{project_id}/quotation/upload-image", dependencies=[Depends(require("project.update"))])
 def upload_project_quotation_image(project_id: str, file: UploadFile = File(...), db: Session = Depends(get_db)):
     _get_project_or_404(db, project_id)
 

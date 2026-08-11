@@ -81,6 +81,8 @@ from app.schemas.quotation_schema import (
 )
 
 
+from app.auth.auth_bearer import require
+
 router = APIRouter()
 
 
@@ -725,7 +727,7 @@ def _serialize_quotation(
 # route, otherwise FastAPI's path-parameter matcher will swallow the
 # literal "_settings" segment as an ID and 422 on integer conversion.
 
-@router.get("/quotations/_settings")
+@router.get("/quotations/_settings", dependencies=[Depends(require("quotation.manage"))])
 def get_quotation_settings(
     db: Session = Depends(get_db)
 ):
@@ -752,7 +754,7 @@ def get_quotation_settings(
     }
 
 
-@router.patch("/quotations/_settings")
+@router.patch("/quotations/_settings", dependencies=[Depends(require("quotation.manage"))])
 def update_quotation_settings(
     payload: dict,
     db: Session = Depends(get_db)
@@ -819,7 +821,7 @@ def update_quotation_settings(
 # Quotation CRUD
 # =========================
 
-@router.post("/quotations")
+@router.post("/quotations", dependencies=[Depends(require("quotation.manage"))])
 def create_quotation(
     data: QuotationCreate,
     db: Session = Depends(get_db)
@@ -892,7 +894,7 @@ def create_quotation(
     }
 
 
-@router.get("/quotations")
+@router.get("/quotations", dependencies=[Depends(require("quotation.manage"))])
 def list_quotations(
     status: Optional[str] = Query(None),
     customer_id: Optional[int] = Query(None),
@@ -922,7 +924,7 @@ def list_quotations(
     ]
 
 
-@router.get("/quotations/{quotation_id}")
+@router.get("/quotations/{quotation_id}", dependencies=[Depends(require("quotation.manage"))])
 def get_quotation(
     quotation_id: int,
     db: Session = Depends(get_db)
@@ -937,7 +939,7 @@ def get_quotation(
     return _serialize_quotation(db, q, include_lines=True)
 
 
-@router.patch("/quotations/{quotation_id}")
+@router.patch("/quotations/{quotation_id}", dependencies=[Depends(require("quotation.manage"))])
 def update_quotation(
     quotation_id: int,
     data: QuotationUpdate,
@@ -977,7 +979,7 @@ def update_quotation(
     }
 
 
-@router.delete("/quotations/{quotation_id}")
+@router.delete("/quotations/{quotation_id}", dependencies=[Depends(require("quotation.manage"))])
 def delete_quotation(
     quotation_id: int,
     force: bool = False,
@@ -1086,7 +1088,7 @@ def delete_quotation(
 # Line CRUD
 # =========================
 
-@router.post("/quotations/{quotation_id}/lines")
+@router.post("/quotations/{quotation_id}/lines", dependencies=[Depends(require("quotation.manage"))])
 def add_line(
     quotation_id: int,
     data: QuotationLineCreate,
@@ -1141,7 +1143,7 @@ def add_line(
     }
 
 
-@router.patch("/quotations/{quotation_id}/lines/{line_id}")
+@router.patch("/quotations/{quotation_id}/lines/{line_id}", dependencies=[Depends(require("quotation.manage"))])
 def update_line(
     quotation_id: int,
     line_id: int,
@@ -1186,7 +1188,7 @@ def update_line(
     }
 
 
-@router.delete("/quotations/{quotation_id}/lines/{line_id}")
+@router.delete("/quotations/{quotation_id}/lines/{line_id}", dependencies=[Depends(require("quotation.manage"))])
 def delete_line(
     quotation_id: int,
     line_id: int,
@@ -1488,7 +1490,7 @@ def _send_quotation_email(db: Session, q: Quotation) -> tuple:
     return ok, msg
 
 
-@router.post("/quotations/{quotation_id}/send")
+@router.post("/quotations/{quotation_id}/send", dependencies=[Depends(require("quotation.manage"))])
 def send_quotation(
     quotation_id: int,
     db: Session = Depends(get_db)
@@ -1575,7 +1577,7 @@ def send_quotation(
     }
 
 
-@router.post("/quotations/{quotation_id}/resend-email")
+@router.post("/quotations/{quotation_id}/resend-email", dependencies=[Depends(require("quotation.manage"))])
 def resend_email(
     quotation_id: int,
     db: Session = Depends(get_db)
@@ -1630,7 +1632,7 @@ def resend_email(
     }
 
 
-@router.post("/quotations/{quotation_id}/approve")
+@router.post("/quotations/{quotation_id}/approve", dependencies=[Depends(require("quotation.manage"))])
 def approve_quotation(
     quotation_id: int,
     db: Session = Depends(get_db)
@@ -1683,7 +1685,7 @@ def approve_quotation(
     return response
 
 
-@router.post("/quotations/{quotation_id}/reject")
+@router.post("/quotations/{quotation_id}/reject", dependencies=[Depends(require("quotation.manage"))])
 def reject_quotation(
     quotation_id: int,
     data: QuotationRejection,
@@ -1728,7 +1730,7 @@ def reject_quotation(
 # Auto-pricing helpers
 # =========================
 
-@router.get("/quotations-auto-price")
+@router.get("/quotations-auto-price", dependencies=[Depends(require("quotation.manage"))])
 def auto_price(
     product_model_id: int = Query(...),
     margin_percent: float = Query(25.0),
@@ -1760,7 +1762,7 @@ def auto_price(
     }
 
 
-@router.post("/quotations/from-requirements")
+@router.post("/quotations/from-requirements", dependencies=[Depends(require("quotation.manage"))])
 def quotation_from_requirements(
     data: QuotationFromRequirement,
     db: Session = Depends(get_db)
@@ -2369,7 +2371,7 @@ def public_negotiation_send(
     return response
 
 
-@router.get("/quotations/{quotation_id}/activity")
+@router.get("/quotations/{quotation_id}/activity", dependencies=[Depends(require("quotation.manage"))])
 def get_activity(
     quotation_id: int,
     db: Session = Depends(get_db)
@@ -2394,7 +2396,7 @@ def get_activity(
     ]
 
 
-@router.delete("/quotations/{quotation_id}/activity/{activity_id}")
+@router.delete("/quotations/{quotation_id}/activity/{activity_id}", dependencies=[Depends(require("quotation.manage"))])
 def delete_activity_row(
     quotation_id: int,
     activity_id: int,
@@ -2665,7 +2667,7 @@ def _default_terms_and_conditions(validity_days: int) -> str:
     )
 
 
-@router.post("/quotations/auto-generate")
+@router.post("/quotations/auto-generate", dependencies=[Depends(require("quotation.manage"))])
 def auto_generate_quotation(
     data: AutoGenerateQuotation,
     db: Session = Depends(get_db)
@@ -3065,8 +3067,8 @@ def auto_generate_quotation(
 # Dashboard stats
 # =========================
 
-@router.get("/quotations-dashboard-stats")
-@router.get("/quotations/dashboard-stats")
+@router.get("/quotations-dashboard-stats", dependencies=[Depends(require("quotation.manage"))])
+@router.get("/quotations/dashboard-stats", dependencies=[Depends(require("quotation.manage"))])
 def quotation_dashboard_stats(
     vendor_id: Optional[int] = Query(None),
     db: Session = Depends(get_db)
@@ -3148,8 +3150,8 @@ def quotation_dashboard_stats(
 # Pricing breakdown (diagnostics)
 # =========================
 
-@router.get("/quotations-pricing-breakdown")
-@router.get("/quotations/pricing-breakdown")
+@router.get("/quotations-pricing-breakdown", dependencies=[Depends(require("quotation.manage"))])
+@router.get("/quotations/pricing-breakdown", dependencies=[Depends(require("quotation.manage"))])
 def quotation_pricing_breakdown(
     product_model_id: int = Query(...),
     margin_percent: float = Query(25.0),

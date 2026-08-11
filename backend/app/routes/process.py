@@ -39,6 +39,8 @@ from app.schemas.process_schema import (
 )
 
 
+from app.auth.auth_bearer import require, get_current_user, assert_self_or_admin
+
 router = APIRouter(prefix="/process", tags=["Process Stages"])
 
 
@@ -107,7 +109,7 @@ def _serialize_progress(
 # ProcessStage CRUD
 # ----------------------------------------------------------------
 
-@router.post("/stages")
+@router.post("/stages", dependencies=[Depends(require("production.manage"))])
 def create_stage(
     data: ProcessStageCreate,
     db: Session = Depends(get_db)
@@ -140,7 +142,7 @@ def create_stage(
     }
 
 
-@router.get("/stages/{model_id}")
+@router.get("/stages/{model_id}", dependencies=[Depends(require("production.view"))])
 def list_stages_for_model(
     model_id: int,
     include_inactive: bool = False,
@@ -160,7 +162,7 @@ def list_stages_for_model(
     return [_serialize_stage(s) for s in rows]
 
 
-@router.patch("/stages/{stage_id}")
+@router.patch("/stages/{stage_id}", dependencies=[Depends(require("production.manage"))])
 def update_stage(
     stage_id: int,
     data: ProcessStageUpdate,
@@ -196,7 +198,7 @@ def update_stage(
     }
 
 
-@router.delete("/stages/{stage_id}")
+@router.delete("/stages/{stage_id}", dependencies=[Depends(require("production.manage"))])
 def delete_stage(
     stage_id: int,
     db: Session = Depends(get_db)
@@ -221,7 +223,7 @@ def delete_stage(
 # Work Order stage progress
 # ----------------------------------------------------------------
 
-@router.post("/spawn-for-wo/{wo_id}")
+@router.post("/spawn-for-wo/{wo_id}", dependencies=[Depends(require("production.manage"))])
 def spawn_progress_for_wo(
     wo_id: int,
     db: Session = Depends(get_db)
@@ -283,7 +285,7 @@ def spawn_progress_for_wo(
     }
 
 
-@router.post("/wo/{wo_id}/resync-stages")
+@router.post("/wo/{wo_id}/resync-stages", dependencies=[Depends(require("production.manage"))])
 def resync_wo_stages(
     wo_id: int,
     force: bool = False,
@@ -486,7 +488,7 @@ def resync_wo_stages(
     }
 
 
-@router.get("/wo/{wo_id}/stages")
+@router.get("/wo/{wo_id}/stages", dependencies=[Depends(require("production.view"))])
 def list_wo_progress(
     wo_id: int,
     db: Session = Depends(get_db)
@@ -516,7 +518,8 @@ def list_wo_progress(
 @router.get("/employee/{employee_ref}/production-stages")
 def employee_production_stages(
     employee_ref: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     """All WorkOrderStageProgress rows assigned to this employee
     (across every Work Order). Returns PENDING and IN_PROGRESS only
@@ -527,6 +530,8 @@ def employee_production_stages(
 
     The employee can be referenced by their UUID or EMPLOYEE_CODE.
     """
+
+    assert_self_or_admin(employee_ref, payload)
 
     # Resolve the employee — accept either ID or EMPLOYEE_CODE
     emp = db.query(Employee).filter(
@@ -643,7 +648,7 @@ def employee_production_stages(
     }
 
 
-@router.patch("/wo/{wo_id}/stages/{stage_id}")
+@router.patch("/wo/{wo_id}/stages/{stage_id}", dependencies=[Depends(require("production.manage"))])
 def update_wo_stage_progress(
     wo_id: int,
     stage_id: int,
@@ -811,7 +816,7 @@ def update_wo_stage_progress(
 # BOM item type update (PURCHASE / PROCESS)
 # ----------------------------------------------------------------
 
-@router.get("/wo/{wo_id}/gantt")
+@router.get("/wo/{wo_id}/gantt", dependencies=[Depends(require("production.view"))])
 def wo_gantt(
     wo_id: int,
     db: Session = Depends(get_db)
@@ -1101,7 +1106,7 @@ def wo_gantt(
     }
 
 
-@router.patch("/bom-items/{item_id}/classify")
+@router.patch("/bom-items/{item_id}/classify", dependencies=[Depends(require("production.manage"))])
 def classify_bom_item(
     item_id: int,
     data: BOMItemTypeUpdate,

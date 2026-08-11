@@ -10,7 +10,7 @@ through a customer enquiry first. Use:
 
 import os
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.services.whatsapp_service import (
     send_whatsapp,
@@ -18,12 +18,13 @@ from app.services.whatsapp_service import (
     is_cloud_api_configured,
     is_any_provider_configured
 )
+from app.auth.auth_bearer import get_current_admin
 
 
 router = APIRouter()
 
 
-@router.get("/whatsapp/diagnose")
+@router.get("/whatsapp/diagnose", dependencies=[Depends(get_current_admin)])
 def whatsapp_diagnose():
     """Returns the current WhatsApp configuration state. Helpful
     when alerts aren't arriving and you don't know which env var
@@ -63,7 +64,7 @@ def whatsapp_diagnose():
     }
 
 
-@router.post("/whatsapp/test")
+@router.post("/whatsapp/test", dependencies=[Depends(get_current_admin)])
 def whatsapp_test():
     """Sends a real test message to the MD's number. Use this once
     after setting env vars to confirm everything works end-to-end."""

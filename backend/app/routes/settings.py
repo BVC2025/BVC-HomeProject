@@ -28,6 +28,8 @@ from app.services.email_service import (
 )
 
 
+from app.auth.auth_bearer import require
+
 router = APIRouter()
 
 
@@ -106,7 +108,7 @@ class OfficeHoursPatch(BaseModel):
     end_time:   str   # "HH:MM" — e.g. "17:30"
 
 
-@router.get("/settings/office-hours")
+@router.get("/settings/office-hours", dependencies=[Depends(require("setting.modify"))])
 def read_office_hours(db: Session = Depends(get_db)):
     """Current configured office hours. Defaults: 10:00 - 17:30."""
 
@@ -122,7 +124,7 @@ def read_office_hours(db: Session = Depends(get_db)):
     }
 
 
-@router.patch("/settings/office-hours")
+@router.patch("/settings/office-hours", dependencies=[Depends(require("setting.modify"))])
 def update_office_hours(
     body: OfficeHoursPatch,
     db: Session = Depends(get_db)
@@ -153,7 +155,7 @@ class GracePeriodPatch(BaseModel):
     early_exit_grace_minutes: int   # tolerance before an EARLY_EXIT permission is auto-created
 
 
-@router.get("/settings/attendance-grace")
+@router.get("/settings/attendance-grace", dependencies=[Depends(require("setting.modify"))])
 def read_grace(db: Session = Depends(get_db)):
     """Current grace windows for auto-creating permissions."""
 
@@ -170,7 +172,7 @@ def read_grace(db: Session = Depends(get_db)):
     }
 
 
-@router.patch("/settings/attendance-grace")
+@router.patch("/settings/attendance-grace", dependencies=[Depends(require("setting.modify"))])
 def update_grace(
     body: GracePeriodPatch,
     db: Session = Depends(get_db)
@@ -199,7 +201,7 @@ def update_grace(
 # GET SETTINGS
 # =========================
 
-@router.get("/settings")
+@router.get("/settings", dependencies=[Depends(require("setting.modify"))])
 def get_settings(
     db: Session = Depends(get_db)
 ):
@@ -224,7 +226,7 @@ def get_settings(
 # TOGGLE EMAIL ALERTS
 # =========================
 
-@router.put("/settings/email-alerts")
+@router.put("/settings/email-alerts", dependencies=[Depends(require("setting.modify"))])
 def toggle_email_alerts(
     data: EmailAlertsToggle,
     db: Session = Depends(get_db)
@@ -245,7 +247,7 @@ def toggle_email_alerts(
 # SEND TEST EMAIL
 # =========================
 
-@router.post("/settings/test-email")
+@router.post("/settings/test-email", dependencies=[Depends(require("setting.modify"))])
 def send_test_email(
     data: TestEmailRequest,
     db: Session = Depends(get_db)
@@ -332,7 +334,7 @@ class CompanySettingsBody(BaseModel):
     NOTES:               Optional[str] = None
 
 
-@router.get("/settings/company")
+@router.get("/settings/company", dependencies=[Depends(require("setting.modify"))])
 def read_company_settings(
     vendor_id: int = 1,
     db: Session = Depends(get_db)
@@ -347,7 +349,7 @@ def read_company_settings(
     return serialize_company(row)
 
 
-@router.put("/settings/company")
+@router.put("/settings/company", dependencies=[Depends(require("setting.modify"))])
 def update_company_settings(
     body: CompanySettingsBody,
     vendor_id: int = 1,
@@ -384,7 +386,7 @@ _LOGO_DIR = (
 )
 
 
-@router.post("/settings/company/upload-logo")
+@router.post("/settings/company/upload-logo", dependencies=[Depends(require("setting.modify"))])
 def upload_company_logo(
     file: UploadFile = File(...),
     vendor_id: int = 1,
@@ -448,7 +450,7 @@ def upload_company_logo(
     }
 
 
-@router.delete("/settings/company/logo")
+@router.delete("/settings/company/logo", dependencies=[Depends(require("setting.modify"))])
 def remove_company_logo(
     vendor_id: int = 1,
     db: Session = Depends(get_db)
@@ -480,7 +482,7 @@ def remove_company_logo(
     return {"message": "Logo removed.", "company": serialize_company(company)}
 
 
-@router.get("/settings/company/preview-pdf")
+@router.get("/settings/company/preview-pdf", dependencies=[Depends(require("setting.modify"))])
 def preview_company_pdf(
     vendor_id: int = 1,
     db: Session = Depends(get_db),

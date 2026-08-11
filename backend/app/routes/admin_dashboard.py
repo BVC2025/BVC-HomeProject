@@ -35,10 +35,12 @@ from app.models.models import (
 )
 
 
+from app.auth.auth_bearer import get_current_admin
+
 router = APIRouter(prefix="/admin", tags=["Admin Dashboard"])
 
 
-@router.get("/dashboard-stats")
+@router.get("/dashboard-stats", dependencies=[Depends(get_current_admin)])
 def admin_dashboard_stats(
     vendor_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),

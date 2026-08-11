@@ -28,6 +28,7 @@ from app.schemas.machine_schema import (
     MachineCreate,
     MachineStatusUpdate
 )
+from app.auth.auth_bearer import require
 
 router = APIRouter()
 
@@ -198,7 +199,7 @@ def _serialize_machine(
 # CREATE MACHINE (manual fallback, kept for backwards compatibility)
 # =========================
 
-@router.post("/create-machine")
+@router.post("/create-machine", dependencies=[Depends(require("production.manage"))])
 def create_machine(
     data: MachineCreate,
     db: Session = Depends(get_db)
@@ -251,7 +252,7 @@ def create_machine(
 # SYNC FROM WORK ORDERS — the new primary entry point
 # =========================
 
-@router.post("/machines/sync")
+@router.post("/machines/sync", dependencies=[Depends(require("production.manage"))])
 def sync_machines(db: Session = Depends(get_db)):
     """Create one Machine row per manufactured unit of every active
     Work Order. Idempotent — only adds units that don't have a
@@ -272,7 +273,7 @@ def sync_machines(db: Session = Depends(get_db)):
 # LIST MACHINES (enriched + auto-sync on first call)
 # =========================
 
-@router.get("/machines")
+@router.get("/machines", dependencies=[Depends(require("machine.view"))])
 def list_machines(
     db: Session = Depends(get_db),
     auto_sync: bool = True
@@ -345,7 +346,7 @@ def list_machines(
 # UPDATE STATUS
 # =========================
 
-@router.put("/machine-status/{machine_id}")
+@router.put("/machine-status/{machine_id}", dependencies=[Depends(require("machine.update.stage"))])
 def update_status(
     machine_id: int,
     data: MachineStatusUpdate,
@@ -431,7 +432,7 @@ def update_status(
 # MACHINE LOGS
 # =========================
 
-@router.get("/machine-logs/{machine_id}")
+@router.get("/machine-logs/{machine_id}", dependencies=[Depends(require("machine.view"))])
 def machine_logs(
     machine_id: int,
     db: Session = Depends(get_db)
@@ -448,7 +449,7 @@ def machine_logs(
 # DELETE MACHINE
 # =========================
 
-@router.delete("/delete-machine/{machine_id}")
+@router.delete("/delete-machine/{machine_id}", dependencies=[Depends(require("production.manage"))])
 def delete_machine(
     machine_id: int,
     db: Session = Depends(get_db)

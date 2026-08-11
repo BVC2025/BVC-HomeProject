@@ -33,6 +33,8 @@ from app.services.product_recommendation_service import (
 )
 
 
+from app.auth.auth_bearer import get_current_admin
+
 router = APIRouter(prefix="/ai", tags=["AI Tools"])
 
 
@@ -134,7 +136,7 @@ def _enrich_with_product_snapshot(
 # Endpoint
 # ----------------------------------------------------------------
 
-@router.post("/recommend-products")
+@router.post("/recommend-products", dependencies=[Depends(get_current_admin)])
 def recommend_products_endpoint(
     payload: RecommendProductsRequest,
     db: Session = Depends(get_db),

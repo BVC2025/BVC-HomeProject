@@ -31,11 +31,13 @@ from app.services.vending_seed_data import (
     PRODUCTS
 )
 
+from app.auth.auth_bearer import get_current_admin
+
 
 router = APIRouter()
 
 
-@router.post("/procurement/reset-and-seed")
+@router.post("/procurement/reset-and-seed", dependencies=[Depends(get_current_admin)])
 def reset_and_seed(
     wipe: bool = Query(True, description="Delete existing data first"),
     vendor_id: int = Query(1),

@@ -22,6 +22,7 @@ from app.models.models import (
 )
 
 from app.services.email_service import send_task_assignment_email
+from app.auth.auth_bearer import require, get_current_admin
 
 
 router = APIRouter()
@@ -198,7 +199,7 @@ def _gather_details(db: Session, task: TaskAssignment):
     return emp, proj
 
 
-@router.get("/approve-task", response_class=HTMLResponse)
+@router.get("/approve-task", response_class=HTMLResponse)  # public by design — secured by the emailed token, not a login session
 def approve_task(
     token: str = Query(""),
     db: Session = Depends(get_db)
@@ -320,7 +321,7 @@ def approve_task(
     )
 
 
-@router.get("/reject-task", response_class=HTMLResponse)
+@router.get("/reject-task", response_class=HTMLResponse)  # public by design — secured by the emailed token, not a login session
 def reject_task(
     token: str = Query(""),
     db: Session = Depends(get_db)
@@ -389,7 +390,7 @@ def reject_task(
 # CLEANUP — mark expired
 # =========================
 
-@router.post("/task-proposals/cleanup-expired")
+@router.post("/task-proposals/cleanup-expired", dependencies=[Depends(get_current_admin)])
 def cleanup_expired(
     db: Session = Depends(get_db)
 ):
@@ -423,7 +424,7 @@ def cleanup_expired(
 # LIST PENDING PROPOSALS (admin view)
 # =========================
 
-@router.get("/task-proposals/pending")
+@router.get("/task-proposals/pending", dependencies=[Depends(require("task.view.all"))])
 def list_pending(
     db: Session = Depends(get_db)
 ):

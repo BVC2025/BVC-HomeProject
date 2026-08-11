@@ -63,6 +63,8 @@ from app.services.recruitment_screening import (
 )
 
 
+from app.auth.auth_bearer import require
+
 router = APIRouter(prefix="/recruitment", tags=["Recruitment"])
 
 
@@ -286,7 +288,7 @@ def _serialize_offer(o: OfferLetter) -> dict:
 # JOBS
 # =====================================================================
 
-@router.get("/jobs")
+@router.get("/jobs", dependencies=[Depends(require("recruitment.view"))])
 def list_jobs(status: Optional[str] = None, db: Session = Depends(get_db)):
     q = db.query(RecruitmentJob).order_by(RecruitmentJob.ID.desc())
     if status:
@@ -294,7 +296,7 @@ def list_jobs(status: Optional[str] = None, db: Session = Depends(get_db)):
     return [_serialize_job(j) for j in q.all()]
 
 
-@router.post("/jobs")
+@router.post("/jobs", dependencies=[Depends(require("recruitment.manage"))])
 def create_job(body: JobCreate, db: Session = Depends(get_db)):
     job = RecruitmentJob(
         JOB_CODE=next_code("JOB", db, RecruitmentJob, "JOB_CODE"),
@@ -315,7 +317,7 @@ def create_job(body: JobCreate, db: Session = Depends(get_db)):
     return _serialize_job(job)
 
 
-@router.get("/jobs/{job_id}")
+@router.get("/jobs/{job_id}", dependencies=[Depends(require("recruitment.view"))])
 def get_job(job_id: int, db: Session = Depends(get_db)):
     job = db.query(RecruitmentJob).filter(RecruitmentJob.ID == job_id).first()
     if not job:
@@ -323,7 +325,7 @@ def get_job(job_id: int, db: Session = Depends(get_db)):
     return _serialize_job(job)
 
 
-@router.patch("/jobs/{job_id}")
+@router.patch("/jobs/{job_id}", dependencies=[Depends(require("recruitment.manage"))])
 def update_job(job_id: int, body: JobUpdate, db: Session = Depends(get_db)):
     job = db.query(RecruitmentJob).filter(RecruitmentJob.ID == job_id).first()
     if not job:
@@ -336,7 +338,7 @@ def update_job(job_id: int, body: JobUpdate, db: Session = Depends(get_db)):
     return _serialize_job(job)
 
 
-@router.get("/jobs/{job_id}/ranked-candidates")
+@router.get("/jobs/{job_id}/ranked-candidates", dependencies=[Depends(require("recruitment.view"))])
 def ranked_candidates(job_id: int, db: Session = Depends(get_db)):
     """Ranked leaderboard for one job — joins applications with their
     interview scores when present."""
@@ -372,7 +374,7 @@ _STATIC_RESUME_DIR = (
 )
 
 
-@router.post("/candidates/upload")
+@router.post("/candidates/upload", dependencies=[Depends(require("recruitment.manage"))])
 def upload_candidate(
     file: UploadFile = File(...),
     source: Optional[str] = Form(None),
@@ -443,7 +445,7 @@ def upload_candidate(
     return _serialize_candidate(cand, include_parsed=True)
 
 
-@router.get("/candidates")
+@router.get("/candidates", dependencies=[Depends(require("recruitment.view"))])
 def list_candidates(
     status: Optional[str] = None,
     search: Optional[str] = None,
@@ -463,7 +465,7 @@ def list_candidates(
     return [_serialize_candidate(c) for c in q.all()]
 
 
-@router.get("/candidates/{candidate_id}")
+@router.get("/candidates/{candidate_id}", dependencies=[Depends(require("recruitment.view"))])
 def get_candidate(candidate_id: int, db: Session = Depends(get_db)):
     c = db.query(Candidate).filter(Candidate.ID == candidate_id).first()
     if not c:
@@ -471,7 +473,7 @@ def get_candidate(candidate_id: int, db: Session = Depends(get_db)):
     return _serialize_candidate(c, include_parsed=True)
 
 
-@router.patch("/candidates/{candidate_id}")
+@router.patch("/candidates/{candidate_id}", dependencies=[Depends(require("recruitment.manage"))])
 def update_candidate(candidate_id: int, body: CandidateUpdate, db: Session = Depends(get_db)):
     c = db.query(Candidate).filter(Candidate.ID == candidate_id).first()
     if not c:
@@ -486,7 +488,7 @@ def update_candidate(candidate_id: int, body: CandidateUpdate, db: Session = Dep
 # APPLICATIONS  (candidate <-> job + screening)
 # =====================================================================
 
-@router.post("/applications")
+@router.post("/applications", dependencies=[Depends(require("recruitment.manage"))])
 def create_application(body: ApplicationCreate, db: Session = Depends(get_db)):
     cand = db.query(Candidate).filter(Candidate.ID == body.CANDIDATE_ID).first()
     if not cand:
@@ -513,7 +515,7 @@ def create_application(body: ApplicationCreate, db: Session = Depends(get_db)):
     return _rescreen_and_return(app, cand, job, db)
 
 
-@router.get("/applications")
+@router.get("/applications", dependencies=[Depends(require("recruitment.view"))])
 def list_applications(
     job_id: Optional[int] = None,
     candidate_id: Optional[int] = None,
@@ -527,7 +529,7 @@ def list_applications(
     return [_serialize_application(a, db) for a in q.all()]
 
 
-@router.post("/applications/{app_id}/re-screen")
+@router.post("/applications/{app_id}/re-screen", dependencies=[Depends(require("recruitment.manage"))])
 def rescreen_application_endpoint(app_id: int, db: Session = Depends(get_db)):
     app = db.query(CandidateApplication).filter(CandidateApplication.ID == app_id).first()
     if not app:
@@ -567,7 +569,7 @@ def _rescreen_and_return(
 # INTERVIEWS
 # =====================================================================
 
-@router.post("/interviews")
+@router.post("/interviews", dependencies=[Depends(require("recruitment.manage"))])
 def create_interview(body: InterviewCreate, db: Session = Depends(get_db)):
     app = db.query(CandidateApplication).filter(CandidateApplication.ID == body.APPLICATION_ID).first()
     if not app:
@@ -596,7 +598,7 @@ def create_interview(body: InterviewCreate, db: Session = Depends(get_db)):
     return _serialize_interview(iv, db)
 
 
-@router.get("/interviews")
+@router.get("/interviews", dependencies=[Depends(require("recruitment.view"))])
 def list_interviews(
     application_id: Optional[int] = None,
     status: Optional[str] = None,
@@ -608,7 +610,7 @@ def list_interviews(
     return [_serialize_interview(i, db) for i in q.all()]
 
 
-@router.patch("/interviews/{iv_id}")
+@router.patch("/interviews/{iv_id}", dependencies=[Depends(require("recruitment.manage"))])
 def update_interview(iv_id: int, body: InterviewUpdate, db: Session = Depends(get_db)):
     iv = db.query(Interview).filter(Interview.ID == iv_id).first()
     if not iv:
@@ -619,7 +621,7 @@ def update_interview(iv_id: int, body: InterviewUpdate, db: Session = Depends(ge
     return _serialize_interview(iv, db)
 
 
-@router.post("/interviews/{iv_id}/suggest-questions")
+@router.post("/interviews/{iv_id}/suggest-questions", dependencies=[Depends(require("recruitment.manage"))])
 def suggest_questions(iv_id: int, db: Session = Depends(get_db)):
     iv = db.query(Interview).filter(Interview.ID == iv_id).first()
     if not iv:
@@ -711,7 +713,7 @@ def _company_full(db: Session) -> dict:
         return fallback
 
 
-@router.post("/offers")
+@router.post("/offers", dependencies=[Depends(require("recruitment.manage"))])
 def create_offer(body: OfferCreate, db: Session = Depends(get_db)):
     app = db.query(CandidateApplication).filter(CandidateApplication.ID == body.APPLICATION_ID).first()
     if not app:
@@ -772,7 +774,7 @@ def create_offer(body: OfferCreate, db: Session = Depends(get_db)):
     return _serialize_offer(offer)
 
 
-@router.get("/offers")
+@router.get("/offers", dependencies=[Depends(require("recruitment.view"))])
 def list_offers(
     status: Optional[str] = None,
     db: Session = Depends(get_db),
@@ -801,7 +803,7 @@ def list_offers(
     return out
 
 
-@router.get("/offers/{offer_id}")
+@router.get("/offers/{offer_id}", dependencies=[Depends(require("recruitment.view"))])
 def get_offer(offer_id: int, db: Session = Depends(get_db)):
     o = db.query(OfferLetter).filter(OfferLetter.ID == offer_id).first()
     if not o:
@@ -809,7 +811,7 @@ def get_offer(offer_id: int, db: Session = Depends(get_db)):
     return _serialize_offer(o)
 
 
-@router.post("/offers/{offer_id}/regenerate-pdf")
+@router.post("/offers/{offer_id}/regenerate-pdf", dependencies=[Depends(require("recruitment.manage"))])
 def regenerate_offer_pdf(offer_id: int, db: Session = Depends(get_db)):
     """Re-render the offer letter PDF with the latest company branding.
     Useful after the user updates the company logo or address."""
@@ -854,7 +856,7 @@ def regenerate_offer_pdf(offer_id: int, db: Session = Depends(get_db)):
     return {"message": "PDF regenerated", "offer": _serialize_offer(o)}
 
 
-@router.get("/offers/{offer_id}/pdf")
+@router.get("/offers/{offer_id}/pdf", dependencies=[Depends(require("recruitment.view"))])
 def get_offer_pdf(offer_id: int, db: Session = Depends(get_db)):
     o = db.query(OfferLetter).filter(OfferLetter.ID == offer_id).first()
     if not o:
@@ -885,7 +887,7 @@ class SendOfferRequest(BaseModel):
     MESSAGE_HTML: Optional[str] = None    # custom email body; if absent we generate one
 
 
-@router.post("/offers/{offer_id}/send")
+@router.post("/offers/{offer_id}/send", dependencies=[Depends(require("recruitment.manage"))])
 def send_offer_email(
     offer_id: int,
     body: SendOfferRequest,
@@ -1148,7 +1150,7 @@ def _default_offer_email_html(
 """
 
 
-@router.patch("/offers/{offer_id}/status")
+@router.patch("/offers/{offer_id}/status", dependencies=[Depends(require("recruitment.manage"))])
 def update_offer_status(offer_id: int, body: OfferStatusUpdate, db: Session = Depends(get_db)):
     o = db.query(OfferLetter).filter(OfferLetter.ID == offer_id).first()
     if not o:

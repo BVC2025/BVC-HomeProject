@@ -12,6 +12,7 @@ from app.models.models import (
 )
 
 from app.schemas.task_schema import TaskCreate
+from app.auth.auth_bearer import require
 
 router = APIRouter()
 
@@ -20,7 +21,7 @@ router = APIRouter()
 # CREATE TASK
 # =========================
 
-@router.post("/create-task")
+@router.post("/create-task", dependencies=[Depends(require("task.assign"))])
 def create_task(
     data: TaskCreate,
     db: Session = Depends(get_db)
@@ -112,7 +113,7 @@ def create_task(
 # GET TASKS
 # =========================
 
-@router.get("/tasks")
+@router.get("/tasks", dependencies=[Depends(require("task.view.all"))])
 def get_tasks(
     db: Session = Depends(get_db)
 ):
@@ -126,7 +127,7 @@ def get_tasks(
 # START TASK
 # =========================
 
-@router.put("/start-task/{task_id}")
+@router.put("/start-task/{task_id}", dependencies=[Depends(require("task.update.status"))])
 def start_task(
     task_id: int,
     db: Session = Depends(get_db)
@@ -158,7 +159,7 @@ def start_task(
 # COMPLETE TASK
 # =========================
 
-@router.put("/complete-task/{task_id}")
+@router.put("/complete-task/{task_id}", dependencies=[Depends(require("task.update.status"))])
 def complete_task(
     task_id: int,
     db: Session = Depends(get_db)
@@ -190,7 +191,7 @@ def complete_task(
 # HOLD TASK
 # =========================
 
-@router.put("/hold-task/{task_id}")
+@router.put("/hold-task/{task_id}", dependencies=[Depends(require("task.update.status"))])
 def hold_task(
     task_id: int,
     db: Session = Depends(get_db)

@@ -30,6 +30,8 @@ from app.routes.settings import (
     is_email_alerts_enabled
 )
 
+from app.auth.auth_bearer import require, get_current_user, get_current_admin, assert_self_or_admin, ADMIN_ROLES
+
 router = APIRouter()
 
 
@@ -74,7 +76,7 @@ def _maybe_send_email(db, title, message, alert_type):
 # CREATE NOTIFICATION
 # =========================
 
-@router.post("/create-notification")
+@router.post("/create-notification", dependencies=[Depends(require("notification.broadcast"))])
 def create_notification(
     data: NotificationCreate,
     db: Session = Depends(get_db)
@@ -125,8 +127,14 @@ def list_notifications(
             "If omitted, returns every notification (admin/legacy view)."
         ),
     ),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
+
+    if employee_id:
+        assert_self_or_admin(employee_id, payload)
+    elif payload.get("principal_type") != "ROOT" and payload.get("role") not in ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Admin access required for the unscoped notification feed")
 
     q = db.query(Notification)
 
@@ -175,8 +183,14 @@ def list_notifications(
 @router.get("/notifications/unread-count")
 def unread_count(
     employee_id: Optional[str] = Query(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
+
+    if employee_id:
+        assert_self_or_admin(employee_id, payload)
+    elif payload.get("principal_type") != "ROOT" and payload.get("role") not in ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Admin access required for the unscoped notification feed")
 
     q = db.query(Notification).filter(Notification.IS_READ == 0)
 
@@ -201,7 +215,7 @@ def unread_count(
 # MARK READ
 # =========================
 
-@router.put("/notifications/{notif_id}/read")
+@router.put("/notifications/{notif_id}/read", dependencies=[Depends(get_current_user)])
 def mark_read(
     notif_id: int,
     db: Session = Depends(get_db)
@@ -239,7 +253,13 @@ def mark_all_read(
         ),
     ),
     db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
+
+    if employee_id:
+        assert_self_or_admin(employee_id, payload)
+    elif payload.get("principal_type") != "ROOT" and payload.get("role") not in ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Admin access required to mark-all-read without an employee_id")
 
     q = db.query(Notification).filter(Notification.IS_READ == 0)
 
@@ -268,7 +288,7 @@ def mark_all_read(
 # DELETE NOTIFICATION
 # =========================
 
-@router.delete("/notifications/{notif_id}")
+@router.delete("/notifications/{notif_id}", dependencies=[Depends(get_current_user)])
 def delete_notification(
     notif_id: int,
     db: Session = Depends(get_db)
@@ -307,6 +327,7 @@ def bulk_delete_notifications(
         ),
     ),
     db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     """Clear all notifications for a single employee. Called by the
     'Clear all' button in the bell dropdown."""
@@ -316,6 +337,8 @@ def bulk_delete_notifications(
             status_code=400,
             detail="employee_id is required for bulk delete.",
         )
+
+    assert_self_or_admin(employee_id, payload)
 
     emp = (
         db.query(Employee)
@@ -342,7 +365,7 @@ def bulk_delete_notifications(
 # GENERATE SYSTEM ALERTS
 # =========================
 
-@router.post("/notifications/generate")
+@router.post("/notifications/generate", dependencies=[Depends(get_current_admin)])
 def generate_system_alerts(
     db: Session = Depends(get_db)
 ):

@@ -42,6 +42,8 @@ from app.models.models import (
     Machine
 )
 
+from app.auth.auth_bearer import require
+
 router = APIRouter()
 
 
@@ -715,7 +717,7 @@ def _get_module(module: str):
     return MODULES[key]
 
 
-@router.get("/report/{module}.pdf")
+@router.get("/report/{module}.pdf", dependencies=[Depends(require("report.export"))])
 def report_pdf(
     module: str,
     db: Session = Depends(get_db)
@@ -743,7 +745,7 @@ def report_pdf(
     )
 
 
-@router.get("/report/{module}.xlsx")
+@router.get("/report/{module}.xlsx", dependencies=[Depends(require("report.export"))])
 def report_excel(
     module: str,
     db: Session = Depends(get_db)

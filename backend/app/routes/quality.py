@@ -46,6 +46,8 @@ from app.schemas.quality_schema import (
 )
 
 
+from app.auth.auth_bearer import require
+
 router = APIRouter(prefix="/quality", tags=["Quality Management"])
 
 
@@ -214,7 +216,7 @@ def _serialize_ncr(ncr: NCR) -> dict:
 # Checklist templates
 # ----------------------------------------------------------------
 
-@router.post("/checklist-items")
+@router.post("/checklist-items", dependencies=[Depends(require("quality.manage"))])
 def add_checklist_item(
     data: ChecklistItemCreate,
     db: Session = Depends(get_db)
@@ -256,7 +258,7 @@ def add_checklist_item(
     }
 
 
-@router.get("/checklist/{model_id}")
+@router.get("/checklist/{model_id}", dependencies=[Depends(require("quality.view"))])
 def get_checklist(
     model_id: int,
     db: Session = Depends(get_db)
@@ -275,7 +277,7 @@ def get_checklist(
     return [_serialize_checklist_item(i) for i in items]
 
 
-@router.patch("/checklist-items/{item_id}")
+@router.patch("/checklist-items/{item_id}", dependencies=[Depends(require("quality.manage"))])
 def update_checklist_item(
     item_id: int,
     data: ChecklistItemUpdate,
@@ -304,7 +306,7 @@ def update_checklist_item(
     }
 
 
-@router.delete("/checklist-items/{item_id}")
+@router.delete("/checklist-items/{item_id}", dependencies=[Depends(require("quality.manage"))])
 def delete_checklist_item(
     item_id: int,
     db: Session = Depends(get_db)
@@ -329,7 +331,7 @@ def delete_checklist_item(
 # Inspections
 # ----------------------------------------------------------------
 
-@router.post("/inspections")
+@router.post("/inspections", dependencies=[Depends(require("quality.manage"))])
 def create_inspection(
     data: InspectionCreate,
     db: Session = Depends(get_db)
@@ -420,7 +422,7 @@ def create_inspection(
     }
 
 
-@router.get("/inspections")
+@router.get("/inspections", dependencies=[Depends(require("quality.view"))])
 def list_inspections(
     vendor_id: int = 1,
     status: Optional[str] = None,
@@ -468,7 +470,7 @@ def list_inspections(
     ]
 
 
-@router.get("/inspections/{inspection_id}")
+@router.get("/inspections/{inspection_id}", dependencies=[Depends(require("quality.view"))])
 def get_inspection(
     inspection_id: int,
     db: Session = Depends(get_db)
@@ -514,7 +516,7 @@ def get_inspection(
     }
 
 
-@router.patch("/results/{result_id}")
+@router.patch("/results/{result_id}", dependencies=[Depends(require("quality.manage"))])
 def update_result(
     result_id: int,
     data: InspectionResultUpdate,
@@ -571,7 +573,7 @@ def update_result(
     }
 
 
-@router.post("/inspections/{inspection_id}/finalise")
+@router.post("/inspections/{inspection_id}/finalise", dependencies=[Depends(require("quality.manage"))])
 def finalise_inspection(
     inspection_id: int,
     data: InspectionFinalise,
@@ -684,7 +686,7 @@ def finalise_inspection(
 # NCRs
 # ----------------------------------------------------------------
 
-@router.get("/ncrs")
+@router.get("/ncrs", dependencies=[Depends(require("quality.view"))])
 def list_ncrs(
     vendor_id: int = 1,
     status: Optional[str] = None,
@@ -709,7 +711,7 @@ def list_ncrs(
     return [_serialize_ncr(n) for n in rows]
 
 
-@router.patch("/ncrs/{ncr_id}")
+@router.patch("/ncrs/{ncr_id}", dependencies=[Depends(require("quality.manage"))])
 def update_ncr(
     ncr_id: int,
     data: NCRUpdate,
@@ -758,7 +760,7 @@ def update_ncr(
 # Dashboard
 # ----------------------------------------------------------------
 
-@router.get("/dashboard")
+@router.get("/dashboard", dependencies=[Depends(require("quality.view"))])
 def quality_dashboard(
     vendor_id: int = 1,
     db: Session = Depends(get_db)

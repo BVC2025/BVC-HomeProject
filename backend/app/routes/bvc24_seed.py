@@ -45,6 +45,8 @@ from app.models.models import (
 )
 
 
+from app.auth.auth_bearer import get_current_admin
+
 router = APIRouter(prefix="/demo", tags=["BVC24 Demo Seed"])
 
 
@@ -1256,7 +1258,7 @@ def _seed_sample_inspection(
     return 1
 
 
-@router.post("/seed-bvc24")
+@router.post("/seed-bvc24", dependencies=[Depends(get_current_admin)])
 def seed_bvc24(db: Session = Depends(get_db)):
 
     vendor = _get_or_create_vendor(db)

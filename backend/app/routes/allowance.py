@@ -32,9 +32,21 @@ from app.utils.employee_resolver import (
     resolve_employee_uuid,
     require_employee,
 )
+from app.auth.auth_bearer import get_current_user, assert_self_or_admin, ADMIN_ROLES, require
 
 
 router = APIRouter()
+
+
+def _require_admin_queue_access(payload: dict) -> None:
+    """The unscoped (no employee_id) view is the cross-employee admin
+    queue — only admin-tier roles or Root may see it."""
+
+    if payload.get("principal_type") == "ROOT":
+        return
+
+    if payload.get("role") not in ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="Admin access required")
 
 
 # =========================
@@ -136,9 +148,15 @@ def list_allowances(
     employee_id: Optional[str] = None,
     status: Optional[str] = None,
     db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     """List allowances. Pass employee_id to scope to one person
     (employee portal). Without it, returns everything (admin queue)."""
+
+    if employee_id:
+        assert_self_or_admin(employee_id, payload)
+    else:
+        _require_admin_queue_access(payload)
 
     q = db.query(EmployeeAllowance, Employee).outerjoin(
         Employee, Employee.ID == EmployeeAllowance.EMPLOYEE_ID
@@ -163,8 +181,11 @@ def list_allowances(
 def create_allowance(
     body: AllowanceCreate,
     db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     """Employee submits a new expense claim."""
+
+    assert_self_or_admin(body.EMPLOYEE_ID, payload)
 
     if body.CATEGORY not in ALLOWED_CATEGORIES:
         raise HTTPException(
@@ -198,7 +219,7 @@ def create_allowance(
     }
 
 
-@router.patch("/allowances/{allowance_id}/decide")
+@router.patch("/allowances/{allowance_id}/decide", dependencies=[Depends(require("payroll.manage"))])
 def decide_allowance(
     allowance_id: int,
     body: AllowanceDecision,
@@ -287,12 +308,15 @@ def upload_receipt(
     allowance_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     row = db.query(EmployeeAllowance).filter(
         EmployeeAllowance.ID == allowance_id
     ).first()
     if not row:
         raise HTTPException(status_code=404, detail="Allowance not found")
+
+    assert_self_or_admin(row.EMPLOYEE_ID, payload)
 
     ext = Path(file.filename or "").suffix.lower()
     if ext not in _ALLOWED_EXTS:
@@ -323,8 +347,14 @@ def upload_receipt(
 def allowances_summary(
     employee_id: Optional[str] = None,
     db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
 ):
     """Counts + totals for the dashboard tiles."""
+
+    if employee_id:
+        assert_self_or_admin(employee_id, payload)
+    else:
+        _require_admin_queue_access(payload)
 
     q = db.query(EmployeeAllowance)
     if employee_id:

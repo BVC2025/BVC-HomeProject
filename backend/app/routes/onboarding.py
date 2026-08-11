@@ -51,6 +51,8 @@ from app.services.auth_service import hash_password, verify_password
 from app.services import onboarding_ai_service as ai
 
 
+from app.auth.auth_bearer import require
+
 router = APIRouter()
 
 
@@ -221,7 +223,7 @@ def _require_portal_user(
 # ADMIN — generate invite, list sessions
 # =========================
 
-@router.post("/onboarding/invite")
+@router.post("/onboarding/invite", dependencies=[Depends(require("customer.manage"))])
 def create_invite(
     data: OnboardingInviteCreate,
     request: Request,
@@ -323,7 +325,7 @@ def create_invite(
     }
 
 
-@router.get("/onboarding/_diagnose")
+@router.get("/onboarding/_diagnose", dependencies=[Depends(require("customer.manage"))])
 def diagnose():
     """Quick health probe for the onboarding AI engine. Lets an
     admin verify Gemini is actually being used (vs. silently falling
@@ -431,7 +433,7 @@ def diagnose():
     return out
 
 
-@router.get("/onboarding/sessions")
+@router.get("/onboarding/sessions", dependencies=[Depends(require("customer.manage"))])
 def list_sessions(
     status: Optional[str] = None,
     vendor_id: Optional[int] = None,
@@ -474,7 +476,7 @@ def list_sessions(
     return out
 
 
-@router.get("/onboarding/{token}/admin-view")
+@router.get("/onboarding/{token}/admin-view", dependencies=[Depends(require("customer.manage"))])
 def admin_view(token: str, db: Session = Depends(get_db)):
     """Full session detail + chat history for the admin UI."""
 
@@ -504,7 +506,7 @@ def admin_view(token: str, db: Session = Depends(get_db)):
     }
 
 
-@router.post("/onboarding/{token}/reopen")
+@router.post("/onboarding/{token}/reopen", dependencies=[Depends(require("customer.manage"))])
 def reopen_session(token: str, db: Session = Depends(get_db)):
     """Admin reopens a SUBMITTED session for corrections."""
 
@@ -531,7 +533,7 @@ def reopen_session(token: str, db: Session = Depends(get_db)):
     }
 
 
-@router.delete("/onboarding/sessions/{token}")
+@router.delete("/onboarding/sessions/{token}", dependencies=[Depends(require("customer.manage"))])
 def delete_session(
     token: str,
     db: Session = Depends(get_db)

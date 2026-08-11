@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from app.database.database import get_db
 from app.models.models import CustomField, CustomFieldTableValue
+from app.auth.auth_bearer import require, get_current_user
 
 router = APIRouter()
 
@@ -47,7 +48,7 @@ class ReorderField(BaseModel):
 # CUSTOM FIELDS CRUD
 # =========================
 
-@router.get("/custom-fields")
+@router.get("/custom-fields", dependencies=[Depends(get_current_user)])
 def list_custom_fields(
     table_name: Optional[str] = Query(None),
     vendor_id: Optional[int] = Query(None),
@@ -76,7 +77,7 @@ def list_custom_fields(
     ]
 
 
-@router.post("/custom-fields")
+@router.post("/custom-fields", dependencies=[Depends(require("setting.modify"))])
 def create_custom_field(
     data: CustomFieldCreate,
     db: Session = Depends(get_db)
@@ -96,7 +97,7 @@ def create_custom_field(
     return {"message": "Custom field created", "ID": field.ID}
 
 
-@router.put("/custom-fields/{field_id}")
+@router.put("/custom-fields/{field_id}", dependencies=[Depends(require("setting.modify"))])
 def update_custom_field(
     field_id: str,
     data: CustomFieldUpdate,
@@ -130,7 +131,7 @@ def _cf_value_is_empty(val) -> bool:
     return False
 
 
-@router.delete("/custom-fields/{field_id}")
+@router.delete("/custom-fields/{field_id}", dependencies=[Depends(require("setting.modify"))])
 def delete_custom_field(
     field_id: str,
     db: Session = Depends(get_db)
@@ -160,7 +161,7 @@ def delete_custom_field(
     return {"message": "Custom field deleted"}
 
 
-@router.patch("/custom-fields/reorder")
+@router.patch("/custom-fields/reorder", dependencies=[Depends(require("setting.modify"))])
 def reorder_custom_fields(
     items: List[ReorderField],
     db: Session = Depends(get_db)
@@ -177,7 +178,7 @@ def reorder_custom_fields(
 # CUSTOM FIELD VALUES
 # =========================
 
-@router.get("/custom-field-values")
+@router.get("/custom-field-values", dependencies=[Depends(get_current_user)])
 def get_field_values(
     table_name: str = Query(...),
     row_id: Optional[str] = Query(None),
@@ -205,7 +206,7 @@ def get_field_values(
     ]
 
 
-@router.post("/custom-field-values")
+@router.post("/custom-field-values", dependencies=[Depends(get_current_user)])
 def upsert_field_value(
     data: FieldValueUpsert,
     db: Session = Depends(get_db)
@@ -231,7 +232,7 @@ def upsert_field_value(
     return {"message": "Value created", "ID": val.ID}
 
 
-@router.delete("/custom-field-values/{value_id}")
+@router.delete("/custom-field-values/{value_id}", dependencies=[Depends(get_current_user)])
 def delete_field_value(
     value_id: str,
     db: Session = Depends(get_db)

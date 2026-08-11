@@ -24,6 +24,8 @@ from app.services.email_template_service import (
     render_template,
 )
 
+from app.auth.auth_bearer import require
+
 router = APIRouter()
 
 _SAMPLE_VARIABLES = {
@@ -109,7 +111,7 @@ def _get_editor_logo_html(db: Session, vendor_id: int) -> str:
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
-@router.get("/email-templates")
+@router.get("/email-templates", dependencies=[Depends(require("setting.modify"))])
 def list_email_templates(
     vendor_id: int = Query(1),
     db: Session = Depends(get_db),
@@ -119,7 +121,7 @@ def list_email_templates(
     return [_serialize_list(t) for t in templates]
 
 
-@router.get("/email-templates/{template_type}")
+@router.get("/email-templates/{template_type}", dependencies=[Depends(require("setting.modify"))])
 def get_email_template(
     template_type: str,
     vendor_id: int = Query(1),
@@ -143,7 +145,7 @@ def get_email_template(
     return result
 
 
-@router.put("/email-templates/{template_type}")
+@router.put("/email-templates/{template_type}", dependencies=[Depends(require("setting.modify"))])
 def update_email_template(
     template_type: str,
     data: TemplateUpdate,
@@ -165,7 +167,7 @@ def update_email_template(
     return {"message": "Template updated", **_serialize_full(tmpl)}
 
 
-@router.post("/email-templates/preview")
+@router.post("/email-templates/preview", dependencies=[Depends(require("setting.modify"))])
 def preview_email_template(
     data: PreviewRequest,
     vendor_id: int = Query(1),

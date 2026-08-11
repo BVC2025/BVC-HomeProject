@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 
+from app.auth.auth_bearer import require
+
 from datetime import datetime, date, timedelta
 
 from app.models.models import (
@@ -302,7 +304,7 @@ def _build_customer_profile_email_html(
 """
 
 
-@router.post("/create-customer")
+@router.post("/create-customer", dependencies=[Depends(require("customer.manage"))])
 def create_customer(
     data: CustomerCreate,
     db: Session = Depends(get_db)
@@ -579,7 +581,7 @@ def create_customer(
         )
 
 
-@router.patch("/customers/{customer_id}")
+@router.patch("/customers/{customer_id}", dependencies=[Depends(require("customer.manage"))])
 def update_customer(
     customer_id: int,
     data: CustomerUpdate,
@@ -619,7 +621,7 @@ def update_customer(
 # CREATE PROJECT
 # =========================
 
-@router.post("/create-project")
+@router.post("/create-project", dependencies=[Depends(require("project.create"))])
 def create_project(
     data: ProjectCreate,
     db: Session = Depends(get_db)
@@ -842,7 +844,7 @@ def create_project(
 # CREATE PROJECT FROM PRODUCT (the new BVC24 way)
 # =========================
 
-@router.post("/projects/from-product")
+@router.post("/projects/from-product", dependencies=[Depends(require("project.create"))])
 def create_project_from_product_route(
     data: ProjectFromProductRequest,
     db: Session = Depends(get_db)
@@ -887,7 +889,7 @@ def create_project_from_product_route(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/projects/{project_id}/backfill-tasks")
+@router.post("/projects/{project_id}/backfill-tasks", dependencies=[Depends(require("project.update"))])
 def backfill_project_tasks_route(
     project_id: int,
     db: Session = Depends(get_db)
@@ -934,7 +936,7 @@ class ProjectStatusUpdate(BaseModel):
     STATUS: str
 
 
-@router.patch("/projects/{project_id}/status")
+@router.patch("/projects/{project_id}/status", dependencies=[Depends(require("project.update"))])
 def update_project_status(
     project_id: int,
     data: ProjectStatusUpdate,
@@ -1040,7 +1042,7 @@ def _serialize_customer(c: Customer, sales_name: str = None) -> dict:
     }
 
 
-@router.get("/customers")
+@router.get("/customers", dependencies=[Depends(require("customer.view"))])
 def get_customers(
     db: Session = Depends(get_db)
 ):
@@ -1079,7 +1081,7 @@ def get_customers(
 # Phase 1 — Lead Pipeline endpoints
 # ====================================================================
 
-@router.post("/customers/enquiry")
+@router.post("/customers/enquiry", dependencies=[Depends(require("customer.manage"))])
 def quick_enquiry(
     data: EnquiryCreate,
     db: Session = Depends(get_db)
@@ -1142,7 +1144,7 @@ def quick_enquiry(
     }
 
 
-@router.patch("/customers/{customer_id}/lead-status")
+@router.patch("/customers/{customer_id}/lead-status", dependencies=[Depends(require("customer.manage"))])
 def update_lead_status(
     customer_id: int,
     data: LeadStatusUpdate,
@@ -1241,7 +1243,7 @@ def update_lead_status(
     }
 
 
-@router.post("/customers/{customer_id}/contacts")
+@router.post("/customers/{customer_id}/contacts", dependencies=[Depends(require("customer.manage"))])
 def add_contact(
     customer_id: int,
     data: ContactCreate,
@@ -1283,7 +1285,7 @@ def add_contact(
     }
 
 
-@router.get("/customers/{customer_id}/contacts")
+@router.get("/customers/{customer_id}/contacts", dependencies=[Depends(require("customer.view"))])
 def list_contacts(
     customer_id: int,
     db: Session = Depends(get_db)
@@ -1314,7 +1316,7 @@ def list_contacts(
     ]
 
 
-@router.delete("/customers/{customer_id}/contacts/{contact_id}")
+@router.delete("/customers/{customer_id}/contacts/{contact_id}", dependencies=[Depends(require("customer.manage"))])
 def delete_contact(
     customer_id: int,
     contact_id: int,
@@ -1371,7 +1373,7 @@ def _serialize_requirement(r) -> dict:
     }
 
 
-@router.post("/customers/{customer_id}/requirements")
+@router.post("/customers/{customer_id}/requirements", dependencies=[Depends(require("customer.manage"))])
 def add_requirement(
     customer_id: int,
     data: RequirementCreate,
@@ -1419,7 +1421,7 @@ def add_requirement(
     }
 
 
-@router.get("/customers/{customer_id}/requirements")
+@router.get("/customers/{customer_id}/requirements", dependencies=[Depends(require("customer.view"))])
 def list_requirements(
     customer_id: int,
     db: Session = Depends(get_db)
@@ -1436,7 +1438,7 @@ def list_requirements(
     return [_serialize_requirement(r) for r in rows]
 
 
-@router.patch("/customers/{customer_id}/requirements/{req_id}")
+@router.patch("/customers/{customer_id}/requirements/{req_id}", dependencies=[Depends(require("customer.manage"))])
 def update_requirement(
     customer_id: int,
     req_id: int,
@@ -1477,7 +1479,7 @@ def update_requirement(
     }
 
 
-@router.delete("/customers/{customer_id}/requirements/{req_id}")
+@router.delete("/customers/{customer_id}/requirements/{req_id}", dependencies=[Depends(require("customer.manage"))])
 def delete_requirement(
     customer_id: int,
     req_id: int,
@@ -1508,7 +1510,7 @@ def delete_requirement(
 # DELETE CUSTOMER
 # =========================
 
-@router.delete("/delete-customer/{customer_id}")
+@router.delete("/delete-customer/{customer_id}", dependencies=[Depends(require("customer.manage"))])
 def delete_customer(
     customer_id: int,
     db: Session = Depends(get_db)
@@ -1697,7 +1699,7 @@ def delete_customer(
 # GET PROJECTS
 # =========================
 
-@router.get("/projects")
+@router.get("/projects", dependencies=[Depends(require("project.view"))])
 def get_projects(
     db: Session = Depends(get_db)
 ):
@@ -1789,7 +1791,7 @@ def get_projects(
 # BACKFILL — AUTO-ASSIGN MISSING TASKS
 # =========================
 
-@router.post("/projects/auto-assign-missing")
+@router.post("/projects/auto-assign-missing", dependencies=[Depends(require("project.update"))])
 def auto_assign_missing(
     db: Session = Depends(get_db)
 ):
@@ -1987,7 +1989,7 @@ def auto_assign_missing(
 # DELETE PROJECT
 # =========================
 
-@router.delete("/delete-project/{project_id}")
+@router.delete("/delete-project/{project_id}", dependencies=[Depends(require("project.delete"))])
 def delete_project(
     project_id: int,
     db: Session = Depends(get_db)
@@ -2132,7 +2134,7 @@ def delete_project(
     }
 
 
-@router.post("/projects/wipe-all")
+@router.post("/projects/wipe-all", dependencies=[Depends(require("project.delete"))])
 def wipe_all_projects(
     db: Session = Depends(get_db)
 ):
@@ -2246,7 +2248,7 @@ def wipe_all_projects(
 # approval path).
 # =====================================================================
 
-@router.post("/customers/{customer_id}/requirements/{req_id}/to-project")
+@router.post("/customers/{customer_id}/requirements/{req_id}/to-project", dependencies=[Depends(require("project.create"))])
 def requirement_to_project(
     customer_id: int,
     req_id: int,

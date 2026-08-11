@@ -56,6 +56,8 @@ from app.models.models import (
 )
 
 
+from app.auth.auth_bearer import get_current_admin
+
 router = APIRouter(prefix="/connect", tags=["Connectivity"])
 
 
@@ -82,7 +84,7 @@ def _iso(dt):
 # EMPLOYEE 360°
 # ================================================================
 
-@router.get("/employee/{employee_id}/360")
+@router.get("/employee/{employee_id}/360", dependencies=[Depends(get_current_admin)])
 def employee_360(employee_id: str, db: Session = Depends(get_db)):
     """Returns everything connected to one employee in one payload.
 
@@ -305,7 +307,7 @@ def employee_360(employee_id: str, db: Session = Depends(get_db)):
 # PROJECT 360°
 # ================================================================
 
-@router.get("/project/{project_id}/360")
+@router.get("/project/{project_id}/360", dependencies=[Depends(get_current_admin)])
 def project_360(project_id: int, db: Session = Depends(get_db)):
 
     proj = db.query(CustomerProject).filter(CustomerProject.ID == project_id).first()
@@ -531,7 +533,7 @@ def project_360(project_id: int, db: Session = Depends(get_db)):
 # CUSTOMER 360°
 # ================================================================
 
-@router.get("/customer/{customer_id}/360")
+@router.get("/customer/{customer_id}/360", dependencies=[Depends(get_current_admin)])
 def customer_360(customer_id: int, db: Session = Depends(get_db)):
     """
     Returns everything connected to one customer in one payload —
@@ -778,7 +780,7 @@ def customer_360(customer_id: int, db: Session = Depends(get_db)):
 # WORK ORDER 360°
 # ================================================================
 
-@router.get("/work-order/{wo_id}/360")
+@router.get("/work-order/{wo_id}/360", dependencies=[Depends(get_current_admin)])
 def work_order_360(wo_id: int, db: Session = Depends(get_db)):
 
     row = (
@@ -933,7 +935,7 @@ def work_order_360(wo_id: int, db: Session = Depends(get_db)):
 # SUPPLIER 360°
 # ================================================================
 
-@router.get("/supplier/{supplier_id}/360")
+@router.get("/supplier/{supplier_id}/360", dependencies=[Depends(get_current_admin)])
 def supplier_360(supplier_id: int, db: Session = Depends(get_db)):
 
     sup = db.query(Supplier).filter(Supplier.ID == supplier_id).first()
@@ -1038,7 +1040,7 @@ def supplier_360(supplier_id: int, db: Session = Depends(get_db)):
 # WORKFLOW SNAPSHOT — live counts at every step of BVC24 flow
 # ================================================================
 
-@router.get("/workflow/snapshot")
+@router.get("/workflow/snapshot", dependencies=[Depends(get_current_admin)])
 def workflow_snapshot(db: Session = Depends(get_db)):
     """One call that returns counts at every node of the BVC24 flow:
 

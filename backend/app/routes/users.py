@@ -14,13 +14,15 @@ from sqlalchemy.orm import Session
 from app.database.database import get_db
 from app.models.models import Role
 
+from app.auth.auth_bearer import require
+
 from app.schemas.user_schema import RoleCreate
 
 
 router = APIRouter()
 
 
-@router.post("/create-role")
+@router.post("/create-role", dependencies=[Depends(require("role.manage"))])
 def create_role(
     data: RoleCreate,
     db: Session = Depends(get_db)

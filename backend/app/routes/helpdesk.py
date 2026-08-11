@@ -17,7 +17,8 @@ Admin endpoints:
 
 Role gates:
   • Employee POST + /my        → self or admin (assert_self_or_admin)
-  • GET /admin/*, PATCH /*     → get_current_admin
+  • GET /admin/*               → require("helpdesk.view.all")
+  • PATCH /*                   → require("helpdesk.manage")
   • GET /{ticket_id}           → self or admin
 """
 
@@ -35,8 +36,8 @@ from app.database.database import get_db
 from app.models.models import HelpDeskTicket, Employee, Department
 from app.auth.auth_bearer import (
     get_current_user,
-    get_current_admin,
     assert_self_or_admin,
+    require,
 )
 
 
@@ -246,7 +247,7 @@ def list_my_tickets(
 @router.get("/admin/stats")
 def admin_stats(
     db: Session = Depends(get_db),
-    _admin: dict = Depends(get_current_admin),
+    _admin: dict = Depends(require("helpdesk.view.all")),
 ):
     """KPI counts for the admin dashboard tiles."""
 
@@ -278,7 +279,7 @@ def admin_list(
     page:     int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=200),
     db:       Session = Depends(get_db),
-    _admin:   dict = Depends(get_current_admin),
+    _admin:   dict = Depends(require("helpdesk.view.all")),
 ):
     """Paginated ticket list for the admin help-desk page."""
 
@@ -394,7 +395,7 @@ def update_ticket_status(
     ticket_id: int,
     data: TicketStatusUpdate,
     db: Session = Depends(get_db),
-    _admin: dict = Depends(get_current_admin),
+    _admin: dict = Depends(require("helpdesk.manage")),
 ):
     """Admin: transition status, assign, or attach notes.
     Any subset of fields may be supplied."""
@@ -427,7 +428,7 @@ def assign_ticket(
     ticket_id: int,
     data: TicketAssign,
     db: Session = Depends(get_db),
-    _admin: dict = Depends(get_current_admin),
+    _admin: dict = Depends(require("helpdesk.manage")),
 ):
     """Assign the ticket to an admin/staff member."""
 
@@ -455,7 +456,7 @@ def close_ticket(
     ticket_id: int,
     data: TicketClose,
     db: Session = Depends(get_db),
-    _admin: dict = Depends(get_current_admin),
+    _admin: dict = Depends(require("helpdesk.manage")),
 ):
     """Close a ticket with optional resolution notes."""
 

@@ -36,6 +36,7 @@ from app.schemas.inventory_item_schema import (
     BatchUpdate,
 )
 from app.services.inventory_automation_service import record_movement
+from app.auth.auth_bearer import require
 
 router = APIRouter(prefix="/inventory-items", tags=["Inventory Items"])
 
@@ -111,7 +112,7 @@ def _serialize_item(item: InventoryItem, stock: Optional[InventoryStock] = None)
 # InventoryItem CRUD
 # ─────────────────────────────────────────────────────────────────────
 
-@router.get("")
+@router.get("", dependencies=[Depends(require("inventory.view"))])
 def list_items(
     vendor_id: int = Query(1),
     product_id: Optional[str] = Query(None),
@@ -146,7 +147,7 @@ def list_items(
     }
 
 
-@router.post("")
+@router.post("", dependencies=[Depends(require("inventory.purchase"))])
 def create_item(payload: InventoryItemCreate, db: Session = Depends(get_db)):
     product = db.query(ProductMaster).filter(
         ProductMaster.ID == payload.PRODUCT_ID,
@@ -191,7 +192,7 @@ def create_item(payload: InventoryItemCreate, db: Session = Depends(get_db)):
     return {"message": "Inventory item created", "ID": item.ID}
 
 
-@router.get("/low-stock")
+@router.get("/low-stock", dependencies=[Depends(require("inventory.view"))])
 def get_low_stock(vendor_id: int = Query(1), db: Session = Depends(get_db)):
     rows = (
         db.query(InventoryItem)
@@ -205,7 +206,7 @@ def get_low_stock(vendor_id: int = Query(1), db: Session = Depends(get_db)):
     return [_serialize_item(r) for r in rows]
 
 
-@router.get("/out-of-stock")
+@router.get("/out-of-stock", dependencies=[Depends(require("inventory.view"))])
 def get_out_of_stock(vendor_id: int = Query(1), db: Session = Depends(get_db)):
     rows = (
         db.query(InventoryItem)
@@ -219,7 +220,7 @@ def get_out_of_stock(vendor_id: int = Query(1), db: Session = Depends(get_db)):
     return [_serialize_item(r) for r in rows]
 
 
-@router.get("/{item_id}")
+@router.get("/{item_id}", dependencies=[Depends(require("inventory.view"))])
 def get_item(item_id: str, db: Session = Depends(get_db)):
     item = db.query(InventoryItem).filter(InventoryItem.ID == item_id).first()
     if not item:
@@ -240,7 +241,7 @@ def get_item(item_id: str, db: Session = Depends(get_db)):
     return result
 
 
-@router.put("/{item_id}")
+@router.put("/{item_id}", dependencies=[Depends(require("inventory.purchase"))])
 def update_item(item_id: str, payload: InventoryItemUpdate, db: Session = Depends(get_db)):
     item = db.query(InventoryItem).filter(InventoryItem.ID == item_id).first()
     if not item:
@@ -261,7 +262,7 @@ def update_item(item_id: str, payload: InventoryItemUpdate, db: Session = Depend
     return {"message": "Inventory item updated"}
 
 
-@router.delete("/{item_id}")
+@router.delete("/{item_id}", dependencies=[Depends(require("inventory.purchase"))])
 def delete_item(item_id: str, db: Session = Depends(get_db)):
     item = db.query(InventoryItem).filter(InventoryItem.ID == item_id).first()
     if not item:
@@ -284,7 +285,7 @@ def delete_item(item_id: str, db: Session = Depends(get_db)):
     return {"message": "Inventory item deleted"}
 
 
-@router.get("/{item_id}/stock")
+@router.get("/{item_id}/stock", dependencies=[Depends(require("inventory.view"))])
 def get_stock(item_id: str, db: Session = Depends(get_db)):
     stock = db.query(InventoryStock).filter(
         InventoryStock.INVENTORY_ITEM_ID == item_id
@@ -307,7 +308,7 @@ def get_stock(item_id: str, db: Session = Depends(get_db)):
 # Stock Operations — all go through record_movement()
 # ─────────────────────────────────────────────────────────────────────
 
-@router.post("/stock-in")
+@router.post("/stock-in", dependencies=[Depends(require("inventory.purchase"))])
 def stock_in(payload: StockMovementRequest, db: Session = Depends(get_db)):
     """Receive stock into inventory."""
     movement = record_movement(
@@ -332,7 +333,7 @@ def stock_in(payload: StockMovementRequest, db: Session = Depends(get_db)):
     }
 
 
-@router.post("/stock-out")
+@router.post("/stock-out", dependencies=[Depends(require("inventory.consume"))])
 def stock_out(payload: StockMovementRequest, db: Session = Depends(get_db)):
     """Issue stock from inventory."""
     movement = record_movement(
@@ -356,7 +357,7 @@ def stock_out(payload: StockMovementRequest, db: Session = Depends(get_db)):
     }
 
 
-@router.post("/stock-adjust")
+@router.post("/stock-adjust", dependencies=[Depends(require("inventory.purchase"))])
 def stock_adjust(payload: StockMovementRequest, db: Session = Depends(get_db)):
     """Manual stock adjustment — sets qty to an absolute value."""
     movement = record_movement(
@@ -378,7 +379,7 @@ def stock_adjust(payload: StockMovementRequest, db: Session = Depends(get_db)):
     }
 
 
-@router.post("/stock-transfer")
+@router.post("/stock-transfer", dependencies=[Depends(require("inventory.purchase"))])
 def stock_transfer(payload: StockTransferRequest, db: Session = Depends(get_db)):
     """Transfer stock between two InventoryItem locations (atomic pair of movements)."""
     # TRANSFER_OUT from source
@@ -455,7 +456,7 @@ _ITEM_STD_COLS = {
 }
 
 
-@router.get("/bulk-template")
+@router.get("/bulk-template", dependencies=[Depends(require("inventory.view"))])
 def download_item_template(vendor_id: int = Query(1), db: Session = Depends(get_db)):
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -481,7 +482,7 @@ def download_item_template(vendor_id: int = Query(1), db: Session = Depends(get_
     )
 
 
-@router.post("/bulk-upload")
+@router.post("/bulk-upload", dependencies=[Depends(require("inventory.purchase"))])
 async def bulk_upload_items(
     vendor_id: int = Query(1),
     file: UploadFile = File(...),
@@ -574,7 +575,7 @@ async def bulk_upload_items(
     }
 
 
-@router.get("/export/excel")
+@router.get("/export/excel", dependencies=[Depends(require("inventory.view"))])
 def export_items(vendor_id: int = Query(1), db: Session = Depends(get_db)):
     rows = (
         db.query(InventoryItem)

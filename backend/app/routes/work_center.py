@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
-from app.auth.auth_bearer import get_current_admin
+from app.auth.auth_bearer import require
 from app.models.models import WorkCenter
 
 
@@ -90,7 +90,7 @@ def _validate_category(cat: str) -> None:
 # Endpoints
 # ---------------------------------------------------------------------
 
-@router.get("")
+@router.get("", dependencies=[Depends(require("work_center.view"))])
 def list_work_centers(
     active_only: bool = Query(False),
     vendor_id:   int  = 1,
@@ -109,7 +109,7 @@ def list_work_centers(
     return [_serialize(w) for w in rows]
 
 
-@router.post("", dependencies=[Depends(get_current_admin)])
+@router.post("", dependencies=[Depends(require("work_center.manage"))])
 def create_work_center(
     data: WorkCenterCreate,
     db:   Session = Depends(get_db),
@@ -152,7 +152,7 @@ def create_work_center(
     return {"message": "Work center created", "work_center": _serialize(w)}
 
 
-@router.get("/{wc_id}")
+@router.get("/{wc_id}", dependencies=[Depends(require("work_center.view"))])
 def get_work_center(wc_id: int, db: Session = Depends(get_db)):
 
     w = db.query(WorkCenter).filter(WorkCenter.ID == wc_id).first()
@@ -163,7 +163,7 @@ def get_work_center(wc_id: int, db: Session = Depends(get_db)):
     return _serialize(w)
 
 
-@router.patch("/{wc_id}", dependencies=[Depends(get_current_admin)])
+@router.patch("/{wc_id}", dependencies=[Depends(require("work_center.manage"))])
 def update_work_center(
     wc_id: int,
     data:  WorkCenterUpdate,
@@ -192,7 +192,7 @@ def update_work_center(
     return {"message": "Work center updated", "work_center": _serialize(w)}
 
 
-@router.delete("/{wc_id}", dependencies=[Depends(get_current_admin)])
+@router.delete("/{wc_id}", dependencies=[Depends(require("work_center.manage"))])
 def deactivate_work_center(wc_id: int, db: Session = Depends(get_db)):
     """Soft delete — sets IS_ACTIVE=0. The row stays so historical
     Routing assignments to this work center remain interpretable."""

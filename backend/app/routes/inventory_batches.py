@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.database.database import get_db
 from app.models.inventory_models import InventoryBatch, InventoryItem
 from app.schemas.inventory_item_schema import BatchCreate, BatchUpdate
+from app.auth.auth_bearer import require
 
 router = APIRouter(prefix="/inventory-batches", tags=["Inventory Batches"])
 
@@ -41,7 +42,7 @@ def _serialize_batch(b: InventoryBatch) -> dict:
     }
 
 
-@router.get("")
+@router.get("", dependencies=[Depends(require("inventory.view"))])
 def list_batches(
     vendor_id: int = Query(1),
     item_id: Optional[str] = Query(None),
@@ -66,7 +67,7 @@ def list_batches(
     }
 
 
-@router.post("")
+@router.post("", dependencies=[Depends(require("inventory.purchase"))])
 def create_batch(payload: BatchCreate, db: Session = Depends(get_db)):
     item = db.query(InventoryItem).filter(
         InventoryItem.ID == payload.INVENTORY_ITEM_ID,
@@ -118,7 +119,7 @@ def create_batch(payload: BatchCreate, db: Session = Depends(get_db)):
     return {"message": "Batch created", "ID": batch.ID}
 
 
-@router.get("/expiring-soon")
+@router.get("/expiring-soon", dependencies=[Depends(require("inventory.view"))])
 def expiring_soon(
     vendor_id: int = Query(1),
     days: int = Query(30, ge=1, le=365),
@@ -142,7 +143,7 @@ def expiring_soon(
     return [_serialize_batch(r) for r in rows]
 
 
-@router.get("/{batch_id}")
+@router.get("/{batch_id}", dependencies=[Depends(require("inventory.view"))])
 def get_batch(batch_id: str, db: Session = Depends(get_db)):
     batch = db.query(InventoryBatch).filter(InventoryBatch.ID == batch_id).first()
     if not batch:
@@ -150,7 +151,7 @@ def get_batch(batch_id: str, db: Session = Depends(get_db)):
     return _serialize_batch(batch)
 
 
-@router.put("/{batch_id}")
+@router.put("/{batch_id}", dependencies=[Depends(require("inventory.purchase"))])
 def update_batch(batch_id: str, payload: BatchUpdate, db: Session = Depends(get_db)):
     batch = db.query(InventoryBatch).filter(InventoryBatch.ID == batch_id).first()
     if not batch:

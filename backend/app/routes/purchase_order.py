@@ -65,6 +65,8 @@ from app.schemas.purchase_order_schema import (
 from app.services.email_service import send_alert_email
 
 
+from app.auth.auth_bearer import require
+
 router = APIRouter()
 
 
@@ -585,7 +587,7 @@ def _send_rejection_notice(db: Session, grn: GoodsReceiptNote) -> tuple:
 # PO CRUD
 # =========================
 
-@router.post("/purchase-orders")
+@router.post("/purchase-orders", dependencies=[Depends(require("purchase_order.manage"))])
 def create_po(
     data: PurchaseOrderCreate,
     db: Session = Depends(get_db)
@@ -657,7 +659,7 @@ def create_po(
     }
 
 
-@router.get("/purchase-orders")
+@router.get("/purchase-orders", dependencies=[Depends(require("purchase_order.view"))])
 def list_pos(
     status: Optional[str] = Query(None),
     supplier_id: Optional[int] = Query(None),
@@ -689,7 +691,7 @@ def list_pos(
     return [_serialize_po(db, r, include_lines=False) for r in rows]
 
 
-@router.get("/purchase-orders/{po_id}")
+@router.get("/purchase-orders/{po_id}", dependencies=[Depends(require("purchase_order.view"))])
 def get_po(
     po_id: int,
     db: Session = Depends(get_db)
@@ -704,7 +706,7 @@ def get_po(
     return _serialize_po(db, po, include_lines=True)
 
 
-@router.patch("/purchase-orders/{po_id}")
+@router.patch("/purchase-orders/{po_id}", dependencies=[Depends(require("purchase_order.manage"))])
 def update_po(
     po_id: int,
     data: PurchaseOrderUpdate,
@@ -739,7 +741,7 @@ def update_po(
     return {"message": "PO updated", "purchase_order": _serialize_po(db, po)}
 
 
-@router.delete("/purchase-orders/{po_id}")
+@router.delete("/purchase-orders/{po_id}", dependencies=[Depends(require("purchase_order.manage"))])
 def delete_po(
     po_id: int,
     db: Session = Depends(get_db)
@@ -781,7 +783,7 @@ def delete_po(
 # Line CRUD
 # =========================
 
-@router.post("/purchase-orders/{po_id}/lines")
+@router.post("/purchase-orders/{po_id}/lines", dependencies=[Depends(require("purchase_order.manage"))])
 def add_line(
     po_id: int,
     data: POLineCreate,
@@ -833,7 +835,7 @@ def add_line(
     }
 
 
-@router.patch("/purchase-orders/{po_id}/lines/{line_id}")
+@router.patch("/purchase-orders/{po_id}/lines/{line_id}", dependencies=[Depends(require("purchase_order.manage"))])
 def update_line(
     po_id: int,
     line_id: int,
@@ -875,7 +877,7 @@ def update_line(
     }
 
 
-@router.delete("/purchase-orders/{po_id}/lines/{line_id}")
+@router.delete("/purchase-orders/{po_id}/lines/{line_id}", dependencies=[Depends(require("purchase_order.manage"))])
 def delete_line(
     po_id: int,
     line_id: int,
@@ -911,7 +913,7 @@ def delete_line(
 # Workflow
 # =========================
 
-@router.post("/purchase-orders/{po_id}/send")
+@router.post("/purchase-orders/{po_id}/send", dependencies=[Depends(require("purchase_order.manage"))])
 def send_po(
     po_id: int,
     db: Session = Depends(get_db)
@@ -973,7 +975,7 @@ def send_po(
     }
 
 
-@router.post("/purchase-orders/{po_id}/resend-email")
+@router.post("/purchase-orders/{po_id}/resend-email", dependencies=[Depends(require("purchase_order.manage"))])
 def resend_po_email(
     po_id: int,
     db: Session = Depends(get_db)
@@ -1025,7 +1027,7 @@ def resend_po_email(
     }
 
 
-@router.post("/purchase-orders/{po_id}/confirm")
+@router.post("/purchase-orders/{po_id}/confirm", dependencies=[Depends(require("purchase_order.manage"))])
 def confirm_po(
     po_id: int,
     db: Session = Depends(get_db)
@@ -1060,7 +1062,7 @@ def confirm_po(
     }
 
 
-@router.post("/purchase-orders/{po_id}/cancel")
+@router.post("/purchase-orders/{po_id}/cancel", dependencies=[Depends(require("purchase_order.manage"))])
 def cancel_po(
     po_id: int,
     data: POCancellation,
@@ -1317,7 +1319,7 @@ def _apply_grn_to_inventory(db: Session, grn: GoodsReceiptNote) -> int:
     return touched
 
 
-@router.post("/purchase-orders/{po_id}/grn")
+@router.post("/purchase-orders/{po_id}/grn", dependencies=[Depends(require("purchase_order.manage"))])
 def create_grn(
     po_id: int,
     data: GRNCreate,
@@ -1498,7 +1500,7 @@ def create_grn(
     }
 
 
-@router.get("/purchase-orders/{po_id}/grn")
+@router.get("/purchase-orders/{po_id}/grn", dependencies=[Depends(require("purchase_order.view"))])
 def list_grns(
     po_id: int,
     db: Session = Depends(get_db)
@@ -1511,7 +1513,7 @@ def list_grns(
     return [_serialize_grn(db, g) for g in rows]
 
 
-@router.get("/purchase-orders/grn/{grn_id}")
+@router.get("/purchase-orders/grn/{grn_id}", dependencies=[Depends(require("purchase_order.view"))])
 def get_grn(
     grn_id: int,
     db: Session = Depends(get_db)
@@ -1530,7 +1532,7 @@ def get_grn(
     return _serialize_grn(db, grn)
 
 
-@router.post("/purchase-orders/grn/{grn_id}/finalize")
+@router.post("/purchase-orders/grn/{grn_id}/finalize", dependencies=[Depends(require("purchase_order.manage"))])
 def finalize_grn(
     grn_id: int,
     db: Session = Depends(get_db)
@@ -1600,7 +1602,7 @@ def finalize_grn(
     }
 
 
-@router.post("/purchase-orders/grn/{grn_id}/resend-rejection-notice")
+@router.post("/purchase-orders/grn/{grn_id}/resend-rejection-notice", dependencies=[Depends(require("purchase_order.manage"))])
 def resend_rejection_notice(
     grn_id: int,
     db: Session = Depends(get_db)
@@ -1656,7 +1658,7 @@ def resend_rejection_notice(
     }
 
 
-@router.delete("/purchase-orders/grn/{grn_id}")
+@router.delete("/purchase-orders/grn/{grn_id}", dependencies=[Depends(require("purchase_order.manage"))])
 def delete_grn(
     grn_id: int,
     db: Session = Depends(get_db)
@@ -1709,7 +1711,7 @@ def delete_grn(
 # Activity
 # =========================
 
-@router.get("/purchase-orders/{po_id}/activity")
+@router.get("/purchase-orders/{po_id}/activity", dependencies=[Depends(require("purchase_order.view"))])
 def get_po_activity(
     po_id: int,
     db: Session = Depends(get_db)
@@ -1732,7 +1734,7 @@ def get_po_activity(
     ]
 
 
-@router.delete("/purchase-orders/{po_id}/activity/{activity_id}")
+@router.delete("/purchase-orders/{po_id}/activity/{activity_id}", dependencies=[Depends(require("purchase_order.manage"))])
 def delete_po_activity_row(
     po_id: int,
     activity_id: int,
@@ -1759,7 +1761,7 @@ def delete_po_activity_row(
 # Auto-from-project
 # =========================
 
-@router.post("/purchase-orders/auto-from-project")
+@router.post("/purchase-orders/auto-from-project", dependencies=[Depends(require("purchase_order.manage"))])
 def auto_from_project(
     data: AutoFromProjectRequest,
     db: Session = Depends(get_db)

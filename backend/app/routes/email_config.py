@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.models.email_models import VendorEmailConfig
+from app.auth.auth_bearer import require
 
 router = APIRouter()
 
@@ -109,7 +110,7 @@ def _parse_xl(content: bytes) -> tuple:
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
-@router.get("/email-configs")
+@router.get("/email-configs", dependencies=[Depends(require("setting.modify"))])
 def list_email_configs(
     vendor_id: int = Query(1),
     search: Optional[str] = Query(None),
@@ -128,7 +129,7 @@ def list_email_configs(
     return [_serialize(r) for r in rows]
 
 
-@router.post("/email-configs", status_code=201)
+@router.post("/email-configs", status_code=201, dependencies=[Depends(require("setting.modify"))])
 def create_email_config(
     data: EmailConfigCreate,
     vendor_id: int = Query(1),
@@ -164,7 +165,7 @@ def create_email_config(
     return {"message": "Email configuration created", "ID": cfg.ID, **_serialize(cfg)}
 
 
-@router.get("/email-configs/active")
+@router.get("/email-configs/active", dependencies=[Depends(require("setting.modify"))])
 def get_active_email_config(
     vendor_id: int = Query(1),
     db: Session = Depends(get_db),
@@ -177,7 +178,7 @@ def get_active_email_config(
     return {"configs": [_serialize(c, mask=False) for c in cfgs]}
 
 
-@router.get("/email-configs/bulk-upload/template")
+@router.get("/email-configs/bulk-upload/template", dependencies=[Depends(require("setting.modify"))])
 def download_email_config_template():
     """Download a blank xlsx template for bulk upload."""
     wb = openpyxl.Workbook()
@@ -201,7 +202,7 @@ def download_email_config_template():
     )
 
 
-@router.post("/email-configs/bulk-upload")
+@router.post("/email-configs/bulk-upload", dependencies=[Depends(require("setting.modify"))])
 def bulk_upload_email_configs(
     vendor_id: int = Query(1),
     file: UploadFile = File(...),
@@ -309,7 +310,7 @@ def bulk_upload_email_configs(
     }
 
 
-@router.get("/email-configs/export/excel")
+@router.get("/email-configs/export/excel", dependencies=[Depends(require("setting.modify"))])
 def export_email_configs(
     vendor_id: int = Query(1),
     db: Session = Depends(get_db),
@@ -351,7 +352,7 @@ def export_email_configs(
     )
 
 
-@router.get("/email-configs/{config_id}")
+@router.get("/email-configs/{config_id}", dependencies=[Depends(require("setting.modify"))])
 def get_email_config(
     config_id: str,
     db: Session = Depends(get_db),
@@ -361,7 +362,7 @@ def get_email_config(
     return _serialize(cfg)
 
 
-@router.put("/email-configs/{config_id}")
+@router.put("/email-configs/{config_id}", dependencies=[Depends(require("setting.modify"))])
 def update_email_config(
     config_id: str,
     data: EmailConfigUpdate,
@@ -398,7 +399,7 @@ def update_email_config(
     return {"message": "Email configuration updated", **_serialize(cfg)}
 
 
-@router.delete("/email-configs/{config_id}")
+@router.delete("/email-configs/{config_id}", dependencies=[Depends(require("setting.modify"))])
 def delete_email_config(
     config_id: str,
     db: Session = Depends(get_db),
@@ -410,7 +411,7 @@ def delete_email_config(
     return {"message": "Email configuration deleted"}
 
 
-@router.post("/email-configs/{config_id}/activate")
+@router.post("/email-configs/{config_id}/activate", dependencies=[Depends(require("setting.modify"))])
 def activate_email_config(
     config_id: str,
     db: Session = Depends(get_db),
@@ -422,7 +423,7 @@ def activate_email_config(
     return {"message": "Configuration activated", **_serialize(cfg)}
 
 
-@router.post("/email-configs/{config_id}/deactivate")
+@router.post("/email-configs/{config_id}/deactivate", dependencies=[Depends(require("setting.modify"))])
 def deactivate_email_config(
     config_id: str,
     db: Session = Depends(get_db),

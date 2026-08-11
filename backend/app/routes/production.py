@@ -46,6 +46,7 @@ from app.schemas.production_schema import (
     WorkOrderCreate,
     WorkOrderStatusUpdate
 )
+from app.auth.auth_bearer import require, get_current_admin
 
 from app.services.bom_catalog import (
     UNIVERSAL_ITEMS,
@@ -527,7 +528,7 @@ def _serialize_wo(
 # ProductModel
 # ----------------------------------------------------------------
 
-@router.post("/models")
+@router.post("/models", dependencies=[Depends(require("production.manage"))])
 def create_product_model(
     data: ProductModelCreate,
     db: Session = Depends(get_db)
@@ -586,7 +587,7 @@ def create_product_model(
     }
 
 
-@router.get("/models")
+@router.get("/models", dependencies=[Depends(require("production.view"))])
 def list_product_models(
     vendor_id: int = 1,
     status: Optional[str] = None,
@@ -614,7 +615,7 @@ def list_product_models(
     return [_serialize_model(m) for m in rows]
 
 
-@router.get("/models/{model_id}")
+@router.get("/models/{model_id}", dependencies=[Depends(require("production.view"))])
 def get_product_model(
     model_id: int,
     db: Session = Depends(get_db)
@@ -657,7 +658,7 @@ def get_product_model(
     }
 
 
-@router.post("/models/{model_id}/seed-default-bom")
+@router.post("/models/{model_id}/seed-default-bom", dependencies=[Depends(get_current_admin)])
 def seed_default_bom_route(
     model_id: int,
     force: bool = False,
@@ -720,7 +721,7 @@ def seed_default_bom_route(
     }
 
 
-@router.post("/bom/reset-and-seed")
+@router.post("/bom/reset-and-seed", dependencies=[Depends(get_current_admin)])
 def reset_and_seed_bom(
     payload: dict = Body(default_factory=dict),
     db: Session = Depends(get_db)
@@ -910,7 +911,7 @@ def reset_and_seed_bom(
         )
 
 
-@router.post("/stages/reset-and-seed")
+@router.post("/stages/reset-and-seed", dependencies=[Depends(get_current_admin)])
 def reset_and_seed_stages(
     payload: dict = Body(default_factory=dict),
     db: Session = Depends(get_db)
@@ -1124,7 +1125,7 @@ def reset_and_seed_stages(
         )
 
 
-@router.patch("/models/{model_id}")
+@router.patch("/models/{model_id}", dependencies=[Depends(require("production.manage"))])
 def update_product_model(
     model_id: int,
     data: ProductModelUpdate,
@@ -1153,7 +1154,7 @@ def update_product_model(
     }
 
 
-@router.delete("/models/{model_id}")
+@router.delete("/models/{model_id}", dependencies=[Depends(require("production.manage"))])
 def delete_product_model(
     model_id: int,
     db: Session = Depends(get_db)
@@ -1180,7 +1181,7 @@ def delete_product_model(
 # BOM items
 # ----------------------------------------------------------------
 
-@router.post("/models/{model_id}/bom")
+@router.post("/models/{model_id}/bom", dependencies=[Depends(require("production.manage"))])
 def add_bom_item(
     model_id: int,
     data: BOMItemCreate,
@@ -1229,7 +1230,7 @@ def add_bom_item(
     }
 
 
-@router.get("/models/{model_id}/bom")
+@router.get("/models/{model_id}/bom", dependencies=[Depends(require("production.view"))])
 def list_bom_items(
     model_id: int,
     db: Session = Depends(get_db)
@@ -1238,7 +1239,7 @@ def list_bom_items(
     return _bom_with_links(db, model_id)
 
 
-@router.patch("/bom/{item_id}")
+@router.patch("/bom/{item_id}", dependencies=[Depends(require("production.manage"))])
 def update_bom_item(
     item_id: int,
     data: BOMItemUpdate,
@@ -1265,7 +1266,7 @@ def update_bom_item(
     }
 
 
-@router.delete("/bom/{item_id}")
+@router.delete("/bom/{item_id}", dependencies=[Depends(require("production.manage"))])
 def delete_bom_item(
     item_id: int,
     db: Session = Depends(get_db)
@@ -1304,7 +1305,7 @@ def _safe_slug(text: str) -> str:
     return cleaned[:40] or "bom"
 
 
-@router.post("/bom/{item_id}/upload-image")
+@router.post("/bom/{item_id}/upload-image", dependencies=[Depends(require("production.manage"))])
 def upload_bom_image(
     item_id: int,
     file: UploadFile = File(...),
@@ -1379,7 +1380,7 @@ def upload_bom_image(
 # Work Orders
 # ----------------------------------------------------------------
 
-@router.post("/work-orders")
+@router.post("/work-orders", dependencies=[Depends(require("production.manage"))])
 def create_work_order(
     data: WorkOrderCreate,
     db: Session = Depends(get_db)
@@ -1458,7 +1459,7 @@ def create_work_order(
     }
 
 
-@router.get("/work-orders")
+@router.get("/work-orders", dependencies=[Depends(require("production.view"))])
 def list_work_orders(
     vendor_id: int = 1,
     status: Optional[str] = None,
@@ -1502,7 +1503,7 @@ def list_work_orders(
     ]
 
 
-@router.get("/work-orders/{wo_id}")
+@router.get("/work-orders/{wo_id}", dependencies=[Depends(require("production.view"))])
 def get_work_order(
     wo_id: int,
     db: Session = Depends(get_db)
@@ -1553,7 +1554,7 @@ def get_work_order(
     }
 
 
-@router.patch("/work-orders/{wo_id}/status")
+@router.patch("/work-orders/{wo_id}/status", dependencies=[Depends(require("production.manage"))])
 def update_work_order_status(
     wo_id: int,
     data: WorkOrderStatusUpdate,
@@ -1632,7 +1633,7 @@ def update_work_order_status(
     }
 
 
-@router.delete("/work-orders/{wo_id}")
+@router.delete("/work-orders/{wo_id}", dependencies=[Depends(require("production.manage"))])
 def delete_work_order(
     wo_id: int,
     db: Session = Depends(get_db)
@@ -1693,7 +1694,7 @@ def delete_work_order(
 # Dashboard
 # ----------------------------------------------------------------
 
-@router.get("/dashboard")
+@router.get("/dashboard", dependencies=[Depends(require("production.view"))])
 def production_dashboard(
     vendor_id: int = 1,
     db: Session = Depends(get_db)

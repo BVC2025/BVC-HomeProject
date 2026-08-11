@@ -34,6 +34,8 @@ from app.models.models import (
 )
 
 
+from app.auth.auth_bearer import get_current_admin
+
 router = APIRouter(prefix="/admin/dashboard", tags=["Dashboard Aggregators"])
 
 
@@ -105,7 +107,7 @@ def _sum_per_day(db: Session, model, date_col, sum_col, days: int = 7,
     ]
 
 
-@router.get("/sparklines")
+@router.get("/sparklines", dependencies=[Depends(get_current_admin)])
 def sparklines(db: Session = Depends(get_db)):
     """Returns a 7-element array for each KPI tile.
 
@@ -356,7 +358,7 @@ def _label_for_score(s: int) -> str:
     return "Critical — Action Required"
 
 
-@router.get("/health-score")
+@router.get("/health-score", dependencies=[Depends(get_current_admin)])
 def health_score(db: Session = Depends(get_db)):
     """Composite business-health score (0-100)."""
 
@@ -419,7 +421,7 @@ def health_score(db: Session = Depends(get_db)):
 # 3. FACTORY STATUS
 # =====================================================================
 
-@router.get("/factory-status")
+@router.get("/factory-status", dependencies=[Depends(get_current_admin)])
 def factory_status(db: Session = Depends(get_db)):
     """Live shop-floor snapshot.
 
@@ -520,7 +522,7 @@ def factory_status(db: Session = Depends(get_db)):
 # Severity: critical | warning | info | success
 # Deterministic + fast; no LLM dependency. Gemini polish optional.
 
-@router.get("/insights")
+@router.get("/insights", dependencies=[Depends(get_current_admin)])
 def insights(db: Session = Depends(get_db)):
 
     cards = []
@@ -795,7 +797,7 @@ def insights(db: Session = Depends(get_db)):
 # 6. ACTIVITY FEED — cross-module recent inserts
 # =====================================================================
 
-@router.get("/activity-feed")
+@router.get("/activity-feed", dependencies=[Depends(get_current_admin)])
 def activity_feed(
     limit: int = 20,
     db: Session = Depends(get_db),
@@ -940,7 +942,7 @@ def activity_feed(
     }
 
 
-@router.get("/production-flow")
+@router.get("/production-flow", dependencies=[Depends(get_current_admin)])
 def production_flow(db: Session = Depends(get_db)):
     """Returns a 7-stage pipeline. Each stage:
       label, count, conversion_pct (to the next stage)
@@ -1036,7 +1038,7 @@ def production_flow(db: Session = Depends(get_db)):
 #   4. Best Production Engineer → count of WO stages DONE (ASSIGNED_TO_ID)
 #   5. Best Team              → average score by department
 
-@router.get("/top-performers")
+@router.get("/top-performers", dependencies=[Depends(get_current_admin)])
 def top_performers(db: Session = Depends(get_db)):
 
     from app.models.models import PerformanceScore, Department, Designation
@@ -1415,7 +1417,7 @@ def _series_for_metric(db: Session, metric: str, months: int) -> dict:
     }
 
 
-@router.get("/analytics/{metric}")
+@router.get("/analytics/{metric}", dependencies=[Depends(get_current_admin)])
 def analytics(
     metric: str,
     range: str = "6m",

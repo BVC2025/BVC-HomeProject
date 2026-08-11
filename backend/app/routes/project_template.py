@@ -15,6 +15,7 @@ log = logging.getLogger(__name__)
 
 from app.database.database import get_db
 from app.utils.datetime_utils import now_ist
+from app.auth.auth_bearer import require, get_current_admin
 
 from app.models.models import (
     ProjectCategory,
@@ -212,7 +213,7 @@ def _enrich_tasks(tasks, db):
 # PROJECT CATEGORIES
 # =========================
 
-@router.get("/project-categories")
+@router.get("/project-categories", dependencies=[Depends(require("project.view"))])
 def list_categories(
     vendor_id: Optional[int] = Query(None),
     search: Optional[str] = Query(None),
@@ -239,7 +240,7 @@ def list_categories(
     ]
 
 
-@router.get("/project-categories/{category_id}")
+@router.get("/project-categories/{category_id}", dependencies=[Depends(require("project.view"))])
 def get_category(category_id: str, db: Session = Depends(get_db)):
     c = db.query(ProjectCategory).filter(ProjectCategory.ID == category_id).first()
     if not c:
@@ -255,7 +256,7 @@ def get_category(category_id: str, db: Session = Depends(get_db)):
     }
 
 
-@router.post("/project-categories")
+@router.post("/project-categories", dependencies=[Depends(require("project.create"))])
 def create_category(data: CategoryCreate, db: Session = Depends(get_db)):
     existing = db.query(ProjectCategory).filter(
         ProjectCategory.VENDOR_ID == data.VENDOR_ID,
@@ -281,7 +282,7 @@ def create_category(data: CategoryCreate, db: Session = Depends(get_db)):
     return {"message": "Category created", "ID": cat.ID}
 
 
-@router.put("/project-categories/{category_id}")
+@router.put("/project-categories/{category_id}", dependencies=[Depends(require("project.update"))])
 def update_category(category_id: str, data: CategoryUpdate, db: Session = Depends(get_db)):
     cat = db.query(ProjectCategory).filter(ProjectCategory.ID == category_id).first()
     if not cat:
@@ -301,7 +302,7 @@ def update_category(category_id: str, data: CategoryUpdate, db: Session = Depend
     return {"message": "Category updated"}
 
 
-@router.delete("/project-categories/{category_id}")
+@router.delete("/project-categories/{category_id}", dependencies=[Depends(require("project.delete"))])
 def delete_category(category_id: str, db: Session = Depends(get_db)):
     cat = db.query(ProjectCategory).filter(ProjectCategory.ID == category_id).first()
     if not cat:
@@ -331,7 +332,7 @@ def delete_category(category_id: str, db: Session = Depends(get_db)):
 # PROJECTS (formerly SubProjectTemplates)
 # =========================
 
-@router.get("/projects")
+@router.get("/projects", dependencies=[Depends(require("project.view"))])
 def list_projects(
     category_id: Optional[str] = Query(None),
     vendor_id: Optional[int] = Query(None),
@@ -367,7 +368,7 @@ def list_projects(
     ]
 
 
-@router.get("/projects/{project_id}")
+@router.get("/projects/{project_id}", dependencies=[Depends(require("project.view"))])
 def get_project(project_id: str, db: Session = Depends(get_db)):
     p = db.query(Project).filter(Project.ID == project_id).first()
     if not p:
@@ -395,7 +396,7 @@ def get_project(project_id: str, db: Session = Depends(get_db)):
     }
 
 
-@router.post("/projects")
+@router.post("/projects", dependencies=[Depends(require("project.create"))])
 def create_project(data: ProjectCreate, db: Session = Depends(get_db)):
     cat = db.query(ProjectCategory).filter(ProjectCategory.ID == data.CATEGORY_ID).first()
     if not cat:
@@ -464,7 +465,7 @@ def create_project(data: ProjectCreate, db: Session = Depends(get_db)):
     return {"message": "Project created", "ID": project.ID}
 
 
-@router.put("/projects/{project_id}")
+@router.put("/projects/{project_id}", dependencies=[Depends(require("project.update"))])
 def update_project(project_id: str, data: ProjectUpdate, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.ID == project_id).first()
     if not project:
@@ -508,7 +509,7 @@ def update_project(project_id: str, data: ProjectUpdate, db: Session = Depends(g
     return {"message": "Project updated"}
 
 
-@router.delete("/projects/{project_id}")
+@router.delete("/projects/{project_id}", dependencies=[Depends(require("project.delete"))])
 def delete_project(project_id: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.ID == project_id).first()
     if not project:
@@ -597,7 +598,7 @@ def _serialize_pricing(p: ProjectPricing, project_name: str = None, category_id:
     }
 
 
-@router.get("/project-pricing")
+@router.get("/project-pricing", dependencies=[Depends(require("project.view"))])
 def list_project_pricing(
     project_id: Optional[str] = Query(None),
     vendor_id: Optional[int] = Query(None),
@@ -619,7 +620,7 @@ def list_project_pricing(
     return [_serialize_pricing(p, proj.NAME, proj.CATEGORY_ID) for p, proj in rows]
 
 
-@router.get("/project-pricing/{pricing_id}")
+@router.get("/project-pricing/{pricing_id}", dependencies=[Depends(require("project.view"))])
 def get_project_pricing(pricing_id: str, db: Session = Depends(get_db)):
     p = db.query(ProjectPricing).filter(ProjectPricing.ID == pricing_id).first()
     if not p:
@@ -628,7 +629,7 @@ def get_project_pricing(pricing_id: str, db: Session = Depends(get_db)):
     return _serialize_pricing(p, project.NAME if project else None, project.CATEGORY_ID if project else None)
 
 
-@router.post("/project-pricing")
+@router.post("/project-pricing", dependencies=[Depends(require("project.create"))])
 def create_project_pricing(data: ProjectPricingCreate, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.ID == data.PROJECT_ID).first()
     if not project:
@@ -676,7 +677,7 @@ def create_project_pricing(data: ProjectPricingCreate, db: Session = Depends(get
     return {"message": "Pricing created", "ID": pricing.ID}
 
 
-@router.put("/project-pricing/{pricing_id}")
+@router.put("/project-pricing/{pricing_id}", dependencies=[Depends(require("project.update"))])
 def update_project_pricing(pricing_id: str, data: ProjectPricingUpdate, db: Session = Depends(get_db)):
     pricing = db.query(ProjectPricing).filter(ProjectPricing.ID == pricing_id).first()
     if not pricing:
@@ -710,7 +711,7 @@ def update_project_pricing(pricing_id: str, data: ProjectPricingUpdate, db: Sess
     return {"message": "Pricing updated"}
 
 
-@router.delete("/project-pricing/{pricing_id}")
+@router.delete("/project-pricing/{pricing_id}", dependencies=[Depends(require("project.delete"))])
 def delete_project_pricing(pricing_id: str, db: Session = Depends(get_db)):
     pricing = db.query(ProjectPricing).filter(ProjectPricing.ID == pricing_id).first()
     if not pricing:
@@ -757,7 +758,7 @@ _PRICING_NUMERIC_FIELDS = (
 _PRICING_NULLABLE_FIELDS = {"MINIMUM_NEGOTIATION_PRICE", "NEGOTIATION_PERCENT"}
 
 
-@router.post("/project-pricing/bulk-upload")
+@router.post("/project-pricing/bulk-upload", dependencies=[Depends(require("project.create"))])
 async def bulk_upload_project_pricing(
     vendor_id: int = Query(1),
     file: UploadFile = File(...),
@@ -888,7 +889,7 @@ async def bulk_upload_project_pricing(
 # BOM PARSE
 # =========================
 
-@router.post("/projects/parse-bom")
+@router.post("/projects/parse-bom", dependencies=[Depends(require("project.view"))])
 async def parse_bom(
     file: UploadFile = File(...),
     sheet_name: Optional[str] = Query(None),
@@ -945,7 +946,7 @@ async def parse_bom(
 # TASK TEMPLATES
 # =========================
 
-@router.get("/task-templates")
+@router.get("/task-templates", dependencies=[Depends(require("project.view"))])
 def list_task_templates(
     project_id: Optional[str] = Query(None),
     vendor_id: Optional[int] = Query(None),
@@ -960,7 +961,7 @@ def list_task_templates(
     return _enrich_tasks(tasks, db)
 
 
-@router.post("/task-templates")
+@router.post("/task-templates", dependencies=[Depends(require("project.create"))])
 def create_task_template(data: TaskTemplateCreate, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.ID == data.PROJECT_ID).first()
     if not project:
@@ -991,12 +992,12 @@ def create_task_template(data: TaskTemplateCreate, db: Session = Depends(get_db)
     return {"message": "Task created", "ID": task.ID}
 
 
-@router.post("/task-templates/bulk-create")
+@router.post("/task-templates/bulk-create", dependencies=[Depends(require("project.create"))])
 def bulk_create_task_templates():
     raise HTTPException(status_code=501, detail="Use POST /projects with embedded tasks instead")
 
 
-@router.put("/task-templates/{task_id}")
+@router.put("/task-templates/{task_id}", dependencies=[Depends(require("project.update"))])
 def update_task_template(task_id: str, data: TaskTemplateUpdate, db: Session = Depends(get_db)):
     task = db.query(TaskTemplate).filter(TaskTemplate.ID == task_id).first()
     if not task:
@@ -1030,7 +1031,7 @@ def update_task_template(task_id: str, data: TaskTemplateUpdate, db: Session = D
     return {"message": "Task updated"}
 
 
-@router.delete("/task-templates/{task_id}")
+@router.delete("/task-templates/{task_id}", dependencies=[Depends(require("project.delete"))])
 def delete_task_template(task_id: str, db: Session = Depends(get_db)):
     task = db.query(TaskTemplate).filter(TaskTemplate.ID == task_id).first()
     if not task:
@@ -1056,7 +1057,7 @@ def delete_task_template(task_id: str, db: Session = Depends(get_db)):
     return {"message": "Task deleted"}
 
 
-@router.patch("/task-templates/reorder")
+@router.patch("/task-templates/reorder", dependencies=[Depends(require("project.update"))])
 def reorder_tasks(items: List[ReorderItem], db: Session = Depends(get_db)):
     for item in items:
         task = db.query(TaskTemplate).filter(TaskTemplate.ID == item.id).first()
@@ -1223,7 +1224,7 @@ def _cell(record: dict, *keys) -> str:
 _CAT_STD_COLS = {"CATEGORY NAME", "DESCRIPTION", "S.NO", "S.N", "SN", ""}
 
 
-@router.post("/project-categories/bulk-upload")
+@router.post("/project-categories/bulk-upload", dependencies=[Depends(require("project.create"))])
 async def bulk_upload_categories(
     vendor_id: int = Query(1),
     file: UploadFile = File(...),
@@ -1313,7 +1314,7 @@ async def bulk_upload_categories(
 _PROJ_STD_COLS = {"CATEGORY NAME", "PROJECT NAME", "DESCRIPTION", "S.NO", "S.N", "SN", ""}
 
 
-@router.post("/projects/bulk-upload")
+@router.post("/projects/bulk-upload", dependencies=[Depends(require("project.create"))])
 async def bulk_upload_projects(
     vendor_id: int = Query(1),
     file: UploadFile = File(...),
@@ -1440,7 +1441,7 @@ _TASK_STD_COLS = {
 _VALID_DUR_UNITS = {"HOURS", "DAYS", "WEEKS", "MONTHS", "YEARS"}
 
 
-@router.post("/task-templates/bulk-upload")
+@router.post("/task-templates/bulk-upload", dependencies=[Depends(require("project.create"))])
 async def bulk_upload_task_templates(
     vendor_id: int = Query(1),
     file: UploadFile = File(...),
@@ -1647,7 +1648,7 @@ async def bulk_upload_task_templates(
 # SEED
 # =========================
 
-@router.post("/seed-project-templates")
+@router.post("/seed-project-templates", dependencies=[Depends(get_current_admin)])
 def seed_templates(vendor_id: int = Query(1), db: Session = Depends(get_db)):
     from app.services.seed_data import PROJECT_TEMPLATE_CATALOG
     created_cats = 0

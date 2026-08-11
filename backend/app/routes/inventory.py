@@ -13,7 +13,7 @@ from app.models.inventory_models import ProductMaster
 
 from pydantic import BaseModel, Field
 
-from app.auth.auth_bearer import get_current_employee
+from app.auth.auth_bearer import get_current_employee, require
 
 from app.schemas.inventory_schema import (
     InventoryCreate,
@@ -109,7 +109,7 @@ def materials_for_me(
 # ADD MATERIAL (stock entry)
 # =========================
 
-@router.post("/create-material")
+@router.post("/create-material", dependencies=[Depends(require("inventory.purchase"))])
 def create_material(
     data: InventoryCreate,
     db: Session = Depends(get_db)
@@ -177,7 +177,7 @@ def create_material(
 # VIEW MATERIALS (optionally filtered by vendor)
 # =========================
 
-@router.get("/materials")
+@router.get("/materials", dependencies=[Depends(require("inventory.view"))])
 def get_materials(
     vendor_id: Optional[int] = Query(None),
     db: Session = Depends(get_db)
@@ -196,7 +196,7 @@ def get_materials(
 # UPDATE STOCK
 # =========================
 
-@router.put("/update-stock/{material_id}")
+@router.put("/update-stock/{material_id}", dependencies=[Depends(require("inventory.purchase"))])
 def update_stock(
     material_id: int,
     data: StockUpdate,
@@ -227,7 +227,7 @@ def update_stock(
 # DELETE MATERIAL
 # =========================
 
-@router.delete("/delete-material/{material_id}")
+@router.delete("/delete-material/{material_id}", dependencies=[Depends(require("inventory.purchase"))])
 def delete_material(
     material_id: int,
     db: Session = Depends(get_db)
@@ -315,7 +315,7 @@ def _category_for_material(material_name: str) -> str:
     return "Other"
 
 
-@router.get("/inventory/full")
+@router.get("/inventory/full", dependencies=[Depends(require("inventory.view"))])
 def inventory_full(
     vendor_id: int = Query(1),
     low_threshold: int = Query(DEFAULT_LOW_STOCK_THRESHOLD),
@@ -532,7 +532,7 @@ class StockAdjustRequest(BaseModel):
     NOTES: Optional[str] = None
 
 
-@router.post("/inventory/{inventory_id}/adjust")
+@router.post("/inventory/{inventory_id}/adjust", dependencies=[Depends(require("inventory.purchase"))])
 def adjust_stock(
     inventory_id: int,
     data: StockAdjustRequest,
@@ -594,7 +594,7 @@ class MinStockRequest(BaseModel):
     # Set to 0 to disable alerting for this row.
 
 
-@router.patch("/inventory/{inventory_id}/min-stock")
+@router.patch("/inventory/{inventory_id}/min-stock", dependencies=[Depends(require("inventory.purchase"))])
 def set_min_stock(
     inventory_id: int,
     data: MinStockRequest,
@@ -683,7 +683,7 @@ def _push_low_stock_notification(db: Session, inv: Inventory) -> None:
         )
 
 
-@router.get("/inventory/{inventory_id}/movements")
+@router.get("/inventory/{inventory_id}/movements", dependencies=[Depends(require("inventory.view"))])
 def inventory_movements(
     inventory_id: int,
     db: Session = Depends(get_db)
