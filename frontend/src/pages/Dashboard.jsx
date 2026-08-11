@@ -67,7 +67,6 @@ import GeofenceSettings from "./GeofenceSettings";
 import BiometricImport from "./BiometricImport";
 import EmployeeMemos from "./EmployeeMemos";
 import Announcements from "./Announcements";
-import HRMSAssistant from "../components/HRMSAssistant";
 import ApprovalCenter from "./ApprovalCenter";
 // AICommandCenter + Workflow removed Phase 2 — were placeholder stubs
 import Payroll from "./Payroll";
@@ -1671,7 +1670,6 @@ const NAV_GROUPS = [
       { to: "/recruitment", icon: <SidebarIcon name="recruitment" />, label: "Recruitment" },
       { to: "/onboarding", icon: <SidebarIcon name="employees" />, label: "Onboarding" },
       { to: "/hr-automation", icon: <SidebarIcon name="approvals" />, label: "HR Automation" },
-      { to: "/hrms-assistant", icon: <SidebarIcon name="ai-playground" />, label: "HRMS Assistant" },
       { to: "/monthly-reports", icon: <SidebarIcon name="payroll" />, label: "Monthly Reports" },
       // { to: "/workforce-analytics", icon: <SidebarIcon name="star"      />, label: "Workforce Analytics" }  // temporarily hidden per request
       { to: "/help-desk", icon: <SidebarIcon name="helpdesk" />, label: "Help Desk" },
@@ -2068,7 +2066,6 @@ function Dashboard() {
             <Route path="/shifts" element={<ShiftManagement />} />
             <Route path="/memos" element={<EmployeeMemos />} />
             <Route path="/announcements" element={<Announcements />} />
-            <Route path="/hrms-assistant" element={<HRMSAssistant />} />
             <Route path="/leave-management" element={<LeaveManagement />} />
             <Route path="/allowances" element={<Allowances />} />
             <Route path="/star-performance" element={<StarPerformance />} />

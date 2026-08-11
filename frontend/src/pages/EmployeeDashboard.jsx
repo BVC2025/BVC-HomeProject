@@ -17,7 +17,6 @@ import MyAnnouncementsPanel from "../components/MyAnnouncementsPanel";
 import MyHelpDeskPanel from "../components/MyHelpDeskPanel";
 import MyDocumentsPanel from "../components/MyDocumentsPanel";
 import MyOrgChartPanel from "../components/MyOrgChartPanel";
-import HRMSAssistant from "../components/HRMSAssistant";
 import MySettingsPanel from "../components/MySettingsPanel";
 import EmployeeSidebar from "../components/EmployeeSidebar";
 import EmployeeHomeDashboard from "../components/EmployeeHomeDashboard";
@@ -1305,9 +1304,6 @@ function EmployeeDashboardBody() {
           {mainTab === "orgchart" && (
             <MyOrgChartPanel />
           )}
-          {mainTab === "hrms_ai" && (
-            <HRMSAssistant />
-          )}
           {mainTab === "myteam" && (
             hasPerm(["team.view", "team.manage"]) ? (
               <ComingSoonPanel
@@ -1648,7 +1644,6 @@ const Z_TAB_TITLES = {
   helpdesk: "Help Desk",
   performance: "Performance",
   orgchart: "Organization Chart",
-  hrms_ai: "HRMS Assistant",
   myteam: "My Team",
   settings: "Settings",
 };

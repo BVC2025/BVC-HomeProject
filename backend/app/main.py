@@ -108,10 +108,6 @@ from app.routes.whatsapp_module_settings import router as whatsapp_module_settin
 from app.routes.whatsapp_webhook import router as whatsapp_webhook_router
 from app.routes.whatsapp_inbox import router as whatsapp_inbox_router
 
-# ── HRMS AI Assistant (Gemini + RAG over docs/HRMS_KNOWLEDGE.md) ──
-from app.hrms_ai.routes import router as hrms_ai_router
-from app.hrms_ai.admin_routes import router as hrms_ai_docs_router
-
 from fastapi.middleware.cors import CORSMiddleware
 
 # Phase 3 — Audit log
@@ -332,15 +328,6 @@ def _drop_legacy_lead_tables():
 
 
 _drop_legacy_lead_tables()
-
-# Register the HRMS AI conversation + document models with the metadata
-# BEFORE create_all runs — they live outside models.py so they need to
-# be imported for Base to know about them.
-from app.hrms_ai.session_store import HrmsAiConversation  # noqa: F401,E402
-from app.hrms_ai.document_store import (  # noqa: F401,E402
-    HrmsAiDocument,
-    HrmsAiDocumentTable,
-)
 
 Base.metadata.create_all(bind=engine)
 
@@ -2155,10 +2142,6 @@ app.include_router(employee_insights_router)
 app.include_router(custom_fields_router, tags=["Custom Fields"])
 app.include_router(helpdesk_router)
 app.include_router(memo_automation_router)
-
-# ── HRMS AI Assistant (Gemini + RAG) ──
-app.include_router(hrms_ai_router)
-app.include_router(hrms_ai_docs_router)
 
 app.include_router(email_config_router, tags=["Email Configuration"])
 app.include_router(email_templates_router, tags=["Email Templates"])
