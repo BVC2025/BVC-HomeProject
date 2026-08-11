@@ -5,6 +5,7 @@ import "react-toastify/dist/ReactToastify.css";
 
 import App from "./App";
 import ThemedToastContainer from "./components/ThemedToastContainer";
+import { AuthProvider } from "./context/AuthContext";
 import "./tailwind.css";
 import "./App.css";
 
@@ -23,7 +24,9 @@ ReactDOM.createRoot(
 ).render(
 
   <BrowserRouter>
-    <App />
-    <ThemedToastContainer />
+    <AuthProvider>
+      <App />
+      <ThemedToastContainer />
+    </AuthProvider>
   </BrowserRouter>
 );

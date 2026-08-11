@@ -171,6 +171,10 @@ function Login() {
       localStorage.setItem("auth", "true");
       localStorage.setItem("role", isAdmin ? "admin" : "employee");
       localStorage.setItem("token", d.access_token || "");
+      // Additive — older backend responses (or a login response that
+      // hasn't picked up the refresh-token change yet) simply omit
+      // this field, so this is a no-op fallback to "", never a break.
+      localStorage.setItem("refresh_token", d.refresh_token || "");
       localStorage.setItem("backend_role", d.role || "");
       localStorage.setItem(
         "permissions",

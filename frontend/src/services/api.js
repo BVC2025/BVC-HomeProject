@@ -117,23 +117,105 @@ API.interceptors.request.use((config) => {
   return config;
 });
 
+// Silent-refresh support. Only one /auth/refresh call may be in
+// flight at a time — the backend rotates the refresh token on every
+// use (old one is marked ROTATED, a new one issued), so two
+// concurrent calls with the same stored token would make the second
+// one look like reuse of an already-rotated token and trigger the
+// backend's theft-response (revoke every refresh token for this
+// session). All concurrent 401s therefore await the SAME in-flight
+// refresh promise instead of each calling /auth/refresh independently.
+let refreshPromise = null;
+
+async function performTokenRefresh() {
+
+  const refreshToken = localStorage.getItem("refresh_token");
+
+  if (!refreshToken) {
+
+    throw new Error("No refresh token available");
+  }
+
+  // Deliberately bypasses the `API` instance (and therefore this same
+  // response interceptor) — a raw axios call so a 401 on the refresh
+  // endpoint itself can't recursively trigger another refresh attempt.
+  const res = await axios.post(
+    `${API_BASE_URL}/auth/refresh`,
+    { refresh_token: refreshToken }
+  );
+
+  const { access_token, refresh_token } = res.data || {};
+
+  if (access_token) localStorage.setItem("token", access_token);
+
+  if (refresh_token) localStorage.setItem("refresh_token", refresh_token);
+
+  return access_token;
+}
+
+function clearSessionAndRedirect() {
+
+  // Preserve the theme preference — it isn't auth state.
+  const theme = localStorage.getItem("theme");
+
+  localStorage.clear();
+
+  if (theme) localStorage.setItem("theme", theme);
+
+  window.location.href = "/login";
+}
+
 API.interceptors.response.use(
   (res) => res,
-  (err) => {
+  async (err) => {
 
     const status = err?.response?.status;
+    const originalRequest = err?.config;
+
+    // Try exactly one silent refresh-and-retry per request. Requests
+    // to /login, /admin-login, /root-login, /iam-login, /auth/refresh
+    // never carry a valid session token to refresh in the first place,
+    // so a 401 from those is a real auth failure, not an expired
+    // access token — performTokenRefresh() will simply fail fast (no
+    // refresh_token stored yet) and fall through to the redirect below.
+    if (status === 401 && originalRequest && !originalRequest._retriedAfterRefresh) {
+
+      originalRequest._retriedAfterRefresh = true;
+
+      try {
+
+        if (!refreshPromise) {
+
+          refreshPromise = performTokenRefresh().finally(() => {
+            refreshPromise = null;
+          });
+        }
+
+        const newAccessToken = await refreshPromise;
+
+        originalRequest.headers = originalRequest.headers || {};
+
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+
+        return API(originalRequest);
+
+      } catch {
+
+        // Refresh itself failed (expired/invalid/reused refresh
+        // token, or none stored) — this is a real session end.
+        clearSessionAndRedirect();
+
+        return Promise.reject(err);
+      }
+    }
 
     if (status === 401) {
 
-      // Token expired or invalid — wipe session and bounce
-      const role = localStorage.getItem("role");
-
-      localStorage.clear();
-
-      if (role === "employee") {
-
-        window.location.href = "/login";
-      }
+      // Either not a retryable request, or the retry itself 401'd —
+      // both admin and employee sessions now bounce to /login (this
+      // used to only fire for role === "employee", silently leaving
+      // an expired admin session stuck on a broken page).
+      clearSessionAndRedirect();
     }
 
     return Promise.reject(err);

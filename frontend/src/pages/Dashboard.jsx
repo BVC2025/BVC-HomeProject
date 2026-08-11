@@ -12,6 +12,10 @@ import {
   useLocation
 } from "react-router-dom";
 
+import RequirePermission from "../components/RequirePermission";
+import { useAuth } from "../context/AuthContext";
+import { permissionForRoute } from "../utils/rbac";
+
 import {
   PieChart,
   Pie,
@@ -1783,6 +1787,11 @@ function SidebarNav({ onItemClick }) {
 
   const location = useLocation();
 
+  // RBAC — hide nav items/groups this session's role isn't granted
+  // the corresponding permission for. Root/full-admin sessions always
+  // pass (see hasPermission() in utils/rbac.js), matching the backend.
+  const { hasPermission } = useAuth();
+
   // Section that contains the current route opens by default;
   // others stay collapsed. User can toggle freely.
   const activeGroupKey = NAV_GROUPS.find((g) =>
@@ -1834,7 +1843,7 @@ function SidebarNav({ onItemClick }) {
     <ul className="sidebar-nav">
 
       {/* Top-level pinned items */}
-      {NAV_TOP.map((item) => (
+      {NAV_TOP.filter((item) => hasPermission(permissionForRoute(item.to))).map((item) => (
         <li key={item.to}>
           <NavLink
             to={item.to}
@@ -1848,12 +1857,21 @@ function SidebarNav({ onItemClick }) {
         </li>
       ))}
 
-      {/* Grouped sections */}
+      {/* Grouped sections (RBAC-filtered) */}
       {NAV_GROUPS.map((group) => {
+
+        // Filter to items this session's role is actually granted.
+        // Hide the whole group if RBAC removed every item in it —
+        // mirrors EmployeeSidebar.jsx's pattern on the employee side.
+        const visibleItems = group.items.filter(
+          (it) => hasPermission(permissionForRoute(it.to))
+        );
+
+        if (visibleItems.length === 0) return null;
 
         const isOpen = !!openSections[group.key];
 
-        const hasActive = group.items.some(
+        const hasActive = visibleItems.some(
           (it) => location.pathname === it.to
         );
 
@@ -1873,9 +1891,9 @@ function SidebarNav({ onItemClick }) {
 
             <div
               className={`${styles.navGroupItems} ${isOpen ? styles.navGroupItemsOpen : styles.navGroupItemsClosed}`}
-              style={{ maxHeight: isOpen ? `${group.items.length * 46}px` : 0 }}
+              style={{ maxHeight: isOpen ? `${visibleItems.length * 46}px` : 0 }}
             >
-              {group.items.map((item) => (
+              {visibleItems.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
@@ -1899,6 +1917,7 @@ function SidebarNav({ onItemClick }) {
 function Dashboard() {
 
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
@@ -1931,11 +1950,9 @@ function Dashboard() {
   // performLogout on Confirm.
   const handleLogout = () => setLogoutOpen(true);
 
-  const performLogout = () => {
+  const performLogout = async () => {
     setLogoutOpen(false);
-    localStorage.removeItem("auth");
-    localStorage.removeItem("username");
-    localStorage.removeItem("loginTime");
+    await logout();
     navigate("/login", { replace: true });
   };
 
@@ -2043,11 +2060,11 @@ function Dashboard() {
           {/* Earlier dashboards reachable for comparison / fallback */}
           <Route path="/dashboard-v1" element={<AdminDashboard />} />
 
-          <Route path="/roles" element={<RoleManagement />} />
-          <Route path="/rbac" element={<RbacPermissions />} />
+          <Route path="/roles" element={<RequirePermission code={permissionForRoute("/roles")}><RoleManagement /></RequirePermission>} />
+          <Route path="/rbac" element={<RequirePermission code={permissionForRoute("/rbac")}><RbacPermissions /></RequirePermission>} />
 
           <Route path="/holidays" element={<HolidayCalendar />} />
-          <Route path="/geofence" element={<GeofenceSettings />} />
+          <Route path="/geofence" element={<RequirePermission code={permissionForRoute("/geofence")}><GeofenceSettings /></RequirePermission>} />
           <Route path="/biometric-import" element={<BiometricImport />} />
           <Route path="/approvals" element={<ApprovalCenter />} />
 
@@ -2056,73 +2073,73 @@ function Dashboard() {
 
           <Route
             path="/organization"
-            element={<Organization />}
+            element={<RequirePermission code={permissionForRoute("/organization")}><Organization /></RequirePermission>}
           />
 
           {/* HR module — Odoo-style top sub-nav across 8 pages */}
           <Route element={<HrLayout />}>
-            <Route path="/employees" element={<Employees />} />
-            <Route path="/attendance" element={<Attendance />} />
+            <Route path="/employees" element={<RequirePermission code={permissionForRoute("/employees")}><Employees /></RequirePermission>} />
+            <Route path="/attendance" element={<RequirePermission code={permissionForRoute("/attendance")}><Attendance /></RequirePermission>} />
             <Route path="/shifts" element={<ShiftManagement />} />
-            <Route path="/memos" element={<EmployeeMemos />} />
+            <Route path="/memos" element={<RequirePermission code={permissionForRoute("/memos")}><EmployeeMemos /></RequirePermission>} />
             <Route path="/announcements" element={<Announcements />} />
-            <Route path="/leave-management" element={<LeaveManagement />} />
+            <Route path="/leave-management" element={<RequirePermission code={permissionForRoute("/leave-management")}><LeaveManagement /></RequirePermission>} />
             <Route path="/allowances" element={<Allowances />} />
             <Route path="/star-performance" element={<StarPerformance />} />
-            <Route path="/payroll" element={<Payroll />} />
-            <Route path="/payslip-generator" element={<PayslipGenerator />} />
-            <Route path="/payroll-records"   element={<PayrollRecords />} />
-            <Route path="/help-desk"         element={<HelpDeskAdmin />} />
+            <Route path="/payroll" element={<RequirePermission code={permissionForRoute("/payroll")}><Payroll /></RequirePermission>} />
+            <Route path="/payslip-generator" element={<RequirePermission code={permissionForRoute("/payslip-generator")}><PayslipGenerator /></RequirePermission>} />
+            <Route path="/payroll-records"   element={<RequirePermission code={permissionForRoute("/payroll-records")}><PayrollRecords /></RequirePermission>} />
+            <Route path="/help-desk"         element={<RequirePermission code={permissionForRoute("/help-desk")}><HelpDeskAdmin /></RequirePermission>} />
           </Route>
 
           <Route
             path="/employee-onboarding"
-            element={<EmployeeOnboardingReview />}
+            element={<RequirePermission code={permissionForRoute("/employee-onboarding")}><EmployeeOnboardingReview /></RequirePermission>}
           />
 
           <Route
             path="/customers"
-            element={<Customers />}
+            element={<RequirePermission code={permissionForRoute("/customers")}><Customers /></RequirePermission>}
           />
 
           <Route
             path="/quotations"
-            element={<Quotations />}
+            element={<RequirePermission code={permissionForRoute("/quotations")}><Quotations /></RequirePermission>}
           />
 
           <Route
             path="/sales-orders"
-            element={<SalesOrders />}
+            element={<RequirePermission code={permissionForRoute("/sales-orders")}><SalesOrders /></RequirePermission>}
           />
 
           <Route
             path="/projects"
-            element={<Suspense fallback={null}><ProjectPage /></Suspense>}
+            element={<RequirePermission code={permissionForRoute("/projects")}><Suspense fallback={null}><ProjectPage /></Suspense></RequirePermission>}
           />
 
           <Route
             path="/inventory"
-            element={<Inventory />}
+            element={<RequirePermission code={permissionForRoute("/inventory")}><Inventory /></RequirePermission>}
           />
 
           <Route
             path="/machines"
-            element={<Machines />}
+            element={<RequirePermission code={permissionForRoute("/machines")}><Machines /></RequirePermission>}
           />
 
           <Route
             path="/work-centers"
-            element={<WorkCenters />}
+            element={<RequirePermission code={permissionForRoute("/work-centers")}><WorkCenters /></RequirePermission>}
           />
 
           <Route
             path="/production"
-            element={<Production />}
+            element={<RequirePermission code={permissionForRoute("/production")}><Production /></RequirePermission>}
           />
 
           <Route
             path="/quality"
-            element={<Quality />}
+            element={<RequirePermission code={permissionForRoute("/quality")}><Quality /></RequirePermission>}
           />
 
           {/* ram-development commit 3eef8b5e removed Suppliers.jsx /
@@ -2148,17 +2165,17 @@ function Dashboard() {
 
           <Route
             path="/employees/:id/profile"
-            element={<EmployeeProfile />}
+            element={<RequirePermission code={permissionForRoute("/employees/:id/profile")}><EmployeeProfile /></RequirePermission>}
           />
 
           <Route
             path="/recruitment"
-            element={<Recruitment />}
+            element={<RequirePermission code={permissionForRoute("/recruitment")}><Recruitment /></RequirePermission>}
           />
 
           <Route
             path="/onboarding"
-            element={<OnboardingChecklist />}
+            element={<RequirePermission code={permissionForRoute("/onboarding")}><OnboardingChecklist /></RequirePermission>}
           />
 
           <Route
@@ -2168,7 +2185,7 @@ function Dashboard() {
 
           <Route
             path="/monthly-reports"
-            element={<MonthlyReports />}
+            element={<RequirePermission code={permissionForRoute("/monthly-reports")}><MonthlyReports /></RequirePermission>}
           />
 
           <Route
@@ -2178,51 +2195,51 @@ function Dashboard() {
 
           <Route
             path="/reports"
-            element={<Reports />}
+            element={<RequirePermission code={permissionForRoute("/reports")}><Reports /></RequirePermission>}
           />
 
           <Route
             path="/settings"
-            element={<Settings />}
+            element={<RequirePermission code={permissionForRoute("/settings")}><Settings /></RequirePermission>}
           />
           {/* Organization & Project Management module */}
-          <Route path="/departments" element={<Suspense fallback={null}><DepartmentManagement /></Suspense>} />
-          <Route path="/org-roles" element={<Suspense fallback={null}><OrgRoleManagement /></Suspense>} />
-          <Route path="/project-categories" element={<Suspense fallback={null}><ProjectCategoryManagement /></Suspense>} />
-          <Route path="/task-templates" element={<Suspense fallback={null}><TaskTemplatePage /></Suspense>} />
-          <Route path="/project-quotations" element={<Suspense fallback={null}><ProjectQuotationManagement /></Suspense>} />
-          <Route path="/project-pricing" element={<Suspense fallback={null}><ProjectPricingPage /></Suspense>} />
+          <Route path="/departments" element={<RequirePermission code={permissionForRoute("/departments")}><Suspense fallback={null}><DepartmentManagement /></Suspense></RequirePermission>} />
+          <Route path="/org-roles" element={<RequirePermission code={permissionForRoute("/org-roles")}><Suspense fallback={null}><OrgRoleManagement /></Suspense></RequirePermission>} />
+          <Route path="/project-categories" element={<RequirePermission code={permissionForRoute("/project-categories")}><Suspense fallback={null}><ProjectCategoryManagement /></Suspense></RequirePermission>} />
+          <Route path="/task-templates" element={<RequirePermission code={permissionForRoute("/task-templates")}><Suspense fallback={null}><TaskTemplatePage /></Suspense></RequirePermission>} />
+          <Route path="/project-quotations" element={<RequirePermission code={permissionForRoute("/project-quotations")}><Suspense fallback={null}><ProjectQuotationManagement /></Suspense></RequirePermission>} />
+          <Route path="/project-pricing" element={<RequirePermission code={permissionForRoute("/project-pricing")}><Suspense fallback={null}><ProjectPricingPage /></Suspense></RequirePermission>} />
 
           {/* Lead Management module (multi-source lead pipeline) */}
           <Route path="/lead-management/configuration" element={<Suspense fallback={null}><LeadManagementConfig /></Suspense>} />
-          <Route path="/whatsapp-config" element={<Suspense fallback={null}><WhatsAppConfigManagement /></Suspense>} />
-          <Route path="/whatsapp-module-settings" element={<Suspense fallback={null}><WhatsAppModuleSettingsManagement /></Suspense>} />
+          <Route path="/whatsapp-config" element={<RequirePermission code={permissionForRoute("/whatsapp-config")}><Suspense fallback={null}><WhatsAppConfigManagement /></Suspense></RequirePermission>} />
+          <Route path="/whatsapp-module-settings" element={<RequirePermission code={permissionForRoute("/whatsapp-module-settings")}><Suspense fallback={null}><WhatsAppModuleSettingsManagement /></Suspense></RequirePermission>} />
           <Route path="/lead-management/live-leads" element={<Suspense fallback={null}><LiveLeadViewer /></Suspense>} />
           <Route path="/lead-management/leads" element={<Suspense fallback={null}><ManualLeadManagement /></Suspense>} />
 
-          <Route path="/ai-platform/modules" element={<Suspense fallback={null}><AIModulesPage /></Suspense>} />
-          <Route path="/ai-platform/knowledge-base" element={<Suspense fallback={null}><AIKnowledgeBasePage /></Suspense>} />
-          <Route path="/ai-platform/training-jobs" element={<Suspense fallback={null}><AITrainingJobsPage /></Suspense>} />
-          <Route path="/ai-platform/chat-history" element={<Suspense fallback={null}><AIChatHistoryPage /></Suspense>} />
-          <Route path="/ai-platform/playground" element={<Suspense fallback={null}><AIPlaygroundPage /></Suspense>} />
-          <Route path="/ai-platform/settings" element={<Suspense fallback={null}><AISettingsPage /></Suspense>} />
+          <Route path="/ai-platform/modules" element={<RequirePermission code={permissionForRoute("/ai-platform/modules")}><Suspense fallback={null}><AIModulesPage /></Suspense></RequirePermission>} />
+          <Route path="/ai-platform/knowledge-base" element={<RequirePermission code={permissionForRoute("/ai-platform/knowledge-base")}><Suspense fallback={null}><AIKnowledgeBasePage /></Suspense></RequirePermission>} />
+          <Route path="/ai-platform/training-jobs" element={<RequirePermission code={permissionForRoute("/ai-platform/training-jobs")}><Suspense fallback={null}><AITrainingJobsPage /></Suspense></RequirePermission>} />
+          <Route path="/ai-platform/chat-history" element={<RequirePermission code={permissionForRoute("/ai-platform/chat-history")}><Suspense fallback={null}><AIChatHistoryPage /></Suspense></RequirePermission>} />
+          <Route path="/ai-platform/playground" element={<RequirePermission code={permissionForRoute("/ai-platform/playground")}><Suspense fallback={null}><AIPlaygroundPage /></Suspense></RequirePermission>} />
+          <Route path="/ai-platform/settings" element={<RequirePermission code={permissionForRoute("/ai-platform/settings")}><Suspense fallback={null}><AISettingsPage /></Suspense></RequirePermission>} />
 
           <Route path="/lead-management/polling-activity" element={<Suspense fallback={null}><PollingActivityLog /></Suspense>} />
 
           {/* Company Profile */}
-          <Route path="/company-profile" element={<Suspense fallback={null}><CompanyProfilePage /></Suspense>} />
+          <Route path="/company-profile" element={<RequirePermission code={permissionForRoute("/company-profile")}><Suspense fallback={null}><CompanyProfilePage /></Suspense></RequirePermission>} />
 
           {/* Email Configuration Management */}
-          <Route path="/email-config" element={<Suspense fallback={null}><EmailConfigManagement /></Suspense>} />
+          <Route path="/email-config" element={<RequirePermission code={permissionForRoute("/email-config")}><Suspense fallback={null}><EmailConfigManagement /></Suspense></RequirePermission>} />
 
           {/* Email Template Editor */}
-          <Route path="/email-templates" element={<Suspense fallback={null}><EmailTemplatePage /></Suspense>} />
+          <Route path="/email-templates" element={<RequirePermission code={permissionForRoute("/email-templates")}><Suspense fallback={null}><EmailTemplatePage /></Suspense></RequirePermission>} />
 
           {/* Supplier & Inventory Management module */}
-          <Route path="/inventory-categories" element={<Suspense fallback={null}><InventoryCategoriesPage /></Suspense>} />
-          <Route path="/product-master" element={<Suspense fallback={null}><ProductMasterPage /></Suspense>} />
-          <Route path="/supplier-management" element={<Suspense fallback={null}><SupplierManagementPage /></Suspense>} />
-          <Route path="/inventory-items" element={<Suspense fallback={null}><InventoryItemsPage /></Suspense>} />
+          <Route path="/inventory-categories" element={<RequirePermission code={permissionForRoute("/inventory-categories")}><Suspense fallback={null}><InventoryCategoriesPage /></Suspense></RequirePermission>} />
+          <Route path="/product-master" element={<RequirePermission code={permissionForRoute("/product-master")}><Suspense fallback={null}><ProductMasterPage /></Suspense></RequirePermission>} />
+          <Route path="/supplier-management" element={<RequirePermission code={permissionForRoute("/supplier-management")}><Suspense fallback={null}><SupplierManagementPage /></Suspense></RequirePermission>} />
+          <Route path="/inventory-items" element={<RequirePermission code={permissionForRoute("/inventory-items")}><Suspense fallback={null}><InventoryItemsPage /></Suspense></RequirePermission>} />
 
         </Routes>
 
