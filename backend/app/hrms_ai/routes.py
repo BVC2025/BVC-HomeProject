@@ -160,7 +160,38 @@ def ask(
         raise HTTPException(status_code=400, detail="Empty message.")
 
     # ---- 1. Retrieval ---------------------------------------------------
-    retrieved = retrieve(question, top_k=5)
+    # Use retrieve()'s new defaults (top_k=8, min_score=0.18) which
+    # were loosened after tests showed the previous tighter thresholds
+    # rejected perfectly valid rephrasings + Tamil/Tanglish queries.
+    retrieved = retrieve(question)
+
+    # ---- 1b. Fallback — query rewriter for hard queries ----------------
+    # If retrieval returned nothing on the raw question (common for
+    # Tanglish and other mixed-script queries where cosine to English
+    # docs stays below the threshold), ask Gemini to rewrite the
+    # question in plain English and retry. Only fires for hard queries
+    # so the extra Gemini call is bounded to the tail of misses.
+    if not retrieved:
+        try:
+            rewritten = chat(
+                [{"role": "user", "parts": [
+                    "Rewrite the following user question in clear, natural "
+                    "English suitable for a document search. Keep the "
+                    "intent identical. Do not add or remove any "
+                    "requirements. Reply with ONLY the rewritten question, "
+                    "nothing else.\n\n"
+                    f"Question: {question}"
+                ]}],
+                system_instruction=None,
+                temperature=0.0,
+                max_output_tokens=120,
+            )
+            rewritten = (rewritten or "").strip().strip('"').strip("'")
+            if rewritten and rewritten.lower() != question.lower():
+                log.info("hrms_ai: query rewriter fired '%s' -> '%s'", question[:60], rewritten[:60])
+                retrieved = retrieve(rewritten)
+        except Exception as e:
+            log.warning("hrms_ai: query rewriter failed: %s", e)
 
     # ---- 2. Persist user turn ------------------------------------------
     _save_turn(

@@ -21,6 +21,18 @@ import os
 from typing import Iterable, List, Optional
 
 
+# Ensure .env is loaded whether we're imported from FastAPI (which
+# already loads it via database.py) OR from a standalone CLI script
+# like `python -m app.hrms_ai.knowledge_builder` (which doesn't).
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # python-dotenv is a hard dep on the FastAPI side; if it's somehow
+    # missing here just fall back to whatever the shell exported.
+    pass
+
+
 log = logging.getLogger("hrms_ai.gemini")
 
 
@@ -33,11 +45,19 @@ def _cfg_key() -> str:
 
 
 def _cfg_model() -> str:
-    return (os.getenv("GEMINI_MODEL") or "gemini-2.0-flash").strip()
+    # `gemini-flash-latest` is Google's stable pointer that always
+    # resolves to whatever the current mid-size Flash model is. New
+    # API keys (the `AQ.` prefix format) cannot call the older
+    # `gemini-2.0-flash` — it returns 404 "no longer available to
+    # new users." The `-latest` alias sidesteps that gate.
+    return (os.getenv("GEMINI_MODEL") or "gemini-flash-latest").strip()
 
 
 def _cfg_embed_model() -> str:
-    return (os.getenv("GEMINI_EMBED_MODEL") or "text-embedding-004").strip()
+    # `gemini-embedding-001` works for both classic AIzaSy keys and
+    # the newer AQ.-prefixed keys. The older `embedding-001` /
+    # `text-embedding-004` names return 404 for new-format keys.
+    return (os.getenv("GEMINI_EMBED_MODEL") or "gemini-embedding-001").strip()
 
 
 def is_configured() -> bool:

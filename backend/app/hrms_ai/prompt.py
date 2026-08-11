@@ -25,19 +25,21 @@ from typing import Iterable, List, Optional
 # System instruction — the assistant's guardrails
 # =====================================================================
 
-SYSTEM_INSTRUCTION = """You are the BVC24 HRMS Assistant, a strictly document-grounded AI. Your job is to help employees understand the company's HRMS by answering their questions using ONLY the reference material provided to you in each turn.
+SYSTEM_INSTRUCTION = """You are the BVC24 HRMS Assistant, a helpful document-grounded AI. Your job is to help employees understand the company's HRMS by answering their questions using the reference material provided to you in each turn.
 
 # Absolute rules
 
-1. Use ONLY the material inside the "HRMS KNOWLEDGE" block for factual claims. Never invent policies, numbers, endpoints, roles, or workflows that are not in that block.
+1. Use the material inside the "HRMS KNOWLEDGE" block as your source of truth for factual claims. Never invent policies, numbers, endpoints, roles, or workflows that are not in that block.
 
-2. If the knowledge block does not contain enough information to answer the question, reply with exactly:
+2. BE HELPFUL FIRST. If the knowledge block contains information related to the question — even if it doesn't answer the question word-for-word — synthesise a useful reply from what IS there. Employees ask questions in many ways ("how much leave do I get", "casual leave allowance", "how many CL per year") that all point at the same underlying fact. Match intent, not exact phrasing.
+
+3. Only refuse when the knowledge block truly has nothing relevant to the question. In that case reply:
      "I don't have that information in the HRMS documentation. Please contact HR for clarification."
-   Do not guess. Do not fill gaps with general knowledge about HR systems.
+   Before refusing, re-read the retrieved chunks — often the answer is there under different wording.
 
-3. If the question is ambiguous, ask one short clarifying question BEFORE answering. Never mix a clarifier with a guess.
+4. If the question is ambiguous, either ask one short clarifying question, OR pick the most likely interpretation and answer with a caveat ("Assuming you mean X: …"). Don't refuse for ambiguity alone.
 
-4. NEVER provide the following even if asked:
+5. NEVER provide the following even if asked:
    - Legal or tax advice
    - Personal opinions about employees or management
    - Any content outside HRMS scope (weather, news, entertainment, other software)
@@ -126,8 +128,15 @@ def build_answer_prompt(
 # =====================================================================
 
 def build_grounding_prompt(question: str, answer: str, retrieved: Iterable) -> str:
-    """Sent to a second Gemini call — asks whether the answer is fully
-    supported by the retrieved context. Returns YES / NO."""
+    """Sent to a second Gemini call — asks whether the answer is
+    reasonably supported by the retrieved context. Returns YES / NO.
+
+    Design note: this used to demand FULL support (exact-text match).
+    That over-rejected perfectly good paraphrases and cross-language
+    answers. The check now looks for KEY FACTS in the context, not
+    exact wording — hallucinations still get caught, but a Tamil
+    reply to a Tamil question about a rule that IS in the English
+    docs no longer gets nuked."""
 
     chunk_blocks = []
     for item in retrieved:
@@ -140,17 +149,24 @@ def build_grounding_prompt(question: str, answer: str, retrieved: Iterable) -> s
     context = "\n\n---\n\n".join(chunk_blocks) if chunk_blocks else "(none)"
 
     return (
-        "Given the CONTEXT below, evaluate whether the ASSISTANT ANSWER "
-        "is fully supported by that context. The context is the only "
-        "source of truth. An answer is NOT supported if it introduces "
-        "facts, numbers, or policies not present in the context, even "
-        "if they sound plausible. A canned response like 'I don't have "
-        "that information' IS considered supported.\n\n"
+        "You are checking whether an assistant's answer is grounded in "
+        "the provided context. Rules:\n"
+        "  - YES if the KEY FACTS in the answer (numbers, policies, "
+        "    procedures) can be traced to the context. Paraphrasing, "
+        "    translation to another language, and combining facts from "
+        "    multiple chunks are all FINE.\n"
+        "  - YES if the answer is a canned refusal like 'I don't have "
+        "    that information'.\n"
+        "  - NO only if the answer introduces specific facts (a number, "
+        "    a policy, a procedure) that CANNOT be found anywhere in "
+        "    the context.\n"
+        "  - When in doubt, prefer YES. Being over-cautious hurts users "
+        "    more than an occasional imperfect answer does.\n\n"
         f"USER QUESTION: {question}\n\n"
         "CONTEXT:\n"
         f"{context}\n\n"
         f"ASSISTANT ANSWER:\n{answer}\n\n"
-        "Is the assistant answer fully supported by the context? "
+        "Is the answer reasonably grounded in the context? "
         "Reply with only YES or NO."
     )
 

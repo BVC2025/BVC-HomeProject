@@ -69,7 +69,7 @@ def _cosine(a: List[float], b: List[float]) -> float:
     return dot / (math.sqrt(na) * math.sqrt(nb))
 
 
-def retrieve(question: str, top_k: int = 5, min_score: float = 0.30) -> List[Tuple[dict, float]]:
+def retrieve(question: str, top_k: int = 8, min_score: float = 0.18) -> List[Tuple[dict, float]]:
     """Return the top-K knowledge chunks for the given question,
     filtered to those scoring above `min_score`.
 
