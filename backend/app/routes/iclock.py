@@ -604,23 +604,63 @@ async def import_attlog_file(
 ):
     """
     Upload an attendance log exported from the biometric device via
-    USB. Returns the number of records that landed vs. were skipped
-    as duplicates vs. were mapped to unknown PINs.
+    USB. Two file formats accepted:
+
+      1. Native ESSL/ZKTeco text export (.dat / .txt / .log / .csv).
+         Passed straight through to the existing _handle_attlog parser
+         which is what the ADMS-Push endpoint uses too.
+
+      2. Excel workbook (.xlsx) — for cases where HR downloaded the
+         attendance sheet from the device's web UI or converted it
+         manually. We parse the sheet, extract PIN + timestamp per
+         row, synthesise an ATTLOG text block in the exact tab-
+         separated shape _handle_attlog expects, then hand it to the
+         same parser. The biometric handler stays untouched — it
+         still just sees canonical ATTLOG text.
+
+    Returns the number of records processed vs. inserted vs. skipped
+    as duplicates. To see the *calculated* per-employee summary
+    (present/absent/OT/etc.) for the same month, call
+    GET /iclock/import-summary?year=YYYY&month=M after the upload.
     """
     raw = await file.read()
 
     if not raw:
         raise HTTPException(status_code=400, detail="Empty file")
 
-    # ESSL exports are usually latin-1; some newer firmwares are utf-8.
-    try:
-        text = raw.decode("utf-8")
-    except UnicodeDecodeError:
-        text = raw.decode("latin-1", errors="replace")
+    filename = (file.filename or "").lower()
+    is_xlsx = (
+        filename.endswith(".xlsx")
+        or filename.endswith(".xlsm")
+        or (file.content_type or "").endswith("sheetml.sheet")
+    )
 
-    # Normalise: some devices use "|" as separator, others use tab.
-    # Convert any "|" runs to "\t" so _handle_attlog works uniformly.
-    normalised = text.replace("|", "\t")
+    if is_xlsx:
+        try:
+            normalised = _xlsx_to_attlog_lines(raw)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Could not parse Excel file: {exc}",
+            )
+        if not normalised.strip():
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Excel file had no recognisable rows. Expected columns "
+                    "for PIN/EmployeeCode and a Date+Time (or single DateTime)."
+                ),
+            )
+    else:
+        # ESSL exports are usually latin-1; some newer firmwares are utf-8.
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            text = raw.decode("latin-1", errors="replace")
+
+        # Normalise: some devices use "|" as separator, others use tab.
+        # Convert any "|" runs to "\t" so _handle_attlog works uniformly.
+        normalised = text.replace("|", "\t")
 
     # Count DB rows before we start so we can report a delta accurately.
     before = db.query(BiometricEvent).filter(
@@ -641,4 +681,229 @@ async def import_attlog_file(
         "records_seen": processed,
         "rows_inserted": inserted,
         "rows_skipped_as_duplicate": max(0, processed - inserted),
+        "file_kind": "xlsx" if is_xlsx else "text",
+    }
+
+
+# ---------------------------------------------------------------------
+# Excel → ATTLOG text converter
+# ---------------------------------------------------------------------
+# The existing text parser _handle_attlog expects tab-separated lines
+# like:
+#     8\t2026-07-30 09:12:03\t0\t1\t0\t0
+#     ^   ^                  ^   ^
+#     PIN timestamp          status verify (unused)
+#
+# HR's Excel typically has one of these shapes:
+#   A) One row per punch: EnrollNo/PIN | Name | Date | Time | InOut
+#   B) One row per punch: PIN | DateTime            | InOut
+#   C) Legacy: PIN | Name | Date & Time             | Status
+# We detect PIN/timestamp columns tolerantly and skip anything else.
+# =====================================================================
+
+def _xlsx_to_attlog_lines(raw_bytes: bytes) -> str:
+
+    from io import BytesIO
+    try:
+        from openpyxl import load_workbook
+    except ImportError as e:
+        raise RuntimeError(
+            "openpyxl not installed. Run: pip install openpyxl"
+        ) from e
+
+    wb = load_workbook(BytesIO(raw_bytes), data_only=True, read_only=True)
+
+    lines: list[str] = []
+
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+
+        # First non-empty row = header; every subsequent row = a punch
+        header: list[str] = []
+        header_row_index = -1
+        for i, row in enumerate(ws.iter_rows(values_only=True)):
+            if row and any(c is not None and str(c).strip() for c in row):
+                header = [
+                    (str(c).strip().lower() if c is not None else "")
+                    for c in row
+                ]
+                header_row_index = i
+                break
+
+        if not header:
+            continue
+
+        # Find columns tolerantly. First match wins.
+        def _find_col(*candidates: str) -> int:
+            for idx, h in enumerate(header):
+                for cand in candidates:
+                    if cand in h:
+                        return idx
+            return -1
+
+        pin_col   = _find_col("pin", "enroll", "employee id", "empid", "emp_id", "employee code", "user id", "userid")
+        dt_col    = _find_col("date time", "datetime", "date & time", "timestamp", "punch time", "log time")
+        date_col  = _find_col("date")
+        time_col  = _find_col("time")
+        state_col = _find_col("in/out", "inout", "status", "verify state", "state")
+
+        if pin_col < 0:
+            continue  # this sheet doesn't look like a punch log — skip
+
+        # If we don't have a combined DateTime column we need BOTH date + time
+        if dt_col < 0 and (date_col < 0 or time_col < 0):
+            continue
+
+        for i, row in enumerate(ws.iter_rows(values_only=True)):
+            if i <= header_row_index:
+                continue
+            if not row:
+                continue
+
+            def _cell(idx: int):
+                return row[idx] if 0 <= idx < len(row) else None
+
+            pin_raw = _cell(pin_col)
+            if pin_raw is None or str(pin_raw).strip() == "":
+                continue
+            pin = str(pin_raw).strip()
+            # Some Excel exports read the PIN as a float (e.g. 8.0) — normalize.
+            if pin.endswith(".0"):
+                pin = pin[:-2]
+
+            timestamp_str = _extract_timestamp(_cell(dt_col), _cell(date_col), _cell(time_col))
+            if not timestamp_str:
+                continue
+
+            state = _cell(state_col)
+            state_flag = _normalise_state(state)
+
+            # Layout: PIN <tab> timestamp <tab> status <tab> verify
+            lines.append(f"{pin}\t{timestamp_str}\t{state_flag}\t1\t0\t0")
+
+    return "\n".join(lines)
+
+
+def _extract_timestamp(dt_val, date_val, time_val) -> str:
+    """Return "YYYY-MM-DD HH:MM:SS" or "" if nothing parseable."""
+
+    # Prefer a single combined datetime cell if present
+    if isinstance(dt_val, datetime):
+        return dt_val.strftime("%Y-%m-%d %H:%M:%S")
+    if isinstance(dt_val, str) and dt_val.strip():
+        return _parse_dt_string(dt_val.strip())
+
+    # Otherwise build from separate date + time cells
+    dstr = ""
+    tstr = "00:00:00"
+    if isinstance(date_val, datetime):
+        dstr = date_val.strftime("%Y-%m-%d")
+    elif isinstance(date_val, date):
+        dstr = date_val.strftime("%Y-%m-%d")
+    elif isinstance(date_val, str) and date_val.strip():
+        # Try common date-only formats
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%m/%d/%Y"):
+            try:
+                dstr = datetime.strptime(date_val.strip(), fmt).strftime("%Y-%m-%d")
+                break
+            except ValueError:
+                continue
+
+    if isinstance(time_val, datetime):
+        tstr = time_val.strftime("%H:%M:%S")
+    elif isinstance(time_val, time):
+        tstr = time_val.strftime("%H:%M:%S")
+    elif isinstance(time_val, str) and time_val.strip():
+        for fmt in ("%H:%M:%S", "%H:%M", "%I:%M:%S %p", "%I:%M %p"):
+            try:
+                tstr = datetime.strptime(time_val.strip(), fmt).strftime("%H:%M:%S")
+                break
+            except ValueError:
+                continue
+
+    if not dstr:
+        return ""
+    return f"{dstr} {tstr}"
+
+
+def _parse_dt_string(s: str) -> str:
+    for fmt in (
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%d/%m/%Y %H:%M:%S",
+        "%d/%m/%Y %H:%M",
+        "%d-%m-%Y %H:%M:%S",
+        "%d-%m-%Y %H:%M",
+        "%m/%d/%Y %H:%M:%S",
+        "%m/%d/%Y %H:%M",
+    ):
+        try:
+            return datetime.strptime(s, fmt).strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            continue
+    return ""
+
+
+def _normalise_state(val) -> str:
+    """Convert the In/Out column to the device's 0/1 status codes that
+    _handle_attlog understands. 0 = check-in, 1 = check-out. Unknown
+    values default to 0 — the time-of-day rules in _apply_to_attendance
+    take over anyway."""
+
+    if val is None:
+        return "0"
+    s = str(val).strip().lower()
+    if s in {"1", "out", "check-out", "checkout", "co", "o", "check_out"}:
+        return "1"
+    if s in {"0", "in", "check-in", "checkin", "ci", "i", "check_in"}:
+        return "0"
+    # Numeric codes from newer devices (2/3/4/5 = overtime in/out etc.)
+    if s.isdigit():
+        return s
+    return "0"
+
+
+# =====================================================================
+# GET /iclock/import-summary — per-employee calc for a given month
+# ---------------------------------------------------------------------
+# Read-only: never touches BiometricEvent, Attendance, PayrollSlip.
+# Reads Attendance rows for the month and applies the payroll-side
+# rules (OT@19:00, late-3x half-day, OT/late offset). See
+# app/services/attendance_payroll_calc.py for the full rule set.
+# =====================================================================
+
+@router.get("/import-summary")
+def import_summary(
+    year: int = Query(..., ge=2020, le=2100),
+    month: int = Query(..., ge=1, le=12),
+    vendor_id: Optional[int] = Query(None),
+    working_days: Optional[int] = Query(None, ge=1, le=31),
+    db: Session = Depends(get_db),
+):
+    """Per-employee attendance + payroll calculation for the month.
+
+    Query params
+      year          required — YYYY
+      month         required — 1..12
+      vendor_id     optional — scope to one vendor (default: any)
+      working_days  optional — override the auto-computed working
+                    days (calendar days − Sundays − holidays)
+    """
+
+    from app.services.attendance_payroll_calc import compute_monthly_calculation
+
+    rows = compute_monthly_calculation(
+        db,
+        year=year,
+        month=month,
+        vendor_id=vendor_id,
+        working_days_override=working_days,
+    )
+
+    return {
+        "year":       year,
+        "month":      month,
+        "vendor_id":  vendor_id,
+        "employees":  rows,
+        "count":      len(rows),
     }
