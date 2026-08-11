@@ -260,8 +260,8 @@ def compute_monthly_calculation(
         overlap_start = max(lr.START_DATE, start)
         overlap_end   = min(lr.END_DATE,   end)
         days = (overlap_end - overlap_start).days + 1
-        if lr.HALF_DAY:
-            days = 0.5
+        if lr.DAYS is not None and lr.DAYS < 1.0:
+            days = float(lr.DAYS)
         cl_days_by_emp[lr.EMPLOYEE_ID] = cl_days_by_emp.get(lr.EMPLOYEE_ID, 0.0) + max(0.0, days)
 
     # ---- Per-employee summary --------------------------------------
