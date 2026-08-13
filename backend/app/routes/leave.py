@@ -488,6 +488,18 @@ def decide_leave(
 
         db.commit()
 
+        # Sync into Attendance so the monthly calc / attendance page /
+        # ESS portal all see the leave as an attendance entry.
+        try:
+            from app.services.leave_attendance_sync import (
+                write_attendance_for_leave,
+            )
+            write_attendance_for_leave(db, leave)
+        except Exception:
+            # Attendance sync is best-effort; a failure here should
+            # not roll back the approval.
+            db.rollback()
+
         if employee:
 
             send_decision_email(leave, employee, "APPROVED")
@@ -605,6 +617,16 @@ def approve_via_dashboard(
     db.commit()
 
     db.refresh(leave)
+
+    # Sync into Attendance so the monthly calc / attendance page /
+    # ESS portal all see the leave as an attendance entry.
+    try:
+        from app.services.leave_attendance_sync import (
+            write_attendance_for_leave,
+        )
+        write_attendance_for_leave(db, leave)
+    except Exception:
+        db.rollback()
 
     if employee:
 
@@ -879,6 +901,16 @@ def cancel_leave(
         )
 
     db.commit()
+
+    # Undo the Attendance rows we wrote when this leave was approved.
+    if was_approved:
+        try:
+            from app.services.leave_attendance_sync import (
+                remove_attendance_for_leave,
+            )
+            remove_attendance_for_leave(db, leave)
+        except Exception:
+            db.rollback()
 
     return {
         "message": "Leave cancelled",

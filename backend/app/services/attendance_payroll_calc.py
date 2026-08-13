@@ -293,8 +293,26 @@ def compute_monthly_calculation(
         )
         cl_used = round(cl_days_by_emp.get(emp.ID, 0.0), 1)
 
-        # Unpaid absence = raw absent minus paid CL used
-        unpaid_absent = max(0.0, absent_days - cl_used)
+        # LOP days written to Attendance by the leave-approval flow
+        # (STATUS=LOP for full day, HALF_LOP for half day). Count these
+        # as unpaid absence — they must be deducted from salary.
+        lop_days = 0.0
+        paid_leave_days = 0.0
+        for r in rows:
+            st = (r.STATUS or "").upper()
+            if r.CHECK_IN is not None:
+                continue
+            weight = 0.5 if st.startswith("HALF_") else 1.0
+            base = st.replace("HALF_", "")
+            if base == "LOP":
+                lop_days += weight
+            elif base in ("CL", "SL", "EL"):
+                paid_leave_days += weight
+
+        # Unpaid absence = raw absent + LOP leave minus paid CL used
+        # (CL comes from the LeaveRequest table above so we don't
+        # double-count the Attendance CL rows here.)
+        unpaid_absent = max(0.0, absent_days + lop_days - cl_used)
 
         # Half-day penalty from lateness
         half_day_penalty = (
@@ -334,6 +352,8 @@ def compute_monthly_calculation(
             "present_days":  present_days,
             "absent_days":   absent_days,
             "cl_used":       cl_used,
+            "paid_leave_days":   round(paid_leave_days, 1),
+            "lop_days":          round(lop_days, 1),
             "unpaid_absent": round(unpaid_absent, 2),
 
             "late_arrivals":     late_arrivals,
