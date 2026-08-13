@@ -367,14 +367,14 @@ export default function BiometricImport() {
           {closeResult && (
             <div style={styles.closeSuccess}>
               <div style={styles.closeSuccessTitle}>
-                Payroll ready — {closeResult.run?.year}-{String(closeResult.run?.month).padStart(2, "0")}
+                Payroll ready — {closeResult.run?.PERIOD_LABEL || `${closeResult.run?.PAY_YEAR}-${String(closeResult.run?.PAY_MONTH || "").padStart(2, "0")}`}
               </div>
               <div style={styles.closeSuccessBody}>
                 {closeResult.closure?.absent_rows_created} ABSENT row(s) filled ·
-                {" "}{closeResult.run?.employee_count} payslip(s) generated ·
-                {" "}total net ₹{Number(closeResult.run?.total_net || 0).toLocaleString("en-IN")}
+                {" "}{closeResult.run?.EMPLOYEE_COUNT || 0} payslip(s) generated ·
+                {" "}total net ₹{Number(closeResult.run?.TOTAL_NET || 0).toLocaleString("en-IN")}
                 {" "}·{" "}
-                <a href={`/payroll/runs/${closeResult.run?.id}`} style={styles.link}>
+                <a href={`/payroll/runs/${closeResult.run?.ID}`} style={styles.link}>
                   Open run
                 </a>
               </div>
