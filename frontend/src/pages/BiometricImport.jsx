@@ -374,8 +374,8 @@ export default function BiometricImport() {
                 {" "}{closeResult.run?.EMPLOYEE_COUNT || 0} payslip(s) generated ·
                 {" "}total net ₹{Number(closeResult.run?.TOTAL_NET || 0).toLocaleString("en-IN")}
                 {" "}·{" "}
-                <a href={`/payroll/runs/${closeResult.run?.ID}`} style={styles.link}>
-                  Open run
+                <a href="/payroll-records" style={styles.link}>
+                  Open Payroll Records
                 </a>
               </div>
             </div>
