@@ -48,13 +48,22 @@ export default function BiometricImport() {
   const [summaryBusy, setSummaryBusy] = useState(false);
   const [summaryError, setSummaryError] = useState("");
 
+  // When the upload flow calls fetchSummary right after import, it
+  // passes the list of Employee.IDs that appeared in the file, so the
+  // table shows only those employees. The "Calculate" button clears
+  // this filter and shows everyone.
+  const [uploadFilterIds, setUploadFilterIds] = useState(null);
+
 
   // --------------------------------------------------------------
   // Summary fetch — hits /iclock/import-summary?year=&month=
   // Reads Attendance rows (already written by the upload above OR
   // by the ADMS-push flow) and applies the payroll rules.
+  //
+  // filterIds: array of Employee.IDs to scope the result to. null =
+  // no filter (show everyone). Pass [] to explicitly show nobody.
   // --------------------------------------------------------------
-  const fetchSummary = async (month = summaryMonth) => {
+  const fetchSummary = async (month = summaryMonth, filterIds = null) => {
     if (!month || !/^\d{4}-\d{2}$/.test(month)) {
       setSummaryError("Pick a month in YYYY-MM format first.");
       return;
@@ -66,8 +75,14 @@ export default function BiometricImport() {
       const params = { year: Number(yStr), month: Number(mStr) };
       const wd = parseInt(workingDaysOverride, 10);
       if (!Number.isNaN(wd) && wd > 0) params.working_days = wd;
+      if (Array.isArray(filterIds) && filterIds.length > 0) {
+        params.employee_ids = filterIds.join(",");
+      }
       const res = await API.get("/iclock/import-summary", { params });
       setSummary(res.data);
+      setUploadFilterIds(
+        Array.isArray(filterIds) && filterIds.length > 0 ? filterIds : null
+      );
     } catch (err) {
       const detail = err?.response?.data?.detail || err?.message || "Failed to load summary";
       setSummaryError(String(detail));
@@ -110,8 +125,12 @@ export default function BiometricImport() {
       setResult(res.data);
 
       // Auto-fire the summary for the picked month so HR sees the
-      // calculated numbers immediately after upload.
-      fetchSummary(summaryMonth);
+      // calculated numbers immediately after upload. Scope to just
+      // the employees that were present in the uploaded file.
+      const affected = Array.isArray(res.data?.affected_employee_ids)
+        ? res.data.affected_employee_ids
+        : [];
+      fetchSummary(summaryMonth, affected);
 
     } catch (err) {
 
@@ -267,7 +286,7 @@ export default function BiometricImport() {
 
             <button
               type="button"
-              onClick={() => fetchSummary()}
+              onClick={() => fetchSummary(summaryMonth, null)}
               disabled={summaryBusy}
               style={styles.summaryBtn}
             >
@@ -283,6 +302,22 @@ export default function BiometricImport() {
             <>
               <div style={styles.summaryMeta}>
                 {summary.count} employee{summary.count === 1 ? "" : "s"} · month {summary.year}-{String(summary.month).padStart(2, "0")}
+                {uploadFilterIds && uploadFilterIds.length > 0 && (
+                  <>
+                    {" · "}
+                    <span style={{ color: "#b45309", fontWeight: 700 }}>
+                      showing only employees from the last upload
+                    </span>
+                    {"  "}
+                    <button
+                      type="button"
+                      onClick={() => fetchSummary(summaryMonth, null)}
+                      style={styles.clearFilterBtn}
+                    >
+                      Show all
+                    </button>
+                  </>
+                )}
               </div>
               <div style={styles.tableWrap}>
                 <table style={styles.calcTable}>
@@ -345,8 +380,24 @@ export default function BiometricImport() {
 
           {summary && summary.employees && summary.employees.length === 0 && !summaryBusy && (
             <div style={styles.summaryEmpty}>
-              No active employees found for that month. Upload the
-              attendance file above, then click <b>Calculate</b>.
+              {uploadFilterIds && uploadFilterIds.length > 0 ? (
+                <>
+                  Uploaded file didn't match any known employees for
+                  this month.{" "}
+                  <button
+                    type="button"
+                    onClick={() => fetchSummary(summaryMonth, null)}
+                    style={styles.clearFilterBtn}
+                  >
+                    Show all
+                  </button>
+                </>
+              ) : (
+                <>
+                  No active employees found for that month. Upload the
+                  attendance file above, then click <b>Calculate</b>.
+                </>
+              )}
             </div>
           )}
         </div>
@@ -628,6 +679,18 @@ const styles = {
     fontSize: 11.5,
     color: "var(--text-muted, #64748b)",
     lineHeight: 1.55,
+  },
+  clearFilterBtn: {
+    marginLeft: 8,
+    padding: "3px 10px",
+    border: "1px solid #cbd5e1",
+    borderRadius: 6,
+    background: "#ffffff",
+    color: "#0f172a",
+    fontSize: 11.5,
+    fontWeight: 600,
+    cursor: "pointer",
+    fontFamily: "inherit",
   },
   summaryEmpty: {
     padding: 22,

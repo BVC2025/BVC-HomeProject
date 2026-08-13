@@ -792,6 +792,20 @@ async def import_attlog_file(
         # Convert any "|" runs to "\t" so _handle_attlog works uniformly.
         normalised = text.replace("|", "\t")
 
+    # Collect the distinct PINs the file references — the frontend
+    # uses these to scope the "Monthly calculation" panel to only the
+    # employees actually present in this upload.
+    seen_pins: set[str] = set()
+    for _ln in normalised.replace("\r\n", "\n").split("\n"):
+        _ln = _ln.strip()
+        if not _ln:
+            continue
+        _p = _ln.split("\t", 1)[0].strip()
+        if _p.endswith(".0"):
+            _p = _p[:-2]
+        if _p:
+            seen_pins.add(_p)
+
     # Count DB rows before we start so we can report a delta accurately.
     before = db.query(BiometricEvent).filter(
         BiometricEvent.DEVICE_ID == device_sn
@@ -805,6 +819,23 @@ async def import_attlog_file(
 
     inserted = after - before
 
+    # Resolve the PINs into Employee IDs so the frontend can filter
+    # the summary strictly by "who was in this file". Try FINGERPRINT_ID
+    # first, then fall back to EMPLOYEE_CODE (HR summary format uses
+    # codes like BVC002 as the PIN column).
+    affected_employee_ids: list[str] = []
+    if seen_pins:
+        pins = list(seen_pins)
+        emp_rows = (
+            db.query(Employee.ID)
+              .filter(
+                  (Employee.FINGERPRINT_ID.in_(pins))
+                  | (Employee.EMPLOYEE_CODE.in_(pins))
+              )
+              .all()
+        )
+        affected_employee_ids = [r[0] for r in emp_rows]
+
     return {
         "filename": file.filename,
         "device_sn": device_sn,
@@ -812,6 +843,8 @@ async def import_attlog_file(
         "rows_inserted": inserted,
         "rows_skipped_as_duplicate": max(0, processed - inserted),
         "file_kind": "xlsx" if is_xlsx else "text",
+        "affected_employee_ids": affected_employee_ids,
+        "affected_employee_count": len(affected_employee_ids),
     }
 
 
@@ -1038,6 +1071,11 @@ def import_summary(
     month: int = Query(..., ge=1, le=12),
     vendor_id: Optional[int] = Query(None),
     working_days: Optional[int] = Query(None, ge=1, le=31),
+    employee_ids: Optional[str] = Query(
+        None,
+        description="Comma-separated Employee.IDs to scope the result to. "
+                    "When omitted, all active employees are returned.",
+    ),
     db: Session = Depends(get_db),
 ):
     """Per-employee attendance + payroll calculation for the month.
@@ -1048,15 +1086,25 @@ def import_summary(
       vendor_id     optional — scope to one vendor (default: any)
       working_days  optional — override the auto-computed working
                     days (calendar days − Sundays − holidays)
+      employee_ids  optional — comma-separated Employee.IDs to
+                    restrict the result to (used by the upload flow
+                    to show only the employees present in the file)
     """
 
     from app.services.attendance_payroll_calc import compute_monthly_calculation
+
+    ids: Optional[list[str]] = None
+    if employee_ids:
+        ids = [x.strip() for x in employee_ids.split(",") if x.strip()]
+        if not ids:
+            ids = None
 
     rows = compute_monthly_calculation(
         db,
         year=year,
         month=month,
         vendor_id=vendor_id,
+        employee_ids=ids,
         working_days_override=working_days,
     )
 
@@ -1066,4 +1114,5 @@ def import_summary(
         "vendor_id":  vendor_id,
         "employees":  rows,
         "count":      len(rows),
+        "filtered":   ids is not None,
     }
