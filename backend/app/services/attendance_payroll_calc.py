@@ -59,6 +59,7 @@ from app.models.models import (
     Department,
     Designation,
     Employee,
+    LeaveBalance,
     LeaveRequest,
 )
 
@@ -291,7 +292,7 @@ def compute_monthly_calculation(
             if r.CHECK_IN is not None
             and r.CHECK_IN.time() > OFFICIAL_START
         )
-        cl_used = round(cl_days_by_emp.get(emp.ID, 0.0), 1)
+        formal_cl_used = round(cl_days_by_emp.get(emp.ID, 0.0), 1)
 
         # LOP days written to Attendance by the leave-approval flow
         # (STATUS=LOP for full day, HALF_LOP for half day). Count these
@@ -309,9 +310,29 @@ def compute_monthly_calculation(
             elif base in ("CL", "SL", "EL"):
                 paid_leave_days += weight
 
-        # Unpaid absence = raw absent + LOP leave minus paid CL used
-        # (CL comes from the LeaveRequest table above so we don't
-        # double-count the Attendance CL rows here.)
+        # ----- Auto-classify raw absences against CL quota -----
+        # Company rule (per HR spec): every employee gets 1 CL per
+        # month. Any ABSENT day that isn't already covered by a formal
+        # CL LeaveRequest gets auto-consumed against that monthly cap;
+        # excess absences fall through to LOP and are deducted.
+        bal = (
+            db.query(LeaveBalance)
+              .filter(LeaveBalance.EMPLOYEE_ID == emp.ID)
+              .filter(LeaveBalance.YEAR == year)
+              .first()
+        )
+        annual_cl = float(bal.CASUAL_TOTAL) if bal else 12.0
+        monthly_cl_cap = annual_cl / 12.0
+
+        cl_remaining_this_month = max(0.0, monthly_cl_cap - formal_cl_used)
+        auto_cl = min(float(absent_days), cl_remaining_this_month)
+
+        cl_used = round(formal_cl_used + auto_cl, 1)
+
+        # Unpaid absence = raw absent + LOP leave minus ALL CL applied
+        # (formal + auto). paid_leave_days from Attendance isn't
+        # subtracted here — those days aren't in absent_days to begin
+        # with (they're separate STATUS=CL/SL/EL rows).
         unpaid_absent = max(0.0, absent_days + lop_days - cl_used)
 
         # Half-day penalty from lateness
