@@ -269,14 +269,27 @@ def compute_monthly_calculation(
     for emp in employees:
         rows = att_by_emp.get(emp.ID, [])
 
+        # Count from the actual punch, not from the derived STATUS
+        # string — devices/importers sometimes stamp EARLY_EXIT,
+        # HALF_DAY or other tags that would otherwise leak out of the
+        # PRESENT/LATE bucket. Source of truth is the CHECK_IN edge.
         present_days = sum(
-            1 for r in rows if (r.STATUS or "").upper() in ("PRESENT", "LATE")
+            1 for r in rows
+            if r.CHECK_IN is not None
+            or (r.STATUS or "").upper() in ("PRESENT", "LATE", "EARLY_EXIT", "HALF_DAY")
         )
         absent_days = sum(
-            1 for r in rows if (r.STATUS or "").upper() == "ABSENT"
+            1 for r in rows
+            if r.CHECK_IN is None
+            and (r.STATUS or "").upper() == "ABSENT"
         )
+        # Late = check-in after the official-start cutoff. Independent
+        # of STATUS so an EARLY_EXIT day with a late arrival still
+        # counts as late.
         late_arrivals = sum(
-            1 for r in rows if (r.STATUS or "").upper() == "LATE"
+            1 for r in rows
+            if r.CHECK_IN is not None
+            and r.CHECK_IN.time() > OFFICIAL_START
         )
         cl_used = round(cl_days_by_emp.get(emp.ID, 0.0), 1)
 
