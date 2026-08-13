@@ -452,6 +452,81 @@ def generate_payroll(
     }
 
 
+# =====================================================================
+# POST /payroll/close-and-run
+# ---------------------------------------------------------------------
+# One-click month-end flow: fill ABSENT rows for every working day
+# that has neither a punch nor an approved leave, then generate the
+# PayrollRun + slips. Idempotent — safe to re-run on the same month
+# (existing rows are preserved; only truly-missing days get ABSENT).
+# =====================================================================
+
+class CloseAndRunRequest(BaseModel):
+
+    VENDOR_ID: int = 1
+    YEAR: int
+    MONTH: int
+    WORKING_DAYS: Optional[int] = None
+    UP_TO_TODAY_ONLY: bool = False
+    OVERWRITE: bool = False
+    GENERATED_BY: Optional[str] = None
+
+
+@router.post("/close-and-run", dependencies=[Depends(require("payroll.manage"))])
+def close_and_run(
+    data: CloseAndRunRequest,
+    db: Session = Depends(get_db)
+):
+    """Close the attendance month + auto-generate payroll.
+
+    Steps:
+      1. Fill ABSENT Attendance rows for every working day (Mon–Sat)
+         that has no punch and no approved leave.
+      2. Call generate_payroll_run with the same parameters.
+
+    Returns the closure counters plus the payroll run summary."""
+
+    from app.services.attendance_closure import close_attendance_month
+
+    vendor_id = _resolve_vendor_id(db, data.VENDOR_ID)
+
+    # Step 1 — close the month
+    closure = close_attendance_month(
+        db,
+        year=data.YEAR,
+        month=data.MONTH,
+        vendor_id=vendor_id,
+        up_to_today_only=data.UP_TO_TODAY_ONLY,
+    )
+
+    # Step 2 — generate payroll
+    try:
+        run = generate_payroll_run(
+            db,
+            vendor_id=vendor_id,
+            year=data.YEAR,
+            month=data.MONTH,
+            working_days=data.WORKING_DAYS,
+            task_bonus_per_task=DEFAULT_TASK_BONUS,
+            late_penalty_per_day=DEFAULT_LATE_PENALTY,
+            generated_by=data.GENERATED_BY,
+            overwrite=data.OVERWRITE,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return {
+        "message": (
+            f"Closed {data.YEAR}-{data.MONTH:02d}: "
+            f"{closure['absent_rows_created']} ABSENT rows filled, "
+            f"{run.EMPLOYEE_COUNT} payslips generated, "
+            f"₹{run.TOTAL_NET:,.2f} net total."
+        ),
+        "closure": closure,
+        "run": _serialize_run(run),
+    }
+
+
 @router.get("/runs", dependencies=[Depends(require("payroll.view"))])
 def list_runs(
     vendor_id: int = 1,

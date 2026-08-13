@@ -54,6 +54,58 @@ export default function BiometricImport() {
   // this filter and shows everyone.
   const [uploadFilterIds, setUploadFilterIds] = useState(null);
 
+  // Close-and-run (Phase 2) — one-click month closure + payroll run
+  const [closeBusy, setCloseBusy] = useState(false);
+  const [closeResult, setCloseResult] = useState(null);
+  const [closeError, setCloseError] = useState("");
+
+
+  // --------------------------------------------------------------
+  // Close month + auto-generate payroll — hits /payroll/close-and-run.
+  // Fills ABSENT rows for missing working days, then generates the
+  // PayrollRun + slips for the selected month.
+  // --------------------------------------------------------------
+  const closeAndRun = async () => {
+    if (!summaryMonth || !/^\d{4}-\d{2}$/.test(summaryMonth)) {
+      setCloseError("Pick a month in YYYY-MM format first.");
+      return;
+    }
+    const ok = window.confirm(
+      `Close ${summaryMonth} and generate payroll?\n\n` +
+      `This will:\n` +
+      `- Fill ABSENT for every working day (Mon–Sat) with no punch and no leave\n` +
+      `- Generate a DRAFT PayrollRun with per-employee slips\n\n` +
+      `Safe to re-run — existing rows are preserved. OK to continue?`
+    );
+    if (!ok) return;
+
+    const [yStr, mStr] = summaryMonth.split("-");
+    setCloseBusy(true);
+    setCloseError("");
+    setCloseResult(null);
+    try {
+      const body = {
+        VENDOR_ID: 1,
+        YEAR: Number(yStr),
+        MONTH: Number(mStr),
+        UP_TO_TODAY_ONLY: false,
+        OVERWRITE: false,
+      };
+      const wd = parseInt(workingDaysOverride, 10);
+      if (!Number.isNaN(wd) && wd > 0) body.WORKING_DAYS = wd;
+
+      const res = await API.post("/payroll/close-and-run", body);
+      setCloseResult(res.data);
+      // Refresh the calc table so ABSENT rows show up
+      fetchSummary(summaryMonth, null);
+    } catch (err) {
+      const detail = err?.response?.data?.detail || err?.message || "Close + run failed";
+      setCloseError(String(detail));
+    } finally {
+      setCloseBusy(false);
+    }
+  };
+
 
   // --------------------------------------------------------------
   // Summary fetch — hits /iclock/import-summary?year=&month=
@@ -292,10 +344,41 @@ export default function BiometricImport() {
             >
               {summaryBusy ? "Loading…" : "Calculate"}
             </button>
+
+            <button
+              type="button"
+              onClick={closeAndRun}
+              disabled={closeBusy || summaryBusy}
+              style={styles.closeRunBtn}
+              title="Fill ABSENT rows for missing days, then generate DRAFT payroll for this month"
+            >
+              {closeBusy ? "Closing…" : "Close month + generate payroll"}
+            </button>
           </div>
 
           {summaryError && (
             <div style={styles.error}><b>Error:</b> {summaryError}</div>
+          )}
+
+          {closeError && (
+            <div style={styles.error}><b>Close error:</b> {closeError}</div>
+          )}
+
+          {closeResult && (
+            <div style={styles.closeSuccess}>
+              <div style={styles.closeSuccessTitle}>
+                Payroll ready — {closeResult.run?.year}-{String(closeResult.run?.month).padStart(2, "0")}
+              </div>
+              <div style={styles.closeSuccessBody}>
+                {closeResult.closure?.absent_rows_created} ABSENT row(s) filled ·
+                {" "}{closeResult.run?.employee_count} payslip(s) generated ·
+                {" "}total net ₹{Number(closeResult.run?.total_net || 0).toLocaleString("en-IN")}
+                {" "}·{" "}
+                <a href={`/payroll/runs/${closeResult.run?.id}`} style={styles.link}>
+                  Open run
+                </a>
+              </div>
+            </div>
           )}
 
           {summary && summary.employees && summary.employees.length > 0 && (
@@ -679,6 +762,36 @@ const styles = {
     fontSize: 11.5,
     color: "var(--text-muted, #64748b)",
     lineHeight: 1.55,
+  },
+  closeRunBtn: {
+    padding: "10px 18px",
+    border: "none",
+    borderRadius: 8,
+    background: "#dc2626",
+    color: "#fff",
+    fontWeight: 700,
+    fontSize: 13,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    height: 40,
+  },
+  closeSuccess: {
+    marginTop: 12,
+    padding: 14,
+    background: "#ecfdf5",
+    border: "1px solid #a7f3d0",
+    borderRadius: 10,
+  },
+  closeSuccessTitle: {
+    fontSize: 14,
+    fontWeight: 800,
+    color: "#065f46",
+    marginBottom: 4,
+  },
+  closeSuccessBody: {
+    fontSize: 13,
+    color: "#065f46",
+    lineHeight: 1.5,
   },
   clearFilterBtn: {
     marginLeft: 8,
