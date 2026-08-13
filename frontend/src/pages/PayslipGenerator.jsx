@@ -396,6 +396,46 @@ export default function PayslipGenerator() {
       })
       .catch(() => { /* no structure — Employee.SALARY fallback stands */ });
 
+    // -- Step 2c: ASYNC OVERLAY — attendance-derived numbers.
+    // Pulls the actual biometric numbers (present / late / absent / OT
+    // hours, plus the calc-derived late penalty + absence deduction)
+    // for this employee × month and fills the attendance section so
+    // HR doesn't type them by hand. Skipped when a saved slip loads
+    // (edit mode) — those saved values stay authoritative.
+    API.get(
+      `/iclock/import-summary?year=${year}&month=${month}` +
+      `&employee_ids=${encodeURIComponent(empId)}`
+    )
+      .then((r) => {
+        const rows = r?.data?.employees || [];
+        const me = rows.find((x) => x.employee_id === empId);
+        if (!me) return;
+        setWorking((prev) => ({
+          ...prev,
+          WORKING_DAYS:      Number(me.working_days ?? prev.WORKING_DAYS ?? 0),
+          DAYS_PRESENT:      Number(me.present_days ?? 0),
+          DAYS_LATE:         Number(me.late_arrivals ?? 0),
+          PAID_LEAVE_DAYS:   Number(me.cl_used ?? 0),
+          UNPAID_LEAVE_DAYS: Number(me.lop_days ?? 0),
+          ABSENT_DAYS:       Number(me.absent_days ?? 0),
+          OT_HOURS:          Number(me.net_ot_hours ?? 0),
+        }));
+        setEarnings((prev) => ({
+          ...prev,
+          OT_PAY: Number(me.ot_pay ?? 0),
+        }));
+        setDeductions((prev) => ({
+          ...prev,
+          LATE_PENALTY:      Number(me.late_penalty ?? 0),
+          ABSENCE_DEDUCTION: Number(me.absent_deduction_only ?? 0),
+        }));
+        // These are now sourced from the calc — lock them so the
+        // auto-recompute effect below doesn't stomp on them.
+        setAbsenceDedManualOverride(true);
+        setClManualOverride(true);
+      })
+      .catch(() => { /* no calc data — HR fills these manually */ });
+
     // -- Step 2b: ASYNC OVERLAY (if a slip already exists) --
     let cancelled = false;
 

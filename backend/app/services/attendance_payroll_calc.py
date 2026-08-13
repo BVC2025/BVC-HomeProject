@@ -351,12 +351,19 @@ def compute_monthly_calculation(
         net_ot_minutes = max(0.0, gross_ot_minutes - total_late_minutes)
         net_ot_hours = round(net_ot_minutes / 60.0, 2)
 
-        # Payroll math
+        # Payroll math — keep absent-day deduction and late-arrival
+        # penalty split so the PayslipGenerator can render them into
+        # separate LATE_PENALTY / ABSENCE_DEDUCTION cells (the DB
+        # columns are already separate; the calc was collapsing them).
         basic_salary = float(emp.SALARY or 0.0)
         per_day_rate = basic_salary / working_days if working_days else 0.0
-        absence_deduction = round(
-            per_day_rate * (unpaid_absent + half_day_penalty), 2
-        )
+
+        absent_deduction_only = round(per_day_rate * unpaid_absent, 2)
+        late_penalty          = round(per_day_rate * half_day_penalty, 2)
+        # Backward-compat: keep the combined figure for the Monthly-calc
+        # table which shows it as a single number.
+        absence_deduction     = round(absent_deduction_only + late_penalty, 2)
+
         hourly_rate = (per_day_rate / 8.0) if per_day_rate else 0.0
         ot_pay = round(net_ot_hours * hourly_rate * OT_MULTIPLIER, 2)
         net_pay = round(basic_salary - absence_deduction + ot_pay, 2)
@@ -384,10 +391,12 @@ def compute_monthly_calculation(
             "gross_ot_hours":    round(gross_ot_minutes / 60.0, 2),
             "net_ot_hours":      net_ot_hours,
 
-            "per_day_rate":      round(per_day_rate, 2),
-            "absence_deduction": absence_deduction,
-            "ot_pay":            ot_pay,
-            "net_pay":           net_pay,
+            "per_day_rate":          round(per_day_rate, 2),
+            "absent_deduction_only": absent_deduction_only,
+            "late_penalty":          late_penalty,
+            "absence_deduction":     absence_deduction,   # combined (compat)
+            "ot_pay":                ot_pay,
+            "net_pay":               net_pay,
         })
 
     return summaries
