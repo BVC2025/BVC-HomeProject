@@ -288,6 +288,14 @@ def _process_one_attlog_line(db: Session, device_sn: str, line: str) -> None:
               .filter(Employee.EMPLOYEE_CODE == pin)
               .first()
         )
+    # Still unknown? Auto-create a placeholder Employee so this punch
+    # (and every future one for this PIN) lands on a real row. If HR
+    # later pushes an OPERLOG USER record with the real name, it'll
+    # refresh onto this same row.
+    if emp is None:
+        emp = _auto_create_employee_from_operlog(db, device_sn, pin, None)
+        if emp is not None:
+            _backfill_orphan_punches_for(db, pin, emp)
     emp_id = emp.ID if emp else None
 
     already = (
@@ -563,6 +571,30 @@ def _next_employee_code(db: Session) -> str:
     return f"BVC{max_n + 1:03d}"
 
 
+def _backfill_orphan_punches_for(db: Session, pin: str, emp: Employee) -> int:
+    """Replay every UNKNOWN_USER biometric event for this PIN as an
+    Attendance row on the newly-linked employee. Returns the number
+    of events replayed."""
+    orphans = (
+        db.query(BiometricEvent)
+          .filter(BiometricEvent.FINGERPRINT_ID == pin)
+          .filter(BiometricEvent.RESULT == "UNKNOWN_USER")
+          .order_by(BiometricEvent.EVENT_TIME.asc())
+          .all()
+    )
+    for ev in orphans:
+        try:
+            _apply_to_attendance(db, emp, ev.EVENT_TIME, "0")
+            ev.EMPLOYEE_ID = emp.ID
+            ev.RESULT = "SUCCESS"
+        except Exception:
+            db.rollback()
+            continue
+    if orphans:
+        db.commit()
+    return len(orphans)
+
+
 def _auto_create_employee_from_operlog(
     db: Session, device_sn: str, pin: str, name: Optional[str]
 ) -> Optional[Employee]:
@@ -630,7 +662,9 @@ def _handle_operlog(db: Session, device_sn: str, body: str) -> int:
             if m_pin:
                 pin = m_pin.group(1).strip()
                 name = m_name.group(1).strip() if m_name else None
-                _auto_create_employee_from_operlog(db, device_sn, pin, name)
+                emp = _auto_create_employee_from_operlog(db, device_sn, pin, name)
+                if emp is not None:
+                    _backfill_orphan_punches_for(db, pin, emp)
 
     if lines:
         db.commit()
