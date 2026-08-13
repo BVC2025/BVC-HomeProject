@@ -532,10 +532,83 @@ def _recompute_hours_with_ot(row: Attendance, punch_out: datetime) -> None:
 # =====================================================================
 # OPERLOG handler — user enrolments / operator actions.
 #
-# We store a BiometricEvent for audit but don't try to auto-create
-# Employees. Enrolment stays a manual admin step in the ERP so we
-# always have an approving user.
+# When the device enrols a new user it pushes a line like:
+#     USER PIN=25\tName=Deepthi\tPri=0\tPasswd=\tCard=0\tGrp=1\tTZ=\tVerify=0
+# We parse that, and if no Employee already has FINGERPRINT_ID == PIN
+# we auto-create a placeholder Employee (STATUS=ACTIVE, EMPLOYEE_CODE
+# BVCnnn based on max existing) so subsequent punches for that PIN
+# stop landing as UNKNOWN_USER. Admin still edits salary / dept later.
 # =====================================================================
+import re as _re
+
+_USER_LINE = _re.compile(r"^\s*USER\b", _re.IGNORECASE)
+_PIN_RE    = _re.compile(r"PIN=([^\s\t]+)", _re.IGNORECASE)
+_NAME_RE   = _re.compile(r"Name=([^\t\r\n]+)", _re.IGNORECASE)
+
+
+def _next_employee_code(db: Session) -> str:
+    """Return the next available BVCnnn code, zero-padded to 3 digits."""
+    codes = (
+        db.query(Employee.EMPLOYEE_CODE)
+          .filter(Employee.EMPLOYEE_CODE.like("BVC%"))
+          .all()
+    )
+    max_n = 0
+    for (c,) in codes:
+        if not c:
+            continue
+        tail = c[3:]
+        if tail.isdigit():
+            max_n = max(max_n, int(tail))
+    return f"BVC{max_n + 1:03d}"
+
+
+def _auto_create_employee_from_operlog(
+    db: Session, device_sn: str, pin: str, name: Optional[str]
+) -> Optional[Employee]:
+    """Create a placeholder Employee row for a new device enrolment.
+    Returns None if PIN is already mapped or creation fails."""
+
+    existing = (
+        db.query(Employee)
+          .filter(Employee.FINGERPRINT_ID == pin)
+          .first()
+    )
+    if existing is not None:
+        # Refresh the name if the device now has a real name and the
+        # ERP row is still a placeholder ("Employee <PIN>" or blank).
+        if name and (not existing.NAME or existing.NAME.strip() in ("", f"Employee {pin}")):
+            existing.NAME = name.strip()
+            db.commit()
+        return existing
+
+    try:
+        from app.services.auth_service import hash_password
+    except Exception:
+        hash_password = None
+
+    code = _next_employee_code(db)
+    display_name = (name or f"Employee {pin}").strip()
+    default_pwd = "Bvc@2026"   # admin should reset after first login
+
+    emp = Employee(
+        EMPLOYEE_CODE=code,
+        NAME=display_name,
+        FINGERPRINT_ID=str(pin),
+        VENDOR_ID=1,
+        STATUS="ACTIVE",
+        PASSWORD=(hash_password(default_pwd) if hash_password else default_pwd),
+    )
+    try:
+        db.add(emp)
+        db.commit()
+        db.refresh(emp)
+        return emp
+    except Exception:
+        db.rollback()
+        return None
+
+
 def _handle_operlog(db: Session, device_sn: str, body: str) -> int:
 
     lines = [ln.strip() for ln in body.replace("\r\n", "\n").split("\n") if ln.strip()]
@@ -549,6 +622,15 @@ def _handle_operlog(db: Session, device_sn: str, body: str) -> int:
             raw=line[:1000],
             event_time=datetime.utcnow(),
         )
+
+        # Auto-create employee when the device pushes a USER record.
+        if _USER_LINE.match(line):
+            m_pin  = _PIN_RE.search(line)
+            m_name = _NAME_RE.search(line)
+            if m_pin:
+                pin = m_pin.group(1).strip()
+                name = m_name.group(1).strip() if m_name else None
+                _auto_create_employee_from_operlog(db, device_sn, pin, name)
 
     if lines:
         db.commit()
