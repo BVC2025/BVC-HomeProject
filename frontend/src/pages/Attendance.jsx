@@ -3,7 +3,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import API from "../services/api";
 import TablePagination from "../components/TablePagination";
 import IconButton from "../components/IconButton";
-import GeofenceGate from "../components/GeofenceGate";
+// GeofenceGate removed — attendance page no longer blocks on GPS.
+// Manual check-in/out sends BYPASS_GEOFENCE so the backend accepts
+// the punch without a location check.
 import { formatISTTime, istEpoch } from "../utils/time";
 import styles from "./Attendance.module.css";
 
@@ -25,8 +27,10 @@ function Attendance() {
   const [historyLoading, setHistoryLoading] = useState(false);
 
   // ---- Geofencing: gate the check-in/out buttons until inside ----
-  const [gpsCtx, setGpsCtx] = useState(null);
-  // gpsCtx = { lat, lng, distance, accuracy, deviceInfo } | null
+  // GPS gate removed — attendance is now geofence-free. Send a
+  // permanent "skipped" context so the check-in / check-out calls
+  // always include BYPASS_GEOFENCE=true.
+  const gpsCtx = { lat: 0, lng: 0, deviceInfo: "manual", gpsSkipped: true };
 
   // ---- Biometric CSV import (manual upload from USB dump) ----
   const csvFileRef = useRef(null);
@@ -146,10 +150,6 @@ function Attendance() {
       alert("Please select an employee");
       return;
     }
-    if (!gpsCtx) {
-      alert("Waiting for GPS — the geofence check above must pass first.");
-      return;
-    }
     try {
       await API.post("/check-in", {
         EMPLOYEE_ID: selectedEmployee,
@@ -174,10 +174,6 @@ function Attendance() {
   const checkOut = async () => {
     if (!selectedEmployee) {
       alert("Please select an employee");
-      return;
-    }
-    if (!gpsCtx) {
-      alert("Waiting for GPS — the geofence check above must pass first.");
       return;
     }
     try {
@@ -457,13 +453,6 @@ function Attendance() {
              Compact GPS gate + employee picker + all five action buttons.
           =================================================================== */}
       <div className={styles.actionCard}>
-        <GeofenceGate
-          compact
-          employeeId={selectedEmployee || null}
-          onAllowed={(ctx) => setGpsCtx(ctx)}
-          onBlocked={() => setGpsCtx(null)}
-        />
-
         <div className={styles.markBar}>
           <select
             className={styles.markSelect}
@@ -481,8 +470,7 @@ function Attendance() {
           <button
             className={`${styles.markBtn} ${styles.markBtnPrimary}`}
             onClick={checkIn}
-            disabled={!gpsCtx}
-            title={!gpsCtx ? "Waiting for geofence verification…" : "Check In"}
+            title="Check In"
           >
             Check In
           </button>
@@ -490,8 +478,7 @@ function Attendance() {
           <button
             className={`${styles.markBtn} ${styles.markBtnSecondary}`}
             onClick={checkOut}
-            disabled={!gpsCtx}
-            title={!gpsCtx ? "Waiting for geofence verification…" : "Check Out"}
+            title="Check Out"
           >
             Check Out
           </button>
