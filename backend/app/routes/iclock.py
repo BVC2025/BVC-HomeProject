@@ -280,6 +280,14 @@ def _process_one_attlog_line(db: Session, device_sn: str, line: str) -> None:
           .filter(Employee.FINGERPRINT_ID == pin)
           .first()
     )
+    if emp is None:
+        # HR-summary Excel imports use EMPLOYEE_CODE ("BVC002") as the
+        # PIN column instead of the device enrollment number.
+        emp = (
+            db.query(Employee)
+              .filter(Employee.EMPLOYEE_CODE == pin)
+              .first()
+        )
     emp_id = emp.ID if emp else None
 
     already = (
@@ -331,6 +339,12 @@ def _retry_attlog_line_as_update(db: Session, device_sn: str, line: str) -> None
           .filter(Employee.FINGERPRINT_ID == pin)
           .first()
     )
+    if emp is None:
+        emp = (
+            db.query(Employee)
+              .filter(Employee.EMPLOYEE_CODE == pin)
+              .first()
+        )
     if not emp:
         return
 
@@ -747,11 +761,20 @@ def _xlsx_to_attlog_lines(raw_bytes: bytes) -> str:
         time_col  = _find_col("time")
         state_col = _find_col("in/out", "inout", "status", "verify state", "state")
 
+        # HR's daily-summary shape: one row per (employee, day) with
+        # multiple time columns for the check-in, check-out and OT edges.
+        ci_col    = _find_col("check in", "check-in", "checkin", "in time", "punch in")
+        co_col    = _find_col("check out", "check-out", "checkout", "out time", "punch out")
+        ot_ci_col = _find_col("ot check in", "ot in", "overtime in", "ot-in")
+        ot_co_col = _find_col("ot check out", "ot out", "overtime out", "ot-out")
+        is_daily_summary = date_col >= 0 and ci_col >= 0
+
         if pin_col < 0:
             continue  # this sheet doesn't look like a punch log — skip
 
-        # If we don't have a combined DateTime column we need BOTH date + time
-        if dt_col < 0 and (date_col < 0 or time_col < 0):
+        # Single-punch-per-row shape needs a datetime source. Skip only
+        # if we ALSO can't fall back to the daily-summary layout.
+        if dt_col < 0 and (date_col < 0 or time_col < 0) and not is_daily_summary:
             continue
 
         for i, row in enumerate(ws.iter_rows(values_only=True)):
@@ -770,6 +793,27 @@ def _xlsx_to_attlog_lines(raw_bytes: bytes) -> str:
             # Some Excel exports read the PIN as a float (e.g. 8.0) — normalize.
             if pin.endswith(".0"):
                 pin = pin[:-2]
+
+            if is_daily_summary:
+                # Emit one ATTLOG line per non-empty time cell so the
+                # existing punch handler can build the Attendance row.
+                date_val = _cell(date_col)
+                for tcol, state_flag in (
+                    (ci_col,    "0"),
+                    (co_col,    "1"),
+                    (ot_ci_col, "0"),
+                    (ot_co_col, "1"),
+                ):
+                    if tcol < 0:
+                        continue
+                    tval = _cell(tcol)
+                    if tval is None or str(tval).strip() == "":
+                        continue
+                    ts = _extract_timestamp(None, date_val, tval)
+                    if not ts:
+                        continue
+                    lines.append(f"{pin}\t{ts}\t{state_flag}\t1\t0\t0")
+                continue
 
             timestamp_str = _extract_timestamp(_cell(dt_col), _cell(date_col), _cell(time_col))
             if not timestamp_str:
