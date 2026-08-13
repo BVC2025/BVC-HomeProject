@@ -377,7 +377,7 @@ const styles = {
     boxSizing: "border-box",
   },
   card: {
-    maxWidth: 720,
+    maxWidth: "100%",
     margin: "0 auto",
     background: "var(--card-bg, #fff)",
     borderRadius: 14,
