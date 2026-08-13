@@ -342,9 +342,9 @@ export default function PayslipGenerator() {
     // values stay visible for however long the fetch takes, which is
     // exactly the "wrong values leaking between employees" bug.
     //
-    // Exception: Basic Salary is seeded from Employee.SALARY (the
-    // amount HR configured on the Employee Master). Every other
-    // earnings / deduction cell stays at 0 — HR types the rest.
+    // Basic Salary is seeded from Employee.SALARY as a fallback; the
+    // async structure fetch below will overwrite it (plus HRA/DA/PF
+    // etc.) if a full salary_structure row exists for this employee.
     setEarnings({
       ...BLANK_EARNINGS,
       BASIC: Number(selected.SALARY || 0),
@@ -365,7 +365,38 @@ export default function PayslipGenerator() {
     setError("");
     setResult(null);
 
-    // -- Step 2: ASYNC OVERLAY (if a slip already exists) --
+    // -- Step 2a: ASYNC OVERLAY — salary structure (Basic/HRA/DA/PF/ESI)
+    // Fired in parallel with the slip-by-period lookup. Only applies
+    // when no existing slip is found; a saved slip takes precedence
+    // and is loaded verbatim below.
+    let structureLoaded = false;
+    API.get(`/payroll/salary-structures/${encodeURIComponent(empId)}`)
+      .then((r) => {
+        const s = r?.data;
+        if (!s) return;
+        structureLoaded = true;
+        // Only overlay if the slip-by-period hasn't already loaded
+        // real values (isEdit stays false until that response lands).
+        setEarnings((prev) => ({
+          ...prev,
+          BASIC:             Number(s.BASIC ?? prev.BASIC ?? 0),
+          HRA:               Number(s.HRA ?? 0),
+          DA:                Number(s.DA ?? 0),
+          CONVEYANCE:        Number(s.CONVEYANCE_ALLOWANCE ?? 0),
+          MEDICAL_ALLOWANCE: Number(s.MEDICAL_ALLOWANCE ?? 0),
+          SPECIAL_ALLOWANCE: Number(s.SPECIAL_ALLOWANCE ?? 0),
+          OTHER_ALLOWANCES:  Number(s.OTHER_ALLOWANCES ?? 0),
+        }));
+        setDeductions((prev) => ({
+          ...prev,
+          PF_EMPLOYEE:      Number(s.PF_EMPLOYEE ?? 0),
+          ESI_EMPLOYEE:     Number(s.ESI_EMPLOYEE ?? 0),
+          PROFESSIONAL_TAX: Number(s.PROFESSIONAL_TAX ?? 0),
+        }));
+      })
+      .catch(() => { /* no structure — Employee.SALARY fallback stands */ });
+
+    // -- Step 2b: ASYNC OVERLAY (if a slip already exists) --
     let cancelled = false;
 
     API.get(`/payroll/slip-by-period?employee_id=${encodeURIComponent(empId)}&year=${year}&month=${month}`)

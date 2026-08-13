@@ -479,6 +479,8 @@ def _auto_migrate():
         ("payroll_slip", "STATUS",                "VARCHAR(20) NULL DEFAULT 'PENDING'"),
         ("payroll_slip", "SUBMITTED_AT",          "DATETIME NULL"),
         ("payroll_slip", "PAID_AT",               "DATETIME NULL"),
+        # HR-picked pay date shown on payslip preview + PDF.
+        ("payroll_slip", "PAY_DATE",              "DATE NULL"),
         ("payroll_slip", "ABSENCE_DEDUCTION",     "FLOAT NULL DEFAULT 0"),
         # Permission hours used by the employee in this pay period
         # (LeaveRequest rows where TYPE='PERMISSION', summed).

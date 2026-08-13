@@ -372,6 +372,18 @@ def generate_for_employee(
         if slip.WORKING_DAYS else 0.0
     )
 
+    # HR-picked pay date. Ship as YYYY-MM-DD from the frontend; None
+    # clears any previously-stored value on this slip.
+    pay_date_raw = body.get("PAY_DATE")
+    if pay_date_raw in (None, ""):
+        slip.PAY_DATE = None
+    else:
+        try:
+            from datetime import date as _date
+            slip.PAY_DATE = _date.fromisoformat(str(pay_date_raw))
+        except Exception:
+            slip.PAY_DATE = None
+
     db.commit(); db.refresh(slip)
 
     # ---- Notify the employee ----
@@ -1035,6 +1047,11 @@ def payroll_records_list(
             desig_map[de.ID] = getattr(de, "DESIGNATION_NAME", None) or getattr(de, "NAME", None)
 
     def _pay_date(slip, run):
+        # HR-picked date (from PayslipGenerator) wins; falls back to
+        # PAID_AT / SUBMITTED_AT so old rows without PAY_DATE still
+        # show something reasonable on the records page.
+        if getattr(slip, "PAY_DATE", None):
+            return slip.PAY_DATE.strftime("%Y-%m-%d")
         if slip.PAID_AT:
             return slip.PAID_AT.strftime("%Y-%m-%d")
         if slip.SUBMITTED_AT:
