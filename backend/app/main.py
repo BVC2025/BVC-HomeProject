@@ -32,6 +32,8 @@ import app.models.rag_models         # noqa: F401 — registers ai_modules, ai_d
 import app.models.whatsapp_models    # noqa: F401 — registers vendor_whatsapp_config, whatsapp_conversation, whatsapp_message, whatsapp_webhook_event tables
 import app.models.rbac_models        # noqa: F401 — registers iam_user, employee_permission_override, employee_permission_override_audit tables (root_user already registered via models.py)
 import app.models.auth_models        # noqa: F401 — registers refresh_token, login_lockout tables
+import app.models.employee_models    # noqa: F401 — registers employee, department, designation, employee_onboarding_session, employee_document, employee_memos, employee_allowance, employee_status_history tables
+import app.models.leave_models       # noqa: F401 — registers leave_request, leave_balance, leave_quota_policy, ai_leave_conversation, leave_balance_adjustment tables
 from app.services.permission_catalogue import ensure_permission_catalogue
 from app.routes.users import router as users_router
 from app.routes.auth import router as auth_router
