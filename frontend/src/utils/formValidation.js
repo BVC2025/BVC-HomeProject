@@ -390,6 +390,49 @@ export const WHATSAPP_MODULE_SETTING_ADMIN_RULES = {
  * optional on Edit — blank preserves the existing token) */
 export const WHATSAPP_ACCESS_TOKEN_RULE = ["required", minLength(20)];
 
+/** Employee Add/Edit modal (AddEmployeeModal in Employees.jsx). Pass
+ * `_IS_EDIT: isEdit` alongside the form data — EMPLOYEE_CODE/PASSWORD/
+ * ROLE_ID are only required in create mode, matching the page's
+ * existing create-vs-edit rules. PHONE/EMERGENCY_CONTACT_PHONE/
+ * AADHAAR_NUMBER already have their own dedicated real-time validation
+ * elsewhere in that form — deliberately not duplicated here. */
+export const EMPLOYEE_RULES = {
+  NAME: ["required", minLength(2), maxLength(150)],
+  // EMPLOYEE_CODE and PASSWORD are no longer user-supplied at creation
+  // — the Employee ID is auto-generated from Department + Role, and
+  // login credentials are auto-generated and emailed — so neither has
+  // a validation rule here anymore.
+  ROLE_ID: [
+    (value, data) => {
+      if (data._IS_EDIT) return null;
+      return value ? null : "Role is required.";
+    },
+  ],
+  EMAIL: [
+    "email",
+    (value, data) => {
+      if (data._IS_EDIT) return null;
+      return value && String(value).trim() ? null : "Email is required.";
+    },
+  ],
+  // Format (10 digits) is already validated in real time elsewhere in
+  // that form — this only adds the create-mode presence requirement,
+  // since login credentials/onboarding info are emailed to the
+  // employee and Phone is collected alongside Email for that purpose.
+  PHONE: [
+    (value, data) => {
+      if (data._IS_EDIT) return null;
+      return value && String(value).trim() ? null : "Phone number is required.";
+    },
+  ],
+  PINCODE: [
+    (value) => {
+      if (!value || !String(value).trim()) return null;
+      return /^\d{4,10}$/.test(String(value).trim()) ? null : "Enter a valid pincode.";
+    },
+  ],
+};
+
 /** Manual Lead Management Add/Edit modal */
 export const LEAD_RULES = {
   CONTACT_NAME: ["required", minLength(2), maxLength(200)],

@@ -209,7 +209,15 @@ def unified_login(
 
     response = build_login_response(db, emp)
 
-    is_admin = response.get("role") in ADMIN_ROLES
+    # Admin-shell routing must reflect REAL authorization, not just the
+    # fixed 12-role-name allowlist below — otherwise a brand-new custom
+    # role created via /rbac and granted real permissions would still
+    # get routed into the self-service EmployeeDashboard shell, which
+    # has no RBAC awareness at all, making those granted permissions
+    # invisible to the employee. A role with zero resolved permissions
+    # (the true self-service default) still correctly falls through to
+    # the self-service shell, unchanged.
+    is_admin = (response.get("role") in ADMIN_ROLES) or bool(response.get("permissions"))
 
     response["is_admin"] = is_admin
     response["EMPLOYEE_ID"] = emp.EMPLOYEE_CODE

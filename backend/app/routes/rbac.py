@@ -22,9 +22,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from datetime import datetime
+
 from app.database.database import get_db
 from app.models.models import Role, Permission, RolePermission, Employee
-from app.auth.auth_bearer import require, get_current_admin, get_current_user, assert_not_granting_root_only_codes
+from app.models.rbac_models import EmployeePermissionOverride, EmployeePermissionOverrideAudit
+from app.services.permission_catalogue import PAGE_LABELS
+from app.auth.auth_bearer import (
+    require, get_current_admin, get_current_user,
+    assert_not_granting_root_only_codes, assert_role_not_protected,
+)
 
 
 router = APIRouter(prefix="/rbac", tags=["RBAC"])
@@ -48,6 +55,8 @@ def _serialize_role(db: Session, role: Role) -> dict:
     return {
         "ID":           role.ID,
         "ROLE_NAME":    role.NAME,
+        "CODE":         role.CODE,
+        "IS_SYSTEM":    bool(role.IS_SYSTEM),
         "permission_count": perm_count,
         "member_count":     member_count,
     }
@@ -60,6 +69,21 @@ def _serialize_permission(p: Permission) -> dict:
         "NAME":        p.NAME,
         "CATEGORY":    p.CATEGORY,
         "DESCRIPTION": p.DESCRIPTION,
+        "PAGE":        PAGE_LABELS.get(p.CODE),
+    }
+
+
+def _serialize_override(ov: EmployeePermissionOverride, perm: Permission) -> dict:
+    return {
+        "ID":             ov.ID,
+        "PERMISSION_ID":  perm.ID,
+        "CODE":           perm.CODE,
+        "NAME":           perm.NAME,
+        "CATEGORY":       perm.CATEGORY,
+        "EFFECT":         ov.EFFECT,
+        "GRANTED_BY_ID":  ov.GRANTED_BY_ID,
+        "GRANTED_AT":     ov.GRANTED_AT.isoformat() if ov.GRANTED_AT else None,
+        "EXPIRES_AT":     ov.EXPIRES_AT.isoformat() if ov.EXPIRES_AT else None,
     }
 
 
@@ -77,6 +101,14 @@ class ReplaceGrantsBody(BaseModel):
 
 class SingleCodeBody(BaseModel):
     code: str = Field(..., description="Single permission code")
+
+
+class OverrideUpsertBody(BaseModel):
+    code: str = Field(..., description="Permission code to grant/deny for this employee")
+    effect: str = Field(..., description='"GRANT" or "DENY"')
+    expires_at: Optional[datetime] = Field(
+        None, description="Optional — override reverts to the role default after this time"
+    )
 
 
 # =====================================================================
@@ -158,11 +190,12 @@ def replace_role_permissions(
     """REPLACE the role's permission grants with exactly the supplied
     set. Codes not in the list are revoked. Idempotent."""
 
-    assert_not_granting_root_only_codes(payload, body.codes)
-
     role = db.query(Role).filter(Role.ID == role_id).first()
     if not role:
         raise HTTPException(404, "Role not found")
+
+    assert_role_not_protected(role.NAME)
+    assert_not_granting_root_only_codes(payload, body.codes)
 
     # Resolve codes → ids; reject any unknown code so the caller gets
     # a clean 400 instead of a silent no-op.
@@ -217,11 +250,12 @@ def grant_one(
 ):
     """Add a single permission to a role. Idempotent."""
 
-    assert_not_granting_root_only_codes(payload, [body.code])
-
     role = db.query(Role).filter(Role.ID == role_id).first()
     if not role:
         raise HTTPException(404, "Role not found")
+
+    assert_role_not_protected(role.NAME)
+    assert_not_granting_root_only_codes(payload, [body.code])
 
     perm = db.query(Permission).filter(Permission.CODE == body.code).first()
     if not perm:
@@ -255,6 +289,8 @@ def revoke_one(
     if not role:
         raise HTTPException(404, "Role not found")
 
+    assert_role_not_protected(role.NAME)
+
     perm = db.query(Permission).filter(Permission.CODE == body.code).first()
     if not perm:
         raise HTTPException(400, f"Unknown permission code: {body.code}")
@@ -268,3 +304,168 @@ def revoke_one(
     db.commit()
 
     return {"role_id": role_id, "code": body.code, "revoked": bool(deleted)}
+
+
+# =====================================================================
+# EMPLOYEE PERMISSION OVERRIDES — per-employee exceptions on top of
+# their role's default grants. Gated on permission.override.manage,
+# which is itself in ROOT_ONLY_PERMISSION_CODES — only Root, or a role
+# Root has explicitly granted this code to, can reach these endpoints
+# (SUPER_ADMIN/ADMIN pass via their existing unconditional bypass in
+# require()). Resolution happens at login/refresh time via
+# resolve_effective_permissions() in auth_service.py — these writes
+# take effect on the employee's next login, not live.
+# =====================================================================
+
+_OVERRIDE_DEP = Depends(require("permission.override.manage"))
+
+
+@router.get("/employees/{employee_id}/overrides", dependencies=[_OVERRIDE_DEP])
+def list_employee_overrides(employee_id: str, db: Session = Depends(get_db)):
+
+    employee = db.query(Employee).filter(Employee.ID == employee_id).first()
+    if not employee:
+        raise HTTPException(404, "Employee not found")
+
+    rows = (
+        db.query(EmployeePermissionOverride, Permission)
+          .join(Permission, Permission.ID == EmployeePermissionOverride.PERMISSION_ID)
+          .filter(EmployeePermissionOverride.EMPLOYEE_ID == employee_id)
+          .all()
+    )
+
+    return [_serialize_override(ov, perm) for ov, perm in rows]
+
+
+@router.post("/employees/{employee_id}/overrides", dependencies=[_OVERRIDE_DEP])
+def upsert_employee_override(
+    employee_id: str,
+    body: OverrideUpsertBody,
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
+):
+
+    if body.effect not in ("GRANT", "DENY"):
+        raise HTTPException(400, 'effect must be "GRANT" or "DENY"')
+
+    employee = db.query(Employee).filter(Employee.ID == employee_id).first()
+    if not employee:
+        raise HTTPException(404, "Employee not found")
+
+    # SUPER_ADMIN's access is fixed (unconditional bypass, not
+    # grant-based) — an override here would be meaningless and could
+    # mislead an admin into thinking it does something.
+    if employee.ROLE_ID:
+        role_name = (
+            db.query(Role.NAME).filter(Role.ID == employee.ROLE_ID).scalar()
+        )
+        if role_name:
+            assert_role_not_protected(role_name)
+
+    perm = db.query(Permission).filter(Permission.CODE == body.code).first()
+    if not perm:
+        raise HTTPException(400, f"Unknown permission code: {body.code}")
+
+    # An override can never be used to backdoor an RBAC/IAM-category
+    # code to a non-Root employee — checked for both GRANT and DENY so
+    # there's no asymmetry to accidentally exploit.
+    assert_not_granting_root_only_codes(payload, [body.code])
+
+    existing = (
+        db.query(EmployeePermissionOverride)
+          .filter(
+              EmployeePermissionOverride.EMPLOYEE_ID == employee_id,
+              EmployeePermissionOverride.PERMISSION_ID == perm.ID,
+          )
+          .first()
+    )
+
+    changed_by = payload.get("employee_id")
+    now = datetime.utcnow()
+
+    if existing:
+        old_effect = existing.EFFECT
+        existing.EFFECT = body.effect
+        existing.EXPIRES_AT = body.expires_at
+        existing.GRANTED_BY_ID = changed_by
+        existing.GRANTED_AT = now
+        if old_effect != body.effect:
+            db.add(EmployeePermissionOverrideAudit(
+                EMPLOYEE_ID=employee_id,
+                PERMISSION_ID=perm.ID,
+                OLD_EFFECT=old_effect,
+                NEW_EFFECT=body.effect,
+                REASON=None,
+                CHANGED_BY_ID=changed_by,
+                VENDOR_ID=employee.VENDOR_ID,
+            ))
+        row = existing
+    else:
+        row = EmployeePermissionOverride(
+            EMPLOYEE_ID=employee_id,
+            PERMISSION_ID=perm.ID,
+            EFFECT=body.effect,
+            GRANTED_BY_ID=changed_by,
+            GRANTED_AT=now,
+            EXPIRES_AT=body.expires_at,
+            VENDOR_ID=employee.VENDOR_ID,
+        )
+        db.add(row)
+        db.flush()
+        db.add(EmployeePermissionOverrideAudit(
+            EMPLOYEE_ID=employee_id,
+            PERMISSION_ID=perm.ID,
+            OLD_EFFECT=None,
+            NEW_EFFECT=body.effect,
+            REASON=None,
+            CHANGED_BY_ID=changed_by,
+            VENDOR_ID=employee.VENDOR_ID,
+        ))
+
+    db.commit()
+
+    return {
+        **_serialize_override(row, perm),
+        "note": "The employee must re-login (or refresh their session) to pick up this change.",
+    }
+
+
+@router.delete("/employees/{employee_id}/overrides/{permission_id}", dependencies=[_OVERRIDE_DEP])
+def delete_employee_override(
+    employee_id: str,
+    permission_id: int,
+    reason: Optional[str] = None,
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
+):
+
+    row = (
+        db.query(EmployeePermissionOverride)
+          .filter(
+              EmployeePermissionOverride.EMPLOYEE_ID == employee_id,
+              EmployeePermissionOverride.PERMISSION_ID == permission_id,
+          )
+          .first()
+    )
+    if not row:
+        raise HTTPException(404, "No override exists for this employee/permission pair")
+
+    db.add(EmployeePermissionOverrideAudit(
+        EMPLOYEE_ID=employee_id,
+        PERMISSION_ID=permission_id,
+        OLD_EFFECT=row.EFFECT,
+        NEW_EFFECT=None,
+        REASON=reason,
+        CHANGED_BY_ID=payload.get("employee_id"),
+        VENDOR_ID=row.VENDOR_ID,
+    ))
+
+    db.delete(row)
+    db.commit()
+
+    return {
+        "employee_id": employee_id,
+        "permission_id": permission_id,
+        "reverted_to_role_default": True,
+        "note": "The employee must re-login (or refresh their session) to pick up this change.",
+    }

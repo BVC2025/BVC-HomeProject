@@ -111,7 +111,7 @@ def _cell(record: dict, *keys) -> str:
 # InventoryCategory CRUD
 # ─────────────────────────────────────────────────────────────────────
 
-@router.get("/inventory-categories", dependencies=[Depends(require("inventory.view"))])
+@router.get("/inventory-categories", dependencies=[Depends(require("inventory.view", "inventory.categories.view"))])
 def list_categories(
     vendor_id: int = Query(1),
     search: Optional[str] = Query(None),
@@ -136,7 +136,7 @@ def list_categories(
     ]
 
 
-@router.post("/inventory-categories", dependencies=[Depends(require("inventory.purchase"))])
+@router.post("/inventory-categories", dependencies=[Depends(require("inventory.purchase", "inventory.categories.create"))])
 def create_category(payload: CategoryCreate, db: Session = Depends(get_db)):
     existing = db.query(InventoryCategory).filter(
         InventoryCategory.VENDOR_ID == payload.VENDOR_ID,
@@ -158,7 +158,7 @@ def create_category(payload: CategoryCreate, db: Session = Depends(get_db)):
     return {"message": "Category created", "ID": cat.ID}
 
 
-@router.get("/inventory-categories/{cat_id}", dependencies=[Depends(require("inventory.view"))])
+@router.get("/inventory-categories/{cat_id}", dependencies=[Depends(require("inventory.view", "inventory.categories.view"))])
 def get_category(cat_id: str, db: Session = Depends(get_db)):
     cat = db.query(InventoryCategory).filter(InventoryCategory.ID == cat_id).first()
     if not cat:
@@ -172,7 +172,7 @@ def get_category(cat_id: str, db: Session = Depends(get_db)):
     }
 
 
-@router.put("/inventory-categories/{cat_id}", dependencies=[Depends(require("inventory.purchase"))])
+@router.put("/inventory-categories/{cat_id}", dependencies=[Depends(require("inventory.purchase", "inventory.categories.update"))])
 def update_category(cat_id: str, payload: CategoryUpdate, db: Session = Depends(get_db)):
     cat = db.query(InventoryCategory).filter(InventoryCategory.ID == cat_id).first()
     if not cat:
@@ -190,7 +190,7 @@ def update_category(cat_id: str, payload: CategoryUpdate, db: Session = Depends(
     return {"message": "Category updated"}
 
 
-@router.delete("/inventory-categories/{cat_id}", dependencies=[Depends(require("inventory.purchase"))])
+@router.delete("/inventory-categories/{cat_id}", dependencies=[Depends(require("inventory.purchase", "inventory.categories.delete"))])
 def delete_category(cat_id: str, db: Session = Depends(get_db)):
     cat = db.query(InventoryCategory).filter(InventoryCategory.ID == cat_id).first()
     if not cat:
@@ -216,7 +216,7 @@ def delete_category(cat_id: str, db: Session = Depends(get_db)):
 # InventoryCategory — bulk-upload, template, export
 # ─────────────────────────────────────────────────────────────────────
 
-@router.get("/inventory-categories/bulk-template", dependencies=[Depends(require("inventory.view"))])
+@router.get("/inventory-categories/bulk-template", dependencies=[Depends(require("inventory.view", "inventory.categories.view"))])
 def category_bulk_template(vendor_id: int = Query(1), db: Session = Depends(get_db)):
     cf_fields = _cf_fields_for_table("inventory_category", vendor_id, db)
     wb = openpyxl.Workbook()
@@ -235,7 +235,7 @@ def category_bulk_template(vendor_id: int = Query(1), db: Session = Depends(get_
     )
 
 
-@router.get("/inventory-categories/export/excel", dependencies=[Depends(require("inventory.view"))])
+@router.get("/inventory-categories/export/excel", dependencies=[Depends(require("inventory.view", "inventory.categories.view", "inventory.categories.export"))])
 def category_export_excel(vendor_id: int = Query(1), db: Session = Depends(get_db)):
     cats = (
         db.query(InventoryCategory)
@@ -286,7 +286,7 @@ def category_export_excel(vendor_id: int = Query(1), db: Session = Depends(get_d
     )
 
 
-@router.post("/inventory-categories/bulk-upload", dependencies=[Depends(require("inventory.purchase"))])
+@router.post("/inventory-categories/bulk-upload", dependencies=[Depends(require("inventory.purchase", "inventory.categories.create", "inventory.categories.import"))])
 def category_bulk_upload(
     vendor_id: int = Query(1),
     file: UploadFile = File(...),
@@ -401,7 +401,7 @@ def _serialize_product(p: ProductMaster, db: Session, include_suppliers: bool = 
     return result
 
 
-@router.get("/products", dependencies=[Depends(require("inventory.view"))])
+@router.get("/products", dependencies=[Depends(require("inventory.view", "inventory.products.view"))])
 def list_products(
     vendor_id: int = Query(1),
     category_id: Optional[str] = Query(None),
@@ -432,7 +432,7 @@ def list_products(
     }
 
 
-@router.post("/products", dependencies=[Depends(require("inventory.purchase"))])
+@router.post("/products", dependencies=[Depends(require("inventory.purchase", "inventory.products.create"))])
 def create_product(payload: ProductCreate, db: Session = Depends(get_db)):
     existing = db.query(ProductMaster).filter(
         ProductMaster.VENDOR_ID == payload.VENDOR_ID,
@@ -457,7 +457,7 @@ def create_product(payload: ProductCreate, db: Session = Depends(get_db)):
     return {"message": "Product created", "ID": product.ID}
 
 
-@router.get("/products/{product_id}", dependencies=[Depends(require("inventory.view"))])
+@router.get("/products/{product_id}", dependencies=[Depends(require("inventory.view", "inventory.products.view"))])
 def get_product(product_id: str, db: Session = Depends(get_db)):
     p = db.query(ProductMaster).filter(ProductMaster.ID == product_id).first()
     if not p:
@@ -479,7 +479,7 @@ def get_product(product_id: str, db: Session = Depends(get_db)):
     return result
 
 
-@router.put("/products/{product_id}", dependencies=[Depends(require("inventory.purchase"))])
+@router.put("/products/{product_id}", dependencies=[Depends(require("inventory.purchase", "inventory.products.update"))])
 def update_product(product_id: str, payload: ProductUpdate, db: Session = Depends(get_db)):
     p = db.query(ProductMaster).filter(ProductMaster.ID == product_id).first()
     if not p:
@@ -505,7 +505,7 @@ def update_product(product_id: str, payload: ProductUpdate, db: Session = Depend
     return {"message": "Product updated"}
 
 
-@router.delete("/products/{product_id}", dependencies=[Depends(require("inventory.purchase"))])
+@router.delete("/products/{product_id}", dependencies=[Depends(require("inventory.purchase", "inventory.products.delete"))])
 def delete_product(product_id: str, db: Session = Depends(get_db)):
     p = db.query(ProductMaster).filter(ProductMaster.ID == product_id).first()
     if not p:
@@ -532,7 +532,7 @@ def delete_product(product_id: str, db: Session = Depends(get_db)):
     return {"message": "Product deleted"}
 
 
-@router.get("/products/{product_id}/suppliers", dependencies=[Depends(require("supplier.manage"))])
+@router.get("/products/{product_id}/suppliers", dependencies=[Depends(require("supplier.manage", "supplier.products.view"))])
 def get_product_suppliers(product_id: str, db: Session = Depends(get_db)):
     """All suppliers (with prices and rankings) for a product."""
     p = db.query(ProductMaster).filter(ProductMaster.ID == product_id).first()
@@ -592,7 +592,7 @@ def get_product_recommendation(product_id: str, db: Session = Depends(get_db)):
 # Supplier-Product Pricing
 # ─────────────────────────────────────────────────────────────────────
 
-@router.post("/products/{product_id}/suppliers/{supplier_id}/price", dependencies=[Depends(require("supplier.manage"))])
+@router.post("/products/{product_id}/suppliers/{supplier_id}/price", dependencies=[Depends(require("supplier.manage", "supplier.products.manage"))])
 def set_supplier_price(
     product_id: str,
     supplier_id: int,
@@ -662,7 +662,7 @@ def set_supplier_price(
     return {"message": "Supplier price updated", "SUPPLIER_PRODUCT_ID": sp.ID}
 
 
-@router.delete("/products/{product_id}/suppliers/{supplier_id}", dependencies=[Depends(require("supplier.manage"))])
+@router.delete("/products/{product_id}/suppliers/{supplier_id}", dependencies=[Depends(require("supplier.manage", "supplier.products.manage"))])
 def deactivate_supplier_product(
     product_id: str,
     supplier_id: int,
@@ -688,7 +688,7 @@ def deactivate_supplier_product(
     return {"message": "Supplier-product link deactivated"}
 
 
-@router.get("/products/{product_id}/suppliers/{supplier_id}/history", dependencies=[Depends(require("supplier.manage"))])
+@router.get("/products/{product_id}/suppliers/{supplier_id}/history", dependencies=[Depends(require("supplier.manage", "supplier.products.view"))])
 def get_price_history(
     product_id: str,
     supplier_id: int,
@@ -733,7 +733,7 @@ _PROD_STD_COLS = {
 }
 
 
-@router.get("/products/bulk-template", dependencies=[Depends(require("inventory.view"))])
+@router.get("/products/bulk-template", dependencies=[Depends(require("inventory.view", "inventory.products.view"))])
 def download_product_template(vendor_id: int = Query(1), db: Session = Depends(get_db)):
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -760,7 +760,7 @@ def download_product_template(vendor_id: int = Query(1), db: Session = Depends(g
     )
 
 
-@router.post("/products/bulk-upload", dependencies=[Depends(require("inventory.purchase"))])
+@router.post("/products/bulk-upload", dependencies=[Depends(require("inventory.purchase", "inventory.products.create", "inventory.products.import"))])
 async def bulk_upload_products(
     vendor_id: int = Query(1),
     file: UploadFile = File(...),
@@ -857,7 +857,7 @@ async def bulk_upload_products(
     }
 
 
-@router.get("/products/export/excel", dependencies=[Depends(require("inventory.view"))])
+@router.get("/products/export/excel", dependencies=[Depends(require("inventory.view", "inventory.products.view", "inventory.products.export"))])
 def export_products(vendor_id: int = Query(1), db: Session = Depends(get_db)):
     rows = db.query(ProductMaster).filter(
         ProductMaster.VENDOR_ID == vendor_id
@@ -891,7 +891,7 @@ def export_products(vendor_id: int = Query(1), db: Session = Depends(get_db)):
 # Supplier-Product management: edit existing / add new
 # ─────────────────────────────────────────────────────────────────────
 
-@router.patch("/supplier-products/{sp_id}", dependencies=[Depends(require("supplier.manage"))])
+@router.patch("/supplier-products/{sp_id}", dependencies=[Depends(require("supplier.manage", "supplier.products.manage"))])
 def update_supplier_product(
     sp_id: str,
     payload: SupplierProductEditPayload,
@@ -950,7 +950,7 @@ def update_supplier_product(
     return {"message": "Supplier product updated", "ID": sp.ID}
 
 
-@router.post("/supplier-products", dependencies=[Depends(require("supplier.manage"))])
+@router.post("/supplier-products", dependencies=[Depends(require("supplier.manage", "supplier.products.manage"))])
 def add_supplier_product(
     payload: SupplierProductAddPayload,
     db: Session = Depends(get_db),

@@ -130,10 +130,6 @@ class EmployeePermissionOverride(Base):
     EFFECT = Column(String(5), nullable=False)
     # "GRANT" or "DENY"
 
-    REASON = Column(String(255), nullable=False)
-    # Mandatory — mirrors EmployeeStatusHistory.REASON's precedent for
-    # administrative-exception actions.
-
     GRANTED_BY_ID = Column(String(36), ForeignKey("employee.ID"), nullable=True)
 
     GRANTED_AT = Column(DateTime, default=datetime.utcnow)

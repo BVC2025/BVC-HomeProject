@@ -12,7 +12,7 @@ from app.schemas.lead_schema import (
     LeadCreate, LeadUpdate,
 )
 from app.services.lead_polling_service import sync_config, preview_leads
-from app.auth.auth_bearer import get_current_admin
+from app.auth.auth_bearer import require
 from app.routes.project_template import (
     _cf_fields_for_table, _upsert_cf_bulk, _validate_cf_value, _parse_bulk_xl, _cell,
 )
@@ -151,7 +151,7 @@ def list_configs(
     vendor_id: int = Query(1),
     search: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
+    _admin=Depends(require("lead.config.view")),
 ):
     q = db.query(LeadPollingConfig).filter(LeadPollingConfig.VENDOR_ID == vendor_id)
     if search:
@@ -170,7 +170,7 @@ def create_config(
     data: LeadPollingConfigCreate,
     vendor_id: int = Query(1),
     db: Session = Depends(get_db),
-    admin=Depends(get_current_admin),
+    admin=Depends(require("lead.config.manage")),
 ):
     _validate_api_type(data.API_TYPE)
     if data.POLL_INTERVAL_MINUTES < _MIN_POLL_INTERVAL_MINUTES:
@@ -213,7 +213,7 @@ def create_config(
 
 
 @router.get("/configs/{config_id}")
-def get_config(config_id: str, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+def get_config(config_id: str, db: Session = Depends(get_db), _admin=Depends(require("lead.config.view"))):
     return _serialize_config(_get_config_or_404(db, config_id))
 
 
@@ -222,7 +222,7 @@ def update_config(
     config_id: str,
     data: LeadPollingConfigUpdate,
     db: Session = Depends(get_db),
-    admin=Depends(get_current_admin),
+    admin=Depends(require("lead.config.manage")),
 ):
     cfg = _get_config_or_404(db, config_id)
 
@@ -268,7 +268,7 @@ def update_config(
 
 
 @router.delete("/configs/{config_id}")
-def delete_config(config_id: str, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+def delete_config(config_id: str, db: Session = Depends(get_db), _admin=Depends(require("lead.config.manage"))):
     cfg = _get_config_or_404(db, config_id)
     db.delete(cfg)
     db.commit()
@@ -276,7 +276,7 @@ def delete_config(config_id: str, db: Session = Depends(get_db), _admin=Depends(
 
 
 @router.post("/configs/{config_id}/activate")
-def activate_config(config_id: str, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+def activate_config(config_id: str, db: Session = Depends(get_db), _admin=Depends(require("lead.config.manage"))):
     cfg = _get_config_or_404(db, config_id)
     cfg.IS_ACTIVE = True
     db.commit()
@@ -284,7 +284,7 @@ def activate_config(config_id: str, db: Session = Depends(get_db), _admin=Depend
 
 
 @router.post("/configs/{config_id}/deactivate")
-def deactivate_config(config_id: str, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+def deactivate_config(config_id: str, db: Session = Depends(get_db), _admin=Depends(require("lead.config.manage"))):
     cfg = _get_config_or_404(db, config_id)
     cfg.IS_ACTIVE = False
     db.commit()
@@ -294,7 +294,7 @@ def deactivate_config(config_id: str, db: Session = Depends(get_db), _admin=Depe
 # ── Operational routes (polling) ─────────────────────────────────────────────
 
 @router.post("/configs/{config_id}/sync-now")
-def sync_now(config_id: str, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+def sync_now(config_id: str, db: Session = Depends(get_db), _admin=Depends(require("lead.config.manage"))):
     """Manually trigger a poll for a single config — useful for testing without waiting for the scheduler."""
     cfg = _get_config_or_404(db, config_id)
     ok, message, detail = sync_config(db, cfg, store=True)
@@ -304,7 +304,7 @@ def sync_now(config_id: str, db: Session = Depends(get_db), _admin=Depends(get_c
 
 
 @router.post("/live-preview")
-def live_preview(data: LivePreviewRequest, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+def live_preview(data: LivePreviewRequest, db: Session = Depends(get_db), _admin=Depends(require("lead.live.view"))):
     """Live Lead Viewer passthrough — calls the source API directly through the
     backend and returns the mapped leads. Never writes to the database."""
     _validate_api_type(data.API_TYPE)
@@ -331,7 +331,7 @@ def list_polling_logs(
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
+    _admin=Depends(require("lead.polling_log.view")),
 ):
     q = db.query(LeadPollingLog).filter(LeadPollingLog.VENDOR_ID == vendor_id)
     if config_id:
@@ -357,7 +357,7 @@ def create_lead(
     data: LeadCreate,
     vendor_id: int = Query(1),
     db: Session = Depends(get_db),
-    admin=Depends(get_current_admin),
+    admin=Depends(require("lead.records.create")),
 ):
     employee_id = admin.get("employee_id")
     lead = Lead(
@@ -393,7 +393,7 @@ def create_lead(
 
 
 @router.get("/leads/{lead_id}")
-def get_lead(lead_id: str, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+def get_lead(lead_id: str, db: Session = Depends(get_db), _admin=Depends(require("lead.records.view"))):
     return _serialize_lead(_get_lead_or_404(db, lead_id))
 
 
@@ -403,7 +403,7 @@ def update_lead(
     data: LeadUpdate,
     vendor_id: int = Query(1),
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
+    _admin=Depends(require("lead.records.update")),
 ):
     """Edits any lead's contact/status/owner fields regardless of source — sales
     works IndiaMART/website leads too. LEAD_SOURCE and EXTERNAL_REFERENCE_ID are
@@ -433,7 +433,7 @@ def update_lead(
 
 
 @router.delete("/leads/{lead_id}")
-def delete_lead(lead_id: str, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+def delete_lead(lead_id: str, db: Session = Depends(get_db), _admin=Depends(require("lead.records.delete"))):
     lead = _get_lead_or_404(db, lead_id)
     db.delete(lead)
     db.commit()
@@ -454,7 +454,7 @@ def list_leads(
     created_from: Optional[str] = Query(None),
     created_to: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
+    _admin=Depends(require("lead.records.view")),
 ):
     q = db.query(Lead).filter(Lead.VENDOR_ID == vendor_id)
 
@@ -503,7 +503,7 @@ async def bulk_upload_leads(
     vendor_id: int = Query(1),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    admin=Depends(get_current_admin),
+    admin=Depends(require("lead.records.import")),
 ):
     """Bulk-import leads from an xlsx file (sheet: 'Leads'). Every valid row is
     a fresh INSERT with LEAD_SOURCE="MANUAL" — leads have no natural dedupe

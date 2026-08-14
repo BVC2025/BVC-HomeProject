@@ -46,6 +46,7 @@ class DesignationUpdate(BaseModel):
 
 class RoleCreate(BaseModel):
     ROLE_NAME: str
+    CODE: Optional[str] = None
     DESCRIPTION: Optional[str] = None
     VENDOR_ID: int = 1
 

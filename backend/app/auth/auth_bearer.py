@@ -298,3 +298,32 @@ def assert_not_granting_root_only_codes(payload: dict, codes) -> None:
                 + ", ".join(sorted(blocked))
             )
         )
+
+
+# The SUPER_ADMIN role's unconditional access (see the role-name checks
+# in require()/ADMIN_ROLES above) is not grant-based, so it can never be
+# made safe by editing its RolePermission rows — the only correct
+# protection is blocking every write path that could rename, delete, or
+# rewrite the permissions of a role by this name. Deliberately NOT
+# exempting principal_type == "ROOT" here (unlike the sibling guard
+# above) — SUPER_ADMIN must be protected "under any circumstances,"
+# including from Root, per the product requirement.
+PROTECTED_ROLE_NAMES = {"SUPER_ADMIN"}
+
+
+def assert_role_not_protected(role_name: str) -> None:
+    """Raise 403 if role_name is a hard-protected role. Call this before
+    any create/rename/delete/permission-rewrite touching a Role — check
+    both the role being mutated AND, for renames, the requested new name
+    (so some other role can't be renamed into "SUPER_ADMIN" to inherit
+    its bypass)."""
+
+    if (role_name or "").strip().upper() in PROTECTED_ROLE_NAMES:
+
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "The SUPER_ADMIN role is protected and cannot be created, "
+                "renamed, deleted, or have its permissions modified."
+            )
+        )

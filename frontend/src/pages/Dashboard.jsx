@@ -15,6 +15,7 @@ import {
 import RequirePermission from "../components/RequirePermission";
 import { useAuth } from "../context/AuthContext";
 import { permissionForRoute } from "../utils/rbac";
+import EmployeeProfileForm from "./EmployeeProfileForm";
 
 import {
   PieChart,
@@ -630,7 +631,7 @@ function InventorySummaryCard({ items, loading }) {
               dataKey="name"
               tick={{ fontSize: 11, fill: "#475569" }}
               axisLine={{ stroke: "#cbd5e1" }}
-              tickLine={false}
+              tickLine={false} f
               interval={0}
               angle={chartData.length > 8 ? -30 : 0}
               textAnchor={chartData.length > 8 ? "end" : "middle"}
@@ -1922,6 +1923,44 @@ function Dashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
 
+  // First-login profile-completion gate — identical in shape to
+  // EmployeeDashboard.jsx's own gate. Any RBAC-permissioned employee
+  // now lands in this shell (see the is_admin fix in auth.py), so it
+  // needs the same PROFILE_SUBMITTED check the self-service shell
+  // already enforces, rather than skipping straight to the dashboard.
+  // The flag is re-fetched from the backend every time, never trusted
+  // from a stored client value.
+  const employeeCode = localStorage.getItem("employee_code") || "";
+  const [profileGate, setProfileGate] = useState({
+    loading: true,
+    employee: null,
+    submitted: false,
+  });
+
+  const reloadProfileGate = () => {
+    if (!employeeCode) {
+      setProfileGate({ loading: false, employee: null, submitted: true });
+      return;
+    }
+    setProfileGate((s) => ({ ...s, loading: true }));
+    API.get(`/employees/by-code/${encodeURIComponent(employeeCode)}`)
+      .then((r) => {
+        setProfileGate({
+          loading: false,
+          employee: r.data,
+          submitted: !!r.data?.PROFILE_SUBMITTED,
+        });
+      })
+      .catch(() => {
+        setProfileGate({ loading: false, employee: null, submitted: true });
+      });
+  };
+
+  useEffect(() => {
+    reloadProfileGate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employeeCode]);
+
   const closeSidebar = () => setSidebarOpen(false);
 
   // Lock the page from scrolling underneath the open drawer on mobile.
@@ -1955,6 +1994,38 @@ function Dashboard() {
     await logout();
     navigate("/login", { replace: true });
   };
+
+  if (profileGate.loading) {
+    return (
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "center",
+        height: "100vh", fontSize: "1rem", color: "var(--text-secondary, #64748b)",
+      }}>
+        Loading your profile…
+      </div>
+    );
+  }
+
+  if (profileGate.employee && !profileGate.submitted) {
+    return (
+      <>
+        <EmployeeProfileForm
+          employee={profileGate.employee}
+          onSubmitted={() => reloadProfileGate()}
+          onLogout={() => setLogoutOpen(true)}
+        />
+        <ConfirmDialog
+          open={logoutOpen}
+          title="Are you sure you want to log out?"
+          confirmLabel="Log Out"
+          cancelLabel="Continue"
+          danger
+          onCancel={() => setLogoutOpen(false)}
+          onConfirm={performLogout}
+        />
+      </>
+    );
+  }
 
   return (
 
@@ -2036,7 +2107,7 @@ function Dashboard() {
             className="logout-btn"
             onClick={handleLogout}
           >
-            ↪ Logout
+            Logout
           </button>
 
         </div>
@@ -2088,8 +2159,8 @@ function Dashboard() {
             <Route path="/star-performance" element={<StarPerformance />} />
             <Route path="/payroll" element={<RequirePermission code={permissionForRoute("/payroll")}><Payroll /></RequirePermission>} />
             <Route path="/payslip-generator" element={<RequirePermission code={permissionForRoute("/payslip-generator")}><PayslipGenerator /></RequirePermission>} />
-            <Route path="/payroll-records"   element={<RequirePermission code={permissionForRoute("/payroll-records")}><PayrollRecords /></RequirePermission>} />
-            <Route path="/help-desk"         element={<RequirePermission code={permissionForRoute("/help-desk")}><HelpDeskAdmin /></RequirePermission>} />
+            <Route path="/payroll-records" element={<RequirePermission code={permissionForRoute("/payroll-records")}><PayrollRecords /></RequirePermission>} />
+            <Route path="/help-desk" element={<RequirePermission code={permissionForRoute("/help-desk")}><HelpDeskAdmin /></RequirePermission>} />
           </Route>
 
           <Route
@@ -2211,11 +2282,11 @@ function Dashboard() {
           <Route path="/project-pricing" element={<RequirePermission code={permissionForRoute("/project-pricing")}><Suspense fallback={null}><ProjectPricingPage /></Suspense></RequirePermission>} />
 
           {/* Lead Management module (multi-source lead pipeline) */}
-          <Route path="/lead-management/configuration" element={<Suspense fallback={null}><LeadManagementConfig /></Suspense>} />
+          <Route path="/lead-management/configuration" element={<RequirePermission code={permissionForRoute("/lead-management/configuration")}><Suspense fallback={null}><LeadManagementConfig /></Suspense></RequirePermission>} />
           <Route path="/whatsapp-config" element={<RequirePermission code={permissionForRoute("/whatsapp-config")}><Suspense fallback={null}><WhatsAppConfigManagement /></Suspense></RequirePermission>} />
           <Route path="/whatsapp-module-settings" element={<RequirePermission code={permissionForRoute("/whatsapp-module-settings")}><Suspense fallback={null}><WhatsAppModuleSettingsManagement /></Suspense></RequirePermission>} />
-          <Route path="/lead-management/live-leads" element={<Suspense fallback={null}><LiveLeadViewer /></Suspense>} />
-          <Route path="/lead-management/leads" element={<Suspense fallback={null}><ManualLeadManagement /></Suspense>} />
+          <Route path="/lead-management/live-leads" element={<RequirePermission code={permissionForRoute("/lead-management/live-leads")}><Suspense fallback={null}><LiveLeadViewer /></Suspense></RequirePermission>} />
+          <Route path="/lead-management/leads" element={<RequirePermission code={permissionForRoute("/lead-management/leads")}><Suspense fallback={null}><ManualLeadManagement /></Suspense></RequirePermission>} />
 
           <Route path="/ai-platform/modules" element={<RequirePermission code={permissionForRoute("/ai-platform/modules")}><Suspense fallback={null}><AIModulesPage /></Suspense></RequirePermission>} />
           <Route path="/ai-platform/knowledge-base" element={<RequirePermission code={permissionForRoute("/ai-platform/knowledge-base")}><Suspense fallback={null}><AIKnowledgeBasePage /></Suspense></RequirePermission>} />
@@ -2224,7 +2295,7 @@ function Dashboard() {
           <Route path="/ai-platform/playground" element={<RequirePermission code={permissionForRoute("/ai-platform/playground")}><Suspense fallback={null}><AIPlaygroundPage /></Suspense></RequirePermission>} />
           <Route path="/ai-platform/settings" element={<RequirePermission code={permissionForRoute("/ai-platform/settings")}><Suspense fallback={null}><AISettingsPage /></Suspense></RequirePermission>} />
 
-          <Route path="/lead-management/polling-activity" element={<Suspense fallback={null}><PollingActivityLog /></Suspense>} />
+          <Route path="/lead-management/polling-activity" element={<RequirePermission code={permissionForRoute("/lead-management/polling-activity")}><Suspense fallback={null}><PollingActivityLog /></Suspense></RequirePermission>} />
 
           {/* Company Profile */}
           <Route path="/company-profile" element={<RequirePermission code={permissionForRoute("/company-profile")}><Suspense fallback={null}><CompanyProfilePage /></Suspense></RequirePermission>} />

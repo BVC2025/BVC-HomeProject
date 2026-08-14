@@ -5,7 +5,12 @@ const StatsRow = React.memo(function StatsRow({ stats = [] }) {
   return (
     <div className={styles.row}>
       {stats.map((stat, i) => (
-        <div key={i} className={styles.card}>
+        <div
+          key={i}
+          className={styles.card}
+          onClick={stat.onClick}
+          style={stat.onClick ? { cursor: "pointer" } : undefined}
+        >
           {/* Side accent bar — vertical, BVC24-style */}
           <div className={styles.accentBar} />
           <span className={styles.value}>{stat.value}</span>

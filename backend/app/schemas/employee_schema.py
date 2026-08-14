@@ -26,11 +26,23 @@ _NULLABLE_STR_FIELDS = (
 
 class EmployeeCreate(BaseModel):
 
-    EMPLOYEE_CODE: str
+    # Accepted-but-ignored for backward compatibility with any existing
+    # caller that still supplies a value (e.g. employee_onboarding.py's
+    # candidate-approval flow, which pre-allocates its own code) — the
+    # admin-facing /create-employee endpoint always auto-generates this
+    # from Department + Role instead of reading it from the payload.
+    EMPLOYEE_CODE: Optional[str] = None
     NAME: str
+    # Kept Optional here (not str) so this schema — also used by the
+    # separate employee_onboarding.py candidate-approval flow, which may
+    # legitimately have no email/phone collected — isn't affected;
+    # /create-employee enforces both as required itself, in the handler.
     EMAIL: Optional[str] = None
     PHONE: Optional[str] = None
-    PASSWORD: str
+    # Optional — /create-employee always generates a random temporary
+    # password when omitted and emails it to the new employee, rather
+    # than requiring the admin to type one.
+    PASSWORD: Optional[str] = None
     DEPARTMENT_ID: Optional[int] = None
     DESIGNATION_ID: Optional[int] = None
     ROLE_ID: int

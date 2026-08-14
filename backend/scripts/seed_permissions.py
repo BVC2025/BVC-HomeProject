@@ -42,140 +42,26 @@ load_dotenv(_ROOT / ".env")
 
 from app.database.database import SessionLocal
 from app.models.models import Role, Permission, RolePermission
+from app.services.permission_catalogue import ensure_permission_catalogue
+
+# Every model module must be imported before the first query triggers
+# SQLAlchemy's mapper configuration — otherwise cross-module string
+# relationship() references (e.g. SupplierProduct -> InventoryCategory)
+# fail to resolve. Mirrors the import block in app/main.py.
+import app.models.project_models     # noqa: F401
+import app.models.inventory_models   # noqa: F401
+import app.models.supplier_models    # noqa: F401
+import app.models.email_models       # noqa: F401
+import app.models.lead_models        # noqa: F401
+import app.models.project_quotation_models  # noqa: F401
+import app.models.rag_models         # noqa: F401
+import app.models.whatsapp_models    # noqa: F401
+import app.models.rbac_models        # noqa: F401
+import app.models.auth_models        # noqa: F401
 
 
-# =====================================================================
-# CATALOGUE
-# ---------------------------------------------------------------------
-# (CODE, NAME, CATEGORY, DESCRIPTION)
-# =====================================================================
-
-CATALOGUE = [
-    # ---- Employee admin (existing + new) ----
-    ("employee.view",          "View employee directory",     "Employees", "See list of employees and their basic profiles"),
-    ("employee.create",        "Create employees",            "Employees", "Add new employee records"),
-    ("employee.update",        "Edit employees",              "Employees", "Update employee profile fields"),
-    ("employee.delete",        "Delete employees",            "Employees", "Cascading delete of an employee record"),
-    ("employee.password-reset","Reset employee passwords",    "Employees", "Set a new password for any employee"),
-    ("employee.wipe",          "Bulk wipe employees",         "Employees", "Nuclear: remove ALL employees (dev only)"),
-
-    # ---- Documents ----
-    ("document.upload",        "Upload employee documents",   "Employees", "Aadhaar, PAN, resume, offer letter, etc."),
-    ("document.delete",        "Delete employee documents",   "Employees", "Remove a stored document file + row"),
-
-    # ---- Memos ----
-    ("memo.view.all",          "View all memos",              "Memos",     "See every memo across the org"),
-    ("memo.create",            "Create memos",                "Memos",     "Issue warnings, appreciations, disciplinary notices"),
-    ("memo.update",            "Edit memos",                  "Memos",     "Modify subject/description/severity of a memo"),
-    ("memo.delete",            "Delete memos",                "Memos",     "Soft-delete a memo from the audit trail"),
-    ("memo.export",            "Export memos to CSV",         "Memos",     "Download memo list as CSV"),
-
-    # ---- Leave (existing leave.decide + leave.view.all + new) ----
-    ("leave.view.all",         "View all leave requests",     "Leave",     "Admin dashboard of every leave"),
-    ("leave.approve",          "Approve leave requests",      "Leave",     "PATCH /leave/{id}/approve"),
-    ("leave.reject",           "Reject leave requests",       "Leave",     "PATCH /leave/{id}/reject"),
-    ("leave.decide",           "Approve OR reject (legacy)",  "Leave",     "Combined approve+reject permission"),
-    ("leave.policy.manage",    "Manage leave quota policies", "Leave",     "Create/edit/delete LeaveQuotaPolicy rows"),
-
-    # ---- Attendance (existing + new mark) ----
-    ("attendance.view.self",   "View own attendance",         "Attendance", "Employee sees their own records"),
-    ("attendance.view.team",   "View team attendance",        "Attendance", "Department head sees own department"),
-    ("attendance.view.all",    "View all attendance",         "Attendance", "Admin sees everyone"),
-    ("attendance.mark.others", "Mark others' attendance",     "Attendance", "Admin marks absent / overrides"),
-    ("attendance.delete",      "Delete attendance records",   "Attendance", "Remove an attendance row"),
-
-    # ---- Geofence ----
-    ("geofence.settings.update", "Update geofence config",    "Attendance", "Edit office lat/lng/radius"),
-    ("geofence.logs.view",       "View geofence security log","Attendance", "Failed location attempts"),
-    ("geofence.logs.delete",     "Delete geofence log rows",  "Attendance", "Clean up admin sweep"),
-    ("geofence.dashboard.view",  "View geofence dashboard",   "Attendance", "Today's inside/outside KPI tile"),
-
-    # ---- Onboarding ----
-    ("onboarding.invite",          "Generate onboarding invites","Onboarding", "Create a new candidate invite link"),
-    ("onboarding.sessions.view",   "View onboarding sessions",   "Onboarding", "Admin review queue"),
-    ("onboarding.sessions.edit",   "Edit onboarding sessions",   "Onboarding", "Override collected data before approval"),
-    ("onboarding.sessions.approve","Approve onboarding sessions","Onboarding", "Promote candidate to Employee"),
-    ("onboarding.sessions.reject", "Reject onboarding sessions", "Onboarding", "Decline candidate, with reason"),
-    ("onboarding.sessions.delete", "Delete onboarding sessions", "Onboarding", "Remove an invite entirely"),
-    ("onboarding.sessions.resend", "Resend onboarding invites",  "Onboarding", "Generate fresh token, extend expiry"),
-
-    # ---- Tasks (existing + new) ----
-    ("task.view.self",  "View own tasks",          "Tasks",     "Employee dashboard"),
-    ("task.view.team",  "View team tasks",         "Tasks",     "Manager sees own department"),
-    ("task.view.all",   "View all tasks",          "Tasks",     "Org-wide task list"),
-    ("task.assign",     "Assign tasks",            "Tasks",     "POST /task-assignment"),
-    ("task.delete",     "Delete tasks",            "Tasks",     "DELETE /task-assignment/{id}"),
-    ("task.update.status","Update task status",    "Tasks",     "Start / Complete / Hold"),
-    ("task.qc.approve", "Approve at QC",           "Tasks",     "Move task QC → Completed"),
-    ("task.qc.reject",  "Reject at QC",            "Tasks",     "Move task back to Rework"),
-
-    # ---- Org / Project (existing) ----
-    ("org.view",         "View departments / designations", "Organization", None),
-    ("org.manage",       "Manage org structure",            "Organization", "Create/edit/delete departments and designations"),
-    ("project.view",     "View projects",                   "Projects", None),
-    ("project.create",   "Create projects",                 "Projects", None),
-    ("project.update",   "Edit projects",                   "Projects", None),
-    ("project.delete",   "Delete projects",                 "Projects", None),
-
-    # ---- Inventory / Machine ----
-    ("inventory.view",     "View inventory",       "Inventory", None),
-    ("inventory.purchase", "Add stock",            "Inventory", "From supplier deliveries"),
-    ("inventory.consume",  "Consume stock",        "Inventory", "Issue materials to a task"),
-    ("machine.view",       "View machines",        "Production", None),
-    ("machine.update.stage","Update machine stage","Production", None),
-
-    # ---- Customer / Sales / Payment ----
-    ("customer.view",       "View customers",       "Sales", None),
-    ("customer.manage",     "Manage customers",     "Sales", "Create/edit/delete"),
-    ("sales_order.view",    "View sales orders",    "Sales", None),
-    ("sales_order.manage",  "Manage sales orders",  "Sales", "Create, edit, cancel, record payments"),
-    ("quotation.manage",    "Manage quotations",    "Sales", "Create and approve"),
-    ("payment.record",      "Record payments",      "Finance", None),
-
-    # ---- Procurement ----
-    ("supplier.manage",       "Manage suppliers",        "Procurement", None),
-    ("purchase_order.view",   "View purchase orders",    "Procurement", None),
-    ("purchase_order.manage", "Manage purchase orders",  "Procurement", "Create/approve/GRN"),
-
-    # ---- Payroll / Accounts ----
-    ("payroll.view",     "View payroll",     "Payroll", None),
-    ("payroll.manage",   "Manage payroll",   "Payroll", "Run/finalize/mark paid"),
-    ("accounts.view",    "View accounts",    "Finance", None),
-
-    # ---- System / Admin ----
-    ("setting.modify",        "Modify system settings", "System", None),
-    ("role.manage",           "Manage roles & grants",  "System", "Read + write to permission catalogue"),
-    ("iam_user.manage",       "Manage IAM users",       "System", "Create/deactivate IAM user login accounts — Root-grantable only, see self-escalation guard"),
-    ("permission.override.manage", "Manage permission overrides", "System", "Create/edit per-employee grant/deny exceptions — Root-grantable only, see self-escalation guard"),
-    ("audit.view",            "View audit log",         "System", "Read /audit-logs"),
-    ("audit.export",          "Export audit log",       "System", "CSV download for compliance"),
-    ("report.export",         "Export reports",         "Reports","PDF / Excel exports"),
-    ("notification.broadcast","Broadcast notifications","System", "Send to all staff"),
-
-    # ---- Recruitment (ATS) — RBAC plan gap, no codes existed before ----
-    ("recruitment.view",   "View recruitment/ATS", "Recruitment", "Jobs, candidates, applications, interviews, offers"),
-    ("recruitment.manage", "Manage recruitment",   "Recruitment", "Create/edit jobs, screen candidates, schedule interviews, issue offers"),
-
-    # ---- Manufacturing — production/quality/work-center CRUD (RBAC plan gap;
-    # only machine.view/machine.update.stage existed before) ----
-    ("production.view",   "View production/BOM/work orders", "Production", "Product models, BOM, work orders, process stages"),
-    ("production.manage",  "Manage production/BOM/work orders", "Production", "Create/edit/delete product models, BOM, work orders"),
-    ("quality.view",       "View quality/QC inspections", "Production", "Checklist items, inspections, NCRs"),
-    ("quality.manage",     "Manage quality/QC inspections", "Production", "Create/edit checklist items, record inspections, manage NCRs"),
-    ("work_center.view",   "View work centers",   "Production", None),
-    ("work_center.manage", "Manage work centers",  "Production", "Create/edit/delete work centers"),
-
-    # ---- Help Desk — RBAC plan gap, admin actions were role-allowlist only ----
-    ("helpdesk.view.all",  "View all help desk tickets", "System", "Admin ticket queue"),
-    ("helpdesk.manage",    "Manage help desk tickets",   "System", "Assign, close, view stats"),
-
-    # ---- AI Platform (common Enterprise RAG platform) ----
-    ("rag.module.manage",   "Manage AI modules",         "AI Platform", "Create/edit/deactivate AI_MODULES rows"),
-    ("rag.document.upload", "Upload/manage KB documents","AI Platform", "Upload, replace, retrain, activate/deactivate documents"),
-    ("rag.document.delete", "Delete KB documents",       "AI Platform", "Soft-delete a document + its vectors"),
-    ("rag.query",           "Use AI chat/playground",    "AI Platform", "Ask questions via any AI module's chat endpoint"),
-    ("rag.settings.manage", "Manage AI settings",        "AI Platform", "Edit per-module LLM model / global RAG settings"),
-]
+# CATALOGUE now lives in app/services/permission_catalogue.py (shared
+# with main.py's startup sequence, which seeds it on every boot).
 
 
 # =====================================================================
@@ -336,37 +222,38 @@ DEFAULT_GRANTS = {
 # =====================================================================
 
 
-def _ensure_catalogue(db) -> dict:
-    """Insert any missing permissions. Returns code → ID map."""
-
-    existing = {p.CODE: p for p in db.query(Permission).all()}
-    added = 0
-    updated_meta = 0
-
-    for code, name, category, desc in CATALOGUE:
-        if code in existing:
-            # Backfill missing metadata if older row was minimal
-            p = existing[code]
-            if (not p.NAME)        and name:        p.NAME = name; updated_meta += 1
-            if (not p.CATEGORY)    and category:    p.CATEGORY = category; updated_meta += 1
-            if (not p.DESCRIPTION) and desc:        p.DESCRIPTION = desc; updated_meta += 1
-            continue
-
-        p = Permission(CODE=code, NAME=name, CATEGORY=category, DESCRIPTION=desc)
-        db.add(p)
-        added += 1
-
-    db.flush()
-    code_to_id = {p.CODE: p.ID for p in db.query(Permission).all()}
-
-    print(f"  catalogue: added {added}, backfilled metadata on {updated_meta}, total now {len(code_to_id)}")
-    return code_to_id
-
-
 def _apply_grants(db, code_to_id: dict) -> tuple[int, int]:
     """Insert any missing role grants. Returns (grants_added, roles_touched)."""
 
     roles_by_name = {r.NAME: r for r in db.query(Role).all()}
+
+    # Standard roles (DEFAULT_GRANTS) are expected to exist in every real
+    # deployment, but a fresh/dev DB may not have them yet. Auto-create
+    # any that are missing instead of silently skipping their grants —
+    # otherwise the permission catalogue looks "empty" for roles that
+    # were never given a Role row in the first place. IS_SYSTEM=1 so
+    # delete_role() (organization.py) refuses to let these be deleted,
+    # matching how the other seeded standard roles already behave.
+    default_vendor_id = next(
+        (r.VENDOR_ID for r in roles_by_name.values() if r.VENDOR_ID is not None),
+        1,
+    )
+    created_roles = 0
+    for role_name in DEFAULT_GRANTS:
+        if role_name in roles_by_name:
+            continue
+        role = Role(
+            NAME=role_name,
+            DESCRIPTION=f"Standard role: {role_name}",
+            IS_SYSTEM=1,
+            VENDOR_ID=default_vendor_id,
+        )
+        db.add(role)
+        db.flush()
+        roles_by_name[role_name] = role
+        created_roles += 1
+    if created_roles:
+        print(f"  roles: created {created_roles} missing standard role(s)")
 
     existing_grants = {
         (rp.ROLE_ID, rp.PERMISSION_ID)
@@ -380,9 +267,6 @@ def _apply_grants(db, code_to_id: dict) -> tuple[int, int]:
 
     for role_name, codes in DEFAULT_GRANTS.items():
         role = roles_by_name.get(role_name)
-        if not role:
-            print(f"  skip: role {role_name!r} not in DB")
-            continue
 
         # Expand "*" to mean every permission
         if codes == ALL:
@@ -405,17 +289,34 @@ def _apply_grants(db, code_to_id: dict) -> tuple[int, int]:
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(description="Seed permission catalogue + default role grants.")
+    p = argparse.ArgumentParser(description="Seed the permission catalogue (codes only, by default).")
     p.add_argument("--dry-run", action="store_true",
                    help="Show what would change without committing.")
+    p.add_argument("--apply-defaults", action="store_true",
+                   help="Also create the ~16 standard roles (if missing) and apply "
+                        "DEFAULT_GRANTS to them. Off by default — the product "
+                        "requirement is that every role (except SUPER_ADMIN) starts "
+                        "with zero grants; an admin enables permissions manually "
+                        "per role from the RBAC UI.")
     args = p.parse_args()
 
     db = SessionLocal()
     try:
-        print(f"[seed_permissions] starting (dry_run={args.dry_run})")
+        print(f"[seed_permissions] starting (dry_run={args.dry_run}, apply_defaults={args.apply_defaults})")
 
-        code_to_id = _ensure_catalogue(db)
-        grants_added, touched_roles = _apply_grants(db, code_to_id)
+        catalogue_result = ensure_permission_catalogue(db)
+        code_to_id = catalogue_result["code_to_id"]
+        print(
+            f"  catalogue: added {catalogue_result['added']}, "
+            f"backfilled metadata on {catalogue_result['updated_meta']}, "
+            f"total now {len(code_to_id)}"
+        )
+
+        if args.apply_defaults:
+            grants_added, touched_roles = _apply_grants(db, code_to_id)
+        else:
+            grants_added, touched_roles = 0, 0
+            print("  grants: skipped (pass --apply-defaults to also seed default role grants)")
 
         if args.dry_run:
             db.rollback()

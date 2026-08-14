@@ -289,12 +289,111 @@ _REJECTION_FALLBACK = """\
 </body>
 </html>"""
 
+_EMPLOYEE_ONBOARDING_FALLBACK = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Welcome to the Team</title>
+</head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+         style="background:#f8fafc;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" role="presentation"
+             style="background:#ffffff;border-radius:10px;overflow:hidden;
+                    box-shadow:0 4px 16px rgba(0,0,0,0.08);max-width:600px;width:100%;">
+        <tr>
+          <td style="background:#DC2626;padding:32px 48px;text-align:center;">
+            {{logo_html}}
+            <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:700;letter-spacing:-0.3px;">
+              {{company_name}}
+            </h1>
+            <p style="color:rgba(255,255,255,0.82);margin:10px 0 0;font-size:12px;
+                      letter-spacing:0.8px;text-transform:uppercase;">
+              Employee Portal
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:40px 48px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:15px;line-height:1.75;color:#475569;">
+            <p style="margin:0 0 16px;">Dear <strong>{{employee_name}}</strong>,</p>
+            <p style="margin:0 0 16px;">
+              Welcome to <strong>{{company_name}}</strong>! Your employee account has been
+              created and you're all set to get started as part of the
+              <strong>{{department}}</strong> team.
+            </p>
+            <p style="margin:0 0 20px;">Here are your login details:</p>
+            <table cellpadding="0" cellspacing="0" role="presentation" width="100%"
+                   style="margin:0 0 24px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+              <tr>
+                <td style="padding:20px 24px;">
+                  <p style="margin:0 0 10px;font-size:14px;color:#1e293b;">
+                    <strong>Employee ID:</strong> {{employee_id}}
+                  </p>
+                  <p style="margin:0 0 10px;font-size:14px;color:#1e293b;">
+                    <strong>Username:</strong> {{username}}
+                  </p>
+                  <p style="margin:0;font-size:14px;color:#1e293b;">
+                    <strong>Temporary Password:</strong> {{temporary_password}}
+                  </p>
+                </td>
+              </tr>
+            </table>
+            <table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 24px;">
+              <tr>
+                <td style="background:#DC2626;border-radius:7px;">
+                  <a href="{{login_url}}"
+                     style="display:inline-block;padding:14px 32px;color:#ffffff;
+                            text-decoration:none;font-weight:700;font-size:15px;
+                            letter-spacing:0.2px;">
+                    Log In Now &rarr;
+                  </a>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:0 0 16px;">
+              For your security, please log in and change your temporary password as soon
+              as possible. When you first log in, you may be asked to complete a few
+              remaining profile details before reaching your dashboard.
+            </p>
+            <p style="color:#64748b;font-size:13px;line-height:1.7;margin:0;">
+              If you have any questions or did not expect this email, please contact
+              <a href="mailto:{{support_email}}"
+                 style="color:#DC2626;text-decoration:none;">{{support_email}}</a>.
+            </p>
+          </td>
+        </tr>
+        <tr><td style="padding:0 48px;">
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:0;">
+        </td></tr>
+        <tr>
+          <td style="padding:28px 48px;background:#f8fafc;">
+            <p style="color:#94a3b8;font-size:12px;line-height:2;margin:0;text-align:center;">
+              <strong style="color:#64748b;">{{company_name}}</strong><br>
+              {{company_address}}<br>
+              Phone:&nbsp;{{contact_number}}&nbsp;|&nbsp;
+              <a href="{{website}}" style="color:#DC2626;text-decoration:none;">{{website}}</a><br>
+              <a href="mailto:{{support_email}}"
+                 style="color:#DC2626;text-decoration:none;">{{support_email}}</a>
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
 
 # ── Load templates from HTML files (fallbacks used only if files are missing) ─
 
 _SUPPLIER_INVITATION_HTML = _load_html("supplier_invitation.html", _INVITATION_FALLBACK)
 _SUPPLIER_APPROVAL_HTML   = _load_html("supplier_approval.html",   _APPROVAL_FALLBACK)
 _SUPPLIER_REJECTION_HTML  = _load_html("supplier_rejection.html",  _REJECTION_FALLBACK)
+_EMPLOYEE_ONBOARDING_HTML = _load_html("employee_onboarding.html", _EMPLOYEE_ONBOARDING_FALLBACK)
 
 
 # ── Template catalog ──────────────────────────────────────────────────────────
@@ -316,6 +415,11 @@ TEMPLATE_CATALOG: dict = {
         "display_name": "Supplier Rejection",
         "subject":      "Supplier Registration Update — {{supplier_company_name}}",
         "html":         _SUPPLIER_REJECTION_HTML,
+    },
+    "EMPLOYEE_ONBOARDING": {
+        "display_name": "Employee Onboarding",
+        "subject":      "Welcome to {{company_name}} — Your Login Credentials",
+        "html":         _EMPLOYEE_ONBOARDING_HTML,
     },
 }
 
@@ -372,6 +476,33 @@ _TEMPLATE_INITIAL_DESIGN: dict = {
             "<p>This decision was made on <strong>{{rejected_at}}</strong>. "
             "If you believe this was made in error or would like to discuss further, "
             "please reach out to our team.</p>"
+        ),
+        "customNotes": "",
+    },
+    "EMPLOYEE_ONBOARDING": {
+        "version":     1,
+        "logoDataUrl": "",
+        "headerTitle": "Employee Portal",
+        "contentHtml": (
+            "<p>Dear <strong>{{employee_name}}</strong>,</p>"
+            "<p>Welcome to <strong>{{company_name}}</strong>! Your employee account has "
+            "been created and you're all set to get started as part of the "
+            "<strong>{{department}}</strong> team.</p>"
+            "<p>Here are your login details:</p>"
+            "<table cellpadding=\"0\" cellspacing=\"0\" role=\"presentation\" width=\"100%\" "
+            "style=\"margin:0 0 20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;\">"
+            "<tr><td style=\"padding:16px 20px;\">"
+            "<p style=\"margin:0 0 8px;\"><strong>Employee ID:</strong> {{employee_id}}</p>"
+            "<p style=\"margin:0 0 8px;\"><strong>Username:</strong> {{username}}</p>"
+            "<p style=\"margin:0;\"><strong>Temporary Password:</strong> {{temporary_password}}</p>"
+            "</td></tr></table>"
+            "<table cellpadding=\"0\" cellspacing=\"0\" role=\"presentation\" style=\"margin:0 0 20px;\">"
+            "<tr><td style=\"background:#DC2626;border-radius:7px;\">"
+            "<a href=\"{{login_url}}\" style=\"display:inline-block;padding:14px 32px;"
+            "color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;\">"
+            "Log In Now &rarr;</a></td></tr></table>"
+            "<p>For your security, please log in and change your temporary password as "
+            "soon as possible.</p>"
         ),
         "customNotes": "",
     },

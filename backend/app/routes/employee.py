@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from pathlib import Path
+import os
 import re
+import secrets
 import shutil
 import uuid
 
@@ -18,7 +20,8 @@ from app.models.models import (
     Role,
     Task,
     TaskAssignment,
-    Attendance
+    Attendance,
+    derive_role_code,
 )
 
 from app.schemas.employee_schema import (
@@ -28,6 +31,10 @@ from app.schemas.employee_schema import (
 )
 
 from app.services.auth_service import hash_password
+from app.services.email_service import send_via_resend, send_via_vendor_smtp
+from app.services.email_template_service import get_or_create_template, render_template
+from app.services.company_settings_service import get_company_settings, format_full_address
+from app.models.email_models import VendorEmailConfig
 from app.auth.auth_bearer import (
     get_current_admin,
     get_current_user,
@@ -42,6 +49,32 @@ router = APIRouter()
 # =========================
 # SERIALIZATION
 # =========================
+
+def _default_super_admin_id(db: Session):
+    """ID of the earliest-created employee anywhere holding the
+    SUPER_ADMIN role — the original bootstrap account. This is the one
+    specific employee delete_employee() refuses to delete, regardless
+    of what EMPLOYEE_CODE it happens to have (matching whichever
+    account was actually created first, not a guessed/hardcoded code).
+    Every OTHER employee who separately holds the SUPER_ADMIN role
+    remains deletable — only the first one is protected."""
+
+    return (
+        db.query(Employee.ID)
+        .join(Role, Role.ID == Employee.ROLE_ID)
+        .filter(Role.NAME == "SUPER_ADMIN")
+        .order_by(Employee.CREATED_AT.asc(), Employee.ID.asc())
+        .limit(1)
+        .scalar()
+    )
+
+
+def _is_default_super_admin(emp: Employee, db: Session) -> bool:
+    return (
+        (emp.EMPLOYEE_CODE or "").upper() == "ADMIN"
+        or emp.ID == _default_super_admin_id(db)
+    )
+
 
 def serialize_employee(emp: Employee, db: Session):
     """
@@ -126,6 +159,7 @@ def serialize_employee(emp: Employee, db: Session):
         "NOTES": emp.NOTES,
         "PHOTO_URL": emp.PHOTO_URL,
         "PROFILE_SUBMITTED": bool(emp.PROFILE_SUBMITTED),
+        "IS_DEFAULT_SUPER_ADMIN": _is_default_super_admin(emp, db),
         # Phase A — HR Module expansion
         "BLOOD_GROUP":                emp.BLOOD_GROUP,
         "NATIONALITY":                emp.NATIONALITY,
@@ -151,6 +185,53 @@ def serialize_employee(emp: Employee, db: Session):
 
 
 # =========================
+# EMPLOYEE ID GENERATION
+# =========================
+
+_MAX_EMPLOYEE_CODE_ATTEMPTS = 5
+
+
+def _generate_employee_code(db: Session, department_id: int, role_id: int) -> str:
+    """Next sequential Employee ID for a Department+Role combination,
+    formatted DEPTCODE-ROLECODE-NNN (e.g. "PRO-ELE-001"). The sequence
+    is scoped per (department, role) — parsed from the highest existing
+    code sharing the same prefix, exactly like this codebase's other
+    per-prefix number generators (_next_po_number, _next_quotation_number,
+    etc.), so pre-existing, differently-formatted codes (ADMIN, EMP101)
+    are simply never matched and don't interfere. Callers are
+    responsible for retrying on a concurrent-insert collision — see the
+    retry loop in create_employee()/update_employee()."""
+
+    dept = db.query(Department).filter(Department.ID == department_id).first()
+    role = db.query(Role).filter(Role.ID == role_id).first()
+
+    if not dept or not role:
+        raise HTTPException(
+            status_code=400,
+            detail="A valid Department and Role are required to generate an Employee ID",
+        )
+
+    dept_code = re.sub(r"[^A-Za-z0-9]", "", dept.DEPARTMENT_CODE or "") .upper() or "GEN"
+    role_code = re.sub(r"[^A-Za-z0-9]", "", role.CODE or derive_role_code(role.NAME) or "").upper() or "GEN"
+    prefix = f"{dept_code}-{role_code}-"
+
+    last = (
+        db.query(Employee)
+        .filter(Employee.EMPLOYEE_CODE.like(f"{prefix}%"))
+        .order_by(Employee.EMPLOYEE_CODE.desc())
+        .first()
+    )
+
+    n = 0
+    if last and last.EMPLOYEE_CODE:
+        tail = last.EMPLOYEE_CODE[len(prefix):]
+        if tail.isdigit():
+            n = int(tail)
+
+    return f"{prefix}{n + 1:03d}"
+
+
+# =========================
 # CREATE
 # =========================
 
@@ -160,16 +241,15 @@ def create_employee(
     db: Session = Depends(get_db)
 ):
 
-    if db.query(Employee).filter(
-        Employee.EMPLOYEE_CODE == data.EMPLOYEE_CODE.upper()
-    ).first():
+    if not data.EMAIL or not data.PHONE:
 
         raise HTTPException(
             status_code=400,
-            detail=f"Employee code '{data.EMPLOYEE_CODE}' already exists"
+            detail="Email and Phone are required — login credentials and onboarding "
+                   "information are sent to the employee by email.",
         )
 
-    if data.EMAIL and db.query(Employee).filter(
+    if db.query(Employee).filter(
         Employee.EMAIL == data.EMAIL
     ).first():
 
@@ -178,74 +258,93 @@ def create_employee(
             detail="An employee with this email already exists"
         )
 
-    emp = Employee(
-        EMPLOYEE_CODE=data.EMPLOYEE_CODE.upper(),
-        NAME=data.NAME,
-        EMAIL=data.EMAIL,
-        PHONE=data.PHONE,
-        PASSWORD=hash_password(data.PASSWORD),
-        DEPARTMENT_ID=data.DEPARTMENT_ID,
-        DESIGNATION_ID=data.DESIGNATION_ID,
-        ROLE_ID=data.ROLE_ID,
-        REPORTING_MANAGER_ID=data.REPORTING_MANAGER_ID,
-        JOINING_DATE=data.JOINING_DATE,
-        SALARY=data.SALARY or 0.0,
-        SHIFT_START=data.SHIFT_START,
-        SHIFT_END=data.SHIFT_END,
-        SKILLS=data.SKILLS,
-        STATUS="ACTIVE",
-        VENDOR_ID=data.VENDOR_ID,
-        # Profile / resume fields
-        ADDRESS=data.ADDRESS,
-        CITY=data.CITY,
-        STATE=data.STATE,
-        PINCODE=data.PINCODE,
-        DOB=data.DOB,
-        GENDER=data.GENDER,
-        FATHER_NAME=data.FATHER_NAME,
-        MOTHER_NAME=data.MOTHER_NAME,
-        MARITAL_STATUS=data.MARITAL_STATUS,
-        OCCUPATION=data.OCCUPATION,
-        QUALIFICATION=data.QUALIFICATION,
-        YEAR_OF_PASSING=data.YEAR_OF_PASSING,
-        EXPERIENCE_YEARS=data.EXPERIENCE_YEARS or 0.0,
-        EXPERIENCE_DETAILS=data.EXPERIENCE_DETAILS,
-        PAST_PROJECTS=data.PAST_PROJECTS,
-        EMPLOYMENT_TYPE=data.EMPLOYMENT_TYPE,
-        NOTES=data.NOTES,
-        # Phase A — HR Module expansion
-        BLOOD_GROUP=data.BLOOD_GROUP,
-        NATIONALITY=data.NATIONALITY,
-        EMERGENCY_CONTACT_NAME=data.EMERGENCY_CONTACT_NAME,
-        EMERGENCY_CONTACT_PHONE=data.EMERGENCY_CONTACT_PHONE,
-        EMERGENCY_CONTACT_RELATION=data.EMERGENCY_CONTACT_RELATION,
-        CONFIRMATION_DATE=data.CONFIRMATION_DATE,
-        WORK_LOCATION=data.WORK_LOCATION,
-        COLLEGE=data.COLLEGE,
-        UNIVERSITY=data.UNIVERSITY,
-        PERCENTAGE=data.PERCENTAGE,
-        PREVIOUS_COMPANY=data.PREVIOUS_COMPANY,
-        PREVIOUS_SALARY=data.PREVIOUS_SALARY,
-        BANK_ACCOUNT_NUMBER=data.BANK_ACCOUNT_NUMBER,
-        BANK_NAME=data.BANK_NAME,
-        IFSC_CODE=data.IFSC_CODE,
-        PAN_NUMBER=data.PAN_NUMBER,
-        AADHAAR_NUMBER=data.AADHAAR_NUMBER,
-    )
+    last_integrity_error = None
+    emp = None
+    temp_password = data.PASSWORD or secrets.token_urlsafe(10)
 
-    db.add(emp)
+    for _attempt in range(_MAX_EMPLOYEE_CODE_ATTEMPTS):
 
-    try:
+        emp = Employee(
+            EMPLOYEE_CODE=_generate_employee_code(db, data.DEPARTMENT_ID, data.ROLE_ID),
+            NAME=data.NAME,
+            EMAIL=data.EMAIL,
+            PHONE=data.PHONE,
+            PASSWORD=hash_password(temp_password),
+            DEPARTMENT_ID=data.DEPARTMENT_ID,
+            DESIGNATION_ID=data.DESIGNATION_ID,
+            ROLE_ID=data.ROLE_ID,
+            REPORTING_MANAGER_ID=data.REPORTING_MANAGER_ID,
+            JOINING_DATE=data.JOINING_DATE,
+            SALARY=data.SALARY or 0.0,
+            SHIFT_START=data.SHIFT_START,
+            SHIFT_END=data.SHIFT_END,
+            SKILLS=data.SKILLS,
+            STATUS="ACTIVE",
+            VENDOR_ID=data.VENDOR_ID,
+            # Profile / resume fields
+            ADDRESS=data.ADDRESS,
+            CITY=data.CITY,
+            STATE=data.STATE,
+            PINCODE=data.PINCODE,
+            DOB=data.DOB,
+            GENDER=data.GENDER,
+            FATHER_NAME=data.FATHER_NAME,
+            MOTHER_NAME=data.MOTHER_NAME,
+            MARITAL_STATUS=data.MARITAL_STATUS,
+            OCCUPATION=data.OCCUPATION,
+            QUALIFICATION=data.QUALIFICATION,
+            YEAR_OF_PASSING=data.YEAR_OF_PASSING,
+            EXPERIENCE_YEARS=data.EXPERIENCE_YEARS or 0.0,
+            EXPERIENCE_DETAILS=data.EXPERIENCE_DETAILS,
+            PAST_PROJECTS=data.PAST_PROJECTS,
+            EMPLOYMENT_TYPE=data.EMPLOYMENT_TYPE,
+            NOTES=data.NOTES,
+            # Phase A — HR Module expansion
+            BLOOD_GROUP=data.BLOOD_GROUP,
+            NATIONALITY=data.NATIONALITY,
+            EMERGENCY_CONTACT_NAME=data.EMERGENCY_CONTACT_NAME,
+            EMERGENCY_CONTACT_PHONE=data.EMERGENCY_CONTACT_PHONE,
+            EMERGENCY_CONTACT_RELATION=data.EMERGENCY_CONTACT_RELATION,
+            CONFIRMATION_DATE=data.CONFIRMATION_DATE,
+            WORK_LOCATION=data.WORK_LOCATION,
+            COLLEGE=data.COLLEGE,
+            UNIVERSITY=data.UNIVERSITY,
+            PERCENTAGE=data.PERCENTAGE,
+            PREVIOUS_COMPANY=data.PREVIOUS_COMPANY,
+            PREVIOUS_SALARY=data.PREVIOUS_SALARY,
+            BANK_ACCOUNT_NUMBER=data.BANK_ACCOUNT_NUMBER,
+            BANK_NAME=data.BANK_NAME,
+            IFSC_CODE=data.IFSC_CODE,
+            PAN_NUMBER=data.PAN_NUMBER,
+            AADHAAR_NUMBER=data.AADHAAR_NUMBER,
+        )
 
-        db.commit()
+        db.add(emp)
 
-    except IntegrityError as e:
+        try:
 
-        db.rollback()
+            db.commit()
+            last_integrity_error = None
+            break
 
-        # MySQL 1062 duplicate-key — surface a friendly message instead
-        # of crashing the worker.
-        raw = str(getattr(e, "orig", e))
+        except IntegrityError as e:
+
+            db.rollback()
+            last_integrity_error = e
+
+            # MySQL 1062 duplicate-key. An EMPLOYEE_CODE collision means
+            # another concurrent request just took the number we
+            # generated — retry with a freshly-generated one rather than
+            # failing the request. Any other collision (EMAIL,
+            # FINGERPRINT_ID, ...) can't be fixed by retrying, so stop
+            # immediately and surface it below.
+            raw = str(getattr(e, "orig", e))
+            if "EMPLOYEE_CODE" not in raw.upper():
+                break
+
+    if last_integrity_error is not None:
+
+        raw = str(getattr(last_integrity_error, "orig", last_integrity_error))
 
         if "EMAIL" in raw.upper():
 
@@ -261,7 +360,7 @@ def create_employee(
 
             raise HTTPException(
                 status_code=400,
-                detail=f"Employee code '{data.EMPLOYEE_CODE}' already exists"
+                detail="Could not generate a unique Employee ID — please try again."
             )
 
         if "FINGERPRINT_ID" in raw.upper():
@@ -277,6 +376,61 @@ def create_employee(
         )
 
     db.refresh(emp)
+
+    # Best-effort onboarding email — never blocks or rolls back employee
+    # creation (which has already committed above). Mirrors the exact
+    # architecture supplier_onboarding.py's invitation email already
+    # uses: look up (or seed) the editable template, render it, send via
+    # the vendor's own SMTP config with a Resend fallback. The plaintext
+    # temp_password only ever leaves the process in this email body —
+    # it is never logged and never included in this endpoint's response.
+    try:
+        dept = db.query(Department).filter(Department.ID == emp.DEPARTMENT_ID).first()
+        role = db.query(Role).filter(Role.ID == emp.ROLE_ID).first()
+        company = get_company_settings(db, emp.VENDOR_ID)
+        tmpl = get_or_create_template(db, emp.VENDOR_ID, "EMPLOYEE_ONBOARDING")
+
+        frontend_base = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+
+        variables = {
+            "employee_name":      emp.NAME,
+            "employee_id":        emp.EMPLOYEE_CODE,
+            "username":           emp.EMPLOYEE_CODE,
+            "temporary_password": temp_password,
+            "login_url":          f"{frontend_base}/login",
+            "department":         dept.NAME if dept else "",
+            "role":               role.NAME if role else "",
+            "company_name":       company.LEGAL_NAME or "",
+            "support_email":      company.EMAIL or "",
+            "company_address":    format_full_address(company),
+            "contact_number":     company.PHONE or "",
+            "website":            company.WEBSITE or "",
+            "logo_html":          "",
+        }
+
+        tmpl_html = tmpl.BODY_HTML if tmpl else ""
+        tmpl_subject = tmpl.SUBJECT if tmpl else "Welcome — Your Login Credentials"
+        rendered_subject, rendered_html = render_template(tmpl_html, tmpl_subject, variables)
+
+        if emp.EMAIL:
+            active_cfgs = db.query(VendorEmailConfig).filter(
+                VendorEmailConfig.VENDOR_ID == emp.VENDOR_ID,
+                VendorEmailConfig.IS_ACTIVE == True,
+            ).all()
+
+            sent = False
+            for cfg in active_cfgs:
+                ok, _err, _detail = send_via_vendor_smtp(cfg, emp.EMAIL, rendered_subject, rendered_html)
+                if ok:
+                    sent = True
+                    break
+
+            if not sent:
+                send_via_resend(subject=rendered_subject, body_html=rendered_html, recipient=emp.EMAIL)
+
+    except Exception:
+        # Never fail employee creation over an email delivery problem.
+        pass
 
     return {
         "message": "Employee created successfully",
@@ -456,13 +610,72 @@ def update_employee(
 
         raise HTTPException(status_code=404, detail="Employee not found")
 
-    for field, value in data.model_dump(exclude_unset=True).items():
+    updates = data.model_dump(exclude_unset=True)
+
+    dept_or_role_changed = (
+        ("DEPARTMENT_ID" in updates and updates["DEPARTMENT_ID"] != emp.DEPARTMENT_ID)
+        or ("ROLE_ID" in updates and updates["ROLE_ID"] != emp.ROLE_ID)
+    )
+
+    for field, value in updates.items():
 
         setattr(emp, field, value)
 
-    db.commit()
+    if not (dept_or_role_changed and emp.DEPARTMENT_ID and emp.ROLE_ID):
 
-    return {"message": "Employee updated successfully"}
+        db.commit()
+        return {"message": "Employee updated successfully"}
+
+    # Department and/or Role changed — the Employee ID is derived from
+    # them, so it must be regenerated. Same bounded-retry approach as
+    # create_employee(): on a concurrent-insert collision, re-generate
+    # against the now-updated max and try again rather than failing.
+    last_integrity_error = None
+
+    for _attempt in range(_MAX_EMPLOYEE_CODE_ATTEMPTS):
+
+        emp.EMPLOYEE_CODE = _generate_employee_code(db, emp.DEPARTMENT_ID, emp.ROLE_ID)
+
+        try:
+
+            db.commit()
+            last_integrity_error = None
+            break
+
+        except IntegrityError as e:
+
+            db.rollback()
+            last_integrity_error = e
+
+            # Rollback expires the ORM instance's pending changes, so
+            # re-fetch and re-apply every field before the next attempt.
+            emp = db.query(Employee).filter(Employee.ID == employee_id).first()
+            for field, value in updates.items():
+                setattr(emp, field, value)
+
+            raw = str(getattr(e, "orig", e))
+            if "EMPLOYEE_CODE" not in raw.upper():
+                break
+
+    if last_integrity_error is not None:
+
+        raw = str(getattr(last_integrity_error, "orig", last_integrity_error))
+
+        if "EMPLOYEE_CODE" in raw.upper():
+            raise HTTPException(
+                status_code=400,
+                detail="Could not regenerate a unique Employee ID — please try again."
+            )
+
+        raise HTTPException(
+            status_code=400,
+            detail=f"Database rejected the record: {raw[:200]}"
+        )
+
+    return {
+        "message": "Employee updated successfully",
+        "EMPLOYEE_CODE": emp.EMPLOYEE_CODE,
+    }
 
 
 @router.put("/employees/{employee_id}/reset-password", dependencies=[Depends(require("employee.password-reset"))])
@@ -920,6 +1133,19 @@ def delete_employee(
     if not emp:
 
         raise HTTPException(status_code=404, detail="Employee not found")
+
+    # The very first employee ever assigned the SUPER_ADMIN role (the
+    # original bootstrap account — whatever EMPLOYEE_CODE it actually
+    # has, not a guessed/hardcoded one) can never be deleted, otherwise
+    # a bad delete could permanently lock every admin out of the
+    # system. Other employees holding the SUPER_ADMIN role are NOT
+    # protected by this check — only this one specific account is.
+    if _is_default_super_admin(emp, db):
+
+        raise HTTPException(
+            status_code=403,
+            detail="The default Super Admin account cannot be deleted."
+        )
 
     counts = {}
 

@@ -1,0 +1,167 @@
+/* EmployeeProfile page — structural layout + shared "atom" components
+   (StatusPill/MetricTile/FieldRow/SectionTitle/SidebarRow are used across
+   every tab, so fixing their colors here fixes text-vs-background contrast
+   in dark mode everywhere at once). Per-tab unique content (doc/asset
+   cards, tables, leave-balance bars) intentionally left as inline styles —
+   their light-pastel-chip-on-dark-text pattern already reads fine
+   regardless of page theme, and rewriting every tab is a separate,
+   much larger pass. */
+
+.pageWrap {
+  padding: 20px;
+  background: var(--layout-bg, var(--surface));
+  min-height: calc(100vh - 80px);
+  box-sizing: border-box;
+}
+
+/* Status pill — same tone tokens/dark-theme overrides as
+   Employees.module.css's .statusPill (kept in sync, since CSS Modules
+   are scoped per-file and can't be shared directly). */
+.statusPill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.statusPill[data-tone="success"] { background: var(--success-bg); color: var(--success-dark); }
+.statusPill[data-tone="warning"] { background: var(--warning-bg); color: var(--warning-dark); }
+.statusPill[data-tone="danger"]  { background: var(--danger-bg);  color: var(--danger-dark); }
+.statusPill[data-tone="info"]    { background: var(--info-bg);    color: var(--info); }
+.statusPill[data-tone="muted"]   { background: var(--surface);    color: var(--text-muted); }
+
+html[data-theme="dark"] .statusPill[data-tone="success"] { background: rgba(22, 163, 74, 0.16); color: #4ade80; }
+html[data-theme="dark"] .statusPill[data-tone="warning"] { background: rgba(217, 119, 6, 0.18); color: #fbbf24; }
+html[data-theme="dark"] .statusPill[data-tone="info"]    { background: rgba(37, 99, 235, 0.18); color: #93c5fd; }
+
+.mainGrid {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.sidebarCard {
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  padding: 22px;
+  box-shadow: var(--shadow-md);
+  position: sticky;
+  top: 80px;
+}
+
+.centerCol {
+  min-width: 0;
+}
+
+/* Metric tiles are now the shared pm/StatsRow component (same as
+   Employees.jsx / RBAC) — .metricRow/.metricRow5/.metricTile* removed. */
+
+.tabBar {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: 6px 6px 0;
+  box-shadow: var(--shadow-md);
+  margin-bottom: 14px;
+  overflow-x: auto;
+  display: flex;
+  gap: 2px;
+}
+
+.tabBody {
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  box-shadow: var(--shadow-md);
+  min-height: 400px;
+  box-sizing: border-box;
+  color: var(--text-primary);
+}
+
+/* ─── Shared atoms ──────────────────────────────────────────────── */
+
+.fieldRow {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.fieldRowLabel {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.fieldRowValue {
+  color: var(--text-primary);
+}
+
+.fieldRowEmpty {
+  color: var(--text-muted);
+}
+
+.sectionTitle {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  margin-top: 18px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--clr-primary);
+  width: fit-content;
+}
+
+.sidebarRow {
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.sidebarRowLabel {
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+.sidebarRowValue {
+  font-size: 12px;
+  color: var(--text-primary);
+  margin-top: 2px;
+  word-break: break-all;
+}
+
+.sidebarRowEmpty {
+  color: var(--text-muted);
+}
+
+/* ─── Responsive ────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .pageWrap {
+    padding: 12px;
+  }
+
+  .mainGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebarCard {
+    position: static;
+  }
+
+  .tabBody {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  .fieldRow {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

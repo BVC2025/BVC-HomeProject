@@ -6,7 +6,7 @@ import openpyxl
 
 from app.database.database import get_db
 
-from app.auth.auth_bearer import require, get_current_user, assert_not_granting_root_only_codes
+from app.auth.auth_bearer import require, get_current_user, assert_not_granting_root_only_codes, assert_role_not_protected
 
 from app.models.models import (
     Department,
@@ -18,6 +18,7 @@ from app.models.models import (
     Vendor,
     CustomField,
     CustomFieldTableValue,
+    derive_role_code,
 )
 
 from app.schemas.org_schema import (
@@ -39,12 +40,14 @@ from pydantic import BaseModel
 
 class OrgRoleCreate(BaseModel):
     NAME: str
+    CODE: Optional[str] = None
     DEPARTMENT_ID: Optional[int] = None
     DESCRIPTION: Optional[str] = None
     VENDOR_ID: int = 1
 
 class OrgRoleUpdate(BaseModel):
     NAME: Optional[str] = None
+    CODE: Optional[str] = None
     DEPARTMENT_ID: Optional[int] = None
     DESCRIPTION: Optional[str] = None
 
@@ -350,6 +353,29 @@ def list_permissions(
 # ROLES (per-vendor)
 # =========================
 
+def _assign_role_code(db: Session, vendor_id: int, name: str, explicit_code: Optional[str] = None) -> str:
+    """Return the CODE a new Role should be created with — the
+    admin-supplied value if given, otherwise a short code derived from
+    NAME (see models.derive_role_code), disambiguated against every
+    other CODE already used by this vendor (SM, SM2, SM3, ...). Used by
+    routes/employee.py's auto-generated Employee IDs (DEPT-ROLE-NNN),
+    so every role gets a real, unique CODE the moment it's created
+    rather than leaving it to be derived ad-hoc later."""
+
+    if explicit_code and explicit_code.strip():
+        return explicit_code.strip().upper()
+
+    rows = db.query(Role.CODE).filter(Role.VENDOR_ID == vendor_id).all()
+    used = {code.upper() for (code,) in rows if code}
+    base = derive_role_code(name) or "GEN"
+    candidate = base
+    suffix = 2
+    while candidate in used:
+        candidate = f"{base}{suffix}"
+        suffix += 1
+    return candidate
+
+
 @router.get("/roles", dependencies=[Depends(require("role.manage"))])
 def list_roles(
     vendor_id: Optional[int] = Query(None),
@@ -378,6 +404,7 @@ def list_roles(
         out.append({
             "ID": r.ID,
             "ROLE_NAME": r.NAME,
+            "CODE": r.CODE,
             "DESCRIPTION": r.DESCRIPTION,
             "IS_SYSTEM": bool(r.IS_SYSTEM),
             "VENDOR_ID": r.VENDOR_ID,
@@ -394,8 +421,11 @@ def create_role(
     db: Session = Depends(get_db)
 ):
 
+    assert_role_not_protected(data.ROLE_NAME)
+
     role = Role(
         NAME=data.ROLE_NAME,
+        CODE=_assign_role_code(db, data.VENDOR_ID, data.ROLE_NAME, data.CODE),
         DESCRIPTION=data.DESCRIPTION,
         IS_SYSTEM=0,
         VENDOR_ID=data.VENDOR_ID
@@ -421,6 +451,8 @@ def delete_role(
     if not role:
 
         raise HTTPException(status_code=404, detail="Role not found")
+
+    assert_role_not_protected(role.NAME)
 
     if role.IS_SYSTEM:
 
@@ -453,6 +485,8 @@ def set_role_permissions(
     if not role:
 
         raise HTTPException(status_code=404, detail="Role not found")
+
+    assert_role_not_protected(role.NAME)
 
     requested_codes = [
         p.CODE for p in db.query(Permission).filter(Permission.ID.in_(data.PERMISSION_IDS)).all()
@@ -1079,6 +1113,7 @@ def list_org_roles(
         {
             "ID": r.ID,
             "NAME": r.NAME,
+            "CODE": r.CODE,
             "DESCRIPTION": r.DESCRIPTION,
             "DEPARTMENT_ID": r.DEPARTMENT_ID,
             "DEPARTMENT_NAME": d.NAME if d else None,
@@ -1094,6 +1129,7 @@ def create_org_role(
     data: OrgRoleCreate,
     db: Session = Depends(get_db)
 ):
+    assert_role_not_protected(data.NAME)
     existing = db.query(Role).filter(
         Role.VENDOR_ID == data.VENDOR_ID,
         Role.NAME == data.NAME
@@ -1102,6 +1138,7 @@ def create_org_role(
         raise HTTPException(status_code=400, detail=f"Role '{data.NAME}' already exists")
     role = Role(
         NAME=data.NAME,
+        CODE=_assign_role_code(db, data.VENDOR_ID, data.NAME, data.CODE),
         DESCRIPTION=data.DESCRIPTION,
         DEPARTMENT_ID=data.DEPARTMENT_ID,
         VENDOR_ID=data.VENDOR_ID
@@ -1121,8 +1158,12 @@ def update_org_role(
     role = db.query(Role).filter(Role.ID == role_id).first()
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
+    assert_role_not_protected(role.NAME)
     if data.NAME is not None:
+        assert_role_not_protected(data.NAME)
         role.NAME = data.NAME
+    if data.CODE is not None:
+        role.CODE = data.CODE.strip().upper() or None
     if data.DEPARTMENT_ID is not None:
         role.DEPARTMENT_ID = data.DEPARTMENT_ID
     if data.DESCRIPTION is not None:
@@ -1139,6 +1180,7 @@ def delete_org_role(
     role = db.query(Role).filter(Role.ID == role_id).first()
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
+    assert_role_not_protected(role.NAME)
     in_use = db.query(TaskTemplate).filter(TaskTemplate.ROLE_ID == role_id).first()
     if in_use:
         raise HTTPException(

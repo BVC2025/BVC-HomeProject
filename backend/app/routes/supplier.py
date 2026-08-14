@@ -141,7 +141,7 @@ def create_supplier(
     }
 
 
-@router.get("", dependencies=[Depends(require("supplier.manage"))])
+@router.get("", dependencies=[Depends(require("supplier.manage", "supplier.view"))])
 def list_suppliers(
     vendor_id: int = 1,
     status: Optional[str] = None,
@@ -180,7 +180,7 @@ def list_suppliers(
     return [_serialize_supplier(s) for s in rows]
 
 
-@router.get("/categories", dependencies=[Depends(require("supplier.manage"))])
+@router.get("/categories", dependencies=[Depends(require("supplier.manage", "supplier.view"))])
 def supplier_categories(
     vendor_id: int = 1,
     db: Session = Depends(get_db)
@@ -211,7 +211,7 @@ _SUPPLIER_XL_COLUMNS = [
 ]
 
 
-@router.get("/export/excel", dependencies=[Depends(require("supplier.manage"))])
+@router.get("/export/excel", dependencies=[Depends(require("supplier.manage", "supplier.view"))])
 def export_suppliers(
     vendor_id: int = Query(1),
     status: Optional[str] = Query(None),
@@ -240,7 +240,7 @@ def export_suppliers(
     )
 
 
-@router.get("/bulk-template", dependencies=[Depends(require("supplier.manage"))])
+@router.get("/bulk-template", dependencies=[Depends(require("supplier.manage", "supplier.view"))])
 def supplier_bulk_template():
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -262,7 +262,7 @@ def supplier_bulk_template():
     )
 
 
-@router.get("/{supplier_id}", dependencies=[Depends(require("supplier.manage"))])
+@router.get("/{supplier_id}", dependencies=[Depends(require("supplier.manage", "supplier.view"))])
 def get_supplier(
     supplier_id: int,
     db: Session = Depends(get_db)
@@ -443,7 +443,7 @@ async def supplier_bulk_upload(
 
 
 
-@router.get("/{supplier_id}/performance", dependencies=[Depends(require("supplier.manage"))])
+@router.get("/{supplier_id}/performance", dependencies=[Depends(require("supplier.manage", "supplier.view"))])
 def get_supplier_performance(supplier_id: int, db: Session = Depends(get_db)):
     supplier = db.query(Supplier).filter(Supplier.ID == supplier_id).first()
     if not supplier:
@@ -459,7 +459,7 @@ def get_supplier_performance(supplier_id: int, db: Session = Depends(get_db)):
     }
 
 
-@router.get("/{supplier_id}/ranking", dependencies=[Depends(require("supplier.manage"))])
+@router.get("/{supplier_id}/ranking", dependencies=[Depends(require("supplier.manage", "supplier.view"))])
 def get_supplier_ranking(
     supplier_id: int,
     vendor_id: int = Query(1),
@@ -485,7 +485,7 @@ def get_supplier_ranking(
     }
 
 
-@router.get("/{supplier_id}/products", dependencies=[Depends(require("supplier.manage"))])
+@router.get("/{supplier_id}/products", dependencies=[Depends(require("supplier.manage", "supplier.view"))])
 def get_supplier_products(
     supplier_id: int,
     search: Optional[str] = Query(None),

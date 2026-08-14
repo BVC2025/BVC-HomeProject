@@ -6,6 +6,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from app.database.database import Base
 from datetime import datetime, time
+import re
 import uuid
 from app.utils.datetime_utils import now_ist
 
@@ -367,6 +368,13 @@ class Role(Base):
 
     NAME = Column(String(100), nullable=False)
 
+    CODE = Column(String(10), nullable=True)
+    # Short code used to build Employee IDs (e.g. "SM" for
+    # SALES_MANAGER, "ELE" for ELECTRICAL) — see derive_role_code()
+    # below. Nullable/admin-editable, mirroring Department.DEPARTMENT_CODE;
+    # auto-derived on backfill for pre-existing rows and on creation for
+    # new ones, never hardcoded per-role in application code.
+
     DESCRIPTION = Column(String(500), nullable=True)
 
     IS_SYSTEM = Column(Integer, default=0)
@@ -375,6 +383,24 @@ class Role(Base):
 
     CREATED_AT = Column(DateTime, default=datetime.utcnow)
     UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+def derive_role_code(name: str) -> str:
+    """Best-effort short code from a Role NAME, used whenever Role.CODE
+    is blank (pre-existing rows on migration, or a role created without
+    an explicit code). Multi-word names → initials of each word
+    ("SALES_MANAGER" -> "SM"); single-word names → first 3 letters
+    ("ELECTRICAL" -> "ELE"). Callers are responsible for resolving
+    collisions against already-used codes (see main.py's role-code
+    backfill migration) — this function alone doesn't guarantee
+    uniqueness."""
+
+    words = [w for w in re.split(r"[\s_\-]+", (name or "").strip()) if w]
+    if not words:
+        return "GEN"
+    if len(words) == 1:
+        return (words[0][:3] or "GEN").upper()
+    return "".join(w[0] for w in words).upper()
 
 
 class Department(Base):

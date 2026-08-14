@@ -32,6 +32,7 @@ import app.models.rag_models         # noqa: F401 — registers ai_modules, ai_d
 import app.models.whatsapp_models    # noqa: F401 — registers vendor_whatsapp_config, whatsapp_conversation, whatsapp_message, whatsapp_webhook_event tables
 import app.models.rbac_models        # noqa: F401 — registers iam_user, employee_permission_override, employee_permission_override_audit tables (root_user already registered via models.py)
 import app.models.auth_models        # noqa: F401 — registers refresh_token, login_lockout tables
+from app.services.permission_catalogue import ensure_permission_catalogue
 from app.routes.users import router as users_router
 from app.routes.auth import router as auth_router
 from app.routes.vendor import router as vendor_router
@@ -1250,6 +1251,7 @@ def _auto_seed_defaults():
                     "Super Administrator role with full access to all modules, "
                     "settings, and system configuration."
                 ),
+                IS_SYSTEM=1,
             )
             db.add(role)
             db.flush()
@@ -1282,6 +1284,21 @@ def _auto_seed_defaults():
             )
             db.add(emp)
             log.info("auto-seed-defaults: employee created (CODE=SA001)")
+
+        # ── 5. Permission catalogue ─────────────────────────────────────
+        # Reference/definitional data only — the fixed list of permission
+        # CODEs the RBAC system knows about. This never creates a Role or
+        # a RolePermission grant, so it doesn't conflict with the product
+        # requirement that only SUPER_ADMIN is auto-seeded and that no
+        # role is ever auto-granted permissions. Without this, the RBAC
+        # UI's permission grid has nothing to show until someone manually
+        # runs scripts/seed_permissions.py.
+        catalogue_result = ensure_permission_catalogue(db)
+        if catalogue_result["added"] or catalogue_result["updated_meta"]:
+            log.info(
+                "auto-seed-defaults: permission catalogue +%d (metadata backfilled on %d)",
+                catalogue_result["added"], catalogue_result["updated_meta"],
+            )
 
         db.commit()
 
@@ -2132,6 +2149,106 @@ def _migrate_add_conversation_preferred_language():
 
 
 _migrate_add_conversation_preferred_language()
+
+
+def _migrate_drop_override_reason():
+    """One-time, idempotent: drops employee_permission_override.REASON,
+    which used to be a mandatory justification field for RBAC Grant/Deny
+    overrides. That requirement was removed — Grant/Deny is now a plain
+    confirm action with no reason collected — so an already-provisioned
+    database still carrying the old NOT NULL column would otherwise
+    reject every override write the moment the app stops sending it. A
+    brand-new install never has this column at all, since create_all()
+    builds the table from today's model directly."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("employee_permission_override"):
+            return
+
+        existing_cols = {c["name"] for c in insp.get_columns("employee_permission_override")}
+        if "REASON" in existing_cols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `employee_permission_override` DROP COLUMN `REASON`"
+                ))
+            log.info("migrate-drop-override-reason: dropped employee_permission_override.REASON")
+
+    except Exception as exc:
+        log.warning("migrate-drop-override-reason skipped: %s", exc)
+
+
+_migrate_drop_override_reason()
+
+
+def _migrate_add_role_code():
+    """One-time, idempotent: adds role.CODE if the physical column is
+    missing (existing deployments — a brand-new install already gets it
+    from create_all() since the ORM model declares it), then backfills
+    every existing NULL row with a short code derived from NAME via
+    models.derive_role_code(), disambiguated per-vendor on collision
+    (SM, SM2, SM3, ...). Used to build auto-generated Employee IDs
+    (DEPT-ROLE-NNN) — see routes/employee.py."""
+
+    import logging
+    from sqlalchemy import text, inspect
+    from sqlalchemy.orm import sessionmaker
+    from app.models.models import Role, derive_role_code
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("role"):
+            return
+
+        existing_cols = {c["name"] for c in insp.get_columns("role")}
+        if "CODE" not in existing_cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE `role` ADD COLUMN `CODE` VARCHAR(10) NULL"))
+            log.info("migrate-add-role-code: added role.CODE")
+
+        Session = sessionmaker(bind=engine)
+        db = Session()
+        try:
+            rows = db.query(Role).order_by(Role.VENDOR_ID, Role.ID).all()
+            used_by_vendor = {}
+            for r in rows:
+                used_by_vendor.setdefault(r.VENDOR_ID, set())
+                if r.CODE:
+                    used_by_vendor[r.VENDOR_ID].add(r.CODE.upper())
+
+            changed = False
+            for r in rows:
+                if r.CODE:
+                    continue
+                base = derive_role_code(r.NAME) or "GEN"
+                used = used_by_vendor[r.VENDOR_ID]
+                candidate = base
+                suffix = 2
+                while candidate in used:
+                    candidate = f"{base}{suffix}"
+                    suffix += 1
+                r.CODE = candidate
+                used.add(candidate)
+                changed = True
+
+            if changed:
+                db.commit()
+                log.info("migrate-add-role-code: backfilled CODE for roles missing one")
+        finally:
+            db.close()
+
+    except Exception as exc:
+        log.warning("migrate-add-role-code skipped: %s", exc)
+
+
+_migrate_add_role_code()
 
 from app.services.speech_service import speech_service  # noqa: E402
 speech_service.initialize()  # non-blocking — Piper models load on a background thread

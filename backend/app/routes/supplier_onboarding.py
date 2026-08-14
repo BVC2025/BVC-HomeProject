@@ -300,7 +300,7 @@ def _serialize_invitation(
 # ADMIN ENDPOINTS
 # ─────────────────────────────────────────────────────────────────────
 
-@router.post("/invite", dependencies=[Depends(require("supplier.manage"))])
+@router.post("/invite", dependencies=[Depends(require("supplier.manage", "supplier.invitations.manage"))])
 def create_invitation(payload: InvitationCreate, db: Session = Depends(get_db)):
     """Admin generates a unique onboarding link for a prospective supplier."""
     vendor = db.query(Vendor).filter(Vendor.ID == payload.VENDOR_ID).first()
@@ -496,7 +496,7 @@ def create_invitation(payload: InvitationCreate, db: Session = Depends(get_db)):
     }
 
 
-@router.get("/invitations", dependencies=[Depends(require("supplier.manage"))])
+@router.get("/invitations", dependencies=[Depends(require("supplier.manage", "supplier.invitations.view"))])
 def list_invitations(
     vendor_id: int = Query(1),
     status: Optional[str] = Query(None),
@@ -545,7 +545,7 @@ def list_invitations(
     return [_serialize_invitation(r) for r in rows]
 
 
-@router.get("/pending-review", dependencies=[Depends(require("supplier.manage"))])
+@router.get("/pending-review", dependencies=[Depends(require("supplier.manage", "supplier.invitations.view"))])
 def list_pending_review(vendor_id: int = Query(1), db: Session = Depends(get_db)):
     """Admin: list all SUBMITTED invitations awaiting review."""
     rows = (
@@ -585,7 +585,7 @@ def list_pending_review(vendor_id: int = Query(1), db: Session = Depends(get_db)
     return result
 
 
-@router.get("/invitations/{invitation_id}", dependencies=[Depends(require("supplier.manage"))])
+@router.get("/invitations/{invitation_id}", dependencies=[Depends(require("supplier.manage", "supplier.invitations.view"))])
 def get_invitation(invitation_id: str, db: Session = Depends(get_db)):
     """Admin: full invitation detail including draft preview and creator employee info."""
     inv = _check_invitation(db, invitation_id)
@@ -621,7 +621,7 @@ def get_invitation(invitation_id: str, db: Session = Depends(get_db)):
     return result
 
 
-@router.delete("/invitations/{invitation_id}", dependencies=[Depends(require("supplier.manage"))])
+@router.delete("/invitations/{invitation_id}", dependencies=[Depends(require("supplier.manage", "supplier.invitations.manage"))])
 def delete_invitation(invitation_id: str, db: Session = Depends(get_db)):
     """Admin: permanently delete an invitation record. Blocked if already APPROVED."""
     inv = _check_invitation(db, invitation_id)
@@ -642,7 +642,7 @@ def delete_invitation(invitation_id: str, db: Session = Depends(get_db)):
     return {"message": "Invitation deleted"}
 
 
-@router.post("/invitations/{invitation_id}/resend", dependencies=[Depends(require("supplier.manage"))])
+@router.post("/invitations/{invitation_id}/resend", dependencies=[Depends(require("supplier.manage", "supplier.invitations.manage"))])
 def resend_invitation(invitation_id: str, db: Session = Depends(get_db)):
     """Admin: resend the invitation email."""
     inv = _check_invitation(db, invitation_id)
@@ -759,7 +759,7 @@ def resend_invitation(invitation_id: str, db: Session = Depends(get_db)):
     }
 
 
-@router.post("/invitations/{invitation_id}/expire", dependencies=[Depends(require("supplier.manage"))])
+@router.post("/invitations/{invitation_id}/expire", dependencies=[Depends(require("supplier.manage", "supplier.invitations.manage"))])
 def expire_invitation(invitation_id: str, db: Session = Depends(get_db)):
     """Admin: manually expire an invitation link."""
     inv = _check_invitation(db, invitation_id)
@@ -771,7 +771,7 @@ def expire_invitation(invitation_id: str, db: Session = Depends(get_db)):
     return {"message": "Invitation expired"}
 
 
-@router.post("/invitations/{invitation_id}/approve", dependencies=[Depends(require("supplier.manage"))])
+@router.post("/invitations/{invitation_id}/approve", dependencies=[Depends(require("supplier.manage", "supplier.invitations.manage"))])
 def approve_invitation(
     invitation_id: str,
     payload: Optional[ApprovalRequest] = None,
@@ -982,7 +982,7 @@ def approve_invitation(
     }
 
 
-@router.post("/invitations/{invitation_id}/reject", dependencies=[Depends(require("supplier.manage"))])
+@router.post("/invitations/{invitation_id}/reject", dependencies=[Depends(require("supplier.manage", "supplier.invitations.manage"))])
 def reject_invitation(
     invitation_id: str,
     payload: RejectionRequest,

@@ -124,10 +124,10 @@ export const ROUTE_PERMISSIONS = {
   "/settings": "setting.modify",
   "/departments": "org.view",
   "/org-roles": "org.manage",
-  "/project-categories": "project.view",
-  "/task-templates": "project.view",
-  "/project-quotations": "project.view",
-  "/project-pricing": "project.view",
+  "/project-categories": ["project.view", "project.categories.view"],
+  "/task-templates": ["project.view", "project.task_templates.view"],
+  "/project-quotations": ["project.view", "project.quotations.view"],
+  "/project-pricing": ["project.view", "project.pricing.view"],
   "/whatsapp-config": "setting.modify",
   "/whatsapp-module-settings": "setting.modify",
   "/ai-platform/modules": "rag.module.manage",
@@ -139,17 +139,21 @@ export const ROUTE_PERMISSIONS = {
   "/company-profile": "setting.modify",
   "/email-config": "setting.modify",
   "/email-templates": "setting.modify",
-  "/inventory-categories": "inventory.view",
-  "/product-master": "inventory.view",
-  "/supplier-management": "supplier.manage",
-  "/inventory-items": "inventory.view",
+  "/inventory-categories": ["inventory.view", "inventory.categories.view"],
+  "/product-master": ["inventory.view", "inventory.products.view"],
+  "/supplier-management": ["supplier.manage", "supplier.view"],
+  "/inventory-items": ["inventory.view", "inventory.items.view"],
+  "/lead-management/configuration": "lead.config.view",
+  "/lead-management/live-leads": "lead.live.view",
+  "/lead-management/leads": "lead.records.view",
+  "/lead-management/polling-activity": "lead.polling_log.view",
   // Everything else registered in Dashboard.jsx (Approval Center, the
-  // various dashboards, lead management, HR automation, star
-  // performance, allowances, shifts, holidays, biometric import,
-  // announcements, workforce analytics, org-chart) is backed by
-  // get_current_admin's role-allowlist rather than a specific
-  // permission code today — left as baseline (no entry) rather than
-  // guessing a code that doesn't exist server-side.
+  // various dashboards, HR automation, star performance, allowances,
+  // shifts, holidays, biometric import, announcements, workforce
+  // analytics, org-chart) is backed by get_current_admin's
+  // role-allowlist rather than a specific permission code today — left
+  // as baseline (no entry) rather than guessing a code that doesn't
+  // exist server-side.
 };
 
 /**

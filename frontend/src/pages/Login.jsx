@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import styles from "./Login.module.css";
 
 import API from "../services/api";
+import { useAuth } from "../context/AuthContext";
 
 
 
@@ -89,6 +90,8 @@ function AnimatedWelcomePanel() {
 function Login() {
 
   const navigate = useNavigate();
+
+  const { refresh: refreshAuth } = useAuth();
 
   const [username, setUsername] = useState("");
 
@@ -241,6 +244,16 @@ function Login() {
           localStorage.removeItem("pending_yesterday");
         }
       }
+
+      // AuthContext's snapshot (role, permissions, etc.) was read once
+      // when AuthProvider mounted — before this login happened — and
+      // AuthProvider itself never remounts on an in-app navigate(), so
+      // without this it would keep serving that stale, pre-login
+      // snapshot to Dashboard.jsx's sidebar/<RequirePermission> until a
+      // full page reload re-ran AuthProvider's initializer. Refreshing
+      // here re-reads the localStorage values just written above,
+      // so the sidebar reflects this user's real permissions immediately.
+      refreshAuth();
 
       // RoleBasedLanding routes to the correct portal based on
       // localStorage.role — admin → admin dashboard, employee →

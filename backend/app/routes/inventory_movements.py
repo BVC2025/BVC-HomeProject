@@ -19,7 +19,7 @@ from app.auth.auth_bearer import require
 router = APIRouter(prefix="/inventory-movements", tags=["Inventory Movements"])
 
 
-@router.get("", dependencies=[Depends(require("inventory.view"))])
+@router.get("", dependencies=[Depends(require("inventory.view", "inventory.movements.view"))])
 def list_movements(
     vendor_id: int = Query(1),
     item_id: Optional[str] = Query(None),
@@ -58,7 +58,7 @@ def list_movements(
     }
 
 
-@router.get("/{item_id}/history", dependencies=[Depends(require("inventory.view"))])
+@router.get("/{item_id}/history", dependencies=[Depends(require("inventory.view", "inventory.movements.view"))])
 def get_item_history(
     item_id: str,
     vendor_id: int = Query(1),
@@ -86,7 +86,7 @@ def get_item_history(
     }
 
 
-@router.get("/export/excel", dependencies=[Depends(require("inventory.view"))])
+@router.get("/export/excel", dependencies=[Depends(require("inventory.view", "inventory.movements.view", "inventory.movements.export"))])
 def export_movements(
     vendor_id: int = Query(1),
     item_id: Optional[str] = Query(None),

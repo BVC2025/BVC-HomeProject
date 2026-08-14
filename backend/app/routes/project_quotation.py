@@ -77,13 +77,13 @@ def _get_or_create_quotation(db: Session, project_id: str) -> ProjectQuotationTe
     return row
 
 
-@router.get("/projects/{project_id}/quotation", dependencies=[Depends(require("project.view"))])
+@router.get("/projects/{project_id}/quotation", dependencies=[Depends(require("project.view", "project.quotations.view"))])
 def get_project_quotation(project_id: str, db: Session = Depends(get_db)):
     row = _get_or_create_quotation(db, project_id)
     return _serialize(row)
 
 
-@router.put("/projects/{project_id}/quotation", dependencies=[Depends(require("project.update"))])
+@router.put("/projects/{project_id}/quotation", dependencies=[Depends(require("project.update", "project.quotations.update"))])
 def update_project_quotation(project_id: str, data: ProjectQuotationUpdate, db: Session = Depends(get_db)):
     row = _get_or_create_quotation(db, project_id)
 
@@ -111,7 +111,7 @@ def update_project_quotation(project_id: str, data: ProjectQuotationUpdate, db: 
     return _serialize(row)
 
 
-@router.get("/projects/{project_id}/quotation/pdf", dependencies=[Depends(require("project.view"))])
+@router.get("/projects/{project_id}/quotation/pdf", dependencies=[Depends(require("project.view", "project.quotations.view", "project.quotations.export"))])
 def download_project_quotation_pdf(
     project_id: str, db: Session = Depends(get_db),
     filename: Optional[str] = Query(None, description="Override the downloaded file's name (e.g. a customer-friendly name); defaults to the quotation number"),
@@ -133,7 +133,7 @@ def download_project_quotation_pdf(
     )
 
 
-@router.get("/projects/{project_id}/quotation/docx", dependencies=[Depends(require("project.view"))])
+@router.get("/projects/{project_id}/quotation/docx", dependencies=[Depends(require("project.view", "project.quotations.view", "project.quotations.export"))])
 def download_project_quotation_docx(project_id: str, db: Session = Depends(get_db)):
     row = _get_or_create_quotation(db, project_id)
     project = _get_project_or_404(db, project_id)
@@ -151,7 +151,7 @@ def download_project_quotation_docx(project_id: str, db: Session = Depends(get_d
     )
 
 
-@router.post("/projects/{project_id}/quotation/upload-image", dependencies=[Depends(require("project.update"))])
+@router.post("/projects/{project_id}/quotation/upload-image", dependencies=[Depends(require("project.update", "project.quotations.update"))])
 def upload_project_quotation_image(project_id: str, file: UploadFile = File(...), db: Session = Depends(get_db)):
     _get_project_or_404(db, project_id)
 

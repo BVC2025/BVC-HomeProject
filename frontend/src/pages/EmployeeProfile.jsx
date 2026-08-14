@@ -12,24 +12,31 @@
 // incrementally.
 // =====================================================================
 
-import { useEffect, useMemo, useState, useCallback } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import API, { API_BASE_URL } from "../services/api";
 import EmployeeStatusModal from "../components/EmployeeStatusModal";
+import { StatsRow, PMButton, Loader } from "../components/pm";
+import styles from "./EmployeeProfile.module.css";
 
 
-const BVC_RED = "#C8102E";
-const BVC_DARK = "#8B0B1F";
-const BVC_GOLD = "#F4B324";
+// Design-token references (not raw hex) so this page follows the same
+// theme as Employees.jsx / RBAC / Department — including dark mode,
+// which these tokens already handle.
+const BVC_RED = "var(--clr-primary)";
+const BVC_DARK = "var(--clr-primary-dark)";
 
 const BACKEND_URL = API.defaults.baseURL || "http://192.168.1.10:8001";
 
 
-const STATUS_THEME = {
-  ACTIVE: { bg: "#dcfce7", fg: "#166534" },
-  SUSPENDED: { bg: "#fef3c7", fg: "#854d0e" },
-  RESIGNED: { bg: "#f1f5f9", fg: "#475569" },
-  TERMINATED: { bg: "#fee2e2", fg: "#991b1b" },
+// Tone mapping reused from Employees.jsx's status-pill system — same
+// tokens, same tone names, so a given status reads identically on
+// both pages (light and dark).
+const STATUS_TONES = {
+  ACTIVE: "success",
+  SUSPENDED: "warning",
+  RESIGNED: "muted",
+  TERMINATED: "danger",
 };
 
 
@@ -66,88 +73,22 @@ function fmtDate(s) {
 // ---------- small UI atoms ----------
 
 function StatusPill({ status }) {
-  const t = STATUS_THEME[status] || STATUS_THEME.ACTIVE;
+  const tone = STATUS_TONES[status] || "success";
   return (
-    <span style={{
-      display: "inline-block",
-      padding: "3px 10px",
-      borderRadius: 999,
-      fontSize: 11,
-      fontWeight: 800,
-      background: t.bg,
-      color: t.fg,
-      letterSpacing: 0.5,
-    }}>
+    <span className={styles.statusPill} data-tone={tone}>
       {status || "ACTIVE"}
     </span>
   );
 }
 
 
-function MetricTile({ label, value, sub, color, onClick }) {
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        background: "white",
-        borderRadius: 12,
-        padding: "14px 16px",
-        borderTop: `3px solid ${color}`,
-        boxShadow: "0 4px 14px rgba(15,23,42,0.05)",
-        cursor: onClick ? "pointer" : "default",
-        transition: "transform 0.15s, box-shadow 0.15s",
-      }}
-      onMouseEnter={(e) => {
-        if (!onClick) return;
-        e.currentTarget.style.transform = "translateY(-2px)";
-        e.currentTarget.style.boxShadow = "0 8px 22px rgba(15,23,42,0.10)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = "0 4px 14px rgba(15,23,42,0.05)";
-      }}
-    >
-      <div style={{
-        fontSize: 10,
-        fontWeight: 700,
-        color: "#64748b",
-        letterSpacing: 1,
-        textTransform: "uppercase",
-      }}>
-        {label}
-      </div>
-      <div style={{
-        fontSize: 22,
-        fontWeight: 800,
-        color: "#0f172a",
-        marginTop: 4,
-        letterSpacing: -0.5,
-      }}>
-        {value}
-      </div>
-      {sub && (
-        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
-          {sub}
-        </div>
-      )}
-    </div>
-  );
-}
-
-
 function FieldRow({ label, value }) {
   return (
-    <div style={{
-      display: "grid",
-      gridTemplateColumns: "180px 1fr",
-      padding: "10px 0",
-      borderBottom: "1px solid #f1f5f9",
-      fontSize: 13,
-    }}>
-      <div style={{ color: "#64748b", fontWeight: 600 }}>{label}</div>
-      <div style={{ color: "#0f172a" }}>
+    <div className={styles.fieldRow}>
+      <div className={styles.fieldRowLabel}>{label}</div>
+      <div className={styles.fieldRowValue}>
         {value === null || value === undefined || value === "" ? (
-          <span style={{ color: "#cbd5e1" }}>Not set</span>
+          <span className={styles.fieldRowEmpty}>Not set</span>
         ) : value}
       </div>
     </div>
@@ -157,18 +98,7 @@ function FieldRow({ label, value }) {
 
 function SectionTitle({ children }) {
   return (
-    <div style={{
-      fontSize: 11,
-      fontWeight: 800,
-      color: "#0f172a",
-      letterSpacing: 1.4,
-      textTransform: "uppercase",
-      marginTop: 18,
-      marginBottom: 8,
-      paddingBottom: 6,
-      borderBottom: `2px solid ${BVC_RED}`,
-      width: "fit-content",
-    }}>
+    <div className={styles.sectionTitle}>
       {children}
     </div>
   );
@@ -371,8 +301,8 @@ export default function EmployeeProfile() {
 
   if (loading) {
     return (
-      <div style={{ padding: 40, color: "#94a3b8", fontStyle: "italic" }}>
-        Loading employee profile...
+      <div style={{ padding: 40, color: "#94a3b8", fontStyle: "italic", display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
+        <Loader />
       </div>
     );
   }
@@ -397,38 +327,24 @@ export default function EmployeeProfile() {
   const photoSrc = emp.PHOTO_URL ? `${BACKEND_URL}${emp.PHOTO_URL}` : null;
 
   return (
-    <div style={{
-      padding: 20,
-      background: "#f1f5f9",
-      minHeight: "calc(100vh - 80px)",
-    }}>
-
-      {/* Breadcrumb */}
-      <div style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        marginBottom: 14,
-        fontSize: 12,
-        color: "#64748b",
-      }}>
-        <Link to="/employees" style={{ color: "#64748b", textDecoration: "none" }}>
-          Employees
-        </Link>
-        <span>/</span>
-        <span style={{ color: "#0f172a", fontWeight: 700 }}>{emp.NAME}</span>
-      </div>
+    <div className={styles.pageWrap}>
+      <StatsRow
+        stats={[
+          { value: countDocuments(emp), label: "Documents", sub: "on file", onClick: () => setTab("documents") },
+          { value: leaveBalance?.TOTAL_REMAINING ?? leaveBalance?.CASUAL_REMAINING ?? "-", label: "Leave Balance", sub: "days left", onClick: () => setTab("leave") },
+          { value: `${Number.isInteger(monthlyHours) ? monthlyHours : monthlyHours.toFixed(1)} / ${expectedMonthlyHours}`, label: "Monthly Hours", sub: "hours this month", onClick: () => setTab("attendance") },
+          { value: `${Number.isInteger(monthlyOtHours) ? monthlyOtHours : monthlyOtHours.toFixed(1)}h`, label: "Monthly OT", sub: "overtime this month", onClick: () => setTab("attendance") },
+          { value: effectiveSalary > 0 ? "Set" : "Pending", label: "Payroll", sub: effectiveSalary > 0 ? inr(effectiveSalary) : "no salary", onClick: () => setTab("payroll") },
+          { value: assetsCount == null ? "—" : String(assetsCount), label: "Assets", sub: "allocated", onClick: () => setTab("assets") },
+          { value: perfScore == null ? "—" : `${Math.round(perfScore)}`, label: "Performance", sub: perfScore == null ? "this quarter" : "/ 100 score", onClick: () => setTab("performance") },
+        ]}
+      />
 
       {/* 2-column layout (left sidebar + center content).
           The right-side AI Agent panel was removed per design — keeping
           the AIAgentPanel component definition further down so it can
           be re-added with a single line if needed. */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "280px 1fr",
-        gap: 16,
-        alignItems: "flex-start",
-      }}>
+      <div className={styles.mainGrid}>
 
         {/* ================ LEFT SIDEBAR ================ */}
         <LeftSidebar
@@ -440,77 +356,9 @@ export default function EmployeeProfile() {
         />
 
         {/* ================ CENTER CONTENT ================ */}
-        <div style={{ minWidth: 0 }}>
-
-          {/* Metric tiles */}
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(7, 1fr)",
-            gap: 10,
-            marginBottom: 14,
-          }}>
-            <MetricTile
-              label="Documents"
-              value={countDocuments(emp)}
-              sub="on file"
-              color="#1d4ed8"
-              onClick={() => setTab("documents")}
-            />
-            <MetricTile
-              label="Leave Balance"
-              value={leaveBalance?.TOTAL_REMAINING ?? leaveBalance?.CASUAL_REMAINING ?? "-"}
-              sub="days left"
-              color="#059669"
-              onClick={() => setTab("leave")}
-            />
-            <MetricTile
-              label="Monthly Hours"
-              value={`${Number.isInteger(monthlyHours) ? monthlyHours : monthlyHours.toFixed(1)} / ${expectedMonthlyHours}`}
-              sub="hours this month"
-              color="#7c3aed"
-              onClick={() => setTab("attendance")}
-            />
-            <MetricTile
-              label="Monthly OT"
-              value={`${Number.isInteger(monthlyOtHours) ? monthlyOtHours : monthlyOtHours.toFixed(1)}h`}
-              sub="overtime this month"
-              color="#a855f7"
-              onClick={() => setTab("attendance")}
-            />
-            <MetricTile
-              label="Payroll"
-              value={effectiveSalary > 0 ? "Set" : "Pending"}
-              sub={effectiveSalary > 0 ? inr(effectiveSalary) : "no salary"}
-              color="#B47900"
-              onClick={() => setTab("payroll")}
-            />
-            <MetricTile
-              label="Assets"
-              value={assetsCount == null ? "—" : String(assetsCount)}
-              sub="allocated"
-              color="#0891b2"
-              onClick={() => setTab("assets")}
-            />
-            <MetricTile
-              label="Performance"
-              value={perfScore == null ? "—" : `${Math.round(perfScore)}`}
-              sub={perfScore == null ? "this quarter" : "/ 100 score"}
-              color="#991b1b"
-              onClick={() => setTab("performance")}
-            />
-          </div>
-
+        <div className={styles.centerCol}>
           {/* Tab bar */}
-          <div style={{
-            background: "white",
-            borderRadius: 12,
-            padding: "6px 6px 0",
-            boxShadow: "0 4px 14px rgba(15,23,42,0.05)",
-            marginBottom: 14,
-            overflowX: "auto",
-            display: "flex",
-            gap: 2,
-          }}>
+          <div className={styles.tabBar}>
             {TABS.map((t) => (
               <button
                 key={t.key}
@@ -522,7 +370,7 @@ export default function EmployeeProfile() {
                   borderBottom: tab === t.key
                     ? `3px solid ${BVC_RED}`
                     : "3px solid transparent",
-                  color: tab === t.key ? BVC_DARK : "#64748b",
+                  color: tab === t.key ? "var(--clr-primary)" : "var(--text-muted)",
                   fontWeight: tab === t.key ? 800 : 600,
                   fontSize: 13,
                   cursor: "pointer",
@@ -536,13 +384,7 @@ export default function EmployeeProfile() {
           </div>
 
           {/* Tab body */}
-          <div style={{
-            background: "white",
-            borderRadius: 12,
-            padding: 22,
-            boxShadow: "0 4px 14px rgba(15,23,42,0.05)",
-            minHeight: 400,
-          }}>
+          <div className={styles.tabBody}>
             {tab === "overview" && <OverviewTab emp={emp} departmentName={departmentName} designationName={designationName} manager={manager} reports={reports} />}
             {tab === "work" && <WorkInfoTab emp={emp} departmentName={departmentName} designationName={designationName} manager={manager} />}
             {tab === "personal" && <PersonalInfoTab emp={emp} />}
@@ -579,15 +421,10 @@ export default function EmployeeProfile() {
 // =====================================================================
 
 function LeftSidebar({ emp, photoSrc, departmentName, designationName, onChangeStatus }) {
+  const navigate = useNavigate();
+
   return (
-    <div style={{
-      background: "white",
-      borderRadius: 14,
-      padding: 22,
-      boxShadow: "0 4px 14px rgba(15,23,42,0.05)",
-      position: "sticky",
-      top: 80,
-    }}>
+    <div className={styles.sidebarCard}>
 
       {/* Photo */}
       <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
@@ -600,8 +437,8 @@ function LeftSidebar({ emp, photoSrc, departmentName, designationName, onChangeS
               height: 140,
               borderRadius: "50%",
               objectFit: "cover",
-              border: `4px solid ${BVC_GOLD}`,
-              boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+              border: `4px solid ${BVC_RED}`,
+              boxShadow: "var(--shadow-md)",
             }}
           />
         ) : (
@@ -616,8 +453,8 @@ function LeftSidebar({ emp, photoSrc, departmentName, designationName, onChangeS
             justifyContent: "center",
             fontSize: 56,
             fontWeight: 800,
-            border: `4px solid ${BVC_GOLD}`,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            border: `4px solid ${BVC_RED}`,
+            boxShadow: "var(--shadow-md)",
           }}>
             {(emp.NAME || "?").charAt(0).toUpperCase()}
           </div>
@@ -626,12 +463,12 @@ function LeftSidebar({ emp, photoSrc, departmentName, designationName, onChangeS
 
       {/* Name + code */}
       <div style={{ textAlign: "center", marginBottom: 14 }}>
-        <div style={{ fontSize: 18, fontWeight: 800, color: "#0f172a", letterSpacing: -0.3 }}>
+        <div style={{ fontSize: 18, fontWeight: 800, color: "var(--text-primary)", letterSpacing: -0.3 }}>
           {emp.NAME}
         </div>
         <div style={{
           fontSize: 11,
-          color: "#64748b",
+          color: "var(--text-muted)",
           fontFamily: "ui-monospace, monospace",
           marginTop: 2,
           letterSpacing: 0.5,
@@ -647,9 +484,9 @@ function LeftSidebar({ emp, photoSrc, departmentName, designationName, onChangeS
             title="Change employee lifecycle status (Active / On Notice / Resigned / Terminated / Retired)"
             style={{
               marginTop: 10,
-              background: "white",
-              color: "#C8102E",
-              border: "1px solid #C8102E",
+              background: "transparent",
+              color: "var(--clr-primary)",
+              border: "1px solid var(--clr-primary)",
               borderRadius: 8,
               padding: "6px 14px",
               fontSize: 11,
@@ -672,29 +509,26 @@ function LeftSidebar({ emp, photoSrc, departmentName, designationName, onChangeS
         <SidebarRow label="PHONE" value={emp.PHONE} mono />
         <SidebarRow label="JOINED" value={fmtDate(emp.JOINING_DATE)} />
       </div>
+      <div style={{ textAlign: "center" }}>
+        <PMButton onClick={() => navigate("/employees")}>
+          Back to Employees
+        </PMButton>
+      </div>
     </div>
   );
 }
 
 function SidebarRow({ label, value, mono }) {
   return (
-    <div style={{ padding: "10px 0", borderTop: "1px solid #f1f5f9" }}>
-      <div style={{
-        fontSize: 9,
-        fontWeight: 800,
-        color: "#94a3b8",
-        letterSpacing: 1,
-      }}>
+    <div className={styles.sidebarRow}>
+      <div className={styles.sidebarRowLabel}>
         {label}
       </div>
-      <div style={{
-        fontSize: 12,
-        color: "#0f172a",
-        marginTop: 2,
-        wordBreak: "break-all",
-        fontFamily: mono ? "ui-monospace, monospace" : "inherit",
-      }}>
-        {value || <span style={{ color: "#cbd5e1" }}>Not set</span>}
+      <div
+        className={styles.sidebarRowValue}
+        style={{ fontFamily: mono ? "ui-monospace, monospace" : "inherit" }}
+      >
+        {value || <span className={styles.sidebarRowEmpty}>Not set</span>}
       </div>
     </div>
   );
@@ -790,7 +624,7 @@ function OrgNode({ name, code, primary, muted }) {
       border: primary ? "none" : "1px solid #e2e8f0",
       textAlign: "center",
       minWidth: 140,
-      boxShadow: primary ? "0 6px 14px rgba(200,16,46,0.25)" : "none",
+      boxShadow: primary ? "var(--shadow-sm)" : "none",
     }}>
       <div style={{ fontSize: 12, fontWeight: 800 }}>{name}</div>
       <div style={{ fontSize: 10, opacity: 0.8, marginTop: 2, fontFamily: "ui-monospace, monospace" }}>
@@ -1539,18 +1373,15 @@ function AttendanceTab({ emp }) {
   return (
     <div>
       <SectionTitle>This month &middot; {stats.monthLabel}</SectionTitle>
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(5, 1fr)",
-        gap: 10,
-        marginTop: 8,
-      }}>
-        <MetricTile label="Present" value={stats.present} color="#059669" />
-        <MetricTile label="Late" value={stats.late} color="#B47900" />
-        <MetricTile label="Absent" value={stats.absent} color="#991b1b" />
-        <MetricTile label="Hours worked" value={stats.hours.toFixed(1)} sub="hours this month" color="#1d4ed8" />
-        <MetricTile label="OT Hours" value={stats.otHours.toFixed(1)} sub="overtime this month" color="#7c3aed" />
-      </div>
+      <StatsRow
+        stats={[
+          { value: stats.present, label: "Present" },
+          { value: stats.late, label: "Late" },
+          { value: stats.absent, label: "Absent" },
+          { value: stats.hours.toFixed(1), label: "Hours worked", sub: "hours this month" },
+          { value: stats.otHours.toFixed(1), label: "OT Hours", sub: "overtime this month" },
+        ]}
+      />
 
       <SectionTitle>Recent records ({recent.length})</SectionTitle>
       {recent.length === 0 ? (
@@ -1677,34 +1508,14 @@ function PerformanceTab({ emp }) {
           on the Star Performance page.
         </div>
       ) : (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
-          gap: 10,
-          marginTop: 8,
-        }}>
-          <MetricTile
-            label="Overall stars"
-            value={Number(latest.OVERALL_STARS || 0).toFixed(1) + " / 5"}
-            sub={`${latest.PAY_YEAR}-${String(latest.PAY_MONTH).padStart(2, "0")}`}
-            color="#B47900"
-          />
-          <MetricTile
-            label="Attendance stars"
-            value={Number(latest.ATTENDANCE_STARS || 0).toFixed(1)}
-            color="#059669"
-          />
-          <MetricTile
-            label="Task stars"
-            value={Number(latest.TASK_STARS || 0).toFixed(1)}
-            color="#1d4ed8"
-          />
-          <MetricTile
-            label="Leave stars"
-            value={Number(latest.LEAVE_STARS || 0).toFixed(1)}
-            color="#7c3aed"
-          />
-        </div>
+        <StatsRow
+          stats={[
+            { value: Number(latest.OVERALL_STARS || 0).toFixed(1) + " / 5", label: "Overall stars", sub: `${latest.PAY_YEAR}-${String(latest.PAY_MONTH).padStart(2, "0")}` },
+            { value: Number(latest.ATTENDANCE_STARS || 0).toFixed(1), label: "Attendance stars" },
+            { value: Number(latest.TASK_STARS || 0).toFixed(1), label: "Task stars" },
+            { value: Number(latest.LEAVE_STARS || 0).toFixed(1), label: "Leave stars" },
+          ]}
+        />
       )}
 
       {trend.length > 1 && (
@@ -1862,9 +1673,9 @@ function ActivityRow({ log }) {
         width: 10,
         height: 10,
         borderRadius: "50%",
-        background: isFailure ? "#dc2626" : BVC_RED,
+        background: isFailure ? "var(--danger)" : BVC_RED,
         border: "2px solid white",
-        boxShadow: "0 0 0 1px " + (isFailure ? "#dc2626" : BVC_RED),
+        boxShadow: "0 0 0 1px " + (isFailure ? "var(--danger)" : BVC_RED),
       }} />
       <div style={{
         display: "flex",
