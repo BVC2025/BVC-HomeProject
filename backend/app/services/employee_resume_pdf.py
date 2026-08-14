@@ -51,25 +51,19 @@ def _dash(v) -> str:
     return s if s else "&mdash;"
 
 
-def _photo_data_uri(photo_url: Optional[str]) -> str:
-    """Read the local photo file (if any) and inline as base64 so the
-    PDF stays self-contained. Returns an empty string when no photo."""
-    if not photo_url:
-        return ""
-    # PHOTO_URL is stored as "/static/employee/<file>". Files live at
-    # backend/static/employee/<file> so walk up from this file's dir.
-    _here = Path(__file__).resolve().parent  # backend/app/services
-    backend_root = _here.parent.parent       # backend/
-    rel = str(photo_url).lstrip("/")         # static/employee/xxx.jpg
-    path = backend_root / rel
-    if not path.exists():
+def _file_data_uri(path: Path) -> str:
+    """Inline any local image file as a base64 data URI so the PDF
+    is self-contained. Returns '' when the file is missing or the
+    extension isn't a supported raster type (xhtml2pdf can't handle
+    .webp reliably — we let those fall through to the placeholder)."""
+    if not path or not path.exists():
         return ""
     try:
         import base64
         ext = (path.suffix.lower().lstrip(".") or "jpg")
         if ext == "jpg":
             mime = "image/jpeg"
-        elif ext in ("jpeg", "png", "gif", "webp"):
+        elif ext in ("jpeg", "png", "gif"):
             mime = f"image/{'jpeg' if ext == 'jpeg' else ext}"
         else:
             return ""
@@ -77,6 +71,25 @@ def _photo_data_uri(photo_url: Optional[str]) -> str:
         return f"data:{mime};base64,{data}"
     except Exception:
         return ""
+
+
+def _photo_data_uri(photo_url: Optional[str]) -> str:
+    """Read the local photo file (if any) and inline as base64 so the
+    PDF stays self-contained. Returns an empty string when no photo."""
+    if not photo_url:
+        return ""
+    _here = Path(__file__).resolve().parent  # backend/app/services
+    backend_root = _here.parent.parent       # backend/
+    rel = str(photo_url).lstrip("/")         # static/employee/xxx.jpg
+    return _file_data_uri(backend_root / rel)
+
+
+def _company_logo_data_uri() -> str:
+    """Inline the BVC company logo at backend/app/assets/bharath-logo.png
+    so the header shows a real logo instead of a placeholder."""
+    _here = Path(__file__).resolve().parent  # backend/app/services
+    backend_root = _here.parent.parent       # backend/
+    return _file_data_uri(backend_root / "app" / "assets" / "bharath-logo.png")
 
 
 def _row(label: str, value) -> str:
@@ -145,16 +158,31 @@ def build_resume_html(db: Session, emp: Employee) -> str:
 
     skills_block = ""
     if emp.SKILLS:
-        pills = "".join(
-            f'<span class="pill">{_esc(s.strip())}</span>'
-            for s in str(emp.SKILLS).split(",") if s.strip()
-        )
-        if pills:
+        # xhtml2pdf renders inline-block spans as glued-together text,
+        # so build a small wrapping table where each skill sits in its
+        # own cell — that gives us reliable spacing + wrapping.
+        skill_items = [s.strip() for s in str(emp.SKILLS).split(",") if s.strip()]
+        # 3 pills per row (fits comfortably in the right column).
+        rows_html = ""
+        per_row = 3
+        for i in range(0, len(skill_items), per_row):
+            chunk = skill_items[i : i + per_row]
+            cells = "".join(
+                f'<td class="skill-cell">{_esc(s)}</td>'
+                for s in chunk
+            )
+            # Pad the last row so all cells stay uniform-width.
+            while len(chunk) < per_row:
+                cells += '<td class="skill-cell-empty">&nbsp;</td>'
+                chunk.append("")
+            rows_html += f'<tr>{cells}</tr>'
+        if rows_html:
             skills_block = (
                 '<div class="section">'
                 '<div class="section-title">Skills</div>'
-                f'<div class="section-body pills">{pills}</div>'
-                '</div>'
+                '<div class="section-body">'
+                f'<table class="skills-tbl"><tbody>{rows_html}</tbody></table>'
+                '</div></div>'
             )
 
     notes_block = ""
@@ -169,13 +197,20 @@ def build_resume_html(db: Session, emp: Employee) -> str:
     photo_html = (
         f'<img class="avatar" src="{photo}" />'
         if photo else
-        f'<div class="avatar avatar-initials">{_esc((emp.NAME or "?")[:2].upper())}</div>'
+        f'<div class="avatar-initials">{_esc((emp.NAME or "?")[:2].upper())}</div>'
     )
 
     subtitle_parts = []
     if desig_name: subtitle_parts.append(_esc(desig_name))
     if dept_name:  subtitle_parts.append(_esc(dept_name))
-    subtitle = " · ".join(subtitle_parts) or "&nbsp;"
+    subtitle = " &middot; ".join(subtitle_parts) or "&nbsp;"
+
+    logo = _company_logo_data_uri()
+    logo_html = (
+        f'<img src="{logo}" width="46" height="46" />'
+        if logo else
+        '<div class="logo-fallback">BVC</div>'
+    )
 
     return f"""
 <!DOCTYPE html>
@@ -186,88 +221,118 @@ def build_resume_html(db: Session, emp: Employee) -> str:
 <style>
   @page {{
     size: A4;
-    margin: 22mm 18mm 20mm 18mm;
+    margin: 16mm 16mm 16mm 16mm;
   }}
   body {{
     font-family: Helvetica, Arial, sans-serif;
     color: #0f172a;
-    font-size: 10.5pt;
+    font-size: 10pt;
     line-height: 1.45;
   }}
-  .header {{
-    border-bottom: 2px solid #C8102E;
-    padding-bottom: 12px;
+
+  /* ---------- Company band (very top) ---------- */
+  .company-band {{
+    width: 100%;
+    border-bottom: 3px solid #C8102E;
+    padding-bottom: 8px;
     margin-bottom: 14px;
   }}
-  .header-tbl {{ width: 100%; border-collapse: collapse; }}
-  .header-tbl td {{ vertical-align: middle; padding: 0; }}
+  .company-tbl {{ width: 100%; border-collapse: collapse; }}
+  .company-tbl td {{ vertical-align: middle; padding: 0; }}
+  .company-name {{
+    font-size: 14pt;
+    font-weight: bold;
+    color: #C8102E;
+    letter-spacing: 0.3pt;
+    margin: 0;
+  }}
+  .company-tag {{
+    font-size: 8.5pt;
+    color: #64748b;
+    letter-spacing: 1.6pt;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }}
+  .doc-kind {{
+    font-size: 8.5pt;
+    color: #64748b;
+    text-align: right;
+    letter-spacing: 1.4pt;
+    text-transform: uppercase;
+  }}
+  .logo-fallback {{
+    width: 46px; height: 46px;
+    background: #C8102E;
+    color: white;
+    text-align: center;
+    line-height: 46px;
+    font-weight: bold;
+    font-size: 12pt;
+    letter-spacing: 1pt;
+  }}
+
+  /* ---------- Employee header ---------- */
+  .emp-header {{
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid #e5e7eb;
+  }}
+  .emp-header-tbl {{ width: 100%; border-collapse: collapse; }}
+  .emp-header-tbl td {{ vertical-align: middle; padding: 0; }}
   .avatar {{
-    width: 84px; height: 84px;
-    border-radius: 6px;
-    object-fit: cover;
+    width: 74px; height: 74px;
     border: 1px solid #e5e7eb;
   }}
   .avatar-initials {{
-    display: inline-block;
-    width: 84px; height: 84px;
-    line-height: 84px;
+    width: 74px; height: 74px;
+    line-height: 74px;
     text-align: center;
     background: #C8102E;
     color: white;
-    font-size: 30pt;
+    font-size: 26pt;
     font-weight: bold;
-    border-radius: 6px;
   }}
-  .name-block {{
-    padding-left: 16px;
-  }}
+  .name-block {{ padding-left: 16px; }}
   .name {{
     font-size: 20pt;
     font-weight: bold;
-    letter-spacing: -0.3pt;
     color: #0f172a;
-    margin: 0;
+    margin: 0 0 2px 0;
+    letter-spacing: -0.3pt;
   }}
   .subtitle {{
-    font-size: 11pt;
+    font-size: 10.5pt;
     color: #475569;
-    margin-top: 2px;
+    margin-bottom: 6px;
   }}
   .emp-code {{
-    display: inline-block;
-    margin-top: 6px;
     padding: 2px 8px;
     background: #fee2e2;
     color: #C8102E;
-    font-size: 9pt;
+    font-size: 8.5pt;
     font-weight: bold;
     letter-spacing: 0.5pt;
-    border-radius: 3px;
   }}
   .status-pill {{
-    display: inline-block;
-    margin-left: 6px;
     padding: 2px 8px;
     background: #dcfce7;
     color: #166534;
-    font-size: 9pt;
+    font-size: 8.5pt;
     font-weight: bold;
     letter-spacing: 0.5pt;
-    border-radius: 3px;
+    margin-left: 4px;
   }}
 
+  /* ---------- Two-column body ---------- */
   .cols {{ width: 100%; border-collapse: collapse; }}
   .cols > tbody > tr > td {{
     width: 50%;
     vertical-align: top;
-    padding: 0 8px;
   }}
-  .cols > tbody > tr > td.first {{ padding-left: 0; padding-right: 12px; }}
-  .cols > tbody > tr > td.second {{ padding-right: 0; padding-left: 12px; }}
+  .cols > tbody > tr > td.first {{ padding-right: 10px; }}
+  .cols > tbody > tr > td.second {{ padding-left: 10px; }}
 
-  .section {{
-    margin-bottom: 14px;
-  }}
+  .section {{ margin-bottom: 12px; }}
   .section-title {{
     font-size: 9pt;
     font-weight: bold;
@@ -282,12 +347,11 @@ def build_resume_html(db: Session, emp: Employee) -> str:
     font-size: 10pt;
     color: #334155;
   }}
-  .section-body p {{
-    margin: 0 0 6px 0;
-  }}
+  .section-body p {{ margin: 0 0 4px 0; }}
 
+  /* Label / value alignment rows */
   .kv {{ width: 100%; border-collapse: collapse; }}
-  .kv td {{ padding: 3px 0; vertical-align: top; }}
+  .kv td {{ padding: 2px 0; vertical-align: top; }}
   .kv td.lbl {{
     width: 42%;
     color: #64748b;
@@ -296,45 +360,66 @@ def build_resume_html(db: Session, emp: Employee) -> str:
   .kv td.val {{
     color: #0f172a;
     font-size: 10pt;
-    font-weight: 500;
+    font-weight: bold;
   }}
 
-  .pills {{ line-height: 1.9; }}
-  .pill {{
-    display: inline-block;
-    padding: 3px 9px;
-    margin: 2px 3px 2px 0;
+  /* Skills as a 3-cell wrap grid — reliable in xhtml2pdf */
+  .skills-tbl {{
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 4px;
+  }}
+  .skill-cell {{
     background: #f1f5f9;
+    border: 1px solid #e5e7eb;
     color: #0f172a;
     font-size: 9.5pt;
-    border-radius: 3px;
-    border: 1px solid #e5e7eb;
+    padding: 4px 8px;
+    text-align: center;
+  }}
+  .skill-cell-empty {{
+    background: transparent;
+    border: none;
   }}
 
   .footer {{
-    margin-top: 18px;
-    padding-top: 10px;
+    margin-top: 16px;
+    padding-top: 8px;
     border-top: 1px solid #e5e7eb;
     color: #94a3b8;
-    font-size: 8.5pt;
+    font-size: 8pt;
     text-align: center;
   }}
 </style>
 </head>
 <body>
 
-  <!-- ============ HEADER ============ -->
-  <div class="header">
-    <table class="header-tbl">
+  <!-- ============ COMPANY BAND ============ -->
+  <div class="company-band">
+    <table class="company-tbl">
       <tr>
-        <td width="90">{photo_html}</td>
+        <td width="55">{logo_html}</td>
+        <td>
+          <div class="company-name">BHARATH VENDING CORPORATION</div>
+          <div class="company-tag">Employee Master · Confidential</div>
+        </td>
+        <td class="doc-kind" width="140">
+          Employee Profile
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ============ EMPLOYEE HEADER ============ -->
+  <div class="emp-header">
+    <table class="emp-header-tbl">
+      <tr>
+        <td width="80">{photo_html}</td>
         <td class="name-block">
           <div class="name">{_esc(emp.NAME or "—")}</div>
           <div class="subtitle">{subtitle}</div>
-          <div>
-            <span class="emp-code">{_esc(emp.EMPLOYEE_CODE or "—")}</span>
-            <span class="status-pill">{_esc(emp.STATUS or "—")}</span>
-          </div>
+          <span class="emp-code">{_esc(emp.EMPLOYEE_CODE or "—")}</span>
+          <span class="status-pill">{_esc(emp.STATUS or "—")}</span>
         </td>
       </tr>
     </table>
