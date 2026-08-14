@@ -194,11 +194,10 @@ def build_resume_html(db: Session, emp: Employee) -> str:
             '</div>'
         )
 
-    photo_html = (
-        f'<img class="avatar" src="{photo}" />'
-        if photo else
-        f'<div class="avatar-initials">{_esc((emp.NAME or "?")[:2].upper())}</div>'
-    )
+    # Only render the avatar column when a real photo exists.
+    # No photo -> no initials placeholder either; the name block
+    # takes the full row width.
+    photo_html = f'<img class="avatar" src="{photo}" />' if photo else ""
 
     subtitle_parts = []
     if desig_name: subtitle_parts.append(_esc(desig_name))
@@ -414,8 +413,8 @@ def build_resume_html(db: Session, emp: Employee) -> str:
   <div class="emp-header">
     <table class="emp-header-tbl">
       <tr>
-        <td width="80">{photo_html}</td>
-        <td class="name-block">
+        {f'<td width="80">{photo_html}</td>' if photo_html else ''}
+        <td class="name-block" {'style="padding-left:0"' if not photo_html else ''}>
           <div class="name">{_esc(emp.NAME or "—")}</div>
           <div class="subtitle">{subtitle}</div>
           <span class="emp-code">{_esc(emp.EMPLOYEE_CODE or "—")}</span>
