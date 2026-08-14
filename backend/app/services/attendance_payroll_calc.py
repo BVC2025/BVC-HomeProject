@@ -61,6 +61,7 @@ from app.models.models import (
     Employee,
     LeaveBalance,
     LeaveRequest,
+    SalaryStructure,
 )
 
 try:
@@ -355,7 +356,20 @@ def compute_monthly_calculation(
         # penalty split so the PayslipGenerator can render them into
         # separate LATE_PENALTY / ABSENCE_DEDUCTION cells (the DB
         # columns are already separate; the calc was collapsing them).
+        #
+        # BASIC lookup: prefer Employee.SALARY when set; otherwise
+        # fall back to salary_structure.BASIC. Some employees have
+        # only the structure filled in (Nasira / Harshith) — reading
+        # SALARY alone gives 0 and blows out the whole row.
         basic_salary = float(emp.SALARY or 0.0)
+        if basic_salary <= 0:
+            _ss = (
+                db.query(SalaryStructure)
+                  .filter(SalaryStructure.EMPLOYEE_ID == emp.ID)
+                  .first()
+            )
+            if _ss and _ss.BASIC:
+                basic_salary = float(_ss.BASIC)
         per_day_rate = basic_salary / working_days if working_days else 0.0
 
         absent_deduction_only = round(per_day_rate * unpaid_absent, 2)
