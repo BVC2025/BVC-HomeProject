@@ -18,7 +18,25 @@ from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
 from typing import Iterable, List, Optional
+
+# Ensure backend/.env is loaded even when this module is imported by
+# a standalone script (e.g. `python -m app.hrms_ai.knowledge_builder`).
+# The FastAPI app already calls load_dotenv() at startup, so the extra
+# call here is a no-op for the running server.
+try:
+    from dotenv import load_dotenv as _load_dotenv
+    _HERE = Path(__file__).resolve().parent           # backend/app/hrms_ai
+    _BACKEND_ENV = _HERE.parent.parent / ".env"        # backend/.env
+    if _BACKEND_ENV.exists():
+        _load_dotenv(_BACKEND_ENV, override=False)
+    else:
+        _load_dotenv(override=False)                   # fall back to CWD lookup
+except Exception:
+    # python-dotenv isn't installed OR the file is unreadable — the
+    # env var may still be set by the shell; getenv() below handles it.
+    pass
 
 
 log = logging.getLogger("hrms_ai.gemini")
