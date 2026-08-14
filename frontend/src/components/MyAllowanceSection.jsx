@@ -3,7 +3,7 @@
 //
 // Employee submits office-related expense claims (travel, food, fuel
 // etc.) for MD approval. Shows the submit form + history of past
-// claims with status badges.
+// claims with status badges. Mobile-first modern SaaS layout.
 // =====================================================================
 
 import { useEffect, useState } from "react";
@@ -14,9 +14,7 @@ const BVC_RED  = "#C8102E";
 const BVC_DARK = "#8B0B1F";
 
 
-// Tile icons — inline SVGs so we stay dependency-free and match the
-// rest of the ESS pages (attendance, leave, permission, payslips) that
-// already use inline stroke SVGs instead of emoji.
+// Inline SVGs — dependency-free, stroke-based, match ESS style.
 const IconSvg = ({ children, size = 16 }) => (
   <svg
     width={size} height={size} viewBox="0 0 24 24"
@@ -73,6 +71,7 @@ function useDarkMode() {
 
 function paletteFor(dark) {
   return dark ? {
+    pageBg:        "#0b1220",
     cardBg:        "#131c2c",
     cardBorder:    "rgba(255, 255, 255, 0.08)",
     inputBg:       "rgba(255, 255, 255, 0.03)",
@@ -84,38 +83,37 @@ function paletteFor(dark) {
     label:         "#94a3b8",
     fadedBg:       "rgba(255, 255, 255, 0.03)",
     fadedBorder:   "rgba(255, 255, 255, 0.10)",
+    divider:       "rgba(255, 255, 255, 0.08)",
     errorBg:       "rgba(239, 68, 68, 0.14)",
     errorFg:       "#fca5a5",
     errorBorder:   "rgba(239, 68, 68, 0.32)",
     successBg:     "rgba(16, 185, 129, 0.14)",
     successFg:     "#a7f3d0",
     successBorder: "rgba(16, 185, 129, 0.32)",
-    tableHeadBg:   "rgba(255, 255, 255, 0.04)",
-    rowBorder:     "rgba(255, 255, 255, 0.06)",
     toastBg:       "#0f172a",
     statusPending: { bg: "rgba(251, 191, 36, 0.16)", fg: "#fbbf24" },
     statusApproved:{ bg: "rgba(16, 185, 129, 0.16)", fg: "#6ee7b7" },
     statusRejected:{ bg: "rgba(239, 68, 68, 0.16)",  fg: "#fca5a5" },
   } : {
+    pageBg:        "#f8fafc",
     cardBg:        "#ffffff",
-    cardBorder:    "#e2e8f0",
+    cardBorder:    "#e5e7eb",
     inputBg:       "#ffffff",
-    inputBorder:   "#cbd5e1",
+    inputBorder:   "#e5e7eb",
     strong:        "#0f172a",
-    body:          "#475569",
+    body:          "#334155",
     muted:         "#94a3b8",
     soft:          "#64748b",
     label:         "#475569",
     fadedBg:       "#f8fafc",
-    fadedBorder:   "#cbd5e1",
+    fadedBorder:   "#e5e7eb",
+    divider:       "#f1f5f9",
     errorBg:       "#fef2f2",
     errorFg:       "#991b1b",
     errorBorder:   "#fecaca",
     successBg:     "#f0fdf4",
     successFg:     "#166534",
     successBorder: "#bbf7d0",
-    tableHeadBg:   "#f8fafc",
-    rowBorder:     "#f1f5f9",
     toastBg:       "#0f172a",
     statusPending: { bg: "#fef3c7", fg: "#854d0e" },
     statusApproved:{ bg: "#dcfce7", fg: "#166534" },
@@ -152,7 +150,7 @@ function StatusPill({ status, pal }) {
         padding: "3px 10px",
         borderRadius: 999,
         fontSize: 10,
-        fontWeight: 800,
+        fontWeight: 700,
         background: t.bg,
         color: t.fg,
         letterSpacing: 0.5,
@@ -170,6 +168,14 @@ function inr(n) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+
+// Human-readable category label for the claim rows (FOOD → Food).
+function catLabel(code) {
+  const found = CATEGORIES.find((c) => c.value === code);
+  if (found) return found.label;
+  return (code || "").toLowerCase().replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 }
 
 
@@ -253,126 +259,136 @@ export default function MyAllowanceSection({ employeeId }) {
     }
   };
 
-  const inputStyle = {
-    width: "100%",
-    padding: "9px 11px",
-    border: `1px solid ${pal.inputBorder}`,
-    borderRadius: 8,
-    fontSize: 13,
-    fontFamily: "inherit",
-    background: pal.inputBg,
-    color: pal.body,
-    colorScheme: dark ? "dark" : "light",
-    boxSizing: "border-box",
-  };
 
+  // ------- shared styles -------
   const labelStyle = {
     fontSize: 11,
-    fontWeight: 700,
+    fontWeight: 600,
     color: pal.label,
-    letterSpacing: 0.5,
+    letterSpacing: 0.4,
     textTransform: "uppercase",
     display: "block",
-    marginBottom: 4,
+    marginBottom: 6,
   };
 
-  return (
-    <div style={{ display: "grid", gap: 16 }}>
+  const inputStyle = {
+    width: "100%",
+    height: 44,
+    padding: "0 12px",
+    border: `1px solid ${pal.inputBorder}`,
+    borderRadius: 8,
+    fontSize: 14,
+    fontFamily: "inherit",
+    background: pal.inputBg,
+    color: pal.strong,
+    colorScheme: dark ? "dark" : "light",
+    boxSizing: "border-box",
+    outline: "none",
+    transition: "border-color 120ms, box-shadow 120ms",
+  };
 
-      {/* Hero — white card, red border only. On mobile the "this month"
-          sidebar stacks below the pitch text (flex-wrap). On desktop it
-          sits to the right with a divider between. */}
-      <div style={{
-        background: pal.cardBg,
-        borderRadius: 14,
-        padding: "16px 22px",
-        color: pal.strong,
-        border: `1px solid ${BVC_RED}`,
-        boxShadow: "0 4px 14px rgba(15,23,42,0.05)",
-        position: "relative",
-        overflow: "hidden",
-        display: "flex",
-        flexWrap: "wrap",
-        gap: 22,
-        alignItems: "center",
-      }}>
-        <div style={{ position: "relative", zIndex: 1, minWidth: 0, flex: "1 1 260px" }}>
+
+  return (
+    <div className="bvc-allow-root" style={{ display: "grid", gap: 12 }}>
+
+      {/* ================= 1. HERO ================= */}
+      <section
+        style={{
+          background: pal.cardBg,
+          border: `1px solid ${pal.cardBorder}`,
+          borderLeft: `3px solid ${BVC_RED}`,
+          borderRadius: 12,
+          padding: "16px 18px",
+          boxShadow: "0 1px 2px rgba(15,23,42,0.03)",
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 16,
+          alignItems: "flex-start",
+        }}
+      >
+        <div style={{ minWidth: 0, flex: "1 1 260px" }}>
           <div style={{
-            fontSize: 10.5, fontWeight: 700, letterSpacing: 1.6,
+            fontSize: 10.5, fontWeight: 700, letterSpacing: 1.4,
             color: BVC_RED, textTransform: "uppercase",
-            marginBottom: 4,
+            marginBottom: 6,
           }}>
             Expense claims
           </div>
-          <div style={{
-            fontSize: 22, fontWeight: 700, letterSpacing: -0.4,
-            lineHeight: 1.2, marginBottom: 4, color: pal.strong,
+          <h1 style={{
+            fontSize: 19, fontWeight: 700, letterSpacing: -0.3,
+            lineHeight: 1.25, margin: "0 0 6px 0", color: pal.strong,
           }}>
             Submit office-related expenses for approval
-          </div>
-          <div style={{ fontSize: 12.5, lineHeight: 1.5, maxWidth: 520, color: pal.soft }}>
+          </h1>
+          <p style={{
+            fontSize: 12.5, lineHeight: 1.55, margin: 0, color: pal.soft,
+          }}>
             Travel, food, supplies, fuel and more. The Managing Director
             receives an email the moment you submit.
-          </div>
+          </p>
         </div>
 
         {summary && (
-          <div style={{
-            position: "relative",
-            zIndex: 1,
-            paddingLeft: 22,
-            borderLeft: `1px solid ${pal.cardBorder}`,
-            textAlign: "right",
-            minWidth: 160,
-            flex: "0 1 auto",
-          }}>
+          <div
+            className="bvc-allow-hero-stat"
+            style={{
+              paddingLeft: 16,
+              borderLeft: `1px solid ${pal.divider}`,
+              textAlign: "right",
+              minWidth: 128,
+              flex: "0 1 auto",
+              alignSelf: "stretch",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+            }}
+          >
             <div style={{
-              fontSize: 10.5, fontWeight: 700, letterSpacing: 1.4,
+              fontSize: 10, fontWeight: 700, letterSpacing: 1.3,
               color: BVC_RED, textTransform: "uppercase",
               marginBottom: 4,
             }}>
               This month
             </div>
-            <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: -0.5, lineHeight: 1, color: pal.strong }}>
+            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: -0.5, lineHeight: 1.05, color: pal.strong }}>
               {inr((summary.pending_amount || 0) + (summary.approved_amount || 0))}
             </div>
-            <div style={{ fontSize: 11, marginTop: 4, color: pal.soft }}>
+            <div style={{ fontSize: 11, marginTop: 4, color: pal.muted }}>
               {summary.total} claim{summary.total === 1 ? "" : "s"} submitted
             </div>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Summary tiles — wraps 4/3/2/1 columns via auto-fit based on
-          available width. minmax(140px, 1fr) keeps each tile at least
-          readable at mobile widths. */}
+      {/* ================= 2. STATS ================= */}
       {summary && (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-          gap: 12,
-        }}>
-          <Tile pal={pal} label="Total claims" value={summary.total}     color="#1d4ed8" tintKey="blue"  icon={<IconClipboard />} />
-          <Tile pal={pal} label="Pending"      value={summary.pending}   color="#B47900" tintKey="amber" icon={<IconClock />}     sub={inr(summary.pending_amount)} />
-          <Tile pal={pal} label="Approved"     value={summary.approved}  color="#059669" tintKey="green" icon={<IconCheck />}     sub={inr(summary.approved_amount)} />
-          <Tile pal={pal} label="Rejected"     value={summary.rejected}  color="#991b1b" tintKey="red"   icon={<IconX />} />
-        </div>
+        <section
+          className="bvc-allow-stats"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: 10,
+          }}
+        >
+          <StatCard pal={pal} tint="blue"  icon={<IconClipboard />} label="Total claims" value={summary.total} />
+          <StatCard pal={pal} tint="amber" icon={<IconClock />}     label="Pending"      value={summary.pending}  sub={inr(summary.pending_amount)} />
+          <StatCard pal={pal} tint="green" icon={<IconCheck />}     label="Approved"     value={summary.approved} sub={inr(summary.approved_amount)} />
+          <StatCard pal={pal} tint="red"   icon={<IconX />}         label="Rejected"     value={summary.rejected} />
+        </section>
       )}
 
-      {/* Submit form */}
-      <form
-        onSubmit={submit}
-        style={{
-          background: pal.cardBg,
-          border: `1px solid ${pal.cardBorder}`,
-          borderRadius: 12,
-          padding: 18,
-        }}
-      >
+      {/* ================= 3. NEW EXPENSE FORM ================= */}
+      <section style={{
+        background: pal.cardBg,
+        border: `1px solid ${pal.cardBorder}`,
+        borderRadius: 12,
+        padding: 16,
+        boxShadow: "0 1px 2px rgba(15,23,42,0.03)",
+      }}>
         <div style={{
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: 700,
-          letterSpacing: 1.4,
+          letterSpacing: 1.3,
           color: pal.strong,
           textTransform: "uppercase",
           marginBottom: 12,
@@ -380,135 +396,153 @@ export default function MyAllowanceSection({ employeeId }) {
           New expense
         </div>
 
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-          gap: 12,
-          marginBottom: 12,
-        }}>
-          <div>
-            <label style={labelStyle}>Category</label>
-            <select
-              value={form.CATEGORY}
-              onChange={(e) => setForm({ ...form, CATEGORY: e.target.value })}
-              style={inputStyle}
+        <form onSubmit={submit} className="bvc-allow-form">
+
+          <div className="bvc-allow-form-grid">
+            <div>
+              <label style={labelStyle}>Category</label>
+              <select
+                className="bvc-allow-input"
+                value={form.CATEGORY}
+                onChange={(e) => setForm({ ...form, CATEGORY: e.target.value })}
+                style={inputStyle}
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label style={labelStyle}>Amount (₹)</label>
+              <div style={{ position: "relative" }}>
+                <span style={{
+                  position: "absolute",
+                  left: 12,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: pal.muted,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  pointerEvents: "none",
+                }}>
+                  ₹
+                </span>
+                <input
+                  className="bvc-allow-input"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={form.AMOUNT}
+                  onChange={(e) => setForm({ ...form, AMOUNT: e.target.value })}
+                  placeholder="1250"
+                  style={{ ...inputStyle, paddingLeft: 28 }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={labelStyle}>Expense date</label>
+              <input
+                className="bvc-allow-input"
+                type="date"
+                value={form.EXPENSE_DATE}
+                onChange={(e) => setForm({ ...form, EXPENSE_DATE: e.target.value })}
+                style={inputStyle}
+              />
+            </div>
+          </div>
+
+          <div style={{ marginTop: 10 }}>
+            <label style={labelStyle}>Description</label>
+            <textarea
+              className="bvc-allow-input"
+              rows={2}
+              value={form.DESCRIPTION}
+              onChange={(e) => setForm({ ...form, DESCRIPTION: e.target.value })}
+              placeholder="What was the expense for? Who was it with? Where?"
+              style={{
+                ...inputStyle,
+                height: "auto",
+                minHeight: 68,
+                padding: "10px 12px",
+                resize: "vertical",
+                lineHeight: 1.4,
+              }}
+            />
+          </div>
+
+          {error && (
+            <div
+              role="alert"
+              style={{
+                marginTop: 10,
+                padding: "9px 12px",
+                background: pal.errorBg,
+                color: pal.errorFg,
+                border: `1px solid ${pal.errorBorder}`,
+                borderRadius: 8,
+                fontSize: 12.5,
+              }}
             >
-              {CATEGORIES.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label style={labelStyle}>Amount (&#8377;)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={form.AMOUNT}
-              onChange={(e) => setForm({ ...form, AMOUNT: e.target.value })}
-              placeholder="e.g. 1250"
-              style={inputStyle}
-            />
-          </div>
-          <div>
-            <label style={labelStyle}>Expense date</label>
-            <input
-              type="date"
-              value={form.EXPENSE_DATE}
-              onChange={(e) => setForm({ ...form, EXPENSE_DATE: e.target.value })}
-              style={inputStyle}
-            />
-          </div>
-        </div>
+              {error}
+            </div>
+          )}
 
-        <div style={{ marginBottom: 12 }}>
-          <label style={labelStyle}>Description</label>
-          <textarea
-            rows={3}
-            value={form.DESCRIPTION}
-            onChange={(e) => setForm({ ...form, DESCRIPTION: e.target.value })}
-            placeholder="What was the expense for? Who was it with? Where?"
-            style={{ ...inputStyle, resize: "vertical" }}
-          />
-        </div>
-
-        {error && (
-          <div style={{
-            padding: "8px 12px",
-            background: pal.errorBg,
-            color: pal.errorFg,
-            border: `1px solid ${pal.errorBorder}`,
-            borderRadius: 8,
-            fontSize: 12,
-            marginBottom: 10,
-          }}>
-            {error}
-          </div>
-        )}
-
-        <div
-          className="bvc-allowance-submit-row"
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            flexWrap: "wrap",
-          }}
-        >
           <button
             type="submit"
             disabled={submitting}
-            className="bvc-allowance-submit"
+            className="bvc-allow-submit"
             style={{
-              padding: "11px 24px",
-              background: submitting ? "#94a3b8" : `linear-gradient(135deg, ${BVC_RED}, ${BVC_DARK})`,
-              color: "white",
+              marginTop: 14,
+              width: "100%",
+              height: 46,
+              background: submitting ? "#94a3b8" : BVC_RED,
+              color: "#ffffff",
               border: "none",
-              borderRadius: 8,
-              fontWeight: 800,
-              fontSize: 13,
+              borderRadius: 10,
+              fontWeight: 700,
+              fontSize: 14,
+              letterSpacing: 0.2,
               cursor: submitting ? "wait" : "pointer",
-              boxShadow: "0 6px 18px rgba(200,16,46,0.30)",
-              minWidth: 180,
+              transition: "background 120ms, transform 40ms",
+              boxShadow: submitting ? "none" : "0 1px 2px rgba(200,16,46,0.20)",
             }}
           >
-            {submitting ? "Submitting..." : "Submit for approval"}
+            {submitting ? "Submitting…" : "Submit for approval"}
           </button>
-        </div>
-        <style>{`
-          @media (max-width: 640px) {
-            .bvc-allowance-submit-row { justify-content: stretch !important; }
-            .bvc-allowance-submit { width: 100%; }
-            .bvc-claims-desktop-col { display: none !important; }
-          }
-        `}</style>
-      </form>
+        </form>
+      </section>
 
-      {/* History */}
-      <div style={{
+      {/* ================= 4. SUBMITTED CLAIMS ================= */}
+      <section style={{
         background: pal.cardBg,
         border: `1px solid ${pal.cardBorder}`,
         borderRadius: 12,
-        padding: 18,
+        padding: "14px 4px 4px 4px",
+        boxShadow: "0 1px 2px rgba(15,23,42,0.03)",
       }}>
         <div style={{
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: 700,
-          letterSpacing: 1.4,
+          letterSpacing: 1.3,
           color: pal.strong,
           textTransform: "uppercase",
-          marginBottom: 12,
+          margin: "0 12px 10px 12px",
         }}>
           My submitted claims ({rows.length})
         </div>
 
         {loading && (
-          <div style={{ color: pal.muted, fontSize: 13, padding: 12 }}>
-            Loading...
+          <div style={{ color: pal.muted, fontSize: 13, padding: "10px 14px" }}>
+            Loading…
           </div>
         )}
 
         {!loading && rows.length === 0 && (
           <div style={{
+            margin: "0 12px 12px 12px",
             color: pal.soft,
             fontSize: 13,
             padding: 14,
@@ -522,87 +556,175 @@ export default function MyAllowanceSection({ employeeId }) {
         )}
 
         {!loading && rows.length > 0 && (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: 13,
-            }}>
-              <thead>
-                <tr style={{
-                  background: pal.tableHeadBg,
-                  fontSize: 10,
-                  letterSpacing: 0.8,
-                  color: pal.soft,
-                  textTransform: "uppercase",
-                }}>
-                  <th className="bvc-claims-desktop-col" style={{ ...th, borderBottomColor: pal.cardBorder, color: pal.soft }}>Submitted</th>
-                  <th style={{ ...th, borderBottomColor: pal.cardBorder, color: pal.soft }}>Category</th>
-                  <th className="bvc-claims-desktop-col" style={{ ...th, borderBottomColor: pal.cardBorder, color: pal.soft }}>Expense date</th>
-                  <th style={{ ...th, borderBottomColor: pal.cardBorder, color: pal.soft, textAlign: "right" }}>Amount</th>
-                  <th style={{ ...th, borderBottomColor: pal.cardBorder, color: pal.soft }}>Status</th>
-                  <th className="bvc-claims-desktop-col" style={{ ...th, borderBottomColor: pal.cardBorder, color: pal.soft }}>Description / reviewer note</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.ID} style={{ borderBottom: `1px solid ${pal.rowBorder}` }}>
-                    <td className="bvc-claims-desktop-col" style={{ ...td, color: pal.body }}>{r.SUBMITTED_AT ? new Date(r.SUBMITTED_AT).toLocaleDateString("en-IN") : "-"}</td>
-                    <td style={{ ...td, color: pal.body }}>{r.CATEGORY.replace(/_/g, " ")}</td>
-                    <td className="bvc-claims-desktop-col" style={{ ...td, color: pal.body }}>{r.EXPENSE_DATE || "-"}</td>
-                    <td style={{ ...td, textAlign: "right", fontWeight: 700, color: pal.strong }}>{inr(r.AMOUNT)}</td>
-                    <td style={td}><StatusPill status={r.STATUS} pal={pal} /></td>
-                    <td className="bvc-claims-desktop-col" style={{ ...td, color: pal.body, fontSize: 12 }}>
-                      {r.DESCRIPTION || "-"}
-                      {r.REVIEW_NOTES && (
-                        <div style={{
-                          marginTop: 4,
-                          padding: "4px 8px",
-                          background: r.STATUS === "REJECTED" ? pal.errorBg : pal.successBg,
-                          border: `1px solid ${r.STATUS === "REJECTED" ? pal.errorBorder : pal.successBorder}`,
-                          color: r.STATUS === "REJECTED" ? pal.errorFg : pal.successFg,
-                          borderRadius: 6,
-                          fontSize: 11,
-                          fontStyle: "italic",
-                        }}>
-                          MD: {r.REVIEW_NOTES}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            {rows.map((r, idx) => (
+              <li
+                key={r.ID}
+                style={{
+                  padding: "12px 14px",
+                  borderTop: idx === 0 ? "none" : `1px solid ${pal.divider}`,
+                  display: "grid",
+                  gridTemplateColumns: "1fr auto",
+                  columnGap: 12,
+                  rowGap: 2,
+                  alignItems: "center",
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{
+                    fontSize: 13.5,
+                    fontWeight: 600,
+                    color: pal.strong,
+                    letterSpacing: 0.1,
+                  }}>
+                    {catLabel(r.CATEGORY)}
+                  </div>
+                  <div style={{
+                    fontSize: 11.5,
+                    color: pal.muted,
+                    marginTop: 2,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}>
+                    {r.EXPENSE_DATE
+                      ? new Date(r.EXPENSE_DATE).toLocaleDateString("en-IN", {
+                          day: "2-digit", month: "short", year: "numeric",
+                        })
+                      : "—"}
+                    {r.DESCRIPTION ? ` · ${r.DESCRIPTION}` : ""}
+                  </div>
+                  {r.REVIEW_NOTES && (
+                    <div style={{
+                      marginTop: 6,
+                      padding: "5px 8px",
+                      background: r.STATUS === "REJECTED" ? pal.errorBg : pal.successBg,
+                      border: `1px solid ${r.STATUS === "REJECTED" ? pal.errorBorder : pal.successBorder}`,
+                      color: r.STATUS === "REJECTED" ? pal.errorFg : pal.successFg,
+                      borderRadius: 6,
+                      fontSize: 11.5,
+                      lineHeight: 1.4,
+                    }}>
+                      <b>MD:</b> {r.REVIEW_NOTES}
+                    </div>
+                  )}
+                </div>
 
-      {/* Toast */}
+                <div style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-end",
+                  gap: 4,
+                }}>
+                  <div style={{
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: pal.strong,
+                    letterSpacing: -0.2,
+                    fontVariantNumeric: "tabular-nums",
+                  }}>
+                    {inr(r.AMOUNT)}
+                  </div>
+                  <StatusPill status={r.STATUS} pal={pal} />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* ================= 5. TOAST ================= */}
       {toast && (
-        <div style={{
-          position: "fixed",
-          right: 24,
-          bottom: 24,
-          background: pal.toastBg,
-          color: "white",
-          padding: "12px 18px",
-          borderRadius: 10,
-          fontSize: 13,
-          fontWeight: 700,
-          boxShadow: "0 12px 36px rgba(0,0,0,0.30)",
-          zIndex: 9999,
-        }}>
+        <div
+          role="status"
+          style={{
+            position: "fixed",
+            left: "50%",
+            transform: "translateX(-50%)",
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)",
+            background: pal.toastBg,
+            color: "white",
+            padding: "11px 18px",
+            borderRadius: 10,
+            fontSize: 13,
+            fontWeight: 600,
+            boxShadow: "0 12px 36px rgba(0,0,0,0.30)",
+            zIndex: 9999,
+            maxWidth: "calc(100% - 32px)",
+          }}
+        >
           {toast}
         </div>
       )}
+
+      {/* ================= mobile-first CSS ================= */}
+      <style>{`
+        .bvc-allow-root {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+                       Roboto, 'Helvetica Neue', Arial, sans-serif;
+          padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        /* Form field grid: single-column on mobile, 3-up on wider screens. */
+        .bvc-allow-form-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 10px;
+        }
+        @media (min-width: 640px) {
+          .bvc-allow-form-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+          }
+        }
+
+        /* Focus ring — subtle red glow instead of the browser default. */
+        .bvc-allow-input:focus,
+        .bvc-allow-input:focus-visible {
+          border-color: ${BVC_RED} !important;
+          box-shadow: 0 0 0 3px rgba(200, 16, 46, 0.14) !important;
+        }
+
+        .bvc-allow-submit:hover:not(:disabled) {
+          background: ${BVC_DARK} !important;
+        }
+        .bvc-allow-submit:active:not(:disabled) {
+          transform: translateY(1px);
+        }
+        .bvc-allow-submit:focus-visible {
+          outline: 2px solid ${BVC_RED};
+          outline-offset: 2px;
+        }
+
+        /* Placeholder tone */
+        .bvc-allow-input::placeholder {
+          color: ${pal.muted};
+          opacity: 1;
+        }
+
+        /* On very narrow phones, drop the hero's "This month" chip to a
+           new row so the headline gets full width. */
+        @media (max-width: 400px) {
+          .bvc-allow-hero-stat {
+            border-left: none !important;
+            padding-left: 0 !important;
+            text-align: left !important;
+            border-top: 1px solid ${pal.divider};
+            padding-top: 10px !important;
+            width: 100%;
+          }
+        }
+      `}</style>
     </div>
   );
 }
 
 
-// Tint pairs used by the small icon square inside each Tile so the
-// four claim cards get colour-coded at a glance (blue = total,
-// amber = pending, green = approved, red = rejected).
+// ---------------------------------------------------------------------
+// StatCard — one of the 2×2 statistic tiles.
+// tint drives the icon square's colour so blue/amber/green/red pick
+// their own soft background + saturated icon at a glance.
+// ---------------------------------------------------------------------
 const TILE_TINTS = {
   blue:  { light: { bg: "#eff6ff", fg: "#1d4ed8" }, dark: { bg: "rgba(59, 130, 246, 0.18)", fg: "#93c5fd" } },
   amber: { light: { bg: "#fffbeb", fg: "#b45309" }, dark: { bg: "rgba(251, 191, 36, 0.18)", fg: "#fbbf24" } },
@@ -610,40 +732,36 @@ const TILE_TINTS = {
   red:   { light: { bg: "#fef2f2", fg: "#b91c1c" }, dark: { bg: "rgba(239, 68, 68, 0.18)",  fg: "#fca5a5" } },
 };
 
-function Tile({ label, value, sub, color, pal, icon, tintKey }) {
-  // Detect dark mode from pal (strong colour is off-white on dark).
+function StatCard({ pal, tint, icon, label, value, sub }) {
   const isDark = pal.strong === "#f1f5f9";
-  const tint = tintKey && TILE_TINTS[tintKey]
-    ? (isDark ? TILE_TINTS[tintKey].dark : TILE_TINTS[tintKey].light)
-    : null;
+  const t = TILE_TINTS[tint] || TILE_TINTS.blue;
+  const tone = isDark ? t.dark : t.light;
 
   return (
     <div style={{
       background: pal.cardBg,
-      borderRadius: 12,
-      padding: "14px 16px",
       border: `1px solid ${pal.cardBorder}`,
-      borderTop: `3px solid ${color}`,
-      boxShadow: "0 4px 14px rgba(15,23,42,0.06)",
+      borderRadius: 12,
+      padding: 14,
+      boxShadow: "0 1px 2px rgba(15,23,42,0.03)",
       display: "flex",
       flexDirection: "column",
-      gap: 6,
+      gap: 8,
+      minHeight: 96,
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        {tint && icon && (
-          <span style={{
-            width: 30, height: 30, borderRadius: 8,
-            background: tint.bg, color: tint.fg,
-            display: "inline-flex", alignItems: "center", justifyContent: "center",
-            fontSize: 15, fontWeight: 700, flexShrink: 0,
-          }}>
-            {icon}
-          </span>
-        )}
+        <span style={{
+          width: 32, height: 32, borderRadius: 8,
+          background: tone.bg, color: tone.fg,
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          flexShrink: 0,
+        }}>
+          {icon}
+        </span>
         <div style={{
           fontSize: 10.5,
-          fontWeight: 700,
-          letterSpacing: 1.1,
+          fontWeight: 600,
+          letterSpacing: 0.8,
           color: pal.soft,
           textTransform: "uppercase",
         }}>
@@ -651,33 +769,19 @@ function Tile({ label, value, sub, color, pal, icon, tintKey }) {
         </div>
       </div>
       <div style={{
-        fontSize: 22,
+        fontSize: 24,
         fontWeight: 800,
         color: pal.strong,
         letterSpacing: -0.4,
         lineHeight: 1,
-        marginTop: 2,
       }}>
         {value}
       </div>
       {sub && (
-        <div style={{ fontSize: 11, color: pal.muted, marginTop: 0 }}>
+        <div style={{ fontSize: 11.5, color: pal.muted, marginTop: -2 }}>
           {sub}
         </div>
       )}
     </div>
   );
 }
-
-
-const th = {
-  padding: "8px 10px",
-  textAlign: "left",
-  fontWeight: 700,
-  borderBottom: "1px solid #e2e8f0",
-};
-
-const td = {
-  padding: "10px 10px",
-  verticalAlign: "top",
-};
