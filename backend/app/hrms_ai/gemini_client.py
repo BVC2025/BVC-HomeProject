@@ -88,7 +88,15 @@ def _client():
                 "GEMINI_API_KEY is not set. Add it to backend/.env "
                 "(get a free key at https://aistudio.google.com/apikey)."
             )
-        genai.configure(api_key=key)
+        # New AQ.-prefixed API keys hit "ACCESS_TOKEN_TYPE_UNSUPPORTED"
+        # on the default gRPC transport of the deprecated
+        # google-generativeai package. Forcing REST bypasses the
+        # OAuth-style auth check and just sends the key in the header.
+        try:
+            genai.configure(api_key=key, transport="rest")
+        except TypeError:
+            # older versions don't accept the transport kwarg
+            genai.configure(api_key=key)
         _genai = genai
     return _genai
 
