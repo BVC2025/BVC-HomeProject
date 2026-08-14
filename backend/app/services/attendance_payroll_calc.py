@@ -312,10 +312,16 @@ def compute_monthly_calculation(
                 paid_leave_days += weight
 
         # ----- Auto-classify raw absences against CL quota -----
-        # Company rule (per HR spec): every employee gets 1 CL per
-        # month. Any ABSENT day that isn't already covered by a formal
-        # CL LeaveRequest gets auto-consumed against that monthly cap;
-        # excess absences fall through to LOP and are deducted.
+        # Company rule (per HR spec): every employee gets exactly
+        # 1 CL per month, no more. Any ABSENT day not already covered
+        # by a formal CL LeaveRequest gets auto-consumed against that
+        # monthly cap; excess absences fall through to LOP.
+        #
+        # The cap is FLOORED to a whole day so unusual annual quotas
+        # (e.g. 14/year -> 14/12 = 1.166) don't leak fractional days
+        # into the CL column. Combined CL (formal + auto) is then
+        # hard-capped at that monthly cap so the CL column never
+        # displays more than the policy allows.
         bal = (
             db.query(LeaveBalance)
               .filter(LeaveBalance.EMPLOYEE_ID == emp.ID)
@@ -323,12 +329,16 @@ def compute_monthly_calculation(
               .first()
         )
         annual_cl = float(bal.CASUAL_TOTAL) if bal else 12.0
-        monthly_cl_cap = annual_cl / 12.0
+        monthly_cl_cap = float(int(annual_cl // 12)) if annual_cl >= 12 else annual_cl / 12.0
 
-        cl_remaining_this_month = max(0.0, monthly_cl_cap - formal_cl_used)
+        # Formal CL claimed this month can itself exceed the cap if
+        # HR made a manual adjustment; clip it before adding auto.
+        formal_cl_capped = min(formal_cl_used, monthly_cl_cap)
+
+        cl_remaining_this_month = max(0.0, monthly_cl_cap - formal_cl_capped)
         auto_cl = min(float(absent_days), cl_remaining_this_month)
 
-        cl_used = round(formal_cl_used + auto_cl, 1)
+        cl_used = round(min(monthly_cl_cap, formal_cl_capped + auto_cl), 1)
 
         # Unpaid absence = raw absent + LOP leave minus ALL CL applied
         # (formal + auto). paid_leave_days from Attendance isn't
