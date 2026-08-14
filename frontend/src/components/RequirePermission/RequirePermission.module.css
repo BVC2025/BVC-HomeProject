@@ -1,0 +1,136 @@
+/* ============================================================
+   RequirePermission — access-denied guard screen.
+   Fully responsive: fluid sizing via clamp() for smooth scaling
+   between breakpoints, plus explicit breakpoints for phones,
+   tablets, small/large desktops, and short/landscape viewports.
+   ============================================================ */
+
+.wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: min(70vh, 640px);
+  padding: clamp(1.5rem, 6vw, 4rem) clamp(1rem, 5vw, 2rem);
+  box-sizing: border-box;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: clamp(0.75rem, 2vw, 1.25rem);
+  max-width: 560px;
+  width: 100%;
+}
+
+.image {
+  width: clamp(140px, 32vw, 300px);
+  height: auto;
+  object-fit: contain;
+  margin-bottom: clamp(0.25rem, 1vw, 0.5rem);
+  /* A gentle static "floor" shadow — the illustration otherwise
+     reads as floating on plain backgrounds. */
+  filter: drop-shadow(0 12px 20px rgba(15, 23, 42, 0.12));
+}
+
+.title {
+  margin: 0;
+  color: var(--text-primary, #1e293b);
+  font-size: clamp(1.25rem, 1.05rem + 1vw, 1.75rem);
+  font-weight: var(--fw-bold, 700);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.description {
+  margin: 0;
+  color: var(--text-secondary, #64748b);
+  font-size: clamp(0.9rem, 0.85rem + 0.3vw, 1.0625rem);
+  line-height: 1.65;
+  max-width: 440px;
+}
+
+.code {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--surface, #f1f5f9);
+  border: 1px solid var(--border, #e2e8f0);
+  color: var(--clr-primary, #dc2626);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.9em;
+  font-weight: var(--fw-semi, 600);
+  word-break: break-word;
+}
+
+/* ── Tablets and up ─────────────────────────────────────────── */
+@media (min-width: 768px) {
+  .wrapper {
+    min-height: min(75vh, 680px);
+  }
+
+  .content {
+    gap: 1.5rem;
+  }
+}
+
+/* ── Small-to-large desktop screens ────────────────────────────── */
+@media (min-width: 1200px) {
+  .content {
+    max-width: 620px;
+  }
+
+  .description {
+    max-width: 480px;
+  }
+}
+
+/* ── Portrait / vertical-screen devices (phones & tablets held
+   upright) — narrower column, image doesn't dominate the viewport. */
+@media (orientation: portrait) {
+  .content {
+    max-width: 90vw;
+  }
+
+  .image {
+    width: clamp(130px, 45vw, 260px);
+  }
+}
+
+/* ── Short viewports (landscape phones, small laptops with the
+   window shrunk vertically) — prioritize keeping the text visible
+   over a large illustration. */
+@media (max-height: 560px) {
+  .wrapper {
+    min-height: auto;
+    padding-top: clamp(1rem, 4vh, 2rem);
+    padding-bottom: clamp(1rem, 4vh, 2rem);
+  }
+
+  .image {
+    width: clamp(96px, 20vh, 160px);
+    margin-bottom: 0.25rem;
+  }
+
+  .content {
+    gap: 0.6rem;
+  }
+}
+
+/* ── Very small phones ──────────────────────────────────────── */
+@media (max-width: 360px) {
+  .image {
+    width: 120px;
+  }
+
+  .title {
+    font-size: 1.125rem;
+  }
+
+  .description {
+    font-size: 0.85rem;
+  }
+}

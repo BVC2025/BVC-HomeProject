@@ -12,7 +12,7 @@ import {
   useLocation
 } from "react-router-dom";
 
-import RequirePermission from "../components/RequirePermission";
+import RequirePermission from "../components/RequirePermission/RequirePermission";
 import { useAuth } from "../context/AuthContext";
 import { permissionForRoute } from "../utils/rbac";
 import EmployeeProfileForm from "./EmployeeProfileForm";
@@ -131,6 +131,7 @@ import {
   renderPercentLabel,
   sumValues
 } from "../utils/chartHelpers";
+import { Loader } from "../components/pm";
 
 function NotificationBell() {
 
@@ -2001,7 +2002,8 @@ function Dashboard() {
         display: "flex", alignItems: "center", justifyContent: "center",
         height: "100vh", fontSize: "1rem", color: "var(--text-secondary, #64748b)",
       }}>
-        Loading your profile…
+        {/* Loading your profile… */}
+        <Loader />
       </div>
     );
   }

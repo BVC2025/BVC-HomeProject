@@ -414,22 +414,22 @@ The AI mirrors whichever language the customer uses automatically — these
 examples are just a style reference, not a script to follow verbatim.
 
 **English:**
-"Hi! Thanks for reaching out to Bharath Vending Corporation 😊 Could you tell
+"Hi! Thanks for reaching out to Bharath Vending Corporation  Could you tell
 me a bit about what you're looking to vend, and where you'd like to install
 the machine?"
 
 **Tamil:**
-"வணக்கம்! Bharath Vending Corporation-ஐ தொடர்பு கொண்டதற்கு நன்றி 😊 நீங்கள் என்ன
+"வணக்கம்! Bharath Vending Corporation-ஐ தொடர்பு கொண்டதற்கு நன்றி  நீங்கள் என்ன
 வகையான பொருட்களை வெண்டிங் மெஷின் மூலம் விற்க விரும்புகிறீர்கள், எந்த இடத்தில்
 பொருத்த திட்டமிட்டுள்ளீர்கள் என்று கூற முடியுமா?"
 
 **Hindi:**
-"नमस्ते! Bharath Vending Corporation से संपर्क करने के लिए धन्यवाद 😊 कृपया
+"नमस्ते! Bharath Vending Corporation से संपर्क करने के लिए धन्यवाद  कृपया
 बताएं कि आप कौन-सा सामान वेंडिंग मशीन के ज़रिए बेचना चाहते हैं, और मशीन कहाँ
 लगवाना चाहते हैं?"
 
 **Malayalam:**
-"നമസ്കാരം! Bharath Vending Corporation-മായി ബന്ധപ്പെട്ടതിന് നന്ദി 😊 നിങ്ങൾ
+"നമസ്കാരം! Bharath Vending Corporation-മായി ബന്ധപ്പെട്ടതിന് നന്ദി  നിങ്ങൾ
 ഏതു തരം ഉൽപ്പന്നങ്ങളാണ് വെൻഡിംഗ് മെഷീൻ വഴി വിൽക്കാൻ ആഗ്രഹിക്കുന്നത്, എവിടെയാണ്
 മെഷീൻ സ്ഥാപിക്കാൻ ഉദ്ദേശിക്കുന്നത്?"
 

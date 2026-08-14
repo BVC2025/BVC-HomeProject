@@ -17,29 +17,28 @@
 // errors on every request.
 // =====================================================================
 
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
+import lockImage from "../../assets/images/lock.webp";
+import styles from "./RequirePermission.module.css";
 
 function AccessDenied({ code }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "4rem 1.5rem",
-        textAlign: "center",
-        gap: "0.75rem",
-      }}
-    >
-      <div style={{ fontSize: "2.5rem" }} aria-hidden="true">🔒</div>
-      <h2 style={{ margin: 0 }}>You don't have access to this page</h2>
-      <p style={{ margin: 0, color: "var(--muted-color, #666)", maxWidth: 420 }}>
-        Your account doesn't have the{" "}
-        <code>{Array.isArray(code) ? code.join(" / ") : code}</code>{" "}
-        permission needed here. Ask your administrator to grant it if you
-        believe this is a mistake.
-      </p>
+    <div className={styles.wrapper}>
+      <div className={styles.content}>
+        <img
+          src={lockImage}
+          alt=""
+          aria-hidden="true"
+          className={styles.image}
+        />
+        <h2 className={styles.title}>You don&apos;t have access to this page</h2>
+        <p className={styles.description}>
+          Your account doesn&apos;t have the{" "}
+          <code className={styles.code}>{Array.isArray(code) ? code.join(" / ") : code}</code>{" "}
+          permission needed here. Ask your administrator to grant it if you
+          believe this is a mistake.
+        </p>
+      </div>
     </div>
   );
 }
