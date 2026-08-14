@@ -464,7 +464,7 @@ function LeaveManagement() {
                 }}
               >
                 <option value="">All types</option>
-                {["CASUAL", "SICK", "UNPAID", "LOP", "PERMISSION", "MATERNITY"].map((t) => (
+                {["CASUAL", "UNPAID", "LOP", "PERMISSION"].map((t) => (
                   <option key={t} value={t}>{t}</option>
                 ))}
               </select>
@@ -578,11 +578,10 @@ function BalanceOverview() {
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [year]);
 
-  // Quick "running low" flag — < 25% available across all paid types
+  // Quick "running low" flag — < 25% CL available (only CL is used here).
   const isLow = (emp) => {
-    const total = (emp.casual.total + emp.sick.total) +
-      (emp.casual.carryover + emp.sick.carryover);
-    const avail = emp.casual.available + emp.sick.available;
+    const total = emp.casual.total + emp.casual.carryover;
+    const avail = emp.casual.available;
     if (total <= 0) return false;
     return (avail / total) < 0.25;
   };
@@ -608,14 +607,12 @@ function BalanceOverview() {
             <tr>
               <th>Employee</th>
               <th>Casual</th>
-              <th>Sick</th>
-              <th>Maternity</th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody>
             {!loading && data.rows.length === 0 && (
-              <tr><td colSpan={5} className={styles.balanceEmpty}>
+              <tr><td colSpan={3} className={styles.balanceEmpty}>
                 No active employees found.
               </td></tr>
             )}
@@ -627,8 +624,6 @@ function BalanceOverview() {
                   <div className={styles.balanceEmpCode}>{emp.employee_code || "—"}</div>
                 </td>
                 <BalanceCell data={emp.casual} />
-                <BalanceCell data={emp.sick} />
-                <BalanceCell data={emp.maternity} hideIfZero />
                 <td>
                   <button
                     type="button"
@@ -738,7 +733,7 @@ function AdjustmentModal({ employee, year, onClose, onSaved }) {
           <div className={styles.adjField}>
             <label>Leave type</label>
             <select value={leaveType} onChange={(e) => setLeaveType(e.target.value)}>
-              {["CASUAL", "SICK", "MATERNITY"].map((t) => (
+              {["CASUAL"].map((t) => (
                 <option key={t} value={t}>{t}</option>
               ))}
             </select>
