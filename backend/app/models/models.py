@@ -2441,6 +2441,11 @@ class PayrollSlip(Base):
     SUBMITTED_AT = Column(DateTime, nullable=True)
     PAID_AT = Column(DateTime, nullable=True)
 
+    # HR-picked date shown on the payslip preview + PDF. Distinct from
+    # CREATED_AT (system stamp) and PAID_AT (money-actually-disbursed
+    # stamp). Populated by the PayslipGenerator via /generate-for-employee.
+    PAY_DATE = Column(Date, nullable=True)
+
     # Sum of LeaveRequest.DURATION_HOURS for TYPE='PERMISSION' rows
     # falling inside this slip's pay period. Surfaced as an input
     # column on the employee-list view; does not itself affect pay.

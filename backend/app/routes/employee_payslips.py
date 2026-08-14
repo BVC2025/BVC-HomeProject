@@ -207,7 +207,11 @@ def get_payslip_detail(
     pay_period_label = f"{_month_name(run.PAY_MONTH)} {run.PAY_YEAR}"
 
     pay_date = None
-    if slip.PAID_AT:
+    # HR-picked date wins over the workflow timestamps. Old slips
+    # without PAY_DATE fall back to PAID_AT / SUBMITTED_AT.
+    if getattr(slip, "PAY_DATE", None):
+        pay_date = slip.PAY_DATE.strftime("%d %b %Y")
+    elif slip.PAID_AT:
         pay_date = slip.PAID_AT.strftime("%d %b %Y")
     elif slip.SUBMITTED_AT:
         pay_date = slip.SUBMITTED_AT.strftime("%d %b %Y")

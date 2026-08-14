@@ -280,6 +280,22 @@ def _process_one_attlog_line(db: Session, device_sn: str, line: str) -> None:
           .filter(Employee.FINGERPRINT_ID == pin)
           .first()
     )
+    if emp is None:
+        # HR-summary Excel imports use EMPLOYEE_CODE ("BVC002") as the
+        # PIN column instead of the device enrollment number.
+        emp = (
+            db.query(Employee)
+              .filter(Employee.EMPLOYEE_CODE == pin)
+              .first()
+        )
+    # Still unknown? Auto-create a placeholder Employee so this punch
+    # (and every future one for this PIN) lands on a real row. If HR
+    # later pushes an OPERLOG USER record with the real name, it'll
+    # refresh onto this same row.
+    if emp is None:
+        emp = _auto_create_employee_from_operlog(db, device_sn, pin, None)
+        if emp is not None:
+            _backfill_orphan_punches_for(db, pin, emp)
     emp_id = emp.ID if emp else None
 
     already = (
@@ -331,6 +347,12 @@ def _retry_attlog_line_as_update(db: Session, device_sn: str, line: str) -> None
           .filter(Employee.FINGERPRINT_ID == pin)
           .first()
     )
+    if emp is None:
+        emp = (
+            db.query(Employee)
+              .filter(Employee.EMPLOYEE_CODE == pin)
+              .first()
+        )
     if not emp:
         return
 
@@ -518,10 +540,107 @@ def _recompute_hours_with_ot(row: Attendance, punch_out: datetime) -> None:
 # =====================================================================
 # OPERLOG handler — user enrolments / operator actions.
 #
-# We store a BiometricEvent for audit but don't try to auto-create
-# Employees. Enrolment stays a manual admin step in the ERP so we
-# always have an approving user.
+# When the device enrols a new user it pushes a line like:
+#     USER PIN=25\tName=Deepthi\tPri=0\tPasswd=\tCard=0\tGrp=1\tTZ=\tVerify=0
+# We parse that, and if no Employee already has FINGERPRINT_ID == PIN
+# we auto-create a placeholder Employee (STATUS=ACTIVE, EMPLOYEE_CODE
+# BVCnnn based on max existing) so subsequent punches for that PIN
+# stop landing as UNKNOWN_USER. Admin still edits salary / dept later.
 # =====================================================================
+import re as _re
+
+_USER_LINE = _re.compile(r"^\s*USER\b", _re.IGNORECASE)
+_PIN_RE    = _re.compile(r"PIN=([^\s\t]+)", _re.IGNORECASE)
+_NAME_RE   = _re.compile(r"Name=([^\t\r\n]+)", _re.IGNORECASE)
+
+
+def _next_employee_code(db: Session) -> str:
+    """Return the next available BVCnnn code, zero-padded to 3 digits."""
+    codes = (
+        db.query(Employee.EMPLOYEE_CODE)
+          .filter(Employee.EMPLOYEE_CODE.like("BVC%"))
+          .all()
+    )
+    max_n = 0
+    for (c,) in codes:
+        if not c:
+            continue
+        tail = c[3:]
+        if tail.isdigit():
+            max_n = max(max_n, int(tail))
+    return f"BVC{max_n + 1:03d}"
+
+
+def _backfill_orphan_punches_for(db: Session, pin: str, emp: Employee) -> int:
+    """Replay every UNKNOWN_USER biometric event for this PIN as an
+    Attendance row on the newly-linked employee. Returns the number
+    of events replayed."""
+    orphans = (
+        db.query(BiometricEvent)
+          .filter(BiometricEvent.FINGERPRINT_ID == pin)
+          .filter(BiometricEvent.RESULT == "UNKNOWN_USER")
+          .order_by(BiometricEvent.EVENT_TIME.asc())
+          .all()
+    )
+    for ev in orphans:
+        try:
+            _apply_to_attendance(db, emp, ev.EVENT_TIME, "0")
+            ev.EMPLOYEE_ID = emp.ID
+            ev.RESULT = "SUCCESS"
+        except Exception:
+            db.rollback()
+            continue
+    if orphans:
+        db.commit()
+    return len(orphans)
+
+
+def _auto_create_employee_from_operlog(
+    db: Session, device_sn: str, pin: str, name: Optional[str]
+) -> Optional[Employee]:
+    """Create a placeholder Employee row for a new device enrolment.
+    Returns None if PIN is already mapped or creation fails."""
+
+    existing = (
+        db.query(Employee)
+          .filter(Employee.FINGERPRINT_ID == pin)
+          .first()
+    )
+    if existing is not None:
+        # Refresh the name if the device now has a real name and the
+        # ERP row is still a placeholder ("Employee <PIN>" or blank).
+        if name and (not existing.NAME or existing.NAME.strip() in ("", f"Employee {pin}")):
+            existing.NAME = name.strip()
+            db.commit()
+        return existing
+
+    try:
+        from app.services.auth_service import hash_password
+    except Exception:
+        hash_password = None
+
+    code = _next_employee_code(db)
+    display_name = (name or f"Employee {pin}").strip()
+    default_pwd = "Bvc@2026"   # admin should reset after first login
+
+    emp = Employee(
+        EMPLOYEE_CODE=code,
+        NAME=display_name,
+        FINGERPRINT_ID=str(pin),
+        VENDOR_ID=1,
+        STATUS="ACTIVE",
+        PASSWORD=(hash_password(default_pwd) if hash_password else default_pwd),
+    )
+    try:
+        db.add(emp)
+        db.commit()
+        db.refresh(emp)
+        return emp
+    except Exception:
+        db.rollback()
+        return None
+
+
 def _handle_operlog(db: Session, device_sn: str, body: str) -> int:
 
     lines = [ln.strip() for ln in body.replace("\r\n", "\n").split("\n") if ln.strip()]
@@ -535,6 +654,17 @@ def _handle_operlog(db: Session, device_sn: str, body: str) -> int:
             raw=line[:1000],
             event_time=datetime.utcnow(),
         )
+
+        # Auto-create employee when the device pushes a USER record.
+        if _USER_LINE.match(line):
+            m_pin  = _PIN_RE.search(line)
+            m_name = _NAME_RE.search(line)
+            if m_pin:
+                pin = m_pin.group(1).strip()
+                name = m_name.group(1).strip() if m_name else None
+                emp = _auto_create_employee_from_operlog(db, device_sn, pin, name)
+                if emp is not None:
+                    _backfill_orphan_punches_for(db, pin, emp)
 
     if lines:
         db.commit()
@@ -604,23 +734,77 @@ async def import_attlog_file(
 ):
     """
     Upload an attendance log exported from the biometric device via
-    USB. Returns the number of records that landed vs. were skipped
-    as duplicates vs. were mapped to unknown PINs.
+    USB. Two file formats accepted:
+
+      1. Native ESSL/ZKTeco text export (.dat / .txt / .log / .csv).
+         Passed straight through to the existing _handle_attlog parser
+         which is what the ADMS-Push endpoint uses too.
+
+      2. Excel workbook (.xlsx) — for cases where HR downloaded the
+         attendance sheet from the device's web UI or converted it
+         manually. We parse the sheet, extract PIN + timestamp per
+         row, synthesise an ATTLOG text block in the exact tab-
+         separated shape _handle_attlog expects, then hand it to the
+         same parser. The biometric handler stays untouched — it
+         still just sees canonical ATTLOG text.
+
+    Returns the number of records processed vs. inserted vs. skipped
+    as duplicates. To see the *calculated* per-employee summary
+    (present/absent/OT/etc.) for the same month, call
+    GET /iclock/import-summary?year=YYYY&month=M after the upload.
     """
     raw = await file.read()
 
     if not raw:
         raise HTTPException(status_code=400, detail="Empty file")
 
-    # ESSL exports are usually latin-1; some newer firmwares are utf-8.
-    try:
-        text = raw.decode("utf-8")
-    except UnicodeDecodeError:
-        text = raw.decode("latin-1", errors="replace")
+    filename = (file.filename or "").lower()
+    is_xlsx = (
+        filename.endswith(".xlsx")
+        or filename.endswith(".xlsm")
+        or (file.content_type or "").endswith("sheetml.sheet")
+    )
 
-    # Normalise: some devices use "|" as separator, others use tab.
-    # Convert any "|" runs to "\t" so _handle_attlog works uniformly.
-    normalised = text.replace("|", "\t")
+    if is_xlsx:
+        try:
+            normalised = _xlsx_to_attlog_lines(raw)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Could not parse Excel file: {exc}",
+            )
+        if not normalised.strip():
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Excel file had no recognisable rows. Expected columns "
+                    "for PIN/EmployeeCode and a Date+Time (or single DateTime)."
+                ),
+            )
+    else:
+        # ESSL exports are usually latin-1; some newer firmwares are utf-8.
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            text = raw.decode("latin-1", errors="replace")
+
+        # Normalise: some devices use "|" as separator, others use tab.
+        # Convert any "|" runs to "\t" so _handle_attlog works uniformly.
+        normalised = text.replace("|", "\t")
+
+    # Collect the distinct PINs the file references — the frontend
+    # uses these to scope the "Monthly calculation" panel to only the
+    # employees actually present in this upload.
+    seen_pins: set[str] = set()
+    for _ln in normalised.replace("\r\n", "\n").split("\n"):
+        _ln = _ln.strip()
+        if not _ln:
+            continue
+        _p = _ln.split("\t", 1)[0].strip()
+        if _p.endswith(".0"):
+            _p = _p[:-2]
+        if _p:
+            seen_pins.add(_p)
 
     # Count DB rows before we start so we can report a delta accurately.
     before = db.query(BiometricEvent).filter(
@@ -635,10 +819,300 @@ async def import_attlog_file(
 
     inserted = after - before
 
+    # Resolve the PINs into Employee IDs so the frontend can filter
+    # the summary strictly by "who was in this file". Try FINGERPRINT_ID
+    # first, then fall back to EMPLOYEE_CODE (HR summary format uses
+    # codes like BVC002 as the PIN column).
+    affected_employee_ids: list[str] = []
+    if seen_pins:
+        pins = list(seen_pins)
+        emp_rows = (
+            db.query(Employee.ID)
+              .filter(
+                  (Employee.FINGERPRINT_ID.in_(pins))
+                  | (Employee.EMPLOYEE_CODE.in_(pins))
+              )
+              .all()
+        )
+        affected_employee_ids = [r[0] for r in emp_rows]
+
     return {
         "filename": file.filename,
         "device_sn": device_sn,
         "records_seen": processed,
         "rows_inserted": inserted,
         "rows_skipped_as_duplicate": max(0, processed - inserted),
+        "file_kind": "xlsx" if is_xlsx else "text",
+        "affected_employee_ids": affected_employee_ids,
+        "affected_employee_count": len(affected_employee_ids),
+    }
+
+
+# ---------------------------------------------------------------------
+# Excel → ATTLOG text converter
+# ---------------------------------------------------------------------
+# The existing text parser _handle_attlog expects tab-separated lines
+# like:
+#     8\t2026-07-30 09:12:03\t0\t1\t0\t0
+#     ^   ^                  ^   ^
+#     PIN timestamp          status verify (unused)
+#
+# HR's Excel typically has one of these shapes:
+#   A) One row per punch: EnrollNo/PIN | Name | Date | Time | InOut
+#   B) One row per punch: PIN | DateTime            | InOut
+#   C) Legacy: PIN | Name | Date & Time             | Status
+# We detect PIN/timestamp columns tolerantly and skip anything else.
+# =====================================================================
+
+def _xlsx_to_attlog_lines(raw_bytes: bytes) -> str:
+
+    from io import BytesIO
+    try:
+        from openpyxl import load_workbook
+    except ImportError as e:
+        raise RuntimeError(
+            "openpyxl not installed. Run: pip install openpyxl"
+        ) from e
+
+    wb = load_workbook(BytesIO(raw_bytes), data_only=True, read_only=True)
+
+    lines: list[str] = []
+
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+
+        # First non-empty row = header; every subsequent row = a punch
+        header: list[str] = []
+        header_row_index = -1
+        for i, row in enumerate(ws.iter_rows(values_only=True)):
+            if row and any(c is not None and str(c).strip() for c in row):
+                header = [
+                    (str(c).strip().lower() if c is not None else "")
+                    for c in row
+                ]
+                header_row_index = i
+                break
+
+        if not header:
+            continue
+
+        # Find columns tolerantly. First match wins.
+        def _find_col(*candidates: str) -> int:
+            for idx, h in enumerate(header):
+                for cand in candidates:
+                    if cand in h:
+                        return idx
+            return -1
+
+        pin_col   = _find_col("pin", "enroll", "employee id", "empid", "emp_id", "employee code", "user id", "userid")
+        dt_col    = _find_col("date time", "datetime", "date & time", "timestamp", "punch time", "log time")
+        date_col  = _find_col("date")
+        time_col  = _find_col("time")
+        state_col = _find_col("in/out", "inout", "status", "verify state", "state")
+
+        # HR's daily-summary shape: one row per (employee, day) with
+        # multiple time columns for the check-in, check-out and OT edges.
+        ci_col    = _find_col("check in", "check-in", "checkin", "in time", "punch in")
+        co_col    = _find_col("check out", "check-out", "checkout", "out time", "punch out")
+        ot_ci_col = _find_col("ot check in", "ot in", "overtime in", "ot-in")
+        ot_co_col = _find_col("ot check out", "ot out", "overtime out", "ot-out")
+        is_daily_summary = date_col >= 0 and ci_col >= 0
+
+        if pin_col < 0:
+            continue  # this sheet doesn't look like a punch log — skip
+
+        # Single-punch-per-row shape needs a datetime source. Skip only
+        # if we ALSO can't fall back to the daily-summary layout.
+        if dt_col < 0 and (date_col < 0 or time_col < 0) and not is_daily_summary:
+            continue
+
+        for i, row in enumerate(ws.iter_rows(values_only=True)):
+            if i <= header_row_index:
+                continue
+            if not row:
+                continue
+
+            def _cell(idx: int):
+                return row[idx] if 0 <= idx < len(row) else None
+
+            pin_raw = _cell(pin_col)
+            if pin_raw is None or str(pin_raw).strip() == "":
+                continue
+            pin = str(pin_raw).strip()
+            # Some Excel exports read the PIN as a float (e.g. 8.0) — normalize.
+            if pin.endswith(".0"):
+                pin = pin[:-2]
+
+            if is_daily_summary:
+                # Emit one ATTLOG line per non-empty time cell so the
+                # existing punch handler can build the Attendance row.
+                date_val = _cell(date_col)
+                for tcol, state_flag in (
+                    (ci_col,    "0"),
+                    (co_col,    "1"),
+                    (ot_ci_col, "0"),
+                    (ot_co_col, "1"),
+                ):
+                    if tcol < 0:
+                        continue
+                    tval = _cell(tcol)
+                    if tval is None or str(tval).strip() == "":
+                        continue
+                    ts = _extract_timestamp(None, date_val, tval)
+                    if not ts:
+                        continue
+                    lines.append(f"{pin}\t{ts}\t{state_flag}\t1\t0\t0")
+                continue
+
+            timestamp_str = _extract_timestamp(_cell(dt_col), _cell(date_col), _cell(time_col))
+            if not timestamp_str:
+                continue
+
+            state = _cell(state_col)
+            state_flag = _normalise_state(state)
+
+            # Layout: PIN <tab> timestamp <tab> status <tab> verify
+            lines.append(f"{pin}\t{timestamp_str}\t{state_flag}\t1\t0\t0")
+
+    return "\n".join(lines)
+
+
+def _extract_timestamp(dt_val, date_val, time_val) -> str:
+    """Return "YYYY-MM-DD HH:MM:SS" or "" if nothing parseable."""
+
+    # Prefer a single combined datetime cell if present
+    if isinstance(dt_val, datetime):
+        return dt_val.strftime("%Y-%m-%d %H:%M:%S")
+    if isinstance(dt_val, str) and dt_val.strip():
+        return _parse_dt_string(dt_val.strip())
+
+    # Otherwise build from separate date + time cells
+    dstr = ""
+    tstr = "00:00:00"
+    if isinstance(date_val, datetime):
+        dstr = date_val.strftime("%Y-%m-%d")
+    elif isinstance(date_val, date):
+        dstr = date_val.strftime("%Y-%m-%d")
+    elif isinstance(date_val, str) and date_val.strip():
+        # Try common date-only formats
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%m/%d/%Y"):
+            try:
+                dstr = datetime.strptime(date_val.strip(), fmt).strftime("%Y-%m-%d")
+                break
+            except ValueError:
+                continue
+
+    if isinstance(time_val, datetime):
+        tstr = time_val.strftime("%H:%M:%S")
+    elif isinstance(time_val, time):
+        tstr = time_val.strftime("%H:%M:%S")
+    elif isinstance(time_val, str) and time_val.strip():
+        for fmt in ("%H:%M:%S", "%H:%M", "%I:%M:%S %p", "%I:%M %p"):
+            try:
+                tstr = datetime.strptime(time_val.strip(), fmt).strftime("%H:%M:%S")
+                break
+            except ValueError:
+                continue
+
+    if not dstr:
+        return ""
+    return f"{dstr} {tstr}"
+
+
+def _parse_dt_string(s: str) -> str:
+    for fmt in (
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%d/%m/%Y %H:%M:%S",
+        "%d/%m/%Y %H:%M",
+        "%d-%m-%Y %H:%M:%S",
+        "%d-%m-%Y %H:%M",
+        "%m/%d/%Y %H:%M:%S",
+        "%m/%d/%Y %H:%M",
+    ):
+        try:
+            return datetime.strptime(s, fmt).strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            continue
+    return ""
+
+
+def _normalise_state(val) -> str:
+    """Convert the In/Out column to the device's 0/1 status codes that
+    _handle_attlog understands. 0 = check-in, 1 = check-out. Unknown
+    values default to 0 — the time-of-day rules in _apply_to_attendance
+    take over anyway."""
+
+    if val is None:
+        return "0"
+    s = str(val).strip().lower()
+    if s in {"1", "out", "check-out", "checkout", "co", "o", "check_out"}:
+        return "1"
+    if s in {"0", "in", "check-in", "checkin", "ci", "i", "check_in"}:
+        return "0"
+    # Numeric codes from newer devices (2/3/4/5 = overtime in/out etc.)
+    if s.isdigit():
+        return s
+    return "0"
+
+
+# =====================================================================
+# GET /iclock/import-summary — per-employee calc for a given month
+# ---------------------------------------------------------------------
+# Read-only: never touches BiometricEvent, Attendance, PayrollSlip.
+# Reads Attendance rows for the month and applies the payroll-side
+# rules (OT@19:00, late-3x half-day, OT/late offset). See
+# app/services/attendance_payroll_calc.py for the full rule set.
+# =====================================================================
+
+@router.get("/import-summary")
+def import_summary(
+    year: int = Query(..., ge=2020, le=2100),
+    month: int = Query(..., ge=1, le=12),
+    vendor_id: Optional[int] = Query(None),
+    working_days: Optional[int] = Query(None, ge=1, le=31),
+    employee_ids: Optional[str] = Query(
+        None,
+        description="Comma-separated Employee.IDs to scope the result to. "
+                    "When omitted, all active employees are returned.",
+    ),
+    db: Session = Depends(get_db),
+):
+    """Per-employee attendance + payroll calculation for the month.
+
+    Query params
+      year          required — YYYY
+      month         required — 1..12
+      vendor_id     optional — scope to one vendor (default: any)
+      working_days  optional — override the auto-computed working
+                    days (calendar days − Sundays − holidays)
+      employee_ids  optional — comma-separated Employee.IDs to
+                    restrict the result to (used by the upload flow
+                    to show only the employees present in the file)
+    """
+
+    from app.services.attendance_payroll_calc import compute_monthly_calculation
+
+    ids: Optional[list[str]] = None
+    if employee_ids:
+        ids = [x.strip() for x in employee_ids.split(",") if x.strip()]
+        if not ids:
+            ids = None
+
+    rows = compute_monthly_calculation(
+        db,
+        year=year,
+        month=month,
+        vendor_id=vendor_id,
+        employee_ids=ids,
+        working_days_override=working_days,
+    )
+
+    return {
+        "year":       year,
+        "month":      month,
+        "vendor_id":  vendor_id,
+        "employees":  rows,
+        "count":      len(rows),
+        "filtered":   ids is not None,
     }
