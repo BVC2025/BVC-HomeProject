@@ -2012,6 +2012,27 @@ function Employees() {
     });
   };
 
+  // Fetch the employee's resume-style PDF and trigger a browser download.
+  const downloadEmployeeResume = async (emp) => {
+    try {
+      const res = await API.get(`/employees/${emp.ID}/resume.pdf`, {
+        responseType: "blob",
+      });
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const safeCode = (emp.EMPLOYEE_CODE || "employee").replace(/\s+/g, "_");
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${safeCode}_profile.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err?.response?.data?.detail || "Failed to download profile PDF");
+    }
+  };
+
   return (
     <div className={styles.pageWrapper}>
 
@@ -2204,6 +2225,21 @@ function Employees() {
                             title="View profile"
                           >
                             <img src={DetailsIconImg} alt="View" />
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.iconBtn}
+                            onClick={() => downloadEmployeeResume(emp)}
+                            title="Download profile PDF"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24"
+                                 fill="none" stroke="currentColor" strokeWidth="2"
+                                 strokeLinecap="round" strokeLinejoin="round"
+                                 aria-hidden="true">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                              <polyline points="7 10 12 15 17 10" />
+                              <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
                           </button>
                           <button
                             type="button"

@@ -496,6 +496,51 @@ def get_one_employee(
 
 
 # =========================
+# GET /employees/{id}/resume.pdf
+# ---------------------------------------------------------------
+# Renders the employee master data (personal + contact + employment
+# + education + experience + skills + photo) into a professional
+# resume-style PDF. Downloaded by the admin Employees page.
+# =========================
+
+@router.get("/employees/{employee_id}/resume.pdf")
+def download_employee_resume(
+    employee_id: str,
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
+):
+    from fastapi.responses import StreamingResponse
+    from io import BytesIO
+    from app.services.employee_resume_pdf import build_resume_pdf
+
+    # Admins can download anyone's; employees can only download their own.
+    assert_self_or_admin(employee_id, payload)
+
+    emp = db.query(Employee).filter(Employee.ID == employee_id).first()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    try:
+        pdf_bytes = build_resume_pdf(db, emp)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to build resume PDF: {exc}",
+        )
+
+    safe_name = (emp.EMPLOYEE_CODE or "employee").replace(" ", "_")
+    filename = f"{safe_name}_profile.pdf"
+
+    return StreamingResponse(
+        BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )
+
+
+# =========================
 # Self-service — by EMPLOYEE_CODE
 # =========================
 
