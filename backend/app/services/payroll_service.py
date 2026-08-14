@@ -150,10 +150,19 @@ def calculate_employee_payroll(
     month: int,
     working_days: int,
     task_bonus_per_task: float = DEFAULT_TASK_BONUS,
-    late_penalty_per_day: float = DEFAULT_LATE_PENALTY
+    late_penalty_per_day: float = DEFAULT_LATE_PENALTY,
+    calc_row: dict = None,
 ) -> dict:
     """Pure calculation — does NOT touch the DB except for read
-    queries. Returns the breakdown dict that PayrollSlip stores."""
+    queries. Returns the breakdown dict that PayrollSlip stores.
+
+    When `calc_row` is provided (a single row from
+    attendance_payroll_calc.compute_monthly_calculation), the
+    biometric attendance counters and OT / late-penalty numbers are
+    pulled from it instead of being recomputed here. This keeps the
+    Monthly-calc UI and the generated PayrollSlip on the same rules
+    (OT@19:00, late-3x half-day penalty, absent→CL/LOP auto-classify).
+    """
 
     first, last = _month_range(year, month)
 
@@ -185,89 +194,83 @@ def calculate_employee_payroll(
 
     per_day = (base_salary / working_days) if working_days > 0 else 0.0
 
-    # ---- 1. Attendance counts ----
-    att_rows = db.query(Attendance).filter(
-        Attendance.EMPLOYEE_ID == employee.ID,
-        Attendance.DATE >= first,
-        Attendance.DATE <= last
-    ).all()
+    # ---- 1. Attendance + leave counters ----
+    # PREFERRED path: pull the numbers from the shared Monthly-calc
+    # so the PayrollSlip lines up 1:1 with what the "Monthly
+    # calculation" table on Biometric Import shows. Legacy path
+    # (STATUS-string counting) kept as a fallback for older code
+    # paths that call calculate_employee_payroll without a calc_row.
+    if calc_row is not None:
 
-    days_present = 0
+        days_present = int(calc_row.get("present_days", 0) or 0)
+        days_late    = int(calc_row.get("late_arrivals", 0) or 0)
+        # half-day penalty from the 3× late rule (0.5 per block of 3).
+        # Store in days_half so downstream prorating & PayrollSlip.DAYS_HALF
+        # reflect the effective deduction.
+        days_half    = float(calc_row.get("half_day_penalty", 0.0) or 0.0)
 
-    days_late = 0
+        # OT hours already trimmed for the 18:00-19:00 window and
+        # offset by total late minutes — this is the payroll-side
+        # net OT (what actually gets paid).
+        ot_hours     = float(calc_row.get("net_ot_hours", 0.0) or 0.0)
 
-    days_half = 0.0
+        # Paid leave = auto-classified CL (formal + monthly-cap auto)
+        # + any CL/SL/EL Attendance rows the leave sync wrote.
+        paid_leave   = float(calc_row.get("cl_used", 0.0) or 0.0) \
+                     + float(calc_row.get("paid_leave_days", 0.0) or 0.0)
 
-    ot_hours = 0.0
+        # Unpaid leave = LOP Attendance rows written by the leave sync.
+        unpaid_leave = float(calc_row.get("lop_days", 0.0) or 0.0)
 
-    for row in att_rows:
+        # Absent-and-unaccounted (raw absent minus CL applied).
+        absent_days  = float(calc_row.get("unpaid_absent", 0.0) or 0.0)
 
-        st = (row.STATUS or "").upper()
+    else:
+        # ----- legacy fallback (kept for backward compat) -----
+        att_rows = db.query(Attendance).filter(
+            Attendance.EMPLOYEE_ID == employee.ID,
+            Attendance.DATE >= first,
+            Attendance.DATE <= last
+        ).all()
 
-        if st == "HALF_DAY":
+        days_present = 0
+        days_late = 0
+        days_half = 0.0
+        ot_hours = 0.0
 
-            days_half += 1
+        for row in att_rows:
+            st = (row.STATUS or "").upper()
+            if st == "HALF_DAY":
+                days_half += 1
+            elif st in ("PRESENT", "LATE"):
+                days_present += 1
+                if st == "LATE":
+                    days_late += 1
+            ot_hours += float(row.OVERTIME_HOURS or 0.0)
 
-        elif st in ("PRESENT", "LATE"):
+        leaves = db.query(LeaveRequest).filter(
+            LeaveRequest.EMPLOYEE_ID == employee.ID,
+            LeaveRequest.STATUS == "APPROVED",
+            LeaveRequest.START_DATE <= last,
+            LeaveRequest.END_DATE >= first
+        ).all()
 
-            days_present += 1
+        paid_leave = 0.0
+        unpaid_leave = 0.0
+        for lv in leaves:
+            overlap_days = _days_overlap(lv.START_DATE, lv.END_DATE, first, last)
+            if lv.START_DATE == lv.END_DATE and lv.DAYS and lv.DAYS < 1:
+                overlap_days = lv.DAYS
+            ltype = (lv.LEAVE_TYPE or "").upper()
+            if ltype in PAID_LEAVE_TYPES:
+                paid_leave += overlap_days
+            elif ltype in UNPAID_LEAVE_TYPES:
+                unpaid_leave += overlap_days
+            else:
+                paid_leave += overlap_days
 
-            if st == "LATE":
-
-                days_late += 1
-
-        ot_hours += float(row.OVERTIME_HOURS or 0.0)
-
-    # ---- 2. Leave splits ----
-    leaves = db.query(LeaveRequest).filter(
-        LeaveRequest.EMPLOYEE_ID == employee.ID,
-        LeaveRequest.STATUS == "APPROVED",
-        LeaveRequest.START_DATE <= last,
-        LeaveRequest.END_DATE >= first
-    ).all()
-
-    paid_leave = 0.0
-
-    unpaid_leave = 0.0
-
-    for lv in leaves:
-
-        # Number of leave days that fall inside this month
-        overlap_days = _days_overlap(
-            lv.START_DATE, lv.END_DATE, first, last
-        )
-
-        # If the request had a fractional DAYS (half-day), respect
-        # that — but only when start == end (half-days are single-date)
-        if lv.START_DATE == lv.END_DATE and lv.DAYS and lv.DAYS < 1:
-
-            overlap_days = lv.DAYS
-
-        ltype = (lv.LEAVE_TYPE or "").upper()
-
-        if ltype in PAID_LEAVE_TYPES:
-
-            paid_leave += overlap_days
-
-        elif ltype in UNPAID_LEAVE_TYPES:
-
-            unpaid_leave += overlap_days
-
-        else:
-
-            # Unknown leave type — treat as paid by default
-            paid_leave += overlap_days
-
-    # ---- 3. Absent days ----
-    # working_days - (present + half×0.5 + paid + unpaid) → assumed absent
-    accounted = (
-        days_present
-        + days_half * 0.5
-        + paid_leave
-        + unpaid_leave
-    )
-
-    absent_days = max(0.0, working_days - accounted)
+        accounted = days_present + days_half * 0.5 + paid_leave + unpaid_leave
+        absent_days = max(0.0, working_days - accounted)
 
     # ---- 4. Tasks completed ----
     completed_statuses = ("COMPLETED", "DONE")
@@ -333,7 +336,15 @@ def calculate_employee_payroll(
 
     task_bonus = round(tasks_completed * task_bonus_per_task, 2)
 
-    ot_pay = 0.0  # OT rate not configured yet; reserved field
+    # OT pay + late penalty: prefer Monthly-calc's values when
+    # available (they apply the HR-agreed rules — OT@19:00 with
+    # late-minute offset, and half-day penalty every 3 late arrivals).
+    if calc_row is not None:
+        ot_pay       = float(calc_row.get("ot_pay", 0.0) or 0.0)
+        late_penalty = float(calc_row.get("late_penalty", 0.0) or 0.0)
+    else:
+        ot_pay       = 0.0  # legacy path had no OT payout
+        late_penalty = round(days_late * late_penalty_per_day, 2)
 
     gross_pay = round(
         earned_basic + earned_hra + earned_da +
@@ -352,8 +363,6 @@ def calculate_employee_payroll(
         pf_applicable=pf_applicable,
         esi_applicable=esi_applicable
     )
-
-    late_penalty = round(days_late * late_penalty_per_day, 2)
 
     total_deductions = round(
         late_penalty + stat["employee_total"],
@@ -497,13 +506,37 @@ def generate_payroll_run(
 
     last_of_month = date(year, month, last_day)
 
+    # Run the shared Monthly-calc once for the whole vendor and
+    # index by employee_id — every per-employee payroll below reads
+    # its attendance counters + OT + late penalty from this map
+    # instead of recomputing (so PayrollSlip == Monthly-calc UI).
+    calc_by_emp: dict = {}
+    try:
+        from app.services.attendance_payroll_calc import (
+            compute_monthly_calculation,
+        )
+        calc_rows = compute_monthly_calculation(
+            db,
+            year=year,
+            month=month,
+            vendor_id=vendor_id,
+            working_days_override=working_days,
+        )
+        for cr in calc_rows:
+            calc_by_emp[cr["employee_id"]] = cr
+    except Exception:
+        # If the calc fails for any reason, per-employee fallback
+        # to the legacy STATUS-string counters kicks in below.
+        calc_by_emp = {}
+
     for emp in employees:
 
         breakdown = calculate_employee_payroll(
             db, emp, year, month,
             working_days=working_days,
             task_bonus_per_task=task_bonus_per_task,
-            late_penalty_per_day=late_penalty_per_day
+            late_penalty_per_day=late_penalty_per_day,
+            calc_row=calc_by_emp.get(emp.ID),
         )
 
         # Permission hours for this employee in the pay period.
@@ -601,5 +634,27 @@ def generate_payroll_run(
     db.commit()
 
     db.refresh(run)
+
+    # ---------------------------------------------------------------
+    # Phase 3 — auto-file every fresh payslip PDF into the
+    # employee's document folder so the ESS portal sees it
+    # immediately and admins have a permanent archive.
+    # Best-effort: any per-slip failure is logged and skipped.
+    # ---------------------------------------------------------------
+    try:
+        from app.services.payslip_document_filer import (
+            file_payslip_as_document,
+        )
+        slips_for_run = db.query(PayrollSlip).filter(
+            PayrollSlip.PAYROLL_RUN_ID == run.ID
+        ).all()
+        emp_by_id = {e.ID: e for e in employees}
+        for slip in slips_for_run:
+            emp = emp_by_id.get(slip.EMPLOYEE_ID)
+            if emp is not None:
+                file_payslip_as_document(db, slip, run, emp)
+    except Exception:
+        # Never let PDF filing break the payroll run itself.
+        pass
 
     return run

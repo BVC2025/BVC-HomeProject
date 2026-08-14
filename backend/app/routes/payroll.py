@@ -386,6 +386,17 @@ def generate_for_employee(
 
     db.commit(); db.refresh(slip)
 
+    # ---- Phase 3 — auto-file the payslip PDF into the employee's
+    # document folder so it appears in ESS immediately. ----
+    try:
+        from app.services.payslip_document_filer import (
+            file_payslip_as_document,
+        )
+        file_payslip_as_document(db, slip, run, emp)
+    except Exception:
+        # Never let PDF filing block a manual payslip create.
+        pass
+
     # ---- Notify the employee ----
     try:
         month_names = [
