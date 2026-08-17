@@ -339,6 +339,38 @@ def apply_leave(
             )
         )
 
+    # ----- Monthly-CL cap (HR policy: 1 Casual Leave per calendar month) -----
+    # Applies only to CASUAL. Any second APPROVED/PENDING CL request whose
+    # START_DATE lands in the same calendar month as an existing one gets
+    # rejected here — mirrors the auto-classify logic on the payroll side.
+    if data.LEAVE_TYPE == "CASUAL":
+        _first_of_month = date(data.START_DATE.year, data.START_DATE.month, 1)
+        if data.START_DATE.month == 12:
+            _first_of_next = date(data.START_DATE.year + 1, 1, 1)
+        else:
+            _first_of_next = date(data.START_DATE.year, data.START_DATE.month + 1, 1)
+
+        existing_cl = db.query(LeaveRequest).filter(
+            LeaveRequest.EMPLOYEE_ID == employee.ID,
+            LeaveRequest.LEAVE_TYPE == "CASUAL",
+            LeaveRequest.STATUS.in_(["PENDING_APPROVAL", "APPROVED"]),
+            LeaveRequest.START_DATE >= _first_of_month,
+            LeaveRequest.START_DATE <  _first_of_next,
+        ).first()
+
+        if existing_cl:
+            month_name = _first_of_month.strftime("%B %Y")
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"You already have a {existing_cl.STATUS} Casual Leave "
+                    f"in {month_name} ({existing_cl.START_DATE} → "
+                    f"{existing_cl.END_DATE}). Only one Casual Leave is "
+                    f"allowed per calendar month — cancel that one first "
+                    f"or use LOP/UNPAID for the extra day."
+                )
+            )
+
     # ---- BVC24 leave policy gating ----
     # Every leave (any positive duration) needs manager approval
     # AND a reason. Threshold is 0, so `days > 0` always true.

@@ -20,7 +20,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import API from "../services/api";
 import styles from "./LeaveAndPermission.module.css";
-import AIPreCheckPanel, { allCommitmentsFilled as allCommitsFilled } from "./AIPreCheckPanel";
+import AIPreCheckPanel, {
+  allCommitmentsFilled as allCommitsFilled,
+  hasBlockingConflicts,
+} from "./AIPreCheckPanel";
 
 
 // ------------------------------------------------------------------
@@ -180,6 +183,7 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
   }, [employeeId, leaveType, startDate, endDate, halfDay, reason]);
 
   const commitmentsReady = allCommitsFilled(preCheck, commitments);
+  const isBlocked        = hasBlockingConflicts(preCheck);
 
   // ---- Load balance + history on mount / employee change ----
   const refresh = useCallback(async () => {
@@ -333,6 +337,12 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
       setError("Please run AI pre-check before submitting.");
       return;
     }
+    if (isBlocked) {
+      const first = preCheck?.blocking_conflicts?.[0]?.message
+                 || "This request violates an HR policy.";
+      setError(first);
+      return;
+    }
     if (!commitmentsReady) {
       setError("Please pick a commit-by date for every high-priority pending task.");
       return;
@@ -352,7 +362,7 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
   }, [
     validationError, employeeId, leaveType,
     daysUsedThisMonth, dayCount, doSubmit,
-    preCheck, commitmentsReady,
+    preCheck, commitmentsReady, isBlocked,
   ]);
 
   const confirmAndSubmit = useCallback(() => {
@@ -574,16 +584,18 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
             <button
               type="submit"
               className={styles.submitBtn}
-              disabled={saving || !preCheck || !commitmentsReady}
+              disabled={saving || !preCheck || isBlocked || !commitmentsReady}
               title={
                 !preCheck
                   ? "Run AI pre-check first"
-                  : !commitmentsReady
-                    ? "Please pick a commit-by date for every high-priority pending task"
-                    : validationError || undefined
+                  : isBlocked
+                    ? (preCheck?.blocking_conflicts?.[0]?.message || "Blocked by HR policy")
+                    : !commitmentsReady
+                      ? "Please pick a commit-by date for every high-priority pending task"
+                      : validationError || undefined
               }
               style={
-                (!preCheck || !commitmentsReady) && !saving
+                (!preCheck || isBlocked || !commitmentsReady) && !saving
                   ? { opacity: 0.55, cursor: "not-allowed" }
                   : undefined
               }

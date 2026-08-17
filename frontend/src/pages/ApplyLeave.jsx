@@ -155,6 +155,8 @@ function ApplyLeaveForm({ employeeId, onApplied }) {
   const allCommitmentsFilled = gatingTasks.every(
     (t) => (commitments[t.task_id]?.promised_by || "").trim() !== ""
   );
+  const preCheckBlocked = Array.isArray(preCheck?.blocking_conflicts)
+                       && preCheck.blocking_conflicts.length > 0;
 
   // Reset pre-check whenever the input fields change so we never
   // submit stale AI data alongside new dates.
@@ -221,6 +223,13 @@ function ApplyLeaveForm({ employeeId, onApplied }) {
     // Phase 4 — MD needs the pre-check + commitments before deciding.
     if (!preCheck) {
       setError("Please run AI pre-check before submitting.");
+      return;
+    }
+
+    if (preCheckBlocked) {
+      setError(
+        preCheck?.blocking_conflicts?.[0]?.message || "Blocked by HR policy."
+      );
       return;
     }
 
@@ -445,18 +454,20 @@ function ApplyLeaveForm({ employeeId, onApplied }) {
 
         <button
           type="submit"
-          disabled={submitting || !preCheck || !allCommitmentsFilled}
+          disabled={submitting || !preCheck || preCheckBlocked || !allCommitmentsFilled}
           title={
             !preCheck
               ? "Run AI pre-check first"
-              : !allCommitmentsFilled
-                ? "Please pick a commit-by date for every high-priority pending task"
-                : ""
+              : preCheckBlocked
+                ? (preCheck?.blocking_conflicts?.[0]?.message || "Blocked by HR policy")
+                : !allCommitmentsFilled
+                  ? "Please pick a commit-by date for every high-priority pending task"
+                  : ""
           }
           style={{
             marginTop: 16,
             border: "none",
-            background: (submitting || !preCheck || !allCommitmentsFilled)
+            background: (submitting || !preCheck || preCheckBlocked || !allCommitmentsFilled)
               ? "#94a3b8"
               : needsApproval
                 ? "#f59e0b"
@@ -465,9 +476,9 @@ function ApplyLeaveForm({ employeeId, onApplied }) {
             padding: "12px 24px",
             borderRadius: 8,
             fontWeight: 700,
-            cursor: (submitting || !preCheck || !allCommitmentsFilled) ? "not-allowed" : "pointer",
+            cursor: (submitting || !preCheck || preCheckBlocked || !allCommitmentsFilled) ? "not-allowed" : "pointer",
             fontSize: 14,
-            boxShadow: (preCheck && allCommitmentsFilled) && (needsApproval
+            boxShadow: (preCheck && !preCheckBlocked && allCommitmentsFilled) && (needsApproval
               ? "0 6px 18px rgba(245,158,11,0.35)"
               : "0 6px 18px rgba(16,185,129,0.35)")
           }}

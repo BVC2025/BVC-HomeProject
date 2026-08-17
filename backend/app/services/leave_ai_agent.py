@@ -99,6 +99,44 @@ def _recent_leave_history(db: Session, employee_id: str, months_back: int = 3) -
     ]
 
 
+def _monthly_cl_status(db: Session, employee_id: str, ref_date: date) -> dict:
+    """Whether the employee has already booked a Casual Leave in the
+    calendar month of `ref_date`. Used by the pre-check response so
+    the frontend can block a second CL before it even hits the server.
+    """
+    first_of_month = date(ref_date.year, ref_date.month, 1)
+    if ref_date.month == 12:
+        first_of_next = date(ref_date.year + 1, 1, 1)
+    else:
+        first_of_next = date(ref_date.year, ref_date.month + 1, 1)
+
+    existing = (
+        db.query(LeaveRequest)
+          .filter(LeaveRequest.EMPLOYEE_ID == employee_id)
+          .filter(LeaveRequest.LEAVE_TYPE == "CASUAL")
+          .filter(LeaveRequest.STATUS.in_(["PENDING_APPROVAL", "APPROVED"]))
+          .filter(LeaveRequest.START_DATE >= first_of_month)
+          .filter(LeaveRequest.START_DATE <  first_of_next)
+          .order_by(LeaveRequest.START_DATE.asc())
+          .first()
+    )
+    return {
+        "month_label": first_of_month.strftime("%B %Y"),
+        "cap_per_month": 1,
+        "already_booked": existing is not None,
+        "existing": (
+            {
+                "id":         existing.ID,
+                "start_date": existing.START_DATE.isoformat(),
+                "end_date":   existing.END_DATE.isoformat(),
+                "days":       float(existing.DAYS or 0),
+                "status":     existing.STATUS,
+                "reason":     (existing.REASON or "")[:200],
+            } if existing else None
+        ),
+    }
+
+
 def _attendance_pattern(db: Session, employee_id: str, days_back: int = 90) -> dict:
     """Late-arrival + absence counts over the past N days."""
     since = date.today() - timedelta(days=days_back)
@@ -280,6 +318,23 @@ def run_pre_check(
     history    = _recent_leave_history(db, employee.ID)
     attendance = _attendance_pattern(db, employee.ID)
     tasks      = _pending_tasks(db, employee.ID, start_date, end_date)
+    monthly_cl = _monthly_cl_status(db, employee.ID, start_date)
+
+    # HR policy blockers surfaced BEFORE the AI recommendation so the
+    # frontend can render them prominently and gate the Submit button.
+    blocking_conflicts: List[dict] = []
+    if (leave_type or "").upper() == "CASUAL" and monthly_cl["already_booked"]:
+        ex = monthly_cl["existing"]
+        blocking_conflicts.append({
+            "kind":  "MONTHLY_CL_CAP",
+            "message": (
+                f"You've already booked your Casual Leave for "
+                f"{monthly_cl['month_label']} "
+                f"({ex['start_date']} → {ex['end_date']}, {ex['status']}). "
+                f"Only 1 CL is allowed per calendar month."
+            ),
+            "existing": ex,
+        })
 
     # Structured facts fed to the LLM.
     payload_for_ai = {
@@ -324,6 +379,8 @@ def run_pre_check(
         "recent_leave_history": history,
         "attendance_pattern":   attendance,
         "pending_tasks":        tasks,
+        "monthly_cl_status":    monthly_cl,
+        "blocking_conflicts":   blocking_conflicts,
         "requires_task_commitments": any(t["urgency"] in ("HIGH", "MEDIUM") for t in tasks),
         "ai_recommendation":    ai_recommendation,
     }

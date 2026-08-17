@@ -49,6 +49,7 @@ export default function AIPreCheckPanel({ preCheck, commitments, setCommitments 
   const bal = preCheck?.leave_balance || {};
   const att = preCheck?.attendance_pattern || {};
   const tasks = preCheck?.pending_tasks || [];
+  const blockers = preCheck?.blocking_conflicts || [];
 
   const setCommit = (task_id, field, value) => {
     setCommitments((prev) => ({
@@ -96,6 +97,33 @@ export default function AIPreCheckPanel({ preCheck, commitments, setCommitments 
           Advisory only — MD is the final decision maker.
         </div>
       </div>
+
+      {/* Policy blocker(s) — surfaced before AI so it's unmistakable */}
+      {blockers.length > 0 && (
+        <div style={{ padding: "10px 12px", background: "#fef2f2", borderTop: "1px solid #fecaca" }}>
+          {blockers.map((b, i) => (
+            <div key={i} style={{
+              padding: "10px 12px",
+              background: "white",
+              border: "1px solid #fecaca",
+              borderLeft: "3px solid #b91c1c",
+              borderRadius: 6,
+              marginBottom: i === blockers.length - 1 ? 0 : 8,
+            }}>
+              <div style={{
+                fontSize: 10.5, fontWeight: 800, letterSpacing: 1.2,
+                textTransform: "uppercase", color: "#b91c1c",
+                marginBottom: 4,
+              }}>
+                Policy blocker · this leave cannot be submitted
+              </div>
+              <div style={{ fontSize: 13, color: "#0f172a", lineHeight: 1.5 }}>
+                {b.message}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Balance + attendance strip */}
       <div style={{
@@ -234,10 +262,10 @@ export default function AIPreCheckPanel({ preCheck, commitments, setCommitments 
 
 
 // -----------------------------------------------------
-// Convenience helper for the caller: derives whether the
-// Submit button should be locked given the current
-// commitments dictionary.
+// Convenience helpers for the caller.
 // -----------------------------------------------------
+
+/** True when every HIGH/MEDIUM pending task has a promised-by date. */
 export function allCommitmentsFilled(preCheck, commitments) {
   const gating = (preCheck?.pending_tasks || []).filter(
     (t) => t.urgency === "HIGH" || t.urgency === "MEDIUM"
@@ -245,4 +273,11 @@ export function allCommitmentsFilled(preCheck, commitments) {
   return gating.every(
     (t) => (commitments?.[t.task_id]?.promised_by || "").trim() !== ""
   );
+}
+
+/** True when the pre-check returned any hard HR-policy blocker
+ * (e.g. Casual Leave already used this calendar month). */
+export function hasBlockingConflicts(preCheck) {
+  return Array.isArray(preCheck?.blocking_conflicts)
+      && preCheck.blocking_conflicts.length > 0;
 }
