@@ -1,7 +1,29 @@
 from datetime import date
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel
+
+
+class TaskCommitment(BaseModel):
+    """Phase 4 — one row of the employee's promise-list posted at
+    apply time when they have pending tasks that overlap the leave
+    window. Free-form note allowed (e.g. 'will hand off to Ram')."""
+
+    task_id: int
+    task_name: Optional[str] = None
+    promised_by: Optional[date] = None
+    note: Optional[str] = None
+
+
+class AIRecommendationSnapshot(BaseModel):
+    """Phase 4 — the AI verdict returned by /leave/pre-check, sent
+    back on /leave/apply so we can persist exactly what the employee
+    saw. AI is advisory only — MD is the final decision maker."""
+
+    verdict: Optional[str] = None
+    headline: Optional[str] = None
+    reasons: Optional[List[str]] = None
+    generated_by: Optional[str] = None
 
 
 class LeaveApplyRequest(BaseModel):
@@ -20,6 +42,15 @@ class LeaveApplyRequest(BaseModel):
     # conditionally: required only when DAYS > 2 (per BVC24 policy).
     DAYS: Optional[float] = None   # auto-computed from dates if omitted
     HALF_DAY: bool = False
+
+    # Phase 4 — task commitments the employee promised at apply time.
+    # Optional so legacy callers keep working.
+    TASK_COMMITMENTS: Optional[List[TaskCommitment]] = None
+
+    # Phase 4 — AI recommendation snapshot from /leave/pre-check.
+    # Persisted verbatim on LeaveRequest.AI_RECOMMENDATION so MD
+    # sees exactly what the AI told the employee.
+    AI_RECOMMENDATION: Optional[AIRecommendationSnapshot] = None
 
 
 class LeaveCancelRequest(BaseModel):

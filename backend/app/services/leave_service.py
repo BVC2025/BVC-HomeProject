@@ -477,6 +477,108 @@ def generate_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+# ---------------------------------------------------------------------
+# Phase 4 — email rendering helpers for AI recommendation +
+# employee's task commitments. Both blocks render empty (no HTML)
+# when the leave has no data, so legacy leaves look unchanged.
+# ---------------------------------------------------------------------
+
+_VERDICT_STYLE = {
+    "APPROVE":              ("#10b981", "#ecfdf5", "AI: Approve"),
+    "APPROVE_WITH_CAUTION": ("#f59e0b", "#fffbeb", "AI: Approve with caution"),
+    "NEEDS_MD_REVIEW":      ("#ef4444", "#fef2f2", "AI: Needs MD review"),
+}
+
+
+def _format_ai_recommendation_block(leave: "LeaveRequest") -> str:
+    raw = getattr(leave, "AI_RECOMMENDATION", None)
+    if not raw:
+        return ""
+    try:
+        import json as _json
+        obj = _json.loads(raw)
+    except Exception:
+        return ""
+    if not isinstance(obj, dict):
+        return ""
+    verdict = str(obj.get("verdict") or "").upper()
+    fg, bg, label = _VERDICT_STYLE.get(verdict, ("#64748b", "#f1f5f9", "AI recommendation"))
+    headline = str(obj.get("headline") or "")
+    reasons  = obj.get("reasons") or []
+    reasons_html = ""
+    if reasons:
+        reasons_html = (
+            "<ul style='margin:8px 0 0 18px;padding:0;color:#334155;font-size:13px;'>"
+            + "".join(f"<li>{str(r)}</li>" for r in reasons[:6])
+            + "</ul>"
+        )
+    return f"""
+    <div style="margin-top:18px;padding:12px 14px;background:{bg};
+                border:1px solid {fg}55;border-left:3px solid {fg};
+                border-radius:6px;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:1px;
+                  text-transform:uppercase;color:{fg};">{label}</div>
+      <div style="margin-top:4px;font-size:14px;color:#0f172a;
+                  font-weight:600;">{headline}</div>
+      {reasons_html}
+      <div style="margin-top:6px;font-size:11px;color:#94a3b8;
+                  font-style:italic;">
+        Advisory only — MD is the final decision maker.
+      </div>
+    </div>
+    """
+
+
+def _format_task_commitments_block(leave: "LeaveRequest") -> str:
+    raw = getattr(leave, "TASK_COMMITMENTS", None)
+    if not raw:
+        return ""
+    try:
+        import json as _json
+        items = _json.loads(raw)
+    except Exception:
+        return ""
+    if not isinstance(items, list) or not items:
+        return ""
+    rows = ""
+    for it in items:
+        name = str(it.get("task_name") or f"Task {it.get('task_id')}")
+        promised = str(it.get("promised_by") or "—")
+        note = str(it.get("note") or "").strip()
+        note_html = (
+            f"<div style='font-size:12px;color:#64748b;margin-top:2px;'>{note}</div>"
+            if note else ""
+        )
+        rows += (
+            "<tr>"
+            f"<td style='padding:6px 10px;border-bottom:1px solid #e5e7eb;'>"
+            f"<div style='font-weight:600;color:#0f172a;'>{name}</div>"
+            f"{note_html}</td>"
+            f"<td style='padding:6px 10px;border-bottom:1px solid #e5e7eb;"
+            f"font-size:13px;color:#334155;white-space:nowrap;'>{promised}</td>"
+            "</tr>"
+        )
+    return f"""
+    <div style="margin-top:14px;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:1px;
+                  text-transform:uppercase;color:#64748b;margin-bottom:6px;">
+        Employee task commitments
+      </div>
+      <table style="width:100%;border-collapse:collapse;
+                    border:1px solid #e5e7eb;border-radius:6px;
+                    overflow:hidden;">
+        <thead>
+          <tr style="background:#f8fafc;font-size:11px;color:#64748b;">
+            <th style="text-align:left;padding:6px 10px;">Task</th>
+            <th style="text-align:right;padding:6px 10px;">Commit by</th>
+          </tr>
+        </thead>
+        <tbody>{rows}</tbody>
+      </table>
+    </div>
+    """
+
+
 def send_approval_email(
     db: Session,
     leave: LeaveRequest,
@@ -545,6 +647,9 @@ def send_approval_email(
             <tr><td style="color:#64748b;vertical-align:top;">Reason</td>
                 <td>{leave.REASON or '(no reason given)'}</td></tr>
           </table>
+
+          {_format_ai_recommendation_block(leave)}
+          {_format_task_commitments_block(leave)}
 
           <div style="margin-top:22px;display:flex;gap:10px;
                       justify-content:center;">

@@ -463,6 +463,13 @@ def _auto_migrate():
         ("leave_balance", "POLICY_ID",           "INT NULL"),
         # ---- HR Module Phase D — Permission subtypes ----
         ("leave_request", "PERMISSION_SUBTYPE",  "VARCHAR(20) NULL"),
+        # ---- HRMS Phase 4 — AI Leave Agent + Task Gate ----
+        # Snapshot of AI recommendation captured at submit time
+        # (verdict + rationale). MD sees this alongside Approve/Reject.
+        ("leave_request", "AI_RECOMMENDATION",   "TEXT NULL"),
+        # JSON array of task commitments the employee promised at
+        # apply time (task_id, promised_by, note).
+        ("leave_request", "TASK_COMMITMENTS",    "TEXT NULL"),
         # ---- HR Module Phase E — Payroll components + statutory ----
         ("payroll_slip", "HRA",                   "FLOAT NULL DEFAULT 0"),
         ("payroll_slip", "DA",                    "FLOAT NULL DEFAULT 0"),

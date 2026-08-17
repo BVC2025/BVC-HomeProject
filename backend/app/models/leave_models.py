@@ -89,6 +89,14 @@ class LeaveRequest(Base):
 
     REJECTION_REASON = Column(String(500), nullable=True)
 
+    # Phase 4 — AI Leave Agent + Task Gate.
+    # Snapshot of AI recommendation captured at submit time
+    # (verdict + rationale). MD sees this alongside Approve/Reject.
+    AI_RECOMMENDATION = Column(Text, nullable=True)
+    # JSON array of task commitments the employee promised at apply
+    # time (task_id, promised_by, note).
+    TASK_COMMITMENTS = Column(Text, nullable=True)
+
     VENDOR_ID = Column(
         Integer,
         ForeignKey("vendor.ID"),

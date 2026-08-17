@@ -156,10 +156,74 @@ def _serialize_leave(
         ),
         "APPROVED_BY_EMAIL": leave.APPROVED_BY_EMAIL,
         "REJECTION_REASON": leave.REJECTION_REASON,
+        "AI_RECOMMENDATION": _parse_json_field(
+            getattr(leave, "AI_RECOMMENDATION", None)
+        ),
+        "TASK_COMMITMENTS": _parse_json_field(
+            getattr(leave, "TASK_COMMITMENTS", None)
+        ),
         "CREATED_AT": (
             leave.CREATED_AT.isoformat() if leave.CREATED_AT else None
         )
     }
+
+
+def _parse_json_field(raw):
+    """Best-effort JSON decode of stored AI / task-commitment blobs.
+    Returns None on empty / invalid so serialisation stays clean."""
+    if not raw:
+        return None
+    import json as _json
+    try:
+        return _json.loads(raw)
+    except Exception:
+        return None
+
+
+# ----------------------------------------------------------------
+# PHASE 4 — AI PRE-CHECK
+# ----------------------------------------------------------------
+# Called by the ApplyLeave form BEFORE the employee hits Submit.
+# Returns leave balance, recent leave history, attendance pattern,
+# pending tasks that overlap the requested window, and an AI
+# recommendation. Read-only — nothing gets written to the DB here.
+
+@router.post("/pre-check")
+def leave_pre_check(
+    data: LeaveApplyRequest,
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
+):
+    """AI-assisted pre-check that surfaces balance, task conflicts,
+    and history for the MD to review. Never writes to DB. Never
+    approves or rejects — MD is still the final decision maker."""
+
+    assert_self_or_admin(data.EMPLOYEE_ID, payload)
+
+    employee = _resolve_employee(db, data.EMPLOYEE_ID)
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    if data.START_DATE > data.END_DATE:
+        raise HTTPException(
+            status_code=400,
+            detail="START_DATE must be on or before END_DATE",
+        )
+
+    days = data.DAYS or compute_days(
+        data.START_DATE, data.END_DATE, data.HALF_DAY
+    )
+
+    from app.services.leave_ai_agent import run_pre_check
+
+    return run_pre_check(
+        db, employee,
+        leave_type=data.LEAVE_TYPE,
+        start_date=data.START_DATE,
+        end_date=data.END_DATE,
+        days=days,
+        reason=data.REASON,
+    )
 
 
 # ----------------------------------------------------------------
@@ -292,6 +356,30 @@ def apply_leave(
             )
         )
 
+    # Phase 4 — serialize the AI recommendation + task commitments
+    # coming from the ApplyLeave form so MD can see them alongside
+    # the request. Both fields are optional for backward compat.
+    import json as _json
+    ai_recommendation_text = None
+    if data.AI_RECOMMENDATION is not None:
+        try:
+            ai_recommendation_text = _json.dumps(
+                data.AI_RECOMMENDATION.model_dump(exclude_none=True),
+                default=str,
+            )
+        except Exception:
+            ai_recommendation_text = None
+
+    task_commitments_text = None
+    if data.TASK_COMMITMENTS:
+        try:
+            task_commitments_text = _json.dumps(
+                [tc.model_dump(exclude_none=True) for tc in data.TASK_COMMITMENTS],
+                default=str,
+            )
+        except Exception:
+            task_commitments_text = None
+
     leave = LeaveRequest(
         EMPLOYEE_ID=employee.ID,
         LEAVE_TYPE=data.LEAVE_TYPE,
@@ -314,6 +402,8 @@ def apply_leave(
             None if needs_manager_approval
             else f"auto-approved ({days:g} day(s), no review needed)"
         ),
+        AI_RECOMMENDATION=ai_recommendation_text,
+        TASK_COMMITMENTS=task_commitments_text,
         VENDOR_ID=employee.VENDOR_ID
     )
 
