@@ -20,6 +20,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import API from "../services/api";
 import styles from "./LeaveAndPermission.module.css";
+import AIPreCheckPanel, { allCommitmentsFilled as allCommitsFilled } from "./AIPreCheckPanel";
 
 
 // ------------------------------------------------------------------
@@ -131,6 +132,55 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
   // ---- UI: balance-deduction confirmation modal ----
   const [showBalanceConfirm, setShowBalanceConfirm] = useState(false);
 
+  // ---- Phase 4: AI pre-check + task commitments ----
+  const [preCheck, setPreCheck] = useState(null);
+  const [preChecking, setPreChecking] = useState(false);
+  const [commitments, setCommitments] = useState({});
+
+  const resetPreCheck = useCallback(() => {
+    setPreCheck(null);
+    setCommitments({});
+  }, []);
+
+  const runPreCheck = useCallback(async () => {
+    if (!employeeId) {
+      setError("Employee not identified — please log in again.");
+      return;
+    }
+    if (!startDate || !endDate) {
+      setError("Pick a valid date range first.");
+      return;
+    }
+    if (!reason.trim()) {
+      setError("Fill in the reason before running pre-check.");
+      return;
+    }
+    setPreChecking(true);
+    setError("");
+    try {
+      const res = await API.post("/leave/pre-check", {
+        EMPLOYEE_ID: employeeId,
+        LEAVE_TYPE:  leaveType,
+        START_DATE:  startDate,
+        END_DATE:    halfDay ? startDate : endDate,
+        HALF_DAY:    halfDay,
+        REASON:      reason.trim() || null,
+      });
+      setPreCheck(res.data);
+      const seeded = {};
+      (res.data?.pending_tasks || []).forEach((t) => {
+        seeded[t.task_id] = { promised_by: "", note: "" };
+      });
+      setCommitments(seeded);
+    } catch (err) {
+      setError(err?.response?.data?.detail || "Pre-check failed");
+    } finally {
+      setPreChecking(false);
+    }
+  }, [employeeId, leaveType, startDate, endDate, halfDay, reason]);
+
+  const commitmentsReady = allCommitsFilled(preCheck, commitments);
+
   // ---- Load balance + history on mount / employee change ----
   const refresh = useCallback(async () => {
     if (!employeeId) return;
@@ -219,6 +269,23 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
     setSuccess("");
     setSaving(true);
     try {
+      // Phase 4: package task commitments + AI recommendation snapshot
+      // so the backend persists them on LeaveRequest.
+      const task_commitments = (preCheck?.pending_tasks || [])
+        .map((t) => {
+          const c = commitments[t.task_id] || {};
+          return {
+            task_id:     t.task_id,
+            task_name:   t.task_name,
+            promised_by: c.promised_by || null,
+            note:        (c.note || "").trim() || null,
+          };
+        })
+        .filter((row, i) => {
+          const t = preCheck?.pending_tasks?.[i];
+          return t && (t.urgency !== "LOW" || row.promised_by || row.note);
+        });
+
       await API.post("/leave/apply", {
         EMPLOYEE_ID: employeeId,
         LEAVE_TYPE:  leaveType,
@@ -227,11 +294,14 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
         HALF_DAY:    halfDay,
         DAYS:        dayCount,
         REASON:      reason.trim() || null,
+        TASK_COMMITMENTS: task_commitments.length ? task_commitments : null,
+        AI_RECOMMENDATION: preCheck?.ai_recommendation || null,
       });
       setSuccess("Leave request submitted. Your manager has been notified.");
       setReason("");
       setHalfDay(false);
       setSubmitAttempted(false);
+      resetPreCheck();
       onSubmitted?.();
       refresh();
     } catch (err) {
@@ -248,6 +318,7 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
   }, [
     employeeId, leaveType, startDate, endDate,
     halfDay, dayCount, reason, onSubmitted, refresh,
+    preCheck, commitments, resetPreCheck,
   ]);
 
   // ---- Submit ----
@@ -256,6 +327,16 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
     setSubmitAttempted(true);
     if (validationError) { setError(validationError); return; }
     if (!employeeId)     { setError("Employee not identified — please log in again."); return; }
+
+    // Phase 4 gate: MD needs AI context + task commitments before deciding.
+    if (!preCheck) {
+      setError("Please run AI pre-check before submitting.");
+      return;
+    }
+    if (!commitmentsReady) {
+      setError("Please pick a commit-by date for every high-priority pending task.");
+      return;
+    }
 
     // Confirmation popup — fires when the employee already used at
     // least one balance-backed leave day this month AND is now asking
@@ -271,6 +352,7 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
   }, [
     validationError, employeeId, leaveType,
     daysUsedThisMonth, dayCount, doSubmit,
+    preCheck, commitmentsReady,
   ]);
 
   const confirmAndSubmit = useCallback(() => {
@@ -333,7 +415,7 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
               <select
                 className={styles.select}
                 value={leaveType}
-                onChange={(e) => setLeaveType(e.target.value)}
+                onChange={(e) => { setLeaveType(e.target.value); resetPreCheck(); }}
               >
                 {LEAVE_TYPES.map((t) => (
                   <option key={t.value} value={t.value}>{t.label}</option>
@@ -347,14 +429,14 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
                 <button
                   type="button"
                   className={`${styles.subChoiceBtn} ${!halfDay ? styles.subChoiceBtn_active : ""}`}
-                  onClick={() => setHalfDay(false)}
+                  onClick={() => { setHalfDay(false); resetPreCheck(); }}
                 >
                   Full day
                 </button>
                 <button
                   type="button"
                   className={`${styles.subChoiceBtn} ${halfDay ? styles.subChoiceBtn_active : ""}`}
-                  onClick={() => { setHalfDay(true); setEndDate(startDate); }}
+                  onClick={() => { setHalfDay(true); setEndDate(startDate); resetPreCheck(); }}
                 >
                   Half day
                 </button>
@@ -374,6 +456,7 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
                   if (halfDay || new Date(endDate) < new Date(e.target.value)) {
                     setEndDate(e.target.value);
                   }
+                  resetPreCheck();
                 }}
                 min={todayISO()}
               />
@@ -386,7 +469,7 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
                   type="date"
                   className={styles.input}
                   value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
+                  onChange={(e) => { setEndDate(e.target.value); resetPreCheck(); }}
                   min={startDate || todayISO()}
                 />
               </div>
@@ -425,7 +508,7 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
               className={styles.textarea}
               rows={3}
               value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              onChange={(e) => { setReason(e.target.value); resetPreCheck(); }}
               placeholder="Explain the reason for your leave — your manager sees this"
               aria-invalid={submitAttempted && !reason.trim() ? "true" : undefined}
               style={
@@ -450,12 +533,60 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
             )}
           </div>
 
+          {/* Phase 4 — AI pre-check gate */}
+          {!preCheck && (
+            <div style={{ marginTop: 10 }}>
+              <button
+                type="button"
+                onClick={runPreCheck}
+                disabled={preChecking || !reason.trim() || !startDate || !endDate}
+                style={{
+                  width: "100%",
+                  padding: "12px 20px",
+                  border: "1px solid #1e40af",
+                  background: "white",
+                  color: "#1e40af",
+                  borderRadius: 8,
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: (preChecking || !reason.trim()) ? "not-allowed" : "pointer",
+                }}
+              >
+                {preChecking ? "Running AI pre-check…" : "Run AI pre-check"}
+              </button>
+              <div style={{
+                marginTop: 6, fontSize: 11.5, color: "#64748b", textAlign: "center",
+              }}>
+                Fills in leave balance, task conflicts, and an AI recommendation for MD.
+              </div>
+            </div>
+          )}
+
+          {preCheck && (
+            <AIPreCheckPanel
+              preCheck={preCheck}
+              commitments={commitments}
+              setCommitments={setCommitments}
+            />
+          )}
+
           <div className={styles.submitRow}>
             <button
               type="submit"
               className={styles.submitBtn}
-              disabled={saving}
-              title={validationError || undefined}
+              disabled={saving || !preCheck || !commitmentsReady}
+              title={
+                !preCheck
+                  ? "Run AI pre-check first"
+                  : !commitmentsReady
+                    ? "Please pick a commit-by date for every high-priority pending task"
+                    : validationError || undefined
+              }
+              style={
+                (!preCheck || !commitmentsReady) && !saving
+                  ? { opacity: 0.55, cursor: "not-allowed" }
+                  : undefined
+              }
             >
               {I.send}
               {saving ? "Submitting…" : "Submit request"}
