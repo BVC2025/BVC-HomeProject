@@ -1758,12 +1758,6 @@ export default function EnterpriseCommandCenter() {
         <FactoryFloor factory={factory} />
       </div>
 
-      {/* Health gauge + Production pipeline side-by-side */}
-      <div className={`${styles.twoColGrid} ${styles.twoColGrid12}`}>
-        <HealthGauge health={health} />
-        <FactoryFloor factory={factory} />
-      </div>
-
 
       {/* CRM funnel */}
       <div className={styles.singleColSection}>
