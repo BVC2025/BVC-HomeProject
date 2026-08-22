@@ -83,7 +83,7 @@ OFFICE_END               = time(18, 0)
 OT_START_FOR_PAYROLL     = time(19, 0)   # <- 7 PM cutoff per HR ask
 
 # Employee is LATE if CHECK_IN.time() > this
-OFFICIAL_START           = time(9, 15)
+OFFICIAL_START           = time(9, 20)
 
 # Every N late arrivals in a month costs one half-day of salary
 LATE_ARRIVALS_PER_HALF_DAY_PENALTY = 3

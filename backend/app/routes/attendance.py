@@ -121,7 +121,7 @@ def _log_failure(
 # Source of truth is attendance_settings_service.get_office_hours(db)
 # — that reads from the `setting` table (configurable from the UI).
 WORK_START_HOUR = 9
-WORK_START_MINUTE = 15
+WORK_START_MINUTE = 20
 
 
 # =========================
@@ -1183,13 +1183,13 @@ def export_attendance_excel(
         cell.border = thin_border
 
     # ---- Row-by-row data -------------------------------------------
-    WORK_START = time(9, 15)  # match attendance.py's cutoff
+    WORK_START = time(9, 20)  # match attendance.py's cutoff
 
     def fmt_time(dt):
         return dt.strftime("%H:%M") if dt else ""
 
     def compute_late_by(check_in):
-        """Minutes late past 09:15. 0 if on-time or missing."""
+        """Minutes late past 09:20. 0 if on-time or missing."""
         if not check_in:
             return 0
         cutoff = datetime.combine(check_in.date(), WORK_START)

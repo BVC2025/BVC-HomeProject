@@ -61,7 +61,7 @@ router = APIRouter(prefix="/iclock", tags=["ADMS Biometric"])
 
 # Anyone scanning in AFTER this time is marked LATE. Matches
 # attendance.py / biometric.py so all three code paths agree.
-WORK_START = time(9, 15)
+WORK_START = time(9, 20)
 
 # Regular shift ends at 6:00 PM. Work past this time is overtime and
 # gets moved to OVERTIME_HOURS / OT_CHECK_IN / OT_CHECK_OUT.

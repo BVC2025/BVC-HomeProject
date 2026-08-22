@@ -2,7 +2,7 @@
 apply_attendance_defaults.py  —  Stage A one-shot.
 
 Pushes the new attendance defaults onto your LIVE database rows:
-  • Office hours       9:15 AM  →  6:00 PM
+  • Office hours       9:20 AM  →  6:00 PM
   • Geofence radius    50 m
 
 The Python defaults in models / services only apply to fresh installs.
@@ -39,12 +39,12 @@ def main() -> int:
         before_start = _get_value(db, KEY_START) or "(unset)"
         before_end   = _get_value(db, KEY_END)   or "(unset)"
 
-        _set_value(db, KEY_START, "09:15")
+        _set_value(db, KEY_START, "09:20")
         _set_value(db, KEY_END,   "18:00")
 
         db.commit()
 
-        print(f"Office start:  {before_start:>10}  ->  09:15")
+        print(f"Office start:  {before_start:>10}  ->  09:20")
         print(f"Office end:    {before_end:>10}  ->  18:00")
 
         # ---- 2. Geofence radius (GeofenceSettings row(s)) -------------
