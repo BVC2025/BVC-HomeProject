@@ -1656,33 +1656,37 @@ const NAV_TOP = [
 
 const NAV_GROUPS = [
   {
-    key: "org",
-    label: "Organization",
+    key: "hr",
+    label: "HR Modules",
     items: [
-
-      // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
-      { to: "/rbac", icon: <SidebarIcon name="rbac" />, label: "RBAC" },
-      { to: "/employees", icon: <SidebarIcon name="employees" />, label: "Employees" },
-      { to: "/memos", icon: <SidebarIcon name="memos" />, label: "Memos" },
-      { to: "/announcements", icon: <SidebarIcon name="memos" />, label: "Announcements" },
-      { to: "/attendance", icon: <SidebarIcon name="attendance" />, label: "Attendance" },
-      { to: "/biometric-import", icon: <SidebarIcon name="attendance" />, label: "Biometric Import (USB)" },
-      { to: "/shifts", icon: <SidebarIcon name="attendance" />, label: "Shift Management" },
-      { to: "/leave-management", icon: <SidebarIcon name="leaves" />, label: "Leave Management" },
-      { to: "/payroll", icon: <SidebarIcon name="payroll" />, label: "Payroll" },
-      { to: "/payroll-records", icon: <SidebarIcon name="payroll" />, label: "Payroll Records" },
-      { to: "/star-performance", icon: <SidebarIcon name="star" />, label: "Star Performance" },
-      { to: "/allowances", icon: <SidebarIcon name="allowances" />, label: "Allowances" },
-      { to: "/recruitment", icon: <SidebarIcon name="recruitment" />, label: "Recruitment" },
-      { to: "/onboarding", icon: <SidebarIcon name="employees" />, label: "Onboarding" },
-      { to: "/hr-automation", icon: <SidebarIcon name="approvals" />, label: "HR Automation" },
-      { to: "/monthly-reports", icon: <SidebarIcon name="payroll" />, label: "Monthly Reports" },
-      // { to: "/workforce-analytics", icon: <SidebarIcon name="star"      />, label: "Workforce Analytics" }  // temporarily hidden per request
-      { to: "/help-desk", icon: <SidebarIcon name="helpdesk" />, label: "Help Desk" },
-      { to: "/approvals", icon: <SidebarIcon name="approvals" />, label: "Approval Center" },
-      // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
-      { to: "/departments", icon: <SidebarIcon name="departments" />, label: "Department Management" },
-      { to: "/org-roles", icon: <SidebarIcon name="org-roles" />, label: "Role Management" },
+      { to: "/employees",         icon: <SidebarIcon name="employees"   />, label: "Employees" },
+      { to: "/attendance",        icon: <SidebarIcon name="attendance"  />, label: "Attendance" },
+      { to: "/biometric-import",  icon: <SidebarIcon name="attendance"  />, label: "Biometric Import (USB)" },
+      { to: "/shifts",            icon: <SidebarIcon name="attendance"  />, label: "Shift Management" },
+      { to: "/leave-management",  icon: <SidebarIcon name="leaves"      />, label: "Leave Management" },
+      { to: "/payroll",           icon: <SidebarIcon name="payroll"     />, label: "Payroll" },
+      { to: "/payroll-records",   icon: <SidebarIcon name="payroll"     />, label: "Payroll Records" },
+      { to: "/star-performance",  icon: <SidebarIcon name="star"        />, label: "Star Performance" },
+      { to: "/allowances",        icon: <SidebarIcon name="allowances"  />, label: "Allowances" },
+      { to: "/recruitment",       icon: <SidebarIcon name="recruitment" />, label: "Recruitment" },
+      { to: "/onboarding",        icon: <SidebarIcon name="employees"   />, label: "Onboarding" },
+      { to: "/hr-automation",     icon: <SidebarIcon name="approvals"   />, label: "HR Automation" },
+      { to: "/monthly-reports",   icon: <SidebarIcon name="payroll"     />, label: "Monthly Reports" },
+      // { to: "/workforce-analytics", icon: <SidebarIcon name="star"   />, label: "Workforce Analytics" }, // temporarily hidden per request
+      { to: "/help-desk",         icon: <SidebarIcon name="helpdesk"    />, label: "Help Desk" },
+    ]
+  },
+  {
+    key: "admin",
+    label: "Admin Modules",
+    items: [
+      { to: "/rbac",          icon: <SidebarIcon name="rbac"        />, label: "RBAC" },
+      { to: "/memos",         icon: <SidebarIcon name="memos"       />, label: "Memos" },
+      { to: "/announcements", icon: <SidebarIcon name="memos"       />, label: "Announcements" },
+      { to: "/approvals",     icon: <SidebarIcon name="approvals"   />, label: "Approval Center" },
+      // { to: "/roles",      icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" }, // permanently hidden — RBAC page replaces it
+      { to: "/departments",   icon: <SidebarIcon name="departments" />, label: "Department Management" },
+      { to: "/org-roles",     icon: <SidebarIcon name="org-roles"   />, label: "Role Management" },
     ]
   },
   {
