@@ -28,7 +28,6 @@ from app.models.models import (
     Role,
     Department,
     TaskAssignment,
-    Project,
     Inventory,
     Machine,
     Attendance,
@@ -839,9 +838,8 @@ def tool_pending_tasks(
 ) -> List[Dict]:
 
     q = (
-        db.query(TaskAssignment, Employee, Project)
+        db.query(TaskAssignment, Employee)
         .outerjoin(Employee, TaskAssignment.EMPLOYEE_ID == Employee.ID)
-        .outerjoin(Project, TaskAssignment.PROJECT_ID == Project.ID)
         .filter(TaskAssignment.TASK_STATUS.in_(["PENDING", "IN_PROGRESS"]))
     )
 
@@ -856,14 +854,14 @@ def tool_pending_tasks(
             "task_name": t.TASK_NAME,
             "employee": emp.NAME if emp else None,
             "employee_code": emp.EMPLOYEE_CODE if emp else None,
-            "project": proj.PROJECT_NAME if proj else None,
+            "project": None,  # project_legacy FK removed
             "status": t.TASK_STATUS,
             "assigned_date": (
                 t.ASSIGNED_DATE.isoformat() if t.ASSIGNED_DATE else None
             ),
             "due_date": t.DUE_DATE.isoformat() if t.DUE_DATE else None
         }
-        for t, emp, proj in rows
+        for t, emp in rows
     ]
 
 

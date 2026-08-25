@@ -127,26 +127,13 @@ def _employees_with_active_project(db: Session, vendor_id: int) -> set:
 
 def _lifetime_project_count_per_employee(db: Session) -> dict:
     """Returns {employee_id: number_of_distinct_projects_ever_owned}.
-    Counts DISTINCT PROJECT_IDs across all task assignments,
-    regardless of task status. Used for true fair-distribution —
-    Hemnath who has owned 2 projects sinks below Saranya who has
-    owned 0, even if Hemnath's prior tasks all completed."""
 
-    rows = (
-        db.query(
-            TaskAssignment.EMPLOYEE_ID,
-            func.count(func.distinct(TaskAssignment.PROJECT_ID))
-                .label("project_count")
-        )
-        .filter(
-            TaskAssignment.EMPLOYEE_ID.isnot(None),
-            TaskAssignment.PROJECT_ID.isnot(None)
-        )
-        .group_by(TaskAssignment.EMPLOYEE_ID)
-        .all()
-    )
+    TaskAssignment.PROJECT_ID (the project_legacy FK) was removed along
+    with CustomerProject — there is no remaining way to compute this,
+    so every employee ties at 0 and find_best_employee() falls through
+    to its next tie-breaking criteria (skill match, etc.)."""
 
-    return {emp_id: cnt for emp_id, cnt in rows}
+    return {}
 
 
 def _is_admin_role(role: Optional[Role]) -> bool:
@@ -392,7 +379,7 @@ def find_best_employee(
 
 def create_project_from_product(
     db: Session,
-    customer_id: int,
+    customer_id: str,
     product_model_id: int,
     quantity: int = 1,
     priority: str = "MEDIUM",
@@ -526,13 +513,12 @@ def create_project_from_product(
 
     project = Project(
         PROJECT_NAME=(
-            f"{product.MODEL_NAME} — {customer.CUSTOMER_NAME} "
+            f"{product.MODEL_NAME} — {customer.NAME} "
             f"({quantity} unit{'s' if quantity > 1 else ''})"
         ),
         DESCRIPTION=(
             f"{product.DESCRIPTION or ''}\n\n"
-            f"Customer: {customer.CUSTOMER_NAME} "
-            f"({customer.CUSTOMER_CODE or '-'})\n"
+            f"Customer: {customer.NAME}\n"
             f"Quantity: {quantity}\n"
             + (f"Notes: {notes}" if notes else "")
         ).strip(),
@@ -568,7 +554,7 @@ def create_project_from_product(
         STATUS="PLANNED",
         PLANNED_START_DATE=date.today(),
         PLANNED_END_DATE=target_date,
-        NOTES=notes or f"Auto-generated for {customer.CUSTOMER_NAME}",
+        NOTES=notes or f"Auto-generated for {customer.NAME}",
         VENDOR_ID=vendor_id
     )
 
@@ -599,7 +585,7 @@ def create_project_from_product(
             STATUS="PLANNED",
             PLANNED_START_DATE=date.today(),
             PLANNED_END_DATE=target_date,
-            NOTES=notes or f"Auto-generated for {customer.CUSTOMER_NAME}",
+            NOTES=notes or f"Auto-generated for {customer.NAME}",
             VENDOR_ID=vendor_id
         )
 
@@ -828,7 +814,7 @@ def create_project_from_product(
             "PRODUCT_MODEL_NAME": product.MODEL_NAME,
             "PRODUCT_MODEL_CODE": product.MODEL_CODE,
             "CUSTOMER_ID": customer.ID,
-            "CUSTOMER_NAME": customer.CUSTOMER_NAME,
+            "CUSTOMER_NAME": customer.NAME,
             "DEPARTMENT_ID": project_dept_id,
             "SKILLS_REQUIRED": skills_required_str,
             "TARGET_DATE": target_date.isoformat() if target_date else None
@@ -940,7 +926,7 @@ def _notify_assigned_employees(
               <tr><td style="color:#64748b;width:35%;">Project</td>
                   <td><strong>{project.PROJECT_NAME}</strong></td></tr>
               <tr><td style="color:#64748b;">Customer</td>
-                  <td>{customer.CUSTOMER_NAME}</td></tr>
+                  <td>{customer.NAME}</td></tr>
               <tr><td style="color:#64748b;">Product</td>
                   <td>{product.MODEL_NAME} ({product.MODEL_CODE})</td></tr>
               <tr><td style="color:#64748b;">Work Order</td>
@@ -1102,7 +1088,7 @@ def backfill_project_tasks(
             STATUS="PLANNED",
             PLANNED_START_DATE=date.today(),
             PLANNED_END_DATE=project.TARGET_DATE,
-            NOTES=f"Backfilled for {customer.CUSTOMER_NAME if customer else project.PROJECT_NAME}",
+            NOTES=f"Backfilled for {customer.NAME if customer else project.PROJECT_NAME}",
             VENDOR_ID=project.VENDOR_ID
         )
 

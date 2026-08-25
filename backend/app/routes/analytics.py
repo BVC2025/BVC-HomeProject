@@ -9,10 +9,8 @@ from datetime import date
 
 from app.models.models import (
     Employee,
-    CustomerProject,
     Task,
     Inventory,
-    Customer,
     Role,
     Attendance
 )
@@ -29,10 +27,6 @@ def dashboard_stats(
 
     total_employees = db.query(
         func.count(Employee.ID)
-    ).scalar() or 0
-
-    total_projects = db.query(
-        func.count(CustomerProject.ID)
     ).scalar() or 0
 
     pending_tasks = db.query(
@@ -108,7 +102,6 @@ def dashboard_stats(
 
     return {
         "total_employees": total_employees,
-        "total_projects": total_projects,
         "total_tasks": total_tasks,
         "pending_tasks": pending_tasks,
         "in_progress_tasks": in_progress_tasks,
@@ -141,40 +134,6 @@ def chart_data(
             "value": count
         }
         for status, count in task_rows
-    ]
-
-    # Projects by status (bar chart)
-    project_rows = db.query(
-        CustomerProject.STATUS,
-        func.count(CustomerProject.ID)
-    ).group_by(CustomerProject.STATUS).all()
-
-    projects_by_status = [
-        {
-            "name": status or "UNKNOWN",
-            "value": count
-        }
-        for status, count in project_rows
-    ]
-
-    # Projects per customer (bar chart)
-    customer_rows = db.query(
-        Customer.CUSTOMER_NAME,
-        func.count(CustomerProject.ID)
-    ).outerjoin(
-        CustomerProject,
-        CustomerProject.CUSTOMER_ID == Customer.ID
-    ).group_by(
-        Customer.ID,
-        Customer.CUSTOMER_NAME
-    ).all()
-
-    projects_per_customer = [
-        {
-            "name": name or "Unnamed",
-            "value": count
-        }
-        for name, count in customer_rows
     ]
 
     # Inventory aggregated by material name (bar chart).
@@ -267,8 +226,6 @@ def chart_data(
 
     return {
         "tasks_by_status": tasks_by_status,
-        "projects_by_status": projects_by_status,
-        "projects_per_customer": projects_per_customer,
         "inventory_summary": inventory_summary,
         "employees_per_role": employees_per_role,
         "attendance_today": attendance_today

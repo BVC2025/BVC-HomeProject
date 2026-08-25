@@ -70,7 +70,6 @@ from app.routes.purchase_order import router as purchase_order_router
 from app.routes.procurement_seed import router as procurement_seed_router
 from app.routes.sales_order import router as sales_order_router
 from app.routes.whatsapp import router as whatsapp_router
-from app.routes.onboarding import router as onboarding_router
 from app.routes.employee_onboarding import router as employee_onboarding_router
 from app.routes.employee_documents import router as employee_documents_router
 from app.routes.admin_dashboard import router as admin_dashboard_router
@@ -108,6 +107,7 @@ from app.routes.inventory_batches import router as inventory_batches_router
 from app.routes.email_config import router as email_config_router
 from app.routes.email_templates import router as email_templates_router
 from app.routes.lead_management import router as lead_management_router
+from app.routes.customer_master import router as customer_master_router
 from app.routes.whatsapp_config import router as whatsapp_config_router
 from app.routes.whatsapp_module_settings import router as whatsapp_module_settings_router
 from app.routes.whatsapp_webhook import router as whatsapp_webhook_router
@@ -2261,6 +2261,510 @@ def _migrate_add_role_code():
 
 _migrate_add_role_code()
 
+
+def _migrate_drop_customer_requirement_and_contact():
+    """One-time, idempotent: CustomerRequirement + CustomerContact were
+    removed entirely (Customer Master rewrite). Drops
+    quotation_line.REQUIREMENT_ID (FK + column) first — MySQL refuses
+    DROP TABLE customer_requirement while another table still has a
+    live FK into it — then drops both legacy tables outright. A
+    brand-new install never creates these tables (the ORM classes no
+    longer exist), so this is a no-op there."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+
+        if insp.has_table("quotation_line"):
+            cols = {c["name"] for c in insp.get_columns("quotation_line")}
+            if "REQUIREMENT_ID" in cols:
+                with engine.begin() as conn:
+                    fk_rows = conn.execute(text(
+                        "SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE "
+                        "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'quotation_line' "
+                        "AND COLUMN_NAME = 'REQUIREMENT_ID' AND REFERENCED_TABLE_NAME IS NOT NULL"
+                    )).fetchall()
+                    for (fk_name,) in fk_rows:
+                        try:
+                            conn.execute(text(f"ALTER TABLE `quotation_line` DROP FOREIGN KEY `{fk_name}`"))
+                        except Exception as exc_inner:
+                            log.warning("migrate-drop-requirement: could not drop FK %s: %s", fk_name, exc_inner)
+                    try:
+                        conn.execute(text("ALTER TABLE `quotation_line` DROP COLUMN `REQUIREMENT_ID`"))
+                        log.info("migrate-drop-requirement: dropped quotation_line.REQUIREMENT_ID")
+                    except Exception as exc_inner:
+                        log.warning("migrate-drop-requirement: could not drop REQUIREMENT_ID: %s", exc_inner)
+
+        with engine.begin() as conn:
+            if insp.has_table("customer_requirement"):
+                conn.execute(text("DROP TABLE IF EXISTS `customer_requirement`"))
+                log.info("migrate-drop-requirement: dropped customer_requirement table")
+            if insp.has_table("customer_contact"):
+                conn.execute(text("DROP TABLE IF EXISTS `customer_contact`"))
+                log.info("migrate-drop-requirement: dropped customer_contact table")
+
+    except Exception as exc:
+        log.warning("migrate-drop-requirement-and-contact skipped: %s", exc)
+
+
+_migrate_drop_customer_requirement_and_contact()
+
+
+def _migrate_drop_customer_onboarding_portal():
+    """One-time, idempotent: the Customer Self-Onboarding Portal
+    (CustomerOnboardingSession / CustomerPortalUser / CustomerChatMessage)
+    was removed entirely — the ORM classes no longer exist in
+    customer_models.py. Drops the two child tables first
+    (customer_chat_message, customer_portal_user both carry a
+    SESSION_ID FK into customer_onboarding_session; MySQL refuses to
+    drop the parent while either FK is live), then the session table
+    itself. A brand-new install never creates these tables, so this
+    is a no-op there."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+
+        with engine.begin() as conn:
+            if insp.has_table("customer_chat_message"):
+                conn.execute(text("DROP TABLE IF EXISTS `customer_chat_message`"))
+                log.info("migrate-drop-onboarding-portal: dropped customer_chat_message table")
+            if insp.has_table("customer_portal_user"):
+                conn.execute(text("DROP TABLE IF EXISTS `customer_portal_user`"))
+                log.info("migrate-drop-onboarding-portal: dropped customer_portal_user table")
+            if insp.has_table("customer_onboarding_session"):
+                conn.execute(text("DROP TABLE IF EXISTS `customer_onboarding_session`"))
+                log.info("migrate-drop-onboarding-portal: dropped customer_onboarding_session table")
+
+    except Exception as exc:
+        log.warning("migrate-drop-onboarding-portal skipped: %s", exc)
+
+
+_migrate_drop_customer_onboarding_portal()
+
+
+def _migrate_drop_legacy_project_and_fks():
+    """One-time, idempotent: CustomerProject (table project_legacy) was
+    removed entirely. Six live tables carried a bare FK column into
+    project_legacy.ID with no relationship() on either side
+    (Task.PROJECT_ID, TaskAssignment.PROJECT_ID, WorkOrder.PROJECT_ID,
+    DailyAllocation.PROJECT_ID, PurchaseOrder.LINKED_PROJECT_ID,
+    SalesOrderLine.SPAWNED_PROJECT_ID). Each FK constraint must be
+    dropped by name (MySQL has no DROP COLUMN ... CASCADE), then the
+    column itself, before project_legacy can be dropped. A brand-new
+    install never creates project_legacy or these FK columns (the ORM
+    definitions no longer exist), so this is a no-op there.
+
+    Order-independent with respect to _migrate_customer_pk_to_uuid():
+    that function early-exits the instant customer.ID is already
+    VARCHAR(36) (true in every environment this has run in, including
+    fresh installs, since Customer.ID is declared as String(36) from
+    the start) — it never reaches the code referencing its DEPENDENTS
+    list."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    FK_DROPS = [
+        ("task", "PROJECT_ID"),
+        ("task_assignment", "PROJECT_ID"),
+        ("work_order", "PROJECT_ID"),
+        ("daily_allocation", "PROJECT_ID"),
+        ("purchase_order", "LINKED_PROJECT_ID"),
+        ("sales_order_line", "SPAWNED_PROJECT_ID"),
+    ]
+
+    try:
+        insp = inspect(engine)
+
+        for table_name, col_name in FK_DROPS:
+            if not insp.has_table(table_name):
+                continue
+            cols = {c["name"] for c in insp.get_columns(table_name)}
+            if col_name not in cols:
+                continue
+            with engine.begin() as conn:
+                fk_rows = conn.execute(text(
+                    "SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE "
+                    "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t "
+                    "AND COLUMN_NAME = :c AND REFERENCED_TABLE_NAME IS NOT NULL"
+                ), {"t": table_name, "c": col_name}).fetchall()
+                for (fk_name,) in fk_rows:
+                    try:
+                        conn.execute(text(f"ALTER TABLE `{table_name}` DROP FOREIGN KEY `{fk_name}`"))
+                    except Exception as exc_inner:
+                        log.warning("migrate-drop-legacy-project: could not drop FK %s.%s: %s", table_name, fk_name, exc_inner)
+                try:
+                    conn.execute(text(f"ALTER TABLE `{table_name}` DROP COLUMN `{col_name}`"))
+                    log.info("migrate-drop-legacy-project: dropped %s.%s", table_name, col_name)
+                except Exception as exc_inner:
+                    log.warning("migrate-drop-legacy-project: could not drop %s.%s: %s", table_name, col_name, exc_inner)
+
+        with engine.begin() as conn:
+            if insp.has_table("project_legacy"):
+                conn.execute(text("DROP TABLE IF EXISTS `project_legacy`"))
+                log.info("migrate-drop-legacy-project: dropped project_legacy table")
+
+    except Exception as exc:
+        log.warning("migrate-drop-legacy-project skipped: %s", exc)
+
+
+_migrate_drop_legacy_project_and_fks()
+
+
+def _migrate_customer_master_columns():
+    """One-time, idempotent: rewrites `customer`'s columns to the
+    slimmed Customer Master shape — CUSTOMER_NAME->NAME, PHONE->
+    PHONE_NUMBER, widens GST_NUMBER, adds COMPANY_NAME, backfills
+    blanks so the new NOT NULL constraints don't reject existing
+    rows, then drops every column no longer in the model. Guarded by
+    column presence/nullability so a healthy post-migration database
+    (or a brand-new install, which never has the old names since
+    create_all() builds the table from today's model directly) is a
+    complete no-op."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    _LEGACY_COLUMNS_TO_DROP = [
+        "CUSTOMER_CODE", "CONTACT_PERSON", "DESIGNATION", "ALTERNATE_PHONE",
+        "WEBSITE", "CITY", "STATE", "PINCODE", "COUNTRY", "PAN_NUMBER",
+        "INDUSTRY", "SOURCE", "STATUS", "NOTES", "CUSTOMER_TYPE",
+        "BUSINESS_TYPE", "NUMBER_OF_BRANCHES", "EXPECTED_MONTHLY_ORDERS",
+        "EXISTING_MACHINE_USAGE", "CURRENT_VENDOR_NAME", "WHATSAPP_NUMBER",
+        "BILLING_ADDRESS", "SHIPPING_ADDRESS", "GOOGLE_MAP_LOCATION",
+        "LEAD_SOURCE", "LEAD_STATUS", "LEAD_PRIORITY", "LEAD_CREATED_DATE",
+        "ASSIGNED_SALES_ID", "FOLLOW_UP_DATE", "NEXT_MEETING_DATE",
+        "REQUIREMENT_NOTES",
+    ]
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("customer"):
+            return
+
+        cols_info = {c["name"]: c for c in insp.get_columns("customer")}
+        cols = set(cols_info)
+
+        with engine.begin() as conn:
+
+            if "COMPANY_NAME" not in cols:
+                conn.execute(text("ALTER TABLE `customer` ADD COLUMN `COMPANY_NAME` VARCHAR(100) NULL"))
+                log.info("migrate-customer-master: added customer.COMPANY_NAME")
+
+            # Backfill NULLs before tightening to NOT NULL (old
+            # CUSTOMER_NAME/PHONE/EMAIL/ADDRESS were all nullable).
+            if "CUSTOMER_NAME" in cols:
+                conn.execute(text("UPDATE `customer` SET `CUSTOMER_NAME` = '' WHERE `CUSTOMER_NAME` IS NULL"))
+                conn.execute(text(
+                    "ALTER TABLE `customer` CHANGE COLUMN `CUSTOMER_NAME` `NAME` VARCHAR(100) NOT NULL"
+                ))
+                log.info("migrate-customer-master: renamed CUSTOMER_NAME -> NAME")
+
+            if "PHONE" in cols:
+                conn.execute(text("UPDATE `customer` SET `PHONE` = '' WHERE `PHONE` IS NULL"))
+                conn.execute(text(
+                    "ALTER TABLE `customer` CHANGE COLUMN `PHONE` `PHONE_NUMBER` VARCHAR(20) NOT NULL"
+                ))
+                log.info("migrate-customer-master: renamed PHONE -> PHONE_NUMBER")
+
+            if cols_info.get("EMAIL", {}).get("nullable"):
+                conn.execute(text("UPDATE `customer` SET `EMAIL` = '' WHERE `EMAIL` IS NULL"))
+                conn.execute(text("ALTER TABLE `customer` MODIFY COLUMN `EMAIL` VARCHAR(100) NOT NULL"))
+
+            if cols_info.get("ADDRESS", {}).get("nullable"):
+                conn.execute(text("UPDATE `customer` SET `ADDRESS` = '' WHERE `ADDRESS` IS NULL"))
+                conn.execute(text("ALTER TABLE `customer` MODIFY COLUMN `ADDRESS` VARCHAR(255) NOT NULL"))
+
+            if "GST_NUMBER" in cols and "50" not in str(cols_info["GST_NUMBER"]["type"]):
+                conn.execute(text("ALTER TABLE `customer` MODIFY COLUMN `GST_NUMBER` VARCHAR(50) NULL"))
+
+            for col in _LEGACY_COLUMNS_TO_DROP:
+                if col not in cols:
+                    continue
+                try:
+                    conn.execute(text(f"ALTER TABLE `customer` DROP COLUMN `{col}`"))
+                    log.info("migrate-customer-master: dropped customer.%s", col)
+                except Exception as exc_inner:
+                    log.warning("migrate-customer-master: could not drop %s: %s", col, exc_inner)
+
+    except Exception as exc:
+        log.warning("migrate-customer-master-columns skipped: %s", exc)
+
+
+_migrate_customer_master_columns()
+
+
+def _migrate_customer_pk_to_uuid():
+    """One-time, idempotent: swaps customer.ID from autoincrement INT
+    to a String(36) UUID PK, remapping every dependent FK
+    (quotation / sales_order . CUSTOMER_ID) to match, via a scratch
+    old-ID -> new-UUID mapping table. Also retypes customer.VENDOR_ID's
+    FK to add ON DELETE CASCADE while we already have its FK dropped
+    for the ID swap (MySQL can't alter a FK's ON DELETE action in
+    place).
+
+    MUST run after _migrate_drop_customer_requirement_and_contact()
+    (removes two more FK-holders against customer.ID that would
+    otherwise block the type change) and
+    _migrate_customer_master_columns(). Never raises."""
+
+    import logging
+    import uuid as _uuid
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+    DEPENDENTS = ["quotation", "sales_order"]
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("customer"):
+            return
+
+        id_col = next((c for c in insp.get_columns("customer") if c["name"] == "ID"), None)
+        if id_col is None:
+            return
+        if "CHAR" in str(id_col["type"]).upper():   # already VARCHAR(36) -> already migrated
+            return
+
+        log.info("migrate-customer-pk-uuid: starting Integer -> UUID PK cutover")
+
+        with engine.begin() as conn:
+
+            # 1. Build the old-ID -> new-UUID mapping
+            conn.execute(text("DROP TABLE IF EXISTS `_customer_id_uuid_map`"))
+            conn.execute(text(
+                "CREATE TABLE `_customer_id_uuid_map` "
+                "(`OLD_ID` INT NOT NULL PRIMARY KEY, `NEW_ID` VARCHAR(36) NOT NULL)"
+            ))
+            old_ids = [r[0] for r in conn.execute(text("SELECT ID FROM `customer`")).fetchall()]
+            for old_id in old_ids:
+                conn.execute(
+                    text("INSERT INTO `_customer_id_uuid_map` (OLD_ID, NEW_ID) VALUES (:o, :n)"),
+                    {"o": old_id, "n": str(_uuid.uuid4())}
+                )
+
+            # 2. Add + populate the new UUID column on customer + dependents
+            conn.execute(text("ALTER TABLE `customer` ADD COLUMN `ID_NEW` VARCHAR(36) NULL"))
+            conn.execute(text(
+                "UPDATE `customer` c JOIN `_customer_id_uuid_map` m ON c.ID = m.OLD_ID "
+                "SET c.ID_NEW = m.NEW_ID"
+            ))
+            for table in DEPENDENTS:
+                if not insp.has_table(table):
+                    continue
+                dep_cols = {c["name"] for c in insp.get_columns(table)}
+                if "CUSTOMER_ID" not in dep_cols:
+                    continue
+                conn.execute(text(f"ALTER TABLE `{table}` ADD COLUMN `CUSTOMER_ID_NEW` VARCHAR(36) NULL"))
+                conn.execute(text(
+                    f"UPDATE `{table}` t JOIN `_customer_id_uuid_map` m ON t.CUSTOMER_ID = m.OLD_ID "
+                    f"SET t.CUSTOMER_ID_NEW = m.NEW_ID"
+                ))
+
+            # 3. Drop every FK that references customer.ID (discovered
+            #    dynamically — MySQL refuses to retype a column that's
+            #    the target of a live FK), plus VENDOR_ID's FK (so we
+            #    can re-add it with ON DELETE CASCADE below).
+            fk_rows = conn.execute(text(
+                "SELECT TABLE_NAME, CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE "
+                "WHERE TABLE_SCHEMA = DATABASE() AND REFERENCED_TABLE_NAME = 'customer' "
+                "AND REFERENCED_COLUMN_NAME = 'ID'"
+            )).fetchall()
+            for table_name, fk_name in fk_rows:
+                try:
+                    conn.execute(text(f"ALTER TABLE `{table_name}` DROP FOREIGN KEY `{fk_name}`"))
+                except Exception as exc_inner:
+                    log.warning("migrate-customer-pk-uuid: drop FK %s.%s failed: %s", table_name, fk_name, exc_inner)
+
+            vendor_fk_rows = conn.execute(text(
+                "SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'customer' "
+                "AND COLUMN_NAME = 'VENDOR_ID' AND REFERENCED_TABLE_NAME = 'vendor'"
+            )).fetchall()
+            for (fk_name,) in vendor_fk_rows:
+                try:
+                    conn.execute(text(f"ALTER TABLE `customer` DROP FOREIGN KEY `{fk_name}`"))
+                except Exception as exc_inner:
+                    log.warning("migrate-customer-pk-uuid: drop VENDOR_ID FK failed: %s", exc_inner)
+
+            # 4. Drop old INT columns, promote the *_NEW columns
+            for table in DEPENDENTS:
+                if not insp.has_table(table):
+                    continue
+                dep_cols = {c["name"] for c in insp.get_columns(table)}
+                if "CUSTOMER_ID" not in dep_cols:
+                    continue
+                conn.execute(text(f"ALTER TABLE `{table}` DROP COLUMN `CUSTOMER_ID`"))
+                conn.execute(text(
+                    f"ALTER TABLE `{table}` CHANGE COLUMN `CUSTOMER_ID_NEW` `CUSTOMER_ID` VARCHAR(36) NULL"
+                ))
+                log.info("migrate-customer-pk-uuid: %s.CUSTOMER_ID is now VARCHAR(36)", table)
+
+            # customer.ID: an AUTO_INCREMENT column must be dropped and
+            # re-keyed in the same ALTER TABLE statement.
+            conn.execute(text("ALTER TABLE `customer` MODIFY COLUMN `ID` INT NOT NULL, DROP PRIMARY KEY"))
+            conn.execute(text("ALTER TABLE `customer` DROP COLUMN `ID`"))
+            conn.execute(text(
+                "ALTER TABLE `customer` CHANGE COLUMN `ID_NEW` `ID` VARCHAR(36) NOT NULL, ADD PRIMARY KEY (`ID`)"
+            ))
+
+            # 5. Re-add the dependent FKs (both sides now VARCHAR(36))
+            #    + VENDOR_ID's FK with ON DELETE CASCADE
+            for table in DEPENDENTS:
+                if not insp.has_table(table):
+                    continue
+                dep_cols = {c["name"] for c in insp.get_columns(table)}
+                if "CUSTOMER_ID" not in dep_cols:
+                    continue
+                try:
+                    conn.execute(text(
+                        f"ALTER TABLE `{table}` ADD CONSTRAINT `fk_{table}_customer` "
+                        f"FOREIGN KEY (`CUSTOMER_ID`) REFERENCES `customer` (`ID`)"
+                    ))
+                except Exception as exc_inner:
+                    log.warning("migrate-customer-pk-uuid: re-add FK on %s failed: %s", table, exc_inner)
+
+            conn.execute(text("UPDATE `customer` SET `VENDOR_ID` = 1 WHERE `VENDOR_ID` IS NULL"))
+            conn.execute(text("ALTER TABLE `customer` MODIFY COLUMN `VENDOR_ID` INT NOT NULL"))
+            try:
+                conn.execute(text(
+                    "ALTER TABLE `customer` ADD CONSTRAINT `fk_customer_vendor` "
+                    "FOREIGN KEY (`VENDOR_ID`) REFERENCES `vendor` (`ID`) ON DELETE CASCADE"
+                ))
+            except Exception as exc_inner:
+                log.warning("migrate-customer-pk-uuid: re-add VENDOR_ID FK failed: %s", exc_inner)
+
+            conn.execute(text("DROP TABLE IF EXISTS `_customer_id_uuid_map`"))
+
+        log.info("migrate-customer-pk-uuid: cutover complete")
+
+    except Exception as exc:
+        log.warning("migrate-customer-pk-uuid skipped: %s", exc)
+
+
+_migrate_customer_pk_to_uuid()
+
+
+def _migrate_customer_address_columns():
+    """One-time, idempotent: adds CITY/STATE/PINCODE/COUNTRY_ISO to
+    `customer` (mirrors Lead's own shapes: 120/120/15/5). These are
+    NEW columns for the Lead-to-Customer-conversion feature — distinct
+    from the legacy CITY/STATE/PINCODE/COUNTRY columns that
+    _migrate_customer_master_columns() already drops as part of the
+    Customer Master rewrite.
+
+    MUST run after _migrate_customer_master_columns() — that function's
+    _LEGACY_COLUMNS_TO_DROP list includes CITY/STATE/PINCODE by the
+    same literal names. If this ran first on a not-yet-migrated
+    database, the freshly-added columns would be immediately dropped
+    again as "legacy". A brand-new install never hits either path —
+    create_all() builds `customer` from today's model directly."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("customer"):
+            return
+
+        cols = {c["name"] for c in insp.get_columns("customer")}
+
+        with engine.begin() as conn:
+            if "CITY" not in cols:
+                conn.execute(text("ALTER TABLE `customer` ADD COLUMN `CITY` VARCHAR(120) NULL"))
+                log.info("migrate-customer-address: added customer.CITY")
+            if "STATE" not in cols:
+                conn.execute(text("ALTER TABLE `customer` ADD COLUMN `STATE` VARCHAR(120) NULL"))
+                log.info("migrate-customer-address: added customer.STATE")
+            if "PINCODE" not in cols:
+                conn.execute(text("ALTER TABLE `customer` ADD COLUMN `PINCODE` VARCHAR(15) NULL"))
+                log.info("migrate-customer-address: added customer.PINCODE")
+            if "COUNTRY_ISO" not in cols:
+                conn.execute(text("ALTER TABLE `customer` ADD COLUMN `COUNTRY_ISO` VARCHAR(5) NULL"))
+                log.info("migrate-customer-address: added customer.COUNTRY_ISO")
+
+    except Exception as exc:
+        log.warning("migrate-customer-address-columns skipped: %s", exc)
+
+
+_migrate_customer_address_columns()
+
+
+def _migrate_lead_conversion_columns():
+    """One-time, idempotent: adds PROJECT_ID / CUSTOMER_ID /
+    CUSTOMER_ASSIGNMENT_TYPE / GST_NUMBER to `lead` for the
+    Lead-to-Customer-conversion feature. All four are nullable, so
+    existing lead rows need no backfill. A brand-new install never
+    hits this — create_all() builds `lead` from today's model
+    directly, already including these columns.
+
+    MUST run after `project` and `customer` tables exist (both FK
+    targets) — safe here since this runs at the very end of the
+    migration sequence in main.py, well after those tables are
+    created/migrated."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("lead"):
+            return
+
+        cols = {c["name"] for c in insp.get_columns("lead")}
+
+        with engine.begin() as conn:
+            if "PROJECT_ID" not in cols:
+                conn.execute(text(
+                    "ALTER TABLE `lead` ADD COLUMN `PROJECT_ID` VARCHAR(36) NULL, "
+                    "ADD CONSTRAINT `fk_lead_project` FOREIGN KEY (`PROJECT_ID`) "
+                    "REFERENCES `project` (`ID`) ON DELETE SET NULL"
+                ))
+                log.info("migrate-lead-conversion: added lead.PROJECT_ID (+FK)")
+
+            if "CUSTOMER_ID" not in cols:
+                conn.execute(text(
+                    "ALTER TABLE `lead` ADD COLUMN `CUSTOMER_ID` VARCHAR(36) NULL, "
+                    "ADD CONSTRAINT `fk_lead_customer` FOREIGN KEY (`CUSTOMER_ID`) "
+                    "REFERENCES `customer` (`ID`) ON DELETE SET NULL"
+                ))
+                log.info("migrate-lead-conversion: added lead.CUSTOMER_ID (+FK)")
+
+            if "CUSTOMER_ASSIGNMENT_TYPE" not in cols:
+                conn.execute(text(
+                    "ALTER TABLE `lead` ADD COLUMN `CUSTOMER_ASSIGNMENT_TYPE` "
+                    "ENUM('NEW','EXISTING') NULL"
+                ))
+                log.info("migrate-lead-conversion: added lead.CUSTOMER_ASSIGNMENT_TYPE")
+
+            if "GST_NUMBER" not in cols:
+                conn.execute(text("ALTER TABLE `lead` ADD COLUMN `GST_NUMBER` VARCHAR(50) NULL"))
+                log.info("migrate-lead-conversion: added lead.GST_NUMBER")
+
+    except Exception as exc:
+        log.warning("migrate-lead-conversion-columns skipped: %s", exc)
+
+
+_migrate_lead_conversion_columns()
+
 from app.services.speech_service import speech_service  # noqa: E402
 speech_service.initialize()  # non-blocking — Piper models load on a background thread
 
@@ -2321,7 +2825,6 @@ app.include_router(purchase_order_router, tags=["Purchase Orders"])
 app.include_router(procurement_seed_router, tags=["Procurement Seed"])
 app.include_router(sales_order_router, tags=["Sales Orders"])
 app.include_router(whatsapp_router, tags=["WhatsApp Alerts"])
-app.include_router(onboarding_router, tags=["Customer Onboarding Portal"])
 app.include_router(employee_onboarding_router, tags=["Employee Onboarding Portal"])
 app.include_router(employee_documents_router, tags=["Employee Documents"])
 app.include_router(admin_dashboard_router)
@@ -2354,6 +2857,7 @@ app.include_router(hrms_ai_router)
 app.include_router(email_config_router, tags=["Email Configuration"])
 app.include_router(email_templates_router, tags=["Email Templates"])
 app.include_router(lead_management_router, tags=["Lead Management"])
+app.include_router(customer_master_router, tags=["Customer Master"])
 app.include_router(whatsapp_config_router, tags=["WhatsApp Configuration"])
 app.include_router(whatsapp_module_settings_router, tags=["WhatsApp Module Settings"])
 app.include_router(whatsapp_webhook_router, tags=["WhatsApp Webhook"])

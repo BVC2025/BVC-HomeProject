@@ -33,7 +33,6 @@ from sqlalchemy.orm import Session
 
 from app.models.models import (
     Customer,
-    CustomerRequirement,
     ProductModel,
 )
 
@@ -167,44 +166,13 @@ def _serialize_customer(c: Optional[Customer]) -> Dict[str, Any]:
 
     return {
         "customer_id": c.ID,
-        "customer_name": c.CUSTOMER_NAME or "",
-        "business_type": c.BUSINESS_TYPE or "",
-        "industry": c.INDUSTRY or "",
-        "number_of_branches": c.NUMBER_OF_BRANCHES or 0,
-        "expected_monthly_orders": c.EXPECTED_MONTHLY_ORDERS or 0,
-        "city": c.CITY or "",
-        "state": c.STATE or "",
-        "requirement_notes": (c.REQUIREMENT_NOTES or "")[:1000],
+        "customer_name": c.NAME or "",
+        "company_name": c.COMPANY_NAME or "",
     }
-
-
-def _serialize_requirements(
-    rows: List[CustomerRequirement]
-) -> List[Dict[str, Any]]:
-    """Compact list of the customer's CustomerRequirement rows."""
-
-    out: List[Dict[str, Any]] = []
-
-    for r in rows or []:
-
-        out.append({
-            "machine_category": r.MACHINE_CATEGORY or "",
-            "machine_name": r.MACHINE_NAME or "",
-            "quantity": r.QUANTITY or 1,
-            "capacity": r.CAPACITY or "",
-            "target_unit_price": r.TARGET_UNIT_PRICE or 0,
-            "installation_site": r.INSTALLATION_SITE or "",
-            "priority": r.PRIORITY or "MEDIUM",
-            "status": r.STATUS or "DRAFT",
-            "special_notes": (r.SPECIAL_NOTES or "")[:500],
-        })
-
-    return out
 
 
 def _build_prompt(
     customer_ctx: Dict[str, Any],
-    requirements: List[Dict[str, Any]],
     requirements_text: str,
     products: List[Dict[str, Any]],
     top_k: int,
@@ -218,19 +186,14 @@ Corporation (Coimbatore, India). BVC24 manufactures custom and
 standard vending machines for hospitals, hotels, schools, malls,
 offices, factories, airports and more.
 
-Your job: given a customer's profile and stated requirements, pick
+Your job: given a customer's profile and free-text requirements, pick
 the TOP {top_k} best-fit ProductModels from the catalogue below.
-Rank them by overall fit — category match, branch / quantity scale,
-target price, urgency, business sector and any explicit notes.
+Rank them by overall fit — category match against the stated
+requirements, urgency and any explicit notes.
 
 CUSTOMER PROFILE:
 ```json
 {json.dumps(customer_ctx, indent=2)}
-```
-
-CUSTOMER REQUIREMENT ROWS (multi-item wishlist, may be empty):
-```json
-{json.dumps(requirements, indent=2)}
 ```
 
 FREE-TEXT REQUIREMENTS FROM ADMIN:
@@ -244,11 +207,11 @@ product_model_id values not present here):
 
 RANKING RULES:
 1. score is 0-100. Best fit = 100, weak fit = 30, irrelevant = 0.
-2. Prefer products whose CATEGORY aligns with the customer's
-   BUSINESS_TYPE or MACHINE_CATEGORY (e.g. hospital -> medicine,
-   office -> snack-beverage / coffee, hotel -> combo / hot-food).
-3. If the customer has high EXPECTED_MONTHLY_ORDERS or many
-   branches, prefer products with shorter estimated_build_days.
+2. Prefer products whose CATEGORY aligns with the free-text
+   requirements (e.g. hospital -> medicine, office -> snack-beverage
+   / coffee, hotel -> combo / hot-food).
+3. If the requirements imply urgency or high volume, prefer products
+   with shorter estimated_build_days.
 4. suggested_quantity should respect the customer's stated quantity
    if any, else default to 1.
 5. optional_features is a short list of upsells worth mentioning
@@ -388,63 +351,44 @@ _BUSINESS_TO_CATEGORIES = {
 }
 
 
-def _category_keywords(customer: Optional[Customer]) -> List[str]:
-    """Pull category-ish hints from the customer's BUSINESS_TYPE /
-    INDUSTRY — used by the heuristic fallback."""
+def _category_keywords(requirements_text: Optional[str]) -> List[str]:
+    """Pull category-ish hints from the free-text requirements string
+    — used by the heuristic fallback."""
 
-    if not customer:
+    if not requirements_text:
+
+        return []
+
+    val = requirements_text.strip().lower()
+
+    if not val:
 
         return []
 
     out: List[str] = []
 
-    for attr in ("BUSINESS_TYPE", "INDUSTRY"):
+    for key, cats in _BUSINESS_TO_CATEGORIES.items():
 
-        val = (getattr(customer, attr, None) or "").strip().lower()
+        if key in val:
 
-        if not val:
-
-            continue
-
-        for key, cats in _BUSINESS_TO_CATEGORIES.items():
-
-            if key in val:
-
-                out.extend(cats)
+            out.extend(cats)
 
     return out
 
 
 def _fallback_rank(
-    customer: Optional[Customer],
-    requirements: List[CustomerRequirement],
+    requirements_text: Optional[str],
     products: List[ProductModel],
     top_k: int,
 ) -> List[Dict[str, Any]]:
     """Deterministic heuristic ranker used when Gemini is offline.
 
     Scoring (max 100):
-      - +60  category match against customer BUSINESS_TYPE / INDUSTRY
-      - +25  category match against any CustomerRequirement row
+      - +60  category match against the free-text requirements
       - +15  shorter build time (faster = better, capped)
     """
 
-    biz_cats = set(_category_keywords(customer))
-
-    req_cats = {
-        (r.MACHINE_CATEGORY or "").strip().lower()
-        for r in (requirements or [])
-        if r.MACHINE_CATEGORY
-    }
-
-    # Quantity hint — prefer the largest stated requirement
-    req_qty = 1
-
-    for r in requirements or []:
-
-        if r.QUANTITY and r.QUANTITY > req_qty:
-
-            req_qty = r.QUANTITY
+    req_cats = set(_category_keywords(requirements_text))
 
     scored: List[Dict[str, Any]] = []
 
@@ -456,17 +400,9 @@ def _fallback_rank(
 
         rationale_bits: List[str] = []
 
-        if cat and cat in biz_cats:
-
-            score += 60
-
-            rationale_bits.append(
-                f"matches {customer.BUSINESS_TYPE or 'your sector'}"
-            )
-
         if cat and cat in req_cats:
 
-            score += 25
+            score += 60
 
             rationale_bits.append("aligns with your requirements")
 
@@ -491,11 +427,9 @@ def _fallback_rank(
             "product_model_id": p.ID,
             "score": round(score, 1),
             "rationale": ", ".join(rationale_bits).capitalize() + ".",
-            "suggested_quantity": req_qty,
+            "suggested_quantity": 1,
             "optional_features": [],
-            "suggested_amc_plan": (
-                "STANDARD_2Y" if req_qty >= 3 else "BASIC_1Y"
-            ),
+            "suggested_amc_plan": "BASIC_1Y",
         })
 
     scored.sort(key=lambda r: r["score"], reverse=True)
@@ -533,22 +467,14 @@ def recommend_products(
 
         top_k = 10
 
-    # ---- Load customer + requirements (best-effort) ----
+    # ---- Load customer (best-effort) ----
     customer: Optional[Customer] = None
-
-    requirements: List[CustomerRequirement] = []
 
     if customer_id:
 
         customer = db.query(Customer).filter(
             Customer.ID == customer_id
         ).first()
-
-        if customer:
-
-            requirements = db.query(CustomerRequirement).filter(
-                CustomerRequirement.CUSTOMER_ID == customer_id
-            ).all()
 
     # ---- Load product candidate pool (active, vendor-scoped) ----
     products: List[ProductModel] = db.query(ProductModel).filter(
@@ -571,7 +497,6 @@ def recommend_products(
     # ---- Build prompt + ask Gemini ----
     prompt = _build_prompt(
         customer_ctx=_serialize_customer(customer),
-        requirements=_serialize_requirements(requirements),
         requirements_text=requirements_text or "",
         products=[_serialize_product(p) for p in products],
         top_k=top_k,
@@ -656,14 +581,14 @@ def recommend_products(
             }
 
     # ---- Gemini unavailable or returned nothing usable → fallback ----
-    fallback = _fallback_rank(customer, requirements, products, top_k)
+    fallback = _fallback_rank(requirements_text, products, top_k)
 
     return {
         "recommendations": fallback,
         "summary": (
             "Heuristic ranking based on category match against the "
-            "customer's business sector and stated requirements. "
-            "AI service was unavailable for a richer rationale."
+            "stated free-text requirements. AI service was unavailable "
+            "for a richer rationale."
         ),
         "gemini_model_used": None,
         "source": "fallback",

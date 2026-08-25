@@ -2,13 +2,12 @@
 Public Customer Enquiry — no auth required.
 
 Customers fill the chatbot at /enquiry and submit their requirements
-in one shot. Each submission creates a Customer + CustomerRequirement
-record that the admin sees in the Customer 360° view.
+in one shot. Each submission creates a Customer record that the
+admin sees in the Customer 360° view.
 
   POST /public/enquiry/submit   — no auth, single payload, returns thanks
 """
 
-from datetime import date, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -16,13 +15,17 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
-from app.models.models import Customer, CustomerRequirement
+from app.models.models import Customer
 
 
 router = APIRouter(prefix="/public/enquiry", tags=["Public Enquiry"])
 
 
 # ---- Request schema ------------------------------------------------
+# NOTE: field names here are kept close to the legacy shape on purpose
+# so the (separately being redesigned) PublicEnquiry.jsx frontend does
+# not 422 mid-transition. Not every field below is persisted anymore —
+# see submit_enquiry() for exactly what is written to the Customer row.
 
 class CompanyBlock(BaseModel):
 
@@ -56,56 +59,20 @@ class EnquirySubmit(BaseModel):
     VENDOR_ID: int = 1
 
 
-# ---- Helpers -------------------------------------------------------
-
-def _next_customer_code(db: Session, vendor_id: int) -> str:
-    """Vendor-scoped CUST-NNN sequence."""
-
-    last = (
-        db.query(Customer)
-        .filter(Customer.VENDOR_ID == vendor_id)
-        .order_by(Customer.ID.desc())
-        .first()
-    )
-
-    n = 1
-
-    if last and last.CUSTOMER_CODE:
-
-        try:
-
-            n = int(last.CUSTOMER_CODE.split("-")[-1]) + 1
-
-        except Exception:
-
-            n = (last.ID or 0) + 1
-
-    return f"CUST-{n:03d}"
-
-
-def _parse_iso_date(s: Optional[str]) -> Optional[date]:
-
-    if not s:
-
-        return None
-
-    try:
-
-        return datetime.fromisoformat(s).date()
-
-    except Exception:
-
-        return None
-
-
 # ---- Public endpoint ----------------------------------------------
 
 @router.post("/submit")
 def submit_enquiry(payload: EnquirySubmit, db: Session = Depends(get_db)):
     """Public — no auth. Accepts the full chatbot intake and persists
-    a new Customer + their first CustomerRequirement in one transaction.
+    a new Customer record.
 
-    Returns the customer code so the customer sees a friendly receipt.
+    The Customer table only has room for NAME / PHONE_NUMBER / EMAIL /
+    ADDRESS / GST_NUMBER (+ VENDOR_ID) these days, so CONTACT_PERSON,
+    DESIGNATION, CITY, STATE, INDUSTRY and the machine requirement
+    block are accepted (so the current frontend doesn't break) but are
+    deliberately NOT persisted anywhere.
+
+    Returns the customer id so the customer sees a friendly receipt.
     """
 
     c = payload.company
@@ -120,62 +87,19 @@ def submit_enquiry(payload: EnquirySubmit, db: Session = Depends(get_db)):
 
         raise HTTPException(status_code=400, detail="Phone number is required.")
 
-    code = _next_customer_code(db, payload.VENDOR_ID)
-
     address_parts = [p for p in (c.CITY, c.STATE) if p]
 
-    address = ", ".join(address_parts) if address_parts else None
+    address = ", ".join(address_parts) if address_parts else "-"
 
     customer = Customer(
-        CUSTOMER_CODE=code,
-        CUSTOMER_NAME=c.CUSTOMER_NAME.strip(),
-        CONTACT_PERSON=(c.CONTACT_PERSON or "").strip() or None,
-        DESIGNATION=(c.DESIGNATION or "").strip() or None,
-        PHONE=c.PHONE.strip(),
+        NAME=c.CUSTOMER_NAME.strip(),
+        PHONE_NUMBER=c.PHONE.strip(),
         EMAIL=(c.EMAIL or "").strip() or None,
         ADDRESS=address,
-        CITY=(c.CITY or "").strip() or None,
-        STATE=(c.STATE or "").strip() or None,
-        INDUSTRY=(c.INDUSTRY or "").strip() or None,
-        STATUS="LEAD",
-        VENDOR_ID=payload.VENDOR_ID,
-        # Lead/intake fields
-        LEAD_SOURCE="WEBSITE",
-        LEAD_STATUS="NEW",
-        LEAD_PRIORITY="MEDIUM",
-        LEAD_CREATED_DATE=date.today(),
-        REQUIREMENT_NOTES=(payload.free_text_summary or "").strip() or None
+        VENDOR_ID=payload.VENDOR_ID
     )
 
     db.add(customer)
-
-    db.flush()           # gives us customer.ID without committing yet
-
-    # Only create a requirement if at least one machine field was filled
-    has_req = any([
-        r.MACHINE_CATEGORY, r.MACHINE_NAME, r.QUANTITY,
-        r.CAPACITY, r.TARGET_UNIT_PRICE, r.TARGET_DELIVERY_DATE,
-        r.INSTALLATION_SITE, r.SPECIAL_NOTES
-    ])
-
-    if has_req:
-
-        req = CustomerRequirement(
-            CUSTOMER_ID=customer.ID,
-            MACHINE_CATEGORY=(r.MACHINE_CATEGORY or "").strip() or None,
-            MACHINE_NAME=(r.MACHINE_NAME or "").strip() or None,
-            QUANTITY=r.QUANTITY or 1,
-            CAPACITY=(r.CAPACITY or "").strip() or None,
-            TARGET_UNIT_PRICE=r.TARGET_UNIT_PRICE,
-            TARGET_DELIVERY_DATE=_parse_iso_date(r.TARGET_DELIVERY_DATE),
-            INSTALLATION_SITE=(r.INSTALLATION_SITE or "").strip() or None,
-            PRIORITY="MEDIUM",
-            STATUS="DRAFT",
-            SPECIAL_NOTES=(r.SPECIAL_NOTES or "").strip() or None,
-            VENDOR_ID=payload.VENDOR_ID
-        )
-
-        db.add(req)
 
     db.commit()
 
@@ -186,19 +110,23 @@ def submit_enquiry(payload: EnquirySubmit, db: Session = Depends(get_db)):
 
         from app.services.whatsapp_service import notify_md_safe
 
+        has_req = any([
+            r.MACHINE_CATEGORY, r.MACHINE_NAME, r.QUANTITY,
+            r.CAPACITY, r.TARGET_UNIT_PRICE, r.TARGET_DELIVERY_DATE,
+            r.INSTALLATION_SITE, r.SPECIAL_NOTES
+        ])
+
         msg = (
             f"🌐 *New Website Enquiry — BVC24*\n\n"
-            f"👤 *{customer.CUSTOMER_NAME}*\n"
-            f"📞 {customer.PHONE}\n"
+            f"👤 *{customer.NAME}*\n"
+            f"📞 {customer.PHONE_NUMBER}\n"
             + (f"📧 {customer.EMAIL}\n" if customer.EMAIL else "")
-            + (f"🏢 {customer.INDUSTRY}\n" if customer.INDUSTRY else "")
-            + (f"📍 {address}\n" if address else "")
+            + (f"📍 {address}\n" if address and address != "-" else "")
             + (
                 f"\n🤖 {r.MACHINE_CATEGORY or 'machine'}"
                 f" × {r.QUANTITY or 1}"
                 if has_req else ""
             )
-            + f"\n\nCode: {customer.CUSTOMER_CODE}"
         )
 
         notify_md_safe(msg)
@@ -210,10 +138,10 @@ def submit_enquiry(payload: EnquirySubmit, db: Session = Depends(get_db)):
     return {
         "success": True,
         "message": (
-            f"Thanks {customer.CONTACT_PERSON or customer.CUSTOMER_NAME}! "
+            f"Thanks {customer.NAME}! "
             f"We've recorded your enquiry. Our team will get in touch within 24 hours."
         ),
-        "customer_code": customer.CUSTOMER_CODE,
+        "customer_code": customer.ID,
         "customer_id": customer.ID
     }
 

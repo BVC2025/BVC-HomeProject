@@ -108,7 +108,6 @@ export const ROUTE_PERMISSIONS = {
   "/payroll-records": "payroll.view",
   "/help-desk": "helpdesk.view.all",
   "/employee-onboarding": "onboarding.sessions.view",
-  "/customers": "customer.view",
   "/quotations": "quotation.manage",
   "/sales-orders": "sales_order.view",
   "/projects": "project.view",
@@ -147,6 +146,7 @@ export const ROUTE_PERMISSIONS = {
   "/lead-management/live-leads": "lead.live.view",
   "/lead-management/leads": "lead.records.view",
   "/lead-management/polling-activity": "lead.polling_log.view",
+  "/customer-master": "customer.master.view",
   // Everything else registered in Dashboard.jsx (Approval Center, the
   // various dashboards, HR automation, star performance, allowances,
   // shifts, holidays, biometric import, announcements, workforce

@@ -2,20 +2,23 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
+from app.utils.db_error_handler import raise_db_error
 from app.models.lead_models import LeadPollingConfig, Lead, LeadPollingLog
-from app.models.models import Employee
+from app.models.models import Employee, Customer, CustomerProjectAssignment
 from app.schemas.lead_schema import (
     LeadPollingConfigCreate, LeadPollingConfigUpdate, LivePreviewRequest,
-    LeadCreate, LeadUpdate,
+    LeadCreate, LeadUpdate, LeadConvertRequest,
 )
 from app.services.lead_polling_service import sync_config, preview_leads
-from app.auth.auth_bearer import require
+from app.auth.auth_bearer import require, has_permission
 from app.routes.project_template import (
     _cf_fields_for_table, _upsert_cf_bulk, _validate_cf_value, _parse_bulk_xl, _cell,
 )
+from app.routes.customer_master import _create_customer_row, _serialize as _serialize_customer_master
 
 router = APIRouter(prefix="/lead-management", tags=["Lead Management"])
 
@@ -26,7 +29,7 @@ _CF_TABLE = "lead"
 _LEAD_STD_COLS = {
     "S.NO", "S.N", "SN", "",
     "CONTACT NAME", "CONTACT MOBILE", "CONTACT EMAIL", "COMPANY NAME",
-    "ADDRESS", "CITY", "STATE", "PINCODE", "COUNTRY ISO",
+    "ADDRESS", "CITY", "STATE", "PINCODE", "COUNTRY ISO", "GST NUMBER",
     "LEAD MESSAGE", "PRODUCT INTEREST", "LEAD STATUS",
 }
 
@@ -79,6 +82,10 @@ def _serialize_lead(row: Lead) -> dict:
         "COUNTRY_ISO": row.COUNTRY_ISO,
         "LEAD_MESSAGE": row.LEAD_MESSAGE,
         "PRODUCT_INTEREST": row.PRODUCT_INTEREST,
+        "PROJECT_ID": row.PROJECT_ID,
+        "CUSTOMER_ID": row.CUSTOMER_ID,
+        "CUSTOMER_ASSIGNMENT_TYPE": row.CUSTOMER_ASSIGNMENT_TYPE,
+        "GST_NUMBER": row.GST_NUMBER,
         "LEAD_STATUS": row.LEAD_STATUS,
         "SOURCE_FETCHED_AT": row.SOURCE_FETCHED_AT.isoformat() if row.SOURCE_FETCHED_AT else None,
         "CREATED_AT": row.CREATED_AT.isoformat() if row.CREATED_AT else None,
@@ -110,10 +117,15 @@ def _get_config_or_404(db: Session, config_id: str) -> LeadPollingConfig:
     return cfg
 
 
-def _get_lead_or_404(db: Session, lead_id: str) -> Lead:
+def _get_lead_or_404(db: Session, lead_id: str, payload: dict) -> Lead:
     lead = db.query(Lead).filter(Lead.ID == lead_id).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
+    if not has_permission(payload, "lead.records.all_lead_view"):
+        if lead.ASSIGNED_TO_ID != payload.get("employee_id"):
+            # 404, not 403 — a lead outside the caller's scope should
+            # look indistinguishable from one that doesn't exist.
+            raise HTTPException(status_code=404, detail="Lead not found")
     return lead
 
 
@@ -142,6 +154,31 @@ def _apply_lead_custom_fields(db: Session, lead_id: str, vendor_id: int, custom_
             if err:
                 raise HTTPException(status_code=400, detail=f"{field.FIELD_NAME}: {err}")
         _upsert_cf_bulk(lead_id, _CF_TABLE, cf_id, value, db)
+
+
+def _resolve_customer_choice(db: Session, vendor_id: int, assignment_type: Optional[str], existing_customer_id: Optional[str]):
+    """Validate + resolve a NEW/EXISTING customer-assignment choice.
+    Returns (assignment_type_or_None, customer_or_None):
+      - assignment_type is None       -> (None, None)          "not decided yet" — legal (deferred to conversion time).
+      - assignment_type == "NEW"      -> ("NEW", None)
+      - assignment_type == "EXISTING" -> ("EXISTING", <Customer row>)
+    Raises HTTPException(400) for an unrecognized type or EXISTING with no
+    ID given; HTTPException(404) if the referenced Customer doesn't exist
+    for this vendor."""
+    if assignment_type is None:
+        return None, None
+    if assignment_type not in ("NEW", "EXISTING"):
+        raise HTTPException(status_code=400, detail="CUSTOMER_ASSIGNMENT_TYPE must be 'NEW' or 'EXISTING'.")
+    if assignment_type == "NEW":
+        return "NEW", None
+    if not existing_customer_id:
+        raise HTTPException(status_code=400, detail="EXISTING_CUSTOMER_ID is required when CUSTOMER_ASSIGNMENT_TYPE is 'EXISTING'.")
+    customer = db.query(Customer).filter(
+        Customer.ID == existing_customer_id, Customer.VENDOR_ID == vendor_id
+    ).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Selected customer not found.")
+    return "EXISTING", customer
 
 
 # ── Config CRUD ───────────────────────────────────────────────────────────────
@@ -360,11 +397,19 @@ def create_lead(
     admin=Depends(require("lead.records.create")),
 ):
     employee_id = admin.get("employee_id")
+    assigned_to_id = employee_id
+    if data.ASSIGNED_TO_ID and has_permission(admin, "lead.records.owner_select_create"):
+        assigned_to_id = data.ASSIGNED_TO_ID
+
+    assignment_type, existing_customer = _resolve_customer_choice(
+        db, vendor_id, data.CUSTOMER_ASSIGNMENT_TYPE, data.EXISTING_CUSTOMER_ID
+    )
+
     lead = Lead(
         VENDOR_ID=vendor_id,
         LEAD_SOURCE="MANUAL",
         CREATED_BY_ID=employee_id,
-        ASSIGNED_TO_ID=data.ASSIGNED_TO_ID or employee_id,
+        ASSIGNED_TO_ID=assigned_to_id,
         CONTACT_NAME=data.CONTACT_NAME.strip(),
         CONTACT_MOBILE=(data.CONTACT_MOBILE or None),
         CONTACT_EMAIL=(data.CONTACT_EMAIL or None),
@@ -376,9 +421,13 @@ def create_lead(
         COUNTRY_ISO=(data.COUNTRY_ISO or None),
         LEAD_MESSAGE=(data.LEAD_MESSAGE or None),
         PRODUCT_INTEREST=(data.PRODUCT_INTEREST or None),
+        PROJECT_ID=(data.PROJECT_ID or None),
+        GST_NUMBER=(data.GST_NUMBER or None),
+        CUSTOMER_ASSIGNMENT_TYPE=assignment_type,
+        CUSTOMER_ID=(existing_customer.ID if existing_customer else None),
         ENQUIRY_TYPE=(data.ENQUIRY_TYPE or None),
         ENQUIRY_TIME=_parse_iso(data.ENQUIRY_TIME),
-        LEAD_STATUS=data.LEAD_STATUS or "NEW",
+        LEAD_STATUS="NEW",  # always forced — a lead is never created in any other status
     )
     db.add(lead)
     db.flush()
@@ -393,8 +442,8 @@ def create_lead(
 
 
 @router.get("/leads/{lead_id}")
-def get_lead(lead_id: str, db: Session = Depends(get_db), _admin=Depends(require("lead.records.view"))):
-    return _serialize_lead(_get_lead_or_404(db, lead_id))
+def get_lead(lead_id: str, db: Session = Depends(get_db), admin=Depends(require("lead.records.view"))):
+    return _serialize_lead(_get_lead_or_404(db, lead_id, admin))
 
 
 @router.put("/leads/{lead_id}")
@@ -403,12 +452,12 @@ def update_lead(
     data: LeadUpdate,
     vendor_id: int = Query(1),
     db: Session = Depends(get_db),
-    _admin=Depends(require("lead.records.update")),
+    admin=Depends(require("lead.records.update")),
 ):
     """Edits any lead's contact/status/owner fields regardless of source — sales
     works IndiaMART/website leads too. LEAD_SOURCE and EXTERNAL_REFERENCE_ID are
     immutable after creation and are not accepted by LeadUpdate at all."""
-    lead = _get_lead_or_404(db, lead_id)
+    lead = _get_lead_or_404(db, lead_id, admin)
 
     if data.CONTACT_NAME is not None: lead.CONTACT_NAME = data.CONTACT_NAME.strip()
     if data.CONTACT_MOBILE is not None: lead.CONTACT_MOBILE = data.CONTACT_MOBILE.strip() or None
@@ -421,10 +470,28 @@ def update_lead(
     if data.COUNTRY_ISO is not None: lead.COUNTRY_ISO = data.COUNTRY_ISO.strip() or None
     if data.LEAD_MESSAGE is not None: lead.LEAD_MESSAGE = data.LEAD_MESSAGE.strip() or None
     if data.PRODUCT_INTEREST is not None: lead.PRODUCT_INTEREST = data.PRODUCT_INTEREST.strip() or None
+    if data.PROJECT_ID is not None: lead.PROJECT_ID = data.PROJECT_ID or None
+    if data.GST_NUMBER is not None: lead.GST_NUMBER = data.GST_NUMBER.strip() or None
     if data.ENQUIRY_TYPE is not None: lead.ENQUIRY_TYPE = data.ENQUIRY_TYPE.strip() or None
     if data.ENQUIRY_TIME is not None: lead.ENQUIRY_TIME = _parse_iso(data.ENQUIRY_TIME)
-    if data.LEAD_STATUS is not None: lead.LEAD_STATUS = data.LEAD_STATUS
-    if data.ASSIGNED_TO_ID is not None: lead.ASSIGNED_TO_ID = data.ASSIGNED_TO_ID or None
+
+    if data.LEAD_STATUS is not None:
+        if data.LEAD_STATUS == "CONVERTED":
+            raise HTTPException(
+                status_code=400,
+                detail="A lead cannot be marked CONVERTED directly — use POST /lead-management/leads/{lead_id}/convert instead.",
+            )
+        lead.LEAD_STATUS = data.LEAD_STATUS
+
+    if data.CUSTOMER_ASSIGNMENT_TYPE is not None or data.EXISTING_CUSTOMER_ID is not None:
+        if lead.LEAD_STATUS == "CONVERTED":
+            raise HTTPException(status_code=400, detail="Cannot change customer assignment on an already-converted lead.")
+        new_type, new_customer = _resolve_customer_choice(db, vendor_id, data.CUSTOMER_ASSIGNMENT_TYPE, data.EXISTING_CUSTOMER_ID)
+        lead.CUSTOMER_ASSIGNMENT_TYPE = new_type
+        lead.CUSTOMER_ID = (new_customer.ID if new_customer else None)
+
+    if data.ASSIGNED_TO_ID is not None and has_permission(admin, "lead.records.owner_select_update"):
+        lead.ASSIGNED_TO_ID = data.ASSIGNED_TO_ID or None
 
     _apply_lead_custom_fields(db, lead.ID, vendor_id, data.CUSTOM_FIELDS)
     db.commit()
@@ -432,9 +499,149 @@ def update_lead(
     return {"message": "Lead updated", **_serialize_lead(lead)}
 
 
+@router.post("/leads/{lead_id}/convert")
+def convert_lead(
+    lead_id: str,
+    data: LeadConvertRequest,
+    vendor_id: int = Query(1),
+    db: Session = Depends(get_db),
+    admin=Depends(require("lead.records.convert")),
+):
+    """Converts a VIEWED lead into CONVERTED, creating/linking a Customer
+    Master record and a CustomerProjectAssignment row in one transaction.
+    See the Lead-to-Customer-conversion feature plan for the full design —
+    the short version: a Lead must already carry a real PROJECT_ID (set via
+    the Add/Edit Lead modal's Category->Product cascade) and either an
+    already-resolved customer assignment (decided at Lead creation time) or
+    one supplied fresh in this request body (the legacy-lead fallback)."""
+    lead = _get_lead_or_404(db, lead_id, admin)
+
+    # 1. Idempotent-friendly guard — repeat/duplicate clicks and retried
+    #    requests must never look like failures to the caller.
+    if lead.LEAD_STATUS == "CONVERTED":
+        assignment = db.query(CustomerProjectAssignment).filter(
+            CustomerProjectAssignment.LEAD_ID == lead.ID
+        ).first()
+        customer = (
+            db.query(Customer).filter(Customer.ID == lead.CUSTOMER_ID).first()
+            if lead.CUSTOMER_ID else None
+        )
+        return {
+            "message": "This lead has already been converted.",
+            "already_converted": True,
+            "lead": _serialize_lead(lead),
+            "customer": _serialize_customer_master(customer) if customer else None,
+            "assignment_id": assignment.ID if assignment else None,
+        }
+
+    # 2. Status precondition — the only place a status-transition rule is
+    #    enforced today. VIEWED -> CONVERTED specifically, per the business rule.
+    if lead.LEAD_STATUS != "VIEWED":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Lead must be in VIEWED status before it can be converted (current status: {lead.LEAD_STATUS}).",
+        )
+
+    # 3. Project precondition — no body override; set at creation via the cascade.
+    project_id = lead.PROJECT_ID
+    if not project_id:
+        raise HTTPException(status_code=400, detail="Please assign a project to this lead before converting it.")
+
+    # 4. Resolve effective customer assignment: creation-time decision wins;
+    #    otherwise this is a legacy lead — require the body to supply it fresh.
+    if lead.CUSTOMER_ASSIGNMENT_TYPE == "EXISTING":
+        if not lead.CUSTOMER_ID:
+            raise HTTPException(status_code=400, detail="This lead is marked for an existing customer but none is linked. Please update the lead first.")
+        customer = db.query(Customer).filter(
+            Customer.ID == lead.CUSTOMER_ID, Customer.VENDOR_ID == vendor_id
+        ).first()
+        if not customer:
+            raise HTTPException(status_code=404, detail="The customer linked to this lead could not be found. It may have been deleted.")
+        assignment_type = "EXISTING"
+    elif lead.CUSTOMER_ASSIGNMENT_TYPE == "NEW":
+        assignment_type, customer = "NEW", None
+    else:
+        assignment_type, customer = _resolve_customer_choice(
+            db, vendor_id, data.CUSTOMER_ASSIGNMENT_TYPE, data.EXISTING_CUSTOMER_ID
+        )
+        if not assignment_type:
+            raise HTTPException(status_code=400, detail="This lead has no customer assignment. Please specify CUSTOMER_ASSIGNMENT_TYPE ('NEW' or 'EXISTING') to convert it.")
+
+    # 5. NEW path — build the Customer via the shared helper. Everything
+    #    below is add()/flush() only — the single commit is at the very end.
+    if assignment_type == "NEW":
+        name = (data.NAME or lead.CONTACT_NAME or "").strip()
+        phone_number = (data.PHONE_NUMBER or lead.CONTACT_MOBILE or "").strip()
+        email = (data.EMAIL or lead.CONTACT_EMAIL or "").strip()
+        address = (data.ADDRESS or lead.ADDRESS or "").strip()
+        missing = [n for n, v in (("NAME", name), ("PHONE_NUMBER", phone_number), ("EMAIL", email), ("ADDRESS", address)) if not v]
+        if missing:
+            raise HTTPException(status_code=400, detail=f"Missing required customer field(s) to convert this lead: {', '.join(missing)}.")
+        try:
+            customer = _create_customer_row(
+                db,
+                name=name, phone_number=phone_number, email=email, address=address,
+                company_name=(data.COMPANY_NAME or lead.COMPANY_NAME or None),
+                gst_number=(data.GST_NUMBER or lead.GST_NUMBER or None),
+                city=(data.CITY or lead.CITY or None),
+                state=(data.STATE or lead.STATE or None),
+                pincode=(data.PINCODE or lead.PINCODE or None),
+                country_iso=(data.COUNTRY_ISO or lead.COUNTRY_ISO or None),
+                vendor_id=vendor_id,
+                custom_fields=data.CUSTOM_FIELDS,
+            )
+        except HTTPException:
+            db.rollback()
+            raise
+        except IntegrityError as e:
+            db.rollback()
+            raise_db_error(e, "convert lead: create customer")
+        except Exception as e:
+            db.rollback()
+            raise_db_error(e, "convert lead: create customer")
+
+    # 6. Link — rely on the DB unique constraint (LEAD_ID) for duplicate-safety,
+    #    not a racy pre-check-then-insert.
+    assignment = CustomerProjectAssignment(
+        VENDOR_ID=vendor_id, CUSTOMER_ID=customer.ID, PROJECT_ID=project_id, LEAD_ID=lead.ID,
+    )
+    db.add(assignment)
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="This lead has already been converted.")
+
+    # 7. Finalize the Lead
+    lead.CUSTOMER_ID = customer.ID
+    if not lead.CUSTOMER_ASSIGNMENT_TYPE:
+        lead.CUSTOMER_ASSIGNMENT_TYPE = assignment_type
+    lead.LEAD_STATUS = "CONVERTED"
+
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "convert lead")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "convert lead")
+
+    db.refresh(lead)
+    db.refresh(customer)
+
+    return {
+        "message": "Lead converted successfully.",
+        "already_converted": False,
+        "lead": _serialize_lead(lead),
+        "customer": _serialize_customer_master(customer),
+        "assignment_id": assignment.ID,
+    }
+
+
 @router.delete("/leads/{lead_id}")
-def delete_lead(lead_id: str, db: Session = Depends(get_db), _admin=Depends(require("lead.records.delete"))):
-    lead = _get_lead_or_404(db, lead_id)
+def delete_lead(lead_id: str, db: Session = Depends(get_db), admin=Depends(require("lead.records.delete"))):
+    lead = _get_lead_or_404(db, lead_id, admin)
     db.delete(lead)
     db.commit()
     return {"message": "Lead deleted"}
@@ -454,9 +661,16 @@ def list_leads(
     created_from: Optional[str] = Query(None),
     created_to: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    _admin=Depends(require("lead.records.view")),
+    admin=Depends(require("lead.records.view")),
 ):
     q = db.query(Lead).filter(Lead.VENDOR_ID == vendor_id)
+
+    # Without all_lead_view, a caller only ever sees leads assigned to
+    # them — this ANDs onto every filter below, so no additional
+    # filter (department_id/role_id/assigned_to_id/etc.) can widen
+    # past this, it can only narrow further within it.
+    if not has_permission(admin, "lead.records.all_lead_view"):
+        q = q.filter(Lead.ASSIGNED_TO_ID == admin.get("employee_id"))
 
     # Only join Employee when a dept/role filter is actually requested, so leads
     # with no owner aren't wrongly excluded when no dept/role filter is set.
@@ -565,9 +779,10 @@ async def bulk_upload_leads(
             STATE=_cell(record, "STATE") or None,
             PINCODE=_cell(record, "PINCODE") or None,
             COUNTRY_ISO=_cell(record, "COUNTRY ISO") or None,
+            GST_NUMBER=_cell(record, "GST NUMBER") or None,
             LEAD_MESSAGE=_cell(record, "LEAD MESSAGE") or None,
             PRODUCT_INTEREST=_cell(record, "PRODUCT INTEREST") or None,
-            LEAD_STATUS=_cell(record, "LEAD STATUS") or "NEW",
+            LEAD_STATUS="NEW",  # always forced — any "LEAD STATUS" column value is ignored
         )
         db.add(lead)
         db.flush()

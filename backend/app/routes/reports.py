@@ -95,8 +95,8 @@ def customers_data(db):
         [
             [
                 r.ID,
-                r.CUSTOMER_NAME or "",
-                r.PHONE or "",
+                r.NAME or "",
+                r.PHONE_NUMBER or "",
                 r.EMAIL or "",
                 r.ADDRESS or ""
             ]
@@ -140,8 +140,7 @@ def tasks_data(db):
             "Task Name",
             "Description",
             "Status",
-            "Priority",
-            "Project ID"
+            "Priority"
         ],
         [
             [
@@ -149,8 +148,7 @@ def tasks_data(db):
                 r.TASK_NAME or "",
                 r.DESCRIPTION or "",
                 r.STATUS or "",
-                r.PRIORITY or "",
-                r.PROJECT_ID or ""
+                r.PRIORITY or ""
             ]
             for r in rows
         ]

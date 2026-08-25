@@ -29,8 +29,6 @@ from app.models.models import (
     Designation,
     Role,
     Employee,
-    Customer,
-    CustomerProject,
     ProjectCategory,
     ProductModel,
     BOMItem,
@@ -58,58 +56,6 @@ BVC24_DEPARTMENTS = [
     ("Installation & Service", "INS", "Field installation + AMC"),
     ("Sales & CRM", "SLS", "Customer onboarding + franchise"),
     ("Inventory & Warehouse", "INV", "Raw material + finished goods")
-]
-
-
-BVC24_PROJECTS = [
-    {
-        "PROJECT_NAME": "Snack & Beverage Combo Machine - Chennai Order",
-        "DESCRIPTION": "Assembly + dispatch of 12 dual-tray combo vending machines for Chennai metro stations.",
-        "DEPT": "PRD",
-        "SKILLS_REQUIRED": "assembly,wiring,sheet metal,quality check",
-        "PRIORITY": "HIGH",
-        "STATUS": "IN_PROGRESS"
-    },
-    {
-        "PROJECT_NAME": "Medicine Dispenser Firmware v2.3",
-        "DESCRIPTION": "RTC + temperature sensor integration for pharmacy vending machines.",
-        "DEPT": "SWE",
-        "SKILLS_REQUIRED": "embedded c,iot,rtos,sensor integration",
-        "PRIORITY": "HIGH",
-        "STATUS": "IN_PROGRESS"
-    },
-    {
-        "PROJECT_NAME": "Hot Food Box Cabinet Redesign",
-        "DESCRIPTION": "Thermal insulation upgrade + new control panel for hot food vending units.",
-        "DEPT": "DSG",
-        "SKILLS_REQUIRED": "solidworks,thermal design,electrical schematic",
-        "PRIORITY": "MEDIUM",
-        "STATUS": "PENDING"
-    },
-    {
-        "PROJECT_NAME": "Karur Installation Drive - 8 Units",
-        "DESCRIPTION": "Site survey, installation and customer training across 8 Karur retail outlets.",
-        "DEPT": "INS",
-        "SKILLS_REQUIRED": "field installation,customer training,electrical wiring",
-        "PRIORITY": "HIGH",
-        "STATUS": "IN_PROGRESS"
-    },
-    {
-        "PROJECT_NAME": "Pre-Dispatch QC - Q3 Batch",
-        "DESCRIPTION": "Full pre-dispatch inspection cycle for 35 units; RCA on field returns.",
-        "DEPT": "QA",
-        "SKILLS_REQUIRED": "quality check,rca,inspection,documentation",
-        "PRIORITY": "MEDIUM",
-        "STATUS": "PENDING"
-    },
-    {
-        "PROJECT_NAME": "Kiosk Cosmetics Line - Salem Pilot",
-        "DESCRIPTION": "New cosmetic-product vending kiosk pilot for Salem retail group.",
-        "DEPT": "DSG",
-        "SKILLS_REQUIRED": "ui/ux,touch screen,product design",
-        "PRIORITY": "LOW",
-        "STATUS": "PENDING"
-    }
 ]
 
 
@@ -646,85 +592,6 @@ def _seed_employees(
     return created
 
 
-def _seed_projects(
-    db: Session,
-    vendor: Vendor,
-    depts: dict
-) -> int:
-
-    # Need a customer to satisfy the FK
-    customer = db.query(Customer).filter(
-        Customer.VENDOR_ID == vendor.ID
-    ).first()
-
-    if not customer:
-
-        customer = Customer(
-            CUSTOMER_NAME="BVC24 Internal",
-            PHONE="+91 422 4356565",
-            EMAIL="info@bvc24.com",
-            ADDRESS="Plot 16B, E&E Industrial Estate, Sitra, Coimbatore 641014",
-            VENDOR_ID=vendor.ID
-        )
-
-        db.add(customer)
-
-        db.commit()
-
-        db.refresh(customer)
-
-    created = 0
-
-    for spec in BVC24_PROJECTS:
-
-        existing = db.query(CustomerProject).filter(
-            CustomerProject.PROJECT_NAME == spec["PROJECT_NAME"],
-            CustomerProject.VENDOR_ID == vendor.ID
-        ).first()
-
-        if existing:
-
-            # Backfill skills + priority if they were missing
-            updated = False
-
-            if not existing.SKILLS_REQUIRED:
-
-                existing.SKILLS_REQUIRED = spec["SKILLS_REQUIRED"]
-
-                updated = True
-
-            if not existing.PRIORITY or existing.PRIORITY == "MEDIUM":
-
-                existing.PRIORITY = spec["PRIORITY"]
-
-                updated = True
-
-            if updated:
-
-                db.commit()
-
-            continue
-
-        project = CustomerProject(
-            PROJECT_NAME=spec["PROJECT_NAME"],
-            DESCRIPTION=spec["DESCRIPTION"],
-            STATUS=spec["STATUS"],
-            DEPARTMENT_ID=depts[spec["DEPT"]].ID,
-            CUSTOMER_ID=customer.ID,
-            SKILLS_REQUIRED=spec["SKILLS_REQUIRED"],
-            PRIORITY=spec["PRIORITY"],
-            VENDOR_ID=vendor.ID
-        )
-
-        db.add(project)
-
-        created += 1
-
-    db.commit()
-
-    return created
-
-
 def _seed_product_models(db: Session, vendor: Vendor) -> dict:
     """Returns {MODEL_CODE: ProductModel} for downstream WO seeding."""
 
@@ -857,7 +724,6 @@ def _seed_work_orders(
         wo = WorkOrder(
             WO_NUMBER=f"WO-{wo_year}-{wo_count_this_year + 1:04d}",
             PRODUCT_MODEL_ID=model.ID,
-            PROJECT_ID=None,
             QUANTITY=qty,
             STATUS=status,
             PLANNED_START_DATE=p_start,
@@ -1269,8 +1135,6 @@ def seed_bvc24(db: Session = Depends(get_db)):
 
     new_employees = _seed_employees(db, vendor, role, depts)
 
-    new_projects = _seed_projects(db, vendor, depts)
-
     models = _seed_product_models(db, vendor)
 
     suppliers = _seed_suppliers(db, vendor)
@@ -1296,7 +1160,6 @@ def seed_bvc24(db: Session = Depends(get_db)):
         "vendor_id": vendor.ID,
         "departments": len(depts),
         "new_employees": new_employees,
-        "new_projects": new_projects,
         "product_models": len(models),
         "suppliers": len(suppliers),
         "new_process_stages": new_stages,

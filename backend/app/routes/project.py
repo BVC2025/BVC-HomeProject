@@ -11,21 +11,17 @@ from datetime import datetime, date, timedelta
 
 from app.models.models import (
     Customer,
-    CustomerProject,
-    Employee,
     Project,
     Task,
     TaskAssignment,
     Notification,
     Department,
-    ProductModel
 )
 
 from app.services.workload_service import pick_least_loaded_employee
 
 from app.services.email_service import (
     send_task_assignment_email,
-    send_alert_email
 )
 
 from app.services.dept_detection import auto_detect_department_id
@@ -36,15 +32,8 @@ from app.services.approval_service import (
 )
 
 from app.schemas.project_schema import (
-    CustomerCreate,
-    CustomerUpdate,
     ProjectCreate,
-    ProjectFromProductRequest,
-    EnquiryCreate,
-    LeadStatusUpdate,
-    ContactCreate,
-    RequirementCreate,
-    RequirementUpdate
+    ProjectFromProductRequest
 )
 
 from app.services.project_from_product_service import (
@@ -58,16 +47,6 @@ router = APIRouter()
 # =========================
 # CREATE CUSTOMER
 # =========================
-
-def _next_customer_code(db: Session, vendor_id: int) -> str:
-    """Auto-generate the next CUST-NNN code."""
-
-    count = db.query(Customer).filter(
-        Customer.VENDOR_ID == vendor_id
-    ).count()
-
-    return f"CUST-{count + 1:03d}"
-
 
 def _md_recipient_email() -> str:
     """The Managing Director / company inbox that receives the
@@ -89,7 +68,6 @@ def _md_recipient_email() -> str:
 
 def _build_customer_profile_email_html(
     customer: Customer,
-    sales_rep_name: str = None,
     product_info: dict = None,
     requested_quantity: int = 1
 ) -> str:
@@ -134,65 +112,21 @@ def _build_customer_profile_email_html(
         )
 
     identity = (
-        _row("Customer Code", customer.CUSTOMER_CODE)
-        + _row("Company Name", customer.CUSTOMER_NAME)
-        + _row("Customer Type", customer.CUSTOMER_TYPE)
-        + _row("Business Type", customer.BUSINESS_TYPE)
-        + _row("Industry", customer.INDUSTRY)
-        + _row("Contact Person", customer.CONTACT_PERSON)
-        + _row("Designation", customer.DESIGNATION)
-        + _row(
-            "Existing Vending Customer?",
-            "Yes" if customer.EXISTING_MACHINE_USAGE else "No"
-        )
-        + _row("Current Vendor", customer.CURRENT_VENDOR_NAME)
-        + _row("# Branches", customer.NUMBER_OF_BRANCHES)
-        + _row(
-            "Expected Monthly Orders",
-            customer.EXPECTED_MONTHLY_ORDERS
-        )
+        _row("Name", customer.NAME)
+        + _row("Company Name", customer.COMPANY_NAME)
     )
 
     reach = (
-        _row("Phone", customer.PHONE)
-        + _row("Alternate Phone", customer.ALTERNATE_PHONE)
+        _row("Phone", customer.PHONE_NUMBER)
         + _row("Email", customer.EMAIL)
-        + _row("WhatsApp", customer.WHATSAPP_NUMBER)
-        + _row("Website", customer.WEBSITE)
     )
 
     location = (
         _row("Address", customer.ADDRESS)
-        + _row("City", customer.CITY)
-        + _row("State", customer.STATE)
-        + _row("Pincode", customer.PINCODE)
-        + _row("Country", customer.COUNTRY)
-        + _row("Billing Address", customer.BILLING_ADDRESS)
-        + _row("Shipping Address", customer.SHIPPING_ADDRESS)
-        + _row("Google Map", customer.GOOGLE_MAP_LOCATION)
     )
 
     tax = (
         _row("GST Number", customer.GST_NUMBER)
-        + _row("PAN Number", customer.PAN_NUMBER)
-    )
-
-    pipeline = (
-        _row("Lead Source", customer.LEAD_SOURCE or customer.SOURCE)
-        + _row("Lead Status", customer.LEAD_STATUS)
-        + _row("Lead Priority", customer.LEAD_PRIORITY)
-        + _row("Assigned Salesperson", sales_rep_name)
-        + _row("Status", customer.STATUS)
-        + _row(
-            "Lead Created",
-            customer.LEAD_CREATED_DATE.isoformat()
-            if customer.LEAD_CREATED_DATE else None
-        )
-        + _row(
-            "Follow-up Date",
-            customer.FOLLOW_UP_DATE.isoformat()
-            if customer.FOLLOW_UP_DATE else None
-        )
     )
 
     order_intake = ""
@@ -214,37 +148,12 @@ def _build_customer_profile_email_html(
             + _row("Status", verb)
         )
 
-    notes_section = (
-        _row("Requirement Notes", customer.REQUIREMENT_NOTES)
-        + _row("Internal Notes", customer.NOTES)
-    )
-
     sections_html = (
         _section("IDENTITY", identity)
         + _section("CONTACT &amp; REACH", reach)
         + _section("LOCATION", location)
         + _section("TAX REGISTRATION", tax)
-        + _section("LEAD PIPELINE", pipeline)
         + _section("VENDING MACHINE REQUESTED", order_intake)
-        + _section("NOTES", notes_section)
-    )
-
-    # Origin badge — distinguishes admin-entry vs self-onboarding
-    is_self_serve = (
-        (customer.LEAD_SOURCE or "").upper() == "PORTAL_SELF_SERVE"
-    )
-
-    origin_label = (
-        "via Self-Onboarding Portal"
-        if is_self_serve
-        else "via CRM"
-    )
-
-    intro_line = (
-        "A new customer has completed self-registration through the "
-        "BVC24 onboarding portal."
-        if is_self_serve
-        else "A new customer record was just created in the BVC24 system."
     )
 
     return f"""
@@ -262,13 +171,8 @@ def _build_customer_profile_email_html(
         BVC24 &middot; NEW CUSTOMER REGISTRATION ALERT
       </div>
       <h1 style="margin:6px 0 0;font-size:22px;">
-        {customer.CUSTOMER_NAME}
+        {customer.NAME}
       </h1>
-      <div style="font-size:12px;opacity:0.85;margin-top:4px;">
-        {customer.CUSTOMER_CODE}
-        {' &middot; ' + customer.INDUSTRY if customer.INDUSTRY else ''}
-        &middot; {origin_label}
-      </div>
     </div>
 
     <div style="padding:24px 26px;color:#0f172a;line-height:1.55;">
@@ -278,9 +182,10 @@ def _build_customer_profile_email_html(
       </p>
 
       <p style="margin:0 0 18px;font-size:13px;color:#475569;">
-        {intro_line} The full profile captured during their
-        registration is detailed below for your review. Please assign
-        a sales executive to follow up at your earliest convenience.
+        A new customer record was just created in the BVC24 system.
+        The full profile captured is detailed below for your review.
+        Please assign a sales executive to follow up at your earliest
+        convenience.
       </p>
 
       {sections_html}
@@ -304,317 +209,11 @@ def _build_customer_profile_email_html(
 """
 
 
-@router.post("/create-customer", dependencies=[Depends(require("customer.manage"))])
-def create_customer(
-    data: CustomerCreate,
-    db: Session = Depends(get_db)
-):
-    """
-    Create a customer. Required: CUSTOMER_NAME + PHONE + EMAIL +
-    ADDRESS + VENDOR_ID (kept for back-compat). Everything else
-    is optional and feeds the customer 360° view.
-    """
-
-    try:
-
-        code = (data.CUSTOMER_CODE or "").strip()
-
-        if not code:
-
-            code = _next_customer_code(db, data.VENDOR_ID)
-
-        # Reject duplicate code
-        if db.query(Customer).filter(
-            Customer.VENDOR_ID == data.VENDOR_ID,
-            Customer.CUSTOMER_CODE == code
-        ).first():
-
-            raise HTTPException(
-                status_code=409,
-                detail=f"CUSTOMER_CODE {code} already exists"
-            )
-
-        customer = Customer(
-            CUSTOMER_CODE=code,
-            CUSTOMER_NAME=data.CUSTOMER_NAME,
-            CONTACT_PERSON=data.CONTACT_PERSON,
-            DESIGNATION=data.DESIGNATION,
-            PHONE=data.PHONE,
-            ALTERNATE_PHONE=data.ALTERNATE_PHONE,
-            EMAIL=data.EMAIL,
-            WEBSITE=data.WEBSITE,
-            ADDRESS=data.ADDRESS,
-            CITY=data.CITY,
-            STATE=data.STATE,
-            PINCODE=data.PINCODE,
-            COUNTRY=data.COUNTRY or "India",
-            GST_NUMBER=data.GST_NUMBER,
-            PAN_NUMBER=data.PAN_NUMBER,
-            INDUSTRY=data.INDUSTRY,
-            SOURCE=data.SOURCE,
-            STATUS=(data.STATUS or "ACTIVE").upper(),
-            NOTES=data.NOTES,
-            VENDOR_ID=data.VENDOR_ID,
-            # ---- Phase 1: Master + Lead Pipeline fields ----
-            CUSTOMER_TYPE=data.CUSTOMER_TYPE,
-            BUSINESS_TYPE=data.BUSINESS_TYPE,
-            NUMBER_OF_BRANCHES=data.NUMBER_OF_BRANCHES,
-            EXPECTED_MONTHLY_ORDERS=data.EXPECTED_MONTHLY_ORDERS,
-            EXISTING_MACHINE_USAGE=data.EXISTING_MACHINE_USAGE or 0,
-            CURRENT_VENDOR_NAME=data.CURRENT_VENDOR_NAME,
-            WHATSAPP_NUMBER=data.WHATSAPP_NUMBER,
-            BILLING_ADDRESS=data.BILLING_ADDRESS,
-            SHIPPING_ADDRESS=data.SHIPPING_ADDRESS,
-            GOOGLE_MAP_LOCATION=data.GOOGLE_MAP_LOCATION,
-            LEAD_SOURCE=data.LEAD_SOURCE,
-            LEAD_STATUS=(data.LEAD_STATUS or "NEW").upper(),
-            LEAD_PRIORITY=(data.LEAD_PRIORITY or "MEDIUM").upper(),
-            LEAD_CREATED_DATE=data.LEAD_CREATED_DATE or date.today(),
-            ASSIGNED_SALES_ID=data.ASSIGNED_SALES_ID,
-            FOLLOW_UP_DATE=data.FOLLOW_UP_DATE,
-            REQUIREMENT_NOTES=data.REQUIREMENT_NOTES
-        )
-
-        db.add(customer)
-
-        db.commit()
-
-        db.refresh(customer)
-
-        # ---- Order intake: auto-create the requested vending
-        # machine as a ProductModel so it appears in the Work Order
-        # "Pick a model" dropdown. If a product with the same name
-        # already exists for this vendor, reuse it instead of
-        # making a duplicate.
-        product_info = None
-
-        requested = (data.REQUESTED_MACHINE_NAME or "").strip()
-
-        if requested:
-
-            existing = db.query(ProductModel).filter(
-                ProductModel.VENDOR_ID == data.VENDOR_ID,
-                ProductModel.MODEL_NAME == requested
-            ).first()
-
-            if existing:
-
-                product_info = {
-                    "id": existing.ID,
-                    "model_code": existing.MODEL_CODE,
-                    "model_name": existing.MODEL_NAME,
-                    "was_existing": True
-                }
-
-            else:
-
-                # Generate a unique MODEL_CODE based on initials of the
-                # requested name + an incrementing suffix.
-                initials = "".join(
-                    w[0].upper()
-                    for w in requested.split()
-                    if w
-                )[:4] or "VM"
-
-                seq = 1
-
-                while db.query(ProductModel).filter(
-                    ProductModel.VENDOR_ID == data.VENDOR_ID,
-                    ProductModel.MODEL_CODE == f"{initials}-{seq:03d}"
-                ).first() is not None:
-
-                    seq += 1
-
-                code = f"{initials}-{seq:03d}"
-
-                new_product = ProductModel(
-                    MODEL_NAME=requested,
-                    MODEL_CODE=code,
-                    CATEGORY=(
-                        data.REQUESTED_MACHINE_CATEGORY
-                        or "vending"
-                    ),
-                    DESCRIPTION=(
-                        f"Vending machine requested by "
-                        f"{customer.CUSTOMER_NAME} "
-                        f"({customer.CUSTOMER_CODE}). "
-                        f"Auto-created from customer order intake."
-                    ),
-                    ESTIMATED_BUILD_DAYS=14,
-                    STATUS="ACTIVE",
-                    VENDOR_ID=data.VENDOR_ID
-                )
-
-                db.add(new_product)
-
-                db.flush()
-
-                # Seed default stages + BOM so the new product has
-                # a working manufacturing flow + materials list out
-                # of the box. Same helpers used by the Production
-                # page's create-model endpoint.
-                from app.routes.production import (
-                    seed_default_stages_for_product,
-                    seed_default_bom_for_product
-                )
-
-                stages_created = seed_default_stages_for_product(
-                    db, new_product.ID
-                )
-
-                bom_created = seed_default_bom_for_product(
-                    db, new_product.ID,
-                    vendor_id=data.VENDOR_ID
-                )
-
-                db.commit()
-
-                db.refresh(new_product)
-
-                product_info = {
-                    "id": new_product.ID,
-                    "model_code": new_product.MODEL_CODE,
-                    "model_name": new_product.MODEL_NAME,
-                    "was_existing": False,
-                    "stages_seeded": stages_created,
-                    "bom_seeded": bom_created
-                }
-
-        response = {
-            "message": "Customer created successfully",
-            "customer_id": customer.ID,
-            "customer_code": customer.CUSTOMER_CODE,
-            "requested_product": product_info,
-            "requested_quantity": data.REQUESTED_QUANTITY or 1
-        }
-
-        if product_info:
-
-            verb = "linked to existing" if product_info["was_existing"] else "auto-created"
-
-            response["message"] = (
-                f"Customer created. Vending machine "
-                f"'{product_info['model_name']}' "
-                f"({product_info['model_code']}) {verb} in "
-                f"Products & BOM."
-            )
-
-        # 📲 Notify MD about the new customer
-        from app.services.whatsapp_service import notify_md_safe
-
-        notify_md_safe(
-            f"✅ *New Customer Registered — BVC24*\n\n"
-            f"🏢 *{customer.CUSTOMER_NAME}*\n"
-            f"📞 {customer.PHONE}\n"
-            + (f"📧 {customer.EMAIL}\n" if customer.EMAIL else "")
-            + (f"🏭 Industry: {customer.INDUSTRY}\n" if customer.INDUSTRY else "")
-            + (f"📍 {customer.CITY or ''}{', ' + customer.STATE if customer.STATE else ''}\n" if (customer.CITY or customer.STATE) else "")
-            + (
-                f"\n🤖 Requested: *{product_info['model_name']}* × {data.REQUESTED_QUANTITY or 1}\n"
-                if product_info else ""
-            )
-            + f"\nCode: {customer.CUSTOMER_CODE}"
-        )
-
-        # 📧 Send full customer profile to the company inbox (MD)
-        # so the MD can see every captured field directly in email.
-        # Fire-and-forget — never block the customer-save response on
-        # an SMTP / Resend failure.
-        try:
-
-            md_target = _md_recipient_email()
-
-            if md_target:
-
-                sales_rep_name = None
-
-                if customer.ASSIGNED_SALES_ID:
-
-                    rep = db.query(Employee).filter(
-                        Employee.ID == customer.ASSIGNED_SALES_ID
-                    ).first()
-
-                    if rep:
-
-                        sales_rep_name = rep.NAME
-
-                html = _build_customer_profile_email_html(
-                    customer,
-                    sales_rep_name=sales_rep_name,
-                    product_info=product_info,
-                    requested_quantity=data.REQUESTED_QUANTITY or 1
-                )
-
-                subject = (
-                    f"New Customer Registered — {customer.CUSTOMER_NAME} "
-                    f"({customer.CUSTOMER_CODE})"
-                )
-
-                ok, msg = send_alert_email(subject, html, recipient=md_target)
-
-                response["email_sent"] = ok
-
-                response["email_message"] = msg
-
-                response["email_recipient"] = md_target
-
-        except Exception as email_exc:
-
-            # Never let an email problem block the customer-save flow.
-            response["email_sent"] = False
-
-            response["email_message"] = f"email skipped: {email_exc}"
-
-        return response
-
-    except HTTPException:
-
-        raise
-
-    except Exception as e:
-
-        db.rollback()
-
-        raise HTTPException(
-            status_code=500,
-            detail=str(e)
-        )
-
-
-@router.patch("/customers/{customer_id}", dependencies=[Depends(require("customer.manage"))])
-def update_customer(
-    customer_id: int,
-    data: CustomerUpdate,
-    db: Session = Depends(get_db)
-):
-
-    customer = db.query(Customer).filter(
-        Customer.ID == customer_id
-    ).first()
-
-    if not customer:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Customer not found"
-        )
-
-    for field, value in data.dict(exclude_unset=True).items():
-
-        if field == "STATUS" and value:
-
-            value = value.upper()
-
-        setattr(customer, field, value)
-
-    db.commit()
-
-    db.refresh(customer)
-
-    return {
-        "message": "Customer updated",
-        "customer_id": customer.ID
-    }
+# create_customer()/update_customer() removed — /create-customer and
+# PATCH /customers/{id} had zero callers left after Customers.jsx was
+# retired in favor of /customer-master (backend/app/routes/customer_master.py).
+# The MD WhatsApp/email notification create_customer() used to send has
+# been ported into customer_master.py's create_customer_master().
 
 
 # =========================
@@ -985,60 +584,18 @@ def update_project_status(
 # GET CUSTOMERS
 # =========================
 
-def _serialize_customer(c: Customer, sales_name: str = None) -> dict:
-    """Customer row enriched for the frontend list/card. Includes
-    Phase 1 lead-pipeline fields + the resolved sales-person name."""
-
+def _serialize_customer(c: Customer) -> dict:
     return {
         "ID": c.ID,
-        "CUSTOMER_CODE": c.CUSTOMER_CODE,
-        "CUSTOMER_NAME": c.CUSTOMER_NAME,
-        "CUSTOMER_TYPE": c.CUSTOMER_TYPE,
-        "CONTACT_PERSON": c.CONTACT_PERSON,
-        "DESIGNATION": c.DESIGNATION,
-        "PHONE": c.PHONE,
-        "ALTERNATE_PHONE": c.ALTERNATE_PHONE,
-        "WHATSAPP_NUMBER": c.WHATSAPP_NUMBER,
+        "NAME": c.NAME,
+        "COMPANY_NAME": c.COMPANY_NAME,
+        "PHONE_NUMBER": c.PHONE_NUMBER,
         "EMAIL": c.EMAIL,
-        "WEBSITE": c.WEBSITE,
         "ADDRESS": c.ADDRESS,
-        "BILLING_ADDRESS": c.BILLING_ADDRESS,
-        "SHIPPING_ADDRESS": c.SHIPPING_ADDRESS,
-        "GOOGLE_MAP_LOCATION": c.GOOGLE_MAP_LOCATION,
-        "CITY": c.CITY,
-        "STATE": c.STATE,
-        "PINCODE": c.PINCODE,
-        "COUNTRY": c.COUNTRY,
         "GST_NUMBER": c.GST_NUMBER,
-        "PAN_NUMBER": c.PAN_NUMBER,
-        "INDUSTRY": c.INDUSTRY,
-        "SOURCE": c.SOURCE,
-        "BUSINESS_TYPE": c.BUSINESS_TYPE,
-        "NUMBER_OF_BRANCHES": c.NUMBER_OF_BRANCHES,
-        "EXPECTED_MONTHLY_ORDERS": c.EXPECTED_MONTHLY_ORDERS,
-        "EXISTING_MACHINE_USAGE": bool(c.EXISTING_MACHINE_USAGE),
-        "CURRENT_VENDOR_NAME": c.CURRENT_VENDOR_NAME,
-        "STATUS": c.STATUS,
-        "NOTES": c.NOTES,
         "VENDOR_ID": c.VENDOR_ID,
-        # Lead pipeline
-        "LEAD_SOURCE": c.LEAD_SOURCE,
-        "LEAD_STATUS": c.LEAD_STATUS or "NEW",
-        "LEAD_PRIORITY": c.LEAD_PRIORITY or "MEDIUM",
-        "LEAD_CREATED_DATE": (
-            c.LEAD_CREATED_DATE.isoformat() if c.LEAD_CREATED_DATE else None
-        ),
-        "ASSIGNED_SALES_ID": c.ASSIGNED_SALES_ID,
-        "ASSIGNED_SALES_NAME": sales_name,
-        "FOLLOW_UP_DATE": (
-            c.FOLLOW_UP_DATE.isoformat() if c.FOLLOW_UP_DATE else None
-        ),
-        "NEXT_MEETING_DATE": (
-            c.NEXT_MEETING_DATE.isoformat() if c.NEXT_MEETING_DATE else None
-        ),
-        "REQUIREMENT_NOTES": c.REQUIREMENT_NOTES,
         "CREATED_AT": c.CREATED_AT.isoformat() if c.CREATED_AT else None,
-        "UPDATED_AT": c.UPDATED_AT.isoformat() if c.UPDATED_AT else None
+        "UPDATED_AT": c.UPDATED_AT.isoformat() if c.UPDATED_AT else None,
     }
 
 
@@ -1046,653 +603,21 @@ def _serialize_customer(c: Customer, sales_name: str = None) -> dict:
 def get_customers(
     db: Session = Depends(get_db)
 ):
-    """Return all customers with lead-pipeline info + resolved
-    sales-person name (one query, no N+1)."""
-
-    from app.models.models import Employee
+    """Return all customers."""
 
     customers = db.query(Customer).order_by(
         Customer.CREATED_AT.desc()
     ).all()
 
-    # Bulk-load assigned salespersons in one query
-    sales_ids = {
-        c.ASSIGNED_SALES_ID for c in customers
-        if c.ASSIGNED_SALES_ID
-    }
-
-    sales_names = {}
-
-    if sales_ids:
-
-        for emp in db.query(Employee).filter(
-            Employee.ID.in_(sales_ids)
-        ).all():
-
-            sales_names[emp.ID] = emp.NAME
-
-    return [
-        _serialize_customer(c, sales_names.get(c.ASSIGNED_SALES_ID))
-        for c in customers
-    ]
-
-
-# ====================================================================
-# Phase 1 — Lead Pipeline endpoints
-# ====================================================================
-
-@router.post("/customers/enquiry", dependencies=[Depends(require("customer.manage"))])
-def quick_enquiry(
-    data: EnquiryCreate,
-    db: Session = Depends(get_db)
-):
-    """Quick enquiry intake — minimum fields to log a lead. Auto-
-    fills lead_status=NEW, generates customer code, returns the
-    new ID so the UI can navigate to the full edit form for
-    enrichment."""
-
-    code = _next_customer_code(db, data.VENDOR_ID)
-
-    customer = Customer(
-        CUSTOMER_CODE=code,
-        CUSTOMER_NAME=data.CUSTOMER_NAME,
-        PHONE=data.PHONE,
-        EMAIL=data.EMAIL or "",
-        ADDRESS=(data.CITY or "") + ((", " + data.STATE) if data.STATE else ""),
-        CITY=data.CITY,
-        STATE=data.STATE,
-        INDUSTRY=data.INDUSTRY,
-        STATUS="ACTIVE",
-        VENDOR_ID=data.VENDOR_ID,
-        # Lead-specific defaults
-        LEAD_SOURCE=(data.LEAD_SOURCE or "WEBSITE").upper(),
-        LEAD_STATUS="NEW",
-        LEAD_PRIORITY=(data.LEAD_PRIORITY or "MEDIUM").upper(),
-        LEAD_CREATED_DATE=date.today(),
-        ASSIGNED_SALES_ID=data.ASSIGNED_SALES_ID,
-        REQUIREMENT_NOTES=data.REQUIREMENT_NOTES
-    )
-
-    db.add(customer)
-
-    db.commit()
-
-    db.refresh(customer)
-
-    # 📲 Fire-and-forget WhatsApp alert to MD
-    from app.services.whatsapp_service import notify_md_safe
-
-    msg = (
-        f"🔥 *New Enquiry — BVC24*\n\n"
-        f"👤 *{customer.CUSTOMER_NAME}*\n"
-        f"📞 {customer.PHONE}\n"
-        + (f"📧 {customer.EMAIL}\n" if customer.EMAIL else "")
-        + (f"🏢 Industry: {customer.INDUSTRY}\n" if customer.INDUSTRY else "")
-        + (f"📍 {customer.CITY or ''}{', ' + customer.STATE if customer.STATE else ''}\n" if (customer.CITY or customer.STATE) else "")
-        + f"\n🎯 Priority: *{customer.LEAD_PRIORITY}*\n"
-        + (f"\n📝 _{customer.REQUIREMENT_NOTES[:200]}_\n" if customer.REQUIREMENT_NOTES else "")
-        + f"\nCode: {customer.CUSTOMER_CODE} · Source: {customer.LEAD_SOURCE}"
-    )
-
-    notify_md_safe(msg)
-
-    return {
-        "message": f"Enquiry logged for {customer.CUSTOMER_NAME}",
-        "customer_id": customer.ID,
-        "customer_code": customer.CUSTOMER_CODE,
-        "lead_status": customer.LEAD_STATUS
-    }
-
-
-@router.patch("/customers/{customer_id}/lead-status", dependencies=[Depends(require("customer.manage"))])
-def update_lead_status(
-    customer_id: int,
-    data: LeadStatusUpdate,
-    db: Session = Depends(get_db)
-):
-    """Update a customer's lead pipeline state. Used by the sales
-    team to move a lead through NEW → CONTACTED → QUALIFIED →
-    QUOTED → NEGOTIATING → WON / LOST."""
-
-    valid_statuses = {
-        "NEW", "CONTACTED", "QUALIFIED", "QUOTED",
-        "NEGOTIATING", "WON", "LOST"
-    }
-
-    valid_priorities = {"HIGH", "MEDIUM", "LOW"}
-
-    customer = db.query(Customer).filter(
-        Customer.ID == customer_id
-    ).first()
-
-    if not customer:
-
-        raise HTTPException(status_code=404, detail="Customer not found")
-
-    if data.LEAD_STATUS:
-
-        s = data.LEAD_STATUS.upper()
-
-        if s not in valid_statuses:
-
-            raise HTTPException(
-                status_code=400,
-                detail=f"LEAD_STATUS must be one of {sorted(valid_statuses)}"
-            )
-
-        customer.LEAD_STATUS = s
-
-    if data.LEAD_PRIORITY:
-
-        p = data.LEAD_PRIORITY.upper()
-
-        if p not in valid_priorities:
-
-            raise HTTPException(
-                status_code=400,
-                detail=f"LEAD_PRIORITY must be one of {sorted(valid_priorities)}"
-            )
-
-        customer.LEAD_PRIORITY = p
-
-    if data.FOLLOW_UP_DATE:
-
-        customer.FOLLOW_UP_DATE = data.FOLLOW_UP_DATE
-
-    if data.NEXT_MEETING_DATE:
-
-        try:
-
-            customer.NEXT_MEETING_DATE = datetime.fromisoformat(
-                data.NEXT_MEETING_DATE
-            )
-
-        except Exception:
-
-            raise HTTPException(
-                status_code=400,
-                detail="NEXT_MEETING_DATE must be ISO 8601"
-            )
-
-    if data.ASSIGNED_SALES_ID is not None:
-
-        customer.ASSIGNED_SALES_ID = (
-            data.ASSIGNED_SALES_ID or None
-        )
-
-    if data.REMARKS is not None:
-
-        # Append remark to notes with a timestamp
-        existing = customer.NOTES or ""
-
-        stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
-
-        customer.NOTES = (
-            existing + f"\n[{stamp}] {data.REMARKS}"
-        ).strip() if existing else f"[{stamp}] {data.REMARKS}"
-
-    db.commit()
-
-    db.refresh(customer)
-
-    return {
-        "message": f"Lead updated for {customer.CUSTOMER_NAME}",
-        "lead_status": customer.LEAD_STATUS,
-        "lead_priority": customer.LEAD_PRIORITY,
-        "assigned_sales_id": customer.ASSIGNED_SALES_ID
-    }
-
-
-@router.post("/customers/{customer_id}/contacts", dependencies=[Depends(require("customer.manage"))])
-def add_contact(
-    customer_id: int,
-    data: ContactCreate,
-    db: Session = Depends(get_db)
-):
-    """Add an additional contact person to a customer."""
-
-    from app.models.models import CustomerContact
-
-    customer = db.query(Customer).filter(
-        Customer.ID == customer_id
-    ).first()
-
-    if not customer:
-
-        raise HTTPException(status_code=404, detail="Customer not found")
-
-    contact = CustomerContact(
-        CUSTOMER_ID=customer_id,
-        NAME=data.NAME,
-        DESIGNATION=data.DESIGNATION,
-        DEPARTMENT=data.DEPARTMENT,
-        PHONE=data.PHONE,
-        WHATSAPP=data.WHATSAPP,
-        EMAIL=data.EMAIL,
-        IS_PRIMARY=int(bool(data.IS_PRIMARY)),
-        NOTES=data.NOTES
-    )
-
-    db.add(contact)
-
-    db.commit()
-
-    db.refresh(contact)
-
-    return {
-        "message": "Contact added",
-        "contact_id": contact.ID
-    }
-
-
-@router.get("/customers/{customer_id}/contacts", dependencies=[Depends(require("customer.view"))])
-def list_contacts(
-    customer_id: int,
-    db: Session = Depends(get_db)
-):
-
-    from app.models.models import CustomerContact
-
-    rows = db.query(CustomerContact).filter(
-        CustomerContact.CUSTOMER_ID == customer_id
-    ).order_by(
-        CustomerContact.IS_PRIMARY.desc(),
-        CustomerContact.NAME
-    ).all()
-
-    return [
-        {
-            "ID": r.ID,
-            "NAME": r.NAME,
-            "DESIGNATION": r.DESIGNATION,
-            "DEPARTMENT": r.DEPARTMENT,
-            "PHONE": r.PHONE,
-            "WHATSAPP": r.WHATSAPP,
-            "EMAIL": r.EMAIL,
-            "IS_PRIMARY": bool(r.IS_PRIMARY),
-            "NOTES": r.NOTES
-        }
-        for r in rows
-    ]
-
-
-@router.delete("/customers/{customer_id}/contacts/{contact_id}", dependencies=[Depends(require("customer.manage"))])
-def delete_contact(
-    customer_id: int,
-    contact_id: int,
-    db: Session = Depends(get_db)
-):
-
-    from app.models.models import CustomerContact
-
-    contact = db.query(CustomerContact).filter(
-        CustomerContact.ID == contact_id,
-        CustomerContact.CUSTOMER_ID == customer_id
-    ).first()
-
-    if not contact:
-
-        raise HTTPException(status_code=404, detail="Contact not found")
-
-    db.delete(contact)
-
-    db.commit()
-
-    return {"message": "Contact removed"}
-
-
-# =========================
-# CUSTOMER REQUIREMENTS (Phase 2 — multi-spec)
-# =========================
-
-def _serialize_requirement(r) -> dict:
-
-    return {
-        "ID": r.ID,
-        "CUSTOMER_ID": r.CUSTOMER_ID,
-        "MACHINE_CATEGORY": r.MACHINE_CATEGORY,
-        "MACHINE_NAME": r.MACHINE_NAME,
-        "PRODUCT_MODEL_ID": r.PRODUCT_MODEL_ID,
-        "QUANTITY": r.QUANTITY,
-        "CAPACITY": r.CAPACITY,
-        "TARGET_UNIT_PRICE": r.TARGET_UNIT_PRICE,
-        "TARGET_DELIVERY_DATE": (
-            r.TARGET_DELIVERY_DATE.isoformat()
-            if r.TARGET_DELIVERY_DATE else None
-        ),
-        "INSTALLATION_SITE": r.INSTALLATION_SITE,
-        "PRIORITY": r.PRIORITY,
-        "STATUS": r.STATUS,
-        "SPECIAL_NOTES": r.SPECIAL_NOTES,
-        "CREATED_AT": (
-            r.CREATED_AT.isoformat() if r.CREATED_AT else None
-        ),
-        "UPDATED_AT": (
-            r.UPDATED_AT.isoformat() if r.UPDATED_AT else None
-        )
-    }
-
-
-@router.post("/customers/{customer_id}/requirements", dependencies=[Depends(require("customer.manage"))])
-def add_requirement(
-    customer_id: int,
-    data: RequirementCreate,
-    db: Session = Depends(get_db)
-):
-    """Add a new machine requirement to a customer's spec list."""
-
-    from app.models.models import CustomerRequirement
-
-    customer = db.query(Customer).filter(
-        Customer.ID == customer_id
-    ).first()
-
-    if not customer:
-
-        raise HTTPException(
-            status_code=404, detail="Customer not found"
-        )
-
-    req = CustomerRequirement(
-        CUSTOMER_ID=customer_id,
-        MACHINE_CATEGORY=data.MACHINE_CATEGORY,
-        MACHINE_NAME=data.MACHINE_NAME,
-        PRODUCT_MODEL_ID=data.PRODUCT_MODEL_ID,
-        QUANTITY=data.QUANTITY or 1,
-        CAPACITY=data.CAPACITY,
-        TARGET_UNIT_PRICE=data.TARGET_UNIT_PRICE,
-        TARGET_DELIVERY_DATE=data.TARGET_DELIVERY_DATE,
-        INSTALLATION_SITE=data.INSTALLATION_SITE,
-        PRIORITY=(data.PRIORITY or "MEDIUM").upper(),
-        STATUS=(data.STATUS or "DRAFT").upper(),
-        SPECIAL_NOTES=data.SPECIAL_NOTES,
-        VENDOR_ID=customer.VENDOR_ID or 1
-    )
-
-    db.add(req)
-
-    db.commit()
-
-    db.refresh(req)
-
-    return {
-        "message": "Requirement added",
-        "requirement": _serialize_requirement(req)
-    }
-
-
-@router.get("/customers/{customer_id}/requirements", dependencies=[Depends(require("customer.view"))])
-def list_requirements(
-    customer_id: int,
-    db: Session = Depends(get_db)
-):
-
-    from app.models.models import CustomerRequirement
-
-    rows = db.query(CustomerRequirement).filter(
-        CustomerRequirement.CUSTOMER_ID == customer_id
-    ).order_by(
-        CustomerRequirement.CREATED_AT.desc()
-    ).all()
-
-    return [_serialize_requirement(r) for r in rows]
-
-
-@router.patch("/customers/{customer_id}/requirements/{req_id}", dependencies=[Depends(require("customer.manage"))])
-def update_requirement(
-    customer_id: int,
-    req_id: int,
-    data: RequirementUpdate,
-    db: Session = Depends(get_db)
-):
-
-    from app.models.models import CustomerRequirement
-
-    req = db.query(CustomerRequirement).filter(
-        CustomerRequirement.ID == req_id,
-        CustomerRequirement.CUSTOMER_ID == customer_id
-    ).first()
-
-    if not req:
-
-        raise HTTPException(
-            status_code=404, detail="Requirement not found"
-        )
-
-    payload = data.dict(exclude_unset=True)
-
-    for field, value in payload.items():
-
-        if field in ("PRIORITY", "STATUS") and value:
-
-            value = str(value).upper()
-
-        setattr(req, field, value)
-
-    db.commit()
-
-    db.refresh(req)
-
-    return {
-        "message": "Requirement updated",
-        "requirement": _serialize_requirement(req)
-    }
-
-
-@router.delete("/customers/{customer_id}/requirements/{req_id}", dependencies=[Depends(require("customer.manage"))])
-def delete_requirement(
-    customer_id: int,
-    req_id: int,
-    db: Session = Depends(get_db)
-):
-
-    from app.models.models import CustomerRequirement
-
-    req = db.query(CustomerRequirement).filter(
-        CustomerRequirement.ID == req_id,
-        CustomerRequirement.CUSTOMER_ID == customer_id
-    ).first()
-
-    if not req:
-
-        raise HTTPException(
-            status_code=404, detail="Requirement not found"
-        )
-
-    db.delete(req)
-
-    db.commit()
-
-    return {"message": "Requirement removed"}
-
-
-# =========================
-# DELETE CUSTOMER
-# =========================
-
-@router.delete("/delete-customer/{customer_id}", dependencies=[Depends(require("customer.manage"))])
-def delete_customer(
-    customer_id: int,
-    db: Session = Depends(get_db)
-):
-    """Delete a customer, cleaning up every FK reference first.
-
-    Strategy (preserves audit / financial history):
-      DELETED — pure child rows that have no value without parent
-        * customer_contact
-        * customer_requirement
-
-      UNLINKED (CUSTOMER_ID -> NULL) — historical / financial rows
-        we must keep:
-        * project                       (manufacturing history)
-        * quotation                     (sales pipeline audit)
-        * sales_order                   (financial audit)
-        * customer_onboarding_session   (self-onboarding audit)
-    """
-
-    from app.models.models import (
-        CustomerContact,
-        CustomerRequirement,
-        Quotation,
-        QuotationLine,
-        SalesOrder,
-        CustomerOnboardingSession
-    )
-
-    from sqlalchemy.exc import IntegrityError
-
-    customer = db.query(Customer).filter(
-        Customer.ID == customer_id
-    ).first()
-
-    if not customer:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Customer not found"
-        )
-
-    customer_name = customer.CUSTOMER_NAME
-
-    customer_code = customer.CUSTOMER_CODE
-
-    try:
-
-        # ---- DELETE pure-child rows ----
-        contacts_deleted = db.query(CustomerContact).filter(
-            CustomerContact.CUSTOMER_ID == customer_id
-        ).delete(synchronize_session=False)
-
-        # Quotation lines may reference this customer's requirements via
-        # QuotationLine.REQUIREMENT_ID. Null those out first so the
-        # requirement rows can be deleted without tripping the FK.
-        req_ids = [
-            r[0] for r in db.query(CustomerRequirement.ID).filter(
-                CustomerRequirement.CUSTOMER_ID == customer_id
-            ).all()
-        ]
-
-        qlines_unlinked = 0
-
-        if req_ids:
-
-            qlines_unlinked = db.query(QuotationLine).filter(
-                QuotationLine.REQUIREMENT_ID.in_(req_ids)
-            ).update(
-                {QuotationLine.REQUIREMENT_ID: None},
-                synchronize_session=False
-            )
-
-        reqs_deleted = db.query(CustomerRequirement).filter(
-            CustomerRequirement.CUSTOMER_ID == customer_id
-        ).delete(synchronize_session=False)
-
-        # ---- UNLINK reference rows (preserve their audit value) ----
-        projects_unlinked = db.query(CustomerProject).filter(
-            CustomerProject.CUSTOMER_ID == customer_id
-        ).update(
-            {CustomerProject.CUSTOMER_ID: None},
-            synchronize_session=False
-        )
-
-        quotes_unlinked = db.query(Quotation).filter(
-            Quotation.CUSTOMER_ID == customer_id
-        ).update(
-            {Quotation.CUSTOMER_ID: None},
-            synchronize_session=False
-        )
-
-        sos_unlinked = db.query(SalesOrder).filter(
-            SalesOrder.CUSTOMER_ID == customer_id
-        ).update(
-            {SalesOrder.CUSTOMER_ID: None},
-            synchronize_session=False
-        )
-
-        onboarding_unlinked = db.query(CustomerOnboardingSession).filter(
-            CustomerOnboardingSession.CUSTOMER_ID == customer_id
-        ).update(
-            {CustomerOnboardingSession.CUSTOMER_ID: None},
-            synchronize_session=False
-        )
-
-        # Finally delete the customer itself
-        db.delete(customer)
-
-        db.commit()
-
-    except IntegrityError as exc:
-
-        db.rollback()
-
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "Could not delete customer — a database constraint "
-                "prevented it. Some new table may reference this "
-                "customer that the delete cleanup doesn't yet handle. "
-                f"Detail: {str(exc.orig)[:300]}"
-            )
-        )
-
-    except Exception as exc:
-
-        db.rollback()
-
-        raise HTTPException(
-            status_code=500,
-            detail=f"Could not delete customer: {exc}"
-        )
-
-    parts = []
-
-    if contacts_deleted:
-
-        parts.append(
-            f"{contacts_deleted} contact{'s' if contacts_deleted != 1 else ''} removed"
-        )
-
-    if reqs_deleted:
-
-        parts.append(
-            f"{reqs_deleted} requirement{'s' if reqs_deleted != 1 else ''} removed"
-        )
-
-    if qlines_unlinked:
-
-        parts.append(f"{qlines_unlinked} quotation line(s) unlinked")
-
-    if projects_unlinked:
-
-        parts.append(f"{projects_unlinked} project(s) unlinked")
-
-    if quotes_unlinked:
-
-        parts.append(f"{quotes_unlinked} quotation(s) unlinked")
-
-    if sos_unlinked:
-
-        parts.append(f"{sos_unlinked} sales order(s) unlinked")
-
-    if onboarding_unlinked:
-
-        parts.append(f"{onboarding_unlinked} onboarding session(s) unlinked")
-
-    summary = " · ".join(parts) if parts else "no related rows"
-
-    return {
-        "message": (
-            f"Customer '{customer_name}' ({customer_code}) deleted. "
-            f"{summary}."
-        ),
-        "contacts_deleted": contacts_deleted or 0,
-        "requirements_deleted": reqs_deleted or 0,
-        "quotation_lines_unlinked": qlines_unlinked or 0,
-        "projects_unlinked": projects_unlinked or 0,
-        "quotations_unlinked": quotes_unlinked or 0,
-        "sales_orders_unlinked": sos_unlinked or 0,
-        "onboarding_unlinked": onboarding_unlinked or 0
-    }
+    return [_serialize_customer(c) for c in customers]
+
+
+# delete_customer() removed — DELETE /delete-customer/{id} had zero
+# callers left after Customers.jsx was retired in favor of
+# /customer-master. Its safe FK-unlink logic (Quotation/SalesOrder/
+# CustomerProject/CustomerOnboardingSession -> CUSTOMER_ID = NULL
+# before delete) has been ported into customer_master.py's
+# delete_customer_master().
 
 
 # =========================
@@ -2239,90 +1164,4 @@ def wipe_all_projects(
     return {
         "message": "All projects + child rows deleted",
         **summary
-    }
-
-
-# =====================================================================
-# Convert a CustomerRequirement → Project (Phase 5 lite — direct
-# requirement-to-project conversion, in addition to the quotation
-# approval path).
-# =====================================================================
-
-@router.post("/customers/{customer_id}/requirements/{req_id}/to-project", dependencies=[Depends(require("project.create"))])
-def requirement_to_project(
-    customer_id: int,
-    req_id: int,
-    db: Session = Depends(get_db)
-):
-    """
-    Convert a customer requirement directly into a Project. Uses the
-    existing project-from-product service so the new project gets
-    auto-seeded stages, tasks, and skill-matched employee assignments.
-
-    Marks the source requirement as ORDERED so it doesn't get picked
-    up again by quotation generation.
-    """
-
-    from app.models.models import CustomerRequirement
-
-    req = db.query(CustomerRequirement).filter(
-        CustomerRequirement.ID == req_id,
-        CustomerRequirement.CUSTOMER_ID == customer_id
-    ).first()
-
-    if not req:
-
-        raise HTTPException(status_code=404, detail="Requirement not found")
-
-    if not req.PRODUCT_MODEL_ID:
-
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "Requirement has no linked Product Model. "
-                "Edit the requirement and pick a product first "
-                "(or create one in Production & BOM)."
-            )
-        )
-
-    try:
-
-        result = create_project_from_product(
-            db,
-            customer_id=customer_id,
-            product_model_id=req.PRODUCT_MODEL_ID,
-            quantity=req.QUANTITY or 1,
-            priority=(req.PRIORITY or "MEDIUM").upper(),
-            target_date=req.TARGET_DELIVERY_DATE,
-            notes=(
-                f"From requirement #{req.ID}"
-                + (f" — {req.SPECIAL_NOTES}" if req.SPECIAL_NOTES else "")
-            ),
-            vendor_id=req.VENDOR_ID or 1
-        )
-
-    except ValueError as e:
-
-        raise HTTPException(status_code=400, detail=str(e))
-
-    except Exception as e:
-
-        db.rollback()
-
-        raise HTTPException(status_code=500, detail=str(e))
-
-    # Mark the requirement as ORDERED so it doesn't show up in the
-    # quotation picker again.
-    req.STATUS = "ORDERED"
-
-    db.commit()
-
-    return {
-        "message": (
-            f"Project created from requirement. "
-            f"{result.get('stages_seeded', 0)} stages seeded, "
-            f"{result.get('tasks_created', 0)} tasks assigned."
-        ),
-        "requirement_id": req_id,
-        "project": result
     }

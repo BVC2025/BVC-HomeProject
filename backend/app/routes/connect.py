@@ -32,7 +32,6 @@ from app.database.database import get_db
 from app.models.models import (
     Employee,
     Department,
-    CustomerProject,
     Customer,
     TaskAssignment,
     Attendance,
@@ -51,7 +50,6 @@ from app.models.models import (
     LeaveBalance,
     BiometricEvent,
     DailyAllocation,
-    Vendor,
     Machine
 )
 
@@ -120,8 +118,7 @@ def employee_360(employee_id: str, db: Session = Depends(get_db)):
 
     # ---- Active + recent tasks ----
     active_tasks = (
-        db.query(TaskAssignment, CustomerProject)
-        .outerjoin(CustomerProject, TaskAssignment.PROJECT_ID == CustomerProject.ID)
+        db.query(TaskAssignment)
         .filter(
             TaskAssignment.EMPLOYEE_ID == emp.ID,
             TaskAssignment.TASK_STATUS.in_(
@@ -234,14 +231,12 @@ def employee_360(employee_id: str, db: Session = Depends(get_db)):
                 "TASK_NAME": t.TASK_NAME,
                 "TASK_DETAILS": t.TASK_DETAILS,
                 "STATUS": t.TASK_STATUS,
-                "PROJECT_ID": t.PROJECT_ID,
-                "PROJECT_NAME": p.PROJECT_NAME if p else None,
                 "ASSIGNED_DATE": _iso(t.ASSIGNED_DATE),
                 "DUE_DATE": _iso(t.DUE_DATE),
                 "START_TIME": _iso(t.START_TIME),
                 "END_TIME": _iso(t.END_TIME)
             }
-            for t, p in active_tasks
+            for t in active_tasks
         ],
         "completed_today_count": len(completed_today),
         "recent_scans": [
@@ -303,477 +298,20 @@ def employee_360(employee_id: str, db: Session = Depends(get_db)):
     }
 
 
-# ================================================================
-# PROJECT 360°
-# ================================================================
-
-@router.get("/project/{project_id}/360", dependencies=[Depends(get_current_admin)])
-def project_360(project_id: int, db: Session = Depends(get_db)):
-
-    proj = db.query(CustomerProject).filter(CustomerProject.ID == project_id).first()
-
-    if not proj:
-
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    customer = (
-        db.query(Customer)
-        .filter(Customer.ID == proj.CUSTOMER_ID)
-        .first()
-        if proj.CUSTOMER_ID else None
-    )
-
-    dept = (
-        db.query(Department)
-        .filter(Department.ID == proj.DEPARTMENT_ID)
-        .first()
-        if proj.DEPARTMENT_ID else None
-    )
-
-    # ---- Work orders under this project ----
-    wos = (
-        db.query(WorkOrder, ProductModel)
-        .outerjoin(
-            ProductModel,
-            WorkOrder.PRODUCT_MODEL_ID == ProductModel.ID
-        )
-        .filter(WorkOrder.PROJECT_ID == proj.ID)
-        .order_by(WorkOrder.CREATED_AT.desc())
-        .all()
-    )
-
-    # ---- Tasks under this project ----
-    tasks = (
-        db.query(TaskAssignment, Employee)
-        .outerjoin(Employee, TaskAssignment.EMPLOYEE_ID == Employee.ID)
-        .filter(TaskAssignment.PROJECT_ID == proj.ID)
-        .order_by(TaskAssignment.ASSIGNED_DATE.desc())
-        .limit(30)
-        .all()
-    )
-
-    task_stats = {
-        "total": len(tasks),
-        "pending": sum(
-            1 for t, _ in tasks if t.TASK_STATUS == "PENDING"
-        ),
-        "in_progress": sum(
-            1 for t, _ in tasks if t.TASK_STATUS == "IN_PROGRESS"
-        ),
-        "completed": sum(
-            1 for t, _ in tasks
-            if t.TASK_STATUS in ("DONE", "COMPLETED")
-        )
-    }
-
-    assigned_employees = sorted({
-        emp.EMPLOYEE_CODE: {
-            "ID": emp.ID,
-            "EMPLOYEE_CODE": emp.EMPLOYEE_CODE,
-            "NAME": emp.NAME
-        }
-        for _, emp in tasks
-        if emp is not None
-    }.values(), key=lambda e: e["EMPLOYEE_CODE"])
-
-    # ---- BOM rolled up by project quantity, with supplier links ----
-    # Pulls the product's BOM, multiplies by project quantity, and
-    # joins each line's PREFERRED_SUPPLIER so the UI can show & swap
-    # the supplier per material.
-    project_quantity = proj.QUANTITY or 1
-
-    bom_rolled = []
-
-    if proj.PRODUCT_MODEL_ID:
-
-        bom_rows = (
-            db.query(BOMItem, Supplier, ProcessStage)
-            .outerjoin(
-                Supplier, BOMItem.PREFERRED_SUPPLIER_ID == Supplier.ID
-            )
-            .outerjoin(
-                ProcessStage, BOMItem.PROCESS_STAGE_ID == ProcessStage.ID
-            )
-            .filter(BOMItem.PRODUCT_MODEL_ID == proj.PRODUCT_MODEL_ID)
-            .all()
-        )
-
-        for item, supplier, stage in bom_rows:
-
-            bom_rolled.append({
-                "ID": item.ID,
-                "ITEM_NO": item.ITEM_NO,
-                "IMAGE_URL": item.IMAGE_URL,
-                "MATERIAL_NAME": item.MATERIAL_NAME,
-                "PER_UNIT_QUANTITY": item.QUANTITY,
-                "TOTAL_QUANTITY": round(
-                    (item.QUANTITY or 0) * project_quantity, 3
-                ),
-                "UNIT": item.UNIT,
-                "ITEM_TYPE": item.ITEM_TYPE or "PURCHASE",
-                "PREFERRED_SUPPLIER_ID": item.PREFERRED_SUPPLIER_ID,
-                "PREFERRED_SUPPLIER_NAME": (
-                    supplier.COMPANY_NAME if supplier else None
-                ),
-                "PREFERRED_SUPPLIER_CODE": (
-                    supplier.SUPPLIER_CODE if supplier else None
-                ),
-                "PROCESS_STAGE_ID": item.PROCESS_STAGE_ID,
-                "PROCESS_STAGE_NAME": (
-                    stage.STAGE_NAME if stage else None
-                ),
-                "NOTES": item.NOTES
-            })
-
-    # ---- Vendor's supplier directory, so the UI picker has options
-    # Frontend often passes vendor_id=1 even when the BVC vendor row
-    # actually has a different ID (e.g. 4 — created after a tenant
-    # seed). Try strict vendor match first, then fall back to BVC
-    # by name, then any supplier. Matches the production.py pattern.
-    sup_rows = []
-
-    if proj.VENDOR_ID:
-
-        sup_rows = (
-            db.query(Supplier)
-            .filter(Supplier.VENDOR_ID == proj.VENDOR_ID)
-            .order_by(Supplier.COMPANY_NAME)
-            .all()
-        )
-
-    if not sup_rows:
-
-        bvc = db.query(Vendor).filter(
-            Vendor.VENDOR_NAME == "Bharath Vending Corporation"
-        ).first()
-
-        if bvc:
-
-            sup_rows = (
-                db.query(Supplier)
-                .filter(Supplier.VENDOR_ID == bvc.ID)
-                .order_by(Supplier.COMPANY_NAME)
-                .all()
-            )
-
-    if not sup_rows:
-
-        sup_rows = (
-            db.query(Supplier)
-            .order_by(Supplier.COMPANY_NAME)
-            .all()
-        )
-
-    suppliers_for_picker = [
-        {
-            "ID": s.ID,
-            "SUPPLIER_CODE": s.SUPPLIER_CODE,
-            "COMPANY_NAME": s.COMPANY_NAME,
-            "CATEGORY": getattr(s, "CATEGORY", None)
-        }
-        for s in sup_rows
-    ]
-
-    return {
-        "project": {
-            "ID": proj.ID,
-            "PROJECT_NAME": proj.PROJECT_NAME,
-            "DESCRIPTION": proj.DESCRIPTION,
-            "STATUS": proj.STATUS,
-            "PRIORITY": proj.PRIORITY,
-            "SKILLS_REQUIRED": proj.SKILLS_REQUIRED,
-            "DEPARTMENT": dept.NAME if dept else None,
-            "PRODUCT_MODEL_ID": proj.PRODUCT_MODEL_ID,
-            "QUANTITY": proj.QUANTITY,
-            "TARGET_DATE": _iso(proj.TARGET_DATE)
-        },
-        "customer": (
-            {
-                "ID": customer.ID,
-                "NAME": customer.CUSTOMER_NAME,
-                "PHONE": customer.PHONE,
-                "EMAIL": customer.EMAIL,
-                "ADDRESS": customer.ADDRESS
-            }
-            if customer else None
-        ),
-        "work_orders": [
-            {
-                "ID": wo.ID,
-                "WO_NUMBER": wo.WO_NUMBER,
-                "MODEL_NAME": model.MODEL_NAME if model else None,
-                "MODEL_CODE": model.MODEL_CODE if model else None,
-                "QUANTITY": wo.QUANTITY,
-                "STATUS": wo.STATUS,
-                "PLANNED_START_DATE": _iso(wo.PLANNED_START_DATE),
-                "PLANNED_END_DATE": _iso(wo.PLANNED_END_DATE)
-            }
-            for wo, model in wos
-        ],
-        "task_stats": task_stats,
-        "tasks": [
-            {
-                "TASK_ID": t.TASK_ID,
-                "TASK_NAME": t.TASK_NAME,
-                "STATUS": t.TASK_STATUS,
-                "EMPLOYEE_NAME": emp.NAME if emp else None,
-                "EMPLOYEE_CODE": emp.EMPLOYEE_CODE if emp else None,
-                "ASSIGNED_DATE": _iso(t.ASSIGNED_DATE)
-            }
-            for t, emp in tasks
-        ],
-        "assigned_employees": assigned_employees,
-        "bom_rolled_up": bom_rolled,
-        "project_quantity": project_quantity,
-        "suppliers_for_picker": suppliers_for_picker
-    }
-
-
-# ================================================================
-# CUSTOMER 360°
-# ================================================================
-
-@router.get("/customer/{customer_id}/360", dependencies=[Depends(get_current_admin)])
-def customer_360(customer_id: int, db: Session = Depends(get_db)):
-    """
-    Returns everything connected to one customer in one payload —
-    profile, all projects, work orders, machine models being built,
-    BOM rollups, totals.
-
-    This is the heart of the customer-centric experience: BVC24
-    builds machines specifically for customers, so the customer
-    record must surface the production pipeline tied to them.
-    """
-
-    customer = (
-        db.query(Customer)
-        .filter(Customer.ID == customer_id)
-        .first()
-    )
-
-    if not customer:
-
-        raise HTTPException(status_code=404, detail="Customer not found")
-
-    # ---- Projects belonging to this customer ----
-    projects = (
-        db.query(CustomerProject, Department)
-        .outerjoin(Department, CustomerProject.DEPARTMENT_ID == Department.ID)
-        .filter(CustomerProject.CUSTOMER_ID == customer.ID)
-        .order_by(CustomerProject.ID.desc())
-        .all()
-    )
-
-    project_ids = [p.ID for p, _ in projects]
-
-    # ---- Work orders under those projects ----
-    work_orders = []
-
-    if project_ids:
-
-        work_orders = (
-            db.query(WorkOrder, ProductModel, CustomerProject)
-            .outerjoin(
-                ProductModel,
-                WorkOrder.PRODUCT_MODEL_ID == ProductModel.ID
-            )
-            .outerjoin(CustomerProject, WorkOrder.PROJECT_ID == CustomerProject.ID)
-            .filter(WorkOrder.PROJECT_ID.in_(project_ids))
-            .order_by(WorkOrder.CREATED_AT.desc())
-            .all()
-        )
-
-    # ---- Group machine models being / have been built for them ----
-    by_model = {}
-
-    for wo, model, _ in work_orders:
-
-        if not model:
-
-            continue
-
-        key = model.ID
-
-        if key not in by_model:
-
-            by_model[key] = {
-                "MODEL_ID": model.ID,
-                "MODEL_CODE": model.MODEL_CODE,
-                "MODEL_NAME": model.MODEL_NAME,
-                "CATEGORY": model.CATEGORY,
-                "total_units": 0,
-                "wo_count": 0,
-                "in_progress_units": 0,
-                "done_units": 0
-            }
-
-        by_model[key]["total_units"] += wo.QUANTITY or 0
-
-        by_model[key]["wo_count"] += 1
-
-        if wo.STATUS == "IN_PROGRESS":
-
-            by_model[key]["in_progress_units"] += wo.QUANTITY or 0
-
-        elif wo.STATUS == "DONE":
-
-            by_model[key]["done_units"] += wo.QUANTITY or 0
-
-    # ---- BOM details for each model the customer is buying ----
-    bom_by_model = {}
-
-    for model_id in by_model.keys():
-
-        bom = (
-            db.query(BOMItem)
-            .filter(BOMItem.PRODUCT_MODEL_ID == model_id)
-            .order_by(BOMItem.ID)
-            .all()
-        )
-
-        bom_by_model[model_id] = [
-            {
-                "MATERIAL_NAME": b.MATERIAL_NAME,
-                "QUANTITY": b.QUANTITY,
-                "UNIT": b.UNIT,
-                "TYPE": b.ITEM_TYPE or "PURCHASE"
-            }
-            for b in bom
-        ]
-
-    # ---- Summary numbers ----
-    total_units_ordered = sum(
-        (wo.QUANTITY or 0) for wo, _, _ in work_orders
-    )
-
-    units_in_progress = sum(
-        (wo.QUANTITY or 0) for wo, _, _ in work_orders
-        if wo.STATUS == "IN_PROGRESS"
-    )
-
-    units_delivered = sum(
-        (wo.QUANTITY or 0) for wo, _, _ in work_orders
-        if wo.STATUS == "DONE"
-    )
-
-    active_projects = sum(
-        1 for p, _ in projects
-        if p.STATUS in ("PENDING", "IN_PROGRESS", "ACTIVE")
-    )
-
-    # ---- Requirements (chatbot / enquiry-form submissions) ----
-    from app.models.models import CustomerRequirement
-
-    req_rows = (
-        db.query(CustomerRequirement)
-        .filter(CustomerRequirement.CUSTOMER_ID == customer.ID)
-        .order_by(CustomerRequirement.CREATED_AT.desc())
-        .all()
-    )
-
-    requirements = [
-        {
-            "ID": r.ID,
-            "MACHINE_CATEGORY": r.MACHINE_CATEGORY,
-            "MACHINE_NAME": r.MACHINE_NAME,
-            "PRODUCT_MODEL_ID": r.PRODUCT_MODEL_ID,
-            "QUANTITY": r.QUANTITY,
-            "CAPACITY": r.CAPACITY,
-            "TARGET_UNIT_PRICE": r.TARGET_UNIT_PRICE,
-            "TARGET_DELIVERY_DATE": _iso(r.TARGET_DELIVERY_DATE),
-            "INSTALLATION_SITE": r.INSTALLATION_SITE,
-            "PRIORITY": r.PRIORITY,
-            "STATUS": r.STATUS,
-            "SPECIAL_NOTES": r.SPECIAL_NOTES,
-            "CREATED_AT": _iso(r.CREATED_AT)
-        }
-        for r in req_rows
-    ]
-
-    return {
-        "customer": {
-            "ID": customer.ID,
-            "CUSTOMER_CODE": customer.CUSTOMER_CODE,
-            "CUSTOMER_NAME": customer.CUSTOMER_NAME,
-            "CONTACT_PERSON": customer.CONTACT_PERSON,
-            "DESIGNATION": customer.DESIGNATION,
-            "PHONE": customer.PHONE,
-            "ALTERNATE_PHONE": customer.ALTERNATE_PHONE,
-            "EMAIL": customer.EMAIL,
-            "WEBSITE": customer.WEBSITE,
-            "ADDRESS": customer.ADDRESS,
-            "CITY": customer.CITY,
-            "STATE": customer.STATE,
-            "PINCODE": customer.PINCODE,
-            "COUNTRY": customer.COUNTRY,
-            "GST_NUMBER": customer.GST_NUMBER,
-            "PAN_NUMBER": customer.PAN_NUMBER,
-            "INDUSTRY": customer.INDUSTRY,
-            "SOURCE": customer.SOURCE,
-            "STATUS": customer.STATUS,
-            "NOTES": customer.NOTES,
-            "CREATED_AT": _iso(customer.CREATED_AT),
-            # ---- Enquiry / lead intake fields (from initial chatbot/form) ----
-            "LEAD_SOURCE": getattr(customer, "LEAD_SOURCE", None),
-            "LEAD_STATUS": getattr(customer, "LEAD_STATUS", None),
-            "LEAD_PRIORITY": getattr(customer, "LEAD_PRIORITY", None),
-            "LEAD_CREATED_DATE": _iso(getattr(customer, "LEAD_CREATED_DATE", None)),
-            "FOLLOW_UP_DATE": _iso(getattr(customer, "FOLLOW_UP_DATE", None)),
-            "NEXT_MEETING_DATE": _iso(getattr(customer, "NEXT_MEETING_DATE", None)),
-            "REQUIREMENT_NOTES": getattr(customer, "REQUIREMENT_NOTES", None),
-            "REMARKS": getattr(customer, "REMARKS", None),
-            "ASSIGNED_SALES_ID": getattr(customer, "ASSIGNED_SALES_ID", None)
-        },
-        "requirements": requirements,
-        "summary": {
-            "projects_total": len(projects),
-            "active_projects": active_projects,
-            "work_orders_total": len(work_orders),
-            "machine_models_count": len(by_model),
-            "total_units_ordered": int(total_units_ordered),
-            "units_in_progress": int(units_in_progress),
-            "units_delivered": int(units_delivered)
-        },
-        "projects": [
-            {
-                "ID": p.ID,
-                "PROJECT_NAME": p.PROJECT_NAME,
-                "DESCRIPTION": p.DESCRIPTION,
-                "STATUS": p.STATUS,
-                "PRIORITY": p.PRIORITY,
-                "DEPARTMENT": d.NAME if d else None
-            }
-            for p, d in projects
-        ],
-        "work_orders": [
-            {
-                "ID": wo.ID,
-                "WO_NUMBER": wo.WO_NUMBER,
-                "PROJECT_ID": wo.PROJECT_ID,
-                "PROJECT_NAME": project.PROJECT_NAME if project else None,
-                "MODEL_ID": model.ID if model else None,
-                "MODEL_NAME": model.MODEL_NAME if model else None,
-                "MODEL_CODE": model.MODEL_CODE if model else None,
-                "QUANTITY": wo.QUANTITY,
-                "STATUS": wo.STATUS,
-                "PLANNED_START_DATE": _iso(wo.PLANNED_START_DATE),
-                "PLANNED_END_DATE": _iso(wo.PLANNED_END_DATE)
-            }
-            for wo, model, project in work_orders
-        ],
-        "machine_models": [
-            {
-                **m,
-                "bom_preview": (
-                    bom_by_model.get(m["MODEL_ID"], [])[:6]
-                ),
-                "bom_total_items": len(
-                    bom_by_model.get(m["MODEL_ID"], [])
-                )
-            }
-            for m in by_model.values()
-        ]
-    }
+# project_360() removed — GET /connect/project/{id}/360 was entirely
+# CustomerProject-shaped (table project_legacy, removed) and had no
+# viable repoint onto the newer Project catalog (incompatible schema:
+# no CUSTOMER_ID/STATUS/DEPARTMENT_ID/TARGET_DATE, UUID vs int PK).
+# It was already unreachable in practice — the only live caller
+# (Projects.jsx via EntityDrawer) passes the newer catalog's UUID ID
+# into this endpoint's int-typed path param, which FastAPI already
+# rejected with a 422.
+
+
+# customer_360() removed — GET /connect/customer/{id}/360 had zero
+# remaining callers once EntityDrawer.jsx's `type="customer"` branch
+# (its only invoker, via the now-deleted Customers.jsx) was retired
+# along with /customers in favor of /customer-master.
 
 
 # ================================================================
@@ -784,12 +322,11 @@ def customer_360(customer_id: int, db: Session = Depends(get_db)):
 def work_order_360(wo_id: int, db: Session = Depends(get_db)):
 
     row = (
-        db.query(WorkOrder, ProductModel, CustomerProject)
+        db.query(WorkOrder, ProductModel)
         .outerjoin(
             ProductModel,
             WorkOrder.PRODUCT_MODEL_ID == ProductModel.ID
         )
-        .outerjoin(CustomerProject, WorkOrder.PROJECT_ID == CustomerProject.ID)
         .filter(WorkOrder.ID == wo_id)
         .first()
     )
@@ -798,7 +335,7 @@ def work_order_360(wo_id: int, db: Session = Depends(get_db)):
 
         raise HTTPException(status_code=404, detail="Work order not found")
 
-    wo, model, project = row
+    wo, model = row
 
     # ---- BOM rolled up by quantity ----
     bom = (
@@ -868,14 +405,6 @@ def work_order_360(wo_id: int, db: Session = Depends(get_db)):
                 "ESTIMATED_BUILD_DAYS": model.ESTIMATED_BUILD_DAYS
             }
             if model else None
-        ),
-        "project": (
-            {
-                "ID": project.ID,
-                "PROJECT_NAME": project.PROJECT_NAME,
-                "STATUS": project.STATUS
-            }
-            if project else None
         ),
         "bom": [
             {
@@ -1076,13 +605,6 @@ def workflow_snapshot(db: Session = Depends(get_db)):
             "bom_lines": db.query(BOMItem).count(),
             "process_stages_defined": db.query(ProcessStage).filter(
                 ProcessStage.IS_ACTIVE == 1
-            ).count()
-        },
-
-        "sales": {
-            "projects_total": db.query(CustomerProject).count(),
-            "projects_active": db.query(CustomerProject).filter(
-                CustomerProject.STATUS.in_(["PENDING", "IN_PROGRESS", "ACTIVE"])
             ).count()
         },
 

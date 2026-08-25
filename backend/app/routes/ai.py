@@ -6,7 +6,7 @@ admin can invoke manually from the UI:
 
   POST /ai/recommend-products
     Body: {
-      CUSTOMER_ID?: int,
+      CUSTOMER_ID?: str,
       REQUIREMENTS_TEXT?: str,
       TOP_K?: int (default 3, max 10),
       VENDOR_ID?: int (default 1)
@@ -48,17 +48,16 @@ class RecommendProductsRequest(BaseModel):
     At least one of CUSTOMER_ID / REQUIREMENTS_TEXT must be set —
     the endpoint validates this and returns 400 otherwise."""
 
-    CUSTOMER_ID: Optional[int] = Field(
+    CUSTOMER_ID: Optional[str] = Field(
         default=None,
-        description="Existing Customer.ID to pull profile + "
-                    "requirement rows from."
+        description="Existing Customer.ID to pull profile info from."
     )
 
     REQUIREMENTS_TEXT: Optional[str] = Field(
         default=None,
         description="Free-text description of what the customer wants "
                     "— used in addition to (or instead of) the "
-                    "stored CustomerRequirement rows."
+                    "customer profile."
     )
 
     TOP_K: Optional[int] = Field(

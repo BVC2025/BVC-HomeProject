@@ -231,49 +231,14 @@ def _pick_next_stage(
          preferred; else PLANNED).
       2. Find the lowest-sequence stage whose progress is PENDING.
       3. Return (stage, progress, wo). All None if nothing applies.
+
+    WorkOrder.PROJECT_ID (the project_legacy FK) was removed, so there
+    is no remaining way to resolve a project's active Work Order —
+    always returns "nothing found", matching this function's own
+    existing contract for "no WO/stage applies".
     """
 
-    wo = (
-        db.query(WorkOrder)
-        .filter(
-            WorkOrder.PROJECT_ID == project.ID,
-            WorkOrder.STATUS.in_(["IN_PROGRESS", "PLANNED"])
-        )
-        .order_by(
-            # IN_PROGRESS before PLANNED, then earliest planned date
-            (WorkOrder.STATUS != "IN_PROGRESS"),
-            WorkOrder.PLANNED_START_DATE,
-            WorkOrder.ID
-        )
-        .first()
-    )
-
-    if not wo:
-
-        return None, None, None
-
-    row = (
-        db.query(WorkOrderStageProgress, ProcessStage)
-        .join(
-            ProcessStage,
-            WorkOrderStageProgress.STAGE_ID == ProcessStage.ID
-        )
-        .filter(
-            WorkOrderStageProgress.WORK_ORDER_ID == wo.ID,
-            WorkOrderStageProgress.STATUS == "PENDING",
-            ProcessStage.IS_ACTIVE == 1
-        )
-        .order_by(ProcessStage.SEQUENCE, ProcessStage.ID)
-        .first()
-    )
-
-    if not row:
-
-        return None, None, wo
-
-    progress, stage = row
-
-    return stage, progress, wo
+    return None, None, None
 
 
 def _create_task_assignment(
@@ -336,7 +301,6 @@ def _create_task_assignment(
 
     assignment = TaskAssignment(
         EMPLOYEE_ID=employee.ID,
-        PROJECT_ID=project.ID,
         TASK_NAME=task_name,
         TASK_DETAILS=task_details,
         ASSIGNED_DATE=today,
@@ -500,7 +464,7 @@ def complete_active_task(
     return {
         "task_id": task.TASK_ID,
         "task_name": task.TASK_NAME,
-        "project_id": task.PROJECT_ID,
+        "project_id": None,  # project_legacy FK removed
         "completed_at": now.isoformat(),
         "duration_minutes": duration_minutes,
         "minutes_before_deadline": minutes_before_deadline,
@@ -563,7 +527,6 @@ def allocate_for_employee(
             EMPLOYEE_ID=employee.ID,
             ALLOC_DATE=today,
             SEQUENCE=sequence,
-            PROJECT_ID=None,
             TASK_ASSIGNMENT_ID=None,
             SCORE=0.0,
             SCORE_BREAKDOWN="admin role — task allocation skipped",
@@ -587,16 +550,9 @@ def allocate_for_employee(
     sequence = _next_sequence(db, employee.ID, today)
 
     # Projects we've already allocated to this employee today.
-    already_today_ids = {
-        row[0] for row in
-        db.query(DailyAllocation.PROJECT_ID)
-        .filter(
-            DailyAllocation.EMPLOYEE_ID == employee.ID,
-            DailyAllocation.ALLOC_DATE == today,
-            DailyAllocation.PROJECT_ID.isnot(None)
-        )
-        .all()
-    }
+    # DailyAllocation.PROJECT_ID (the project_legacy FK) was removed,
+    # so this can no longer be tracked — always starts empty.
+    already_today_ids = set()
 
     candidates = _candidate_projects(
         db,
@@ -621,7 +577,6 @@ def allocate_for_employee(
             EMPLOYEE_ID=employee.ID,
             ALLOC_DATE=today,
             SEQUENCE=sequence,
-            PROJECT_ID=None,
             TASK_ASSIGNMENT_ID=None,
             SCORE=0.0,
             SCORE_BREAKDOWN="no open projects",
@@ -664,7 +619,6 @@ def allocate_for_employee(
         EMPLOYEE_ID=employee.ID,
         ALLOC_DATE=today,
         SEQUENCE=sequence,
-        PROJECT_ID=best_project.ID,
         TASK_ASSIGNMENT_ID=task_assignment.TASK_ID,
         SCORE=best_score,
         SCORE_BREAKDOWN=(
@@ -702,10 +656,9 @@ def current_allocation_view(
 
         return None
 
-    project = (
-        db.query(Project).filter(Project.ID == task.PROJECT_ID).first()
-        if task.PROJECT_ID else None
-    )
+    # TaskAssignment.PROJECT_ID (the project_legacy FK) was removed —
+    # no remaining way to resolve a task's linked project.
+    project = None
 
     alloc = (
         db.query(DailyAllocation)

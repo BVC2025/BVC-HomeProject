@@ -433,17 +433,49 @@ export const EMPLOYEE_RULES = {
   ],
 };
 
-/** Manual Lead Management Add/Edit modal */
+/** Manual Lead Management Add/Edit modal. Pass `_IS_EDIT: modal === "edit"`
+ * alongside the form data — CUSTOMER_ASSIGNMENT_TYPE/CUSTOMER_ID are only
+ * required at creation time (assignment type isn't editable afterward). */
 export const LEAD_RULES = {
   CONTACT_NAME: ["required", minLength(2), maxLength(200)],
   CONTACT_MOBILE: ["phone"],
   CONTACT_EMAIL: ["email"],
   COMPANY_NAME: [maxLength(255)],
+  GST_NUMBER: ["gst"],
   PINCODE: [
     (value) => {
       if (!value || !String(value).trim()) return null;
       return /^\d{4,10}$/.test(String(value).trim()) ? null : "Enter a valid pincode.";
     },
   ],
-  LEAD_STATUS: ["required"],
+  CUSTOMER_ASSIGNMENT_TYPE: [
+    (value, data) => (!data._IS_EDIT && !value) ? "Please choose New or Existing customer." : null,
+  ],
+  CUSTOMER_ID: [
+    (value, data) => (!data._IS_EDIT && data.CUSTOMER_ASSIGNMENT_TYPE === "EXISTING" && !value)
+      ? "Please select an existing customer." : null,
+  ],
+};
+
+/** Lead conversion review modal — "New Customer" branch (the step that
+ * actually creates the Customer Master row). Lead-shaped field names
+ * (CONTACT_NAME/CONTACT_MOBILE/...), but Customer-Master-shaped presence
+ * requirements, since these are optional on the Lead itself at creation
+ * time but required to create a real Customer Master record. */
+export const LEAD_CONVERT_NEW_CUSTOMER_RULES = {
+  CONTACT_NAME: ["required", minLength(2), maxLength(200)],
+  CONTACT_MOBILE: ["required", "phone"],
+  CONTACT_EMAIL: ["required", "email"],
+  ADDRESS: ["required", maxLength(255)],
+  GST_NUMBER: ["gst"],
+};
+
+/** Customer Master Add/Edit modal */
+export const CUSTOMER_MASTER_RULES = {
+  NAME: ["required", minLength(2), maxLength(100)],
+  COMPANY_NAME: [maxLength(100)],
+  PHONE_NUMBER: ["required", "phone"],
+  EMAIL: ["required", "email"],
+  ADDRESS: ["required", maxLength(255)],
+  GST_NUMBER: ["gst"],
 };

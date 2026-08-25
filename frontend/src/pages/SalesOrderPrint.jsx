@@ -98,7 +98,6 @@ function SalesOrderPrint() {
           <div className={styles.metaCard}>
             <div className="label">Bill To</div>
             <div className="value">{so.CUSTOMER_NAME}</div>
-            <div className="sub">{so.CUSTOMER_CODE}</div>
             <div className="sub">{so.BILLING_ADDRESS || so.CUSTOMER_ADDRESS}</div>
             {so.CUSTOMER_GST && <div className="sub">GST: {so.CUSTOMER_GST}</div>}
             <div className="sub">{so.CUSTOMER_PHONE} · {so.CUSTOMER_EMAIL}</div>

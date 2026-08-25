@@ -270,6 +270,29 @@ def require(*permission_codes: str):
     return _checker
 
 
+def has_permission(payload: dict, *codes: str) -> bool:
+    """
+    Same bypass/OR-logic as require(), but a plain callable instead of
+    a FastAPI dependency — for a SECOND, more granular permission check
+    made from inside a route body, after the route's primary
+    Depends(require(...)) gate has already passed. Used where the
+    correct behavior on "missing" is to silently clamp a field or
+    narrow a query, not reject the whole request with a 403.
+    """
+
+    if payload.get("principal_type") == "ROOT":
+
+        return True
+
+    if payload.get("role") in ("ADMIN", "SUPER_ADMIN"):
+
+        return True
+
+    granted = set(payload.get("permissions") or [])
+
+    return any(code in granted for code in codes)
+
+
 # RBAC/IAM-category codes — granting/revoking these via /rbac/* or the
 # permission-override endpoint is Root-exclusive, regardless of what
 # the requester themselves already holds. See assert_not_granting_root_only_codes.

@@ -1,12 +1,12 @@
-"""Admin Dashboard — single endpoint that returns all 12 KPI metrics
+"""Admin Dashboard — single endpoint that returns all 11 KPI metrics
 in one round trip so the frontend can render the dashboard with one
 fetch + one re-fetch on each refresh cycle.
 
 Endpoint: GET /admin/dashboard-stats
 
-Response keys mirror the 12 tile labels:
+Response keys mirror the 11 tile labels:
   total_customers, total_quotations, total_sales_orders,
-  active_projects, purchase_orders, inventory_value,
+  purchase_orders, inventory_value,
   employees_present_today, leave_requests_pending,
   production_status (object), monthly_revenue,
   pending_payments, ai_notifications
@@ -25,7 +25,6 @@ from app.models.models import (
     Customer,
     Quotation,
     SalesOrder,
-    CustomerProject,
     PurchaseOrder,
     Inventory,
     Attendance,
@@ -45,7 +44,7 @@ def admin_dashboard_stats(
     vendor_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
 ):
-    """All 12 admin-dashboard KPIs in one shot.
+    """All 11 admin-dashboard KPIs in one shot.
 
     Optional ?vendor_id= filters every metric where the table has a
     VENDOR_ID. Omitted by default so the dashboard shows the whole
@@ -76,14 +75,6 @@ def admin_dashboard_stats(
             SalesOrder.STATUS != "CANCELLED"
         ),
         SalesOrder
-    ).scalar() or 0
-
-    # 4. Active Projects
-    active_projects = _scope(
-        db.query(func.count(CustomerProject.ID)).filter(
-            ~CustomerProject.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"])
-        ),
-        CustomerProject
     ).scalar() or 0
 
     # 5. Purchase Orders (exclude CANCELLED)
@@ -197,7 +188,6 @@ def admin_dashboard_stats(
         "total_customers":         int(total_customers),
         "total_quotations":        int(total_quotations),
         "total_sales_orders":      int(total_sales_orders),
-        "active_projects":         int(active_projects),
         "purchase_orders":         int(purchase_orders_count),
         "inventory_value":         round(float(inventory_value or 0.0), 2),
         "employees_present_today": int(employees_present_today),

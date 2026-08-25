@@ -524,9 +524,8 @@ def employee_production_stages(
     """All WorkOrderStageProgress rows assigned to this employee
     (across every Work Order). Returns PENDING and IN_PROGRESS only
     — completed/failed/skipped stages drop off the list. Enriched
-    with WO number, product name, customer name, and project name
-    so the employee dashboard can render each card with full
-    context without extra calls.
+    with WO number and product name so the employee dashboard can
+    render each card with full context without extra calls.
 
     The employee can be referenced by their UUID or EMPLOYEE_CODE.
     """
@@ -583,32 +582,9 @@ def employee_production_stages(
         .all()
     )
 
-    # Enrich each row with customer + project name (one shared lookup)
-    from app.models.models import CustomerProject as Project, Customer
-
-    project_ids = {wo.PROJECT_ID for _, _, wo, _ in rows if wo.PROJECT_ID}
-
-    projects = {
-        p.ID: p
-        for p in db.query(Project).filter(Project.ID.in_(project_ids)).all()
-    } if project_ids else {}
-
-    customer_ids = {
-        p.CUSTOMER_ID for p in projects.values() if p.CUSTOMER_ID
-    }
-
-    customers = {
-        c.ID: c
-        for c in db.query(Customer).filter(Customer.ID.in_(customer_ids)).all()
-    } if customer_ids else {}
-
     out = []
 
     for progress, stage, wo, product in rows:
-
-        proj = projects.get(wo.PROJECT_ID) if wo.PROJECT_ID else None
-
-        cust = customers.get(proj.CUSTOMER_ID) if (proj and proj.CUSTOMER_ID) else None
 
         out.append({
             "WO_STAGE_ID":     progress.ID,
@@ -626,10 +602,6 @@ def employee_production_stages(
             "PRODUCT_NAME":    product.MODEL_NAME if product else None,
             "PRODUCT_CODE":    product.MODEL_CODE if product else None,
             "QUANTITY":        wo.QUANTITY,
-            "PROJECT_ID":      proj.ID if proj else None,
-            "PROJECT_NAME":    proj.PROJECT_NAME if proj else None,
-            "CUSTOMER_NAME":   cust.CUSTOMER_NAME if cust else None,
-            "CUSTOMER_CODE":   cust.CUSTOMER_CODE if cust else None,
             "WO_PLANNED_START": (
                 wo.PLANNED_START_DATE.isoformat()
                 if wo.PLANNED_START_DATE else None

@@ -232,6 +232,32 @@ export default function RbacPermissions() {
     [groupedPerms]
   );
 
+  // code -> prerequisite code, from each permission's REQUIRES hint
+  // (see backend/app/services/permission_catalogue.py's
+  // FILTER_DEPENDENCIES). A dependent permission can't be granted
+  // without its prerequisite already granted at the same level.
+  const requiresMap = useMemo(() => {
+    const m = new Map();
+    groupedPerms.forEach((g) => g.permissions.forEach((p) => {
+      if (p.REQUIRES) m.set(p.CODE, p.REQUIRES);
+    }));
+    return m;
+  }, [groupedPerms]);
+
+  function enforceDependencies(set) {
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const [dependent, prereq] of requiresMap) {
+        if (set.has(dependent) && !set.has(prereq)) {
+          set.delete(dependent);
+          changed = true;
+        }
+      }
+    }
+    return set;
+  }
+
   const totalMembers = useMemo(
     () => roles.reduce((n, r) => n + (r.member_count || 0), 0),
     [roles]
@@ -297,7 +323,7 @@ export default function RbacPermissions() {
       const next = new Set(prev);
       if (next.has(code)) next.delete(code);
       else next.add(code);
-      return next;
+      return enforceDependencies(next);
     });
   }
 
@@ -306,7 +332,7 @@ export default function RbacPermissions() {
     setGrantedSet((prev) => {
       const next = new Set(prev);
       codes.forEach((c) => { if (value) next.add(c); else next.delete(c); });
-      return next;
+      return enforceDependencies(next);
     });
   }
 
@@ -407,6 +433,13 @@ export default function RbacPermissions() {
       const override = overridesByCode.get(p.CODE);
       const kind = override ? (override.EFFECT === "GRANT" ? "grant" : "deny") : (employeeRoleCodes.has(p.CODE) ? "role" : "none");
       const checked = kind === "grant" || kind === "role";
+
+      const effectiveKindFor = (code) => {
+        const ov = overridesByCode.get(code);
+        if (ov) return ov.EFFECT === "GRANT" ? "grant" : "deny";
+        return employeeRoleCodes.has(code) ? "role" : "none";
+      };
+      const prereqGranted = !p.REQUIRES || ["grant", "role"].includes(effectiveKindFor(p.REQUIRES));
       const rowClass = [
         styles.permLabel,
         checked ? styles.permLabelGranted : "",
@@ -429,7 +462,13 @@ export default function RbacPermissions() {
           </div>
           <div className={styles.permOverrideActions}>
             {kind !== "grant" && (
-              <button type="button" className={styles.miniBtnGrant} onClick={() => setOverrideConfirm({ code: p.CODE, name: p.NAME, effect: "GRANT" })}>
+              <button
+                type="button"
+                className={styles.miniBtnGrant}
+                onClick={() => setOverrideConfirm({ code: p.CODE, name: p.NAME, effect: "GRANT" })}
+                disabled={!prereqGranted}
+                title={!prereqGranted ? `Requires "${p.REQUIRES}" to be granted first` : undefined}
+              >
                 Grant
               </button>
             )}
@@ -453,16 +492,19 @@ export default function RbacPermissions() {
     }
 
     const granted = displayGrantedSet.has(p.CODE);
+    const prereqMissing = !!p.REQUIRES && !displayGrantedSet.has(p.REQUIRES);
+    const disabled = isSuperAdminRole || prereqMissing;
     return (
       <label
         key={p.CODE}
-        className={`${styles.permLabel}${granted ? ` ${styles.permLabelGranted}` : ""}${isSuperAdminRole ? ` ${styles.permLabelLocked}` : ""}`}
+        className={`${styles.permLabel}${granted ? ` ${styles.permLabelGranted}` : ""}${disabled ? ` ${styles.permLabelLocked}` : ""}`}
+        title={prereqMissing ? `Requires "${p.REQUIRES}" to be granted first` : undefined}
       >
         <input
           type="checkbox"
           checked={granted}
           onChange={() => toggle(p.CODE)}
-          disabled={isSuperAdminRole}
+          disabled={disabled}
           className={styles.permCheckbox}
         />
         <div className={styles.permContent}>

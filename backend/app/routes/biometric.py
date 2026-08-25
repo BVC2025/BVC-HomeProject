@@ -165,28 +165,15 @@ def _build_task_sheet_payload(
         TaskAssignment.ASSIGNED_DATE.asc()
     ).limit(20).all()
 
-    # Bulk-load project names for these tasks in one query
-    proj_ids = {
-        t.PROJECT_ID for t in pending_rows if t.PROJECT_ID
-    }
-
-    proj_names = {}
-
-    if proj_ids:
-
-        for p in db.query(Project).filter(
-            Project.ID.in_(proj_ids)
-        ).all():
-
-            proj_names[p.ID] = p.PROJECT_NAME
-
+    # project_legacy (CustomerProject) was removed — TaskAssignment.PROJECT_ID
+    # no longer exists, so pending tasks no longer carry a project name.
     pending_tasks = [
         {
             "TASK_ID": t.TASK_ID,
             "TASK_NAME": t.TASK_NAME,
             "TASK_STATUS": t.TASK_STATUS,
             "APPROVAL_STATUS": t.APPROVAL_STATUS,
-            "PROJECT_NAME": proj_names.get(t.PROJECT_ID),
+            "PROJECT_NAME": None,
             "DUE_DATE": (
                 t.DUE_DATE.isoformat() if t.DUE_DATE else None
             )

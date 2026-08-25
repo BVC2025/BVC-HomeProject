@@ -15,6 +15,9 @@ export const leadService = {
   update: (id, data) =>
     API.put(`/lead-management/leads/${id}?vendor_id=${VENDOR_ID}`, data),
 
+  convert: (id, body = {}) =>
+    API.post(`/lead-management/leads/${id}/convert?vendor_id=${VENDOR_ID}`, body),
+
   remove: (id) =>
     API.delete(`/lead-management/leads/${id}`),
 

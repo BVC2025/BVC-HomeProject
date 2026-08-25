@@ -167,7 +167,6 @@ function QuotationPrint() {
           <div className={styles.metaCard}>
             <div className="label">Quotation To</div>
             <div className="value">{q.CUSTOMER_NAME}</div>
-            <div className="sub">{q.CUSTOMER_CODE}</div>
             <div className="sub">{q.CUSTOMER_ADDRESS}</div>
             {q.CUSTOMER_GST && (
               <div className="sub">GST: {q.CUSTOMER_GST}</div>

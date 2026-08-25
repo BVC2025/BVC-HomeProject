@@ -6,7 +6,9 @@ import {
   DateTimeRangeFilter, EMPTY_RANGE, toIsoRange,
 } from "../components/pm";
 import { leadService } from "../services/leadService";
+import { customerMasterService } from "../services/customerMasterService";
 import { LeadDetailModal } from "../components/lead/LeadDetailModal";
+import { useAuth } from "../context/AuthContext";
 
 import LeadAIAssistantPanel from "../components/lead/LeadAIAssistantPanel";
 
@@ -19,7 +21,7 @@ import { categoryService } from "../services/categoryService";
 import { useToast } from "../hooks/useToast";
 import { useCustomFields, useTableCfValues } from "../hooks/useCustomFields";
 import { exportToExcel, downloadTemplate as dlTemplate } from "../utils/exportExcel";
-import { validateForm, clearFieldError, LEAD_RULES } from "../utils/formValidation";
+import { validateForm, clearFieldError, LEAD_RULES, LEAD_CONVERT_NEW_CUSTOMER_RULES } from "../utils/formValidation";
 import { formatDateTime } from "../utils/formatDateTime";
 import LeadIcon from "../assets/Icons/departmentIcon.webp";
 import EditIcon from "../assets/Icons/editIcon.webp";
@@ -43,6 +45,11 @@ const LEAD_SOURCE_OPTIONS = [
   { value: "MANUAL", label: "Manual Entry" },
 ];
 
+const CUSTOMER_ASSIGNMENT_OPTIONS = [
+  { value: "NEW", label: "New Customer" },
+  { value: "EXISTING", label: "Existing Customer" },
+];
+
 // Sentinel product-choice value — appended to every Product dropdown so the
 // user can fall back to freeform text instead of picking a listed project.
 const OTHERS_PRODUCT_ID = "OTHERS";
@@ -51,8 +58,9 @@ const OTHERS_PRODUCT_OPTION = { ID: OTHERS_PRODUCT_ID, NAME: "Others" };
 const EMPTY_FORM = {
   CONTACT_NAME: "", CONTACT_MOBILE: "", CONTACT_EMAIL: "", COMPANY_NAME: "",
   ADDRESS: "", CITY: "", STATE: "", PINCODE: "", COUNTRY_ISO: "",
-  LEAD_MESSAGE: "", PRODUCT_INTEREST: "",
+  LEAD_MESSAGE: "", PRODUCT_INTEREST: "", PROJECT_ID: "", GST_NUMBER: "",
   LEAD_STATUS: "NEW", ASSIGNED_TO_ID: "",
+  CUSTOMER_ASSIGNMENT_TYPE: "", CUSTOMER_ID: "",
 };
 
 function sourceLabel(value) {
@@ -63,7 +71,52 @@ function statusLabel(value) {
   return LEAD_STATUS_OPTIONS.find((o) => o.value === value)?.label || value || "—";
 }
 
+// Shared "new customer" field block — used by both conversion modals below
+// (the "review" modal's NEW branch, and the legacy "assign" fallback modal)
+// so the two never drift into two hand-maintained copies.
+function renderNewCustomerFields(values, onChange, errs = {}) {
+  if (!values) return null;
+  const field = (key, label, opts = {}) => (
+    <div className={`${styles.formGroup}${opts.fullWidth ? ` ${styles.fullWidth}` : ""}`} key={key}>
+      <label>{label} {opts.required && <span className={styles.req}>*</span>}</label>
+      <input
+        type={opts.type || "text"}
+        className={`${styles.input}${errs[key] ? " " + styles.inputError : ""}`}
+        value={values[key] || ""}
+        onChange={(e) => onChange(key, opts.upper ? e.target.value.toUpperCase() : e.target.value)}
+        placeholder={opts.placeholder}
+      />
+      {errs[key] && <span className={styles.fieldError}>{errs[key]}</span>}
+    </div>
+  );
+  return (
+    <>
+      {field("CONTACT_NAME", "Contact Name", { required: true })}
+      {field("CONTACT_MOBILE", "Contact Mobile", { required: true })}
+      {field("CONTACT_EMAIL", "Contact Email", { required: true, type: "email" })}
+      {field("COMPANY_NAME", "Company Name")}
+      {field("ADDRESS", "Address", { required: true, fullWidth: true })}
+      {field("CITY", "City")}
+      {field("STATE", "State")}
+      {field("PINCODE", "Pincode")}
+      {field("COUNTRY_ISO", "Country ISO", { placeholder: "e.g. IN" })}
+      {field("GST_NUMBER", "GST Number", { placeholder: "e.g. 22AAAAA0000A1Z5", upper: true })}
+    </>
+  );
+}
+
 export default function ManualLeadManagement() {
+  const { hasPermission } = useAuth();
+  const canFilterSource = hasPermission("lead.records.filter_source");
+  const canFilterDate = hasPermission("lead.records.filter_date");
+  const canFilterDept = hasPermission("lead.records.filter_department");
+  const canFilterRole = hasPermission("lead.records.filter_role");
+  const canFilterOwner = hasPermission("lead.records.filter_owner");
+  const canSelectOwnerAdd = hasPermission("lead.records.owner_select_create");
+  const canSelectOwnerEdit = hasPermission("lead.records.owner_select_update");
+  const canConvert = hasPermission("lead.records.convert");
+  const canViewCustomers = hasPermission("customer.master.view");
+
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -75,6 +128,7 @@ export default function ManualLeadManagement() {
   const [filterDept, setFilterDept] = useState("");
   const [filterRole, setFilterRole] = useState("");
   const [filterUser, setFilterUser] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
   const [dateRange, setDateRange] = useState(EMPTY_RANGE);
 
   const [page, setPage] = useState(1);
@@ -99,6 +153,14 @@ export default function ManualLeadManagement() {
   const [confirmModal, setConfirmModal] = useState(null);
   const [leadDetailModal, setLeadDetailModal] = useState(null);
 
+  // Lead -> Customer Master conversion
+  const [allCustomers, setAllCustomers] = useState([]);
+  const [convertModal, setConvertModal] = useState(null); // null | { lead, mode: "review" | "assign" }
+  const [convertForm, setConvertForm] = useState(null);   // NEW-branch editable fields (review + assign modes)
+  const [convertCustomer, setConvertCustomer] = useState(null); // EXISTING-branch fetched customer (review mode)
+  const [convertErrors, setConvertErrors] = useState({});
+  const [converting, setConverting] = useState(false);
+
   const [cfOpen, setCfOpen] = useState(false);
 
 
@@ -120,6 +182,14 @@ export default function ManualLeadManagement() {
     validateCf, saveCfValues, refreshFields,
   } = useCustomFields(CF_TABLE);
   const cfValuesMap = useTableCfValues(CF_TABLE, rows);
+
+  // Second, independent Custom Fields hook instance for Customer Master's
+  // own custom fields — rendered only at conversion time (see the
+  // "review"/"assign" conversion modals below), never during Lead entry.
+  const {
+    fields: custCfFields, cfValues: custCfValues, handleCfChange: handleCustCfChange,
+    resetValues: resetCustCfValues, validateCf: validateCustCf, saveCfValues: saveCustCfValues,
+  } = useCustomFields("customer_master");
 
   useEffect(() => { if (!cfOpen) refreshFields(); }, [cfOpen, refreshFields]);
 
@@ -148,6 +218,28 @@ export default function ManualLeadManagement() {
     loadRefData();
   }, [loadRefData]);
 
+  // Existing-Customer picker data source — reuses Customer Master's own
+  // API (no duplicate fetching logic). Independent of loadRefData() above
+  // since it needs its own permission gate (customer.master.view) and must
+  // fail silently rather than surface the generic "reference data" toast.
+  const loadCustomers = useCallback(async () => {
+    if (!canViewCustomers) return;
+    try {
+      const res = await customerMasterService.getAll();
+      setAllCustomers(res.data || []);
+    } catch { /* Existing-Customer picker just stays empty */ }
+  }, [canViewCustomers]);
+
+  useEffect(() => { loadCustomers(); }, [loadCustomers]);
+
+  const customerOptions = useMemo(
+    () => allCustomers.map((c) => ({
+      ...c,
+      _label: `${c.NAME}${c.COMPANY_NAME ? " — " + c.COMPANY_NAME : ""}${c.PHONE_NUMBER ? " (" + c.PHONE_NUMBER + ")" : ""}`,
+    })),
+    [allCustomers]
+  );
+
   const buildParams = useCallback((overrides = {}) => {
     const { from, to } = toIsoRange(dateRange, { withTime: true });
     const params = { ...overrides };
@@ -156,10 +248,11 @@ export default function ManualLeadManagement() {
     if (filterDept) params.department_id = filterDept;
     if (filterRole) params.role_id = filterRole;
     if (filterUser) params.assigned_to_id = filterUser;
+    if (filterStatus) params.lead_status = filterStatus;
     if (from) params.created_from = from;
     if (to) params.created_to = to;
     return params;
-  }, [debouncedSearch, filterSource, filterDept, filterRole, filterUser, dateRange]);
+  }, [debouncedSearch, filterSource, filterDept, filterRole, filterUser, filterStatus, dateRange]);
 
   const loadLeads = useCallback(async (silent = false) => {
     if (!silent) setLoading(true); else setRefreshing(true);
@@ -236,12 +329,13 @@ export default function ManualLeadManagement() {
   const handleUserChange = useCallback((v) => { setFilterUser(v || ""); setPage(1); }, []);
   const handleDateRangeChange = useCallback((next) => { setDateRange(next); setPage(1); }, []);
   const handleClearDateRange = useCallback(() => { setDateRange(EMPTY_RANGE); setPage(1); }, []);
+  const handleStatusChange = useCallback((v) => { setFilterStatus(v || ""); setPage(1); }, []);
 
-  const hasFilters = search || filterSource || filterDept || filterRole || filterUser || dateRange.fromDate || dateRange.toDate;
+  const hasFilters = search || filterSource || filterDept || filterRole || filterUser || filterStatus || dateRange.fromDate || dateRange.toDate;
 
   const handleResetFilters = useCallback(() => {
     setSearch(""); setDebouncedSearch("");
-    setFilterSource(""); setFilterDept(""); setFilterRole(""); setFilterUser("");
+    setFilterSource(""); setFilterDept(""); setFilterRole(""); setFilterUser(""); setFilterStatus("");
     setDateRange(EMPTY_RANGE);
     setPage(1);
   }, []);
@@ -273,8 +367,12 @@ export default function ManualLeadManagement() {
     COUNTRY_ISO: row.COUNTRY_ISO || "",
     LEAD_MESSAGE: row.LEAD_MESSAGE || "",
     PRODUCT_INTEREST: row.PRODUCT_INTEREST || "",
+    PROJECT_ID: row.PROJECT_ID || "",
+    GST_NUMBER: row.GST_NUMBER || "",
     LEAD_STATUS: row.LEAD_STATUS || "NEW",
     ASSIGNED_TO_ID: row.ASSIGNED_TO_ID || "",
+    CUSTOMER_ASSIGNMENT_TYPE: row.CUSTOMER_ASSIGNMENT_TYPE || "",
+    CUSTOMER_ID: row.CUSTOMER_ID || "",
   }), []);
 
   const openEdit = useCallback((row) => {
@@ -282,17 +380,28 @@ export default function ManualLeadManagement() {
     setSelected(row);
     setErrors({});
     loadCfValues(row.ID);
-    // Reconstruct the Category → Product selection for a Manual Entry lead
-    // by matching the stored PRODUCT_INTEREST text back to a project name.
-    // If it doesn't match any project (or the lead isn't Manual Entry),
-    // fall back to "Others" (or blank) — the stored text itself is never
+    // Reconstruct the Category → Product selection for a Manual Entry lead.
+    // Prefer matching by the real PROJECT_ID (set going forward by this
+    // feature); fall back to matching the stored PRODUCT_INTEREST text
+    // back to a project name for legacy rows created before PROJECT_ID
+    // existed. If neither matches (or the lead isn't Manual Entry), fall
+    // back to "Others" (or blank) — the stored text itself is never
     // touched by this reconstruction.
-    if (row.LEAD_SOURCE === "MANUAL" && row.PRODUCT_INTEREST) {
-      const want = row.PRODUCT_INTEREST.trim().toLowerCase();
-      const match = projects.find((p) => (p.NAME || "").trim().toLowerCase() === want);
-      if (match) {
-        setProductCategoryId(match.CATEGORY_ID || "");
-        setProductChoice(match.ID);
+    if (row.LEAD_SOURCE === "MANUAL" && (row.PROJECT_ID || row.PRODUCT_INTEREST)) {
+      const byId = row.PROJECT_ID ? projects.find((p) => p.ID === row.PROJECT_ID) : null;
+      if (byId) {
+        setProductCategoryId(byId.CATEGORY_ID || "");
+        setProductChoice(byId.ID);
+      } else if (row.PRODUCT_INTEREST) {
+        const want = row.PRODUCT_INTEREST.trim().toLowerCase();
+        const match = projects.find((p) => (p.NAME || "").trim().toLowerCase() === want);
+        if (match) {
+          setProductCategoryId(match.CATEGORY_ID || "");
+          setProductChoice(match.ID);
+        } else {
+          setProductCategoryId("");
+          setProductChoice(OTHERS_PRODUCT_ID);
+        }
       } else {
         setProductCategoryId("");
         setProductChoice(OTHERS_PRODUCT_ID);
@@ -330,20 +439,28 @@ export default function ManualLeadManagement() {
     setProductCategoryId(v || "");
     setProductChoice("");
     handleFormChange("PRODUCT_INTEREST", "");
+    handleFormChange("PROJECT_ID", "");
   }, [handleFormChange]);
 
   const handleProductChoiceChange = useCallback((v) => {
     setProductChoice(v || "");
-    if (v === OTHERS_PRODUCT_ID) {
+    if (v === OTHERS_PRODUCT_ID || !v) {
       handleFormChange("PRODUCT_INTEREST", "");
+      handleFormChange("PROJECT_ID", "");
     } else {
       const proj = projects.find((p) => p.ID === v);
       handleFormChange("PRODUCT_INTEREST", proj?.NAME || "");
+      handleFormChange("PROJECT_ID", proj?.ID || "");
     }
   }, [projects, handleFormChange]);
 
+  const handleAssignmentTypeChange = useCallback((v) => {
+    handleFormChange("CUSTOMER_ASSIGNMENT_TYPE", v || "");
+    if (v !== "EXISTING") handleFormChange("CUSTOMER_ID", "");
+  }, [handleFormChange]);
+
   const handleSave = useCallback(async () => {
-    const { errors: formErrors } = validateForm(LEAD_RULES, form);
+    const { errors: formErrors } = validateForm(LEAD_RULES, { ...form, _IS_EDIT: modal === "edit" });
     const cfError = validateCf();
     if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors);
@@ -369,10 +486,19 @@ export default function ManualLeadManagement() {
         COUNTRY_ISO: form.COUNTRY_ISO.trim() || null,
         LEAD_MESSAGE: form.LEAD_MESSAGE.trim() || null,
         PRODUCT_INTEREST: form.PRODUCT_INTEREST.trim() || null,
-        LEAD_STATUS: form.LEAD_STATUS,
+        PROJECT_ID: form.PROJECT_ID || null,
+        GST_NUMBER: form.GST_NUMBER.trim() || null,
         ASSIGNED_TO_ID: form.ASSIGNED_TO_ID || null,
       };
+      if (modal === "edit") {
+        payload.LEAD_STATUS = form.LEAD_STATUS;
+      }
       if (modal === "add") {
+        // Assignment type isn't editable after creation — only ever sent on create.
+        payload.CUSTOMER_ASSIGNMENT_TYPE = form.CUSTOMER_ASSIGNMENT_TYPE || null;
+        if (form.CUSTOMER_ASSIGNMENT_TYPE === "EXISTING") {
+          payload.EXISTING_CUSTOMER_ID = form.CUSTOMER_ID || null;
+        }
         const res = await leadService.create(payload);
         const newId = res.data?.ID;
         if (newId) await saveCfValues(newId);
@@ -390,6 +516,163 @@ export default function ManualLeadManagement() {
       setSaving(false);
     }
   }, [form, modal, selected, closeModal, loadLeads, toast, validateCf, saveCfValues]);
+
+  // ── Lead -> Customer Master conversion ──────────────────────────────────
+
+  // Hide "Converted" from the plain Status dropdown for anyone who can't
+  // actually perform the conversion — the backend independently enforces
+  // lead.records.convert regardless. Still shown if the lead is already
+  // Converted, so the field never displays a value missing from its own
+  // options list.
+  const editStatusOptions = useMemo(() => {
+    if (canConvert || form.LEAD_STATUS === "CONVERTED") return LEAD_STATUS_OPTIONS;
+    return LEAD_STATUS_OPTIONS.filter((o) => o.value !== "CONVERTED");
+  }, [canConvert, form.LEAD_STATUS]);
+
+  const closeConvertModal = useCallback(() => {
+    setConvertModal(null);
+    setConvertForm(null);
+    setConvertCustomer(null);
+    setConvertErrors({});
+  }, []);
+
+  // Intercepts the Lead Status dropdown's own onChange rather than folding
+  // conversion into the generic Save button — conversion is a distinct
+  // transactional action with its own review UI and success state, not a
+  // plain field edit. The dropdown's bound value is left untouched on this
+  // path, so it visually stays put until the conversion actually completes
+  // and the row reloads.
+  const handleLeadStatusChange = useCallback(async (v) => {
+    if (v === "CONVERTED" && form.LEAD_STATUS !== "CONVERTED") {
+      if (!canConvert) { toast.showError("You do not have permission to convert leads."); return; }
+      if (!selected?.PROJECT_ID) {
+        toast.showError("Please assign a project to this lead before converting it.");
+        return;
+      }
+      let lead = selected;
+      // A single click still carries the lead through the required VIEWED
+      // milestone the backend enforces before allowing conversion.
+      if (lead.LEAD_STATUS === "NEW") {
+        try {
+          const res = await leadService.update(lead.ID, { LEAD_STATUS: "VIEWED" });
+          lead = res.data || { ...lead, LEAD_STATUS: "VIEWED" };
+        } catch (e) {
+          toast.showError(e?.response?.data?.detail || "Failed to mark lead as Viewed");
+          return;
+        }
+      }
+      closeModal();
+      setConvertModal({ lead, mode: lead.CUSTOMER_ASSIGNMENT_TYPE ? "review" : "assign" });
+      return;
+    }
+    handleFormChange("LEAD_STATUS", v);
+  }, [form.LEAD_STATUS, selected, canConvert, closeModal, handleFormChange, toast]);
+
+  // Load the review-mode data once the modal opens: fetch the linked
+  // customer for EXISTING, or pre-fill the editable new-customer fields
+  // (straight from the lead already in hand — no extra fetch needed) for NEW.
+  useEffect(() => {
+    if (convertModal?.mode !== "review") return;
+    const lead = convertModal.lead;
+    if (lead.CUSTOMER_ASSIGNMENT_TYPE === "EXISTING") {
+      setConvertCustomer(null);
+      customerMasterService.get(lead.CUSTOMER_ID)
+        .then((res) => setConvertCustomer(res.data))
+        .catch(() => toast.showError("Failed to load linked customer"));
+    } else {
+      setConvertForm({
+        CONTACT_NAME: lead.CONTACT_NAME || "", CONTACT_MOBILE: lead.CONTACT_MOBILE || "",
+        CONTACT_EMAIL: lead.CONTACT_EMAIL || "", COMPANY_NAME: lead.COMPANY_NAME || "",
+        ADDRESS: lead.ADDRESS || "", CITY: lead.CITY || "", STATE: lead.STATE || "",
+        PINCODE: lead.PINCODE || "", COUNTRY_ISO: lead.COUNTRY_ISO || "", GST_NUMBER: lead.GST_NUMBER || "",
+      });
+      resetCustCfValues();
+    }
+  }, [convertModal]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Legacy-fallback ("assign") mode — full New/Existing choice + form for a
+  // lead with no CUSTOMER_ASSIGNMENT_TYPE recorded yet.
+  useEffect(() => {
+    if (convertModal?.mode !== "assign") return;
+    setConvertForm({
+      CUSTOMER_ASSIGNMENT_TYPE: "", CUSTOMER_ID: "",
+      CONTACT_NAME: convertModal.lead.CONTACT_NAME || "", CONTACT_MOBILE: convertModal.lead.CONTACT_MOBILE || "",
+      CONTACT_EMAIL: convertModal.lead.CONTACT_EMAIL || "", COMPANY_NAME: convertModal.lead.COMPANY_NAME || "",
+      ADDRESS: convertModal.lead.ADDRESS || "", CITY: convertModal.lead.CITY || "", STATE: convertModal.lead.STATE || "",
+      PINCODE: convertModal.lead.PINCODE || "", COUNTRY_ISO: convertModal.lead.COUNTRY_ISO || "", GST_NUMBER: convertModal.lead.GST_NUMBER || "",
+    });
+    resetCustCfValues();
+  }, [convertModal]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleConvertFormChange = useCallback((field, val) => {
+    setConvertForm((prev) => ({ ...prev, [field]: val }));
+    clearFieldError(setConvertErrors, field);
+  }, []);
+
+  const handleConfirmConversion = useCallback(async () => {
+    const lead = convertModal?.lead;
+    if (!lead) return;
+
+    const isAssignMode = convertModal.mode === "assign";
+    const isNew = isAssignMode ? convertForm?.CUSTOMER_ASSIGNMENT_TYPE === "NEW" : lead.CUSTOMER_ASSIGNMENT_TYPE === "NEW";
+
+    if (isAssignMode && !convertForm?.CUSTOMER_ASSIGNMENT_TYPE) {
+      setConvertErrors({ CUSTOMER_ASSIGNMENT_TYPE: "Please choose New or Existing customer." });
+      toast.showWarning("Please choose New or Existing customer.");
+      return;
+    }
+    if (isAssignMode && convertForm?.CUSTOMER_ASSIGNMENT_TYPE === "EXISTING" && !convertForm?.CUSTOMER_ID) {
+      setConvertErrors({ CUSTOMER_ID: "Please select an existing customer." });
+      toast.showWarning("Please select an existing customer.");
+      return;
+    }
+    if (isNew) {
+      const { errors: fErr } = validateForm(LEAD_CONVERT_NEW_CUSTOMER_RULES, convertForm);
+      if (Object.keys(fErr).length) {
+        setConvertErrors(fErr);
+        toast.showWarning("Please fix the highlighted fields");
+        return;
+      }
+      const cfError = validateCustCf();
+      if (cfError) { toast.showWarning(cfError); return; }
+    }
+
+    setConvertErrors({});
+    setConverting(true);
+    try {
+      let body = {};
+      if (isAssignMode) {
+        body = { CUSTOMER_ASSIGNMENT_TYPE: convertForm.CUSTOMER_ASSIGNMENT_TYPE };
+        if (convertForm.CUSTOMER_ASSIGNMENT_TYPE === "EXISTING") {
+          body.EXISTING_CUSTOMER_ID = convertForm.CUSTOMER_ID;
+        }
+      }
+      if (isNew) {
+        body = {
+          ...body,
+          NAME: convertForm.CONTACT_NAME.trim(),
+          PHONE_NUMBER: convertForm.CONTACT_MOBILE.trim() || null,
+          EMAIL: convertForm.CONTACT_EMAIL.trim() || null,
+          COMPANY_NAME: convertForm.COMPANY_NAME.trim() || null,
+          ADDRESS: convertForm.ADDRESS.trim() || null,
+          CITY: convertForm.CITY.trim() || null,
+          STATE: convertForm.STATE.trim() || null,
+          PINCODE: convertForm.PINCODE.trim() || null,
+          COUNTRY_ISO: convertForm.COUNTRY_ISO.trim() || null,
+          GST_NUMBER: convertForm.GST_NUMBER.trim() || null,
+        };
+      }
+      const res = await leadService.convert(lead.ID, body);
+      if (isNew && res.data?.customer?.ID) await saveCustCfValues(res.data.customer.ID);
+      toast.showSuccess(res.data?.message || "Lead converted");
+      closeConvertModal();
+      loadLeads(true);
+    } catch (e) {
+      toast.showError(e?.response?.data?.detail || "Conversion failed");
+    } finally {
+      setConverting(false);
+    }
+  }, [convertModal, convertForm, toast, loadLeads, validateCustCf, saveCustCfValues, closeConvertModal]);
 
   const handleDelete = useCallback((row) => {
     setConfirmModal({
@@ -518,60 +801,82 @@ export default function ManualLeadManagement() {
       <StatsRow stats={stats} />
 
       <div className={styles.filterBar}>
+        {canFilterSource && (
+          <div className={styles.filterGroup}>
+            <label>Lead Source</label>
+            <PMSelect
+              options={LEAD_SOURCE_OPTIONS}
+              value={filterSource}
+              onChange={handleSourceChange}
+              valueKey="value"
+              labelKey="label"
+              allowClear
+              clearLabel="All Sources"
+            />
+          </div>
+        )}
+        {canFilterDate && (
+          <DateTimeRangeFilter
+            value={dateRange}
+            onChange={handleDateRangeChange}
+            onClear={handleClearDateRange}
+            showTime
+          />
+        )}
         <div className={styles.filterGroup}>
-          <label>Lead Source</label>
+          <label>Lead Status</label>
           <PMSelect
-            options={LEAD_SOURCE_OPTIONS}
-            value={filterSource}
-            onChange={handleSourceChange}
+            options={LEAD_STATUS_OPTIONS}
+            value={filterStatus}
+            onChange={handleStatusChange}
             valueKey="value"
             labelKey="label"
             allowClear
-            clearLabel="All Sources"
+            clearLabel="All Statuses"
           />
         </div>
-        <DateTimeRangeFilter
-          value={dateRange}
-          onChange={handleDateRangeChange}
-          onClear={handleClearDateRange}
-          showTime
-        />
-        <div className={styles.filterGroup}>
-          <label>Department</label>
-          <PMSelect
-            options={departments}
-            value={filterDept}
-            onChange={handleDeptChange}
-            valueKey="ID"
-            labelKey="NAME"
-            allowClear
-            clearLabel="All Departments"
-          />
-        </div>
-        <div className={styles.filterGroup}>
-          <label>Role</label>
-          <PMSelect
-            options={rolesForDept(filterDept)}
-            value={filterRole}
-            onChange={handleRoleChange}
-            valueKey="ID"
-            labelKey="NAME"
-            allowClear
-            clearLabel="All Roles"
-          />
-        </div>
-        <div className={styles.filterGroup}>
-          <label>Lead Owner</label>
-          <PMSelect
-            options={usersForFilters(filterDept, filterRole)}
-            value={filterUser}
-            onChange={handleUserChange}
-            valueKey="ID"
-            labelKey="NAME"
-            allowClear
-            clearLabel="All Owners"
-          />
-        </div>
+        {canFilterDept && (
+          <div className={styles.filterGroup}>
+            <label>Department</label>
+            <PMSelect
+              options={departments}
+              value={filterDept}
+              onChange={handleDeptChange}
+              valueKey="ID"
+              labelKey="NAME"
+              allowClear
+              clearLabel="All Departments"
+            />
+          </div>
+        )}
+        {canFilterRole && (
+          <div className={styles.filterGroup}>
+            <label>Role</label>
+            <PMSelect
+              options={rolesForDept(filterDept)}
+              value={filterRole}
+              onChange={handleRoleChange}
+              valueKey="ID"
+              labelKey="NAME"
+              allowClear
+              clearLabel="All Roles"
+            />
+          </div>
+        )}
+        {canFilterOwner && (
+          <div className={styles.filterGroup}>
+            <label>Lead Owner</label>
+            <PMSelect
+              options={usersForFilters(filterDept, filterRole)}
+              value={filterUser}
+              onChange={handleUserChange}
+              valueKey="ID"
+              labelKey="NAME"
+              allowClear
+              clearLabel="All Owners"
+            />
+          </div>
+        )}
         {hasFilters && (
           <div className={styles.filterActions}>
             <PMButton variant="outline" onClick={handleResetFilters}>Reset Filters</PMButton>
@@ -691,16 +996,58 @@ export default function ManualLeadManagement() {
             <label>Lead Source</label>
             <span className={styles.codeBadge}>{selected ? sourceLabel(selected.LEAD_SOURCE) : "Manual Entry"}</span>
           </div>
-          <div className={styles.formGroup}>
-            <label>Lead Status <span className={styles.req}>*</span></label>
-            <PMSelect
-              options={LEAD_STATUS_OPTIONS}
-              value={form.LEAD_STATUS}
-              onChange={(v) => handleFormChange("LEAD_STATUS", v)}
-              valueKey="value"
-              labelKey="label"
-            />
-          </div>
+          {modal === "edit" && (
+            <div className={styles.formGroup}>
+              <label>Lead Status <span className={styles.req}>*</span></label>
+              <PMSelect
+                options={editStatusOptions}
+                value={form.LEAD_STATUS}
+                onChange={handleLeadStatusChange}
+                valueKey="value"
+                labelKey="label"
+              />
+            </div>
+          )}
+          {modal === "add" && (
+            <div className={styles.formGroup}>
+              <label>Customer Assignment <span className={styles.req}>*</span></label>
+              <PMSelect
+                options={CUSTOMER_ASSIGNMENT_OPTIONS}
+                value={form.CUSTOMER_ASSIGNMENT_TYPE}
+                onChange={handleAssignmentTypeChange}
+                valueKey="value"
+                labelKey="label"
+              />
+              {errors.CUSTOMER_ASSIGNMENT_TYPE && <span className={styles.fieldError}>{errors.CUSTOMER_ASSIGNMENT_TYPE}</span>}
+            </div>
+          )}
+          {modal === "add" && form.CUSTOMER_ASSIGNMENT_TYPE === "EXISTING" && (
+            <div className={styles.formGroup}>
+              <label>Customer Master <span className={styles.req}>*</span></label>
+              <PMSelect
+                options={customerOptions}
+                value={form.CUSTOMER_ID}
+                onChange={(v) => handleFormChange("CUSTOMER_ID", v)}
+                valueKey="ID"
+                labelKey="_label"
+                allowClear
+                clearLabel="— Select customer —"
+                disabled={!canViewCustomers}
+                placeholder={canViewCustomers ? "Search customers…" : "No permission to view Customer Master"}
+              />
+              {errors.CUSTOMER_ID && <span className={styles.fieldError}>{errors.CUSTOMER_ID}</span>}
+            </div>
+          )}
+          {modal === "edit" && selected?.CUSTOMER_ASSIGNMENT_TYPE && (
+            <div className={styles.formGroup}>
+              <label>Customer Assignment</label>
+              <span className={styles.codeBadge}>
+                {selected.CUSTOMER_ASSIGNMENT_TYPE === "EXISTING"
+                  ? `Existing — ${allCustomers.find((c) => c.ID === selected.CUSTOMER_ID)?.NAME || "Linked customer"}`
+                  : "New Customer"}
+              </span>
+            </div>
+          )}
           <div className={styles.formGroup}>
             <label>Contact Name <span className={styles.req}>*</span></label>
             <input
@@ -767,17 +1114,29 @@ export default function ManualLeadManagement() {
             <input className={styles.input} value={form.COUNTRY_ISO} onChange={(e) => handleFormChange("COUNTRY_ISO", e.target.value)} placeholder="e.g. IN" />
           </div>
           <div className={styles.formGroup}>
-            <label>Lead Owner</label>
-            <PMSelect
-              options={allEmployees}
-              value={form.ASSIGNED_TO_ID}
-              onChange={(v) => handleFormChange("ASSIGNED_TO_ID", v)}
-              valueKey="ID"
-              labelKey="NAME"
-              allowClear
-              clearLabel="— Unassigned —"
+            <label>GST Number</label>
+            <input
+              className={`${styles.input}${errors.GST_NUMBER ? " " + styles.inputError : ""}`}
+              value={form.GST_NUMBER}
+              onChange={(e) => handleFormChange("GST_NUMBER", e.target.value.toUpperCase())}
+              placeholder="e.g. 22AAAAA0000A1Z5"
             />
+            {errors.GST_NUMBER && <span className={styles.fieldError}>{errors.GST_NUMBER}</span>}
           </div>
+          {((modal === "add" && canSelectOwnerAdd) || (modal === "edit" && canSelectOwnerEdit)) && (
+            <div className={styles.formGroup}>
+              <label>Lead Owner</label>
+              <PMSelect
+                options={allEmployees}
+                value={form.ASSIGNED_TO_ID}
+                onChange={(v) => handleFormChange("ASSIGNED_TO_ID", v)}
+                valueKey="ID"
+                labelKey="NAME"
+                allowClear
+                clearLabel="— Unassigned —"
+              />
+            </div>
+          )}
           {isManualSource ? (
             <>
               <div className={styles.formGroup}>
@@ -843,6 +1202,105 @@ export default function ManualLeadManagement() {
           )}
         </div>
         <CustomFieldsSection fields={cfFields} values={cfValues} onChange={handleCfChange} />
+      </PMModal>
+
+      {/* Conversion review modal — assignment already known (decided at Lead
+          creation time): shows the linked customer (Existing) or the
+          pre-filled, editable new-customer data + its Custom Fields (New). */}
+      <PMModal
+        open={!!convertModal && convertModal.mode === "review"}
+        onClose={closeConvertModal}
+        title="Confirm Conversion"
+        size="lg"
+        footer={
+          <>
+            <PMButton variant="outline" onClick={closeConvertModal}>Cancel</PMButton>
+            <PMButton variant="primary" onClick={handleConfirmConversion} disabled={converting}>
+              {converting ? "Converting…" : "Confirm Conversion"}
+            </PMButton>
+          </>
+        }
+      >
+        {convertModal?.lead.CUSTOMER_ASSIGNMENT_TYPE === "EXISTING" ? (
+          <div className={styles.formGrid}>
+            <div className={styles.formGroup}>
+              <label>Customer Name</label>
+              <span className={styles.codeBadge}>{convertCustomer?.NAME || "—"}</span>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Company</label>
+              <span className={styles.codeBadge}>{convertCustomer?.COMPANY_NAME || "—"}</span>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Phone</label>
+              <span className={styles.codeBadge}>{convertCustomer?.PHONE_NUMBER || "—"}</span>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Email</label>
+              <span className={styles.codeBadge}>{convertCustomer?.EMAIL || "—"}</span>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className={styles.formGrid}>
+              {renderNewCustomerFields(convertForm, handleConvertFormChange, convertErrors)}
+            </div>
+            <CustomFieldsSection fields={custCfFields} values={custCfValues} onChange={handleCustCfChange} />
+          </>
+        )}
+      </PMModal>
+
+      {/* Conversion fallback modal — legacy lead with no customer assignment
+          recorded at creation time: full New/Existing choice + form. */}
+      <PMModal
+        open={!!convertModal && convertModal.mode === "assign"}
+        onClose={closeConvertModal}
+        title="Assign to Customer"
+        size="lg"
+        footer={
+          <>
+            <PMButton variant="outline" onClick={closeConvertModal}>Cancel</PMButton>
+            <PMButton variant="primary" onClick={handleConfirmConversion} disabled={converting}>
+              {converting ? "Converting…" : "Confirm Conversion"}
+            </PMButton>
+          </>
+        }
+      >
+        <div className={styles.formGrid}>
+          <div className={styles.formGroup}>
+            <label>Customer Assignment <span className={styles.req}>*</span></label>
+            <PMSelect
+              options={CUSTOMER_ASSIGNMENT_OPTIONS}
+              value={convertForm?.CUSTOMER_ASSIGNMENT_TYPE || ""}
+              onChange={(v) => handleConvertFormChange("CUSTOMER_ASSIGNMENT_TYPE", v || "")}
+              valueKey="value"
+              labelKey="label"
+            />
+            {convertErrors.CUSTOMER_ASSIGNMENT_TYPE && <span className={styles.fieldError}>{convertErrors.CUSTOMER_ASSIGNMENT_TYPE}</span>}
+          </div>
+          {convertForm?.CUSTOMER_ASSIGNMENT_TYPE === "EXISTING" && (
+            <div className={styles.formGroup}>
+              <label>Customer Master <span className={styles.req}>*</span></label>
+              <PMSelect
+                options={customerOptions}
+                value={convertForm?.CUSTOMER_ID || ""}
+                onChange={(v) => handleConvertFormChange("CUSTOMER_ID", v)}
+                valueKey="ID"
+                labelKey="_label"
+                allowClear
+                clearLabel="— Select customer —"
+                disabled={!canViewCustomers}
+                placeholder={canViewCustomers ? "Search customers…" : "No permission to view Customer Master"}
+              />
+              {convertErrors.CUSTOMER_ID && <span className={styles.fieldError}>{convertErrors.CUSTOMER_ID}</span>}
+            </div>
+          )}
+          {convertForm?.CUSTOMER_ASSIGNMENT_TYPE === "NEW" &&
+            renderNewCustomerFields(convertForm, handleConvertFormChange, convertErrors)}
+        </div>
+        {convertForm?.CUSTOMER_ASSIGNMENT_TYPE === "NEW" && (
+          <CustomFieldsSection fields={custCfFields} values={custCfValues} onChange={handleCustCfChange} />
+        )}
       </PMModal>
 
       {/* Bulk Upload Modal */}

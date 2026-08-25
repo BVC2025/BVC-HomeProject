@@ -46,7 +46,6 @@ import {
 import ConfirmDialog from "../components/ConfirmDialog";
 import Employees from "./Employees";
 import EmployeeOnboardingReview from "./EmployeeOnboardingReview";
-import Customers from "./Customers";
 import Quotations from "./Quotations";
 import SalesOrders from "./SalesOrders";
 import InvoiceOrder from "./InvoiceOrder";
@@ -100,6 +99,7 @@ const WhatsAppConfigManagement = lazy(() => import("./WhatsAppConfigManagement")
 const WhatsAppModuleSettingsManagement = lazy(() => import("./WhatsAppModuleSettingsManagement"));
 const LiveLeadViewer = lazy(() => import("./LiveLeadViewer"));
 const ManualLeadManagement = lazy(() => import("./ManualLeadManagement"));
+const CustomerMaster = lazy(() => import("./CustomerMaster"));
 
 const AIModulesPage = lazy(() => import("./AIModulesPage"));
 const AIKnowledgeBasePage = lazy(() => import("./AIKnowledgeBasePage"));
@@ -1374,6 +1374,14 @@ function SidebarIcon({ name }) {
           <path d="M5 21c0-4 3-7 7-7s7 3 7 7" />
         </svg>
       );
+    case "customer-master":
+      return (
+        <svg {...props}>
+          <circle cx="12" cy="8" r="3.5" />
+          <path d="M5 21c0-4 3-7 7-7s7 3 7 7" />
+          <rect x="15" y="3" width="6" height="4" rx="1" />
+        </svg>
+      );
     case "quotations":
       return (
         <svg {...props}>
@@ -1689,7 +1697,6 @@ const NAV_GROUPS = [
     key: "crm",
     label: "CRM & Sales",
     items: [
-      { to: "/customers", icon: <SidebarIcon name="customers" />, label: "Customers" },
       { to: "/quotations", icon: <SidebarIcon name="quotations" />, label: "Quotations" },
       { to: "/sales-orders", icon: <SidebarIcon name="salesorders" />, label: "Sales Orders" }
 
@@ -1703,6 +1710,13 @@ const NAV_GROUPS = [
       { to: "/lead-management/live-leads", icon: <SidebarIcon name="live-leads" />, label: "Live Lead Viewer" },
       { to: "/lead-management/leads", icon: <SidebarIcon name="lead-records" />, label: "Lead Records" },
       { to: "/lead-management/polling-activity", icon: <SidebarIcon name="polling-activity" />, label: "Polling Activity" }
+    ]
+  },
+  {
+    key: "customer-mgmt",
+    label: "Customer Management",
+    items: [
+      { to: "/customer-master", icon: <SidebarIcon name="customer-master" />, label: "Customer Master" }
     ]
   },
   {
@@ -2170,9 +2184,12 @@ function Dashboard() {
             element={<RequirePermission code={permissionForRoute("/employee-onboarding")}><EmployeeOnboardingReview /></RequirePermission>}
           />
 
+          {/* /customers retired — Customer Master (/customer-master) replaces it.
+              Kept as a redirect so old links/bookmarks/nav tiles (e.g.
+              EnterpriseCommandCenter.jsx) keep working instead of 404ing. */}
           <Route
             path="/customers"
-            element={<RequirePermission code={permissionForRoute("/customers")}><Customers /></RequirePermission>}
+            element={<Navigate to="/customer-master" replace />}
           />
 
           <Route
@@ -2289,6 +2306,9 @@ function Dashboard() {
           <Route path="/whatsapp-module-settings" element={<RequirePermission code={permissionForRoute("/whatsapp-module-settings")}><Suspense fallback={null}><WhatsAppModuleSettingsManagement /></Suspense></RequirePermission>} />
           <Route path="/lead-management/live-leads" element={<RequirePermission code={permissionForRoute("/lead-management/live-leads")}><Suspense fallback={null}><LiveLeadViewer /></Suspense></RequirePermission>} />
           <Route path="/lead-management/leads" element={<RequirePermission code={permissionForRoute("/lead-management/leads")}><Suspense fallback={null}><ManualLeadManagement /></Suspense></RequirePermission>} />
+
+          {/* Customer Master — simplified master-data view over the same `customer` table used by /customers */}
+          <Route path="/customer-master" element={<RequirePermission code={permissionForRoute("/customer-master")}><Suspense fallback={null}><CustomerMaster /></Suspense></RequirePermission>} />
 
           <Route path="/ai-platform/modules" element={<RequirePermission code={permissionForRoute("/ai-platform/modules")}><Suspense fallback={null}><AIModulesPage /></Suspense></RequirePermission>} />
           <Route path="/ai-platform/knowledge-base" element={<RequirePermission code={permissionForRoute("/ai-platform/knowledge-base")}><Suspense fallback={null}><AIKnowledgeBasePage /></Suspense></RequirePermission>} />

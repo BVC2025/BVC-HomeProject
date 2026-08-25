@@ -36,8 +36,6 @@ def materials_for_me(
     Admins / managers see everything.
     """
 
-    from app.models.models import CustomerProject as Project
-
     role = user.get("role")
 
     admin_like = role in (
@@ -58,15 +56,13 @@ def materials_for_me(
         rows = db.query(Inventory).all()
         return {"scope": "all", "ROLE": role, "INVENTORY": [_serialize(r) for r in rows]}
 
-    # Determine which department to filter by
+    # Determine which department to filter by. project_id-based scoping
+    # was removed along with CustomerProject (table project_legacy) — the
+    # employee-department fallback below (already this function's
+    # existing behavior whenever project_id was omitted or had no
+    # department) is now the only scoping path.
     scope_department_id = None
     scope_source = None
-
-    if project_id is not None:
-        proj = db.query(Project).filter(Project.ID == project_id).first()
-        if proj and proj.DEPARTMENT_ID:
-            scope_department_id = proj.DEPARTMENT_ID
-            scope_source = "project"
 
     if scope_department_id is None:
         emp = db.query(Employee).filter(Employee.ID == user.get("employee_id")).first()

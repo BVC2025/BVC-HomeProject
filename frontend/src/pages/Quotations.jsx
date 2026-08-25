@@ -235,7 +235,7 @@ function QuotationEditor({ quotationId, onClose, onSaved }) {
 
         const payload = {
           ...draft,
-          CUSTOMER_ID: Number(draft.CUSTOMER_ID),
+          CUSTOMER_ID: draft.CUSTOMER_ID,
           VALIDITY_DAYS: Number(draft.VALIDITY_DAYS) || 30,
           DISCOUNT_PERCENT: Number(draft.DISCOUNT_PERCENT) || 0,
           TAX_PERCENT: Number(draft.TAX_PERCENT) || 0,
@@ -277,7 +277,7 @@ function QuotationEditor({ quotationId, onClose, onSaved }) {
               <option value="">— pick customer —</option>
               {customers.map((c) => (
                 <option key={c.ID} value={c.ID}>
-                  {c.CUSTOMER_NAME} ({c.CUSTOMER_CODE})
+                  {c.COMPANY_NAME || c.NAME}
                 </option>
               ))}
             </select>
@@ -920,7 +920,7 @@ function QuotationDetail({ quotation, onClose, onChanged }) {
 
       {/* Header card */}
       <div className={styles.detailHeaderCard}>
-        <InfoBlock label="Customer" value={q.CUSTOMER_NAME || `#${q.CUSTOMER_ID}`} sub={q.CUSTOMER_CODE} />
+        <InfoBlock label="Customer" value={q.CUSTOMER_NAME || `#${q.CUSTOMER_ID}`} />
         <InfoBlock label="Date" value={q.QUOTATION_DATE || "—"} sub={`Valid ${q.VALIDITY_DAYS} days`} />
         <InfoBlock label="Expires" value={q.EXPIRY_DATE || "—"} />
         <InfoBlock label="Prepared by" value={q.PREPARED_BY_NAME || "—"} />
@@ -1265,8 +1265,7 @@ function Quotations() {
     return rows.filter(
       (r) =>
         (r.QUOTATION_NUMBER || "").toLowerCase().includes(s) ||
-        (r.CUSTOMER_NAME || "").toLowerCase().includes(s) ||
-        (r.CUSTOMER_CODE || "").toLowerCase().includes(s)
+        (r.CUSTOMER_NAME || "").toLowerCase().includes(s)
     );
 
   }, [rows, searchQ]);
@@ -1466,7 +1465,7 @@ function Quotations() {
                     {r.CUSTOMER_NAME || `#${r.CUSTOMER_ID}`}
                   </div>
                   <div className={styles.rowCustomerSub}>
-                    {r.CUSTOMER_CODE} {r.PREPARED_BY_NAME ? `· ${r.PREPARED_BY_NAME}` : ""}
+                    {r.PREPARED_BY_NAME || ""}
                   </div>
                 </div>
                 <div>

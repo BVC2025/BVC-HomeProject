@@ -292,7 +292,7 @@ def _serialize_po(
         "TERMS_AND_CONDITIONS": po.TERMS_AND_CONDITIONS,
         "NOTES": po.NOTES,
         "PREPARED_BY": po.PREPARED_BY,
-        "LINKED_PROJECT_ID": po.LINKED_PROJECT_ID,
+        "LINKED_PROJECT_ID": None,  # project_legacy FK removed
         "SENT_AT": po.SENT_AT.isoformat() if po.SENT_AT else None,
         "CONFIRMED_AT": po.CONFIRMED_AT.isoformat() if po.CONFIRMED_AT else None,
         "CANCELLED_AT": po.CANCELLED_AT.isoformat() if po.CANCELLED_AT else None,
@@ -329,15 +329,6 @@ def _serialize_po(
         if emp:
 
             base["PREPARED_BY_NAME"] = emp.NAME
-
-    # Linked project
-    if po.LINKED_PROJECT_ID:
-
-        p = db.query(Project).filter(Project.ID == po.LINKED_PROJECT_ID).first()
-
-        if p:
-
-            base["LINKED_PROJECT_NAME"] = p.PROJECT_NAME
 
     if include_lines:
 
@@ -612,7 +603,6 @@ def create_po(
         TERMS_AND_CONDITIONS=data.TERMS_AND_CONDITIONS,
         NOTES=data.NOTES,
         PREPARED_BY=data.PREPARED_BY,
-        LINKED_PROJECT_ID=data.LINKED_PROJECT_ID,
         VENDOR_ID=data.VENDOR_ID or 1,
         STATUS="DRAFT"
     )
@@ -678,9 +668,9 @@ def list_pos(
 
         q = q.filter(PurchaseOrder.SUPPLIER_ID == supplier_id)
 
-    if project_id:
-
-        q = q.filter(PurchaseOrder.LINKED_PROJECT_ID == project_id)
+    # project_id-based filtering was removed along with CustomerProject
+    # (table project_legacy) — the parameter is accepted-and-ignored
+    # below for backward compatibility.
 
     if vendor_id:
 
@@ -1873,7 +1863,6 @@ def auto_from_project(
             DISCOUNT_PERCENT=0.0,
             TAX_PERCENT=18.0,
             PREPARED_BY=data.PREPARED_BY,
-            LINKED_PROJECT_ID=project.ID,
             VENDOR_ID=data.VENDOR_ID or 1,
             STATUS="DRAFT",
             NOTES=(

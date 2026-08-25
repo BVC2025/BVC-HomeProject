@@ -39,7 +39,6 @@ from app.models.models import (
     Employee,
     Quotation,
     QuotationLine,
-    Project,
     ProductModel,
     SalesOrder,
     SalesOrderLine,
@@ -192,10 +191,6 @@ def _auto_start_production_for_so(
 
         for line in lines:
 
-            if line.SPAWNED_PROJECT_ID:
-
-                continue
-
             if not line.PRODUCT_MODEL_ID:
 
                 skipped += 1
@@ -225,8 +220,9 @@ def _auto_start_production_for_so(
 
                 if project_id:
 
-                    line.SPAWNED_PROJECT_ID = project_id
-
+                    # SalesOrderLine.SPAWNED_PROJECT_ID was removed
+                    # along with CustomerProject (table project_legacy)
+                    # — no longer persisted on the line itself.
                     projects_spawned += 1
 
                     project_summaries.append({
@@ -408,7 +404,7 @@ def _serialize_line(l: SalesOrderLine) -> dict:
         "SO_ID": l.SO_ID,
         "PRODUCT_MODEL_ID": l.PRODUCT_MODEL_ID,
         "QUOTATION_LINE_ID": l.QUOTATION_LINE_ID,
-        "SPAWNED_PROJECT_ID": l.SPAWNED_PROJECT_ID,
+        "SPAWNED_PROJECT_ID": None,  # project_legacy FK removed
         "DESCRIPTION": l.DESCRIPTION,
         "HSN_CODE": l.HSN_CODE,
         "QUANTITY": l.QUANTITY,
@@ -505,19 +501,15 @@ def _serialize_so(
 
         if c:
 
-            base["CUSTOMER_NAME"] = c.CUSTOMER_NAME
+            base["CUSTOMER_NAME"] = c.NAME
 
-            base["CUSTOMER_CODE"] = c.CUSTOMER_CODE
-
-            base["CUSTOMER_PHONE"] = c.PHONE
+            base["CUSTOMER_PHONE"] = c.PHONE_NUMBER
 
             base["CUSTOMER_EMAIL"] = c.EMAIL
 
             base["CUSTOMER_GST"] = c.GST_NUMBER
 
-            base["CUSTOMER_ADDRESS"] = (
-                c.BILLING_ADDRESS or c.ADDRESS or ""
-            )
+            base["CUSTOMER_ADDRESS"] = c.ADDRESS or ""
 
     if so.QUOTATION_ID:
 
@@ -563,18 +555,6 @@ def _serialize_so(
 
                     row["PRODUCT_MODEL_CODE"] = p.MODEL_CODE
 
-            if l.SPAWNED_PROJECT_ID:
-
-                pr = db.query(Project).filter(
-                    Project.ID == l.SPAWNED_PROJECT_ID
-                ).first()
-
-                if pr:
-
-                    row["SPAWNED_PROJECT_NAME"] = pr.PROJECT_NAME
-
-                    row["SPAWNED_PROJECT_STATUS"] = pr.STATUS
-
             line_list.append(row)
 
         base["LINES"] = line_list
@@ -610,7 +590,7 @@ def _build_so_email_html(so: SalesOrder, customer: Customer) -> str:
     </div>
 
     <div style="padding: 26px 28px; color: #0f172a; line-height: 1.55;">
-      <p style="margin: 0 0 14px; font-size: 15px;">Dear <b>{customer.CUSTOMER_NAME}</b>,</p>
+      <p style="margin: 0 0 14px; font-size: 15px;">Dear <b>{customer.NAME}</b>,</p>
 
       <p style="margin: 0 0 18px; font-size: 14px; color: #475569;">
         Thank you for placing your order with Bharath Vending
@@ -872,7 +852,7 @@ def update_so_settings(
 @router.get("/sales-orders", dependencies=[Depends(require("sales_order.view"))])
 def list_sos(
     status: Optional[str] = Query(None),
-    customer_id: Optional[int] = Query(None),
+    customer_id: Optional[str] = Query(None),
     vendor_id: Optional[int] = Query(None),
     db: Session = Depends(get_db)
 ):
@@ -1186,7 +1166,7 @@ def confirm_so(
     notify_md_safe(
         f"📩 *Sales Order — Awaiting Advance — BVC24*\n\n"
         f"📑 *{so.SO_NUMBER}*\n"
-        f"🏢 Customer: *{customer.CUSTOMER_NAME if customer else f'#{so.CUSTOMER_ID}'}*\n"
+        f"🏢 Customer: *{customer.NAME if customer else f'#{so.CUSTOMER_ID}'}*\n"
         f"💰 Order Total: *₹{(so.GRAND_TOTAL or 0):,.2f}*\n"
         f"📅 Expected Delivery: {so.EXPECTED_DELIVERY_DATE or 'TBD'}\n\n"
         f"💳 Advance Requested:\n"
@@ -1247,11 +1227,6 @@ def start_production(
 
     for line in lines:
 
-        if line.SPAWNED_PROJECT_ID:
-
-            # Already spawned — leave it alone
-            continue
-
         if not line.PRODUCT_MODEL_ID:
 
             skipped += 1
@@ -1278,8 +1253,9 @@ def start_production(
 
             if project_id:
 
-                line.SPAWNED_PROJECT_ID = project_id
-
+                # SalesOrderLine.SPAWNED_PROJECT_ID was removed along
+                # with CustomerProject (table project_legacy) — no
+                # longer persisted on the line itself.
                 projects_spawned += 1
 
                 project_summaries.append({
@@ -1616,7 +1592,7 @@ def record_payment(
             notify_md_safe(
                 f"✅ *Sales Order CONFIRMED — Advance Received*\n\n"
                 f"📑 *{so.SO_NUMBER}*\n"
-                f"🏢 Customer: *{customer.CUSTOMER_NAME if customer else f'#{so.CUSTOMER_ID}'}*\n"
+                f"🏢 Customer: *{customer.NAME if customer else f'#{so.CUSTOMER_ID}'}*\n"
                 f"💰 Advance Received: *₹{advance_paid_total:,.2f}*\n"
                 f"📦 Order Total: ₹{grand:,.2f}"
                 + extra
@@ -1716,8 +1692,8 @@ def sales_order_from_quotation(
         ADVANCE_PERCENT=data.ADVANCE_PERCENT or 50,
         DISPATCH_PERCENT=data.DISPATCH_PERCENT or 40,
         INSTALLATION_PERCENT=data.INSTALLATION_PERCENT or 10,
-        SHIPPING_ADDRESS=(customer.SHIPPING_ADDRESS if customer else None),
-        BILLING_ADDRESS=(customer.BILLING_ADDRESS if customer else None),
+        SHIPPING_ADDRESS=(customer.ADDRESS if customer else None),
+        BILLING_ADDRESS=(customer.ADDRESS if customer else None),
         TERMS_AND_CONDITIONS=quot.TERMS_AND_CONDITIONS,
         NOTES=(
             data.NOTES
@@ -1782,7 +1758,7 @@ def sales_order_from_quotation(
         f"🏆 *Quotation CONVERTED to Sales Order — BVC24*\n\n"
         f"📑 *{so.SO_NUMBER}*\n"
         f"📄 From quotation: {quot.QUOTATION_NUMBER}\n"
-        f"🏢 Customer: *{customer.CUSTOMER_NAME if customer else f'#{so.CUSTOMER_ID}'}*\n"
+        f"🏢 Customer: *{customer.NAME if customer else f'#{so.CUSTOMER_ID}'}*\n"
         f"💰 Grand Total: *₹{(so.GRAND_TOTAL or 0):,.2f}*\n"
         f"📅 Expected Delivery: {so.EXPECTED_DELIVERY_DATE or 'TBD'}\n\n"
         f"Status: DRAFT — review & confirm in the SO module to "

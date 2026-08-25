@@ -11,8 +11,6 @@ import QuotationPrint from "./pages/QuotationPrint";
 import PublicQuotation from "./pages/PublicQuotation";
 import PublicEnquiry from "./pages/PublicEnquiry";
 import SalesOrderPrint from "./pages/SalesOrderPrint";
-import OnboardingPortal from "./pages/OnboardingPortal";
-import OnboardingChat from "./pages/OnboardingChat";
 import EmployeeOnboardingChat from "./pages/EmployeeOnboardingChat";
 import SupplierRegistrationPortal from "./pages/SupplierRegistrationPortal";
 
@@ -105,15 +103,6 @@ function App() {
         element={<PublicEnquiry />}
       />
 
-      {/* Customer self-onboarding portal — public, token-gated */}
-      <Route
-        path="/portal/onboarding/:token"
-        element={<OnboardingPortal />}
-      />
-      <Route
-        path="/portal/onboarding/:token/chat"
-        element={<OnboardingChat />}
-      />
 
       {/* Employee self-onboarding chat — public, token-gated.
           NOTE: the admin-side review page at /employee-onboarding

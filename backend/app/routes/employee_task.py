@@ -9,7 +9,6 @@ from app.models.models import (
     Employee,
     Department,
     Role,
-    CustomerProject,
     TaskAssignment,
     Attendance,
     Notification,
@@ -204,7 +203,7 @@ def serialize_task(
     return {
         "TASK_ID": t.TASK_ID,
         "EMPLOYEE_ID": t.EMPLOYEE_ID,
-        "PROJECT_ID": t.PROJECT_ID,
+        "PROJECT_ID": None,  # project_legacy FK removed
         "PROJECT_NAME": project_name,
         "TASK_NAME": t.TASK_NAME,
         "TASK_DETAILS": t.TASK_DETAILS,
@@ -904,13 +903,7 @@ def today_task(
     row = (
         db.query(
             TaskAssignment,
-            CustomerProject.PROJECT_NAME,
-            CustomerProject.PRIORITY,
             Employee.NAME
-        )
-        .outerjoin(
-            CustomerProject,
-            TaskAssignment.PROJECT_ID == CustomerProject.ID
         )
         .outerjoin(
             Employee,
@@ -949,15 +942,13 @@ def today_task(
             "APPROVAL_STATUS": None
         }
 
-    task, project_name, project_priority, assigned_by_name = row
+    task, assigned_by_name = row
 
     # Surface BOTH the legacy minimal fields (for any caller that
     # still uses them) AND the enriched dashboard fields.
     serialized = serialize_task(
         task,
-        project_name=project_name,
-        assigned_by_name=assigned_by_name,
-        project_priority=project_priority
+        assigned_by_name=assigned_by_name
     )
 
     return {
@@ -1022,13 +1013,7 @@ def all_tasks(
     rows = (
         db.query(
             TaskAssignment,
-            CustomerProject.PROJECT_NAME,
-            CustomerProject.PRIORITY,
             AssignedBy.NAME
-        )
-        .outerjoin(
-            CustomerProject,
-            TaskAssignment.PROJECT_ID == CustomerProject.ID
         )
         .outerjoin(
             AssignedBy,
@@ -1048,11 +1033,9 @@ def all_tasks(
     serialized = [
         serialize_task(
             t,
-            project_name=project_name,
-            assigned_by_name=assigned_by_name,
-            project_priority=project_priority
+            assigned_by_name=assigned_by_name
         )
-        for t, project_name, project_priority, assigned_by_name in rows
+        for t, assigned_by_name in rows
     ]
 
     today_tasks = [
@@ -1262,19 +1245,9 @@ def update_task_status(
             # if the production module isn't set up.
             print(f"[stage sync] {e}")
 
-    project_name = None
-
-    if task.PROJECT_ID:
-
-        proj = db.query(CustomerProject).filter(
-            CustomerProject.ID == task.PROJECT_ID
-        ).first()
-
-        project_name = proj.PROJECT_NAME if proj else None
-
     return {
         "message": "Task status updated",
-        "TASK": serialize_task(task, project_name),
+        "TASK": serialize_task(task),
         "stage_synced_to_gantt": stage_synced
     }
 
@@ -1405,21 +1378,15 @@ def reject_task(
             STAGE_TYPE_SKILLS
         )
 
-        # Try to infer the stage type from the task name; fall
-        # back to using the project's SKILLS_REQUIRED.
-        project = db.query(CustomerProject).filter(
-            CustomerProject.ID == task.PROJECT_ID
-        ).first() if task.PROJECT_ID else None
+        # project_legacy (CustomerProject) was removed, so a task's
+        # linked project can no longer supply required skills/vendor/
+        # department — always take the same "no project" fallback
+        # this code already used whenever task.PROJECT_ID was unset.
+        required = ""
 
-        required = (
-            project.SKILLS_REQUIRED if project else ""
-        ) or ""
+        vendor_id = 1
 
-        vendor_id = (
-            project.VENDOR_ID if project else 1
-        )
-
-        dept_id = project.DEPARTMENT_ID if project else None
+        dept_id = None
 
         new_assignee, new_score = find_best_employee(
             db,
@@ -1503,8 +1470,7 @@ def list_pending_acceptance(
         raise HTTPException(status_code=404, detail="Employee not found")
 
     rows = (
-        db.query(TaskAssignment, CustomerProject)
-        .outerjoin(CustomerProject, TaskAssignment.PROJECT_ID == CustomerProject.ID)
+        db.query(TaskAssignment)
         .filter(
             TaskAssignment.EMPLOYEE_ID == emp.ID,
             TaskAssignment.APPROVAL_STATUS == "PENDING"
@@ -1525,12 +1491,9 @@ def list_pending_acceptance(
             "DUE_DATE": (
                 t.DUE_DATE.isoformat() if t.DUE_DATE else None
             ),
-            "PROJECT_ID": t.PROJECT_ID,
-            "PROJECT_NAME": p.PROJECT_NAME if p else None,
-            "PROJECT_PRIORITY": p.PRIORITY if p else None,
             "APPROVAL_STATUS": t.APPROVAL_STATUS
         }
-        for t, p in rows
+        for t in rows
     ]
 
 
@@ -1544,24 +1507,12 @@ def assign_task(
     db: Session = Depends(get_db)
 ):
 
-    project_name = None
-
+    # project_legacy (CustomerProject) was removed — a linked-project
+    # is no longer a valid option for a task assignment; data.PROJECT_ID
+    # is accepted-and-ignored below for backward compatibility.
     proj = None
 
-    if data.PROJECT_ID is not None:
-
-        proj = db.query(CustomerProject).filter(
-            CustomerProject.ID == data.PROJECT_ID
-        ).first()
-
-        if not proj:
-
-            raise HTTPException(
-                status_code=400,
-                detail=f"Project {data.PROJECT_ID} not found"
-            )
-
-        project_name = proj.PROJECT_NAME
+    project_name = None
 
     auto_used = False
 
@@ -1601,7 +1552,6 @@ def assign_task(
 
     task = TaskAssignment(
         EMPLOYEE_ID=emp.ID,
-        PROJECT_ID=data.PROJECT_ID,
         TASK_NAME=data.TASK_NAME,
         TASK_DETAILS=data.TASK_DETAILS or "",
         ASSIGNED_DATE=assigned_date,
@@ -1682,20 +1632,10 @@ def workload_preview(
     to show "Will be assigned to: X" before the user clicks.
     """
 
+    # project_legacy (CustomerProject) was removed — project_id is
+    # accepted-and-ignored below for backward compatibility; candidate
+    # scoping always falls through to department_id only.
     proj = None
-
-    if project_id is not None:
-
-        proj = db.query(CustomerProject).filter(
-            CustomerProject.ID == project_id
-        ).first()
-
-        if not proj:
-
-            raise HTTPException(
-                status_code=404,
-                detail=f"Project {project_id} not found"
-            )
 
     pool, dept_id = candidate_pool(
         db,
@@ -1717,59 +1657,10 @@ def workload_preview(
     }
 
 
-@router.get("/project/{project_id}/tasks", dependencies=[Depends(get_current_admin)])
-def list_project_tasks(
-    project_id: int,
-    db: Session = Depends(get_db)
-):
-    """
-    Lists every task assigned for a project, joined with
-    the assignee's name + code. Used by the admin
-    'Assign Tasks' panel on the Projects page.
-    """
-
-    proj = db.query(CustomerProject).filter(
-        CustomerProject.ID == project_id
-    ).first()
-
-    if not proj:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Project not found"
-        )
-
-    rows = db.query(
-        TaskAssignment,
-        Employee.NAME,
-        Employee.EMPLOYEE_CODE
-    ).outerjoin(
-        Employee,
-        TaskAssignment.EMPLOYEE_ID == Employee.ID
-    ).filter(
-        TaskAssignment.PROJECT_ID == project_id
-    ).order_by(
-        TaskAssignment.ASSIGNED_DATE.desc(),
-        TaskAssignment.TASK_ID.desc()
-    ).all()
-
-    out = []
-
-    for ta, emp_name, emp_code in rows:
-
-        row = serialize_task(ta, proj.PROJECT_NAME)
-
-        row["EMPLOYEE_NAME"] = emp_name
-
-        row["EMPLOYEE_CODE"] = emp_code
-
-        out.append(row)
-
-    return {
-        "PROJECT_ID": proj.ID,
-        "PROJECT_NAME": proj.PROJECT_NAME,
-        "TASKS": out
-    }
+# list_project_tasks() removed — GET /project/{project_id}/tasks was
+# entirely CustomerProject-shaped (table project_legacy, removed) and
+# had zero live frontend callers (the product-driven project flow
+# uses /projects/from-product and /projects/{id}/backfill-tasks instead).
 
 
 @router.delete("/task-assignment/{task_id}", dependencies=[Depends(get_current_admin)])

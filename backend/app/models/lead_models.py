@@ -24,6 +24,10 @@ LEAD_SOURCE_ENUM = SAEnum(
     "INDIAMART", "WEBSITE", "MANUAL",
     name="lead_source_enum", create_constraint=True
 )
+LEAD_CUSTOMER_ASSIGNMENT_TYPE_ENUM = SAEnum(
+    "NEW", "EXISTING",
+    name="lead_customer_assignment_type_enum", create_constraint=True
+)
 
 
 class LeadPollingConfig(Base):
@@ -123,6 +127,22 @@ class Lead(Base):
     COUNTRY_ISO     = Column(String(5),   nullable=True)
     LEAD_MESSAGE    = Column(Text, nullable=True)
     PRODUCT_INTEREST = Column(String(500), nullable=True)
+
+    # --- Lead-to-Customer conversion linkage (nullable: only populated
+    # once a project is picked / a customer path is chosen; pre-existing
+    # leads created before this feature stay NULL on all four). PROJECT_ID
+    # points at the catalog `project` table (see project_models.Project) —
+    # the same one already used by the Add/Edit Lead modal's Category ->
+    # Product cascade, which now persists the picked project's real ID
+    # here instead of only its name (still written into PRODUCT_INTEREST
+    # above for backward compatibility). CUSTOMER_ID/CUSTOMER_ASSIGNMENT_TYPE
+    # are set either at lead-creation time (Existing Customer picked, or
+    # New Customer chosen) or later at conversion time as a fallback for
+    # leads created before this feature existed. ---
+    PROJECT_ID  = Column(String(36), ForeignKey("project.ID",  ondelete="SET NULL"), nullable=True, index=True)
+    CUSTOMER_ID = Column(String(36), ForeignKey("customer.ID", ondelete="SET NULL"), nullable=True, index=True)
+    CUSTOMER_ASSIGNMENT_TYPE = Column(LEAD_CUSTOMER_ASSIGNMENT_TYPE_ENUM, nullable=True)
+    GST_NUMBER  = Column(String(50), nullable=True)
 
     RAW_SOURCE_PAYLOAD = Column(Text, nullable=True)  # full JSON of the source lead, forward-compat
     LEAD_STATUS        = Column(LEAD_STATUS_ENUM, nullable=False, default="NEW")

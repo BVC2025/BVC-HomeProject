@@ -188,7 +188,7 @@ function SOEditor({ soId, onClose, onSaved }) {
 
         const payload = {
           ...draft,
-          CUSTOMER_ID: Number(draft.CUSTOMER_ID),
+          CUSTOMER_ID: draft.CUSTOMER_ID,
           DISCOUNT_PERCENT: Number(draft.DISCOUNT_PERCENT) || 0,
           TAX_PERCENT: Number(draft.TAX_PERCENT) || 0,
           ADVANCE_PERCENT: Number(draft.ADVANCE_PERCENT) || 0,
@@ -222,7 +222,7 @@ function SOEditor({ soId, onClose, onSaved }) {
             <select value={draft.CUSTOMER_ID} onChange={(e) => setDraft({ ...draft, CUSTOMER_ID: e.target.value })} className={styles.input}>
               <option value="">— pick customer —</option>
               {customers.map((c) => (
-                <option key={c.ID} value={c.ID}>{c.CUSTOMER_NAME} ({c.CUSTOMER_CODE})</option>
+                <option key={c.ID} value={c.ID}>{c.COMPANY_NAME || c.NAME}</option>
               ))}
             </select>
           </Field>
@@ -548,7 +548,7 @@ function SODetail({ so, onClose, onChanged }) {
 
       {/* Header card */}
       <div className={styles.detailHeaderCard}>
-        <InfoBlock label="Customer" value={so.CUSTOMER_NAME || `#${so.CUSTOMER_ID}`} sub={so.CUSTOMER_CODE} />
+        <InfoBlock label="Customer" value={so.CUSTOMER_NAME || `#${so.CUSTOMER_ID}`} />
         <InfoBlock label="SO Date" value={so.SO_DATE} sub={`Expected: ${so.EXPECTED_DELIVERY_DATE || "—"}`} />
         <InfoBlock label="Advance Due" value={so.ADVANCE_DUE_DATE || "—"} sub={`${inr(so.ADVANCE_AMOUNT)} (${so.ADVANCE_PERCENT}%)`} />
         <InfoBlock label="From Quotation" value={so.QUOTATION_NUMBER || "—"} sub={so.PREPARED_BY_NAME ? `By: ${so.PREPARED_BY_NAME}` : ""} />
@@ -886,7 +886,6 @@ function SalesOrders() {
     return rows.filter((r) =>
       (r.SO_NUMBER || "").toLowerCase().includes(s) ||
       (r.CUSTOMER_NAME || "").toLowerCase().includes(s) ||
-      (r.CUSTOMER_CODE || "").toLowerCase().includes(s) ||
       (r.QUOTATION_NUMBER || "").toLowerCase().includes(s)
     );
 
@@ -974,8 +973,7 @@ function SalesOrders() {
               <div>
                 <div className={styles.soCustomer}>{r.CUSTOMER_NAME || `#${r.CUSTOMER_ID}`}</div>
                 <div className={styles.soCustomerSub}>
-                  {r.CUSTOMER_CODE}
-                  {r.QUOTATION_NUMBER && ` · 📄 ${r.QUOTATION_NUMBER}`}
+                  {r.QUOTATION_NUMBER && `📄 ${r.QUOTATION_NUMBER}`}
                 </div>
               </div>
               <div>

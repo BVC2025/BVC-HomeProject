@@ -100,7 +100,7 @@ def _serialize_quotation(db: Session, q: Quotation):
         "kind":         "quotation",
         "id":           q.ID,
         "title":        q.QUOTATION_NUMBER or f"Quotation #{q.ID}",
-        "subtitle":     (cust.CUSTOMER_NAME if cust else "—"),
+        "subtitle":     (cust.NAME if cust else "—"),
         "reason":       q.NOTES or "",
         "amount":       float(q.GRAND_TOTAL or 0.0),
         "requested_at": (
@@ -183,7 +183,7 @@ def _serialize_discount(db: Session, dr: DiscountRequest):
 
         c = db.query(Customer).filter(Customer.ID == q.CUSTOMER_ID).first()
 
-        cust = c.CUSTOMER_NAME if c else None
+        cust = c.NAME if c else None
 
     return {
         "kind":         "discount_request",

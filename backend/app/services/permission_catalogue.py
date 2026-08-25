@@ -164,6 +164,12 @@ CATALOGUE = [
     # ---- Customer / Sales / Payment ----
     ("customer.view",       "View customers",       "Sales", None),
     ("customer.manage",     "Manage customers",     "Sales", "Create/edit/delete"),
+    ("customer.master.view",   "View customer master",        "Sales", "Simplified customer master list (separate from the CRM Customers page)"),
+    ("customer.master.create", "Create customer master rows", "Sales", None),
+    ("customer.master.update", "Edit customer master rows",   "Sales", None),
+    ("customer.master.delete", "Delete customer master rows", "Sales", None),
+    ("customer.master.export", "Export customer master",      "Sales", "Download to Excel"),
+    ("customer.master.import", "Bulk import customer master", "Sales", "Bulk upload via Excel"),
     ("sales_order.view",    "View sales orders",    "Sales", None),
     ("sales_order.manage",  "Manage sales orders",  "Sales", "Create, edit, cancel, record payments"),
     ("quotation.manage",    "Manage quotations",    "Sales", "Create and approve"),
@@ -207,6 +213,15 @@ CATALOGUE = [
     ("lead.records.export",    "Export lead records",              "Lead Management", "Download to Excel"),
     ("lead.records.import",    "Bulk import lead records",         "Lead Management", "Bulk upload via Excel"),
     ("lead.polling_log.view",  "View lead polling activity log",   "Lead Management", None),
+    ("lead.records.all_lead_view",       "View all vendor lead records",           "Lead Management", "See every lead for the vendor, not just leads assigned to you"),
+    ("lead.records.filter_source",       "Use lead source filter",                 "Lead Management", None),
+    ("lead.records.filter_date",         "Use lead date filter",                   "Lead Management", None),
+    ("lead.records.filter_department",   "Use lead department filter",             "Lead Management", "Requires lead.records.all_lead_view"),
+    ("lead.records.filter_role",         "Use lead role filter",                   "Lead Management", "Requires lead.records.all_lead_view"),
+    ("lead.records.filter_owner",        "Use lead owner filter",                  "Lead Management", "Requires lead.records.all_lead_view"),
+    ("lead.records.owner_select_create", "Select lead owner when creating a lead", "Lead Management", None),
+    ("lead.records.owner_select_update", "Select lead owner when editing a lead",  "Lead Management", None),
+    ("lead.records.convert",             "Convert a lead to a customer",           "Lead Management", "Creates/links a Customer and a project assignment, then marks the lead CONVERTED"),
 
     # ---- Performance ----
     ("star_performance.view",   "View star performance",   "Performance", "Star ratings, bands, summaries"),
@@ -248,6 +263,27 @@ CATALOGUE = [
 
 
 # =====================================================================
+# FILTER_DEPENDENCIES
+# ---------------------------------------------------------------------
+# {dependent_code: prerequisite_code}. A dependent code should never be
+# effectively granted (to a role or an individual employee) unless its
+# prerequisite is also effectively granted at that same level. Enforced
+# in backend/app/routes/rbac.py (grant/replace/override write paths,
+# with cascade-revoke symmetry) and mirrored client-side (informational
+# only) in frontend/src/pages/RbacPermissions.jsx via the `REQUIRES`
+# field on each serialized permission (see rbac.py's
+# _serialize_permission). Source/date filters are deliberately absent —
+# they only narrow within whatever scope the caller can already see.
+# =====================================================================
+
+FILTER_DEPENDENCIES = {
+    "lead.records.filter_department": "lead.records.all_lead_view",
+    "lead.records.filter_role":       "lead.records.all_lead_view",
+    "lead.records.filter_owner":      "lead.records.all_lead_view",
+}
+
+
+# =====================================================================
 # PAGE_LABELS
 # ---------------------------------------------------------------------
 # Purely a display hint for the RBAC UI's "Module -> Page -> Action"
@@ -276,6 +312,22 @@ PAGE_LABELS = {
     "lead.records.delete":   "Lead Records",
     "lead.records.export":   "Lead Records",
     "lead.records.import":   "Lead Records",
+    "lead.records.all_lead_view":       "Lead Records",
+    "lead.records.filter_source":       "Lead Records",
+    "lead.records.filter_date":         "Lead Records",
+    "lead.records.filter_department":   "Lead Records",
+    "lead.records.filter_role":         "Lead Records",
+    "lead.records.filter_owner":        "Lead Records",
+    "lead.records.owner_select_create": "Lead Records",
+    "lead.records.owner_select_update": "Lead Records",
+    "lead.records.convert":             "Lead Records",
+
+    "customer.master.view":   "Customer Master",
+    "customer.master.create": "Customer Master",
+    "customer.master.update": "Customer Master",
+    "customer.master.delete": "Customer Master",
+    "customer.master.export": "Customer Master",
+    "customer.master.import": "Customer Master",
     "lead.polling_log.view": "Polling Activity",
 
     "project.view":   "Project List",

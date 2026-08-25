@@ -11,7 +11,6 @@ from app.models.models import (
     Attendance,
     Employee,
     TaskAssignment,
-    Project,
     Department,
     GeofenceSettings,
     AttendanceSecurityLog
@@ -726,8 +725,7 @@ def live_floor_board(
 
     # Pre-load active tasks
     active_tasks = (
-        db.query(TaskAssignment, Project)
-        .outerjoin(Project, TaskAssignment.PROJECT_ID == Project.ID)
+        db.query(TaskAssignment)
         .filter(
             TaskAssignment.ASSIGNED_DATE == today,
             TaskAssignment.TASK_STATUS.in_(
@@ -739,10 +737,10 @@ def live_floor_board(
 
     task_map = {}
 
-    for task, proj in active_tasks:
+    for task in active_tasks:
 
         # last wins, but each employee really only has one
-        task_map[task.EMPLOYEE_ID] = (task, proj)
+        task_map[task.EMPLOYEE_ID] = task
 
     # Completed-task counts today (matches MD Performance logic)
     completed_today = (
@@ -766,11 +764,7 @@ def live_floor_board(
 
         att = att_map.get(emp.ID)
 
-        task_pair = task_map.get(emp.ID)
-
-        current_task = task_pair[0] if task_pair else None
-
-        current_proj = task_pair[1] if task_pair else None
+        current_task = task_map.get(emp.ID)
 
         out.append({
             "EMPLOYEE_ID": emp.ID,
@@ -801,9 +795,7 @@ def live_floor_board(
             "CURRENT_TASK_STATUS": (
                 current_task.TASK_STATUS if current_task else None
             ),
-            "CURRENT_PROJECT": (
-                current_proj.PROJECT_NAME if current_proj else None
-            ),
+            "CURRENT_PROJECT": None,  # project_legacy FK removed
             "TASKS_COMPLETED_TODAY": completed_map.get(emp.ID, 0)
         })
 

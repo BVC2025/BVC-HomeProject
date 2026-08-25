@@ -21,7 +21,6 @@ from app.models.models import (
     Customer,
     Quotation,
     SalesOrder,
-    CustomerProject,
     PurchaseOrder,
     Inventory,
     Attendance,
@@ -126,8 +125,6 @@ def sparklines(db: Session = Depends(get_db)):
         "total_quotations":        _count_per_day(db, Quotation, Quotation.CREATED_AT),
         "total_customers":         _count_per_day(db, Customer, Customer.CREATED_AT)
             if hasattr(Customer, "CREATED_AT") else [0]*7,
-        "active_projects":         _count_per_day(db, CustomerProject, CustomerProject.CREATED_AT)
-            if hasattr(CustomerProject, "CREATED_AT") else [0]*7,
         "production_active":       _count_per_day(db, WorkOrder, WorkOrder.CREATED_AT)
             if hasattr(WorkOrder, "CREATED_AT") else [0]*7,
         "inventory_value":         [0]*7,  # snapshot quantity, no time series
@@ -201,46 +198,6 @@ def _score_sales(db: Session) -> tuple:
         else:
 
             note = f"Revenue down {abs(delta)*100:.0f}% vs last month."
-
-    return score, note
-
-
-def _score_production(db: Session) -> tuple:
-    """On-schedule projects out of total active."""
-
-    today = date.today()
-
-    active = db.query(func.count(CustomerProject.ID)).filter(
-        ~CustomerProject.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"])
-    ).scalar() or 0
-
-    delayed = db.query(func.count(CustomerProject.ID)).filter(
-        ~CustomerProject.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"]),
-        CustomerProject.TARGET_DATE.isnot(None),
-        CustomerProject.TARGET_DATE < today,
-    ).scalar() or 0
-
-    if active == 0:
-
-        return 75, "No active projects in flight."
-
-    on_schedule = active - delayed
-
-    pct = on_schedule / active
-
-    score = int(round(pct * 100))
-
-    if delayed == 0:
-
-        note = "Every active project is on schedule."
-
-    elif delayed == 1:
-
-        note = "1 project past target date."
-
-    else:
-
-        note = f"{delayed} projects past target date."
 
     return score, note
 
@@ -363,23 +320,23 @@ def health_score(db: Session = Depends(get_db)):
     """Composite business-health score (0-100)."""
 
     sales,      sales_note      = _score_sales(db)
-    production, production_note = _score_production(db)
     inventory,  inventory_note  = _score_inventory(db)
     hr,         hr_note         = _score_hr(db)
     finance,    finance_note    = _score_finance(db)
 
-    # Weighted average — slightly skewed towards revenue + production
+    # Weighted average — slightly skewed towards revenue.
+    # Production's own sub-score was removed along with CustomerProject
+    # (table project_legacy); the remaining 4 weights are renormalized
+    # proportionally from the original 5 so they still sum to 1.00.
     weights = {
-        "sales":      0.25,
-        "production": 0.22,
-        "finance":    0.20,
-        "inventory":  0.18,
-        "hr":         0.15,
+        "sales":      0.32,
+        "finance":    0.26,
+        "inventory":  0.23,
+        "hr":         0.19,
     }
 
     overall = int(round(
         sales * weights["sales"] +
-        production * weights["production"] +
         inventory * weights["inventory"] +
         hr * weights["hr"] +
         finance * weights["finance"]
@@ -388,7 +345,6 @@ def health_score(db: Session = Depends(get_db)):
     # Surface the top 2 weakest dimensions as "actions" to focus on
     breakdown = [
         ("Sales",      sales,      sales_note),
-        ("Production", production, production_note),
         ("Inventory",  inventory,  inventory_note),
         ("HR",         hr,         hr_note),
         ("Finance",    finance,    finance_note),
@@ -406,7 +362,6 @@ def health_score(db: Session = Depends(get_db)):
         "label": _label_for_score(overall),
         "scores": {
             "sales":      {"value": sales,      "note": sales_note},
-            "production": {"value": production, "note": production_note},
             "inventory":  {"value": inventory,  "note": inventory_note},
             "hr":         {"value": hr,         "note": hr_note},
             "finance":    {"value": finance,    "note": finance_note},
@@ -442,23 +397,6 @@ def factory_status(db: Session = Depends(get_db)):
     maintenance = by_status.get("ON_HOLD",     0)
     done        = by_status.get("DONE",        0)
     cancelled   = by_status.get("CANCELLED",   0)
-
-    # Active projects
-    active_projects = db.query(func.count(CustomerProject.ID)).filter(
-        ~CustomerProject.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"])
-    ).scalar() or 0
-
-    today = date.today()
-
-    delayed_projects = db.query(func.count(CustomerProject.ID)).filter(
-        ~CustomerProject.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"]),
-        CustomerProject.TARGET_DATE.isnot(None),
-        CustomerProject.TARGET_DATE < today,
-    ).scalar() or 0
-
-    completed_projects = db.query(func.count(CustomerProject.ID)).filter(
-        CustomerProject.STATUS.in_(["COMPLETED", "CLOSED"])
-    ).scalar() or 0
 
     # Efficiency — completed stages / total stages across IN_PROGRESS WOs
     active_wo_ids = [
@@ -499,11 +437,6 @@ def factory_status(db: Session = Depends(get_db)):
             "on_hold":  maintenance,
             "done":     done,
             "cancelled": cancelled,
-        },
-        "projects": {
-            "active":    active_projects,
-            "delayed":   delayed_projects,
-            "completed": completed_projects,
         },
         "efficiency_pct": efficiency,
         "as_of": datetime.now().isoformat(),
@@ -619,36 +552,6 @@ def insights(db: Session = Depends(get_db)):
                 "action_url": "/quotations",
                 "action_label": "Review Quotations",
             })
-
-    # --- 3. Delayed projects ----------------------------------------
-    delayed_rows = db.query(CustomerProject).filter(
-        ~CustomerProject.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"]),
-        CustomerProject.TARGET_DATE.isnot(None),
-        CustomerProject.TARGET_DATE < today,
-    ).order_by(CustomerProject.TARGET_DATE.asc()).limit(3).all()
-
-    if delayed_rows:
-
-        worst = delayed_rows[0]
-
-        days_late = (today - worst.TARGET_DATE).days
-
-        cards.append({
-            "severity": "critical" if days_late > 7 else "warning",
-            "icon": "⚠️",
-            "title": (
-                f"{len(delayed_rows)} project(s) past target"
-                + (f" — {worst.PROJECT_NAME} {days_late}d late" if worst.PROJECT_NAME else "")
-            ),
-            "body": (
-                ", ".join(p.PROJECT_NAME or f"#{p.ID}" for p in delayed_rows[:3])
-            ),
-            "suggestion": (
-                "Reassign capacity or extend the target date with customer sign-off."
-            ),
-            "action_url": "/projects",
-            "action_label": "Open Projects",
-        })
 
     # --- 4. Outstanding customer payments ---------------------------
     row = db.query(
@@ -835,7 +738,7 @@ def activity_feed(
         })
 
     # Recent customers
-    for r in db.query(Customer).order_by(Customer.ID.desc()).limit(5).all():
+    for r in db.query(Customer).order_by(Customer.CREATED_AT.desc()).limit(5).all():
 
         ts = getattr(r, "CREATED_AT", None) or getattr(r, "LEAD_CREATED_DATE", None)
         items.append({
@@ -843,8 +746,8 @@ def activity_feed(
             "kind": "customer",
             "icon": "👤",
             "color": "purple",
-            "text": f"Customer {r.CUSTOMER_NAME or f'#{r.ID}'} added",
-            "subtext": (r.CUSTOMER_TYPE or "Customer"),
+            "text": f"Customer {r.NAME or f'#{r.ID}'} added",
+            "subtext": (r.COMPANY_NAME or "Customer"),
             "href": "/customers",
         })
 
@@ -960,10 +863,6 @@ def production_flow(db: Session = Depends(get_db)):
         SalesOrder.STATUS.in_(["DRAFT", "AWAITING_ADVANCE", "CONFIRMED"])
     ).scalar() or 0
 
-    project_active = db.query(func.count(CustomerProject.ID)).filter(
-        ~CustomerProject.STATUS.in_(["COMPLETED", "CANCELLED", "CLOSED"])
-    ).scalar() or 0
-
     production_active = db.query(func.count(WorkOrder.ID)).filter(
         WorkOrder.STATUS.in_(["PLANNED", "IN_PROGRESS"])
     ).scalar() or 0
@@ -989,7 +888,6 @@ def production_flow(db: Session = Depends(get_db)):
     stages = [
         {"label": "Quotation",    "count": quote_open,        "icon": "📋"},
         {"label": "Sales Order",  "count": so_active,         "icon": "🛒"},
-        {"label": "Project",      "count": project_active,    "icon": "🏗️"},
         {"label": "Production",   "count": production_active, "icon": "🏭"},
         {"label": "QC",           "count": qc_active,         "icon": "🔬"},
         {"label": "Dispatch",     "count": dispatch,          "icon": "🚚"},

@@ -4,8 +4,7 @@ Production & BOM endpoints for BVC24.
 Three resources:
   - ProductModel: catalog of vending machine variants
   - BOMItem:      parts list per ProductModel
-  - WorkOrder:    a production run for N units of a ProductModel,
-                  optionally tied to a customer Project
+  - WorkOrder:    a production run for N units of a ProductModel
 
 Cost rollup is intentionally NOT in this iteration — quantities
 only. A later pass can compute totals from Inventory.UNIT_PRICE.
@@ -28,7 +27,6 @@ from app.models.models import (
     ProductModel,
     BOMItem,
     WorkOrder,
-    Project,
     Vendor,
     QCInspection,
     Supplier,
@@ -487,8 +485,7 @@ def _bom_with_links(db: Session, model_id: int) -> list[dict]:
 
 def _serialize_wo(
     wo: WorkOrder,
-    model: Optional[ProductModel] = None,
-    project: Optional[Project] = None
+    model: Optional[ProductModel] = None
 ) -> dict:
 
     return {
@@ -497,8 +494,8 @@ def _serialize_wo(
         "PRODUCT_MODEL_ID": wo.PRODUCT_MODEL_ID,
         "PRODUCT_MODEL_NAME": model.MODEL_NAME if model else None,
         "PRODUCT_MODEL_CODE": model.MODEL_CODE if model else None,
-        "PROJECT_ID": wo.PROJECT_ID,
-        "PROJECT_NAME": project.PROJECT_NAME if project else None,
+        "PROJECT_ID": None,  # project_legacy FK removed
+        "PROJECT_NAME": None,
         "QUANTITY": wo.QUANTITY,
         "STATUS": wo.STATUS,
         "PLANNED_START_DATE": (
@@ -1397,25 +1394,12 @@ def create_work_order(
             detail="Product model not found"
         )
 
-    project = None
-
-    if data.PROJECT_ID:
-
-        project = db.query(Project).filter(
-            Project.ID == data.PROJECT_ID
-        ).first()
-
-        if not project:
-
-            raise HTTPException(
-                status_code=404,
-                detail="Project not found"
-            )
-
+    # project_legacy (CustomerProject) was removed — a linked-project
+    # is no longer a valid option for a work order; data.PROJECT_ID is
+    # accepted-and-ignored below for backward compatibility.
     wo = WorkOrder(
         WO_NUMBER=_generate_wo_number(db, data.VENDOR_ID),
         PRODUCT_MODEL_ID=data.PRODUCT_MODEL_ID,
-        PROJECT_ID=data.PROJECT_ID,
         QUANTITY=data.QUANTITY,
         STATUS="PLANNED",
         PLANNED_START_DATE=data.PLANNED_START_DATE,
@@ -1454,7 +1438,7 @@ def create_work_order(
 
     return {
         "message": "Work order created",
-        "work_order": _serialize_wo(wo, model, project),
+        "work_order": _serialize_wo(wo, model),
         "stages_spawned": len(stages)
     }
 
@@ -1471,14 +1455,10 @@ def list_work_orders(
     vendor_id = _resolve_vendor_id(db, vendor_id)
 
     q = (
-        db.query(WorkOrder, ProductModel, Project)
+        db.query(WorkOrder, ProductModel)
         .outerjoin(
             ProductModel,
             WorkOrder.PRODUCT_MODEL_ID == ProductModel.ID
-        )
-        .outerjoin(
-            Project,
-            WorkOrder.PROJECT_ID == Project.ID
         )
         .filter(WorkOrder.VENDOR_ID == vendor_id)
     )
@@ -1487,9 +1467,9 @@ def list_work_orders(
 
         q = q.filter(WorkOrder.STATUS == status)
 
-    if project_id:
-
-        q = q.filter(WorkOrder.PROJECT_ID == project_id)
+    # project_id-based filtering was removed along with CustomerProject
+    # (table project_legacy) — the parameter is accepted-and-ignored
+    # below for backward compatibility.
 
     if model_id:
 
@@ -1498,8 +1478,8 @@ def list_work_orders(
     rows = q.order_by(WorkOrder.CREATED_AT.desc()).all()
 
     return [
-        _serialize_wo(wo, model, project)
-        for wo, model, project in rows
+        _serialize_wo(wo, model)
+        for wo, model in rows
     ]
 
 
@@ -1510,14 +1490,10 @@ def get_work_order(
 ):
 
     row = (
-        db.query(WorkOrder, ProductModel, Project)
+        db.query(WorkOrder, ProductModel)
         .outerjoin(
             ProductModel,
             WorkOrder.PRODUCT_MODEL_ID == ProductModel.ID
-        )
-        .outerjoin(
-            Project,
-            WorkOrder.PROJECT_ID == Project.ID
         )
         .filter(WorkOrder.ID == wo_id)
         .first()
@@ -1527,7 +1503,7 @@ def get_work_order(
 
         raise HTTPException(status_code=404, detail="Work order not found")
 
-    wo, model, project = row
+    wo, model = row
 
     # Include rolled-up BOM × quantity so the production team
     # sees how much of each material they need for this WO.
@@ -1549,7 +1525,7 @@ def get_work_order(
     ]
 
     return {
-        "work_order": _serialize_wo(wo, model, project),
+        "work_order": _serialize_wo(wo, model),
         "bom_rolled_up": bom_rolled
     }
 

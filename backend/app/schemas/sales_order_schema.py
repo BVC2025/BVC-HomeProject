@@ -31,7 +31,7 @@ class SOLineUpdate(BaseModel):
 class SalesOrderCreate(BaseModel):
     """Header + lines for a new SO."""
 
-    CUSTOMER_ID: int
+    CUSTOMER_ID: str
     QUOTATION_ID: Optional[int] = None
     SO_DATE: Optional[date] = None
     EXPECTED_DELIVERY_DATE: Optional[date] = None

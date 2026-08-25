@@ -273,7 +273,7 @@ function CreateFromProductModal({ onClose, onCreated }) {
     try {
 
       const res = await API.post("/projects/from-product", {
-        CUSTOMER_ID: parseInt(customerId),
+        CUSTOMER_ID: customerId,
         PRODUCT_MODEL_ID: parseInt(productId),
         QUANTITY: parseInt(quantity) || 1,
         PRIORITY: priority,
@@ -349,13 +349,13 @@ function CreateFromProductModal({ onClose, onCreated }) {
                   <option value="">— pick customer —</option>
                   {customers.map((c) => (
                     <option key={c.ID} value={c.ID}>
-                      {c.CUSTOMER_CODE ? `${c.CUSTOMER_CODE} · ` : ""}{c.CUSTOMER_NAME}
+                      {c.COMPANY_NAME || c.NAME}
                     </option>
                   ))}
                 </select>
                 {selectedCustomer && (
                   <div className={styles.formFieldHint}>
-                    📞 {selectedCustomer.PHONE || "—"} · {selectedCustomer.CITY || "—"}
+                    📞 {selectedCustomer.PHONE_NUMBER || "—"}
                   </div>
                 )}
               </div>
@@ -587,7 +587,7 @@ function Projects() {
       ]);
 
       const custMap = Object.fromEntries(
-        (custRes.data || []).map((c) => [c.ID, c.CUSTOMER_NAME])
+        (custRes.data || []).map((c) => [c.ID, c.COMPANY_NAME || c.NAME])
       );
 
       const prodMap = Object.fromEntries(

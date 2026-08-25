@@ -189,24 +189,20 @@ function InvoiceOrder() {
     const c = customers.find((x) => String(x.ID) === String(id));
     if (!c) return;
 
-    const addr = [c.BILLING_ADDRESS || c.ADDRESS, c.CITY, c.STATE, c.PINCODE]
-      .filter(Boolean)
-      .join(", ");
-
-    const billBlock = [c.CUSTOMER_NAME, addr].filter(Boolean).join("\n");
-
-    const shipBlock = c.SHIPPING_ADDRESS
-      ? [c.CUSTOMER_NAME, c.SHIPPING_ADDRESS].filter(Boolean).join("\n")
-      : billBlock;
+    // Customer no longer carries a separate billing address, city/state/
+    // pincode, or shipping address — only NAME/COMPANY_NAME + ADDRESS.
+    // Ship-to defaults to the same block as bill-to (still user-editable
+    // afterward).
+    const billBlock = [c.COMPANY_NAME || c.NAME, c.ADDRESS].filter(Boolean).join("\n");
 
     setInv((p) => ({
       ...p,
       vendorAddress: billBlock,
-      deliveryAddress: shipBlock,
+      deliveryAddress: billBlock,
       vendorGst: c.GST_NUMBER || "",
-      contactName: c.CONTACT_PERSON || "",
-      contactNo: c.PHONE || "",
-      receiverName: c.CUSTOMER_NAME || p.receiverName
+      contactName: c.NAME || "",
+      contactNo: c.PHONE_NUMBER || "",
+      receiverName: c.COMPANY_NAME || c.NAME || p.receiverName
     }));
   };
 
@@ -303,8 +299,7 @@ function InvoiceOrder() {
             <option value="">— Pick Customer —</option>
             {customers.map((c) => (
               <option key={c.ID} value={c.ID}>
-                {c.CUSTOMER_NAME}
-                {c.CUSTOMER_CODE ? ` (${c.CUSTOMER_CODE})` : ""}
+                {c.COMPANY_NAME || c.NAME}
               </option>
             ))}
           </select>

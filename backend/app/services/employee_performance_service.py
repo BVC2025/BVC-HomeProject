@@ -10,7 +10,6 @@ Pure, read-only computations over the existing operational tables:
                        (STATUS in PRESENT / LATE / ABSENT / HALF_DAY)
   - WorkOrderStageProgress -- shop-floor stage work (STATUS,
                        STARTED_AT, COMPLETED_AT, ASSIGNED_TO_ID)
-  - Project         -- to compute project contribution %
 
 The functions in this module never write to the database; they only
 read. All time-dependent calls (date.today / datetime.utcnow) are kept
@@ -39,7 +38,6 @@ from sqlalchemy.orm import Session
 from app.models.models import (
     Attendance,
     Employee,
-    Project,
     TaskAssignment,
     WorkOrderStageProgress,
 )
@@ -291,10 +289,13 @@ def compute_performance(
     # Project contribution: of all completed task-assignments inside
     # the employee's projects during the window, what fraction did
     # THIS employee close?
+    #
+    # TaskAssignment.PROJECT_ID (the project_legacy FK) was removed
+    # along with CustomerProject — there is no remaining way to group
+    # task assignments by project, so this always falls to the "no
+    # projects" branch now.
     # -----------------------------------------------------------------
-    project_ids = {
-        ta.PROJECT_ID for ta in assignments if ta.PROJECT_ID is not None
-    }
+    project_ids = set()
 
     if project_ids:
         project_total_completed = (

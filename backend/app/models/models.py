@@ -14,6 +14,7 @@ from app.models.project_models import ProjectCategory, Project, TaskTemplate, Pr
 from app.models.supplier_models import Supplier  # noqa: F401
 from app.models.email_models import VendorEmailConfig, EmailTemplate  # noqa: F401
 from app.models.lead_models import LeadPollingConfig, Lead, LeadPollingLog  # noqa: F401
+from app.models.customer_models import Customer, CustomerProjectAssignment  # noqa: F401
 from app.models.project_quotation_models import ProjectQuotationTemplate  # noqa: F401
 from app.models.whatsapp_models import (  # noqa: F401
     VendorWhatsAppConfig, WhatsAppModuleSetting, WhatsAppConversation, WhatsAppMessage, WhatsAppWebhookEvent,
@@ -29,7 +30,7 @@ from app.models.employee_models import (  # noqa: F401
 from app.models.leave_models import (  # noqa: F401
     LeaveRequest, LeaveBalance, LeaveQuotaPolicy, AILeaveConversation, LeaveBalanceAdjustment,
 )
-__all__ = ["ProjectCategory", "Project", "TaskTemplate", "ProjectPricing", "Supplier", "VendorEmailConfig", "EmailTemplate", "LeadPollingConfig", "Lead", "LeadPollingLog", "ProjectQuotationTemplate", "VendorWhatsAppConfig", "WhatsAppModuleSetting", "WhatsAppConversation", "WhatsAppMessage", "WhatsAppWebhookEvent", "RootUser", "IAMUser", "EmployeePermissionOverride", "EmployeePermissionOverrideAudit", "RefreshToken", "LoginLockout", "Employee", "Department", "Designation", "EmployeeOnboardingSession", "EmployeeDocument", "EmployeeMemo", "EmployeeAllowance", "EmployeeStatusHistory", "LeaveRequest", "LeaveBalance", "LeaveQuotaPolicy", "AILeaveConversation", "LeaveBalanceAdjustment"]  # re-exported from dedicated model files
+__all__ = ["ProjectCategory", "Project", "TaskTemplate", "ProjectPricing", "Supplier", "VendorEmailConfig", "EmailTemplate", "LeadPollingConfig", "Lead", "LeadPollingLog", "Customer", "CustomerProjectAssignment", "ProjectQuotationTemplate", "VendorWhatsAppConfig", "WhatsAppModuleSetting", "WhatsAppConversation", "WhatsAppMessage", "WhatsAppWebhookEvent", "RootUser", "IAMUser", "EmployeePermissionOverride", "EmployeePermissionOverrideAudit", "RefreshToken", "LoginLockout", "Employee", "Department", "Designation", "EmployeeOnboardingSession", "EmployeeDocument", "EmployeeMemo", "EmployeeAllowance", "EmployeeStatusHistory", "LeaveRequest", "LeaveBalance", "LeaveQuotaPolicy", "AILeaveConversation", "LeaveBalanceAdjustment"]  # re-exported from dedicated model files
 
 # ──────────────────────────────────────────────
 # Shared SQLAlchemy Enum types
@@ -161,6 +162,11 @@ class Vendor(Base):
         back_populates="vendor",
         cascade="all, delete-orphan",
     )
+    customer_info = relationship(
+        "Customer",
+        back_populates="vendor_info",
+        cascade="all, delete-orphan",
+    )
 
 # Employee moved to app/models/employee_models.py (re-exported below).
 
@@ -258,319 +264,6 @@ class RolePermission(Base):
 
 
 
-class Customer(Base):
-    """
-    Customer master — companies that buy vending machines from
-    BVC24. Rich enough to drive a customer-centric "command
-    center" view connected to their Projects + Work Orders +
-    machine models.
-    """
-
-    __tablename__ = "customer"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        index=True
-    )
-
-    # ---- Tenant scope ----
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID"),
-        index=True,
-        nullable=True
-    )
-
-    # ---- Core identity ----
-    CUSTOMER_CODE = Column(String(20), index=True)
-    # e.g. "CUST-001" — auto-generated if not supplied
-
-    CUSTOMER_NAME = Column(String(100))
-    # Company / business name
-
-    CONTACT_PERSON = Column(String(100), nullable=True)
-
-    DESIGNATION = Column(String(80), nullable=True)
-    # e.g. "Purchase Manager", "CEO"
-
-    # ---- Reach ----
-    PHONE = Column(String(20))
-
-    ALTERNATE_PHONE = Column(String(20), nullable=True)
-
-    EMAIL = Column(String(100))
-
-    WEBSITE = Column(String(200), nullable=True)
-
-    # ---- Address ----
-    ADDRESS = Column(String(255))
-    # Combined address for back-compat with the old schema
-
-    CITY = Column(String(80), nullable=True)
-
-    STATE = Column(String(80), nullable=True)
-
-    PINCODE = Column(String(15), nullable=True)
-
-    COUNTRY = Column(String(60), default="India", nullable=True)
-
-    # ---- KYC / Tax ----
-    GST_NUMBER = Column(String(20), nullable=True, index=True)
-
-    PAN_NUMBER = Column(String(15), nullable=True)
-
-    # ---- Business meta ----
-    INDUSTRY = Column(String(60), nullable=True, index=True)
-    # Retail / Healthcare / Education / Metro / Office /
-    # Hotel / Government / Other — drives segment analytics.
-
-    SOURCE = Column(String(40), nullable=True)
-    # Where the lead came from: Website / Exhibition /
-    # Referral / Direct sales / Tender
-
-    STATUS = Column(
-        String(20),
-        default="ACTIVE"
-    )
-    # LEAD / PROSPECT / ACTIVE / INACTIVE
-
-    NOTES = Column(String(1000), nullable=True)
-
-    # ============================================================
-    # Phase 1 — Lead Pipeline + CRM Master fields
-    # ============================================================
-
-    # Who the customer is
-    CUSTOMER_TYPE = Column(String(30), nullable=True)
-    # INDIVIDUAL / COMPANY / DEALER / DISTRIBUTOR
-
-    BUSINESS_TYPE = Column(String(60), nullable=True)
-    # Free-text: "B2B Retail Chain", "Hospital Network", etc.
-
-    NUMBER_OF_BRANCHES = Column(Integer, nullable=True)
-
-    EXPECTED_MONTHLY_ORDERS = Column(Integer, nullable=True)
-
-    EXISTING_MACHINE_USAGE = Column(Integer, default=0)
-    # 0/1 — do they already have vending machines from someone else?
-
-    CURRENT_VENDOR_NAME = Column(String(150), nullable=True)
-    # Their incumbent supplier, if any
-
-    WHATSAPP_NUMBER = Column(String(20), nullable=True)
-    # Often different from main PHONE — used for follow-ups
-
-    # Address split (kept ADDRESS as primary for back-compat)
-    BILLING_ADDRESS = Column(String(500), nullable=True)
-
-    SHIPPING_ADDRESS = Column(String(500), nullable=True)
-
-    GOOGLE_MAP_LOCATION = Column(String(255), nullable=True)
-    # Google Maps URL or "lat,lng" string for delivery routing
-
-    # Lead pipeline fields
-    LEAD_SOURCE = Column(String(40), nullable=True, index=True)
-    # WEBSITE / COLD_CALL / REFERENCE / WALK_IN / EMAIL /
-    # TRADE_FAIR / SOCIAL_MEDIA / OTHER
-
-    LEAD_STATUS = Column(
-        String(30),
-        default="NEW",
-        index=True
-    )
-    # NEW → CONTACTED → QUALIFIED → QUOTED → NEGOTIATING → WON / LOST
-
-    LEAD_PRIORITY = Column(
-        String(10),
-        default="MEDIUM",
-        index=True
-    )
-    # HIGH / MEDIUM / LOW
-
-    LEAD_CREATED_DATE = Column(Date, nullable=True)
-
-    ASSIGNED_SALES_ID = Column(
-        String(36),
-        ForeignKey("employee.ID"),
-        nullable=True,
-        index=True
-    )
-    # The salesperson owning this lead
-
-    FOLLOW_UP_DATE = Column(Date, nullable=True)
-
-    NEXT_MEETING_DATE = Column(DateTime, nullable=True)
-
-    REQUIREMENT_NOTES = Column(String(2000), nullable=True)
-    # First-call notes — what the customer is looking for
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-
-    UPDATED_AT = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
-
-
-class CustomerContact(Base):
-    """
-    Additional contact persons attached to a Customer. The primary
-    contact lives on Customer.CONTACT_PERSON; this table is for
-    everyone ELSE in the buying organization — purchase manager,
-    finance head, technical lead, etc.
-
-    IS_PRIMARY=1 marks the "preferred contact for routing emails"
-    so the sales team isn't guessing whom to call.
-    """
-
-    __tablename__ = "customer_contact"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    CUSTOMER_ID = Column(
-        Integer,
-        ForeignKey("customer.ID"),
-        index=True
-    )
-
-    NAME = Column(String(100))
-
-    DESIGNATION = Column(String(80), nullable=True)
-
-    DEPARTMENT = Column(String(80), nullable=True)
-
-    PHONE = Column(String(20), nullable=True)
-
-    WHATSAPP = Column(String(20), nullable=True)
-
-    EMAIL = Column(String(100), nullable=True)
-
-    IS_PRIMARY = Column(Integer, default=0)
-
-    NOTES = Column(String(500), nullable=True)
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID")
-    )
-
-
-class CustomerRequirement(Base):
-    """
-    Phase 2 — Customer Requirements.
-
-    A customer can request several different vending machines, each
-    with its own specs and target terms. This table is the multi-row
-    "what they want" list that later drives quotations, BOM picks
-    and project creation.
-
-    Lifecycle:
-      DRAFT       — captured during enquiry, not finalized
-      CONFIRMED   — customer locked the spec
-      QUOTED      — quotation issued (links to Quotation later)
-      ORDERED     — converted to Sales Order / Project
-      CANCELLED   — dropped
-    """
-
-    __tablename__ = "customer_requirement"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    CUSTOMER_ID = Column(
-        Integer,
-        ForeignKey("customer.ID"),
-        index=True
-    )
-
-    # ---- What machine ----
-    MACHINE_CATEGORY = Column(String(60), nullable=True)
-    # Coffee / Snack / Beverage / Combo / Custom
-
-    MACHINE_NAME = Column(String(150), nullable=True)
-    # Free-text label even if no product model exists yet
-
-    PRODUCT_MODEL_ID = Column(
-        Integer,
-        ForeignKey("product_model.ID"),
-        nullable=True,
-        index=True
-    )
-    # Optional link to an existing ProductModel
-
-    # ---- How many / how big ----
-    QUANTITY = Column(Integer, default=1)
-
-    CAPACITY = Column(String(60), nullable=True)
-    # "10 selections", "200 cups", "5 trays" — free-text
-
-    # ---- Commercials ----
-    TARGET_UNIT_PRICE = Column(Float, nullable=True)
-
-    TARGET_DELIVERY_DATE = Column(Date, nullable=True)
-
-    # ---- Where it goes ----
-    INSTALLATION_SITE = Column(String(255), nullable=True)
-    # Which branch / address of the customer it ships to
-
-    # ---- Workflow ----
-    PRIORITY = Column(String(10), default="MEDIUM", index=True)
-    # HIGH / MEDIUM / LOW
-
-    STATUS = Column(String(20), default="DRAFT", index=True)
-    # DRAFT / CONFIRMED / QUOTED / ORDERED / CANCELLED
-
-    SPECIAL_NOTES = Column(String(2000), nullable=True)
-    # Custom features, branding, refrigeration, etc.
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-
-    UPDATED_AT = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID"),
-        index=True,
-        nullable=True
-    )
-class CustomerProject(Base):
-    """Legacy customer-project records — table renamed to project_legacy by _rename_legacy_project_table()."""
-
-    __tablename__ = "project_legacy"
-    __table_args__ = {"extend_existing": True}
-
-    ID = Column(Integer, primary_key=True, index=True)
-    PROJECT_NAME = Column(String(200))
-    DESCRIPTION = Column(String(2000))
-    STATUS = Column(String(50), default="PENDING")
-    SUB_PROJECT_TEMPLATE_ID = Column(Integer, nullable=True, index=True)  # historical ref; old sub_project_template table archived to sub_project_template_legacy
-    DEPARTMENT_ID = Column(Integer, ForeignKey("department.ID"), nullable=True, index=True)
-    CUSTOMER_ID = Column(Integer, ForeignKey("customer.ID"))
-    SKILLS_REQUIRED = Column(String(500), nullable=True)
-    PRIORITY = Column(String(20), default="MEDIUM")
-    PRODUCT_MODEL_ID = Column(Integer, ForeignKey("product_model.ID"), nullable=True, index=True)
-    QUANTITY = Column(Integer, default=1)
-    TARGET_DATE = Column(Date, nullable=True)
-    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID"))
-
-
 class Task(Base):
     START_TIME = Column(DateTime, nullable=True)
 
@@ -600,11 +293,6 @@ class Task(Base):
     PRIORITY = Column(
         String(50),
         default="MEDIUM"
-    )
-
-    PROJECT_ID = Column(
-        Integer,
-        ForeignKey("project_legacy.ID")
     )
 
     ASSIGNED_TO = Column(
@@ -842,13 +530,6 @@ class TaskAssignment(Base):
     EMPLOYEE_ID = Column(
         String(36),
         ForeignKey("employee.ID"),
-        index=True
-    )
-
-    PROJECT_ID = Column(
-        Integer,
-        ForeignKey("project_legacy.ID"),
-        nullable=True,
         index=True
     )
 
@@ -1264,13 +945,6 @@ class WorkOrder(Base):
     PRODUCT_MODEL_ID = Column(
         Integer,
         ForeignKey("product_model.ID"),
-        index=True
-    )
-
-    PROJECT_ID = Column(
-        Integer,
-        ForeignKey("project_legacy.ID"),
-        nullable=True,
         index=True
     )
 
@@ -1740,12 +1414,6 @@ class DailyAllocation(Base):
     SEQUENCE = Column(Integer, default=1)
     # 1, 2, 3 ... — position of this task in the day's chain.
 
-    PROJECT_ID = Column(
-        Integer,
-        ForeignKey("project_legacy.ID"),
-        nullable=True
-    )
-
     TASK_ASSIGNMENT_ID = Column(
         Integer,
         ForeignKey("task_assignment.TASK_ID"),
@@ -2204,7 +1872,7 @@ class Quotation(Base):
     QUOTATION_NUMBER = Column(String(30), unique=True, index=True)
 
     CUSTOMER_ID = Column(
-        Integer,
+        String(36),
         ForeignKey("customer.ID"),
         index=True
     )
@@ -2396,13 +2064,6 @@ class QuotationLine(Base):
         index=True
     )
 
-    REQUIREMENT_ID = Column(
-        Integer,
-        ForeignKey("customer_requirement.ID"),
-        nullable=True,
-        index=True
-    )
-
     DESCRIPTION = Column(String(500))
 
     HSN_CODE = Column(String(20), nullable=True)
@@ -2489,14 +2150,6 @@ class PurchaseOrder(Base):
         nullable=True
     )
 
-    LINKED_PROJECT_ID = Column(
-        Integer,
-        ForeignKey("project_legacy.ID"),
-        nullable=True,
-        index=True
-    )
-    # Optional — the project this PO is feeding materials to.
-    # Lets us roll up "PO total per project" reports later.
 
     SENT_AT = Column(DateTime, nullable=True)
 
@@ -2742,7 +2395,7 @@ class SalesOrder(Base):
     SO_NUMBER = Column(String(30), unique=True, index=True)
 
     CUSTOMER_ID = Column(
-        Integer,
+        String(36),
         ForeignKey("customer.ID"),
         index=True
     )
@@ -2877,14 +2530,6 @@ class SalesOrderLine(Base):
     )
     # Trace back to the originating quotation line for audit
 
-    SPAWNED_PROJECT_ID = Column(
-        Integer,
-        ForeignKey("project_legacy.ID"),
-        nullable=True,
-        index=True
-    )
-    # Set when /spawn-projects creates a project for this line.
-    # NULL means the project hasn't been kicked off yet.
 
     DESCRIPTION = Column(String(500))
 
@@ -2932,162 +2577,6 @@ class SalesOrderActivity(Base):
     ACTOR_TYPE = Column(String(20), nullable=True)
 
     ACTOR_NAME = Column(String(150), nullable=True)
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow, index=True)
-
-# =================================================================
-# Customer Self-Onboarding Portal (Phase: portal MVP)
-# =================================================================
-#
-# Three tables drive the customer self-serve onboarding flow:
-#
-# 1. CustomerOnboardingSession   one row per invitation; carries
-#                                 status, partial data, and the
-#                                 eventually-created CUSTOMER_ID.
-# 2. CustomerPortalUser           the customer's portal account
-#                                 (username + bcrypt password,
-#                                 session key for stateless auth).
-# 3. CustomerChatMessage          full chat transcript for audit
-#                                 and admin replay.
-
-class CustomerOnboardingSession(Base):
-    """One row per onboarding invite. PARTIAL_DATA is a JSON-encoded
-    dict of all the fields the AI has extracted so far. Status
-    transitions: INVITED -> REGISTERED -> IN_PROGRESS -> SUBMITTED.
-    On SUBMITTED, CUSTOMER_ID points at the new Customer row in CRM."""
-
-    __tablename__ = "customer_onboarding_session"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    TOKEN = Column(
-        String(64),
-        unique=True,
-        index=True
-    )
-    # URL-safe random token; appears in /portal/onboarding/<TOKEN>
-
-    STATUS = Column(
-        String(20),
-        default="INVITED",
-        index=True
-    )
-    # INVITED  -> link generated, customer hasn't opened it yet
-    # REGISTERED -> customer set username + password
-    # IN_PROGRESS -> at least one chat exchange happened
-    # SUBMITTED -> customer clicked Submit; CUSTOMER_ID is set
-
-    NAME_HINT = Column(String(200), nullable=True)
-    # Optional company name pre-filled by admin in the invite form
-
-    EMAIL_HINT = Column(String(150), nullable=True)
-    # Optional email pre-filled by admin (used for invitation email)
-
-    INVITED_BY_ID = Column(String(36), nullable=True)
-    # employee.ID of the admin who generated the link
-
-    PARTIAL_DATA = Column(Text, nullable=True)
-    # JSON-encoded dict of every Customer field collected so far
-
-    PROGRESS_PCT = Column(Integer, default=0)
-    # 0..100 computed from required-fields-filled / total-required
-
-    NEXT_FIELD_HINT = Column(String(50), nullable=True)
-    # AI's last-suggested next field key (for resume)
-
-    CUSTOMER_ID = Column(
-        Integer,
-        ForeignKey("customer.ID"),
-        nullable=True,
-        index=True
-    )
-    # Filled once SUBMITTED — links to the created Customer row
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID"),
-        index=True,
-        default=1
-    )
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow, index=True)
-
-    REGISTERED_AT = Column(DateTime, nullable=True)
-
-    LAST_ACTIVITY_AT = Column(DateTime, nullable=True)
-
-    SUBMITTED_AT = Column(DateTime, nullable=True)
-
-
-class CustomerPortalUser(Base):
-    """The customer's portal account (username + bcrypt password).
-    Bound to a single onboarding session. SESSION_KEY is a random
-    string used as a bearer token on subsequent portal API calls."""
-
-    __tablename__ = "customer_portal_user"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    SESSION_ID = Column(
-        Integer,
-        ForeignKey("customer_onboarding_session.ID"),
-        unique=True,
-        index=True
-    )
-
-    USERNAME = Column(String(80), index=True)
-
-    PASSWORD = Column(String(255))
-    # bcrypt hash
-
-    SESSION_KEY = Column(String(80), nullable=True, index=True)
-    # rotated on each login; sent back to the portal client and
-    # validated on every API call (lightweight bearer token, no JWT)
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-
-    LAST_LOGIN_AT = Column(DateTime, nullable=True)
-
-
-class CustomerChatMessage(Base):
-    """Append-only transcript of the AI <-> customer conversation."""
-
-    __tablename__ = "customer_chat_message"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    SESSION_ID = Column(
-        Integer,
-        ForeignKey("customer_onboarding_session.ID"),
-        index=True
-    )
-
-    ROLE = Column(String(20))
-    # 'user' | 'assistant' | 'system'
-
-    CONTENT = Column(Text)
-
-    FIELD_KEY = Column(String(60), nullable=True)
-    # When assistant asked for a specific field, store the key here
-    # (helps admin replay see which question targeted which field)
-
-    EXTRACTED_FIELDS = Column(Text, nullable=True)
-    # JSON: fields the AI extracted from this user message
 
     CREATED_AT = Column(DateTime, default=datetime.utcnow, index=True)
 

@@ -17,7 +17,6 @@ from app.database.database import get_db
 from app.models.models import (
     TaskAssignment,
     Employee,
-    CustomerProject,
     Notification
 )
 
@@ -188,15 +187,7 @@ def _gather_details(db: Session, task: TaskAssignment):
         Employee.ID == task.EMPLOYEE_ID
     ).first()
 
-    proj = None
-
-    if task.PROJECT_ID:
-
-        proj = db.query(CustomerProject).filter(
-            CustomerProject.ID == task.PROJECT_ID
-        ).first()
-
-    return emp, proj
+    return emp, None
 
 
 @router.get("/approve-task", response_class=HTMLResponse)  # public by design — secured by the emailed token, not a login session
@@ -436,14 +427,10 @@ def list_pending(
     rows = db.query(
         TaskAssignment,
         Employee.NAME,
-        Employee.EMPLOYEE_CODE,
-        CustomerProject.PROJECT_NAME
+        Employee.EMPLOYEE_CODE
     ).outerjoin(
         Employee,
         TaskAssignment.EMPLOYEE_ID == Employee.ID
-    ).outerjoin(
-        CustomerProject,
-        TaskAssignment.PROJECT_ID == CustomerProject.ID
     ).filter(
         TaskAssignment.APPROVAL_STATUS == "PENDING_APPROVAL"
     ).order_by(
@@ -456,7 +443,6 @@ def list_pending(
             "TASK_NAME": ta.TASK_NAME,
             "EMPLOYEE_NAME": emp_name,
             "EMPLOYEE_CODE": emp_code,
-            "PROJECT_NAME": proj_name,
             "DUE_DATE": (
                 ta.DUE_DATE.isoformat() if ta.DUE_DATE else None
             ),
@@ -466,5 +452,5 @@ def list_pending(
             ),
             "APPROVAL_TOKEN": ta.APPROVAL_TOKEN
         }
-        for ta, emp_name, emp_code, proj_name in rows
+        for ta, emp_name, emp_code in rows
     ]

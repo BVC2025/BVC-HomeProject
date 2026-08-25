@@ -16,12 +16,9 @@ Endpoints:
   POST   /quotations/{id}/approve       Mark APPROVED
   POST   /quotations/{id}/reject        Mark REJECTED (with reason)
 
-  POST   /quotations/from-requirements  Auto-create from requirement IDs
-                                        — uses BOM-based pricing if available
-
-  POST   /quotations/auto-generate      One-shot: pick all active reqs
-                                        for a customer, build draft +
-                                        optionally email it.
+  POST   /quotations/auto-generate      One-shot: caller supplies the
+                                        machine lines for a customer,
+                                        build draft + optionally email it.
 
   GET    /quotations/dashboard-stats    Counters for the quotation
                                         dashboard tiles.
@@ -46,7 +43,6 @@ from app.database.database import get_db
 
 from app.models.models import (
     Customer,
-    CustomerRequirement,
     Employee,
     ProductModel,
     BOMItem,
@@ -76,7 +72,6 @@ from app.schemas.quotation_schema import (
     QuotationLineCreate,
     QuotationLineUpdate,
     QuotationRejection,
-    QuotationFromRequirement,
     AutoGenerateQuotation
 )
 
@@ -276,10 +271,10 @@ def _auto_create_so_for_quotation(
             DISPATCH_PERCENT=40,
             INSTALLATION_PERCENT=10,
             SHIPPING_ADDRESS=(
-                customer.SHIPPING_ADDRESS if customer else None
+                customer.ADDRESS if customer else None
             ),
             BILLING_ADDRESS=(
-                customer.BILLING_ADDRESS if customer else None
+                customer.ADDRESS if customer else None
             ),
             TERMS_AND_CONDITIONS=q.TERMS_AND_CONDITIONS,
             NOTES=f"Auto-created from approved quotation {q.QUOTATION_NUMBER}",
@@ -355,7 +350,7 @@ def _auto_create_so_for_quotation(
                 f"SO: *{so.SO_NUMBER}* (DRAFT)\n"
                 f"From quotation: {q.QUOTATION_NUMBER}\n"
                 f"Customer: *"
-                f"{customer.CUSTOMER_NAME if customer else f'#{so.CUSTOMER_ID}'}*\n"
+                f"{customer.NAME if customer else f'#{so.CUSTOMER_ID}'}*\n"
                 f"Grand Total: Rs. {(so.GRAND_TOTAL or 0):,.2f}\n\n"
                 f"Review & confirm in the SO module to trigger production."
             )
@@ -451,7 +446,7 @@ def _build_quotation_email_html(q: Quotation, customer: Customer, public_link: s
     <div style="padding: 26px 28px; color: #0f172a; line-height: 1.55;">
 
       <p style="margin: 0 0 14px; font-size: 15px;">
-        Dear <b>{customer.CUSTOMER_NAME}</b>,
+        Dear <b>{customer.NAME}</b>,
       </p>
 
       <p style="margin: 0 0 18px; font-size: 14px; color: #475569;">
@@ -627,7 +622,6 @@ def _serialize_line(l: QuotationLine) -> dict:
         "ID": l.ID,
         "QUOTATION_ID": l.QUOTATION_ID,
         "PRODUCT_MODEL_ID": l.PRODUCT_MODEL_ID,
-        "REQUIREMENT_ID": l.REQUIREMENT_ID,
         "DESCRIPTION": l.DESCRIPTION,
         "HSN_CODE": l.HSN_CODE,
         "QUANTITY": l.QUANTITY,
@@ -687,13 +681,10 @@ def _serialize_quotation(
 
         if c:
 
-            base["CUSTOMER_NAME"] = c.CUSTOMER_NAME
-            base["CUSTOMER_CODE"] = c.CUSTOMER_CODE
-            base["CUSTOMER_PHONE"] = c.PHONE
+            base["CUSTOMER_NAME"] = c.NAME
+            base["CUSTOMER_PHONE"] = c.PHONE_NUMBER
             base["CUSTOMER_EMAIL"] = c.EMAIL
-            base["CUSTOMER_ADDRESS"] = (
-                c.BILLING_ADDRESS or c.ADDRESS or ""
-            )
+            base["CUSTOMER_ADDRESS"] = c.ADDRESS or ""
             base["CUSTOMER_GST"] = c.GST_NUMBER
 
     # Lookup preparer name
@@ -861,7 +852,6 @@ def create_quotation(
         line = QuotationLine(
             QUOTATION_ID=q.ID,
             PRODUCT_MODEL_ID=line_data.PRODUCT_MODEL_ID,
-            REQUIREMENT_ID=line_data.REQUIREMENT_ID,
             DESCRIPTION=line_data.DESCRIPTION,
             HSN_CODE=line_data.HSN_CODE,
             QUANTITY=line_data.QUANTITY or 1.0,
@@ -897,7 +887,7 @@ def create_quotation(
 @router.get("/quotations", dependencies=[Depends(require("quotation.manage"))])
 def list_quotations(
     status: Optional[str] = Query(None),
-    customer_id: Optional[int] = Query(None),
+    customer_id: Optional[str] = Query(None),
     vendor_id: Optional[int] = Query(None),
     db: Session = Depends(get_db)
 ):
@@ -1111,7 +1101,6 @@ def add_line(
     line = QuotationLine(
         QUOTATION_ID=quotation_id,
         PRODUCT_MODEL_ID=data.PRODUCT_MODEL_ID,
-        REQUIREMENT_ID=data.REQUIREMENT_ID,
         DESCRIPTION=data.DESCRIPTION,
         HSN_CODE=data.HSN_CODE,
         QUANTITY=data.QUANTITY or 1.0,
@@ -1280,13 +1269,7 @@ def _build_quotation_pdf_html(q: Quotation, customer: Customer, lines: list, com
             'color:#94a3b8;">No line items</td></tr>'
         )
 
-    customer_addr = (
-        customer.BILLING_ADDRESS or customer.ADDRESS or ""
-    )
-
-    cust_city_state = ", ".join(
-        x for x in [customer.CITY, customer.STATE, customer.PINCODE] if x
-    )
+    customer_addr = customer.ADDRESS or ""
 
     terms = q.TERMS_AND_CONDITIONS or ""
 
@@ -1334,12 +1317,10 @@ def _build_quotation_pdf_html(q: Quotation, customer: Customer, lines: list, com
     <tr>
       <td style="width:50%;">
         <div class="label">BILL TO</div>
-        <div style="font-weight:bold;">{customer.CUSTOMER_NAME or ''}</div>
-        {(f'<div>{customer.CONTACT_PERSON}</div>') if customer.CONTACT_PERSON else ''}
+        <div style="font-weight:bold;">{customer.NAME or ''}</div>
         <div>{customer_addr}</div>
-        <div>{cust_city_state}</div>
         {(f'<div>GST: {customer.GST_NUMBER}</div>') if customer.GST_NUMBER else ''}
-        {(f'<div>Phone: {customer.PHONE}</div>') if customer.PHONE else ''}
+        {(f'<div>Phone: {customer.PHONE_NUMBER}</div>') if customer.PHONE_NUMBER else ''}
         {(f'<div>Email: {customer.EMAIL}</div>') if customer.EMAIL else ''}
       </td>
       <td style="width:50%; text-align:right;">
@@ -1518,22 +1499,6 @@ def send_quotation(
     q.SENT_AT = datetime.utcnow()
 
     _ensure_public_token(q)
-
-    # Mark linked requirements as QUOTED
-    lines = db.query(QuotationLine).filter(
-        QuotationLine.QUOTATION_ID == quotation_id,
-        QuotationLine.REQUIREMENT_ID.isnot(None)
-    ).all()
-
-    req_ids = {l.REQUIREMENT_ID for l in lines if l.REQUIREMENT_ID}
-
-    if req_ids:
-
-        db.query(CustomerRequirement).filter(
-            CustomerRequirement.ID.in_(req_ids)
-        ).update(
-            {"STATUS": "QUOTED"}, synchronize_session=False
-        )
 
     _log_activity(db, q.ID, "SENT", detail="Status changed to SENT")
 
@@ -1759,130 +1724,6 @@ def auto_price(
         "raw_bom_cost": raw_cost,
         "margin_percent": margin_percent,
         "suggested_unit_price": suggested
-    }
-
-
-@router.post("/quotations/from-requirements", dependencies=[Depends(require("quotation.manage"))])
-def quotation_from_requirements(
-    data: QuotationFromRequirement,
-    db: Session = Depends(get_db)
-):
-    """Auto-create a draft quotation from one or more customer
-    requirements. Each requirement → one line. Unit price comes from
-    the requirement's TARGET_UNIT_PRICE if set, otherwise from
-    BOM-based auto-pricing on the linked ProductModel."""
-
-    customer = db.query(Customer).filter(
-        Customer.ID == data.CUSTOMER_ID
-    ).first()
-
-    if not customer:
-
-        raise HTTPException(status_code=404, detail="Customer not found")
-
-    reqs = db.query(CustomerRequirement).filter(
-        CustomerRequirement.ID.in_(data.REQUIREMENT_IDS),
-        CustomerRequirement.CUSTOMER_ID == data.CUSTOMER_ID
-    ).all()
-
-    if not reqs:
-
-        raise HTTPException(
-            status_code=400,
-            detail="No matching requirements found for this customer"
-        )
-
-    vendor_id = data.VENDOR_ID or customer.VENDOR_ID or 1
-
-    q = Quotation(
-        QUOTATION_NUMBER=_next_quotation_number(db, vendor_id),
-        CUSTOMER_ID=customer.ID,
-        QUOTATION_DATE=date.today(),
-        VALIDITY_DAYS=30,
-        DISCOUNT_PERCENT=0.0,
-        TAX_PERCENT=18.0,
-        PREPARED_BY=customer.ASSIGNED_SALES_ID,
-        VENDOR_ID=vendor_id,
-        STATUS="DRAFT"
-    )
-
-    _set_expiry(q)
-
-    db.add(q)
-
-    db.flush()
-
-    for idx, r in enumerate(reqs):
-
-        # Pick unit price: explicit target > BOM-based > 0
-        if r.TARGET_UNIT_PRICE:
-
-            unit_price = float(r.TARGET_UNIT_PRICE)
-
-        elif r.PRODUCT_MODEL_ID:
-
-            cost = _bom_cost_per_unit(db, r.PRODUCT_MODEL_ID, vendor_id)
-
-            unit_price = round(
-                cost * (1.0 + (data.MARGIN_PERCENT or 25.0) / 100.0),
-                2
-            )
-
-        else:
-
-            unit_price = 0.0
-
-        # Build a descriptive line label
-        parts = []
-
-        if r.MACHINE_NAME:
-
-            parts.append(r.MACHINE_NAME)
-
-        if r.MACHINE_CATEGORY:
-
-            parts.append(f"({r.MACHINE_CATEGORY})")
-
-        if r.CAPACITY:
-
-            parts.append(f"— {r.CAPACITY}")
-
-        description = " ".join(parts) or f"Requirement #{r.ID}"
-
-        if r.SPECIAL_NOTES:
-
-            description += f". {r.SPECIAL_NOTES}"
-
-        line = QuotationLine(
-            QUOTATION_ID=q.ID,
-            PRODUCT_MODEL_ID=r.PRODUCT_MODEL_ID,
-            REQUIREMENT_ID=r.ID,
-            DESCRIPTION=description[:500],
-            QUANTITY=float(r.QUANTITY or 1),
-            UNIT="nos",
-            UNIT_PRICE=unit_price,
-            DISCOUNT_PERCENT=0.0,
-            SORT_ORDER=idx
-        )
-
-        line.LINE_TOTAL = _compute_line_total(line)
-
-        db.add(line)
-
-    db.flush()
-
-    _recompute_quotation_totals(db, q)
-
-    db.commit()
-
-    db.refresh(q)
-
-    return {
-        "message": (
-            f"Created quotation {q.QUOTATION_NUMBER} "
-            f"from {len(reqs)} requirement(s)"
-        ),
-        "quotation": _serialize_quotation(db, q)
     }
 
 
@@ -2353,7 +2194,7 @@ def public_negotiation_send(
                 f"Offer in reply: {bot_discount}%."
             ),
             actor_type="CUSTOMER",
-            actor_name=(customer.CUSTOMER_NAME if customer else None)
+            actor_name=(customer.NAME if customer else None)
         )
 
     else:
@@ -2363,7 +2204,7 @@ def public_negotiation_send(
             db, q.ID, "NEGOTIATION",
             detail=f"intent={intent} action={action}",
             actor_type="CUSTOMER",
-            actor_name=(customer.CUSTOMER_NAME if customer else None)
+            actor_name=(customer.NAME if customer else None)
         )
 
     db.commit()
@@ -2429,10 +2270,6 @@ def delete_activity_row(
 # Used when a quotation line is built from a ProductModel that has
 # no per-product HSN column on the model (currently the case).
 DEFAULT_VENDING_MACHINE_HSN = "84244000"
-
-# Statuses on CustomerRequirement that are still "in play" for a
-# new quotation. Skip ORDERED (already converted) and CANCELLED.
-AUTO_GEN_REQUIREMENT_STATUSES = ("DRAFT", "CONFIRMED", "QUOTED")
 
 
 # =====================================================================
@@ -2606,8 +2443,9 @@ FEATURE_CATALOG = [
 
 
 def _detect_features(req) -> list:
-    """Scan a CustomerRequirement's free-text fields for feature
-    keywords and return a list of {description, qty, unit_price, hsn}.
+    """Scan a machine line's free-text fields (an AutoGenerateLineInput)
+    for feature keywords and return a list of
+    {description, qty, unit_price, hsn}.
 
     Each match shows up as its own line on the quotation so the customer
     sees what they're paying for (instead of one opaque lump sum)."""
@@ -2672,14 +2510,16 @@ def auto_generate_quotation(
     data: AutoGenerateQuotation,
     db: Session = Depends(get_db)
 ):
-    """One-shot auto-generation of a quotation from a customer's
-    active requirements.
+    """One-shot auto-generation of a quotation from caller-supplied
+    machine lines for a customer.
 
     Flow:
       1. Validate customer exists.
-      2. Fetch all requirements with STATUS in (DRAFT, CONFIRMED,
-         QUOTED). Skip ORDERED / CANCELLED.
-      3. Build one quotation line per requirement.
+      2. Use the caller-supplied LINES — there are no
+         CustomerRequirement rows to pick from anymore, the caller
+         (sales rep / intake widget) sends the machine details
+         directly.
+      3. Build one quotation line per LINES entry.
          - If PRODUCT_MODEL_ID is set: price = TARGET_UNIT_PRICE
            or compute_unit_price_from_bom().
          - Otherwise: free-text line from MACHINE_CATEGORY with
@@ -2687,8 +2527,7 @@ def auto_generate_quotation(
       4. Recompute totals.
       5. If AUTO_SEND_EMAIL=true and customer has an EMAIL → flip
          STATUS=SENT, ensure PUBLIC_TOKEN, dispatch email.
-      6. Mark consumed requirements as QUOTED.
-      7. Notify MD on WhatsApp (best-effort)."""
+      6. Notify MD on WhatsApp (best-effort)."""
 
     # --- 1. Customer ---
     customer = db.query(Customer).filter(
@@ -2699,20 +2538,14 @@ def auto_generate_quotation(
 
         raise HTTPException(status_code=404, detail="Customer not found")
 
-    # --- 2. Requirements ---
-    requirements = db.query(CustomerRequirement).filter(
-        CustomerRequirement.CUSTOMER_ID == data.CUSTOMER_ID,
-        CustomerRequirement.STATUS.in_(AUTO_GEN_REQUIREMENT_STATUSES)
-    ).order_by(
-        CustomerRequirement.CREATED_AT.asc(),
-        CustomerRequirement.ID.asc()
-    ).all()
+    # --- 2. Lines — supplied directly by the caller ---
+    requirements = data.LINES
 
     if not requirements:
 
         raise HTTPException(
             status_code=400,
-            detail="Customer has no active requirements to quote"
+            detail="At least one line (LINES) is required to auto-generate a quotation"
         )
 
     warnings: list = []
@@ -2727,8 +2560,7 @@ def auto_generate_quotation(
 
     # --- 3. Header ---
     notes = data.NOTES or (
-        f"Auto-generated from customer requirements "
-        f"on {quotation_date.isoformat()}."
+        f"Auto-generated on {quotation_date.isoformat()}."
     )
 
     q = Quotation(
@@ -2740,7 +2572,7 @@ def auto_generate_quotation(
         TAX_PERCENT=18.0,
         TERMS_AND_CONDITIONS=_default_terms_and_conditions(validity_days),
         NOTES=notes,
-        PREPARED_BY=customer.ASSIGNED_SALES_ID,
+        PREPARED_BY=data.PREPARED_BY,
         VENDOR_ID=vendor_id,
         STATUS="DRAFT"
     )
@@ -2752,12 +2584,12 @@ def auto_generate_quotation(
     db.flush()
 
     # --- 4. Lines ---
-    # Each requirement spawns ONE machine line + N feature lines (auto-
-    # detected from the requirement's free text). This way the customer
-    # sees exactly what they're paying for instead of one opaque lump.
+    # Each LINES entry spawns ONE machine line + N feature lines (auto-
+    # detected from its free text). This way the customer sees exactly
+    # what they're paying for instead of one opaque lump.
     line_sort = 0
 
-    for r in requirements:
+    for line_no, r in enumerate(requirements, start=1):
 
         # ---- 4a. Machine line — base price ----
         if r.PRODUCT_MODEL_ID:
@@ -2767,7 +2599,7 @@ def auto_generate_quotation(
             ).first()
 
             # Price precedence:
-            #   1. Customer's TARGET_UNIT_PRICE (explicit budget)
+            #   1. Caller's TARGET_UNIT_PRICE (explicit budget)
             #   2. BOM rollup × margin
             #   3. Category default (covers empty-BOM products)
             if r.TARGET_UNIT_PRICE:
@@ -2787,7 +2619,7 @@ def auto_generate_quotation(
                     unit_price = _category_base_price(product.CATEGORY)
 
                     warnings.append(
-                        f"Requirement #{r.ID}: BOM is empty for product "
+                        f"Line #{line_no}: BOM is empty for product "
                         f"#{r.PRODUCT_MODEL_ID} — used category default "
                         f"price (₹{unit_price:,.0f}). Edit before sending "
                         f"if needed."
@@ -2806,7 +2638,7 @@ def auto_generate_quotation(
 
         else:
 
-            # ---- No ProductModel — chatbot / portal intake ----
+            # ---- No ProductModel — free-text machine details ----
             # Use TARGET_UNIT_PRICE if provided, else look up by category
             if r.TARGET_UNIT_PRICE:
 
@@ -2819,7 +2651,7 @@ def auto_generate_quotation(
                 if unit_price == DEFAULT_BASE_PRICE:
 
                     warnings.append(
-                        f"Requirement #{r.ID}: category "
+                        f"Line #{line_no}: category "
                         f"'{r.MACHINE_CATEGORY}' didn't match the pricing "
                         f"catalog — used generic default "
                         f"(₹{unit_price:,.0f}). Edit before sending."
@@ -2832,8 +2664,8 @@ def auto_generate_quotation(
 
             if r.MACHINE_NAME:
 
-                # Take just the first segment if customer pasted multiple
-                # model names separated by spaces / commas
+                # Take just the first segment if multiple model names
+                # were pasted separated by spaces / commas
                 first_name = re.split(r"[,;\n]| {2,}", r.MACHINE_NAME)[0].strip()
 
                 parts.append(first_name or r.MACHINE_NAME)
@@ -2847,7 +2679,7 @@ def auto_generate_quotation(
                 parts.append(f"— {r.CAPACITY}")
 
             description = " ".join(parts) or (
-                r.MACHINE_CATEGORY or f"Vending Machine (Requirement #{r.ID})"
+                r.MACHINE_CATEGORY or f"Vending Machine (Line #{line_no})"
             )
 
             hsn = DEFAULT_VENDING_MACHINE_HSN
@@ -2855,7 +2687,6 @@ def auto_generate_quotation(
         machine_line = QuotationLine(
             QUOTATION_ID=q.ID,
             PRODUCT_MODEL_ID=r.PRODUCT_MODEL_ID,
-            REQUIREMENT_ID=r.ID,
             DESCRIPTION=description[:500],
             HSN_CODE=hsn,
             QUANTITY=float(r.QUANTITY or 1),
@@ -2881,7 +2712,6 @@ def auto_generate_quotation(
             feat_line = QuotationLine(
                 QUOTATION_ID=q.ID,
                 PRODUCT_MODEL_ID=None,
-                REQUIREMENT_ID=r.ID,
                 DESCRIPTION=feat["description"][:500],
                 HSN_CODE=feat["hsn"],
                 QUANTITY=feat["qty"] * machine_qty,
@@ -2904,7 +2734,7 @@ def auto_generate_quotation(
     _log_activity(
         db, q.ID, "CREATED",
         detail=(
-            f"Auto-generated from {len(requirements)} requirement(s) "
+            f"Auto-generated from {len(requirements)} line(s) "
             f"(margin {margin}%)"
         )
     )
@@ -2980,36 +2810,24 @@ def auto_generate_quotation(
                     f"quotation detail screen."
                 )
 
-    # --- 6. Mark requirements as QUOTED ---
-    requirement_ids = [r.ID for r in requirements]
-
-    if requirement_ids:
-
-        db.query(CustomerRequirement).filter(
-            CustomerRequirement.ID.in_(requirement_ids)
-        ).update(
-            {"STATUS": "QUOTED"}, synchronize_session=False
-        )
-
     db.commit()
 
     db.refresh(q)
 
-    # --- 7. WhatsApp MD notification (best-effort, never blocks) ---
+    # --- 6. WhatsApp MD notification (best-effort, never blocks) ---
     try:
 
         from app.services.whatsapp_service import notify_md_safe
 
         prepared_label = (
-            f"by {customer.ASSIGNED_SALES_ID}"
-            if customer.ASSIGNED_SALES_ID else "automatically"
+            f"by {data.PREPARED_BY}" if data.PREPARED_BY else "automatically"
         )
 
         notify_md_safe(
             f"📄 *Quotation Auto-Generated — BVC24*\n\n"
             f"📑 *{q.QUOTATION_NUMBER}*\n"
-            f"🏢 Customer: *{customer.CUSTOMER_NAME}*\n"
-            f"📦 Lines: {len(requirements)} from active requirements\n"
+            f"🏢 Customer: *{customer.NAME}*\n"
+            f"📦 Lines: {len(requirements)} supplied\n"
             f"💰 Grand Total: Rs. {q.GRAND_TOTAL:,.2f}\n"
             f"📌 Status: {q.STATUS}\n"
             f"✉️ Email: {'sent' if email_sent else email_status}\n"
@@ -3021,14 +2839,15 @@ def auto_generate_quotation(
         # Best-effort: never fail the response because WhatsApp is down
         pass
 
-    # --- 8. Response ---
+    # --- 7. Response ---
     requirements_used = [
         {
-            "ID": r.ID,
-            "QUANTITY": r.QUANTITY,
+            "PRODUCT_MODEL_ID": r.PRODUCT_MODEL_ID,
             "MACHINE_NAME": r.MACHINE_NAME,
             "MACHINE_CATEGORY": r.MACHINE_CATEGORY,
-            "STATUS": "QUOTED"
+            "CAPACITY": r.CAPACITY,
+            "QUANTITY": r.QUANTITY,
+            "TARGET_UNIT_PRICE": r.TARGET_UNIT_PRICE
         }
         for r in requirements
     ]
@@ -3037,7 +2856,7 @@ def auto_generate_quotation(
 
         message = (
             f"Quotation {q.QUOTATION_NUMBER} auto-generated from "
-            f"{len(requirements)} requirement(s) and sent to "
+            f"{len(requirements)} line(s) and sent to "
             f"{customer.EMAIL}"
         )
 
@@ -3045,7 +2864,7 @@ def auto_generate_quotation(
 
         message = (
             f"Quotation {q.QUOTATION_NUMBER} auto-generated from "
-            f"{len(requirements)} requirement(s) "
+            f"{len(requirements)} line(s) "
             f"(STATUS={q.STATUS}, email={email_status})"
         )
 

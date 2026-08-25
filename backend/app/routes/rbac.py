@@ -27,7 +27,8 @@ from datetime import datetime
 from app.database.database import get_db
 from app.models.models import Role, Permission, RolePermission, Employee
 from app.models.rbac_models import EmployeePermissionOverride, EmployeePermissionOverrideAudit
-from app.services.permission_catalogue import PAGE_LABELS
+from app.services.permission_catalogue import PAGE_LABELS, FILTER_DEPENDENCIES
+from app.services.auth_service import resolve_effective_permissions
 from app.auth.auth_bearer import (
     require, get_current_admin, get_current_user,
     assert_not_granting_root_only_codes, assert_role_not_protected,
@@ -70,6 +71,7 @@ def _serialize_permission(p: Permission) -> dict:
         "CATEGORY":    p.CATEGORY,
         "DESCRIPTION": p.DESCRIPTION,
         "PAGE":        PAGE_LABELS.get(p.CODE),
+        "REQUIRES":    FILTER_DEPENDENCIES.get(p.CODE),
     }
 
 
@@ -85,6 +87,104 @@ def _serialize_override(ov: EmployeePermissionOverride, perm: Permission) -> dic
         "GRANTED_AT":     ov.GRANTED_AT.isoformat() if ov.GRANTED_AT else None,
         "EXPIRES_AT":     ov.EXPIRES_AT.isoformat() if ov.EXPIRES_AT else None,
     }
+
+
+# =====================================================================
+# Filter-permission dependency helpers
+# ---------------------------------------------------------------------
+# A dependent code (e.g. lead.records.filter_department) must never end
+# up effectively granted, at a given role or a given employee's
+# effective set, unless its prerequisite (lead.records.all_lead_view)
+# is granted there too. See FILTER_DEPENDENCIES in permission_catalogue.
+# =====================================================================
+
+def _apply_filter_dependency_cascade(target_codes: set) -> tuple:
+    """Given a desired full set of granted codes, strip any dependent
+    code whose prerequisite isn't also in the set. Returns
+    (adjusted_set, codes_removed)."""
+    adjusted = set(target_codes)
+    removed = set()
+    changed = True
+    while changed:
+        changed = False
+        for dependent, prereq in FILTER_DEPENDENCIES.items():
+            if dependent in adjusted and prereq not in adjusted:
+                adjusted.discard(dependent)
+                removed.add(dependent)
+                changed = True
+    return adjusted, removed
+
+
+def _assert_dependency_satisfied(code: str, currently_granted_codes) -> None:
+    """400 if `code` is a dependent filter permission and its
+    prerequisite is not present in currently_granted_codes (the state
+    BEFORE this single grant is applied)."""
+    prereq = FILTER_DEPENDENCIES.get(code)
+    if prereq and prereq not in set(currently_granted_codes):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot grant '{code}' without also granting '{prereq}' first.",
+        )
+
+
+def _effective_codes_for_employee(db: Session, employee: Employee) -> set:
+    """Role defaults ∪ active GRANT overrides − active DENY overrides,
+    computed live — the same resolution auth_service bakes into a JWT
+    at login."""
+    role_codes = []
+    if employee.ROLE_ID:
+        role_codes = [
+            p.CODE
+            for p in db.query(Permission)
+                       .join(RolePermission, RolePermission.PERMISSION_ID == Permission.ID)
+                       .filter(RolePermission.ROLE_ID == employee.ROLE_ID)
+                       .all()
+        ]
+    return set(resolve_effective_permissions(db, employee.ID, role_codes))
+
+
+def _cascade_revoke_dependents_for_employee(db: Session, employee: Employee, changed_by) -> list:
+    """After a change to this employee's overrides, force-DENY any
+    dependent filter code that is STILL effectively granted (via role
+    default or its own GRANT override) but whose prerequisite is no
+    longer effectively granted. Idempotent. Returns the codes that were
+    cascade-denied."""
+    effective = _effective_codes_for_employee(db, employee)
+    cascaded = []
+    now = datetime.utcnow()
+    for dependent, prereq in FILTER_DEPENDENCIES.items():
+        if dependent in effective and prereq not in effective:
+            perm = db.query(Permission).filter(Permission.CODE == dependent).first()
+            if not perm:
+                continue
+            existing = (
+                db.query(EmployeePermissionOverride)
+                  .filter(EmployeePermissionOverride.EMPLOYEE_ID == employee.ID,
+                          EmployeePermissionOverride.PERMISSION_ID == perm.ID)
+                  .first()
+            )
+            old_effect = existing.EFFECT if existing else None
+            if existing:
+                existing.EFFECT = "DENY"
+                existing.GRANTED_BY_ID = changed_by
+                existing.GRANTED_AT = now
+            else:
+                existing = EmployeePermissionOverride(
+                    EMPLOYEE_ID=employee.ID, PERMISSION_ID=perm.ID,
+                    EFFECT="DENY", GRANTED_BY_ID=changed_by,
+                    GRANTED_AT=now, VENDOR_ID=employee.VENDOR_ID,
+                )
+                db.add(existing)
+                db.flush()
+            if old_effect != "DENY":
+                db.add(EmployeePermissionOverrideAudit(
+                    EMPLOYEE_ID=employee.ID, PERMISSION_ID=perm.ID,
+                    OLD_EFFECT=old_effect, NEW_EFFECT="DENY",
+                    REASON="Cascade: prerequisite permission revoked",
+                    CHANGED_BY_ID=changed_by, VENDOR_ID=employee.VENDOR_ID,
+                ))
+            cascaded.append(dependent)
+    return cascaded
 
 
 # =====================================================================
@@ -208,6 +308,13 @@ def replace_role_permissions(
             status_code=400,
             detail=f"Unknown permission codes: {sorted(unknown)}"
         )
+
+    # Silently drop any dependent filter permission whose prerequisite
+    # (e.g. lead.records.all_lead_view) isn't also present in this same
+    # replace — this is also how a save that simply omits the
+    # prerequisite implements cascade-revoke of its dependents.
+    adjusted_codes, cascade_removed = _apply_filter_dependency_cascade(found_codes)
+    perms = [p for p in perms if p.CODE in adjusted_codes]
     target_ids = {p.ID for p in perms}
 
     # Current grants
@@ -233,11 +340,12 @@ def replace_role_permissions(
     db.commit()
 
     return {
-        "role_id":      role_id,
-        "added":        len(to_add),
-        "removed":      len(to_remove),
-        "total_grants": len(target_ids),
-        "note":         "Members must re-login to pick up the new permissions in their JWT.",
+        "role_id":         role_id,
+        "added":           len(to_add),
+        "removed":         len(to_remove),
+        "total_grants":    len(target_ids),
+        "cascade_removed": sorted(cascade_removed),
+        "note":            "Members must re-login to pick up the new permissions in their JWT.",
     }
 
 
@@ -260,6 +368,15 @@ def grant_one(
     perm = db.query(Permission).filter(Permission.CODE == body.code).first()
     if not perm:
         raise HTTPException(400, f"Unknown permission code: {body.code}")
+
+    current_codes = {
+        p.CODE
+        for p in db.query(Permission)
+                   .join(RolePermission, RolePermission.PERMISSION_ID == Permission.ID)
+                   .filter(RolePermission.ROLE_ID == role_id)
+                   .all()
+    }
+    _assert_dependency_satisfied(body.code, current_codes)
 
     existing = (
         db.query(RolePermission)
@@ -301,9 +418,38 @@ def revoke_one(
                   RolePermission.PERMISSION_ID == perm.ID)
           .delete(synchronize_session=False)
     )
+
+    # Cascade: if this code is somebody's prerequisite, drop any
+    # dependent still granted on this role too — never leave the role
+    # in a state where a filter permission is granted without its
+    # required lead.records.all_lead_view.
+    cascade_removed = []
+    dependent_codes = [d for d, p in FILTER_DEPENDENCIES.items() if p == body.code]
+    if deleted and dependent_codes:
+        dep_perms = db.query(Permission).filter(Permission.CODE.in_(dependent_codes)).all()
+        dep_ids = {p.ID: p.CODE for p in dep_perms}
+        still_granted = (
+            db.query(RolePermission)
+              .filter(RolePermission.ROLE_ID == role_id,
+                      RolePermission.PERMISSION_ID.in_(dep_ids.keys()))
+              .all()
+        )
+        if still_granted:
+            remove_ids = [rp.PERMISSION_ID for rp in still_granted]
+            (db.query(RolePermission)
+               .filter(RolePermission.ROLE_ID == role_id,
+                       RolePermission.PERMISSION_ID.in_(remove_ids))
+               .delete(synchronize_session=False))
+            cascade_removed = [dep_ids[pid] for pid in remove_ids]
+
     db.commit()
 
-    return {"role_id": role_id, "code": body.code, "revoked": bool(deleted)}
+    return {
+        "role_id": role_id,
+        "code": body.code,
+        "revoked": bool(deleted),
+        "cascade_removed": cascade_removed,
+    }
 
 
 # =====================================================================
@@ -371,6 +517,10 @@ def upsert_employee_override(
     # there's no asymmetry to accidentally exploit.
     assert_not_granting_root_only_codes(payload, [body.code])
 
+    if body.effect == "GRANT":
+        effective_before = _effective_codes_for_employee(db, employee)
+        _assert_dependency_satisfied(body.code, effective_before)
+
     existing = (
         db.query(EmployeePermissionOverride)
           .filter(
@@ -422,10 +572,19 @@ def upsert_employee_override(
             VENDOR_ID=employee.VENDOR_ID,
         ))
 
+    # Cascade: if this DENY revokes somebody's prerequisite, force-DENY
+    # any dependent filter code still effectively granted to this
+    # employee (via role default or their own GRANT override).
+    cascade_denied = []
+    if body.effect == "DENY" and body.code in FILTER_DEPENDENCIES.values():
+        db.flush()
+        cascade_denied = _cascade_revoke_dependents_for_employee(db, employee, changed_by)
+
     db.commit()
 
     return {
         **_serialize_override(row, perm),
+        "cascade_denied": cascade_denied,
         "note": "The employee must re-login (or refresh their session) to pick up this change.",
     }
 
@@ -450,6 +609,11 @@ def delete_employee_override(
     if not row:
         raise HTTPException(404, "No override exists for this employee/permission pair")
 
+    perm = db.query(Permission).filter(Permission.ID == permission_id).first()
+    was_prereq_grant = bool(
+        perm and row.EFFECT == "GRANT" and perm.CODE in FILTER_DEPENDENCIES.values()
+    )
+
     db.add(EmployeePermissionOverrideAudit(
         EMPLOYEE_ID=employee_id,
         PERMISSION_ID=permission_id,
@@ -461,11 +625,25 @@ def delete_employee_override(
     ))
 
     db.delete(row)
+    db.flush()
+
+    # Cascade: reverting a GRANT override on somebody's prerequisite
+    # back to the role default can drop the effective prerequisite —
+    # force-DENY any dependent filter code still effectively granted.
+    cascade_denied = []
+    if was_prereq_grant:
+        employee = db.query(Employee).filter(Employee.ID == employee_id).first()
+        if employee:
+            cascade_denied = _cascade_revoke_dependents_for_employee(
+                db, employee, payload.get("employee_id")
+            )
+
     db.commit()
 
     return {
         "employee_id": employee_id,
         "permission_id": permission_id,
         "reverted_to_role_default": True,
+        "cascade_denied": cascade_denied,
         "note": "The employee must re-login (or refresh their session) to pick up this change.",
     }

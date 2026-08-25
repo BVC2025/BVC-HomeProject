@@ -38,15 +38,11 @@ from sqlalchemy.orm import Session
 from app.database.database import get_db
 from app.models.models import (
     Attendance,
-    Customer,
     Department,
     Designation,
     Employee,
     LeaveRequest,
-    Project,
     TaskAssignment,
-    WorkOrderStageProgress,
-    WorkOrder,
 )
 from app.services.employee_performance_service import (
     compute_performance,
@@ -124,7 +120,7 @@ def _serialize_assignment(
         "remaining_days": _remaining_days(ta.DUE_DATE),
         "status": ta.TASK_STATUS,
         "project_name": project_name,
-        "project_id": ta.PROJECT_ID,
+        "project_id": None,  # project_legacy FK removed
         "started_at": _iso(ta.START_TIME),
         "completed_at": _iso(ta.END_TIME),
     }
@@ -300,98 +296,13 @@ def _assigned_projects_block(
     For every Project the employee has any TaskAssignment in, return
     summary stats: customer name, status, completion percentage on
     *the employee's own* slice, and a project-wide progress percent.
+
+    TaskAssignment.PROJECT_ID (the project_legacy FK) was removed along
+    with CustomerProject — there is no remaining way to group a task
+    assignment by project, so this always returns empty now.
     """
 
-    project_ids = [
-        pid for (pid,) in (
-            db.query(TaskAssignment.PROJECT_ID)
-            .filter(
-                TaskAssignment.EMPLOYEE_ID == employee_id,
-                TaskAssignment.PROJECT_ID.isnot(None),
-            )
-            .distinct()
-            .all()
-        )
-    ]
-
-    if not project_ids:
-        return []
-
-    projects: List[Project] = (
-        db.query(Project)
-        .filter(Project.ID.in_(project_ids))
-        .all()
-    )
-
-    # Customer lookup in one shot.
-    customer_ids = {
-        p.CUSTOMER_ID for p in projects if p.CUSTOMER_ID is not None
-    }
-    customer_name_by_id: Dict[int, str] = {}
-    if customer_ids:
-        for c in db.query(Customer).filter(
-            Customer.ID.in_(customer_ids)
-        ).all():
-            customer_name_by_id[c.ID] = c.CUSTOMER_NAME
-
-    out: List[Dict[str, Any]] = []
-    for p in projects:
-        # Project-wide progress %: completed / total task assignments
-        total_q = (
-            db.query(func.count(TaskAssignment.TASK_ID))
-            .filter(TaskAssignment.PROJECT_ID == p.ID)
-            .scalar()
-        ) or 0
-
-        completed_q = (
-            db.query(func.count(TaskAssignment.TASK_ID))
-            .filter(
-                TaskAssignment.PROJECT_ID == p.ID,
-                func.upper(TaskAssignment.TASK_STATUS).in_(
-                    list(_COMPLETED_STATUSES)
-                ),
-            )
-            .scalar()
-        ) or 0
-
-        if total_q > 0:
-            progress_pct = round((completed_q / total_q) * 100.0, 2)
-        else:
-            progress_pct = 0.0
-
-        # The employee's slice
-        my_stages_count = (
-            db.query(func.count(TaskAssignment.TASK_ID))
-            .filter(
-                TaskAssignment.PROJECT_ID == p.ID,
-                TaskAssignment.EMPLOYEE_ID == employee_id,
-            )
-            .scalar()
-        ) or 0
-
-        my_completed_count = (
-            db.query(func.count(TaskAssignment.TASK_ID))
-            .filter(
-                TaskAssignment.PROJECT_ID == p.ID,
-                TaskAssignment.EMPLOYEE_ID == employee_id,
-                func.upper(TaskAssignment.TASK_STATUS).in_(
-                    list(_COMPLETED_STATUSES)
-                ),
-            )
-            .scalar()
-        ) or 0
-
-        out.append({
-            "id": p.ID,
-            "name": p.PROJECT_NAME,
-            "customer_name": customer_name_by_id.get(p.CUSTOMER_ID),
-            "status": p.STATUS,
-            "progress_pct": float(progress_pct),
-            "my_stages_count": int(my_stages_count),
-            "my_completed_count": int(my_completed_count),
-        })
-
-    return out
+    return []
 
 
 def _employee_profile(
@@ -455,23 +366,14 @@ def _bucket_assignments(
     today = date.today()
     seven_days_out = today + timedelta(days=7)
 
-    # TaskAssignment has no declared ORM relationship to Project in
-    # this codebase, so a joinedload would be a no-op here. We resolve
-    # project names with a single follow-up bulk query instead.
     rows: List[TaskAssignment] = (
         db.query(TaskAssignment)
         .filter(TaskAssignment.EMPLOYEE_ID == employee_id)
         .all()
     )
 
-    # Bulk-resolve project names so we don't issue N queries.
-    project_ids = {ta.PROJECT_ID for ta in rows if ta.PROJECT_ID}
-    project_name_by_id: Dict[int, str] = {}
-    if project_ids:
-        for p in db.query(Project).filter(
-            Project.ID.in_(project_ids)
-        ).all():
-            project_name_by_id[p.ID] = p.PROJECT_NAME
+    # Project-name resolution was removed along with TaskAssignment.
+    # PROJECT_ID (the project_legacy FK, removed with CustomerProject).
 
     today_tasks: List[Dict[str, Any]] = []
     pending_tasks: List[Dict[str, Any]] = []
@@ -494,8 +396,7 @@ def _bucket_assignments(
         status = (ta.TASK_STATUS or "").upper()
         is_done = status in _COMPLETED_STATUSES
 
-        pname = project_name_by_id.get(ta.PROJECT_ID) if ta.PROJECT_ID else None
-        entry = _serialize_assignment(ta, pname)
+        entry = _serialize_assignment(ta, None)
 
         # Buckets are exclusive by status, but a task can ALSO be in
         # the "today" / "upcoming" / "overdue" lists in parallel.
@@ -532,10 +433,7 @@ def _bucket_assignments(
         reverse=True,
     )
     completed_tasks = [
-        _serialize_assignment(
-            ta,
-            project_name_by_id.get(ta.PROJECT_ID) if ta.PROJECT_ID else None,
-        )
+        _serialize_assignment(ta, None)
         for ta in completed_tasks_raw[:10]
     ]
 
@@ -750,26 +648,12 @@ def patch_task_status(
                 }
 
             # Mirror onto a paired WorkOrderStageProgress row if one
-            # exists for this employee + project. We match on
-            # (ASSIGNED_TO_ID == employee, WO belongs to this project,
-            # STATUS != DONE) and pick the oldest in-flight stage.
+            # exists for this employee + project. TaskAssignment.PROJECT_ID
+            # / WorkOrder.PROJECT_ID (the project_legacy FK) were removed
+            # along with CustomerProject, so there is no remaining way to
+            # correlate a task to a work order this way — always no-op now.
             try:
-                wo_progress = (
-                    db.query(WorkOrderStageProgress)
-                    .join(
-                        WorkOrder,
-                        WorkOrder.ID == WorkOrderStageProgress.WORK_ORDER_ID,
-                    )
-                    .filter(
-                        WorkOrderStageProgress.ASSIGNED_TO_ID == employee_id,
-                        WorkOrder.PROJECT_ID == ta.PROJECT_ID,
-                        func.upper(WorkOrderStageProgress.STATUS).notin_(
-                            ["DONE", "COMPLETED", "SKIPPED"]
-                        ),
-                    )
-                    .order_by(WorkOrderStageProgress.ID.asc())
-                    .first()
-                )
+                wo_progress = None
                 if wo_progress is not None:
                     wo_progress.STATUS = "DONE"
                     wo_progress.COMPLETED_AT = now

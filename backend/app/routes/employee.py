@@ -1148,7 +1148,6 @@ def delete_employee(
         Machine,
         NCR,
         PerformanceScore,
-        Customer,
         Quotation,
         SalesOrder,
         PurchaseOrder,
@@ -1264,13 +1263,6 @@ def delete_employee(
          .delete(synchronize_session=False))
 
     # ---- 2. Null-out history-bearing references ----
-
-    # Customer.ASSIGNED_SALES_ID — customers keep, just lose their
-    # sales-rep pointer.
-    _try("customers_sales_unlinked", lambda: db.query(Customer)
-         .filter(Customer.ASSIGNED_SALES_ID == employee_id)
-         .update({Customer.ASSIGNED_SALES_ID: None},
-                 synchronize_session=False))
 
     # Quotation / SalesOrder / PurchaseOrder PREPARED_BY — keep the
     # business docs, lose the preparer name.

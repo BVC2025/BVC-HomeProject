@@ -19,9 +19,7 @@ from app.models.models import (
     MachineLog,
     Notification,
     WorkOrder,
-    ProductModel,
-    Project,
-    Customer
+    ProductModel
 )
 
 from app.schemas.machine_schema import (
@@ -97,21 +95,9 @@ def sync_machines_from_work_orders(db: Session) -> dict:
             ProductModel.ID == wo.PRODUCT_MODEL_ID
         ).first()
 
-        project = db.query(Project).filter(
-            Project.ID == wo.PROJECT_ID
-        ).first() if wo.PROJECT_ID else None
-
-        customer = None
-
-        if project and project.CUSTOMER_ID:
-
-            customer = db.query(Customer).filter(
-                Customer.ID == project.CUSTOMER_ID
-            ).first()
-
-        location_hint = (
-            customer.CUSTOMER_NAME if customer else "Factory floor"
-        )
+        # WorkOrder.PROJECT_ID (the project_legacy FK) was removed —
+        # no remaining way to resolve a work order's linked customer.
+        location_hint = "Factory floor"
 
         for unit in range(1, (wo.QUANTITY or 1) + 1):
 
@@ -305,38 +291,14 @@ def list_machines(
         .all()
     )
 
-    # Customer name lookup per work order project
-    project_ids = {
-        wo.PROJECT_ID for _, _, wo in rows if wo and wo.PROJECT_ID
-    }
-
-    customer_by_project = {}
-
-    if project_ids:
-
-        for p in db.query(Project).filter(
-            Project.ID.in_(project_ids)
-        ).all():
-
-            if p.CUSTOMER_ID:
-
-                c = db.query(Customer).filter(
-                    Customer.ID == p.CUSTOMER_ID
-                ).first()
-
-                if c:
-
-                    customer_by_project[p.ID] = c.CUSTOMER_NAME
-
+    # Customer name lookup per work order project was removed along
+    # with WorkOrder.PROJECT_ID (the project_legacy FK).
     return [
         _serialize_machine(
             m,
             model=model,
             wo=wo,
-            customer_name=(
-                customer_by_project.get(wo.PROJECT_ID)
-                if wo and wo.PROJECT_ID else None
-            )
+            customer_name=None
         )
         for m, model, wo in rows
     ]

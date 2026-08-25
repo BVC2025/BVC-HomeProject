@@ -2,11 +2,12 @@
 // Public Customer Enquiry — step-by-step chatbot intake at /enquiry
 //
 // Anyone with the link can fill this. Each answer maps to one field
-// on the Customer / CustomerRequirement model. On submit the data
-// lands in the Admin's Customers list and the 360° drawer.
+// on the (now much slimmer) Customer model, plus a single free-text
+// summary of what they're looking for. On submit the data lands in
+// the Admin's Customers list and the 360° drawer.
 // =====================================================================
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import API from "../services/api";
 import styles from "./PublicEnquiry.module.css";
@@ -15,33 +16,24 @@ import styles from "./PublicEnquiry.module.css";
 // Field order matches the Customer 360° view layout, so the admin
 // sees fields in the same order the customer filled them.
 const QUESTIONS = [
-  // --- PHASE 1: Company ---
   {
-    key: "CUSTOMER_NAME",
+    key: "NAME",
     section: "Company",
-    label: "What's your company name?",
-    placeholder: "e.g. Chennai Metro Rail Ltd",
+    label: "What's your name?",
+    placeholder: "e.g. Suresh Iyer",
     required: true,
     type: "text"
   },
   {
-    key: "CONTACT_PERSON",
+    key: "COMPANY_NAME",
     section: "Company",
-    label: "What's your name?",
-    placeholder: "e.g. Suresh Iyer",
+    label: "What's your company name? (optional)",
+    placeholder: "e.g. Chennai Metro Rail Ltd",
     required: false,
     type: "text"
   },
   {
-    key: "DESIGNATION",
-    section: "Company",
-    label: "Your role at the company? (optional)",
-    placeholder: "e.g. Purchase Manager",
-    required: false,
-    type: "text"
-  },
-  {
-    key: "PHONE",
+    key: "PHONE_NUMBER",
     section: "Company",
     label: "Best phone number to reach you?",
     placeholder: "e.g. +91 7603909649",
@@ -57,115 +49,54 @@ const QUESTIONS = [
     type: "email"
   },
   {
-    key: "CITY",
+    key: "ADDRESS",
     section: "Company",
-    label: "Which city are you based in?",
-    placeholder: "e.g. Chennai",
+    label: "Your address? (street, city, state — whatever you have)",
+    placeholder: "e.g. 12 Anna Salai, Chennai, Tamil Nadu",
     required: false,
     type: "text"
   },
   {
-    key: "STATE",
+    key: "GST_NUMBER",
     section: "Company",
-    label: "Which state?",
-    placeholder: "e.g. Tamil Nadu",
+    label: "GST number, if you have one? (optional)",
+    placeholder: "e.g. 33ABCDE1234F1Z5",
     required: false,
     type: "text"
   },
   {
-    key: "INDUSTRY",
-    section: "Company",
-    label: "Which industry are you in?",
-    required: false,
-    type: "select",
-    optionsKey: "industries"
-  },
-
-  // --- PHASE 2: Machine requirement ---
-  {
-    key: "MACHINE_CATEGORY",
-    section: "Machine",
-    label: "What type of vending machine do you need?",
-    required: false,
-    type: "select",
-    optionsKey: "machine_categories"
-  },
-  {
-    key: "QUANTITY",
-    section: "Machine",
-    label: "How many machines do you need?",
-    placeholder: "e.g. 5",
-    required: false,
-    type: "number",
-    min: 1
-  },
-  {
-    key: "CAPACITY",
-    section: "Machine",
-    label: "Capacity needed? (e.g. number of selections or shelves)",
-    placeholder: "e.g. 8 snack columns + 6 chiller shelves",
-    required: false,
-    type: "text"
-  },
-  {
-    key: "TARGET_UNIT_PRICE",
-    section: "Machine",
-    label: "Target price per machine in ₹? (optional)",
-    placeholder: "e.g. 350000",
-    required: false,
-    type: "number",
-    min: 0
-  },
-  {
-    key: "TARGET_DELIVERY_DATE",
-    section: "Machine",
-    label: "When do you need it by?",
-    required: false,
-    type: "date"
-  },
-  {
-    key: "INSTALLATION_SITE",
-    section: "Machine",
-    label: "Where will it be installed?",
-    placeholder: "e.g. Chennai Central metro station, Concourse level",
-    required: false,
-    type: "text"
-  },
-  {
-    key: "SPECIAL_NOTES",
-    section: "Machine",
-    label: "Any special features, branding or notes?",
-    placeholder: "e.g. Touchscreen + cashless. BVC logo branding. Refrigerated bay 4-8°C.",
+    key: "_SUMMARY",
+    section: "Requirement",
+    label: "Tell us what you're looking for — machine type, quantity, timeline, anything else",
+    placeholder: "e.g. Need 5 snack vending machines by next month for our metro station.",
     required: false,
     type: "textarea"
   }
 ];
 
-// Map each answer key to the body shape the backend expects
+// Map each answer key to the body shape the backend expects. The
+// backend's /public/enquiry/submit route still only reads company
+// name/phone/email (+ CITY/STATE for a legacy address string), so we
+// keep sending those under their old wire names, and add ADDRESS /
+// COMPANY_NAME / GST_NUMBER as extra top-level fields the backend is
+// free to pick up later — unrecognized fields are ignored, not errors.
 function buildPayload(answers) {
 
   return {
     company: {
-      CUSTOMER_NAME: answers.CUSTOMER_NAME || "",
-      CONTACT_PERSON: answers.CONTACT_PERSON || null,
-      DESIGNATION: answers.DESIGNATION || null,
-      PHONE: answers.PHONE || "",
-      EMAIL: answers.EMAIL || null,
-      CITY: answers.CITY || null,
-      STATE: answers.STATE || null,
-      INDUSTRY: answers.INDUSTRY || null
+      CUSTOMER_NAME: answers.NAME || "",
+      CONTACT_PERSON: "",
+      DESIGNATION: "",
+      PHONE: answers.PHONE_NUMBER || "",
+      EMAIL: answers.EMAIL || "",
+      CITY: "",
+      STATE: "",
+      INDUSTRY: ""
     },
-    requirement: {
-      MACHINE_CATEGORY: answers.MACHINE_CATEGORY || null,
-      MACHINE_NAME: null,
-      QUANTITY: answers.QUANTITY ? Number(answers.QUANTITY) : 1,
-      CAPACITY: answers.CAPACITY || null,
-      TARGET_UNIT_PRICE: answers.TARGET_UNIT_PRICE
-        ? Number(answers.TARGET_UNIT_PRICE) : null,
-      TARGET_DELIVERY_DATE: answers.TARGET_DELIVERY_DATE || null,
-      INSTALLATION_SITE: answers.INSTALLATION_SITE || null,
-      SPECIAL_NOTES: answers.SPECIAL_NOTES || null
-    },
+    requirement: {},
+    COMPANY_NAME: answers.COMPANY_NAME || null,
+    ADDRESS: answers.ADDRESS || null,
+    GST_NUMBER: answers.GST_NUMBER || null,
     free_text_summary: answers._SUMMARY || null,
     VENDOR_ID: 1
   };
@@ -183,11 +114,6 @@ export default function PublicEnquiry() {
 
   const [draft, setDraft] = useState("");
 
-  const [options, setOptions] = useState({
-    industries: [],
-    machine_categories: []
-  });
-
   const [submitting, setSubmitting] = useState(false);
 
   const [result, setResult] = useState(null);
@@ -195,15 +121,6 @@ export default function PublicEnquiry() {
   const [error, setError] = useState("");
 
   const inputRef = useRef(null);
-
-  // Pull dropdown options once on mount
-  useEffect(() => {
-
-    API.get("/public/enquiry/options")
-      .then((r) => setOptions(r.data || { industries: [], machine_categories: [] }))
-      .catch(() => { /* non-fatal */ });
-
-  }, []);
 
   // Focus the input each time the question changes
   useEffect(() => {
@@ -359,37 +276,8 @@ export default function PublicEnquiry() {
                 />
               )}
 
-              {q.type === "select" && (
-
-                <select
-                  ref={inputRef}
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  className={styles.input}
-                >
-                  <option value="">— pick one —</option>
-                  {(options[q.optionsKey] || []).map((o) => (
-
-                    typeof o === "string"
-                      ? <option key={o} value={o}>{o}</option>
-                      : <option key={o.key} value={o.key}>{o.label}</option>
-                  ))}
-                </select>
-              )}
-
-              {q.type === "date" && (
-
-                <input
-                  ref={inputRef}
-                  type="date"
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  className={styles.input}
-                />
-              )}
-
               {(q.type === "text" || q.type === "tel" ||
-                q.type === "email" || q.type === "number") && (
+                q.type === "email") && (
 
                 <input
                   ref={inputRef}
@@ -397,7 +285,6 @@ export default function PublicEnquiry() {
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   placeholder={q.placeholder}
-                  min={q.min}
                   className={styles.input}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") submitCurrent();
@@ -452,12 +339,12 @@ export default function PublicEnquiry() {
                 Click any row to edit. Hit Submit when you're happy.
               </div>
 
-              {["Company", "Machine"].map((sec) => (
+              {["Company", "Requirement"].map((sec) => (
 
                 <div key={sec} className={styles.reviewSection}>
 
                   <div className={styles.reviewSectionTitle}>
-                    {sec === "Company" ? "Company Details" : "Machine Request"}
+                    {sec === "Company" ? "Company Details" : "Your Requirement"}
                   </div>
 
                   <div className={styles.reviewTable}>
@@ -533,7 +420,7 @@ export default function PublicEnquiry() {
               </div>
 
               <div className={styles.doneRef}>
-                Reference: <strong>{result.customer_code}</strong>
+                We'll reach out on <strong>{answers.PHONE_NUMBER || "the number you gave us"}</strong>.
               </div>
 
               <div className={styles.doneActions}>
