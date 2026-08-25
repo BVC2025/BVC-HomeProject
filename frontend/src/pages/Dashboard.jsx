@@ -143,6 +143,14 @@ function NotificationBell() {
 
   const [firstFetch, setFirstFetch] = useState(true);
 
+  // Toast that pops when a *new* unread notification lands between polls.
+  // The header count on its own is easy to miss; a floating card is
+  // the "immediate popup" the admin dashboard needs for employee
+  // profile submits (and any other server-side notification).
+  const [toast, setToast] = useState(null);
+  const prevUnreadRef = useRef(0);
+  const prevMaxIdRef = useRef(null);
+
   const fetchUnread = async () => {
 
     try {
@@ -151,7 +159,52 @@ function NotificationBell() {
         "/notifications/unread-count"
       );
 
-      setUnread(res.data.count || 0);
+      const count = res.data.count || 0;
+
+      if (count > prevUnreadRef.current) {
+
+        // fetch the latest row so the toast can show *what* arrived,
+        // not just "unread went up"
+        try {
+
+          const list = await API.get("/notifications?limit=5");
+
+          const rows = Array.isArray(list.data) ? list.data : [];
+
+          const latest = rows
+            .filter((n) => !n.IS_READ)
+            .sort((a, b) => b.ID - a.ID)[0];
+
+          if (latest && latest.ID !== prevMaxIdRef.current) {
+
+            prevMaxIdRef.current = latest.ID;
+
+            setToast({
+              id: latest.ID,
+              title: latest.TITLE || "New notification",
+              message: latest.MESSAGE || "",
+            });
+
+            // auto-dismiss after 8 seconds
+            setTimeout(() => {
+              setToast((t) =>
+                t && t.id === latest.ID ? null : t
+              );
+            }, 8000);
+          }
+        } catch (_) {
+          // fall back to a generic toast if the list call fails
+          setToast({
+            id: Date.now(),
+            title: "New notification",
+            message: `${count} unread`,
+          });
+          setTimeout(() => setToast(null), 6000);
+        }
+      }
+
+      prevUnreadRef.current = count;
+      setUnread(count);
 
     } catch (e) {
 
@@ -335,6 +388,28 @@ function NotificationBell() {
   return (
 
     <div className="notification-wrapper">
+
+      {toast && (
+        <div
+          className="notif-toast"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="notif-toast-title">
+            {toast.title}
+          </div>
+          <div className="notif-toast-msg">
+            {toast.message}
+          </div>
+          <button
+            className="notif-toast-close"
+            onClick={() => setToast(null)}
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <button
         className="notification-bell"

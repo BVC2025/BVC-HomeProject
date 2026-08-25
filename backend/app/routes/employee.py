@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from pathlib import Path
+from datetime import datetime
 import os
 import re
 import secrets
@@ -260,7 +261,10 @@ def create_employee(
 
     last_integrity_error = None
     emp = None
-    temp_password = data.PASSWORD or secrets.token_urlsafe(10)
+    # HR-standard default so the credentials email is predictable.
+    # Admin can override by explicitly setting data.PASSWORD.
+    DEFAULT_NEW_HIRE_PASSWORD = "!welcome123"
+    temp_password = data.PASSWORD or DEFAULT_NEW_HIRE_PASSWORD
 
     for _attempt in range(_MAX_EMPLOYEE_CODE_ATTEMPTS):
 
@@ -630,6 +634,30 @@ def submit_own_profile(
 
     db.refresh(emp)
 
+    # ------------------------------------------------------------------
+    # Notify admins that a new employee has completed the master form.
+    # Best-effort: the bell/toast is a UX nice-to-have and must never
+    # block the employee-facing submit.
+    # ------------------------------------------------------------------
+    try:
+        from app.models.models import Notification
+        db.add(Notification(
+            EMPLOYEE_ID=None,                  # broadcast to admins
+            TITLE="Employee profile submitted",
+            MESSAGE=(
+                f"{emp.NAME} ({emp.EMPLOYEE_CODE}) has completed and "
+                f"submitted their master profile form. Review + verify in "
+                f"the Employees module."
+            ),
+            TYPE="PROFILE_SUBMIT",
+            IS_READ=0,
+            VENDOR_ID=emp.VENDOR_ID,
+            CREATED_AT=datetime.now(),
+        ))
+        db.commit()
+    except Exception:
+        db.rollback()
+
     return {
         "message": "Profile submitted successfully",
         "employee": serialize_employee(emp, db)
@@ -639,6 +667,66 @@ def submit_own_profile(
 # =========================
 # UPDATE
 # =========================
+
+def _send_onboarding_credentials_email(db: Session, emp: Employee, temp_password: str) -> None:
+    """Best-effort send of the login-credentials email to an employee.
+    Shares the exact template + SMTP-fallback logic as create_employee()
+    so a "Save on Edit" and a "Save on Create" produce the same email.
+
+    Never raises — a broken SMTP config must not roll back the admin's
+    successful save. The plaintext `temp_password` only leaves this
+    process in the rendered email body; it is never logged."""
+
+    try:
+        dept = db.query(Department).filter(Department.ID == emp.DEPARTMENT_ID).first()
+        role = db.query(Role).filter(Role.ID == emp.ROLE_ID).first()
+        company = get_company_settings(db, emp.VENDOR_ID)
+        tmpl = get_or_create_template(db, emp.VENDOR_ID, "EMPLOYEE_ONBOARDING")
+
+        frontend_base = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+
+        variables = {
+            "employee_name":      emp.NAME or "",
+            "employee_id":        emp.EMPLOYEE_CODE,
+            "username":           emp.EMPLOYEE_CODE,
+            "temporary_password": temp_password,
+            "login_url":          f"{frontend_base}/login",
+            "department":         dept.NAME if dept else "",
+            "role":               role.NAME if role else "",
+            "company_name":       (company.LEGAL_NAME if company else "") or "",
+            "support_email":      (company.EMAIL if company else "") or "",
+            "company_address":    format_full_address(company) if company else "",
+            "contact_number":     (company.PHONE if company else "") or "",
+            "website":            (company.WEBSITE if company else "") or "",
+            "logo_html":          "",
+        }
+
+        tmpl_html = tmpl.BODY_HTML if tmpl else ""
+        tmpl_subject = tmpl.SUBJECT if tmpl else "Welcome — Your Login Credentials"
+        rendered_subject, rendered_html = render_template(tmpl_html, tmpl_subject, variables)
+
+        if not emp.EMAIL:
+            return
+
+        active_cfgs = db.query(VendorEmailConfig).filter(
+            VendorEmailConfig.VENDOR_ID == emp.VENDOR_ID,
+            VendorEmailConfig.IS_ACTIVE == True,
+        ).all()
+
+        sent = False
+        for cfg in active_cfgs:
+            ok, _err, _detail = send_via_vendor_smtp(cfg, emp.EMAIL, rendered_subject, rendered_html)
+            if ok:
+                sent = True
+                break
+
+        if not sent:
+            send_via_resend(subject=rendered_subject, body_html=rendered_html, recipient=emp.EMAIL)
+
+    except Exception:
+        # Never fail the admin's save over an email delivery problem.
+        pass
+
 
 @router.put("/update-employee/{employee_id}", dependencies=[Depends(require("employee.update"))])
 def update_employee(
@@ -662,14 +750,44 @@ def update_employee(
         or ("ROLE_ID" in updates and updates["ROLE_ID"] != emp.ROLE_ID)
     )
 
+    # Snapshot state BEFORE applying updates so we can detect whether
+    # this Save is the point at which the admin is first giving this
+    # employee an email address (and therefore login credentials).
+    prev_email = (emp.EMAIL or "").strip()
+    prev_password_set = bool(emp.PASSWORD)
+
     for field, value in updates.items():
 
         setattr(emp, field, value)
 
+    # Auto-send login credentials when: the admin is setting an email
+    # on an employee for the first time AND that employee doesn't have
+    # a password yet. This is the "onboard existing employee" flow —
+    # the row already exists, the admin just now filled in email +
+    # department + role + salary and hit Save. Password defaults to
+    # the HR-standard `!welcome123` so the credentials email is
+    # predictable. Employee changes it after first login.
+    new_email = (emp.EMAIL or "").strip()
+    should_send_credentials = (
+        bool(new_email)
+        and new_email != prev_email
+        and not prev_password_set
+    )
+
+    credentials_plain_password = None
+    if should_send_credentials:
+        credentials_plain_password = "!welcome123"
+        emp.PASSWORD = hash_password(credentials_plain_password)
+
     if not (dept_or_role_changed and emp.DEPARTMENT_ID and emp.ROLE_ID):
 
         db.commit()
-        return {"message": "Employee updated successfully"}
+        if should_send_credentials:
+            _send_onboarding_credentials_email(db, emp, credentials_plain_password)
+        return {
+            "message": "Employee updated successfully",
+            "credentials_sent": bool(should_send_credentials),
+        }
 
     # Department and/or Role changed — the Employee ID is derived from
     # them, so it must be regenerated. Same bounded-retry approach as
@@ -717,9 +835,13 @@ def update_employee(
             detail=f"Database rejected the record: {raw[:200]}"
         )
 
+    if should_send_credentials:
+        _send_onboarding_credentials_email(db, emp, credentials_plain_password)
+
     return {
         "message": "Employee updated successfully",
         "EMPLOYEE_CODE": emp.EMPLOYEE_CODE,
+        "credentials_sent": bool(should_send_credentials),
     }
 
 
@@ -743,6 +865,63 @@ def reset_password(
     db.commit()
 
     return {"message": "Password reset successfully"}
+
+
+# ---------------------------------------------------------------------------
+# Admin action: email the login credentials to an existing employee.
+# Replaces the current "share ID + password over WhatsApp" workflow — admin
+# opens Edit, confirms Department / Role / Email, then clicks "Send Login
+# Credentials" and types the password they want the employee to receive.
+# Does NOT change the stored password — the admin remains the source of
+# truth on which password is actually active. This endpoint only renders
+# the onboarding template with (employee_code, provided_password, login_url)
+# and dispatches it via the vendor's SMTP (Resend fallback).
+# ---------------------------------------------------------------------------
+
+import logging
+
+@router.post(
+    "/employees/{employee_id}/send-credentials",
+    dependencies=[Depends(require("employee.update"))],
+)
+def send_credentials_email(
+    employee_id: str,
+    payload: dict,
+    db: Session = Depends(get_db),
+):
+
+    emp = db.query(Employee).filter(Employee.ID == employee_id).first()
+
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    if not (emp.EMAIL or "").strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Employee has no email address on file — set it first, then Save Changes.",
+        )
+
+    password_to_send = (payload.get("password") or "").strip()
+
+    if not password_to_send:
+        raise HTTPException(
+            status_code=400,
+            detail="Password is required — type the password you want the employee to receive.",
+        )
+
+    _send_onboarding_credentials_email(db, emp, password_to_send)
+
+    # Audit line — masks the password so it never lands in logs.
+    logging.getLogger("uvicorn.error").info(
+        "[credentials-email] dispatched to %s for %s",
+        emp.EMAIL, emp.EMPLOYEE_CODE,
+    )
+
+    return {
+        "sent": True,
+        "email": emp.EMAIL,
+        "employee_code": emp.EMPLOYEE_CODE,
+    }
 
 
 # =========================

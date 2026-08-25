@@ -545,12 +545,15 @@ function Attendance() {
               Employee Tracking
             </button>
 
+            {/* Monthly Summary tab hidden per request — restore this block
+                when the module is ready to reappear.
             <button
               className={"tab-btn" + (view === "monthly" ? " tab-active" : "")}
               onClick={() => setView("monthly")}
             >
               Monthly Summary
             </button>
+            */}
 
             <button
               className={"tab-btn" + (view === "download" ? " tab-active" : "")}
@@ -666,7 +669,7 @@ function Attendance() {
 
           {view === "report" && <AttendanceReport employees={employees} />}
           {view === "tracking" && <EmployeeTracking employees={employees} />}
-          {view === "monthly" && <MonthlySummary />}
+          {/* {view === "monthly" && <MonthlySummary />} */}
           {view === "download" && <DownloadAttendance employees={employees} />}
 
           {(view === "today" || view === "all") && (

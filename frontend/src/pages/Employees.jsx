@@ -801,9 +801,50 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
   const [roles, setRoles] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [successBanner, setSuccessBanner] = useState("");
   const [errors, setErrors] = useState({});
   const [phoneErrors, setPhoneErrors] = useState({ PHONE: "", EMERGENCY_CONTACT_PHONE: "" });
   const [showPreview, setShowPreview] = useState(false);
+
+  // "Send Login Credentials" modal — Edit page only. Admin types the
+  // password they want emailed; backend does NOT change the stored
+  // password (this replaces the WhatsApp-broadcast workflow, it does
+  // not reset anyone's login).
+  const [credModalOpen, setCredModalOpen] = useState(false);
+  const [credPassword, setCredPassword] = useState("");
+  const [credSending, setCredSending] = useState(false);
+  const [credError, setCredError] = useState("");
+
+  const sendCredentials = async () => {
+    if (!editingEmployee?.ID) return;
+    const pw = credPassword.trim();
+    if (!pw) {
+      setCredError("Please type the password you want the employee to receive.");
+      return;
+    }
+    setCredSending(true);
+    setCredError("");
+    try {
+      const res = await API.post(
+        `/employees/${editingEmployee.ID}/send-credentials`,
+        { password: pw }
+      );
+      setCredModalOpen(false);
+      setCredPassword("");
+      setSuccessBanner(
+        `Login credentials emailed to ${res.data?.email || form.EMAIL}.`
+      );
+      // Auto-clear the success banner after 6 seconds so it doesn't
+      // linger through subsequent edits.
+      setTimeout(() => setSuccessBanner(""), 6000);
+    } catch (e) {
+      setCredError(
+        e?.response?.data?.detail || "Could not send credentials email."
+      );
+    } finally {
+      setCredSending(false);
+    }
+  };
 
   // Department -> Role cascade: always show global/system roles (no
   // DEPARTMENT_ID) plus any role scoped to the selected department. If
@@ -1069,6 +1110,18 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
         <div className={styles.drawerBody}>
 
           {error && <div className={styles.formErrorBanner}>{error}</div>}
+          {successBanner && (
+            <div
+              className={styles.formErrorBanner}
+              style={{
+                background: "#dcfce7",
+                color: "#15803d",
+                border: "1px solid #86efac",
+              }}
+            >
+              {successBanner}
+            </div>
+          )}
 
           <div className={styles.photoStrip}>
             <div
@@ -1535,6 +1588,8 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                     : "Pick a department to narrow this list to its roles."}
                 </div>
               </FormField>
+              {/* Designation dropdown hidden per request — Department + Role
+                  are enough. Restore this block if the field is needed again.
               <FormField label="Designation">
                 <select
                   value={form.DESIGNATION_ID}
@@ -1549,6 +1604,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   ))}
                 </select>
               </FormField>
+              */}
               <FormField label="Confirmation Date (probation end)">
                 <input
                   type="date"
@@ -1830,6 +1886,29 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
             >
               View Data (preview)
             </button>
+            {isEdit && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCredError("");
+                  setCredPassword("");
+                  setCredModalOpen(true);
+                }}
+                disabled={!(form.EMAIL || "").trim()}
+                className={styles.formPreviewBtn}
+                title={
+                  (form.EMAIL || "").trim()
+                    ? "Email login ID + password to this employee"
+                    : "Set an email address first"
+                }
+                style={{
+                  borderColor: "#dc2626",
+                  color: "#dc2626",
+                }}
+              >
+                Send Login Credentials
+              </button>
+            )}
             <button type="submit" disabled={saving} className={styles.formSaveBtn}>
               {saving ? "Saving…" : isEdit ? "Save Changes" : "Save Employee"}
             </button>
@@ -1843,6 +1922,119 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
           photoDataUrl={photoPreview}
           onClose={() => setShowPreview(false)}
         />
+      )}
+
+      {credModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !credSending) {
+              setCredModalOpen(false);
+            }
+          }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10000,
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              background: "var(--card-bg, #ffffff)",
+              color: "var(--text, #0f172a)",
+              width: "100%",
+              maxWidth: 440,
+              borderRadius: 12,
+              padding: 24,
+              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.25)",
+            }}
+          >
+            <h3
+              style={{
+                margin: 0,
+                marginBottom: 8,
+                fontSize: 18,
+                fontWeight: 700,
+                color: "#dc2626",
+              }}
+            >
+              Send Login Credentials
+            </h3>
+            <p style={{ margin: 0, marginBottom: 16, fontSize: 13, opacity: 0.75 }}>
+              Emailing <strong>{editingEmployee?.EMPLOYEE_CODE}</strong> ({form.NAME}) at{" "}
+              <strong>{form.EMAIL}</strong>.<br />
+              Type the password the employee should receive. The stored login
+              password is <em>not</em> changed by this action.
+            </p>
+
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+              Password to email
+            </label>
+            <input
+              type="text"
+              value={credPassword}
+              onChange={(e) => {
+                setCredPassword(e.target.value);
+                if (credError) setCredError("");
+              }}
+              placeholder="e.g. !welcome123"
+              autoFocus
+              disabled={credSending}
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                borderRadius: 8,
+                border: "1px solid var(--border, #d1d5db)",
+                background: "var(--input-bg, #ffffff)",
+                color: "inherit",
+                fontSize: 14,
+                fontFamily: "monospace",
+                boxSizing: "border-box",
+              }}
+            />
+
+            {credError && (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: "8px 12px",
+                  background: "#fef2f2",
+                  color: "#b91c1c",
+                  border: "1px solid #fecaca",
+                  borderRadius: 8,
+                  fontSize: 13,
+                }}
+              >
+                {credError}
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+              <button
+                type="button"
+                onClick={() => setCredModalOpen(false)}
+                disabled={credSending}
+                className={styles.formPreviewBtn}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={sendCredentials}
+                disabled={credSending || !credPassword.trim()}
+                className={styles.formSaveBtn}
+              >
+                {credSending ? "Sending…" : "Send Email"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
