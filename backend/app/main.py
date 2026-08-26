@@ -90,6 +90,7 @@ from app.routes.employee_payslips import router as my_payslips_router  # Employe
 from app.routes.onboarding_checklist import router as onboarding_checklist_router  # Post-joining onboarding
 from app.routes.attendance_ai import router as attendance_ai_router  # Attendance Automation (Phase 1)
 from app.routes.leave_decisions import router as leave_decisions_router  # Leave Automation (Phase 1)
+from app.routes.leave_ai_chat import router as leave_ai_chat_router  # Voice leave assistant (OpenRouter)
 from app.routes.monthly_reports import router as monthly_reports_router  # Auto monthly attendance + payroll reports
 from app.routes.employee_status import router as employee_status_router  # Employee lifecycle status tracking
 from app.routes.employee_insights import router as employee_insights_router  # AI workforce analytics
@@ -2341,6 +2342,7 @@ app.include_router(my_payslips_router)
 app.include_router(onboarding_checklist_router)
 app.include_router(attendance_ai_router)
 app.include_router(leave_decisions_router)
+app.include_router(leave_ai_chat_router, prefix="/leave-ai-chat", tags=["leave-ai-chat"])
 app.include_router(monthly_reports_router)
 app.include_router(employee_status_router)
 app.include_router(employee_insights_router)

@@ -9,6 +9,7 @@ import MyTasksPanel from "../components/MyTasksPanel";
 import MyAllowanceSection from "../components/MyAllowanceSection";
 import MyPayslipsPanel from "../components/MyPayslipsPanel";
 import MyLeaveRequest from "../components/MyLeaveRequest";
+import LeaveAIAssistant from "../components/LeaveAIAssistant";
 import MyPermissionRequest from "../components/MyPermissionRequest";
 import MyMemosPanel from "../components/MyMemosPanel";
 import MyPerformancePanel from "../components/MyPerformancePanel";
@@ -1186,10 +1187,16 @@ function EmployeeDashboardBody() {
           )}
 
           {mainTab === "leave" && (
-            <MyLeaveRequest
-              employeeId={employeeId}
-              onSubmitted={() => setLeaveStatusRefresh((n) => n + 1)}
-            />
+            <>
+              <MyLeaveRequest
+                employeeId={employeeId}
+                onSubmitted={() => setLeaveStatusRefresh((n) => n + 1)}
+              />
+              <LeaveAIAssistant
+                employeeId={employeeId}
+                onLeaveSubmitted={() => setLeaveStatusRefresh((n) => n + 1)}
+              />
+            </>
           )}
 
           {mainTab === "permission" && (

@@ -6,6 +6,8 @@ import API from "../services/api";
 
 import ConfirmDialog from "../components/ConfirmDialog";
 
+import LeaveAIAssistant from "../components/LeaveAIAssistant";
+
 
 import styles from "./ApplyLeave.module.css";
 
@@ -1269,6 +1271,11 @@ function ApplyLeave() {
               rows={myRequests}
               employeeId={employeeId}
               onChanged={fetchData}
+            />
+
+            <LeaveAIAssistant
+              employeeId={employeeId}
+              onLeaveSubmitted={fetchData}
             />
           </>
         )}
