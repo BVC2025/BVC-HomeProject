@@ -134,9 +134,17 @@ def compute_status(check_in_time: datetime) -> str:
 
         return "PRESENT"
 
-    cutoff = time(WORK_START_HOUR, WORK_START_MINUTE)
+    # Policy: 9:20 AM is on-time (PRESENT). Only punches from 9:21 AM
+    # onwards are LATE. `late_cutoff` = start + 1 minute; anyone at or
+    # after that instant is late.
+    from datetime import timedelta
+    start_dt = check_in_time.replace(
+        hour=WORK_START_HOUR, minute=WORK_START_MINUTE,
+        second=0, microsecond=0,
+    )
+    late_cutoff = start_dt + timedelta(minutes=1)
 
-    return "LATE" if check_in_time.time() > cutoff else "PRESENT"
+    return "LATE" if check_in_time >= late_cutoff else "PRESENT"
 
 
 # =========================

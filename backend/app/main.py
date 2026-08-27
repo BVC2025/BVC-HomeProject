@@ -91,6 +91,7 @@ from app.routes.onboarding_checklist import router as onboarding_checklist_route
 from app.routes.attendance_ai import router as attendance_ai_router  # Attendance Automation (Phase 1)
 from app.routes.leave_decisions import router as leave_decisions_router  # Leave Automation (Phase 1)
 from app.routes.leave_ai_chat import router as leave_ai_chat_router  # Voice leave assistant (OpenRouter)
+from app.routes.attendance_penalties import router as attendance_penalties_router  # Auto LOP for late/permission
 from app.routes.monthly_reports import router as monthly_reports_router  # Auto monthly attendance + payroll reports
 from app.routes.employee_status import router as employee_status_router  # Employee lifecycle status tracking
 from app.routes.employee_insights import router as employee_insights_router  # AI workforce analytics
@@ -342,6 +343,7 @@ _drop_legacy_lead_tables()
 # create_all runs — the model lives outside models.py so it needs to
 # be imported for Base to know about it.
 from app.hrms_ai.session_store import HrmsAiConversation  # noqa: F401,E402
+from app.models.leave_chat_models import LeaveChatMessage  # noqa: F401,E402
 
 Base.metadata.create_all(bind=engine)
 
@@ -1817,6 +1819,104 @@ def _start_monthly_memo_scheduler():
 _start_monthly_memo_scheduler()
 
 
+# =====================================================================
+# Attendance-penalty auto-deduction scheduler
+# ---------------------------------------------------------------------
+# Runs daily at 23:00 local time (server clock — set to IST). Scans
+# every active employee and, when this month's late count reaches 3
+# or permission hours exceed 2, adds a 0.5-day LOP `LeaveRequest`
+# row in PENDING_APPROVAL. Idempotent via a REASON-prefixed key of
+# the form `[AUTO-LATE-YYYY-MM-emp_id]` / `[AUTO-PERM-YYYY-MM-emp_id]`,
+# so a mid-day restart or a manual /attendance-penalties/scan call
+# never duplicates.
+# =====================================================================
+def _start_attendance_penalty_scheduler():
+
+    import logging
+    import threading
+    import time as _time
+    from datetime import datetime, timedelta
+    from sqlalchemy.orm import sessionmaker
+
+    log = logging.getLogger("uvicorn")
+
+    RUN_HOUR = 23           # 23:00 local time
+    POLL_SECONDS = 60 * 30  # check every 30 minutes
+
+    SessionLocal = sessionmaker(bind=engine)
+
+    def _last_run_at(db):
+        from app.models.models import Setting
+        row = db.query(Setting).filter(
+            Setting.KEY == "attendance_penalty.last_run"
+        ).first()
+        if not row or not row.VALUE:
+            return None
+        try:
+            import json
+            payload = json.loads(row.VALUE)
+            return datetime.fromisoformat(payload.get("ran_at"))
+        except Exception:
+            return None
+
+    def _store_last_run(db, summary):
+        from app.models.models import Setting
+        import json
+        payload = json.dumps({
+            "ran_at": datetime.now().isoformat(timespec="seconds"),
+            "summary": summary.as_dict(),
+        })
+        row = db.query(Setting).filter(
+            Setting.KEY == "attendance_penalty.last_run"
+        ).first()
+        if row:
+            row.VALUE = payload
+            row.UPDATED_AT = datetime.utcnow()
+        else:
+            db.add(Setting(
+                KEY="attendance_penalty.last_run",
+                VALUE=payload,
+                UPDATED_AT=datetime.utcnow(),
+            ))
+        db.commit()
+
+    def _tick():
+        while True:
+            try:
+                now = datetime.now()
+                if now.hour >= RUN_HOUR:
+                    db = SessionLocal()
+                    try:
+                        last = _last_run_at(db)
+                        # If we already ran within the last 20 hours,
+                        # skip. This guards against manual restart and
+                        # against firing twice inside the same evening.
+                        if not last or (now - last) > timedelta(hours=20):
+                            log.info(
+                                "attendance-penalty: scheduler firing at %s",
+                                now.isoformat(timespec="seconds"),
+                            )
+                            from app.services.attendance_penalty_service import run_scan
+                            summary = run_scan(db)
+                            _store_last_run(db, summary)
+                    finally:
+                        db.close()
+            except Exception as exc:
+                log.warning("attendance-penalty scheduler tick failed: %s", exc)
+            _time.sleep(POLL_SECONDS)
+
+    t = threading.Thread(
+        target=_tick,
+        name="attendance-penalty-scheduler",
+        daemon=True,
+    )
+    t.start()
+    log.info("attendance-penalty scheduler started (daily, 23:00 local)")
+
+
+_start_attendance_penalty_scheduler()
+
+
 def _migrate_rename_lead_whatsapp_module_code():
     """One-time, idempotent rename: MODULE_CODE 'lead_whatsapp' -> 'lead_module'
     (plus the matching AIModule.VECTOR_COLLECTION_NAME) across every table
@@ -2343,6 +2443,7 @@ app.include_router(onboarding_checklist_router)
 app.include_router(attendance_ai_router)
 app.include_router(leave_decisions_router)
 app.include_router(leave_ai_chat_router, prefix="/leave-ai-chat", tags=["leave-ai-chat"])
+app.include_router(attendance_penalties_router, prefix="/attendance-penalties", tags=["attendance-penalties"])
 app.include_router(monthly_reports_router)
 app.include_router(employee_status_router)
 app.include_router(employee_insights_router)

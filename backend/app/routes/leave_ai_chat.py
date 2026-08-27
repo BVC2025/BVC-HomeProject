@@ -120,9 +120,155 @@ def chat_message(payload: ChatMessageIn, db: Session = Depends(get_db)) -> Dict[
         role = turn.role if turn.role in ("user", "assistant") else "user"
         messages.append({"role": role, "content": turn.content})
 
-    messages.append({"role": "user", "content": payload.message.strip()})
+    user_text = payload.message.strip()
+    messages.append({"role": "user", "content": user_text})
 
-    return openrouter_chat(system_prompt, messages)
+    result = openrouter_chat(system_prompt, messages)
+
+    # Persist BOTH turns so the admin history module can replay the
+    # exact conversation. Best-effort — a DB write failure must not
+    # break the chat.
+    try:
+        from app.models.leave_chat_models import LeaveChatMessage
+        db.add(LeaveChatMessage(
+            EMPLOYEE_ID=emp.ID,
+            ROLE="user",
+            CONTENT=user_text,
+            LANGUAGE=(payload.language or "auto"),
+            VENDOR_ID=emp.VENDOR_ID,
+        ))
+        db.add(LeaveChatMessage(
+            EMPLOYEE_ID=emp.ID,
+            ROLE="assistant",
+            CONTENT=(result.get("reply") or "")[:8000],
+            LANGUAGE=(payload.language or "auto"),
+            ACTION=result.get("action") or "ANSWER_ONLY",
+            VENDOR_ID=emp.VENDOR_ID,
+        ))
+        db.commit()
+    except Exception:
+        db.rollback()
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Admin history endpoints
+# ---------------------------------------------------------------------------
+
+@router.get("/history/employees")
+def history_employees(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
+    """List of employees who have ever chatted with the assistant,
+    with per-employee message count + last activity timestamp. Used
+    to render the employee sidebar on the admin Chat History page."""
+
+    from sqlalchemy import func
+    from app.models.leave_chat_models import LeaveChatMessage
+
+    rows = (
+        db.query(
+            LeaveChatMessage.EMPLOYEE_ID,
+            func.count(LeaveChatMessage.ID).label("message_count"),
+            func.max(LeaveChatMessage.CREATED_AT).label("last_activity"),
+        )
+        .group_by(LeaveChatMessage.EMPLOYEE_ID)
+        .all()
+    )
+
+    if not rows:
+        return []
+
+    emp_ids = [r.EMPLOYEE_ID for r in rows]
+    employees = (
+        db.query(Employee).filter(Employee.ID.in_(emp_ids)).all()
+    )
+    by_id = {e.ID: e for e in employees}
+
+    out: List[Dict[str, Any]] = []
+    for r in rows:
+        emp = by_id.get(r.EMPLOYEE_ID)
+        if not emp:
+            continue
+        out.append({
+            "employee_id":   emp.ID,
+            "employee_code": emp.EMPLOYEE_CODE,
+            "employee_name": emp.NAME or "",
+            "message_count": int(r.message_count or 0),
+            "last_activity": r.last_activity.isoformat() if r.last_activity else None,
+        })
+
+    # Most recently active first.
+    out.sort(key=lambda x: x["last_activity"] or "", reverse=True)
+    return out
+
+
+@router.get("/history/{employee_id}")
+def history_for_employee(
+    employee_id: str,
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Full chat transcript for one employee. Returns messages in
+    chronological order (oldest first) so the admin can read the
+    conversation the way it happened."""
+
+    from app.models.leave_chat_models import LeaveChatMessage
+
+    emp = _resolve_employee(db, employee_id)
+
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    rows = (
+        db.query(LeaveChatMessage)
+        .filter(LeaveChatMessage.EMPLOYEE_ID == emp.ID)
+        .order_by(LeaveChatMessage.CREATED_AT.asc())
+        .all()
+    )
+
+    return {
+        "employee": {
+            "id":   emp.ID,
+            "code": emp.EMPLOYEE_CODE,
+            "name": emp.NAME or "",
+        },
+        "message_count": len(rows),
+        "messages": [
+            {
+                "id":         m.ID,
+                "role":       m.ROLE,
+                "content":    m.CONTENT,
+                "language":   m.LANGUAGE,
+                "action":     m.ACTION,
+                "created_at": m.CREATED_AT.isoformat() if m.CREATED_AT else None,
+            }
+            for m in rows
+        ],
+    }
+
+
+@router.delete("/history/{employee_id}")
+def delete_history_for_employee(
+    employee_id: str,
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Admin can clear an employee's chat history (e.g. GDPR request
+    or accidental sensitive data). Requires the row to exist."""
+
+    from app.models.leave_chat_models import LeaveChatMessage
+
+    emp = _resolve_employee(db, employee_id)
+
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    n = (
+        db.query(LeaveChatMessage)
+        .filter(LeaveChatMessage.EMPLOYEE_ID == emp.ID)
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+
+    return {"deleted": n, "employee_id": emp.ID}
 
 
 # ---------------------------------------------------------------------------

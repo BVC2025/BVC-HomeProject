@@ -92,6 +92,8 @@ function HrLayout() {
 }
 
 const DepartmentManagement = lazy(() => import("./DepartmentManagement"));
+const AttendancePenalties = lazy(() => import("./AttendancePenalties"));
+const LeaveChatHistory = lazy(() => import("./LeaveChatHistory"));
 const OrgRoleManagement = lazy(() => import("./OrgRoleManagement"));
 const ProjectCategoryManagement = lazy(() => import("./ProjectCategoryManagement"));
 const ProjectPage = lazy(() => import("./ProjectPage"));
@@ -1760,6 +1762,8 @@ const NAV_GROUPS = [
       { to: "/announcements", icon: <SidebarIcon name="memos"       />, label: "Announcements" },
       { to: "/approvals",     icon: <SidebarIcon name="approvals"   />, label: "Approval Center" },
       // { to: "/roles",      icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" }, // permanently hidden — RBAC page replaces it
+      { to: "/attendance-penalties", icon: <SidebarIcon name="approvals" />, label: "Attendance Penalties" },
+      { to: "/leave-chat-history",   icon: <SidebarIcon name="memos" />,     label: "Chat History" },
       { to: "/departments",   icon: <SidebarIcon name="departments" />, label: "Department Management" },
       { to: "/org-roles",     icon: <SidebarIcon name="org-roles"   />, label: "Role Management" },
     ]
@@ -2355,6 +2359,8 @@ function Dashboard() {
             element={<RequirePermission code={permissionForRoute("/settings")}><Settings /></RequirePermission>}
           />
           {/* Organization & Project Management module */}
+          <Route path="/attendance-penalties" element={<RequirePermission code={permissionForRoute("/attendance-penalties")}><Suspense fallback={null}><AttendancePenalties /></Suspense></RequirePermission>} />
+          <Route path="/leave-chat-history" element={<RequirePermission code={permissionForRoute("/leave-chat-history")}><Suspense fallback={null}><LeaveChatHistory /></Suspense></RequirePermission>} />
           <Route path="/departments" element={<RequirePermission code={permissionForRoute("/departments")}><Suspense fallback={null}><DepartmentManagement /></Suspense></RequirePermission>} />
           <Route path="/org-roles" element={<RequirePermission code={permissionForRoute("/org-roles")}><Suspense fallback={null}><OrgRoleManagement /></Suspense></RequirePermission>} />
           <Route path="/project-categories" element={<RequirePermission code={permissionForRoute("/project-categories")}><Suspense fallback={null}><ProjectCategoryManagement /></Suspense></RequirePermission>} />

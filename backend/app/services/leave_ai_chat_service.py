@@ -138,20 +138,60 @@ def gather_employee_context(db: Session, employee_id: str) -> Dict[str, Any]:
         and (r.START_DATE or date.today()) >= month_start
     )
 
+    # Permission hours used this calendar month (policy: 2h free/month).
+    permission_hours_this_month = 0.0
+    try:
+        permission_hours_this_month = sum(
+            float(r.DURATION_HOURS or 0)
+            for r in db.query(LeaveRequest).filter(
+                LeaveRequest.EMPLOYEE_ID == emp.ID,
+                LeaveRequest.LEAVE_TYPE == "PERMISSION",
+                LeaveRequest.STATUS == "APPROVED",
+                LeaveRequest.START_DATE >= month_start,
+            ).all()
+        )
+    except Exception:
+        permission_hours_this_month = 0.0
+
+    # Late marks this month (policy: 3 lates in a month → half-day LOP).
+    late_marks_this_month = 0
+    try:
+        from app.models.models import Attendance
+        late_marks_this_month = (
+            db.query(Attendance)
+            .filter(
+                Attendance.EMPLOYEE_ID == emp.ID,
+                Attendance.STATUS == "LATE",
+                Attendance.DATE >= month_start,
+            )
+            .count()
+        )
+    except Exception:
+        late_marks_this_month = 0
+
     return {
-        "employee_name":            emp.NAME or "",
-        "employee_code":            emp.EMPLOYEE_CODE or "",
-        "employee_id":              emp.ID,
-        "gender":                   emp.GENDER or "",
-        "joining_date":             emp.JOINING_DATE.isoformat() if emp.JOINING_DATE else None,
-        "today":                    date.today().isoformat(),
-        "balance":                  balance,
-        "pending_tasks":            pending_tasks,
-        "casual_leaves_this_month": cl_this_month,
+        "employee_name":              emp.NAME or "",
+        "employee_code":              emp.EMPLOYEE_CODE or "",
+        "employee_id":                emp.ID,
+        "gender":                     emp.GENDER or "",
+        "joining_date":               emp.JOINING_DATE.isoformat() if emp.JOINING_DATE else None,
+        "today":                      date.today().isoformat(),
+        "balance":                    balance,
+        "pending_tasks":              pending_tasks,
+        "casual_leaves_this_month":   cl_this_month,
+        "permission_hours_this_month": round(permission_hours_this_month, 2),
+        "late_marks_this_month":      late_marks_this_month,
         "policies": {
-            "casual_leaves_per_month":     1,
-            "requires_md_approval":        True,
+            "casual_leaves_per_year":     12,
+            "casual_leaves_per_month":    1,
+            "requires_md_approval":       True,
             "half_day_requires_same_date": True,
+            "permission_free_hours_per_month": 2,
+            "permission_over_limit_penalty":   "half-day salary deduction",
+            "late_arrivals_before_deduction":  3,
+            "late_arrivals_penalty":           "half-day salary deduction",
+            "official_start_time":             "09:20",
+            "late_cutoff":                     "09:21",
         },
     }
 
@@ -172,18 +212,39 @@ def build_system_prompt(context: Dict[str, Any], language_hint: str = "auto") ->
 
     ctx_json = json.dumps(context, indent=2, default=str)
 
-    return f"""You are the BVC24 ERP leave assistant. You help ONE employee — the one described in EMPLOYEE_CONTEXT below — apply for leave, understand their balance, and answer questions about their own data.
+    return f"""You are the BVC24 ERP leave assistant. You help ONE employee — the one described in EMPLOYEE_CONTEXT below — apply for leave, understand their own balance, and answer questions about their own data ONLY.
 
-STRICT RULES:
-1. You only know about the employee in EMPLOYEE_CONTEXT. Never make up data about other employees, other departments, salaries, memos, or HR-internal information.
-2. If asked about salary (theirs or others), memos, colleagues' data, or any HR/admin-only info, refuse politely: "Sorry, I'm not authorized to provide that information."
-3. Never submit a leave request yourself. When you have enough details to propose one, emit action=PROPOSE_LEAVE with a draft, and let the employee confirm verbally before submission.
-4. Enforce the leave-balance policy: if the employee wants more days than remaining balance, ASK about pending tasks and get a promised completion date before proceeding.
-5. Casual leave is capped at ONE per calendar month. If they already took one this month (see casual_leaves_this_month), explain that.
-6. Half-day leave is only allowed on a single date (start = end).
-7. MATERNITY leave is only available to employees whose gender is FEMALE.
-8. {lang_directive}
-9. Be conversational, warm, and brief. This is voice — keep replies under 60 words when possible.
+STRICT ACCESS RULES (RBAC — non-negotiable):
+- You may ONLY discuss the employee named in EMPLOYEE_CONTEXT. Their code is in `employee_code`.
+- If the employee asks about ANY OTHER person by name, code, or role (e.g. "How much leave does Nasira have?", "What is Puviyarasi's salary?", "Show me Ramkumar's tasks"), you MUST refuse with exactly: "Sorry, I'm not authorized to provide that information."
+- You MUST NEVER reveal salary, PAN, Aadhaar, bank details, memos, disciplinary records, or performance scores — not even the employee's own. If asked, refuse politely with the same line.
+- Only these topics are permitted for the employee's OWN data: leave balance, pending tasks, holiday calendar, permission usage, late marks, attendance summary, applying for leave.
+
+LEAVE POLICY (enforce strictly):
+- Casual Leave: 12 days/year total, max 1 per calendar month.
+- If `casual_leaves_this_month` >= 1 and employee asks for another CL, that becomes the "2nd CL this month" case:
+  * If `pending_tasks` is empty → still recommend it. Emit PROPOSE_LEAVE. In the draft, note "no pending tasks" in the reason. MD gets the email + can approve/reject.
+  * If `pending_tasks` has any tasks → ASK the employee when they will complete each pending task (get a specific YYYY-MM-DD date for each). Only after collecting a completion date for each open task, emit PROPOSE_LEAVE with those dates in `task_commitments`.
+- If requested days exceed remaining balance in `balance[TYPE].remaining` → same task-check flow as above.
+- Half-day leave: start_date must equal end_date (single day).
+- MATERNITY leave: only for employees where gender == FEMALE.
+
+PERMISSION POLICY:
+- Free permission hours: 2 hours per calendar month.
+- Current usage this month: `permission_hours_this_month`.
+- If the employee wants permission that would push their monthly total > 2 hours (including any half-day permission which counts as 4 hours), warn them that it counts as a HALF-DAY salary deduction. Still let them proceed if they confirm.
+
+LATE-ARRIVAL POLICY (informational — do not create attendance records):
+- Official office start: 09:20. Punches at 09:20 (any second) are PRESENT. Only 09:21 onwards is LATE.
+- Current lates this month: `late_marks_this_month`.
+- If asked about it, tell the employee they have X lates so far this month, and that 3 lates in a calendar month result in a half-day salary deduction.
+
+CONVERSATION FLOW:
+- Never submit a leave request yourself. When you have enough info, emit action=PROPOSE_LEAVE with a draft. The user confirms verbally, then the app submits.
+- Be conversational, warm, and brief. This is voice — keep replies under 60 words when possible.
+
+LANGUAGE:
+- {lang_directive}
 
 OUTPUT FORMAT — you MUST reply with a JSON object, no prose outside it:
 {{
@@ -306,7 +367,18 @@ def openrouter_chat(
                 },
             )
             chat = gm.start_chat(history=history)
-            resp = chat.send_message(latest_user_msg)
+            # 25-second cap on the underlying HTTP call — otherwise a
+            # stuck Gemini stream can leave the browser spinning
+            # "Thinking..." indefinitely.
+            try:
+                resp = chat.send_message(
+                    latest_user_msg,
+                    request_options={"timeout": 25},
+                )
+            except TypeError:
+                # Older google-generativeai versions don't accept
+                # request_options — fall back to a plain call.
+                resp = chat.send_message(latest_user_msg)
 
             try:
                 raw_text = (resp.text or "").strip()

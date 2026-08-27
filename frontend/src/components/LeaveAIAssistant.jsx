@@ -36,6 +36,49 @@ function useSpeechRecognition() {
   return RecognitionCtor;
 }
 
+// Common female-voice name patterns across Windows / macOS / Android /
+// iOS / Chrome OS. Matched case-insensitively against `voice.name`.
+// If none of these match on the current device, we fall back to the
+// first locale-matched voice regardless of gender.
+const FEMALE_VOICE_HINTS = [
+  "female",   // explicit
+  "zira",     // Windows English female
+  "hazel",    // Windows UK English female
+  "susan",    // Windows English female
+  "samantha", // macOS / iOS English female
+  "victoria", // macOS English female
+  "karen",    // macOS Australian English female
+  "moira",    // macOS Irish English female
+  "tessa",    // macOS South African English female
+  "aria",     // Microsoft Neural — female
+  "jenny",    // Microsoft Neural — female
+  "sonia",    // Microsoft Neural UK — female
+  "natasha",  // Microsoft Neural — female
+  "kajal",    // Microsoft Indian English — female
+  "swara",    // Microsoft Hindi — female
+  "pallavi",  // Microsoft Tamil — female
+  "google",   // Google TTS voices are usually female by default
+];
+
+
+function pickFemaleVoice(voices, localeMatch) {
+
+  if (!Array.isArray(voices) || voices.length === 0) return null;
+
+  // Locale-matched candidates only.
+  const localeMatches = voices.filter((v) => localeMatch.test(v.lang));
+  if (localeMatches.length === 0) return null;
+
+  // Prefer any voice whose name contains a female hint (case-insensitive).
+  const female = localeMatches.find((v) => {
+    const name = (v.name || "").toLowerCase();
+    return FEMALE_VOICE_HINTS.some((hint) => name.includes(hint));
+  });
+
+  return female || localeMatches[0];
+}
+
+
 function speak(text, localeMatch) {
 
   if (typeof window === "undefined" || !window.speechSynthesis) return;
@@ -46,10 +89,10 @@ function speak(text, localeMatch) {
 
     const utter = new SpeechSynthesisUtterance(text);
     utter.rate = 1.0;
-    utter.pitch = 1.0;
+    utter.pitch = 1.05;                 // slight lift — sounds warmer
 
     const voices = window.speechSynthesis.getVoices();
-    const preferred = voices.find((v) => localeMatch.test(v.lang));
+    const preferred = pickFemaleVoice(voices, localeMatch);
     if (preferred) utter.voice = preferred;
 
     window.speechSynthesis.speak(utter);
@@ -155,12 +198,16 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
     setPendingDraft(null);
 
     try {
-      const res = await API.post("/leave-ai-chat/message", {
-        employee_id: employeeId,
-        message: clean,
-        language: activeLang.key,
-        history: nextHistory.slice(0, -1).slice(-20),
-      });
+      const res = await API.post(
+        "/leave-ai-chat/message",
+        {
+          employee_id: employeeId,
+          message: clean,
+          language: activeLang.key,
+          history: nextHistory.slice(0, -1).slice(-20),
+        },
+        { timeout: 35000 }
+      );
 
       const reply = res.data?.reply || "…";
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
@@ -404,17 +451,17 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
       height: 46,
       borderRadius: "50%",
       border: "none",
-      background: active ? "#dc2626" : "var(--card-bg, #ffffff)",
-      color: active ? "#ffffff" : "#dc2626",
+      background: "#dc2626",
+      color: "#ffffff",
       boxShadow: active
-        ? "0 0 0 6px rgba(220,38,38,0.15)"
-        : "0 2px 4px rgba(0,0,0,0.08)",
+        ? "0 0 0 6px rgba(220,38,38,0.25), 0 2px 6px rgba(0,0,0,0.15)"
+        : "0 2px 6px rgba(0,0,0,0.15)",
       cursor: "pointer",
-      fontSize: 20,
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
       transition: "all 0.15s ease",
+      padding: 0,
     }),
     sendBtn: {
       padding: "10px 18px",
@@ -614,7 +661,34 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
                 disabled={!RecognitionCtor}
                 aria-label="Toggle voice input"
               >
-                {listening ? "⏹" : "🎙"}
+                {listening ? (
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <rect x="6" y="6" width="12" height="12" rx="2" />
+                  </svg>
+                ) : (
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor" stroke="none" />
+                    <path d="M5 11a7 7 0 0 0 14 0" />
+                    <line x1="12" y1="18" x2="12" y2="21" />
+                    <line x1="9" y1="21" x2="15" y2="21" />
+                  </svg>
+                )}
               </button>
               <input
                 style={S.input}

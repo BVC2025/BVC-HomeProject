@@ -59,9 +59,11 @@ router = APIRouter(prefix="/iclock", tags=["ADMS Biometric"])
 # Config — tune only if the device misbehaves.
 # ---------------------------------------------------------------------
 
-# Anyone scanning in AFTER this time is marked LATE. Matches
-# attendance.py / biometric.py so all three code paths agree.
+# Official office start. Punches at 9:20:xx are still PRESENT — only
+# punches from 9:21 AM onwards are LATE. Matches attendance.py so
+# both code paths agree.
 WORK_START = time(9, 20)
+LATE_CUTOFF = time(9, 21)
 
 # Regular shift ends at 6:00 PM. Work past this time is overtime and
 # gets moved to OVERTIME_HOURS / OT_CHECK_IN / OT_CHECK_OUT.
@@ -430,7 +432,7 @@ def _apply_to_attendance(
     if action == "CHECK_IN":
 
         row.CHECK_IN = event_time
-        row.STATUS = "LATE" if event_time.time() > WORK_START else "PRESENT"
+        row.STATUS = "LATE" if event_time.time() >= LATE_CUTOFF else "PRESENT"
 
     elif action == "CHECK_OUT":
 
