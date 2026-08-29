@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.utils.db_error_handler import raise_db_error
 from typing import Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import io
 import csv
 import json
@@ -21,6 +21,8 @@ from app.models.models import (
     ProjectCategory,
     Project,
     TaskTemplate,
+    TaskTemplateRequirement,
+    TaskTemplateDependency,
     ProjectPricing,
     Department,
     Role,
@@ -35,6 +37,7 @@ from app.services.project_quotation_service import (
     render_quotation_html,
     sync_final_price_into_quotation,
 )
+from app.services import task_dependency_service
 
 
 router = APIRouter()
@@ -55,14 +58,37 @@ class CategoryUpdate(BaseModel):
     DESCRIPTION: Optional[str] = None
 
 
+class TaskTemplateRequirementIn(BaseModel):
+    DEPARTMENT_ID: int
+    ROLE_ID: int
+    EXPERIENCE_LEVEL: str
+    REQUIRED_COUNT: int = Field(default=1, ge=1)
+
+
+class TaskTemplateDependencyIndexIn(BaseModel):
+    """Wizard path only (ProjectCreate/ProjectUpdate.tasks) — a 0-based
+    position within the SAME `tasks` array being submitted, since brand-new
+    tasks don't have real IDs yet at payload-construction time."""
+    DEPENDS_ON_TASK_INDEX: int
+
+
+class TaskTemplateDependencyIn(BaseModel):
+    """Standalone /task-templates path — a real, already-persisted task ID
+    belonging to the same project."""
+    DEPENDS_ON_TASK_TEMPLATE_ID: str
+
+
 class TaskTemplateIn(BaseModel):
     NAME: str
     DESCRIPTION: Optional[str] = None
     DURATION_VALUE: float = 1.0
     DURATION_UNIT: str = "DAYS"
     SEQUENCE_NUMBER: int = 0
-    DEPARTMENT_ID: Optional[int] = None
-    ROLE_ID: Optional[int] = None
+    TASK_SCOPE: Optional[str] = "PROJECT"
+    EXECUTION_GROUP_ID: Optional[str] = None
+    DEPENDENCY_RULE: Optional[str] = "ALL"
+    requirements: List[TaskTemplateRequirementIn] = []
+    dependencies: List[TaskTemplateDependencyIndexIn] = []
 
 
 class ProjectCreate(BaseModel):
@@ -70,6 +96,7 @@ class ProjectCreate(BaseModel):
     NAME: str
     DESCRIPTION: Optional[str] = None
     BOM_MODE: Optional[str] = None
+    ASSIGNMENT_MODE: Optional[str] = None
     VENDOR_ID: int = 1
     tasks: Optional[List[TaskTemplateIn]] = []
 
@@ -78,6 +105,7 @@ class ProjectUpdate(BaseModel):
     NAME: Optional[str] = None
     DESCRIPTION: Optional[str] = None
     BOM_MODE: Optional[str] = None
+    ASSIGNMENT_MODE: Optional[str] = None
     CATEGORY_ID: Optional[str] = None
     tasks: Optional[List[TaskTemplateIn]] = None
     VENDOR_ID: int = 1
@@ -90,8 +118,11 @@ class TaskTemplateCreate(BaseModel):
     DURATION_VALUE: float = 1.0
     DURATION_UNIT: str = "DAYS"
     SEQUENCE_NUMBER: int = 0
-    DEPARTMENT_ID: Optional[int] = None
-    ROLE_ID: Optional[int] = None
+    TASK_SCOPE: Optional[str] = "PROJECT"
+    EXECUTION_GROUP_ID: Optional[str] = None
+    DEPENDENCY_RULE: Optional[str] = "ALL"
+    requirements: List[TaskTemplateRequirementIn] = []
+    dependencies: List[TaskTemplateDependencyIn] = []
     VENDOR_ID: int = 1
 
 
@@ -101,8 +132,11 @@ class TaskTemplateUpdate(BaseModel):
     DURATION_VALUE: Optional[float] = None
     DURATION_UNIT: Optional[str] = None
     SEQUENCE_NUMBER: Optional[int] = None
-    DEPARTMENT_ID: Optional[int] = None
-    ROLE_ID: Optional[int] = None
+    TASK_SCOPE: Optional[str] = None
+    EXECUTION_GROUP_ID: Optional[str] = None
+    DEPENDENCY_RULE: Optional[str] = None
+    requirements: Optional[List[TaskTemplateRequirementIn]] = None
+    dependencies: Optional[List[TaskTemplateDependencyIn]] = None
 
 
 class ReorderItem(BaseModel):
@@ -173,7 +207,27 @@ def _recalc_project_duration(project: Project, db: Session):
 # TASK HELPERS
 # =========================
 
-def _task_to_dict(t: TaskTemplate, dept_name=None, role_name=None):
+def _requirement_to_dict(r: TaskTemplateRequirement, dept_name=None, role_name=None):
+    return {
+        "ID": r.ID,
+        "DEPARTMENT_ID": r.DEPARTMENT_ID,
+        "DEPARTMENT_NAME": dept_name,
+        "ROLE_ID": r.ROLE_ID,
+        "ROLE_NAME": role_name,
+        "EXPERIENCE_LEVEL": r.EXPERIENCE_LEVEL,
+        "REQUIRED_COUNT": r.REQUIRED_COUNT,
+    }
+
+
+def _dependency_to_dict(dep: TaskTemplateDependency, name_map: dict):
+    return {
+        "ID": dep.ID,
+        "DEPENDS_ON_TASK_TEMPLATE_ID": dep.DEPENDS_ON_TASK_TEMPLATE_ID,
+        "DEPENDS_ON_TASK_NAME": name_map.get(dep.DEPENDS_ON_TASK_TEMPLATE_ID),
+    }
+
+
+def _task_to_dict(t: TaskTemplate, requirements: list, dependencies: list = None):
     return {
         "ID": t.ID,
         "PROJECT_ID": t.PROJECT_ID,
@@ -182,10 +236,12 @@ def _task_to_dict(t: TaskTemplate, dept_name=None, role_name=None):
         "DURATION_VALUE": float(t.DURATION_VALUE) if t.DURATION_VALUE is not None else 1.0,
         "DURATION_UNIT": t.DURATION_UNIT,
         "SEQUENCE_NUMBER": t.SEQUENCE_NUMBER,
-        "DEPARTMENT_ID": t.DEPARTMENT_ID,
-        "DEPARTMENT_NAME": dept_name,
-        "ROLE_ID": t.ROLE_ID,
-        "ROLE_NAME": role_name,
+        "TASK_SCOPE": t.TASK_SCOPE,
+        "EXECUTION_GROUP_ID": t.EXECUTION_GROUP_ID,
+        "DEPENDENCY_RULE": t.DEPENDENCY_RULE,
+        "requirements": requirements,
+        "TOTAL_REQUIRED_COUNT": sum(r["REQUIRED_COUNT"] for r in requirements),
+        "dependencies": dependencies or [],
         "VENDOR_ID": t.VENDOR_ID,
         "CREATED_AT": t.CREATED_AT.isoformat() if t.CREATED_AT else None,
         "UPDATED_AT": t.UPDATED_AT.isoformat() if t.UPDATED_AT else None
@@ -193,20 +249,118 @@ def _task_to_dict(t: TaskTemplate, dept_name=None, role_name=None):
 
 
 def _enrich_tasks(tasks, db):
-    result = []
-    for t in tasks:
-        dept_name = None
-        role_name = None
-        if t.DEPARTMENT_ID:
-            d = db.query(Department).filter(Department.ID == t.DEPARTMENT_ID).first()
-            if d:
-                dept_name = d.NAME
-        if t.ROLE_ID:
-            r = db.query(Role).filter(Role.ID == t.ROLE_ID).first()
-            if r:
-                role_name = r.NAME
-        result.append(_task_to_dict(t, dept_name, role_name))
-    return result
+    """Batch-fetches every referenced Department/Role/dependency-task name
+    once (instead of per row) and assembles each task's requirements and
+    dependencies lists."""
+    task_ids = [t.ID for t in tasks]
+    reqs = (
+        db.query(TaskTemplateRequirement)
+          .filter(TaskTemplateRequirement.TASK_TEMPLATE_ID.in_(task_ids))
+          .all()
+        if task_ids else []
+    )
+    dept_ids = {r.DEPARTMENT_ID for r in reqs if r.DEPARTMENT_ID}
+    role_ids = {r.ROLE_ID for r in reqs if r.ROLE_ID}
+    dept_map = {
+        d.ID: d.NAME for d in db.query(Department).filter(Department.ID.in_(dept_ids)).all()
+    } if dept_ids else {}
+    role_map = {
+        r.ID: r.NAME for r in db.query(Role).filter(Role.ID.in_(role_ids)).all()
+    } if role_ids else {}
+
+    reqs_by_task = {}
+    for r in reqs:
+        reqs_by_task.setdefault(r.TASK_TEMPLATE_ID, []).append(
+            _requirement_to_dict(r, dept_map.get(r.DEPARTMENT_ID), role_map.get(r.ROLE_ID))
+        )
+
+    deps = (
+        db.query(TaskTemplateDependency)
+          .filter(TaskTemplateDependency.TASK_TEMPLATE_ID.in_(task_ids))
+          .all()
+        if task_ids else []
+    )
+    task_name_map = {t.ID: t.NAME for t in tasks}
+    deps_by_task = {}
+    for d in deps:
+        deps_by_task.setdefault(d.TASK_TEMPLATE_ID, []).append(
+            _dependency_to_dict(d, task_name_map)
+        )
+
+    return [
+        _task_to_dict(t, reqs_by_task.get(t.ID, []), deps_by_task.get(t.ID, []))
+        for t in tasks
+    ]
+
+
+def _validate_no_duplicate_requirements(requirements: list):
+    """A Department + Role + Experience Level combination appearing twice
+    in the same task isn't meaningful — "2 Intermediate Technicians" is one
+    requirement with REQUIRED_COUNT=2, not two rows of 1."""
+    seen = set()
+    for req in requirements:
+        key = (req.DEPARTMENT_ID, req.ROLE_ID, req.EXPERIENCE_LEVEL)
+        if key in seen:
+            raise HTTPException(
+                status_code=400,
+                detail="This Department + Role + Experience Level combination is already added — "
+                       "increase its Required Count instead of adding a duplicate row.",
+            )
+        seen.add(key)
+
+
+def _create_requirement_rows(task_id: str, requirements: list, db: Session):
+    _validate_no_duplicate_requirements(requirements)
+    for req in requirements:
+        db.add(TaskTemplateRequirement(
+            TASK_TEMPLATE_ID=task_id,
+            DEPARTMENT_ID=req.DEPARTMENT_ID,
+            ROLE_ID=req.ROLE_ID,
+            EXPERIENCE_LEVEL=req.EXPERIENCE_LEVEL,
+            REQUIRED_COUNT=req.REQUIRED_COUNT,
+        ))
+
+
+def _validate_unique_sequence(db: Session, project_id: str, sequence_number: int, exclude_task_id: str = None):
+    """Two tasks in the same project must not share a SEQUENCE_NUMBER —
+    only relevant where the Sequence # field is directly user-editable
+    (the standalone /task-templates Add/Edit modal); the wizard's embedded
+    tasks auto-assign via array index and reorder always reassigns a
+    contiguous 0..N-1 range, so neither can produce a collision."""
+    q = db.query(TaskTemplate).filter(
+        TaskTemplate.PROJECT_ID == project_id,
+        TaskTemplate.SEQUENCE_NUMBER == sequence_number,
+    )
+    if exclude_task_id:
+        q = q.filter(TaskTemplate.ID != exclude_task_id)
+    clash = q.first()
+    if clash:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Sequence Number {sequence_number} is already used by task \"{clash.NAME}\" in this project.",
+        )
+
+
+def _validate_no_duplicate_dependencies(depends_on_ids: list):
+    seen = set()
+    for dep_id in depends_on_ids:
+        if dep_id in seen:
+            raise HTTPException(status_code=400, detail="Duplicate dependency — each task can only be depended on once per task.")
+        seen.add(dep_id)
+
+
+def _create_dependency_rows(db: Session, project_id: str, task_id: str, depends_on_ids: list, check_same_project: bool = True):
+    depends_on_ids = list(depends_on_ids)
+    if not depends_on_ids:
+        return
+    if task_id in depends_on_ids:
+        raise HTTPException(status_code=400, detail="A task cannot depend on itself.")
+    _validate_no_duplicate_dependencies(depends_on_ids)
+    if check_same_project:
+        task_dependency_service.validate_same_project(db, project_id, depends_on_ids)
+    task_dependency_service.validate_no_cycle(db, project_id, task_id, depends_on_ids)
+    for dep_id in depends_on_ids:
+        db.add(TaskTemplateDependency(TASK_TEMPLATE_ID=task_id, DEPENDS_ON_TASK_TEMPLATE_ID=dep_id))
 
 
 # =========================
@@ -358,6 +512,7 @@ def list_projects(
             "CATEGORY_ID": p.CATEGORY_ID,
             "CATEGORY_NAME": c.NAME,
             "BOM_MODE": p.BOM_MODE,
+            "ASSIGNMENT_MODE": p.ASSIGNMENT_MODE,
             "ESTIMATED_TOTAL_DAYS": float(p.ESTIMATED_TOTAL_DAYS) if p.ESTIMATED_TOTAL_DAYS else 0.0,
             "TASK_COUNT": len(p.task_templates),
             "VENDOR_ID": p.VENDOR_ID,
@@ -388,6 +543,7 @@ def get_project(project_id: str, db: Session = Depends(get_db)):
         "CATEGORY_ID": p.CATEGORY_ID,
         "CATEGORY_NAME": cat.NAME if cat else None,
         "BOM_MODE": p.BOM_MODE,
+        "ASSIGNMENT_MODE": p.ASSIGNMENT_MODE,
         "ESTIMATED_TOTAL_DAYS": float(p.ESTIMATED_TOTAL_DAYS) if p.ESTIMATED_TOTAL_DAYS else 0.0,
         "VENDOR_ID": p.VENDOR_ID,
         "CREATED_AT": p.CREATED_AT.isoformat() if p.CREATED_AT else None,
@@ -415,6 +571,7 @@ def create_project(data: ProjectCreate, db: Session = Depends(get_db)):
         NAME=data.NAME,
         DESCRIPTION=data.DESCRIPTION,
         BOM_MODE=data.BOM_MODE,
+        ASSIGNMENT_MODE=data.ASSIGNMENT_MODE or "PARALLEL",
         ESTIMATED_TOTAL_DAYS=0.0,
         VENDOR_ID=data.VENDOR_ID
     )
@@ -437,6 +594,7 @@ def create_project(data: ProjectCreate, db: Session = Depends(get_db)):
     db.add(_qtn)
 
     if data.tasks:
+        created_task_ids = []
         for i, t in enumerate(data.tasks):
             task = TaskTemplate(
                 PROJECT_ID=project.ID,
@@ -445,11 +603,31 @@ def create_project(data: ProjectCreate, db: Session = Depends(get_db)):
                 DURATION_VALUE=t.DURATION_VALUE,
                 DURATION_UNIT=t.DURATION_UNIT,
                 SEQUENCE_NUMBER=t.SEQUENCE_NUMBER if t.SEQUENCE_NUMBER else i,
-                DEPARTMENT_ID=t.DEPARTMENT_ID,
-                ROLE_ID=t.ROLE_ID,
+                TASK_SCOPE=t.TASK_SCOPE or "PROJECT",
+                EXECUTION_GROUP_ID=t.EXECUTION_GROUP_ID or None,
+                DEPENDENCY_RULE=t.DEPENDENCY_RULE or "ALL",
                 VENDOR_ID=data.VENDOR_ID
             )
             db.add(task)
+            db.flush()
+            created_task_ids.append(task.ID)
+            _create_requirement_rows(task.ID, t.requirements, db)
+
+        # Second pass: dependencies reference other tasks in this SAME
+        # batch by array position (DEPENDS_ON_TASK_INDEX) — real IDs don't
+        # exist until after the first pass above.
+        for i, t in enumerate(data.tasks):
+            if not t.dependencies:
+                continue
+            depends_on_ids = []
+            for dep in t.dependencies:
+                if dep.DEPENDS_ON_TASK_INDEX < 0 or dep.DEPENDS_ON_TASK_INDEX >= len(created_task_ids):
+                    raise HTTPException(status_code=400, detail=f"Invalid dependency reference for task \"{t.NAME}\".")
+                if dep.DEPENDS_ON_TASK_INDEX == i:
+                    raise HTTPException(status_code=400, detail=f"Task \"{t.NAME}\" cannot depend on itself.")
+                depends_on_ids.append(created_task_ids[dep.DEPENDS_ON_TASK_INDEX])
+            _create_dependency_rows(db, project.ID, created_task_ids[i], depends_on_ids, check_same_project=False)
+
         db.flush()
         _recalc_project_duration(project, db)
 
@@ -476,6 +654,8 @@ def update_project(project_id: str, data: ProjectUpdate, db: Session = Depends(g
         project.DESCRIPTION = data.DESCRIPTION
     if data.BOM_MODE is not None:
         project.BOM_MODE = data.BOM_MODE
+    if data.ASSIGNMENT_MODE is not None:
+        project.ASSIGNMENT_MODE = data.ASSIGNMENT_MODE
     if data.CATEGORY_ID is not None:
         cat = db.query(ProjectCategory).filter(ProjectCategory.ID == data.CATEGORY_ID).first()
         if not cat:
@@ -483,6 +663,7 @@ def update_project(project_id: str, data: ProjectUpdate, db: Session = Depends(g
         project.CATEGORY_ID = data.CATEGORY_ID
     if data.tasks is not None:
         db.query(TaskTemplate).filter(TaskTemplate.PROJECT_ID == project_id).delete()
+        created_task_ids = []
         for i, t in enumerate(data.tasks):
             task = TaskTemplate(
                 PROJECT_ID=project_id,
@@ -491,11 +672,29 @@ def update_project(project_id: str, data: ProjectUpdate, db: Session = Depends(g
                 DURATION_VALUE=t.DURATION_VALUE,
                 DURATION_UNIT=t.DURATION_UNIT,
                 SEQUENCE_NUMBER=t.SEQUENCE_NUMBER if t.SEQUENCE_NUMBER else i,
-                DEPARTMENT_ID=t.DEPARTMENT_ID,
-                ROLE_ID=t.ROLE_ID,
+                TASK_SCOPE=t.TASK_SCOPE or "PROJECT",
+                EXECUTION_GROUP_ID=t.EXECUTION_GROUP_ID or None,
+                DEPENDENCY_RULE=t.DEPENDENCY_RULE or "ALL",
                 VENDOR_ID=data.VENDOR_ID
             )
             db.add(task)
+            db.flush()
+            created_task_ids.append(task.ID)
+            _create_requirement_rows(task.ID, t.requirements, db)
+
+        # Second pass — same index-based dependency resolution as create_project()
+        for i, t in enumerate(data.tasks):
+            if not t.dependencies:
+                continue
+            depends_on_ids = []
+            for dep in t.dependencies:
+                if dep.DEPENDS_ON_TASK_INDEX < 0 or dep.DEPENDS_ON_TASK_INDEX >= len(created_task_ids):
+                    raise HTTPException(status_code=400, detail=f"Invalid dependency reference for task \"{t.NAME}\".")
+                if dep.DEPENDS_ON_TASK_INDEX == i:
+                    raise HTTPException(status_code=400, detail=f"Task \"{t.NAME}\" cannot depend on itself.")
+                depends_on_ids.append(created_task_ids[dep.DEPENDS_ON_TASK_INDEX])
+            _create_dependency_rows(db, project_id, created_task_ids[i], depends_on_ids, check_same_project=False)
+
         db.flush()
         _recalc_project_duration(project, db)
     try:
@@ -966,6 +1165,7 @@ def create_task_template(data: TaskTemplateCreate, db: Session = Depends(get_db)
     project = db.query(Project).filter(Project.ID == data.PROJECT_ID).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+    _validate_unique_sequence(db, data.PROJECT_ID, data.SEQUENCE_NUMBER)
     task = TaskTemplate(
         PROJECT_ID=data.PROJECT_ID,
         NAME=data.NAME,
@@ -973,12 +1173,15 @@ def create_task_template(data: TaskTemplateCreate, db: Session = Depends(get_db)
         DURATION_VALUE=data.DURATION_VALUE,
         DURATION_UNIT=data.DURATION_UNIT,
         SEQUENCE_NUMBER=data.SEQUENCE_NUMBER,
-        DEPARTMENT_ID=data.DEPARTMENT_ID,
-        ROLE_ID=data.ROLE_ID,
+        TASK_SCOPE=data.TASK_SCOPE or "PROJECT",
+        EXECUTION_GROUP_ID=data.EXECUTION_GROUP_ID or None,
+        DEPENDENCY_RULE=data.DEPENDENCY_RULE or "ALL",
         VENDOR_ID=data.VENDOR_ID
     )
     db.add(task)
     db.flush()
+    _create_requirement_rows(task.ID, data.requirements, db)
+    _create_dependency_rows(db, data.PROJECT_ID, task.ID, [d.DEPENDS_ON_TASK_TEMPLATE_ID for d in data.dependencies])
     _recalc_project_duration(project, db)
     try:
         db.commit()
@@ -1010,12 +1213,23 @@ def update_task_template(task_id: str, data: TaskTemplateUpdate, db: Session = D
         task.DURATION_VALUE = data.DURATION_VALUE
     if data.DURATION_UNIT is not None:
         task.DURATION_UNIT = data.DURATION_UNIT
-    if data.SEQUENCE_NUMBER is not None:
+    if data.SEQUENCE_NUMBER is not None and data.SEQUENCE_NUMBER != task.SEQUENCE_NUMBER:
+        _validate_unique_sequence(db, task.PROJECT_ID, data.SEQUENCE_NUMBER, exclude_task_id=task.ID)
         task.SEQUENCE_NUMBER = data.SEQUENCE_NUMBER
-    if data.DEPARTMENT_ID is not None:
-        task.DEPARTMENT_ID = data.DEPARTMENT_ID
-    if data.ROLE_ID is not None:
-        task.ROLE_ID = data.ROLE_ID
+    if data.TASK_SCOPE is not None:
+        task.TASK_SCOPE = data.TASK_SCOPE
+    if data.EXECUTION_GROUP_ID is not None:
+        task.EXECUTION_GROUP_ID = data.EXECUTION_GROUP_ID or None  # "" explicitly clears the group
+    if data.DEPENDENCY_RULE is not None:
+        task.DEPENDENCY_RULE = data.DEPENDENCY_RULE
+    if data.requirements is not None:
+        db.query(TaskTemplateRequirement).filter(TaskTemplateRequirement.TASK_TEMPLATE_ID == task.ID).delete()
+        db.flush()
+        _create_requirement_rows(task.ID, data.requirements, db)
+    if data.dependencies is not None:
+        db.query(TaskTemplateDependency).filter(TaskTemplateDependency.TASK_TEMPLATE_ID == task.ID).delete()
+        db.flush()
+        _create_dependency_rows(db, task.PROJECT_ID, task.ID, [d.DEPENDS_ON_TASK_TEMPLATE_ID for d in data.dependencies])
     db.flush()
     project = db.query(Project).filter(Project.ID == task.PROJECT_ID).first()
     if project:
@@ -1436,9 +1650,11 @@ async def bulk_upload_projects(
 _TASK_STD_COLS = {
     "PROJECT NAME", "TASK NAME", "DESCRIPTION",
     "DURATION VALUE", "DURATION UNIT", "DEPARTMENT", "ROLE", "SEQUENCE",
+    "EXPERIENCE LEVEL", "REQUIRED COUNT",
     "S.NO", "S.N", "SN", "",
 }
 _VALID_DUR_UNITS = {"HOURS", "DAYS", "WEEKS", "MONTHS", "YEARS"}
+_VALID_EXPERIENCE_LEVELS = {"FRESHER", "INTERMEDIATE", "EXPERIENCED"}
 
 
 @router.post("/task-templates/bulk-upload", dependencies=[Depends(require("project.create", "project.task_templates.create", "project.task_templates.import"))])
@@ -1485,6 +1701,8 @@ async def bulk_upload_task_templates(
         dept_name = _cell(record, "DEPARTMENT")
         role_name = _cell(record, "ROLE")
         seq_s     = _cell(record, "SEQUENCE")
+        exp_raw   = _cell(record, "EXPERIENCE LEVEL")
+        req_cnt_s = _cell(record, "REQUIRED COUNT")
 
         # Required field checks
         if not proj_name:
@@ -1541,6 +1759,22 @@ async def bulk_upload_task_templates(
                 continue
             role_id = r.ID
 
+        # Manpower requirement (optional, single "primary" requirement per
+        # row, matching this sheet's existing one-row-per-task shape — a
+        # task with several requirements is configured via the UI, and
+        # bulk upload never touches requirements it didn't ask about).
+        # Only managed when the row actually says something about it, so
+        # re-uploading a sheet that only changed e.g. Description never
+        # silently wipes a UI-configured multi-requirement task.
+        has_requirement_signal = bool(dept_name or role_name or exp_raw or req_cnt_s)
+        exp_level = exp_raw.upper() if exp_raw.upper() in _VALID_EXPERIENCE_LEVELS else "INTERMEDIATE"
+        try:
+            req_count = int(float(req_cnt_s)) if req_cnt_s else 1
+            if req_count < 1:
+                req_count = 1
+        except ValueError:
+            req_count = 1
+
         # Sequence
         seq: Optional[int] = None
         if seq_s:
@@ -1587,20 +1821,44 @@ async def bulk_upload_task_templates(
         )
 
         if existing:
+            existing_req = (
+                db.query(TaskTemplateRequirement)
+                  .filter(TaskTemplateRequirement.TASK_TEMPLATE_ID == existing.ID)
+                  .order_by(TaskTemplateRequirement.CREATED_AT.asc())
+                  .first()
+                if has_requirement_signal else None
+            )
+            requirement_changed = has_requirement_signal and (
+                not existing_req
+                or dept_id != existing_req.DEPARTMENT_ID
+                or role_id != existing_req.ROLE_ID
+                or exp_level != existing_req.EXPERIENCE_LEVEL
+                or req_count != existing_req.REQUIRED_COUNT
+            )
             row_changed = (
                 (desc or "") != (existing.DESCRIPTION or "")
                 or abs(float(dur_val) - float(existing.DURATION_VALUE or 1.0)) > 0.001
                 or dur_unit != existing.DURATION_UNIT
-                or dept_id != existing.DEPARTMENT_ID
-                or role_id != existing.ROLE_ID
             )
-            if row_changed or _cf_row_changed(existing.ID, "task_template", cf_vals, db):
+            if row_changed or requirement_changed or _cf_row_changed(existing.ID, "task_template", cf_vals, db):
                 if row_changed:
                     existing.DESCRIPTION = desc
                     existing.DURATION_VALUE = dur_val
                     existing.DURATION_UNIT  = dur_unit
-                    existing.DEPARTMENT_ID  = dept_id
-                    existing.ROLE_ID        = role_id
+                if requirement_changed:
+                    if existing_req:
+                        existing_req.DEPARTMENT_ID    = dept_id
+                        existing_req.ROLE_ID           = role_id
+                        existing_req.EXPERIENCE_LEVEL  = exp_level
+                        existing_req.REQUIRED_COUNT    = req_count
+                    else:
+                        db.add(TaskTemplateRequirement(
+                            TASK_TEMPLATE_ID=existing.ID,
+                            DEPARTMENT_ID=dept_id,
+                            ROLE_ID=role_id,
+                            EXPERIENCE_LEVEL=exp_level,
+                            REQUIRED_COUNT=req_count,
+                        ))
                 for cf_id, val in cf_vals.items():
                     _upsert_cf_bulk(existing.ID, "task_template", cf_id, val, db)
                 modified_proj_ids.add(proj.ID)
@@ -1615,12 +1873,18 @@ async def bulk_upload_task_templates(
                 DURATION_VALUE  = dur_val,
                 DURATION_UNIT   = dur_unit,
                 SEQUENCE_NUMBER = seq,
-                DEPARTMENT_ID   = dept_id,
-                ROLE_ID         = role_id,
                 VENDOR_ID       = vendor_id,
             )
             db.add(new_task)
             db.flush()
+            if has_requirement_signal:
+                db.add(TaskTemplateRequirement(
+                    TASK_TEMPLATE_ID=new_task.ID,
+                    DEPARTMENT_ID=dept_id,
+                    ROLE_ID=role_id,
+                    EXPERIENCE_LEVEL=exp_level,
+                    REQUIRED_COUNT=req_count,
+                ))
             for cf_id, val in cf_vals.items():
                 _upsert_cf_bulk(new_task.ID, "task_template", cf_id, val, db)
             modified_proj_ids.add(proj.ID)

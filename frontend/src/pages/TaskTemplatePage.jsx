@@ -21,11 +21,29 @@ import UploadIcon from "../assets/Icons/uploadIcon.webp";
 import styles from "./TaskTemplatePage.module.css";
 
 const DURATION_UNITS = ["HOURS", "DAYS", "WEEKS", "MONTHS", "YEARS"];
+const EXPERIENCE_LEVELS = ["FRESHER", "INTERMEDIATE", "EXPERIENCED"];
+const TASK_SCOPES = ["PROJECT", "UNIT"];
+const TASK_SCOPE_HELP = {
+  PROJECT: "Task is created once for the complete project.",
+  UNIT: "Task is created separately for each project unit/quantity.",
+};
+
+const DEPENDENCY_RULES = ["ALL", "ANY"];
+const DEPENDENCY_RULE_HELP = {
+  ALL: "Every dependency must be completed before this task can start.",
+  ANY: "At least one dependency must be completed before this task can start.",
+};
 
 const EMPTY_FORM = {
   NAME: "", DESCRIPTION: "", DURATION_VALUE: 1,
-  DURATION_UNIT: "DAYS", DEPARTMENT_ID: "", ROLE_ID: "", SEQUENCE_NUMBER: 0,
+  DURATION_UNIT: "DAYS", TASK_SCOPE: "UNIT", SEQUENCE_NUMBER: 0,
+  EXECUTION_GROUP_ID: "", DEPENDENCY_RULE: "ALL",
 };
+
+const EMPTY_REQUIREMENT = () => ({
+  _key: Math.random().toString(36).slice(2),
+  DEPARTMENT_ID: "", ROLE_ID: "", EXPERIENCE_LEVEL: "", REQUIRED_COUNT: 1,
+});
 
 export default function TaskTemplatePage() {
   const [searchParams] = useSearchParams();
@@ -41,6 +59,9 @@ export default function TaskTemplatePage() {
   const [search, setSearch] = useState("");
   const [modal, setModal] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [requirements, setRequirements] = useState([]);
+  const [requirementErrors, setRequirementErrors] = useState({}); // { [_key]: { DEPARTMENT_ID?, ROLE_ID?, EXPERIENCE_LEVEL?, REQUIRED_COUNT?, DUPLICATE? } }
+  const [dependencies, setDependencies] = useState([]); // [DEPENDS_ON_TASK_TEMPLATE_ID, ...]
   const [editId, setEditId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [dragIdx, setDragIdx] = useState(null);
@@ -112,6 +133,51 @@ export default function TaskTemplatePage() {
     [allRoles]
   );
 
+  const handleFormChange = useCallback((field, val) => {
+    setForm((prev) => ({ ...prev, [field]: val }));
+  }, []);
+
+  // Execution Group options — built from the OTHER tasks already in this
+  // project (excluding the one being edited), grouped by EXECUTION_GROUP_ID.
+  // "+ Create New Group" generates a fresh UUID client-side — the user
+  // never sees or types a raw group ID.
+  const groupOptions = useMemo(() => {
+    const groups = new Map(); // groupId -> [taskNames]
+    for (const t of tasks) {
+      if (t.ID === editId || !t.EXECUTION_GROUP_ID) continue;
+      if (!groups.has(t.EXECUTION_GROUP_ID)) groups.set(t.EXECUTION_GROUP_ID, []);
+      groups.get(t.EXECUTION_GROUP_ID).push(t.NAME);
+    }
+    const opts = [{ value: "", label: "— None (runs independently) —" }];
+    let i = 1;
+    for (const [groupId, names] of groups) {
+      opts.push({ value: groupId, label: `Group ${i++} (${names.join(", ")})` });
+    }
+    opts.push({ value: "__NEW__", label: "+ Create New Group" });
+    return opts;
+  }, [tasks, editId]);
+
+  const handleGroupChange = useCallback((val) => {
+    if (val === "__NEW__") {
+      handleFormChange("EXECUTION_GROUP_ID", crypto.randomUUID());
+    } else {
+      handleFormChange("EXECUTION_GROUP_ID", val);
+    }
+  }, [handleFormChange]);
+
+  // Other named tasks in this project this task could depend on — self
+  // excluded so a circular/self dependency can never even be selected.
+  const dependencyCandidates = useMemo(
+    () => tasks.filter((t) => t.ID !== editId),
+    [tasks, editId]
+  );
+
+  const toggleDependency = useCallback((taskId) => {
+    setDependencies((prev) => (
+      prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]
+    ));
+  }, []);
+
   const currentProject = useMemo(
     () => projects.find((p) => String(p.ID) === String(selectedProject)),
     [projects, selectedProject]
@@ -144,6 +210,9 @@ export default function TaskTemplatePage() {
 
   const openAdd = useCallback(() => {
     setForm({ ...EMPTY_FORM, SEQUENCE_NUMBER: tasks.length });
+    setRequirements([]);
+    setRequirementErrors({});
+    setDependencies([]);
     setEditId(null);
     setModal("task");
     resetCfValues();
@@ -155,10 +224,22 @@ export default function TaskTemplatePage() {
       DESCRIPTION: t.DESCRIPTION || "",
       DURATION_VALUE: t.DURATION_VALUE,
       DURATION_UNIT: t.DURATION_UNIT,
-      DEPARTMENT_ID: t.DEPARTMENT_ID ? String(t.DEPARTMENT_ID) : "",
-      ROLE_ID: t.ROLE_ID ? String(t.ROLE_ID) : "",
+      TASK_SCOPE: t.TASK_SCOPE || "PROJECT",
       SEQUENCE_NUMBER: t.SEQUENCE_NUMBER,
+      EXECUTION_GROUP_ID: t.EXECUTION_GROUP_ID || "",
+      DEPENDENCY_RULE: t.DEPENDENCY_RULE || "ALL",
     });
+    setRequirements(
+      (t.requirements || []).map((r) => ({
+        _key: r.ID,
+        DEPARTMENT_ID: r.DEPARTMENT_ID ? String(r.DEPARTMENT_ID) : "",
+        ROLE_ID: r.ROLE_ID ? String(r.ROLE_ID) : "",
+        EXPERIENCE_LEVEL: r.EXPERIENCE_LEVEL || "",
+        REQUIRED_COUNT: r.REQUIRED_COUNT || 1,
+      }))
+    );
+    setRequirementErrors({});
+    setDependencies((t.dependencies || []).map((d) => d.DEPENDS_ON_TASK_TEMPLATE_ID));
     setEditId(t.ID);
     setModal("task");
     loadCfValues(t.ID);
@@ -166,13 +247,71 @@ export default function TaskTemplatePage() {
 
   const closeModal = useCallback(() => { setModal(null); setEditId(null); }, []);
 
-  const handleFormChange = useCallback((field, val) => {
-    setForm((prev) => ({ ...prev, [field]: val }));
+  const addRequirement = useCallback(() => {
+    setRequirements((prev) => [...prev, EMPTY_REQUIREMENT()]);
   }, []);
+
+  const removeRequirement = useCallback((idx) => {
+    setRequirements((prev) => prev.filter((_, i) => i !== idx));
+  }, []);
+
+  const updateRequirement = useCallback((idx, field, value) => {
+    setRequirements((prev) => {
+      const next = prev.map((r, i) => (i === idx ? { ...r, [field]: value } : r));
+      const key = next[idx]._key;
+      setRequirementErrors((prevErrors) => {
+        if (!prevErrors[key]) return prevErrors;
+        const rowErrors = { ...prevErrors[key] };
+        delete rowErrors[field];
+        delete rowErrors.DUPLICATE; // any edit can resolve a stale duplicate flag too
+        const updated = { ...prevErrors };
+        if (Object.keys(rowErrors).length > 0) updated[key] = rowErrors;
+        else delete updated[key];
+        return updated;
+      });
+      return next;
+    });
+  }, []);
+
+  // Mirrors ProjectPage.jsx's validateTasks() shape: per-row error map keyed
+  // by _key, surfaced under each field via requirementErrors[_key][FIELD].
+  const validateRequirements = useCallback(() => {
+    const errors = {};
+    const seen = new Set();
+    for (const r of requirements) {
+      const rowErrors = {};
+      if (!r.DEPARTMENT_ID) rowErrors.DEPARTMENT_ID = "Department is required";
+      if (!r.ROLE_ID) rowErrors.ROLE_ID = "Role is required";
+      if (!r.EXPERIENCE_LEVEL) rowErrors.EXPERIENCE_LEVEL = "Experience level is required";
+      const count = parseInt(r.REQUIRED_COUNT, 10);
+      if (r.REQUIRED_COUNT === "" || Number.isNaN(count) || count < 1) {
+        rowErrors.REQUIRED_COUNT = "Enter a whole number of 1 or more";
+      }
+      const dupKey = `${r.DEPARTMENT_ID || ""}|${r.ROLE_ID || ""}|${r.EXPERIENCE_LEVEL || ""}`;
+      if (seen.has(dupKey)) {
+        rowErrors.DUPLICATE = "This Department + Role + Experience Level combination is already added — increase its Required Count instead.";
+      }
+      seen.add(dupKey);
+      if (Object.keys(rowErrors).length > 0) errors[r._key] = rowErrors;
+    }
+    return errors;
+  }, [requirements]);
 
   const handleSave = useCallback(async () => {
     if (!form.NAME.trim()) { toast.showWarning("Task name is required"); return; }
     if (!selectedProject) { toast.showWarning("Select a project first"); return; }
+    const seq = parseInt(form.SEQUENCE_NUMBER) || 0;
+    const seqClash = tasks.find((t) => t.ID !== editId && t.SEQUENCE_NUMBER === seq);
+    if (seqClash) {
+      toast.showWarning(`Sequence Number ${seq} is already used by task "${seqClash.NAME}". Choose a different number.`);
+      return;
+    }
+    const reqErrors = validateRequirements();
+    if (Object.keys(reqErrors).length > 0) {
+      setRequirementErrors(reqErrors);
+      toast.showWarning("Please fix the manpower requirement fields highlighted below.");
+      return;
+    }
     const cfError = validateCf();
     if (cfError) { toast.showWarning(cfError); return; }
     setSaving(true);
@@ -182,9 +321,17 @@ export default function TaskTemplatePage() {
         DESCRIPTION: form.DESCRIPTION || null,
         DURATION_VALUE: parseFloat(form.DURATION_VALUE) || 1,
         DURATION_UNIT: form.DURATION_UNIT,
-        SEQUENCE_NUMBER: parseInt(form.SEQUENCE_NUMBER) || 0,
-        DEPARTMENT_ID: form.DEPARTMENT_ID ? parseInt(form.DEPARTMENT_ID) : null,
-        ROLE_ID: form.ROLE_ID ? parseInt(form.ROLE_ID) : null,
+        SEQUENCE_NUMBER: seq,
+        TASK_SCOPE: form.TASK_SCOPE || "PROJECT",
+        EXECUTION_GROUP_ID: form.EXECUTION_GROUP_ID || "",
+        DEPENDENCY_RULE: form.DEPENDENCY_RULE || "ALL",
+        requirements: requirements.map((r) => ({
+          DEPARTMENT_ID: r.DEPARTMENT_ID ? parseInt(r.DEPARTMENT_ID) : null,
+          ROLE_ID: r.ROLE_ID ? parseInt(r.ROLE_ID) : null,
+          EXPERIENCE_LEVEL: r.EXPERIENCE_LEVEL,
+          REQUIRED_COUNT: parseInt(r.REQUIRED_COUNT) || 1,
+        })),
+        dependencies: dependencies.map((id) => ({ DEPENDS_ON_TASK_TEMPLATE_ID: id })),
         PROJECT_ID: selectedProject,
       };
       if (editId) {
@@ -204,7 +351,7 @@ export default function TaskTemplatePage() {
     } finally {
       setSaving(false);
     }
-  }, [form, editId, selectedProject, closeModal, loadTasks, toast, validateCf, saveCfValues]);
+  }, [form, requirements, dependencies, tasks, validateRequirements, editId, selectedProject, closeModal, loadTasks, toast, validateCf, saveCfValues]);
 
   const handleDelete = useCallback((t) => {
     setConfirmModal({
@@ -261,10 +408,38 @@ export default function TaskTemplatePage() {
     [allRoles]
   );
 
+  const manpowerParts = useCallback((t) => {
+    return (t.requirements || []).map((r) => {
+      const dept = r.DEPARTMENT_NAME || deptMap[r.DEPARTMENT_ID] || "—";
+      const role = r.ROLE_NAME || roleMap[r.ROLE_ID] || "—";
+      return `${dept} / ${role} / ${r.EXPERIENCE_LEVEL} × ${r.REQUIRED_COUNT}`;
+    });
+  }, [deptMap, roleMap]);
+
+  const manpowerSummary = useCallback((t) => {
+    const count = (t.requirements || []).length;
+    if (count === 0) return null;
+    const total = t.TOTAL_REQUIRED_COUNT ?? (t.requirements || []).reduce((s, r) => s + (r.REQUIRED_COUNT || 0), 0);
+    return `${count} requirement${count !== 1 ? "s" : ""} · ${total} total`;
+  }, []);
+
   const gridCols = useMemo(
-    () => `28px 40px minmax(0,1fr) 140px 150px 150px 150px ${cfFields.map(() => "130px").join(" ")} 130px`.trim(),
+    () => `28px 40px minmax(0,1fr) 140px 100px 190px 150px 120px 130px 150px ${cfFields.map(() => "130px").join(" ")} 130px`.trim(),
     [cfFields]
   );
+
+  // Friendly "Group N" label for a task's EXECUTION_GROUP_ID, consistent
+  // across rows within the currently-loaded task list (Map preserves
+  // first-seen insertion order, so the same group always gets the same
+  // number for as long as this page stays open).
+  const groupLabelMap = useMemo(() => {
+    const map = new Map();
+    let i = 1;
+    for (const t of tasks) {
+      if (t.EXECUTION_GROUP_ID && !map.has(t.EXECUTION_GROUP_ID)) map.set(t.EXECUTION_GROUP_ID, `Group ${i++}`);
+    }
+    return map;
+  }, [tasks]);
 
   const handleExport = useCallback(() => {
     const data = filtered.map((t, i) => {
@@ -272,8 +447,8 @@ export default function TaskTemplatePage() {
         "S.No": i + 1,
         "Task Name": t.NAME,
         Duration: `${t.DURATION_VALUE} ${t.DURATION_UNIT}`,
-        Department: t.DEPARTMENT_NAME || deptMap[t.DEPARTMENT_ID] || "",
-        Role: t.ROLE_NAME || roleMap[t.ROLE_ID] || "",
+        "Task Scope": t.TASK_SCOPE || "PROJECT",
+        "Manpower Requirements": manpowerParts(t).join("; ") || "—",
       };
       cfFields.forEach((f) => {
         const val = cfValuesMap[String(t.ID)]?.[f.ID];
@@ -282,13 +457,14 @@ export default function TaskTemplatePage() {
       return row;
     });
     exportToExcel(data, `tasks_${currentProject?.NAME || "export"}`);
-  }, [filtered, currentProject, deptMap, roleMap, cfFields, cfValuesMap]);
+  }, [filtered, currentProject, manpowerParts, cfFields, cfValuesMap]);
 
   const handleDownloadTaskTemplate = useCallback(async () => {
     try {
       const headers = [
         "Project Name", "Task Name", "Description",
-        "Duration Value", "Duration Unit", "Department", "Role", "Sequence",
+        "Duration Value", "Duration Unit", "Department", "Role",
+        "Experience Level", "Required Count", "Sequence",
         ...cfFields.map((f) => f.FIELD_NAME),
       ];
       await dlTemplate("Tasks", headers, "task_templates_template");
@@ -409,8 +585,10 @@ export default function TaskTemplatePage() {
                   <span className={styles.thSeq}>#</span>
                   <span className={styles.thName}>Task Name</span>
                   <span className={styles.thDur}>Duration</span>
-                  <span className={styles.thDept}>Department</span>
-                  <span className={styles.thRole}>Role</span>
+                  <span className={styles.thDept}>Task Scope</span>
+                  <span className={styles.thRole}>Manpower</span>
+                  <span>Execution Group</span>
+                  <span>Dependencies</span>
                   <span>Created Date</span>
                   {cfFields.map((f) => <span key={f.ID}>{f.FIELD_NAME}</span>)}
                   <span className={styles.thAct}>Actions</span>
@@ -433,11 +611,24 @@ export default function TaskTemplatePage() {
                       <span className={styles.durBadge}>
                         {t.DURATION_VALUE} {t.DURATION_UNIT}
                       </span>
-                      <span className={styles.deptText}>
-                        {t.DEPARTMENT_NAME || deptMap[t.DEPARTMENT_ID] || <span className={styles.muted}>—</span>}
+                      <span className={styles.deptText}>{t.TASK_SCOPE || "PROJECT"}</span>
+                      <span
+                        className={styles.roleText}
+                        title={manpowerParts(t).join("\n") || undefined}
+                      >
+                        {manpowerSummary(t) || <span className={styles.muted}>—</span>}
                       </span>
-                      <span className={styles.roleText}>
-                        {t.ROLE_NAME || roleMap[t.ROLE_ID] || <span className={styles.muted}>—</span>}
+                      <span>
+                        {t.EXECUTION_GROUP_ID
+                          ? <span className={styles.groupChip}>{groupLabelMap.get(t.EXECUTION_GROUP_ID)}</span>
+                          : <span className={styles.muted}>—</span>}
+                      </span>
+                      <span
+                        title={(t.dependencies || []).map((d) => d.DEPENDS_ON_TASK_NAME).join("\n") || undefined}
+                      >
+                        {t.dependencies?.length > 0
+                          ? <span className={styles.groupChip}>{t.dependencies.length} ({t.DEPENDENCY_RULE})</span>
+                          : <span className={styles.muted}>—</span>}
                       </span>
                       <span className={styles.cfText}>{formatDateTime(t.CREATED_AT)}</span>
                       {cfFields.map((f) => {
@@ -519,30 +710,6 @@ export default function TaskTemplatePage() {
             />
           </div>
           <div className={styles.formGroup}>
-            <label>Department</label>
-            <PMSelect
-              options={departments}
-              value={form.DEPARTMENT_ID}
-              onChange={(val) => handleFormChange("DEPARTMENT_ID", val)}
-              valueKey="ID"
-              labelKey="NAME"
-              allowClear
-              clearLabel="— None —"
-            />
-          </div>
-          <div className={styles.formGroup}>
-            <label>Role</label>
-            <PMSelect
-              options={rolesForDept(form.DEPARTMENT_ID)}
-              value={form.ROLE_ID}
-              onChange={(val) => handleFormChange("ROLE_ID", val)}
-              valueKey="ID"
-              labelKey="NAME"
-              allowClear
-              clearLabel="— None —"
-            />
-          </div>
-          <div className={styles.formGroup}>
             <label>Sequence #</label>
             <input
               className={styles.input}
@@ -551,6 +718,24 @@ export default function TaskTemplatePage() {
               value={form.SEQUENCE_NUMBER}
               onChange={(e) => handleFormChange("SEQUENCE_NUMBER", e.target.value)}
             />
+          </div>
+          <div className={styles.formGroup}>
+            <label>Task Scope</label>
+            <PMSelect
+              options={TASK_SCOPES}
+              value={form.TASK_SCOPE}
+              onChange={(val) => handleFormChange("TASK_SCOPE", val)}
+            />
+            <span className={styles.hint}>{TASK_SCOPE_HELP[form.TASK_SCOPE]}</span>
+          </div>
+          <div className={styles.formGroup}>
+            <label>Execution Group</label>
+            <PMSelect
+              options={groupOptions}
+              value={form.EXECUTION_GROUP_ID}
+              onChange={handleGroupChange}
+            />
+            <span className={styles.hint}>Tasks in the same group are eligible to run in parallel.</span>
           </div>
           <div className={`${styles.formGroup} ${styles.fullWidth}`}>
             <label>Description</label>
@@ -563,6 +748,136 @@ export default function TaskTemplatePage() {
             />
           </div>
         </div>
+
+        <div className={styles.requirementsSection}>
+          <div className={styles.requirementsHeader}>
+            <span className={styles.requirementsTitle}>
+              Manpower Requirements {requirements.length > 0 && `(${requirements.length})`}
+            </span>
+          </div>
+          {requirements.length === 0 && (
+            <p className={styles.hint}>No manpower requirements added yet — this task has no specific staffing need, or add one below.</p>
+          )}
+          {requirements.map((r, idx) => (
+            <div key={r._key} className={styles.requirementRow}>
+              <div className={styles.requirementRowHead}>
+                <span className={styles.requirementRowTitle}>Requirement {idx + 1}</span>
+                <button
+                  type="button"
+                  className={styles.removeRowBtn}
+                  onClick={() => removeRequirement(idx)}
+                >
+                  Remove
+                </button>
+              </div>
+              <div className={styles.requirementGrid}>
+                <div className={styles.requirementFieldCell}>
+                  <label>Department <span className={styles.req}>*</span></label>
+                  <PMSelect
+                    options={departments}
+                    value={r.DEPARTMENT_ID}
+                    onChange={(val) => updateRequirement(idx, "DEPARTMENT_ID", val)}
+                    valueKey="ID"
+                    labelKey="NAME"
+                    placeholder="Select Department"
+                    size="sm"
+                    className={requirementErrors[r._key]?.DEPARTMENT_ID ? styles.taskSelectError : ""}
+                  />
+                  {requirementErrors[r._key]?.DEPARTMENT_ID && (
+                    <span className={styles.taskFieldError}>{requirementErrors[r._key].DEPARTMENT_ID}</span>
+                  )}
+                </div>
+                <div className={styles.requirementFieldCell}>
+                  <label>Role <span className={styles.req}>*</span></label>
+                  <PMSelect
+                    options={rolesForDept(r.DEPARTMENT_ID)}
+                    value={r.ROLE_ID}
+                    onChange={(val) => updateRequirement(idx, "ROLE_ID", val)}
+                    valueKey="ID"
+                    labelKey="NAME"
+                    placeholder="Select Role"
+                    size="sm"
+                    className={requirementErrors[r._key]?.ROLE_ID ? styles.taskSelectError : ""}
+                  />
+                  {requirementErrors[r._key]?.ROLE_ID && (
+                    <span className={styles.taskFieldError}>{requirementErrors[r._key].ROLE_ID}</span>
+                  )}
+                </div>
+                <div className={styles.requirementFieldCell}>
+                  <label>Experience <span className={styles.req}>*</span></label>
+                  <PMSelect
+                    options={EXPERIENCE_LEVELS}
+                    value={r.EXPERIENCE_LEVEL}
+                    onChange={(val) => updateRequirement(idx, "EXPERIENCE_LEVEL", val)}
+                    placeholder="Select Experience Level"
+                    size="sm"
+                    className={requirementErrors[r._key]?.EXPERIENCE_LEVEL ? styles.taskSelectError : ""}
+                  />
+                  {requirementErrors[r._key]?.EXPERIENCE_LEVEL && (
+                    <span className={styles.taskFieldError}>{requirementErrors[r._key].EXPERIENCE_LEVEL}</span>
+                  )}
+                </div>
+                <div className={styles.requirementFieldCell}>
+                  <label>Required Count <span className={styles.req}>*</span></label>
+                  <input
+                    className={`${styles.input}${requirementErrors[r._key]?.REQUIRED_COUNT ? " " + styles.inputError : ""}`}
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={r.REQUIRED_COUNT}
+                    onChange={(e) => updateRequirement(idx, "REQUIRED_COUNT", e.target.value)}
+                  />
+                  {requirementErrors[r._key]?.REQUIRED_COUNT && (
+                    <span className={styles.taskFieldError}>{requirementErrors[r._key].REQUIRED_COUNT}</span>
+                  )}
+                </div>
+              </div>
+              {requirementErrors[r._key]?.DUPLICATE && (
+                <span className={styles.taskFieldError}>{requirementErrors[r._key].DUPLICATE}</span>
+              )}
+            </div>
+          ))}
+          <button type="button" className={styles.addRowBtn} onClick={addRequirement}>
+            + Add Requirement
+          </button>
+        </div>
+
+        <div className={styles.requirementsSection}>
+          <div className={styles.requirementsHeader}>
+            <span className={styles.requirementsTitle}>
+              Dependencies {dependencies.length > 0 && `(${dependencies.length})`}
+            </span>
+          </div>
+          {dependencyCandidates.length === 0 ? (
+            <p className={styles.hint}>No other tasks in this project yet to depend on.</p>
+          ) : (
+            <div className={styles.dependencyList}>
+              {dependencyCandidates.map((t) => (
+                <label key={t.ID} className={styles.dependencyItem}>
+                  <input
+                    type="checkbox"
+                    checked={dependencies.includes(t.ID)}
+                    onChange={() => toggleDependency(t.ID)}
+                  />
+                  <span>{t.NAME}</span>
+                </label>
+              ))}
+            </div>
+          )}
+          {dependencies.length > 1 && (
+            <div className={`${styles.formGroup} ${styles.dependencyRuleField}`}>
+              <label>Dependency Rule</label>
+              <PMSelect
+                options={DEPENDENCY_RULES}
+                value={form.DEPENDENCY_RULE}
+                onChange={(val) => handleFormChange("DEPENDENCY_RULE", val)}
+                size="sm"
+              />
+              <span className={styles.hint}>{DEPENDENCY_RULE_HELP[form.DEPENDENCY_RULE]}</span>
+            </div>
+          )}
+        </div>
+
         <CustomFieldsSection
           fields={cfFields}
           values={cfValues}
@@ -581,9 +896,12 @@ export default function TaskTemplatePage() {
           Upload an Excel file with sheet name <strong>"Tasks"</strong> and columns:{" "}
           <strong>Project Name</strong>, <strong>Task Name</strong>,{" "}
           <strong>Description</strong>, <strong>Duration Value</strong>, <strong>Duration Unit</strong>,{" "}
-          <strong>Department</strong>, <strong>Role</strong>, <strong>Sequence</strong>
+          <strong>Department</strong>, <strong>Role</strong>, <strong>Experience Level</strong>,{" "}
+          <strong>Required Count</strong>, <strong>Sequence</strong>
           {cfFields.length > 0 && <>, plus any custom fields</>}.
-          Existing tasks (matched by project + name) are updated; new ones are inserted.
+          Department/Role/Experience Level/Required Count together define one manpower requirement per
+          task (optional — leave all four blank for a task with no specific staffing need). Existing
+          tasks (matched by project + name) are updated; new ones are inserted.
         </p>
         <div className={styles.dropzone} onClick={() => bulkFileRef.current?.click()}>
           <span className={styles.dropIconWrap}><img src={UploadIcon} alt="Upload" /></span>

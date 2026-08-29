@@ -12,9 +12,32 @@ from sqlalchemy.orm import Session
 from app.database.database import get_db
 from app.models.whatsapp_models import WhatsAppModuleSetting
 from app.schemas.whatsapp_schema import WhatsAppModuleSettingCreate, WhatsAppModuleSettingUpdate
-from app.auth.auth_bearer import get_current_admin
+from app.auth.auth_bearer import get_current_admin, has_permission
 
 router = APIRouter(prefix="/whatsapp-module-settings", tags=["WhatsApp Module Settings"])
+
+# module_code -> (view permission, manage permission). This router is
+# generic across future modules (see module docstring), so the new
+# Lead-Management-specific RBAC only applies when module_code=="lead_module"
+# — a second, granular check made from inside the route body (the same
+# pattern has_permission() itself documents), layered on top of the
+# existing get_current_admin floor rather than replacing it, so nothing
+# that authenticates today stops authenticating.
+_MODULE_PERMISSIONS = {
+    "lead_module": ("lead.config.whatsapp_automation.view", "lead.config.whatsapp_automation.manage"),
+}
+
+
+def _require_module_view(admin: dict, module_code: Optional[str]):
+    codes = _MODULE_PERMISSIONS.get(module_code)
+    if codes and not has_permission(admin, codes[0]):
+        raise HTTPException(status_code=403, detail="You do not have permission to view this module's WhatsApp automation setting.")
+
+
+def _require_module_manage(admin: dict, module_code: Optional[str]):
+    codes = _MODULE_PERMISSIONS.get(module_code)
+    if codes and not has_permission(admin, codes[1]):
+        raise HTTPException(status_code=403, detail="You do not have permission to manage this module's WhatsApp automation setting.")
 
 
 def _serialize_setting(row: WhatsAppModuleSetting) -> dict:
@@ -62,12 +85,13 @@ def get_by_module(
     vendor_id: int = Query(1),
     module_code: str = Query(...),
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
+    admin=Depends(get_current_admin),
 ):
     """Convenience lookup for a module's settings page (e.g. Lead
     Management's own config page) — returns null rather than 404 if the
     module hasn't been configured for this vendor yet, since "not yet
     configured" is the normal/expected first-run state."""
+    _require_module_view(admin, module_code)
     row = db.query(WhatsAppModuleSetting).filter(
         WhatsAppModuleSetting.VENDOR_ID == vendor_id, WhatsAppModuleSetting.MODULE_CODE == module_code
     ).first()
@@ -79,8 +103,9 @@ def create_setting(
     data: WhatsAppModuleSettingCreate,
     vendor_id: int = Query(1),
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
+    admin=Depends(get_current_admin),
 ):
+    _require_module_manage(admin, data.MODULE_CODE)
     if db.query(WhatsAppModuleSetting).filter(
         WhatsAppModuleSetting.VENDOR_ID == vendor_id, WhatsAppModuleSetting.MODULE_CODE == data.MODULE_CODE
     ).first():
@@ -109,8 +134,10 @@ def create_setting(
 
 
 @router.get("/{setting_id}")
-def get_setting(setting_id: str, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
-    return _serialize_setting(_get_or_404(db, setting_id))
+def get_setting(setting_id: str, db: Session = Depends(get_db), admin=Depends(get_current_admin)):
+    row = _get_or_404(db, setting_id)
+    _require_module_view(admin, row.MODULE_CODE)
+    return _serialize_setting(row)
 
 
 @router.put("/{setting_id}")
@@ -118,9 +145,10 @@ def update_setting(
     setting_id: str,
     data: WhatsAppModuleSettingUpdate,
     db: Session = Depends(get_db),
-    _admin=Depends(get_current_admin),
+    admin=Depends(get_current_admin),
 ):
     row = _get_or_404(db, setting_id)
+    _require_module_manage(admin, row.MODULE_CODE)
 
     if data.IS_ENABLED is not None: row.IS_ENABLED = data.IS_ENABLED
     if data.AUTO_TRIGGER_ENABLED is not None: row.AUTO_TRIGGER_ENABLED = data.AUTO_TRIGGER_ENABLED
@@ -141,8 +169,9 @@ def update_setting(
 
 
 @router.delete("/{setting_id}")
-def delete_setting(setting_id: str, db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
+def delete_setting(setting_id: str, db: Session = Depends(get_db), admin=Depends(get_current_admin)):
     row = _get_or_404(db, setting_id)
+    _require_module_manage(admin, row.MODULE_CODE)
     db.delete(row)
     db.commit()
     return {"message": "WhatsApp module setting deleted"}

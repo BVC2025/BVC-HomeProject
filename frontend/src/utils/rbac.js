@@ -125,6 +125,7 @@ export const ROUTE_PERMISSIONS = {
   "/org-roles": "org.manage",
   "/project-categories": ["project.view", "project.categories.view"],
   "/task-templates": ["project.view", "project.task_templates.view"],
+  "/payment-milestones": ["system.payment_milestones.view"],
   "/project-quotations": ["project.view", "project.quotations.view"],
   "/project-pricing": ["project.view", "project.pricing.view"],
   "/whatsapp-config": "setting.modify",
@@ -138,6 +139,7 @@ export const ROUTE_PERMISSIONS = {
   "/company-profile": "setting.modify",
   "/email-config": "setting.modify",
   "/email-templates": "setting.modify",
+  "/email-send-rule": "system.email_send_rule.view",
   "/inventory-categories": ["inventory.view", "inventory.categories.view"],
   "/product-master": ["inventory.view", "inventory.products.view"],
   "/supplier-management": ["supplier.manage", "supplier.view"],
@@ -147,6 +149,7 @@ export const ROUTE_PERMISSIONS = {
   "/lead-management/leads": "lead.records.view",
   "/lead-management/polling-activity": "lead.polling_log.view",
   "/customer-master": "customer.master.view",
+  "/customer-payments": "customer.payments.view",
   // Everything else registered in Dashboard.jsx (Approval Center, the
   // various dashboards, HR automation, star performance, allowances,
   // shifts, holidays, biometric import, announcements, workforce

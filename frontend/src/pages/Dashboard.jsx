@@ -100,6 +100,8 @@ const WhatsAppModuleSettingsManagement = lazy(() => import("./WhatsAppModuleSett
 const LiveLeadViewer = lazy(() => import("./LiveLeadViewer"));
 const ManualLeadManagement = lazy(() => import("./ManualLeadManagement"));
 const CustomerMaster = lazy(() => import("./CustomerMaster"));
+const CustomerPayments = lazy(() => import("./CustomerPayments"));
+const PaymentMilestonePage = lazy(() => import("./PaymentMilestonePage"));
 
 const AIModulesPage = lazy(() => import("./AIModulesPage"));
 const AIKnowledgeBasePage = lazy(() => import("./AIKnowledgeBasePage"));
@@ -119,6 +121,7 @@ const InventoryItemsPage = lazy(() => import("./InventoryItemsPage"));
 const CompanyProfilePage = lazy(() => import("./CompanyProfilePage"));
 const EmailConfigManagement = lazy(() => import("./EmailConfigManagement"));
 const EmailTemplatePage = lazy(() => import("./EmailTemplatePage"));
+const EmailSendRule = lazy(() => import("./EmailSendRule"));
 
 import styles from "./Dashboard.module.css";
 import {
@@ -1382,6 +1385,14 @@ function SidebarIcon({ name }) {
           <rect x="15" y="3" width="6" height="4" rx="1" />
         </svg>
       );
+    case "customer-payments":
+      return (
+        <svg {...props}>
+          <rect x="2" y="5" width="20" height="14" rx="2" />
+          <path d="M2 10h20" />
+          <path d="M6 15h4" />
+        </svg>
+      );
     case "quotations":
       return (
         <svg {...props}>
@@ -1566,6 +1577,14 @@ function SidebarIcon({ name }) {
           <path d="M9 12l2 2 4-4" />
         </svg>
       );
+    case "payment-milestones":
+      return (
+        <svg {...props}>
+          <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+          <rect x="9" y="3" width="6" height="4" rx="1" />
+          <path d="M8 12h8M8 16h5" />
+        </svg>
+      );
     case "proj-quotation":
       return (
         <svg {...props}>
@@ -1716,7 +1735,8 @@ const NAV_GROUPS = [
     key: "customer-mgmt",
     label: "Customer Management",
     items: [
-      { to: "/customer-master", icon: <SidebarIcon name="customer-master" />, label: "Customer Master" }
+      { to: "/customer-master", icon: <SidebarIcon name="customer-master" />, label: "Customer Master" },
+      { to: "/customer-payments", icon: <SidebarIcon name="customer-payments" />, label: "Customer Payments" }
     ]
   },
   {
@@ -1790,6 +1810,8 @@ const NAV_GROUPS = [
       { to: "/whatsapp-config", icon: <SidebarIcon name="whatsapp-config" />, label: "WhatsApp Configuration" },
       { to: "/whatsapp-module-settings", icon: <SidebarIcon name="whatsapp-config" />, label: "WhatsApp Module Settings" },
       { to: "/email-templates", icon: <SidebarIcon name="mail" />, label: "Email Templates" },
+      { to: "/email-send-rule", icon: <SidebarIcon name="mail" />, label: "Email Send Rule" },
+      { to: "/payment-milestones", icon: <SidebarIcon name="payment-milestones" />, label: "Payment Milestones" },
 
       { to: "/holidays", icon: <SidebarIcon name="holidays" />, label: "Holiday Calendar" },
       { to: "/geofence", icon: <SidebarIcon name="geofence" />, label: "Geofence Settings" },
@@ -2309,6 +2331,8 @@ function Dashboard() {
 
           {/* Customer Master — simplified master-data view over the same `customer` table used by /customers */}
           <Route path="/customer-master" element={<RequirePermission code={permissionForRoute("/customer-master")}><Suspense fallback={null}><CustomerMaster /></Suspense></RequirePermission>} />
+          <Route path="/customer-payments" element={<RequirePermission code={permissionForRoute("/customer-payments")}><Suspense fallback={null}><CustomerPayments /></Suspense></RequirePermission>} />
+          <Route path="/payment-milestones" element={<RequirePermission code={permissionForRoute("/payment-milestones")}><Suspense fallback={null}><PaymentMilestonePage /></Suspense></RequirePermission>} />
 
           <Route path="/ai-platform/modules" element={<RequirePermission code={permissionForRoute("/ai-platform/modules")}><Suspense fallback={null}><AIModulesPage /></Suspense></RequirePermission>} />
           <Route path="/ai-platform/knowledge-base" element={<RequirePermission code={permissionForRoute("/ai-platform/knowledge-base")}><Suspense fallback={null}><AIKnowledgeBasePage /></Suspense></RequirePermission>} />
@@ -2327,6 +2351,7 @@ function Dashboard() {
 
           {/* Email Template Editor */}
           <Route path="/email-templates" element={<RequirePermission code={permissionForRoute("/email-templates")}><Suspense fallback={null}><EmailTemplatePage /></Suspense></RequirePermission>} />
+          <Route path="/email-send-rule" element={<RequirePermission code={permissionForRoute("/email-send-rule")}><Suspense fallback={null}><EmailSendRule /></Suspense></RequirePermission>} />
 
           {/* Supplier & Inventory Management module */}
           <Route path="/inventory-categories" element={<RequirePermission code={permissionForRoute("/inventory-categories")}><Suspense fallback={null}><InventoryCategoriesPage /></Suspense></RequirePermission>} />

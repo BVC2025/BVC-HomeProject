@@ -1,8 +1,15 @@
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import { PMModal, PMButton } from "../pm";
 import { formatDateTime } from "../../utils/formatDateTime";
+import { leadService } from "../../services/leadService";
+import { API_BASE_URL } from "../../services/api";
 import DetailsIcon from "../../assets/Icons/detailsIcon.webp";
 import styles from "../../pages/ManualLeadManagement.module.css";
+
+function absoluteUrl(path) {
+  if (!path) return "";
+  return path.startsWith("http") ? path : `${API_BASE_URL}${path}`;
+}
 
 const LEAD_SOURCE_LABELS = {
   INDIAMART: "IndiaMART",
@@ -15,12 +22,42 @@ const LEAD_STATUS_LABELS = {
   VIEWED: "Viewed",
   CONVERTED: "Converted",
   IGNORED: "Ignored",
+  QUOTE_APPROVAL_PENDING: "Quote Approval Pending",
+  QUOTE_APPROVED: "Quote Approved",
+  QUOTE_REJECTED: "Quote Rejected",
+  REVISED_QUOTE_APPROVAL_PENDING: "Revised Quote Approval Pending",
+  REVISED_QUOTE_APPROVED: "Revised Quote Approved",
+  REVISED_QUOTE_REJECTED: "Revised Quote Rejected",
+  PO_REQUESTED: "Purchase Order Requested",
+  PO_RECEIVED: "Purchase Order Received",
 };
+
+function formatAmount(v) {
+  if (v == null) return "—";
+  return `₹${Number(v).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
 
 /** Lead Details modal — mirrors the structure, section layout, and creator-card
  * presentation of frontend/src/components/supplier/InvitationDetailModal.jsx
  * (used by /supplier-management's "Invitation Details" modal) for UI consistency. */
 export const LeadDetailModal = memo(function LeadDetailModal({ open, onClose, data }) {
+  const [payments, setPayments] = useState(null);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open || !data?.ID || data.LEAD_STATUS !== "PO_RECEIVED") {
+      setPayments(null);
+      return;
+    }
+    let cancelled = false;
+    setPaymentsLoading(true);
+    leadService.getPayments(data.ID)
+      .then((res) => { if (!cancelled) setPayments(res.data); })
+      .catch(() => { if (!cancelled) setPayments(null); })
+      .finally(() => { if (!cancelled) setPaymentsLoading(false); });
+    return () => { cancelled = true; };
+  }, [open, data?.ID, data?.LEAD_STATUS]);
+
   return (
     <PMModal
       open={open}
@@ -42,6 +79,9 @@ export const LeadDetailModal = memo(function LeadDetailModal({ open, onClose, da
                 <span className={styles.statusPill} data-status={data.LEAD_STATUS}>
                   {LEAD_STATUS_LABELS[data.LEAD_STATUS] || data.LEAD_STATUS || "—"}
                 </span>
+                {data.CUSTOMER_ID && (
+                  <span className={styles.codeBadge}>Linked to Customer Master</span>
+                )}
               </div>
             </div>
           </div>
@@ -164,6 +204,85 @@ export const LeadDetailModal = memo(function LeadDetailModal({ open, onClose, da
             <div className={styles.leadDetailSection}>
               <div className={styles.leadDetailSectionTitle}>Lead Message</div>
               <div className={styles.leadDetailNotes}>{data.LEAD_MESSAGE}</div>
+            </div>
+          )}
+
+          {/* Customer Payment Summary — only once a Purchase Order has been received */}
+          {data.LEAD_STATUS === "PO_RECEIVED" && (
+            <div className={styles.leadDetailSection}>
+              <div className={styles.leadDetailSectionTitle}>Customer Payment Summary</div>
+              {paymentsLoading ? (
+                <div className={styles.leadDetailNotes}>Loading payment summary…</div>
+              ) : !payments ? (
+                <div className={styles.leadDetailNotes}>Payment summary is not available.</div>
+              ) : (
+                <>
+                  <div className={styles.leadDetailGrid}>
+                    <div className={styles.leadDetailField}>
+                      <span className={styles.leadDetailFieldLabel}>Quantity</span>
+                      <span className={styles.leadDetailFieldValue}>{payments.quantity ?? 1}</span>
+                    </div>
+                    <div className={styles.leadDetailField}>
+                      <span className={styles.leadDetailFieldLabel}>Price Per Unit</span>
+                      <span className={styles.leadDetailFieldValue}>{formatAmount(payments.price_per_unit)}</span>
+                    </div>
+                    <div className={styles.leadDetailField}>
+                      <span className={styles.leadDetailFieldLabel}>Total Project Value</span>
+                      <span className={styles.leadDetailFieldValue}>{formatAmount(payments.accepted_amount)}</span>
+                    </div>
+                    <div className={styles.leadDetailField}>
+                      <span className={styles.leadDetailFieldLabel}>Total Paid</span>
+                      <span className={styles.leadDetailFieldValue}>{formatAmount(payments.total_paid)}</span>
+                    </div>
+                    <div className={styles.leadDetailField}>
+                      <span className={styles.leadDetailFieldLabel}>Remaining Balance</span>
+                      <span className={styles.leadDetailFieldValue}>{formatAmount(payments.remaining_balance)}</span>
+                    </div>
+                    <div className={styles.leadDetailField}>
+                      <span className={styles.leadDetailFieldLabel}>Paid / Remaining %</span>
+                      <span className={styles.leadDetailFieldValue}>
+                        {Number(payments.total_paid_percentage ?? 0).toFixed(2)}% / {Number(payments.remaining_percentage ?? 0).toFixed(2)}%
+                      </span>
+                    </div>
+                  </div>
+                  {payments.payments?.length > 0 ? (
+                    <div className={styles.tableWrap} style={{ marginTop: "var(--sp-3)" }}>
+                      <table className={styles.table}>
+                        <thead>
+                          <tr>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>%</th>
+                            <th>Reference</th>
+                            <th>Proof</th>
+                            <th>Comments</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {payments.payments.map((p) => (
+                            <tr key={p.ID}>
+                              <td className={styles.dateCell}>{formatDateTime(p.PAYMENT_DATE)}</td>
+                              <td>{formatAmount(p.PAYMENT_AMOUNT)}</td>
+                              <td>{Number(p.PAYMENT_PERCENTAGE ?? 0).toFixed(2)}%</td>
+                              <td className={styles.descCell}>{p.PAYMENT_REFERENCE_NUMBER || "—"}</td>
+                              <td>
+                                {p.FILE_URL ? (
+                                  <a href={absoluteUrl(p.FILE_URL)} target="_blank" rel="noopener noreferrer">
+                                    View
+                                  </a>
+                                ) : "—"}
+                              </td>
+                              <td className={styles.descCell}>{p.COMMENTS || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className={styles.leadDetailNotes}>No payments recorded yet.</div>
+                  )}
+                </>
+              )}
             </div>
           )}
         </div>

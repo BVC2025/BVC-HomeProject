@@ -29,6 +29,7 @@ _CF_TABLE = "customer_master"
 _CUST_STD_COLS = {
     "S.NO", "S.N", "SN", "",
     "NAME", "COMPANY NAME", "PHONE NUMBER", "EMAIL", "ADDRESS", "GST NUMBER",
+    "CITY", "STATE", "PINCODE", "COUNTRY ISO",
 }
 
 
@@ -41,6 +42,10 @@ class CustomerMasterCreate(BaseModel):
     ADDRESS: str
     COMPANY_NAME: Optional[str] = None
     GST_NUMBER: Optional[str] = None
+    CITY: Optional[str] = None
+    STATE: Optional[str] = None
+    PINCODE: Optional[str] = None
+    COUNTRY_ISO: Optional[str] = None
     VENDOR_ID: int = 1
     CUSTOM_FIELDS: Optional[dict] = None
 
@@ -52,6 +57,10 @@ class CustomerMasterUpdate(BaseModel):
     EMAIL: Optional[str] = None
     ADDRESS: Optional[str] = None
     GST_NUMBER: Optional[str] = None
+    CITY: Optional[str] = None
+    STATE: Optional[str] = None
+    PINCODE: Optional[str] = None
+    COUNTRY_ISO: Optional[str] = None
     CUSTOM_FIELDS: Optional[dict] = None
 
 
@@ -142,6 +151,45 @@ def _create_customer_row(
     return cust
 
 
+def _find_duplicate_customer(
+    db: Session,
+    vendor_id: int,
+    *,
+    phone_number: Optional[str] = None,
+    email: Optional[str] = None,
+    company_name: Optional[str] = None,
+    gst_number: Optional[str] = None,
+    exclude_customer_id: Optional[str] = None,
+) -> Optional[tuple[Customer, str]]:
+    """Returns (conflicting_row, field_name) for the first of
+    PHONE_NUMBER/EMAIL/COMPANY_NAME/GST_NUMBER that already belongs to
+    ANOTHER Customer Master row under the same vendor, or None if clear.
+    exclude_customer_id excludes the record currently being edited (so
+    saving a customer's own unchanged data is never flagged as a
+    duplicate of itself). Blank/None values are never checked — an empty
+    COMPANY_NAME or GST_NUMBER is not a "duplicate"."""
+    checks = [
+        ("PHONE_NUMBER", phone_number, Customer.PHONE_NUMBER),
+        ("EMAIL", email, Customer.EMAIL),
+        ("COMPANY_NAME", company_name, Customer.COMPANY_NAME),
+        ("GST_NUMBER", gst_number, Customer.GST_NUMBER),
+    ]
+    for field_name, value, column in checks:
+        value = (value or "").strip()
+        if not value:
+            continue
+        q = db.query(Customer).filter(
+            Customer.VENDOR_ID == vendor_id,
+            column == value,
+        )
+        if exclude_customer_id:
+            q = q.filter(Customer.ID != exclude_customer_id)
+        match = q.first()
+        if match:
+            return match, field_name
+    return None
+
+
 # ── CRUD ─────────────────────────────────────────────────────────────────────
 
 @router.get("", dependencies=[Depends(require("customer.master.view"))])
@@ -175,6 +223,7 @@ def create_customer_master(data: CustomerMasterCreate, db: Session = Depends(get
             db,
             name=data.NAME, phone_number=data.PHONE_NUMBER, email=data.EMAIL, address=data.ADDRESS,
             company_name=data.COMPANY_NAME, gst_number=data.GST_NUMBER, vendor_id=data.VENDOR_ID,
+            city=data.CITY, state=data.STATE, pincode=data.PINCODE, country_iso=data.COUNTRY_ISO,
             custom_fields=data.CUSTOM_FIELDS,
         )
         db.commit()
@@ -232,6 +281,10 @@ def update_customer_master(
     if data.EMAIL is not None: cust.EMAIL = data.EMAIL.strip()
     if data.ADDRESS is not None: cust.ADDRESS = data.ADDRESS.strip()
     if data.GST_NUMBER is not None: cust.GST_NUMBER = data.GST_NUMBER.strip() or None
+    if data.CITY is not None: cust.CITY = data.CITY.strip() or None
+    if data.STATE is not None: cust.STATE = data.STATE.strip() or None
+    if data.PINCODE is not None: cust.PINCODE = data.PINCODE.strip() or None
+    if data.COUNTRY_ISO is not None: cust.COUNTRY_ISO = data.COUNTRY_ISO.strip() or None
 
     try:
         _apply_custom_fields(db, cust.ID, vendor_id, data.CUSTOM_FIELDS)
@@ -345,6 +398,10 @@ async def bulk_upload_customer_masters(
             ADDRESS=address,
             COMPANY_NAME=_cell(record, "COMPANY NAME") or None,
             GST_NUMBER=_cell(record, "GST NUMBER") or None,
+            CITY=_cell(record, "CITY") or None,
+            STATE=_cell(record, "STATE") or None,
+            PINCODE=_cell(record, "PINCODE") or None,
+            COUNTRY_ISO=_cell(record, "COUNTRY ISO") or None,
             VENDOR_ID=vendor_id,
         )
         db.add(cust)

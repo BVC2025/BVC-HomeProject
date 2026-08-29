@@ -1,4 +1,5 @@
 from typing import Optional, Dict, Any
+from decimal import Decimal
 from pydantic import BaseModel
 
 
@@ -110,3 +111,18 @@ class LeadConvertRequest(BaseModel):
     # Customer Master's own Custom Fields — collected only now, at
     # conversion time, for the NEW path (never during Lead creation).
     CUSTOM_FIELDS: Optional[Dict[str, Any]] = None
+
+    # Negotiated Final Price for the quotation sent on conversion. When
+    # omitted, ProjectPricing.FINAL_PRICE (the master price) is used as-is.
+    FINAL_PRICE: Optional[Decimal] = None
+
+
+class LeadRevisedQuoteRequest(BaseModel):
+    """Body for POST /lead-management/leads/{lead_id}/quotations/revise."""
+    FINAL_PRICE: Decimal
+    REASON: str
+
+
+class LeadModuleSettingUpdate(BaseModel):
+    """Body for PUT /lead-management/module-setting."""
+    AUTO_SEND_PO_REQUEST_ENABLED: Optional[bool] = None

@@ -13,6 +13,7 @@ import PublicEnquiry from "./pages/PublicEnquiry";
 import SalesOrderPrint from "./pages/SalesOrderPrint";
 import EmployeeOnboardingChat from "./pages/EmployeeOnboardingChat";
 import SupplierRegistrationPortal from "./pages/SupplierRegistrationPortal";
+import PublicPOUpload from "./pages/PublicPOUpload";
 
 function isAuthenticated() {
 
@@ -120,6 +121,13 @@ function App() {
       <Route
         path="/supplier-register/:token"
         element={<SupplierRegistrationPortal />}
+      />
+
+      {/* Public Purchase Order upload — reached from the "Upload Purchase
+          Order" button in the PO Request email, token-gated */}
+      <Route
+        path="/po-upload/:token"
+        element={<PublicPOUpload />}
       />
 
       <Route

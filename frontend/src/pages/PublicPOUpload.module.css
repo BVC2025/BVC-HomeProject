@@ -1,0 +1,232 @@
+/* PublicPOUpload — public Purchase Order upload page, scoped styles */
+
+.shell {
+  /* Fixed height (not min-height) so THIS element is the actual scroll
+     container. This app's global body { height:100%; overflow:hidden; }
+     (see index.css — "overflow lives inside the shell, not the window")
+     means an unconstrained min-height box just grows past the viewport
+     and gets silently clipped by body with no scrollbar anywhere — a
+     min-height never triggers its own overflow-y. 100dvh (falls back to
+     100vh) also avoids mobile browsers' address-bar resize clipping the
+     bottom of the form. */
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--layout-bg);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 32px 16px;
+  box-sizing: border-box;
+  font-family: var(--font, system-ui, -apple-system, sans-serif);
+}
+
+.card {
+  width: 100%;
+  max-width: 560px;
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+@media (max-width: 480px) {
+  .shell {
+    padding: 16px 10px;
+  }
+}
+
+.header {
+  padding: 22px 28px;
+  background: var(--clr-primary);
+  color: var(--text-inverse);
+}
+
+.headerSuccess {
+  background: var(--success, #16a34a);
+}
+
+.headerDanger {
+  background: var(--danger, #dc2626);
+}
+
+.headerEyebrow {
+  font-size: var(--font-xs);
+  letter-spacing: 2px;
+  font-weight: var(--fw-bold);
+  opacity: 0.85;
+  text-transform: uppercase;
+}
+
+.headerTitle {
+  font-size: 22px;
+  font-weight: var(--fw-black, 800);
+  margin-top: 2px;
+  letter-spacing: -0.4px;
+}
+
+.body {
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-primary);
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+.notice {
+  background: var(--warning-bg, #fffbeb);
+  color: var(--warning, #92400e);
+  border: 1px solid var(--warning-border, #fde68a);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  font-size: var(--font-sm);
+  margin-bottom: 14px;
+}
+
+.label {
+  /* Explicit block — without it a <label> defaults to inline, which is
+     harmless as a direct child of .body (a flex column always forces its
+     direct children block-level regardless of their own display), but
+     breaks inside .paymentRow (a plain, non-flex <div>): the label's text
+     could wrap mid-phrase against whatever inline content follows it
+     instead of always occupying its own line. */
+  display: block;
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semi, 600);
+  margin-top: 12px;
+  margin-bottom: 6px;
+}
+
+.req {
+  color: var(--danger, #dc2626);
+}
+
+.fileInput {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  background: var(--surface);
+  font-size: var(--font-sm);
+}
+
+.textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  font-size: var(--font-sm);
+  font-family: inherit;
+  resize: vertical;
+  background: var(--input-bg, var(--card-bg));
+  color: var(--text-primary);
+}
+
+.error {
+  color: var(--danger, #dc2626);
+  font-size: var(--font-sm);
+  margin-top: 10px;
+}
+
+.input {
+  display: block;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  font-size: var(--font-sm);
+  font-family: inherit;
+  background: var(--input-bg, var(--card-bg));
+  color: var(--text-primary);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.paymentBox {
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.paymentRow {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card-bg);
+}
+
+.paymentRow:first-of-type {
+  margin-top: 4px;
+}
+
+.paymentRowHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.paymentRowTitle {
+  font-weight: var(--fw-semi, 600);
+  font-size: var(--font-sm);
+}
+
+.removeRowBtn {
+  background: none;
+  border: none;
+  color: var(--danger, #dc2626);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.addRowBtn {
+  margin-top: 12px;
+  padding: 10px 16px;
+  border: 1px dashed var(--clr-primary);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--clr-primary);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semi, 600);
+  cursor: pointer;
+  width: 100%;
+}
+
+.addRowBtn:hover {
+  background: var(--clr-primary-muted, rgba(220, 38, 38, 0.08));
+}
+
+.submitBtn {
+  margin-top: 20px;
+  padding: 13px 24px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--clr-primary);
+  color: var(--text-inverse);
+  font-weight: var(--fw-bold, 700);
+  font-size: var(--font-base);
+  cursor: pointer;
+}
+
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

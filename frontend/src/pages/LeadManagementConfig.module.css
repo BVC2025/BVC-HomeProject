@@ -114,6 +114,18 @@
   color: var(--text-muted);
 }
 
+.recipientWarning {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--warning-bg, #fffbeb);
+  color: var(--warning, #92400e);
+  border: 1px solid var(--warning-border, #fde68a);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-semi, 600);
+}
+
 .codeBadge {
   display: inline-block;
   padding: 3px 9px;
@@ -443,6 +455,198 @@
 .dateInput:focus { outline: none; border-color: var(--clr-primary); box-shadow: 0 0 0 3px var(--clr-primary-muted, rgba(220,38,38,0.15)); }
 .clearFilter { padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-muted); font-size: var(--font-xs); cursor: pointer; }
 .clearFilter:hover { background: var(--danger-bg); color: var(--danger); }
+
+/* ── Settings cards (Auto Send Purchase Order Request / WhatsApp Automation) ── */
+.settingsCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, var(--radius-md));
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  transition: box-shadow var(--ease);
+}
+
+.settingsCard:hover {
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(15, 23, 42, 0.1));
+}
+
+.settingsCardHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 18px 24px;
+  background: linear-gradient(135deg, var(--clr-primary-light, rgba(220, 38, 38, 0.07)) 0%, transparent 75%);
+  border-bottom: 1px solid var(--border);
+}
+
+.settingsCardIconWrap {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--clr-primary) 0%, var(--clr-primary-dark, #b91c1c) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.3);
+}
+
+.settingsCardIconWrap img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+}
+
+.settingsCardHeaderText {
+  flex: 1;
+  min-width: 0;
+}
+
+.settingsCardTitle {
+  font-size: 1.02rem;
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-primary);
+  margin: 0 0 2px;
+}
+
+.settingsCardSubtitle {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.settingsCardStatusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 13px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.settingsCardStatusPill[data-active="true"] {
+  background: rgba(22, 163, 74, 0.1);
+  color: #16a34a;
+  border: 1px solid rgba(22, 163, 74, 0.25);
+}
+
+.settingsCardStatusPill[data-active="false"] {
+  background: rgba(100, 116, 139, 0.1);
+  color: #64748b;
+  border: 1px solid rgba(100, 116, 139, 0.25);
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.settingsCardBody {
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+/* ── Toggle switch (no PMToggle exists — scoped, self-contained here) ── */
+.toggleRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.toggleRowText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toggleRowLabel {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semi, 600);
+  color: var(--text-primary);
+}
+
+.toggleSwitch {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 42px;
+  height: 24px;
+  cursor: pointer;
+}
+
+.toggleSwitch input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+
+.toggleSlider {
+  position: absolute;
+  inset: 0;
+  background: var(--border);
+  border-radius: 999px;
+  transition: background var(--ease);
+}
+
+.toggleSlider::before {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  left: 3px;
+  top: 3px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform var(--ease);
+}
+
+.toggleSwitch input:checked + .toggleSlider {
+  background: var(--clr-primary);
+}
+
+.toggleSwitch input:checked + .toggleSlider::before {
+  transform: translateX(18px);
+}
+
+.toggleSwitch input:disabled + .toggleSlider {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.toggleSwitch input:focus-visible + .toggleSlider {
+  box-shadow: 0 0 0 3px var(--clr-primary-muted, rgba(220, 38, 38, 0.2));
+}
+
+.settingsCardDivider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2px 0;
+}
+
+.settingsCardSectionTitle {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-primary);
+  margin: 0;
+}
 
 @media (max-width: 600px) {
   .tableSection {

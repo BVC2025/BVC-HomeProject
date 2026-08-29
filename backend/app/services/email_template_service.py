@@ -388,12 +388,616 @@ _EMPLOYEE_ONBOARDING_FALLBACK = """\
 </html>"""
 
 
+_PROJECT_QUOTATION_FALLBACK = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Your Project Quotation</title>
+</head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+         style="background:#f8fafc;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" role="presentation"
+             style="background:#ffffff;border-radius:10px;overflow:hidden;
+                    box-shadow:0 4px 16px rgba(0,0,0,0.08);max-width:600px;width:100%;">
+        <tr>
+          <td style="background:#DC2626;padding:32px 48px;text-align:center;">
+            {{logo_html}}
+            <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:700;letter-spacing:-0.3px;">
+              {{company_name}}
+            </h1>
+            <p style="color:rgba(255,255,255,0.82);margin:10px 0 0;font-size:12px;
+                      letter-spacing:0.8px;text-transform:uppercase;">
+              Project Quotation
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:40px 48px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:15px;line-height:1.75;color:#475569;">
+            <p style="margin:0 0 16px;">Dear <strong>{{customer_name}}</strong>,</p>
+            <p style="margin:0 0 16px;">
+              Thank you for your interest in <strong>{{project_name}}</strong>. Please find
+              attached your quotation (Ref: <strong>{{quotation_number}}</strong>) for review.
+            </p>
+            <table cellpadding="0" cellspacing="0" role="presentation" width="100%"
+                   style="margin:0 0 24px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+              <tr>
+                <td style="padding:20px 24px;">
+                  <p style="margin:0 0 6px;font-size:12px;color:#94a3b8;letter-spacing:0.4px;text-transform:uppercase;">
+                    Quoted Amount
+                  </p>
+                  <p style="margin:0;font-size:22px;font-weight:700;color:#1e293b;">
+                    &#8377;{{quoted_amount}}
+                  </p>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:0 0 20px;">
+              Please review the attached quotation and let us know your decision using the
+              buttons below.
+            </p>
+            <table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 24px;">
+              <tr>
+                <td style="background:#16a34a;border-radius:7px;">
+                  <a href="{{accept_link}}"
+                     style="display:inline-block;padding:14px 28px;color:#ffffff;
+                            text-decoration:none;font-weight:700;font-size:15px;">
+                    Accept Quotation
+                  </a>
+                </td>
+                <td style="width:14px;line-height:1px;font-size:1px;">&nbsp;</td>
+                <td style="background:#dc2626;border-radius:7px;">
+                  <a href="{{reject_link}}"
+                     style="display:inline-block;padding:14px 28px;color:#ffffff;
+                            text-decoration:none;font-weight:700;font-size:15px;">
+                    Reject Quotation
+                  </a>
+                </td>
+              </tr>
+            </table>
+            <p style="color:#64748b;font-size:13px;line-height:1.7;margin:0;">
+              If you have any questions about this quotation, please contact
+              <a href="mailto:{{support_email}}" style="color:#DC2626;text-decoration:none;">{{support_email}}</a>.
+            </p>
+          </td>
+        </tr>
+        <tr><td style="padding:0 48px;">
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:0;">
+        </td></tr>
+        <tr>
+          <td style="padding:28px 48px;background:#f8fafc;">
+            <p style="color:#94a3b8;font-size:12px;line-height:2;margin:0;text-align:center;">
+              <strong style="color:#64748b;">{{company_name}}</strong><br>
+              {{company_address}}<br>
+              Phone:&nbsp;{{contact_number}}&nbsp;|&nbsp;
+              <a href="{{website}}" style="color:#DC2626;text-decoration:none;">{{website}}</a><br>
+              <a href="mailto:{{support_email}}" style="color:#DC2626;text-decoration:none;">{{support_email}}</a>
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+_REVISED_PROJECT_QUOTATION_FALLBACK = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Revised Project Quotation</title>
+</head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+         style="background:#f8fafc;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" role="presentation"
+             style="background:#ffffff;border-radius:10px;overflow:hidden;
+                    box-shadow:0 4px 16px rgba(0,0,0,0.08);max-width:600px;width:100%;">
+        <tr>
+          <td style="background:#DC2626;padding:32px 48px;text-align:center;">
+            {{logo_html}}
+            <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:700;letter-spacing:-0.3px;">
+              {{company_name}}
+            </h1>
+            <p style="color:rgba(255,255,255,0.82);margin:10px 0 0;font-size:12px;
+                      letter-spacing:0.8px;text-transform:uppercase;">
+              Revised Quotation
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:40px 48px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:15px;line-height:1.75;color:#475569;">
+            <p style="margin:0 0 16px;">Dear <strong>{{customer_name}}</strong>,</p>
+            <p style="margin:0 0 16px;">
+              Further to our earlier quotation for <strong>{{project_name}}</strong>, please find
+              attached a <strong>revised quotation</strong> (Ref: <strong>{{quotation_number}}</strong>)
+              that replaces the one previously shared with you.
+            </p>
+            <table cellpadding="0" cellspacing="0" role="presentation" width="100%"
+                   style="margin:0 0 16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+              <tr>
+                <td style="padding:20px 24px;">
+                  <p style="margin:0 0 6px;font-size:12px;color:#94a3b8;letter-spacing:0.4px;text-transform:uppercase;">
+                    Previously Quoted
+                  </p>
+                  <p style="margin:0 0 14px;font-size:15px;color:#94a3b8;text-decoration:line-through;">
+                    &#8377;{{previous_amount}}
+                  </p>
+                  <p style="margin:0 0 6px;font-size:12px;color:#94a3b8;letter-spacing:0.4px;text-transform:uppercase;">
+                    Revised Amount
+                  </p>
+                  <p style="margin:0;font-size:22px;font-weight:700;color:#1e293b;">
+                    &#8377;{{quoted_amount}}
+                  </p>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:0 0 20px;">
+              Please review the attached revised quotation and let us know your decision using
+              the buttons below.
+            </p>
+            <table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 24px;">
+              <tr>
+                <td style="background:#16a34a;border-radius:7px;">
+                  <a href="{{accept_link}}"
+                     style="display:inline-block;padding:14px 28px;color:#ffffff;
+                            text-decoration:none;font-weight:700;font-size:15px;">
+                    Accept Quotation
+                  </a>
+                </td>
+                <td style="width:14px;line-height:1px;font-size:1px;">&nbsp;</td>
+                <td style="background:#dc2626;border-radius:7px;">
+                  <a href="{{reject_link}}"
+                     style="display:inline-block;padding:14px 28px;color:#ffffff;
+                            text-decoration:none;font-weight:700;font-size:15px;">
+                    Reject Quotation
+                  </a>
+                </td>
+              </tr>
+            </table>
+            <p style="color:#64748b;font-size:13px;line-height:1.7;margin:0;">
+              If you have any questions about this revised quotation, please contact
+              <a href="mailto:{{support_email}}" style="color:#DC2626;text-decoration:none;">{{support_email}}</a>.
+            </p>
+          </td>
+        </tr>
+        <tr><td style="padding:0 48px;">
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:0;">
+        </td></tr>
+        <tr>
+          <td style="padding:28px 48px;background:#f8fafc;">
+            <p style="color:#94a3b8;font-size:12px;line-height:2;margin:0;text-align:center;">
+              <strong style="color:#64748b;">{{company_name}}</strong><br>
+              {{company_address}}<br>
+              Phone:&nbsp;{{contact_number}}&nbsp;|&nbsp;
+              <a href="{{website}}" style="color:#DC2626;text-decoration:none;">{{website}}</a><br>
+              <a href="mailto:{{support_email}}" style="color:#DC2626;text-decoration:none;">{{support_email}}</a>
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+_PURCHASE_ORDER_REQUEST_FALLBACK = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Purchase Order Request</title>
+</head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+         style="background:#f8fafc;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" role="presentation"
+             style="background:#ffffff;border-radius:10px;overflow:hidden;
+                    box-shadow:0 4px 16px rgba(0,0,0,0.08);max-width:600px;width:100%;">
+        <tr>
+          <td style="background:#DC2626;padding:32px 48px;text-align:center;">
+            {{logo_html}}
+            <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:700;letter-spacing:-0.3px;">
+              {{company_name}}
+            </h1>
+            <p style="color:rgba(255,255,255,0.82);margin:10px 0 0;font-size:12px;
+                      letter-spacing:0.8px;text-transform:uppercase;">
+              Purchase Order Request
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:40px 48px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:15px;line-height:1.75;color:#475569;">
+            <p style="margin:0 0 16px;">Dear <strong>{{customer_name}}</strong>,</p>
+            <p style="margin:0 0 20px;">
+              Thank you for approving the {{quotation_type_label}} for <strong>{{project_name}}</strong>
+              (Ref: <strong>{{quotation_number}}</strong>) at <strong>&#8377;{{approved_price}}</strong>,
+              approved on {{approved_at}}.
+            </p>
+            <table cellpadding="0" cellspacing="0" role="presentation" width="100%"
+                   style="margin:0 0 20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+              <tr><td style="padding:20px 24px;">
+                <p style="margin:0 0 8px;"><strong>Customer:</strong> {{customer_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Company:</strong> {{customer_company_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Email:</strong> {{customer_email}}</p>
+                <p style="margin:0 0 8px;"><strong>Phone:</strong> {{customer_phone}}</p>
+                <p style="margin:0 0 8px;"><strong>Address:</strong> {{customer_address}}</p>
+                <p style="margin:0 0 8px;"><strong>Project:</strong> {{project_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Quotation Type:</strong> {{quotation_type_label}}</p>
+                <p style="margin:0;"><strong>Approved Price:</strong> &#8377;{{approved_price}}</p>
+              </td></tr>
+            </table>
+            <p style="margin:0 0 16px;">
+              To proceed further, kindly share your <strong>Purchase Order</strong> corresponding to this
+              quotation — click below to upload it directly.
+            </p>
+            <table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 24px;">
+              <tr>
+                <td style="background:#DC2626;border-radius:7px;">
+                  <a href="{{upload_link}}"
+                     style="display:inline-block;padding:14px 28px;color:#ffffff;
+                            text-decoration:none;font-weight:700;font-size:15px;">
+                    Upload Purchase Order
+                  </a>
+                </td>
+              </tr>
+            </table>
+            <p style="color:#64748b;font-size:13px;line-height:1.7;margin:0;">
+              If you have any questions, please contact
+              <a href="mailto:{{support_email}}" style="color:#DC2626;text-decoration:none;">{{support_email}}</a>.
+            </p>
+          </td>
+        </tr>
+        <tr><td style="padding:0 48px;">
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:0;">
+        </td></tr>
+        <tr>
+          <td style="padding:28px 48px;background:#f8fafc;">
+            <p style="color:#94a3b8;font-size:12px;line-height:2;margin:0;text-align:center;">
+              <strong style="color:#64748b;">{{company_name}}</strong><br>
+              {{company_address}}<br>
+              Phone:&nbsp;{{contact_number}}&nbsp;|&nbsp;
+              <a href="{{website}}" style="color:#DC2626;text-decoration:none;">{{website}}</a><br>
+              <a href="mailto:{{support_email}}" style="color:#DC2626;text-decoration:none;">{{support_email}}</a>
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+_PAYMENT_MILESTONE_REQUEST_FALLBACK = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Payment Request</title>
+</head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+         style="background:#f8fafc;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" role="presentation"
+             style="background:#ffffff;border-radius:10px;overflow:hidden;
+                    box-shadow:0 4px 16px rgba(0,0,0,0.08);max-width:600px;width:100%;">
+        <tr>
+          <td style="background:#DC2626;padding:32px 48px;text-align:center;">
+            {{logo_html}}
+            <h1 style="color:#ffffff;margin:0;font-size:24px;font-weight:700;letter-spacing:-0.3px;">
+              {{company_name}}
+            </h1>
+            <p style="color:rgba(255,255,255,0.82);margin:10px 0 0;font-size:12px;
+                      letter-spacing:0.8px;text-transform:uppercase;">
+              Payment Request
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:40px 48px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:15px;line-height:1.75;color:#475569;">
+            <p style="margin:0 0 16px;">Dear <strong>{{customer_name}}</strong>,</p>
+            <p style="margin:0 0 20px;">
+              Your project <strong>{{project_name}}</strong> has reached
+              <strong>{{project_completion_percentage}}%</strong> completion, at which point the
+              <strong>{{milestone_name}}</strong> milestone becomes due.
+            </p>
+            <table cellpadding="0" cellspacing="0" role="presentation" width="100%"
+                   style="margin:0 0 20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+              <tr><td style="padding:20px 24px;">
+                <p style="margin:0 0 8px;"><strong>Milestone:</strong> {{milestone_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Required Payment:</strong> {{required_payment_percentage}}%
+                  (&#8377;{{required_payment_amount}})</p>
+                <p style="margin:0 0 8px;"><strong>Amount Already Paid:</strong> &#8377;{{amount_paid}}</p>
+                <p style="margin:0 0 8px;"><strong>Amount Due Now:</strong> &#8377;{{amount_due_now}}</p>
+                <p style="margin:0;"><strong>Remaining Balance (Overall):</strong> &#8377;{{remaining_payment}}</p>
+              </td></tr>
+            </table>
+            <p style="margin:0 0 16px;">
+              Kindly arrange this payment at your earliest convenience and share the payment proof with
+              us at <a href="mailto:{{support_email}}" style="color:#DC2626;text-decoration:none;">{{support_email}}</a>
+              or <strong>{{contact_number}}</strong>, referencing <strong>{{project_name}}</strong>.
+            </p>
+            <p style="color:#64748b;font-size:13px;line-height:1.7;margin:0;">
+              If you have any questions, please contact
+              <a href="mailto:{{support_email}}" style="color:#DC2626;text-decoration:none;">{{support_email}}</a>.
+            </p>
+          </td>
+        </tr>
+        <tr><td style="padding:0 48px;">
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:0;">
+        </td></tr>
+        <tr>
+          <td style="padding:28px 48px;background:#f8fafc;">
+            <p style="color:#94a3b8;font-size:12px;line-height:2;margin:0;text-align:center;">
+              <strong style="color:#64748b;">{{company_name}}</strong><br>
+              {{company_address}}<br>
+              Phone:&nbsp;{{contact_number}}&nbsp;|&nbsp;
+              <a href="{{website}}" style="color:#DC2626;text-decoration:none;">{{website}}</a><br>
+              <a href="mailto:{{support_email}}" style="color:#DC2626;text-decoration:none;">{{support_email}}</a>
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+_QUOTATION_DECISION_NOTIFICATION_FALLBACK = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Customer Quotation Decision</title>
+</head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+         style="background:#f8fafc;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" role="presentation"
+             style="background:#ffffff;border-radius:10px;overflow:hidden;
+                    box-shadow:0 4px 16px rgba(0,0,0,0.08);max-width:600px;width:100%;">
+        <tr>
+          <td style="background:#DC2626;padding:32px 48px;text-align:center;">
+            {{logo_html}}
+            <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;letter-spacing:-0.3px;">
+              Customer {{decision_label}} Quotation
+            </h1>
+            <p style="color:rgba(255,255,255,0.82);margin:10px 0 0;font-size:12px;
+                      letter-spacing:0.8px;text-transform:uppercase;">
+              {{quotation_type_label}}
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:40px 48px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:15px;line-height:1.75;color:#475569;">
+            <p style="margin:0 0 16px;">Dear <strong>{{recipient_name}}</strong>,</p>
+            <p style="margin:0 0 20px;">
+              <strong>{{customer_name}}</strong> ({{company_name}}) has <strong>{{decision_label}}</strong>
+              the {{quotation_type_label}} for <strong>{{project_name}}</strong> on {{decision_at}}.
+            </p>
+            <table cellpadding="0" cellspacing="0" role="presentation" width="100%"
+                   style="margin:0 0 20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+              <tr><td style="padding:20px 24px;">
+                <p style="margin:0 0 8px;"><strong>Customer:</strong> {{customer_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Company:</strong> {{company_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Contact:</strong> {{contact_name}} — {{contact_email}} — {{contact_phone}}</p>
+                <p style="margin:0 0 8px;"><strong>Lead Owner:</strong> {{lead_owner_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Project:</strong> {{project_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Quotation Type:</strong> {{quotation_type_label}}</p>
+                <p style="margin:0 0 8px;"><strong>Quotation Number:</strong> {{quotation_number}}</p>
+                <p style="margin:0;"><strong>Quoted Price:</strong> &#8377;{{quoted_price}}</p>
+              </td></tr>
+            </table>
+            <p style="margin:0;">
+              Please review this lead in Lead Management for further action.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px 48px;background:#f8fafc;">
+            <p style="color:#94a3b8;font-size:12px;line-height:2;margin:0;text-align:center;">
+              <strong style="color:#64748b;">{{our_company_name}}</strong> — internal notification
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+
+_PURCHASE_ORDER_UPLOADED_NOTIFICATION_FALLBACK = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Purchase Order Uploaded</title>
+</head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+         style="background:#f8fafc;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" role="presentation"
+             style="background:#ffffff;border-radius:10px;overflow:hidden;
+                    box-shadow:0 4px 16px rgba(0,0,0,0.08);max-width:600px;width:100%;">
+        <tr>
+          <td style="background:#16a34a;padding:32px 48px;text-align:center;">
+            {{logo_html}}
+            <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;letter-spacing:-0.3px;">
+              Purchase Order {{action_label}}
+            </h1>
+            <p style="color:rgba(255,255,255,0.82);margin:10px 0 0;font-size:12px;
+                      letter-spacing:0.8px;text-transform:uppercase;">
+              {{project_name}}
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:40px 48px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:15px;line-height:1.75;color:#475569;">
+            <p style="margin:0 0 16px;">Dear <strong>{{recipient_name}}</strong>,</p>
+            <p style="margin:0 0 20px;">
+              A Purchase Order was just <strong>{{action_label_lower}}</strong> by {{uploaded_by_label}}
+              for <strong>{{customer_name}}</strong> ({{company_name}}) — {{project_name}}.
+            </p>
+            <table cellpadding="0" cellspacing="0" role="presentation" width="100%"
+                   style="margin:0 0 20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+              <tr><td style="padding:20px 24px;">
+                <p style="margin:0 0 8px;"><strong>Customer:</strong> {{customer_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Company:</strong> {{company_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Lead Owner:</strong> {{lead_owner_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Project:</strong> {{project_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Quotation Type:</strong> {{quotation_type_label}}</p>
+                <p style="margin:0 0 8px;"><strong>File:</strong> {{file_name}}</p>
+                <p style="margin:0;"><strong>Comments:</strong> {{comments}}</p>
+              </td></tr>
+            </table>
+            <table cellpadding="0" cellspacing="0" role="presentation" width="100%"
+                   style="margin:0 0 20px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;">
+              <tr><td style="padding:20px 24px;">
+                <p style="margin:0 0 10px;font-weight:700;color:#166534;">Payment Information</p>
+                <p style="margin:0 0 8px;"><strong>Payment Amount:</strong> &#8377;{{payment_amount}}</p>
+                <p style="margin:0 0 8px;"><strong>Payment Percentage:</strong> {{payment_percentage}}</p>
+                <p style="margin:0 0 8px;"><strong>Total Paid:</strong> &#8377;{{total_paid}}</p>
+                <p style="margin:0;"><strong>Remaining Balance:</strong> &#8377;{{remaining_balance}}</p>
+              </td></tr>
+            </table>
+            <p style="margin:0 0 20px;">
+              The Purchase Order PDF is attached to this email. Payment proof and full payment
+              history, if available, can be reviewed for this customer. Please review this lead in
+              Lead Management for further action.
+            </p>
+            <table cellpadding="0" cellspacing="0" role="presentation" width="100%">
+              <tr><td align="center">
+                <table cellpadding="0" cellspacing="0" role="presentation">
+                  <tr>
+                    <td style="background:#DC2626;border-radius:7px;">
+                      <a href="{{view_payment_url}}"
+                         style="display:inline-block;padding:14px 32px;color:#ffffff;
+                                text-decoration:none;font-weight:700;font-size:15px;">
+                        View Payment →
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td></tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px 48px;background:#f8fafc;">
+            <p style="color:#94a3b8;font-size:12px;line-height:2;margin:0;text-align:center;">
+              <strong style="color:#64748b;">{{our_company_name}}</strong> — internal notification.
+              The "View Payment" link requires you to be signed in to the ERP.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+
+_PURCHASE_ORDER_REQUESTED_NOTIFICATION_FALLBACK = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Purchase Order Requested</title>
+</head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+         style="background:#f8fafc;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" role="presentation"
+             style="background:#ffffff;border-radius:10px;overflow:hidden;
+                    box-shadow:0 4px 16px rgba(0,0,0,0.08);max-width:600px;width:100%;">
+        <tr>
+          <td style="background:#DC2626;padding:32px 48px;text-align:center;">
+            {{logo_html}}
+            <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;letter-spacing:-0.3px;">
+              Purchase Order {{request_mode_label}}
+            </h1>
+            <p style="color:rgba(255,255,255,0.82);margin:10px 0 0;font-size:12px;
+                      letter-spacing:0.8px;text-transform:uppercase;">
+              {{project_name}}
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:40px 48px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:15px;line-height:1.75;color:#475569;">
+            <p style="margin:0 0 16px;">Dear <strong>{{recipient_name}}</strong>,</p>
+            <p style="margin:0 0 20px;">
+              A Purchase Order Request was just sent to <strong>{{customer_name}}</strong>
+              ({{company_name}}) for <strong>{{project_name}}</strong> — {{request_mode_label}}.
+            </p>
+            <table cellpadding="0" cellspacing="0" role="presentation" width="100%"
+                   style="margin:0 0 20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+              <tr><td style="padding:20px 24px;">
+                <p style="margin:0 0 8px;"><strong>Customer:</strong> {{customer_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Company:</strong> {{company_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Contact:</strong> {{contact_name}} — {{contact_email}} — {{contact_phone}}</p>
+                <p style="margin:0 0 8px;"><strong>Lead Owner:</strong> {{lead_owner_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Project:</strong> {{project_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Quotation Type:</strong> {{quotation_type_label}}</p>
+                <p style="margin:0 0 8px;"><strong>Approved Price:</strong> &#8377;{{quoted_price}}</p>
+                <p style="margin:0;"><strong>Request Status:</strong> {{request_mode_label}}</p>
+              </td></tr>
+            </table>
+            <p style="margin:0;">
+              Please review this lead in Lead Management for further action.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px 48px;background:#f8fafc;">
+            <p style="color:#94a3b8;font-size:12px;line-height:2;margin:0;text-align:center;">
+              <strong style="color:#64748b;">{{our_company_name}}</strong> — internal notification
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+
 # ── Load templates from HTML files (fallbacks used only if files are missing) ─
 
 _SUPPLIER_INVITATION_HTML = _load_html("supplier_invitation.html", _INVITATION_FALLBACK)
 _SUPPLIER_APPROVAL_HTML   = _load_html("supplier_approval.html",   _APPROVAL_FALLBACK)
 _SUPPLIER_REJECTION_HTML  = _load_html("supplier_rejection.html",  _REJECTION_FALLBACK)
 _EMPLOYEE_ONBOARDING_HTML = _load_html("employee_onboarding.html", _EMPLOYEE_ONBOARDING_FALLBACK)
+_PROJECT_QUOTATION_HTML   = _load_html("project_quotation.html",   _PROJECT_QUOTATION_FALLBACK)
+_REVISED_PROJECT_QUOTATION_HTML = _load_html("revised_project_quotation.html", _REVISED_PROJECT_QUOTATION_FALLBACK)
+_PURCHASE_ORDER_REQUEST_HTML = _load_html("purchase_order_request.html", _PURCHASE_ORDER_REQUEST_FALLBACK)
+_PAYMENT_MILESTONE_REQUEST_HTML = _load_html("payment_milestone_request.html", _PAYMENT_MILESTONE_REQUEST_FALLBACK)
+_QUOTATION_DECISION_NOTIFICATION_HTML = _load_html("quotation_decision_notification.html", _QUOTATION_DECISION_NOTIFICATION_FALLBACK)
+_PURCHASE_ORDER_UPLOADED_NOTIFICATION_HTML = _load_html("purchase_order_uploaded_notification.html", _PURCHASE_ORDER_UPLOADED_NOTIFICATION_FALLBACK)
+_PURCHASE_ORDER_REQUESTED_NOTIFICATION_HTML = _load_html("purchase_order_requested_notification.html", _PURCHASE_ORDER_REQUESTED_NOTIFICATION_FALLBACK)
 
 
 # ── Template catalog ──────────────────────────────────────────────────────────
@@ -420,6 +1024,41 @@ TEMPLATE_CATALOG: dict = {
         "display_name": "Employee Onboarding",
         "subject":      "Welcome to {{company_name}} — Your Login Credentials",
         "html":         _EMPLOYEE_ONBOARDING_HTML,
+    },
+    "PROJECT_QUOTATION": {
+        "display_name": "Project Quotation",
+        "subject":      "Your Project Quotation — {{project_name}}",
+        "html":         _PROJECT_QUOTATION_HTML,
+    },
+    "REVISED_PROJECT_QUOTATION": {
+        "display_name": "Revised Project Quotation",
+        "subject":      "Revised Project Quotation — {{project_name}}",
+        "html":         _REVISED_PROJECT_QUOTATION_HTML,
+    },
+    "PURCHASE_ORDER_REQUEST": {
+        "display_name": "Purchase Order Request",
+        "subject":      "Purchase Order Request — {{project_name}}",
+        "html":         _PURCHASE_ORDER_REQUEST_HTML,
+    },
+    "PAYMENT_MILESTONE_REQUEST": {
+        "display_name": "Payment Milestone Request",
+        "subject":      "Payment Request — {{milestone_name}} — {{project_name}}",
+        "html":         _PAYMENT_MILESTONE_REQUEST_HTML,
+    },
+    "QUOTATION_DECISION_NOTIFICATION": {
+        "display_name": "Customer Quotation Approval / Rejection Notification",
+        "subject":      "Customer {{decision_label}} Quotation — {{project_name}}",
+        "html":         _QUOTATION_DECISION_NOTIFICATION_HTML,
+    },
+    "PURCHASE_ORDER_UPLOADED_NOTIFICATION": {
+        "display_name": "Purchase Order Uploaded / Reuploaded Notification",
+        "subject":      "Purchase Order {{action_label}} — {{project_name}}",
+        "html":         _PURCHASE_ORDER_UPLOADED_NOTIFICATION_HTML,
+    },
+    "PURCHASE_ORDER_REQUESTED_NOTIFICATION": {
+        "display_name": "Purchase Order Requested / Re-requested Notification",
+        "subject":      "Purchase Order {{request_mode_label}} — {{project_name}}",
+        "html":         _PURCHASE_ORDER_REQUESTED_NOTIFICATION_HTML,
     },
 }
 
@@ -496,13 +1135,138 @@ _TEMPLATE_INITIAL_DESIGN: dict = {
             "<p style=\"margin:0 0 8px;\"><strong>Username:</strong> {{username}}</p>"
             "<p style=\"margin:0;\"><strong>Temporary Password:</strong> {{temporary_password}}</p>"
             "</td></tr></table>"
-            "<table cellpadding=\"0\" cellspacing=\"0\" role=\"presentation\" style=\"margin:0 0 20px;\">"
-            "<tr><td style=\"background:#DC2626;border-radius:7px;\">"
-            "<a href=\"{{login_url}}\" style=\"display:inline-block;padding:14px 32px;"
-            "color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;\">"
-            "Log In Now &rarr;</a></td></tr></table>"
             "<p>For your security, please log in and change your temporary password as "
             "soon as possible.</p>"
+        ),
+        "customNotes": "",
+        # Protected, non-freeform field — kept OUT of contentHtml (same
+        # reasoning as PROJECT_QUOTATION's accept/reject buttons above) so
+        # editing the welcome text can never drop the login_url link. Only
+        # "text" is user-editable; buildEmailHtml() renders this using the
+        # fixed urlVar/color from its own per-templateType button manifest.
+        "buttons": [
+            {"id": "login", "text": "Log In Now"},
+        ],
+    },
+    "PROJECT_QUOTATION": {
+        "version":     1,
+        "logoDataUrl": "",
+        "headerTitle": "Project Quotation",
+        "contentHtml": (
+            "<p>Dear <strong>{{customer_name}}</strong>,</p>"
+            "<p>Thank you for your interest in <strong>{{project_name}}</strong>. Please find "
+            "attached your quotation (Ref: <strong>{{quotation_number}}</strong>) for a total "
+            "amount of <strong>&#8377;{{quoted_amount}}</strong>.</p>"
+            "<p>Please review the attached quotation and let us know your decision using the "
+            "Accept or Reject buttons below.</p>"
+        ),
+        "customNotes": "",
+        # Protected, non-freeform fields — kept OUT of contentHtml (unlike
+        # the rich-text body) so editing text/surrounding content can never
+        # drop the underlying accept_link/reject_link. Only "text" is
+        # user-editable; buildEmailHtml() renders these using the fixed
+        # urlVar/color from its own per-templateType button manifest.
+        "buttons": [
+            {"id": "accept", "text": "Accept Quotation"},
+            {"id": "reject", "text": "Reject Quotation"},
+        ],
+    },
+    "REVISED_PROJECT_QUOTATION": {
+        "version":     1,
+        "logoDataUrl": "",
+        "headerTitle": "Revised Quotation",
+        "contentHtml": (
+            "<p>Dear <strong>{{customer_name}}</strong>,</p>"
+            "<p>Further to our earlier quotation for <strong>{{project_name}}</strong>, please "
+            "find attached a <strong>revised quotation</strong> (Ref: <strong>{{quotation_number}}</strong>) "
+            "for <strong>&#8377;{{quoted_amount}}</strong>, replacing the amount previously shared "
+            "with you (&#8377;{{previous_amount}}).</p>"
+            "<p>Please review the attached revised quotation and let us know your decision using "
+            "the Accept or Reject buttons below.</p>"
+        ),
+        "customNotes": "",
+        "buttons": [
+            {"id": "accept", "text": "Accept Quotation"},
+            {"id": "reject", "text": "Reject Quotation"},
+        ],
+    },
+    "PURCHASE_ORDER_REQUEST": {
+        "version":     1,
+        "logoDataUrl": "",
+        "headerTitle": "Purchase Order Request",
+        "contentHtml": (
+            "<p>Dear <strong>{{customer_name}}</strong>,</p>"
+            "<p>Thank you for approving the {{quotation_type_label}} for <strong>{{project_name}}</strong> "
+            "(Ref: <strong>{{quotation_number}}</strong>) at <strong>&#8377;{{approved_price}}</strong>, "
+            "approved on {{approved_at}}.</p>"
+            "<p>To proceed further, kindly share your <strong>Purchase Order</strong> corresponding to "
+            "this quotation using the Upload Purchase Order button below.</p>"
+        ),
+        "customNotes": "",
+        "buttons": [
+            {"id": "upload", "text": "Upload Purchase Order"},
+        ],
+    },
+    "PAYMENT_MILESTONE_REQUEST": {
+        "version":     1,
+        "logoDataUrl": "",
+        "headerTitle": "Payment Request",
+        "contentHtml": (
+            "<p>Dear <strong>{{customer_name}}</strong>,</p>"
+            "<p>Your project <strong>{{project_name}}</strong> has reached "
+            "<strong>{{project_completion_percentage}}%</strong> completion, at which point the "
+            "<strong>{{milestone_name}}</strong> milestone becomes due.</p>"
+            "<p>Required Payment: <strong>{{required_payment_percentage}}%</strong> "
+            "(&#8377;{{required_payment_amount}}) — Amount Already Paid: <strong>&#8377;{{amount_paid}}</strong> "
+            "— Amount Due Now: <strong>&#8377;{{amount_due_now}}</strong></p>"
+            "<p>Kindly arrange this payment at your earliest convenience and share the payment proof with "
+            "us, referencing {{project_name}}.</p>"
+        ),
+        "customNotes": "",
+    },
+    "QUOTATION_DECISION_NOTIFICATION": {
+        "version":     1,
+        "logoDataUrl": "",
+        "headerTitle": "Customer Quotation Approval / Rejection",
+        "contentHtml": (
+            "<p>Dear <strong>{{recipient_name}}</strong>,</p>"
+            "<p><strong>{{customer_name}}</strong> ({{company_name}}) has <strong>{{decision_label}}</strong> "
+            "the {{quotation_type_label}} for <strong>{{project_name}}</strong> on {{decision_at}}.</p>"
+            "<p>Quotation Number: <strong>{{quotation_number}}</strong> — Quoted Price: "
+            "<strong>&#8377;{{quoted_price}}</strong> — Lead Owner: <strong>{{lead_owner_name}}</strong></p>"
+        ),
+        "customNotes": "",
+    },
+    "PURCHASE_ORDER_UPLOADED_NOTIFICATION": {
+        "version":     1,
+        "logoDataUrl": "",
+        "headerTitle": "Purchase Order Uploaded / Reuploaded",
+        "contentHtml": (
+            "<p>Dear <strong>{{recipient_name}}</strong>,</p>"
+            "<p>A Purchase Order was just <strong>{{action_label_lower}}</strong> by {{uploaded_by_label}} "
+            "for <strong>{{customer_name}}</strong> ({{company_name}}) — {{project_name}}.</p>"
+            "<p>Quotation Type: <strong>{{quotation_type_label}}</strong> — File: "
+            "<strong>{{file_name}}</strong> — Lead Owner: <strong>{{lead_owner_name}}</strong></p>"
+            "<p>Comments: {{comments}}</p>"
+            "<p>Payment Amount: <strong>{{payment_amount}}</strong> — Payment Percentage: "
+            "<strong>{{payment_percentage}}</strong> — Total Paid: <strong>{{total_paid}}</strong> — "
+            "Remaining Balance: <strong>{{remaining_balance}}</strong></p>"
+        ),
+        "customNotes": "",
+        "buttons": [
+            {"id": "view_payment", "text": "View Payment"},
+        ],
+    },
+    "PURCHASE_ORDER_REQUESTED_NOTIFICATION": {
+        "version":     1,
+        "logoDataUrl": "",
+        "headerTitle": "Purchase Order Requested / Re-requested",
+        "contentHtml": (
+            "<p>Dear <strong>{{recipient_name}}</strong>,</p>"
+            "<p>A Purchase Order Request was just sent to <strong>{{customer_name}}</strong> "
+            "({{company_name}}) for <strong>{{project_name}}</strong> — {{request_mode_label}}.</p>"
+            "<p>Quotation Type: <strong>{{quotation_type_label}}</strong> — Approved Price: "
+            "<strong>&#8377;{{quoted_price}}</strong> — Lead Owner: <strong>{{lead_owner_name}}</strong></p>"
         ),
         "customNotes": "",
     },
@@ -602,6 +1366,70 @@ def get_template_for_send(
                     "[email_template_service] %s BODY_HTML contains invitation structure; "
                     "using file-based default for this send (DB row not modified).",
                     template_type,
+                )
+                return catalog["html"], (tmpl.SUBJECT or catalog["subject"])
+        # Same "for this send only, never overwrite" guard as above, but for
+        # the opposite failure mode: a PURCHASE_ORDER_REQUEST row saved
+        # before the upload-link button existed (or edited without it)
+        # would silently give the customer no way to upload their PO at
+        # all — functionally broken, not just cosmetically stale.
+        if template_type == "PURCHASE_ORDER_REQUEST" and "{{upload_link}}" not in body_html:
+            catalog = TEMPLATE_CATALOG.get(template_type)
+            if catalog:
+                logger.warning(
+                    "[email_template_service] PURCHASE_ORDER_REQUEST BODY_HTML is missing "
+                    "{{upload_link}}; using file-based default for this send (DB row not modified).",
+                )
+                return catalog["html"], (tmpl.SUBJECT or catalog["subject"])
+        # Same "for this send only, never overwrite" guard, for a cosmetic
+        # regression: PROJECT_QUOTATION/REVISED_PROJECT_QUOTATION rows saved
+        # before the Accept/Reject button gap fix carry the old markup —
+        # padding on the (colored) button cell itself, which the background
+        # color fills right over, so the two buttons visually touch with no
+        # gap. `padding:0 8px 0 0` on the accept cell is that exact broken
+        # signature; the fixed markup uses a separate transparent spacer
+        # <td> instead and never emits that substring.
+        if template_type in ("PROJECT_QUOTATION", "REVISED_PROJECT_QUOTATION") and "padding:0 8px 0 0" in body_html:
+            catalog = TEMPLATE_CATALOG.get(template_type)
+            if catalog:
+                logger.warning(
+                    "[email_template_service] %s BODY_HTML has the old Accept/Reject button "
+                    "markup (no gap between buttons); using file-based default for this send "
+                    "(DB row not modified).",
+                    template_type,
+                )
+                return catalog["html"], (tmpl.SUBJECT or catalog["subject"])
+        # Same guard, for the more severe failure this same button was
+        # exposed to: the email-template editor's save path used to discard
+        # the Accept/Reject buttons ENTIRELY (not just their old markup) for
+        # any PROJECT_QUOTATION/REVISED_PROJECT_QUOTATION row that was ever
+        # opened and saved through /email-templates, since those buttons
+        # lived outside the editor's freeform content region. This is a
+        # functional break (the customer has no way to respond at all), not
+        # cosmetic — fixed at the editor/save layer, but this stop-gap
+        # protects every vendor's live sends immediately without requiring
+        # them to reopen and re-save the editor first.
+        if template_type in ("PROJECT_QUOTATION", "REVISED_PROJECT_QUOTATION") and (
+            "{{accept_link}}" not in body_html or "{{reject_link}}" not in body_html
+        ):
+            catalog = TEMPLATE_CATALOG.get(template_type)
+            if catalog:
+                logger.warning(
+                    "[email_template_service] %s BODY_HTML is missing {{accept_link}}/{{reject_link}}; "
+                    "using file-based default for this send (DB row not modified).",
+                    template_type,
+                )
+                return catalog["html"], (tmpl.SUBJECT or catalog["subject"])
+        # Same guard, for a PURCHASE_ORDER_UPLOADED_NOTIFICATION row saved
+        # before payment tracking was added — it would otherwise never show
+        # the new payment fields/"View Payment" button to already-existing
+        # installs.
+        if template_type == "PURCHASE_ORDER_UPLOADED_NOTIFICATION" and "{{view_payment_url}}" not in body_html:
+            catalog = TEMPLATE_CATALOG.get(template_type)
+            if catalog:
+                logger.warning(
+                    "[email_template_service] PURCHASE_ORDER_UPLOADED_NOTIFICATION BODY_HTML is "
+                    "missing {{view_payment_url}}; using file-based default for this send (DB row not modified).",
                 )
                 return catalog["html"], (tmpl.SUBJECT or catalog["subject"])
         return body_html, (tmpl.SUBJECT or "")

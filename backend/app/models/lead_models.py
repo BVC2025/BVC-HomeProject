@@ -18,6 +18,9 @@ LEAD_POLL_STATUS_ENUM = SAEnum(
 )
 LEAD_STATUS_ENUM = SAEnum(
     "NEW", "VIEWED", "CONVERTED", "IGNORED",
+    "QUOTE_APPROVAL_PENDING", "QUOTE_APPROVED", "QUOTE_REJECTED",
+    "REVISED_QUOTE_APPROVAL_PENDING", "REVISED_QUOTE_APPROVED", "REVISED_QUOTE_REJECTED",
+    "PO_REQUESTED", "PO_RECEIVED",
     name="lead_status_enum", create_constraint=True
 )
 LEAD_SOURCE_ENUM = SAEnum(
@@ -152,6 +155,32 @@ class Lead(Base):
     UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
 
     vendor = relationship("Vendor", back_populates="leads")
+
+
+class LeadModuleSetting(Base):
+    """Per-vendor Lead Management automation settings that aren't part of
+    the WhatsApp module settings (WhatsAppModuleSetting, module_code=
+    "lead_module") — kept as its own small table rather than adding an
+    unrelated email-automation flag there, since that table's name/purpose
+    is specifically WhatsApp. Singleton per vendor, get-or-create-on-read,
+    matching WhatsAppModuleSetting's own convention."""
+
+    __tablename__ = "lead_module_setting"
+
+    __table_args__ = (
+        UniqueConstraint("VENDOR_ID", name="uq_lms_vendor"),
+    )
+
+    ID        = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID", ondelete="CASCADE"), nullable=False)
+
+    # Whether approving a Final/Revised Quotation automatically emails the
+    # customer a Purchase Order Request. When False/unconfigured, sending
+    # is manual only (see the "Send Purchase Order Request" lead action).
+    AUTO_SEND_PO_REQUEST_ENABLED = Column(Boolean, nullable=False, default=False)
+
+    CREATED_AT = Column(DateTime, default=now_ist)
+    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
 
 
 class LeadPollingLog(Base):

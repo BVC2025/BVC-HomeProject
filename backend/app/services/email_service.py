@@ -589,6 +589,7 @@ def send_via_vendor_smtp(
     html_body: str,
     logo_bytes: bytes = None,
     logo_content_type: str = "image/png",
+    attachments: list = None,
 ) -> tuple:
     """Send an email using credentials from a VendorEmailConfig ORM row.
 
@@ -604,6 +605,12 @@ def send_via_vendor_smtp(
     multipart/related (multipart/alternative + CID image) so the logo
     is embedded inline and visible in all major email clients without
     requiring a publicly accessible URL.
+
+    `attachments` (optional) is a list of dicts: [{filename, content, content_type}]
+    where `content` is raw bytes — mirrors send_alert_email()'s own
+    attachment handling. When present, the whole message (logo/no-logo)
+    is wrapped in an outer multipart/mixed, matching that function's
+    "mixed at the outer boundary, alternative underneath" structure.
 
     Gmail SMTP note: Gmail forces the From header to match the
     authenticated SMTP account (SMTP_USERNAME). When smtp.gmail.com is
@@ -655,6 +662,22 @@ def send_via_vendor_smtp(
             msg = MIMEMultipart("alternative")
             msg.attach(MIMEText(plain_text, "plain", "utf-8"))
             msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+        if attachments:
+            from email.mime.base import MIMEBase
+            from email import encoders
+
+            mixed = MIMEMultipart("mixed")
+            mixed.attach(msg)
+            for a in attachments:
+                if not a.get("content"):
+                    continue
+                part = MIMEBase(*(a.get("content_type") or "application/octet-stream").split("/", 1))
+                part.set_payload(a["content"])
+                encoders.encode_base64(part)
+                part.add_header("Content-Disposition", f'attachment; filename="{a["filename"]}"')
+                mixed.attach(part)
+            msg = mixed
 
         msg["Subject"] = subject
         msg["From"] = f"{config.FROM_NAME} <{effective_from}>"

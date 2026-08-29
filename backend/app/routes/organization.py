@@ -14,7 +14,7 @@ from app.models.models import (
     Role,
     Permission,
     RolePermission,
-    TaskTemplate,
+    TaskTemplateRequirement,
     Vendor,
     CustomField,
     CustomFieldTableValue,
@@ -1181,7 +1181,7 @@ def delete_org_role(
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
     assert_role_not_protected(role.NAME)
-    in_use = db.query(TaskTemplate).filter(TaskTemplate.ROLE_ID == role_id).first()
+    in_use = db.query(TaskTemplateRequirement).filter(TaskTemplateRequirement.ROLE_ID == role_id).first()
     if in_use:
         raise HTTPException(
             status_code=400,

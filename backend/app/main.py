@@ -107,7 +107,12 @@ from app.routes.inventory_batches import router as inventory_batches_router
 from app.routes.email_config import router as email_config_router
 from app.routes.email_templates import router as email_templates_router
 from app.routes.lead_management import router as lead_management_router
+from app.routes.quotation_actions import router as quotation_actions_router
+from app.routes.po_actions import router as po_actions_router
+from app.routes.email_send_rule import router as email_send_rule_router
 from app.routes.customer_master import router as customer_master_router
+from app.routes.customer_payment import router as customer_payment_router
+from app.routes.payment_milestone import router as payment_milestone_router
 from app.routes.whatsapp_config import router as whatsapp_config_router
 from app.routes.whatsapp_module_settings import router as whatsapp_module_settings_router
 from app.routes.whatsapp_webhook import router as whatsapp_webhook_router
@@ -2765,6 +2770,838 @@ def _migrate_lead_conversion_columns():
 
 _migrate_lead_conversion_columns()
 
+
+def _migrate_cpa_revert_inline_quotation_columns():
+    """One-time, idempotent corrective migration: an earlier iteration of
+    the Lead-conversion quotation workflow briefly added quotation columns
+    (QUOTATION_TYPE/QUOTATION_STATUS/QUOTED_PRICE/REVISION_REASON/
+    ACTION_TOKEN/SENT_AT/RESPONDED_AT) directly onto `customer_project_assignment`
+    and widened its LEAD_ID unique index to (LEAD_ID, QUOTATION_TYPE). The
+    design moved to a dedicated child table instead (CustomerProjectQuotation,
+    independently queryable/debuggable — see customer_models.py), so this
+    reverts both changes if a DB still has them: drops the 7 columns and
+    restores the original bare-unique index on LEAD_ID. No-ops cleanly on
+    any DB that never had them (including a brand-new install)."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("customer_project_assignment"):
+            return
+
+        cols = {c["name"] for c in insp.get_columns("customer_project_assignment")}
+        stray_cols = [c for c in (
+            "QUOTATION_TYPE", "QUOTATION_STATUS", "QUOTED_PRICE",
+            "REVISION_REASON", "ACTION_TOKEN", "SENT_AT", "RESPONDED_AT",
+        ) if c in cols]
+
+        idx_names = {ix["name"] for ix in insp.get_indexes("customer_project_assignment")}
+
+        if not stray_cols and "uq_cpa_lead_quotation_type" not in idx_names:
+            return  # already clean (or never had the stray design)
+
+        with engine.begin() as conn:
+            if "uq_cpa_lead_quotation_type" in idx_names:
+                conn.execute(text(
+                    "ALTER TABLE `customer_project_assignment` "
+                    "DROP INDEX `uq_cpa_lead_quotation_type`, "
+                    "ADD UNIQUE KEY `ix_customer_project_assignment_LEAD_ID` (`LEAD_ID`)"
+                ))
+                log.info("migrate-cpa-revert: restored bare-unique index on LEAD_ID")
+
+            for col in stray_cols:
+                conn.execute(text(f"ALTER TABLE `customer_project_assignment` DROP COLUMN `{col}`"))
+            if stray_cols:
+                log.info("migrate-cpa-revert: dropped stray columns %s", stray_cols)
+
+    except Exception as exc:
+        log.warning("migrate-cpa-revert-inline-quotation-columns skipped: %s", exc)
+
+
+_migrate_cpa_revert_inline_quotation_columns()
+
+
+def _migrate_lead_status_enum_widen():
+    """One-time, idempotent: widens `lead`.LEAD_STATUS's native MySQL ENUM
+    to add the 6 quotation-workflow statuses (QUOTE_APPROVAL_PENDING,
+    QUOTE_APPROVED, QUOTE_REJECTED, REVISED_QUOTE_APPROVAL_PENDING,
+    REVISED_QUOTE_APPROVED, REVISED_QUOTE_REJECTED) alongside the original
+    4 (NEW/VIEWED/CONVERTED/IGNORED). Purely additive — MODIFY COLUMN with
+    a superset of the existing values never invalidates existing rows. A
+    brand-new install never hits this — create_all() builds `lead` from
+    today's model directly, already including all 10 values."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("lead"):
+            return
+
+        with engine.connect() as conn:
+            column_type = conn.execute(text(
+                "SELECT COLUMN_TYPE FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'lead' AND COLUMN_NAME = 'LEAD_STATUS'"
+            )).scalar()
+
+        if column_type and "QUOTE_APPROVAL_PENDING" not in column_type:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `lead` MODIFY COLUMN `LEAD_STATUS` "
+                    "ENUM('NEW','VIEWED','CONVERTED','IGNORED',"
+                    "'QUOTE_APPROVAL_PENDING','QUOTE_APPROVED','QUOTE_REJECTED',"
+                    "'REVISED_QUOTE_APPROVAL_PENDING','REVISED_QUOTE_APPROVED','REVISED_QUOTE_REJECTED') "
+                    "NOT NULL DEFAULT 'NEW'"
+                ))
+            log.info("migrate-lead-status-enum: widened lead.LEAD_STATUS with 6 quotation statuses")
+
+    except Exception as exc:
+        log.warning("migrate-lead-status-enum-widen skipped: %s", exc)
+
+
+_migrate_lead_status_enum_widen()
+
+
+def _migrate_cpq_po_request_column():
+    """One-time, idempotent: adds PO_REQUEST_SENT_AT to
+    customer_project_quotation — the duplicate-send guard for the
+    Purchase Order Request email (automatic-on-approval and manual send
+    paths). Nullable, no backfill needed. A brand-new install never hits
+    this — create_all() builds the table from today's model directly."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("customer_project_quotation"):
+            return
+
+        cols = {c["name"] for c in insp.get_columns("customer_project_quotation")}
+
+        if "PO_REQUEST_SENT_AT" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `customer_project_quotation` ADD COLUMN `PO_REQUEST_SENT_AT` DATETIME NULL"
+                ))
+            log.info("migrate-cpq-po-request: added customer_project_quotation.PO_REQUEST_SENT_AT")
+
+    except Exception as exc:
+        log.warning("migrate-cpq-po-request-column skipped: %s", exc)
+
+
+_migrate_cpq_po_request_column()
+
+
+def _migrate_lead_status_enum_add_po_statuses():
+    """One-time, idempotent: widens `lead`.LEAD_STATUS's native MySQL ENUM
+    to add PO_REQUESTED / PO_RECEIVED (the Purchase Order upload sub-flow)
+    alongside the existing 10 values. Purely additive — MODIFY COLUMN with
+    a superset of the existing values never invalidates existing rows. A
+    brand-new install never hits this — create_all() builds `lead` from
+    today's model directly, already including all 12 values."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("lead"):
+            return
+
+        with engine.connect() as conn:
+            column_type = conn.execute(text(
+                "SELECT COLUMN_TYPE FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'lead' AND COLUMN_NAME = 'LEAD_STATUS'"
+            )).scalar()
+
+        if column_type and "PO_REQUESTED" not in column_type:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `lead` MODIFY COLUMN `LEAD_STATUS` "
+                    "ENUM('NEW','VIEWED','CONVERTED','IGNORED',"
+                    "'QUOTE_APPROVAL_PENDING','QUOTE_APPROVED','QUOTE_REJECTED',"
+                    "'REVISED_QUOTE_APPROVAL_PENDING','REVISED_QUOTE_APPROVED','REVISED_QUOTE_REJECTED',"
+                    "'PO_REQUESTED','PO_RECEIVED') "
+                    "NOT NULL DEFAULT 'NEW'"
+                ))
+            log.info("migrate-lead-status-enum: widened lead.LEAD_STATUS with PO_REQUESTED/PO_RECEIVED")
+
+    except Exception as exc:
+        log.warning("migrate-lead-status-enum-add-po-statuses skipped: %s", exc)
+
+
+_migrate_lead_status_enum_add_po_statuses()
+
+
+def _migrate_email_send_rule_event_enum_add_po_uploaded():
+    """One-time, idempotent: widens `email_send_rule`.EVENT_TYPE's native
+    MySQL ENUM to add PO_UPLOADED alongside the existing QUOTATION_DECISION
+    value. Purely additive. A brand-new install never hits this —
+    create_all() builds the table from today's model directly."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("email_send_rule"):
+            return
+
+        with engine.connect() as conn:
+            column_type = conn.execute(text(
+                "SELECT COLUMN_TYPE FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'email_send_rule' AND COLUMN_NAME = 'EVENT_TYPE'"
+            )).scalar()
+
+        if column_type and "PO_UPLOADED" not in column_type:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `email_send_rule` MODIFY COLUMN `EVENT_TYPE` "
+                    "ENUM('QUOTATION_DECISION','PO_UPLOADED') NOT NULL"
+                ))
+            log.info("migrate-email-send-rule-event-enum: widened EVENT_TYPE with PO_UPLOADED")
+
+    except Exception as exc:
+        log.warning("migrate-email-send-rule-event-enum-add-po-uploaded skipped: %s", exc)
+
+
+_migrate_email_send_rule_event_enum_add_po_uploaded()
+
+
+def _migrate_email_send_rule_event_enum_add_po_requested():
+    """One-time, idempotent: widens `email_send_rule`.EVENT_TYPE's native
+    MySQL ENUM to add PO_REQUESTED alongside the existing QUOTATION_DECISION/
+    PO_UPLOADED values. Purely additive. A brand-new install never hits
+    this — create_all() builds the table from today's model directly."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("email_send_rule"):
+            return
+
+        with engine.connect() as conn:
+            column_type = conn.execute(text(
+                "SELECT COLUMN_TYPE FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'email_send_rule' AND COLUMN_NAME = 'EVENT_TYPE'"
+            )).scalar()
+
+        if column_type and "PO_REQUESTED" not in column_type:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `email_send_rule` MODIFY COLUMN `EVENT_TYPE` "
+                    "ENUM('QUOTATION_DECISION','PO_UPLOADED','PO_REQUESTED') NOT NULL"
+                ))
+            log.info("migrate-email-send-rule-event-enum: widened EVENT_TYPE with PO_REQUESTED")
+
+    except Exception as exc:
+        log.warning("migrate-email-send-rule-event-enum-add-po-requested skipped: %s", exc)
+
+
+_migrate_email_send_rule_event_enum_add_po_requested()
+
+
+def _migrate_cpq_rejection_reason_column():
+    """One-time, idempotent: adds REJECTION_REASON to
+    customer_project_quotation — required by the API only when a quotation
+    is rejected (never on approval). Nullable, no backfill needed. A
+    brand-new install never hits this — create_all() builds the table from
+    today's model directly."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("customer_project_quotation"):
+            return
+
+        cols = {c["name"] for c in insp.get_columns("customer_project_quotation")}
+
+        if "REJECTION_REASON" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `customer_project_quotation` ADD COLUMN `REJECTION_REASON` TEXT NULL"
+                ))
+            log.info("migrate-cpq-rejection-reason: added customer_project_quotation.REJECTION_REASON")
+
+    except Exception as exc:
+        log.warning("migrate-cpq-rejection-reason-column skipped: %s", exc)
+
+
+_migrate_cpq_rejection_reason_column()
+
+
+def _migrate_project_assignment_mode_column():
+    """One-time, idempotent: adds ASSIGNMENT_MODE to `project` (PARALLEL/
+    SEQUENTIAL, default PARALLEL) — a distinct, Project-level concept (the
+    similarly-named CustomerProjectAssignment column has since been removed
+    entirely — see _migrate_drop_cpa_assignment_mode() below), reusing the
+    same enum name/values (see project_models.py's ASSIGNMENT_MODE_ENUM
+    comment). The business logic driven by this field lands in a later
+    phase; for now it is only stored. A brand-new install never hits this —
+    create_all() builds the table from today's model directly."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("project"):
+            return
+
+        cols = {c["name"] for c in insp.get_columns("project")}
+
+        if "ASSIGNMENT_MODE" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `project` ADD COLUMN `ASSIGNMENT_MODE` "
+                    "ENUM('PARALLEL','SEQUENTIAL') NOT NULL DEFAULT 'PARALLEL'"
+                ))
+            log.info("migrate-project-assignment-mode: added project.ASSIGNMENT_MODE")
+
+    except Exception as exc:
+        log.warning("migrate-project-assignment-mode-column skipped: %s", exc)
+
+
+_migrate_project_assignment_mode_column()
+
+
+def _migrate_drop_cpa_assignment_mode():
+    """One-time, idempotent: drops the no-longer-used ASSIGNMENT_MODE
+    column from `customer_project_assignment` — confirmed (full-repo grep)
+    to have zero route/service/serializer/frontend references; QUANTITY
+    (see _migrate_add_cpa_quantity() below) replaces it under the new
+    per-assignment quantity business logic. A brand-new install never hits
+    this — create_all() builds the table from today's model directly."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("customer_project_assignment"):
+            return
+
+        cols = {c["name"] for c in insp.get_columns("customer_project_assignment")}
+
+        if "ASSIGNMENT_MODE" in cols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `customer_project_assignment` DROP COLUMN `ASSIGNMENT_MODE`"
+                ))
+            log.info("migrate-drop-cpa-assignment-mode: dropped customer_project_assignment.ASSIGNMENT_MODE")
+
+    except Exception as exc:
+        log.warning("migrate-drop-cpa-assignment-mode skipped: %s", exc)
+
+
+_migrate_drop_cpa_assignment_mode()
+
+
+def _migrate_add_cpa_quantity():
+    """One-time, idempotent: adds QUANTITY to `customer_project_assignment`
+    (default 1 — today's implicit single-unit behavior, preserved for every
+    existing row). Captured going forward at PO-upload time (see
+    routes/po_actions.py) and multiplied into the accepted quotation price
+    everywhere "total project value" is computed (see
+    customer_payment_service.compute_payment_summary). A brand-new install
+    never hits this — create_all() builds the table from today's model
+    directly."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("customer_project_assignment"):
+            return
+
+        cols = {c["name"] for c in insp.get_columns("customer_project_assignment")}
+
+        if "QUANTITY" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `customer_project_assignment` ADD COLUMN `QUANTITY` INT NOT NULL DEFAULT 1"
+                ))
+            log.info("migrate-add-cpa-quantity: added customer_project_assignment.QUANTITY")
+
+    except Exception as exc:
+        log.warning("migrate-add-cpa-quantity skipped: %s", exc)
+
+
+_migrate_add_cpa_quantity()
+
+
+def _migrate_cpp_payment_date_to_datetime():
+    """One-time, idempotent: widens customer_project_payment.PAYMENT_DATE
+    from DATE to DATETIME so the actual time of payment is captured, not
+    just the day — MySQL preserves every existing value at midnight on its
+    original date, which is what those rows already implicitly represented.
+    Fixes a real display bug: formatDateTime() on the frontend always
+    renders an hours:minutes component, and a date-only value was being
+    parsed as UTC-midnight then converted to local time, producing a
+    fabricated time of day. A brand-new install never hits this —
+    create_all() builds the table from today's model (already DATETIME)
+    directly."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("customer_project_payment"):
+            return
+
+        with engine.connect() as conn:
+            column_type = conn.execute(text(
+                "SELECT DATA_TYPE FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'customer_project_payment' "
+                "AND COLUMN_NAME = 'PAYMENT_DATE'"
+            )).scalar()
+
+        if column_type and column_type.lower() == "date":
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `customer_project_payment` MODIFY COLUMN `PAYMENT_DATE` DATETIME NOT NULL"
+                ))
+            log.info("migrate-cpp-payment-date-to-datetime: widened customer_project_payment.PAYMENT_DATE to DATETIME")
+
+    except Exception as exc:
+        log.warning("migrate-cpp-payment-date-to-datetime skipped: %s", exc)
+
+
+_migrate_cpp_payment_date_to_datetime()
+
+
+def _migrate_add_task_template_task_scope():
+    """One-time, idempotent: adds TASK_SCOPE to `task_template` (PROJECT/
+    UNIT, default PROJECT — today's implicit single-instance-per-project
+    behavior, preserved for every existing row). Metadata only for now —
+    see project_models.py's TaskTemplate/TASK_SCOPE_ENUM comments. A
+    brand-new install never hits this — create_all() builds the table
+    from today's model directly."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("task_template"):
+            return
+
+        cols = {c["name"] for c in insp.get_columns("task_template")}
+
+        if "TASK_SCOPE" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `task_template` ADD COLUMN `TASK_SCOPE` "
+                    "ENUM('PROJECT','UNIT') NOT NULL DEFAULT 'PROJECT'"
+                ))
+            log.info("migrate-add-task-template-task-scope: added task_template.TASK_SCOPE")
+
+    except Exception as exc:
+        log.warning("migrate-add-task-template-task-scope skipped: %s", exc)
+
+
+_migrate_add_task_template_task_scope()
+
+
+def _migrate_add_task_template_execution_and_dependency():
+    """One-time, idempotent: adds EXECUTION_GROUP_ID (nullable, indexed —
+    NULL means "not grouped, runs independently", preserving today's
+    behavior for every existing row) and DEPENDENCY_RULE (ALL/ANY, default
+    ALL — moot until a task_template_dependency row exists) to
+    `task_template`. The task_template_dependency table itself is a
+    brand-new table, created by create_all() from the model directly — no
+    hand-written DDL needed for it here."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("task_template"):
+            return
+
+        cols = {c["name"] for c in insp.get_columns("task_template")}
+
+        if "EXECUTION_GROUP_ID" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `task_template` ADD COLUMN `EXECUTION_GROUP_ID` VARCHAR(36) NULL"
+                ))
+                conn.execute(text(
+                    "ALTER TABLE `task_template` ADD INDEX `ix_task_template_execution_group_id` (`EXECUTION_GROUP_ID`)"
+                ))
+            log.info("migrate-add-task-template-execution-group: added task_template.EXECUTION_GROUP_ID")
+
+        cols = {c["name"] for c in insp.get_columns("task_template")}
+        if "DEPENDENCY_RULE" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `task_template` ADD COLUMN `DEPENDENCY_RULE` "
+                    "ENUM('ALL','ANY') NOT NULL DEFAULT 'ALL'"
+                ))
+            log.info("migrate-add-task-template-dependency-rule: added task_template.DEPENDENCY_RULE")
+
+    except Exception as exc:
+        log.warning("migrate-add-task-template-execution-and-dependency skipped: %s", exc)
+
+
+_migrate_add_task_template_execution_and_dependency()
+
+
+def _migrate_backfill_task_template_requirements():
+    """One-time, idempotent: copies every existing task_template row's
+    DEPARTMENT_ID/ROLE_ID into a new TaskTemplateRequirement row before
+    those columns are dropped (see _migrate_drop_task_template_department_
+    role() below) — no existing manpower assignment is lost. Only rows
+    where at least one of DEPARTMENT_ID/ROLE_ID is set are migrated (a
+    template with neither had no defined manpower need, so no placeholder
+    requirement is invented for it). EXPERIENCE_LEVEL is set to
+    INTERMEDIATE as a neutral default since the old schema never captured
+    experience level. Guarded by TASK_TEMPLATE_ID existence so re-running
+    this (e.g. on every boot) never creates duplicates. Reads the old
+    columns via raw SQL because the TaskTemplate ORM model no longer
+    declares them (they may already be gone by the time this runs again).
+    A brand-new install has no task_template rows with these columns at
+    all, so this is a no-op there."""
+
+    import logging
+    from sqlalchemy import text, inspect
+    from sqlalchemy.orm import sessionmaker
+    from app.models.project_models import TaskTemplateRequirement
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("task_template") or not insp.has_table("task_template_requirement"):
+            return
+
+        cols = {c["name"] for c in insp.get_columns("task_template")}
+        if "DEPARTMENT_ID" not in cols and "ROLE_ID" not in cols:
+            return  # already dropped in a prior run — nothing left to read
+
+        with engine.connect() as conn:
+            rows = conn.execute(text(
+                "SELECT ID, DEPARTMENT_ID, ROLE_ID FROM `task_template` "
+                "WHERE DEPARTMENT_ID IS NOT NULL OR ROLE_ID IS NOT NULL"
+            )).fetchall()
+
+        if not rows:
+            return
+
+        Session = sessionmaker(bind=engine)
+        db = Session()
+        try:
+            migrated = 0
+            for task_id, dept_id, role_id in rows:
+                exists = db.query(TaskTemplateRequirement.ID).filter(
+                    TaskTemplateRequirement.TASK_TEMPLATE_ID == task_id
+                ).first()
+                if exists:
+                    continue
+                db.add(TaskTemplateRequirement(
+                    TASK_TEMPLATE_ID=task_id,
+                    DEPARTMENT_ID=dept_id,
+                    ROLE_ID=role_id,
+                    EXPERIENCE_LEVEL="INTERMEDIATE",
+                    REQUIRED_COUNT=1,
+                ))
+                migrated += 1
+            if migrated:
+                db.commit()
+                log.info("migrate-backfill-task-template-requirements: migrated %d task template(s)", migrated)
+        finally:
+            db.close()
+
+    except Exception as exc:
+        log.warning("migrate-backfill-task-template-requirements skipped: %s", exc)
+
+
+_migrate_backfill_task_template_requirements()
+
+
+def _migrate_drop_task_template_department_role():
+    """One-time, idempotent: drops the now-unused DEPARTMENT_ID/ROLE_ID
+    columns from `task_template` — every value was copied forward into
+    TaskTemplateRequirement by _migrate_backfill_task_template_requirements()
+    above (which always runs first, in the same startup, immediately before
+    this function is even defined). MySQL requires dropping a column's FK
+    constraint before the column itself, hence the dynamic
+    information_schema lookup (same idiom as
+    _migrate_drop_legacy_project_and_fks()). A brand-new install never
+    creates these columns (the ORM model no longer declares them), so this
+    is a no-op there."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    FK_DROPS = [
+        ("task_template", "DEPARTMENT_ID"),
+        ("task_template", "ROLE_ID"),
+    ]
+
+    try:
+        insp = inspect(engine)
+
+        for table_name, col_name in FK_DROPS:
+            if not insp.has_table(table_name):
+                continue
+            cols = {c["name"] for c in insp.get_columns(table_name)}
+            if col_name not in cols:
+                continue
+            with engine.begin() as conn:
+                fk_rows = conn.execute(text(
+                    "SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE "
+                    "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t "
+                    "AND COLUMN_NAME = :c AND REFERENCED_TABLE_NAME IS NOT NULL"
+                ), {"t": table_name, "c": col_name}).fetchall()
+                for (fk_name,) in fk_rows:
+                    try:
+                        conn.execute(text(f"ALTER TABLE `{table_name}` DROP FOREIGN KEY `{fk_name}`"))
+                    except Exception as exc_inner:
+                        log.warning("migrate-drop-task-template-dept-role: could not drop FK %s.%s: %s", table_name, fk_name, exc_inner)
+                try:
+                    conn.execute(text(f"ALTER TABLE `{table_name}` DROP COLUMN `{col_name}`"))
+                    log.info("migrate-drop-task-template-dept-role: dropped %s.%s", table_name, col_name)
+                except Exception as exc_inner:
+                    log.warning("migrate-drop-task-template-dept-role: could not drop %s.%s: %s", table_name, col_name, exc_inner)
+
+    except Exception as exc:
+        log.warning("migrate-drop-task-template-dept-role skipped: %s", exc)
+
+
+_migrate_drop_task_template_department_role()
+
+
+def _migrate_add_cpa_hold_status_and_completion():
+    """One-time, idempotent: widens customer_project_assignment.STATUS's
+    native MySQL ENUM to add HOLD (set/cleared automatically by
+    payment_milestone_service.evaluate_milestones_for_assignment(), never
+    by hand), and adds PROJECT_COMPLETION_PERCENTAGE (staff-maintained —
+    see that column's model comment for why no automatic task-based
+    rollup exists yet). A brand-new install never hits either branch —
+    create_all() builds the table from today's model directly."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("customer_project_assignment"):
+            return
+
+        with engine.connect() as conn:
+            column_type = conn.execute(text(
+                "SELECT COLUMN_TYPE FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'customer_project_assignment' AND COLUMN_NAME = 'STATUS'"
+            )).scalar()
+
+        if column_type and "HOLD" not in column_type:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `customer_project_assignment` MODIFY COLUMN `STATUS` "
+                    "ENUM('ASSIGNED','IN_PROGRESS','COMPLETED','CANCELLED','HOLD') NOT NULL"
+                ))
+            log.info("migrate-add-cpa-hold-status: widened customer_project_assignment.STATUS with HOLD")
+
+        cols = {c["name"] for c in insp.get_columns("customer_project_assignment")}
+        if "PROJECT_COMPLETION_PERCENTAGE" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `customer_project_assignment` ADD COLUMN "
+                    "`PROJECT_COMPLETION_PERCENTAGE` DECIMAL(5,2) NOT NULL DEFAULT 0"
+                ))
+            log.info("migrate-add-cpa-hold-status: added customer_project_assignment.PROJECT_COMPLETION_PERCENTAGE")
+
+    except Exception as exc:
+        log.warning("migrate-add-cpa-hold-status-and-completion skipped: %s", exc)
+
+
+_migrate_add_cpa_hold_status_and_completion()
+
+
+def _migrate_add_cpp_milestone_id():
+    """One-time, idempotent: adds MILESTONE_ID to `customer_project_payment`
+    (nullable FK to payment_milestone.ID, ON DELETE SET NULL) — best-effort
+    attribution of which Payment Milestone a payment satisfied (see
+    payment_milestone_service._attribute_latest_payment()). No backfill:
+    existing payments predate this feature and correctly have no milestone
+    attribution. A brand-new install never hits this — create_all() builds
+    the table from today's model directly."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("customer_project_payment") or not insp.has_table("payment_milestone"):
+            return
+
+        cols = {c["name"] for c in insp.get_columns("customer_project_payment")}
+        if "MILESTONE_ID" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `customer_project_payment` ADD COLUMN `MILESTONE_ID` VARCHAR(36) NULL, "
+                    "ADD CONSTRAINT `fk_cpp_milestone` FOREIGN KEY (`MILESTONE_ID`) "
+                    "REFERENCES `payment_milestone` (`ID`) ON DELETE SET NULL"
+                ))
+            log.info("migrate-add-cpp-milestone-id: added customer_project_payment.MILESTONE_ID")
+
+    except Exception as exc:
+        log.warning("migrate-add-cpp-milestone-id skipped: %s", exc)
+
+
+_migrate_add_cpp_milestone_id()
+
+
+def _migrate_seed_payment_milestones_from_legacy():
+    """One-time, best-effort: safely migrates any existing per-Project
+    milestone configuration (the old project_payment_milestone table,
+    ProjectPaymentMilestone model — now removed from the ORM, see
+    project_models.py's note) into the new vendor-level `payment_milestone`
+    table, WITHOUT ever merging or discarding conflicting production data.
+
+    For each vendor: if every one of its projects that had milestones used
+    the EXACT SAME configuration (same set of name/order/required-percentage
+    tuples), that one shared configuration is migrated — PROJECT_COMPLETION_
+    TRIGGER_PERCENTAGE (a concept the old schema never captured) defaults to
+    0 on every migrated row and is logged clearly as needing admin review.
+    If a vendor's projects had DIFFERING configurations, nothing is migrated
+    for that vendor at all — a warning lists the conflicting projects so an
+    admin can review the untouched old data and configure the new table by
+    hand. Idempotent: any vendor that already has payment_milestone rows
+    (a prior run, or manual configuration) is left completely alone.
+
+    The old `project_payment_milestone` table and its data are deliberately
+    NEVER dropped or modified by this migration — see project_models.py's
+    note on ProjectPaymentMilestone's removal."""
+
+    import logging
+    from sqlalchemy import text, inspect
+    from sqlalchemy.orm import sessionmaker
+    from app.models.project_milestone_models import PaymentMilestone
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("project_payment_milestone") or not insp.has_table("payment_milestone"):
+            return
+
+        with engine.connect() as conn:
+            rows = conn.execute(text(
+                "SELECT p.VENDOR_ID, ppm.PROJECT_ID, p.NAME AS PROJECT_NAME, "
+                "ppm.MILESTONE_NAME, ppm.MILESTONE_ORDER, ppm.REQUIRED_PAYMENT_PERCENTAGE "
+                "FROM `project_payment_milestone` ppm "
+                "JOIN `project` p ON p.ID = ppm.PROJECT_ID"
+            )).fetchall()
+
+        if not rows:
+            return
+
+        # Group by vendor -> project -> sorted signature tuple
+        by_vendor: dict = {}
+        for vendor_id, project_id, project_name, m_name, m_order, m_pct in rows:
+            by_vendor.setdefault(vendor_id, {}).setdefault(
+                project_id, {"name": project_name, "items": []}
+            )["items"].append((m_name, m_order, f"{float(m_pct):.2f}"))
+
+        Session = sessionmaker(bind=engine)
+        db = Session()
+        try:
+            migrated_vendors = 0
+            for vendor_id, projects in by_vendor.items():
+                already_configured = db.query(PaymentMilestone.ID).filter(
+                    PaymentMilestone.VENDOR_ID == vendor_id
+                ).first()
+                if already_configured:
+                    continue  # never overwrite a prior run or manual configuration
+
+                signatures = {
+                    tuple(sorted(proj["items"])): proj["name"] for proj in projects.values()
+                }
+                if len(signatures) > 1:
+                    conflict_list = ", ".join(f'"{name}"' for name in
+                                               {p["name"] for p in projects.values()})
+                    log.warning(
+                        "migrate-seed-payment-milestones: vendor %s has %d differing legacy milestone "
+                        "configurations across projects (%s) — nothing migrated automatically; the old "
+                        "project_payment_milestone data is preserved untouched for manual review.",
+                        vendor_id, len(signatures), conflict_list,
+                    )
+                    continue
+
+                # Exactly one distinct configuration — safe to migrate.
+                one_signature = next(iter(signatures))
+                for m_name, m_order, m_pct in one_signature:
+                    db.add(PaymentMilestone(
+                        VENDOR_ID=vendor_id,
+                        MILESTONE_NAME=m_name,
+                        MILESTONE_ORDER=m_order,
+                        PROJECT_COMPLETION_TRIGGER_PERCENTAGE=0,
+                        REQUIRED_PAYMENT_PERCENTAGE=m_pct,
+                    ))
+                migrated_vendors += 1
+                log.info(
+                    "migrate-seed-payment-milestones: migrated %d milestone(s) for vendor %s from legacy "
+                    "per-project configuration — PROJECT_COMPLETION_TRIGGER_PERCENTAGE defaulted to 0 on "
+                    "every row and needs admin review (the old schema never captured this value).",
+                    len(one_signature), vendor_id,
+                )
+
+            if migrated_vendors:
+                db.commit()
+        finally:
+            db.close()
+
+    except Exception as exc:
+        log.warning("migrate-seed-payment-milestones-from-legacy skipped: %s", exc)
+
+
+_migrate_seed_payment_milestones_from_legacy()
+
 from app.services.speech_service import speech_service  # noqa: E402
 speech_service.initialize()  # non-blocking — Piper models load on a background thread
 
@@ -2857,7 +3694,12 @@ app.include_router(hrms_ai_router)
 app.include_router(email_config_router, tags=["Email Configuration"])
 app.include_router(email_templates_router, tags=["Email Templates"])
 app.include_router(lead_management_router, tags=["Lead Management"])
+app.include_router(quotation_actions_router, tags=["Quotation Actions"])
+app.include_router(po_actions_router, tags=["Purchase Order Actions"])
+app.include_router(email_send_rule_router, tags=["Email Send Rule"])
 app.include_router(customer_master_router, tags=["Customer Master"])
+app.include_router(customer_payment_router, tags=["Customer Payments"])
+app.include_router(payment_milestone_router, tags=["Payment Milestones"])
 app.include_router(whatsapp_config_router, tags=["WhatsApp Configuration"])
 app.include_router(whatsapp_module_settings_router, tags=["WhatsApp Module Settings"])
 app.include_router(whatsapp_webhook_router, tags=["WhatsApp Webhook"])

@@ -20,6 +20,20 @@ const PREVIEW_VARS = {
   company_address: "123 Business Park, Chennai, Tamil Nadu 600001",
   contact_number: "+91 98765 43210",
   website: "www.company.com",
+  // Every BUTTON_MANIFEST urlVar below MUST have an entry here — SAVE_VARS
+  // (used when the template is actually saved, not just previewed) is
+  // mechanically derived from this object's keys. Omitting one here means
+  // renderButtonsHtml()'s `vars[meta.urlVar]` resolves to undefined and its
+  // `|| "#"` fallback silently bakes a dead href="#" into the saved
+  // BODY_HTML instead of preserving the {{accept_link}}-style placeholder —
+  // exactly the bug that caused saved template edits to be discarded at
+  // send time (the backend's stale-content guard in get_template_for_send()
+  // then falls back to the catalog default for the whole email).
+  accept_link: "#preview-accept",
+  reject_link: "#preview-reject",
+  upload_link: "#preview-upload",
+  view_payment_url: "#preview-view-payment",
+  login_url: "#preview-login",
 };
 
 // Preserved in saved BODY_HTML — substituted by backend render_template() at send time
@@ -40,7 +54,78 @@ const DEFAULT_DESIGN = {
     "hesitate to reach out to our team — we are happy to assist.</p>",
   ].join(""),
   customNotes: "",
+  buttons: [],
 };
+
+// ── Protected action-button manifest ───────────────────────────────────────────
+// These four template types had their Accept/Reject/Upload/View-Payment
+// buttons silently dropped on every save, because they lived OUTSIDE the
+// freeform contentHtml region the rich-text editor round-trips, and
+// buildEmailHtml() (below) previously had no idea they existed. Buttons are
+// now a separate, protected field (design.buttons) — analogous to
+// logoDataUrl/headerTitle — with only `text` ever user-editable; `urlVar`/
+// `color` are fixed here so the underlying action/link can never be broken
+// by a content edit. EMPLOYEE_ONBOARDING's login button is now protected
+// the same way (see parseDesign()'s legacy-migration handling below).
+// SUPPLIER_INVITATION is untouched — its "Complete Registration" CTA is
+// built directly into buildEmailHtml() (see isInvitation below), not a
+// freeform contentHtml element, so it was never at risk.
+// IMPORTANT: every `urlVar` referenced below must have a matching entry in
+// PREVIEW_VARS above — see the comment there for why.
+const BUTTON_MANIFEST = {
+  PROJECT_QUOTATION: [
+    { id: "accept", urlVar: "accept_link", color: "#16a34a", defaultText: "Accept Quotation" },
+    { id: "reject", urlVar: "reject_link", color: "#dc2626", defaultText: "Reject Quotation" },
+  ],
+  REVISED_PROJECT_QUOTATION: [
+    { id: "accept", urlVar: "accept_link", color: "#16a34a", defaultText: "Accept Quotation" },
+    { id: "reject", urlVar: "reject_link", color: "#dc2626", defaultText: "Reject Quotation" },
+  ],
+  PURCHASE_ORDER_REQUEST: [
+    { id: "upload", urlVar: "upload_link", color: "#DC2626", defaultText: "Upload Purchase Order" },
+  ],
+  PURCHASE_ORDER_UPLOADED_NOTIFICATION: [
+    { id: "view_payment", urlVar: "view_payment_url", color: "#DC2626", defaultText: "View Payment" },
+  ],
+  EMPLOYEE_ONBOARDING: [
+    { id: "login", urlVar: "login_url", color: "#DC2626", defaultText: "Log In Now" },
+  ],
+};
+
+function defaultButtonsFor(templateType) {
+  const manifest = BUTTON_MANIFEST[templateType];
+  return manifest ? manifest.map((b) => ({ id: b.id, text: b.defaultText })) : [];
+}
+
+// Renders design.buttons into the same table-wrapped-<a> markup already used
+// throughout this codebase's email templates — inserted right after
+// contentHtml. `buttons` array order drives left-to-right layout, so the
+// editor's reorder control can swap Accept/Reject positions; color/urlVar
+// always come from the manifest (never from user input).
+function renderButtonsHtml(design, templateType, vars) {
+  const manifest = BUTTON_MANIFEST[templateType];
+  if (!manifest || manifest.length === 0) return "";
+  const buttons = design.buttons && design.buttons.length > 0 ? design.buttons : defaultButtonsFor(templateType);
+  const cells = buttons
+    .map((btn) => {
+      const meta = manifest.find((m) => m.id === btn.id);
+      if (!meta) return null;
+      const url = vars[meta.urlVar] || "#";
+      const text = btn.text || meta.defaultText;
+      return `<td style="background:${meta.color};border-radius:7px;">
+                  <a href="${url}" style="display:inline-block;padding:14px 28px;color:#ffffff;
+                         text-decoration:none;font-weight:700;font-size:15px;">
+                    ${text}
+                  </a>
+                </td>`;
+    })
+    .filter(Boolean);
+  if (cells.length === 0) return "";
+  const spacer = `<td style="width:14px;line-height:1px;font-size:1px;">&nbsp;</td>`;
+  return `<table cellpadding="0" cellspacing="0" role="presentation" style="margin:20px 0 24px;">
+              <tr>${cells.join(spacer)}</tr>
+            </table>`;
+}
 
 // ── HTML assembler — pure function, called for both preview and save ───────────
 function buildEmailHtml(design, vars, templateType = "SUPPLIER_INVITATION") {
@@ -105,6 +190,8 @@ function buildEmailHtml(design, vars, templateType = "SUPPLIER_INVITATION") {
                      font-size:15px;line-height:1.75;color:#475569;">
             ${contentHtml || ""}
 
+            ${renderButtonsHtml(design, templateType, vars)}
+
             ${isInvitation ? `<!-- CTA Button -->
             <table cellpadding="0" cellspacing="0" role="presentation"
                    style="margin:28px 0 20px;">
@@ -162,22 +249,46 @@ function buildEmailHtml(design, vars, templateType = "SUPPLIER_INVITATION") {
 }
 
 // ── Parse DESIGN_JSON stored in DB ────────────────────────────────────────────
-function parseDesign(designJson) {
-  if (!designJson) return { ...DEFAULT_DESIGN };
+// `templateType` lets this backfill a `buttons` array from BUTTON_MANIFEST
+// whenever the stored DESIGN_JSON has none (or an empty one) — every
+// currently-broken template in the DB falls into exactly this case, so this
+// self-heals them the next time an admin opens the editor, no manual data
+// fix required.
+// Before EMPLOYEE_ONBOARDING got a protected login button (above), its
+// "Log In Now" link lived inline inside contentHtml as a plain <table>/<a>
+// pair — the same fragile arrangement the other four manifest types used
+// to have. A row saved before this fix still has that markup baked into
+// its stored contentHtml; backfilling `buttons` for it below would render
+// a second, duplicate login button alongside the one already in the text.
+// This strips exactly that one legacy <table>...</table> block (identified
+// by containing the {{login_url}} placeholder) the next time the row is
+// loaded into the editor, mirroring the self-healing button backfill this
+// function already does for the other template types.
+const LEGACY_LOGIN_BUTTON_RE = /<table[^>]*>(?:(?!<\/table>)[\s\S])*?\{\{login_url\}\}(?:(?!<\/table>)[\s\S])*?<\/table>/i;
+
+function parseDesign(designJson, templateType) {
+  const fallbackButtons = defaultButtonsFor(templateType);
+  if (!designJson) return { ...DEFAULT_DESIGN, buttons: fallbackButtons };
   try {
     const parsed = JSON.parse(designJson);
     if (parsed && parsed.version === 1) {
+      const hasButtons = Array.isArray(parsed.buttons) && parsed.buttons.length > 0;
+      let contentHtml = parsed.contentHtml ?? DEFAULT_DESIGN.contentHtml;
+      if (!hasButtons && templateType === "EMPLOYEE_ONBOARDING" && contentHtml.includes("{{login_url}}")) {
+        contentHtml = contentHtml.replace(LEGACY_LOGIN_BUTTON_RE, "");
+      }
       return {
         logoDataUrl: parsed.logoDataUrl ?? "",
         headerTitle: parsed.headerTitle ?? DEFAULT_DESIGN.headerTitle,
-        contentHtml: parsed.contentHtml ?? DEFAULT_DESIGN.contentHtml,
+        contentHtml,
         customNotes: parsed.customNotes ?? "",
+        buttons: hasButtons ? parsed.buttons : fallbackButtons,
       };
     }
   } catch {
     /* fall through to default */
   }
-  return { ...DEFAULT_DESIGN };
+  return { ...DEFAULT_DESIGN, buttons: fallbackButtons };
 }
 
 // ── Page component ────────────────────────────────────────────────────────────
@@ -236,7 +347,7 @@ function EmailTemplatePage() {
       .then((res) => {
         const tmpl = res.data;
         setSubject(tmpl.SUBJECT || "");
-        setDesign(parseDesign(tmpl.DESIGN_JSON));
+        setDesign(parseDesign(tmpl.DESIGN_JSON, selectedType));
         setEditorKey((k) => k + 1); // remount RichTextEditor with fresh content
       })
       .catch(() => toast.showError("Failed to load template"))
@@ -288,6 +399,29 @@ function EmailTemplatePage() {
   // Stable reference passed to RichTextEditor (no dependency)
   const handleContentChange = useCallback((html) => {
     setDesign((prev) => ({ ...prev, contentHtml: html }));
+  }, []);
+
+  // Button text is the only user-editable field on a manifest button —
+  // urlVar/color are never exposed, so the underlying action/link can't be
+  // broken by editing here.
+  const handleButtonTextChange = useCallback((id, text) => {
+    setDesign((prev) => ({
+      ...prev,
+      buttons: (prev.buttons || []).map((b) => (b.id === id ? { ...b, text } : b)),
+    }));
+  }, []);
+
+  // Reorders two buttons relative to each other (e.g. Accept/Reject) — the
+  // coarse-grained "move to another position" this editor supports, versus
+  // free drag-anywhere-in-content.
+  const handleMoveButton = useCallback((index, direction) => {
+    setDesign((prev) => {
+      const buttons = [...(prev.buttons || [])];
+      const newIndex = index + direction;
+      if (newIndex < 0 || newIndex >= buttons.length) return prev;
+      [buttons[index], buttons[newIndex]] = [buttons[newIndex], buttons[index]];
+      return { ...prev, buttons };
+    });
   }, []);
 
   const handleLogoUpload = useCallback(
@@ -356,10 +490,12 @@ function EmailTemplatePage() {
   }, [templates, ddSearch]);
 
   const canSave = !saving && !loadingTmpl && !!selectedType;
+  const activeButtonManifest = BUTTON_MANIFEST[selectedType] || null;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className={styles.page}>
+      <div className={styles.card}>
 
       {/* ── Top bar ── */}
       <div className={styles.topBar}>
@@ -570,6 +706,61 @@ function EmailTemplatePage() {
                 />
               </div>
 
+              {/* Action buttons — protected, non-freeform fields (only for
+                  templates that have one). Rendered right after the body
+                  content in the final email — see renderButtonsHtml(). */}
+              {activeButtonManifest && (
+                <div className={styles.section}>
+                  <label className={styles.sectionLabel}>
+                    Action Button{activeButtonManifest.length > 1 ? "s" : ""}
+                    <span className={styles.hint}>
+                      &nbsp;· Shown right after the body content above. Text is editable; the
+                      underlying action/link is fixed and can't be broken by editing.
+                    </span>
+                  </label>
+                  {(design.buttons && design.buttons.length > 0 ? design.buttons : defaultButtonsFor(selectedType)).map((btn, idx, arr) => {
+                    const meta = activeButtonManifest.find((m) => m.id === btn.id);
+                    if (!meta) return null;
+                    return (
+                      <div key={btn.id} className={styles.buttonRow}>
+                        <span className={styles.buttonSwatch} style={{ background: meta.color }}>
+                          {btn.text || meta.defaultText}
+                        </span>
+                        <input
+                          type="text"
+                          className={styles.textInput}
+                          value={btn.text}
+                          onChange={(e) => handleButtonTextChange(btn.id, e.target.value)}
+                          placeholder={meta.defaultText}
+                        />
+                        {arr.length > 1 && (
+                          <div className={styles.buttonReorderBtns}>
+                            <button
+                              type="button"
+                              className={styles.buttonReorderBtn}
+                              onClick={() => handleMoveButton(idx, -1)}
+                              disabled={idx === 0}
+                              title="Move earlier"
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.buttonReorderBtn}
+                              onClick={() => handleMoveButton(idx, 1)}
+                              disabled={idx === arr.length - 1}
+                              title="Move later"
+                            >
+                              ↓
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               {/* Custom notes */}
               <div className={styles.section}>
                 <label className={styles.sectionLabel} htmlFor="tmpl-notes">
@@ -606,6 +797,7 @@ function EmailTemplatePage() {
           />
         </div>
 
+      </div>
       </div>
     </div>
   );

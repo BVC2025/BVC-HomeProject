@@ -169,6 +169,16 @@
   gap: var(--sp-4);
 }
 
+.formRow {
+  display: flex;
+  gap: var(--sp-4);
+}
+
+.formRow > * {
+  flex: 1;
+  min-width: 0;
+}
+
 .formGroup {
   display: flex;
   flex-direction: column;

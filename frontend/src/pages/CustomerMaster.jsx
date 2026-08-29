@@ -22,6 +22,7 @@ const CF_TABLE = "customer_master";
 
 const EMPTY_FORM = {
   NAME: "", COMPANY_NAME: "", PHONE_NUMBER: "", EMAIL: "", ADDRESS: "", GST_NUMBER: "",
+  CITY: "", STATE: "", PINCODE: "", COUNTRY_ISO: "",
 };
 
 export default function CustomerMaster() {
@@ -139,6 +140,10 @@ export default function CustomerMaster() {
       EMAIL: c.EMAIL || "",
       ADDRESS: c.ADDRESS || "",
       GST_NUMBER: c.GST_NUMBER || "",
+      CITY: c.CITY || "",
+      STATE: c.STATE || "",
+      PINCODE: c.PINCODE || "",
+      COUNTRY_ISO: c.COUNTRY_ISO || "",
     });
     setSelected(c);
     setErrors({});
@@ -176,6 +181,10 @@ export default function CustomerMaster() {
         EMAIL: form.EMAIL.trim(),
         ADDRESS: form.ADDRESS.trim(),
         GST_NUMBER: form.GST_NUMBER.trim() || null,
+        CITY: form.CITY.trim() || null,
+        STATE: form.STATE.trim() || null,
+        PINCODE: form.PINCODE.trim() || null,
+        COUNTRY_ISO: form.COUNTRY_ISO.trim() || null,
       };
       if (modal === "add") {
         const res = await customerMasterService.create(payload);
@@ -222,6 +231,10 @@ export default function CustomerMaster() {
         "Email": c.EMAIL || "",
         "Address": c.ADDRESS || "",
         "GST Number": c.GST_NUMBER || "",
+        "City": c.CITY || "",
+        "State": c.STATE || "",
+        "Pincode": c.PINCODE || "",
+        "Country ISO": c.COUNTRY_ISO || "",
       };
       cfFields.forEach((f) => {
         const val = cfValuesMap[String(c.ID)]?.[f.ID];
@@ -244,7 +257,7 @@ export default function CustomerMaster() {
 
   const handleDownloadTemplate = useCallback(async () => {
     try {
-      const headers = ["Name", "Company Name", "Phone Number", "Email", "Address", "GST Number", ...cfFields.map((f) => f.FIELD_NAME)];
+      const headers = ["Name", "Company Name", "Phone Number", "Email", "Address", "GST Number", "City", "State", "Pincode", "Country ISO", ...cfFields.map((f) => f.FIELD_NAME)];
       await dlTemplate("Customers", headers, "customer_master_template");
     } catch {
       toast.showError("Failed to download template");
@@ -328,6 +341,10 @@ export default function CustomerMaster() {
                 <th>Phone</th>
                 <th>Email</th>
                 <th>Address</th>
+                <th>City</th>
+                <th>State</th>
+                <th>Pincode</th>
+                <th>Country</th>
                 <th>GST</th>
                 <th>Created Date</th>
                 {cfFields.map((f) => <th key={f.ID}>{f.FIELD_NAME}</th>)}
@@ -336,10 +353,10 @@ export default function CustomerMaster() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={9 + cfFields.length}><Loader /></td></tr>
+                <tr><td colSpan={13 + cfFields.length}><Loader /></td></tr>
               ) : paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={9 + cfFields.length}>
+                  <td colSpan={13 + cfFields.length}>
                     <EmptyState
                       icon={CustomerIcon}
                       iconAlt="Customer Master"
@@ -357,6 +374,10 @@ export default function CustomerMaster() {
                     <td className={styles.descCell}>{c.PHONE_NUMBER || <span className={styles.muted}>—</span>}</td>
                     <td className={styles.descCell}>{c.EMAIL || <span className={styles.muted}>—</span>}</td>
                     <td className={styles.descCell}>{c.ADDRESS || <span className={styles.muted}>—</span>}</td>
+                    <td className={styles.descCell}>{c.CITY || <span className={styles.muted}>—</span>}</td>
+                    <td className={styles.descCell}>{c.STATE || <span className={styles.muted}>—</span>}</td>
+                    <td className={styles.descCell}>{c.PINCODE || <span className={styles.muted}>—</span>}</td>
+                    <td className={styles.descCell}>{c.COUNTRY_ISO || <span className={styles.muted}>—</span>}</td>
                     <td className={styles.descCell}>{c.GST_NUMBER || <span className={styles.muted}>—</span>}</td>
                     <td className={styles.dateCell}>{formatDateTime(c.CREATED_AT)}</td>
                     {cfFields.map((f) => {
@@ -458,6 +479,44 @@ export default function CustomerMaster() {
               rows={3}
             />
             {errors.ADDRESS && <span className={styles.fieldError}>{errors.ADDRESS}</span>}
+          </div>
+          <div className={styles.formRow}>
+            <div className={styles.formGroup}>
+              <label>City</label>
+              <input
+                className={styles.input}
+                value={form.CITY}
+                onChange={(e) => handleFormChange("CITY", e.target.value)}
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>State</label>
+              <input
+                className={styles.input}
+                value={form.STATE}
+                onChange={(e) => handleFormChange("STATE", e.target.value)}
+              />
+            </div>
+          </div>
+          <div className={styles.formRow}>
+            <div className={styles.formGroup}>
+              <label>Pincode</label>
+              <input
+                className={`${styles.input}${errors.PINCODE ? " " + styles.inputError : ""}`}
+                value={form.PINCODE}
+                onChange={(e) => handleFormChange("PINCODE", e.target.value)}
+              />
+              {errors.PINCODE && <span className={styles.fieldError}>{errors.PINCODE}</span>}
+            </div>
+            <div className={styles.formGroup}>
+              <label>Country ISO</label>
+              <input
+                className={styles.input}
+                value={form.COUNTRY_ISO}
+                onChange={(e) => handleFormChange("COUNTRY_ISO", e.target.value)}
+                placeholder="e.g. IN"
+              />
+            </div>
           </div>
           <div className={styles.formGroup}>
             <label>GST Number</label>

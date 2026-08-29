@@ -18,6 +18,32 @@ export const leadService = {
   convert: (id, body = {}) =>
     API.post(`/lead-management/leads/${id}/convert?vendor_id=${VENDOR_ID}`, body),
 
+  getQuotations: (id) =>
+    API.get(`/lead-management/leads/${id}/quotations`),
+
+  getMasterPrice: (id) =>
+    API.get(`/lead-management/leads/${id}/master-price`),
+
+  sendRevisedQuote: (id, body) =>
+    API.post(`/lead-management/leads/${id}/quotations/revise?vendor_id=${VENDOR_ID}`, body),
+
+  sendPurchaseOrderRequest: (id) =>
+    API.post(`/lead-management/leads/${id}/quotations/send-po-request?vendor_id=${VENDOR_ID}`),
+
+  correctQuotationToApproved: (id) =>
+    API.post(`/lead-management/leads/${id}/quotations/correct-to-approved?vendor_id=${VENDOR_ID}`),
+
+  getPurchaseOrder: (id) =>
+    API.get(`/lead-management/leads/${id}/purchase-order`),
+
+  uploadPurchaseOrder: (id, formData) =>
+    API.post(`/lead-management/leads/${id}/po/upload`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+
+  getPayments: (id) =>
+    API.get(`/lead-management/leads/${id}/payments`),
+
   remove: (id) =>
     API.delete(`/lead-management/leads/${id}`),
 

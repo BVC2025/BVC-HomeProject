@@ -10,11 +10,17 @@ import re
 import uuid
 from app.utils.datetime_utils import now_ist
 
-from app.models.project_models import ProjectCategory, Project, TaskTemplate, ProjectPricing  # noqa: F401
+from app.models.project_models import (  # noqa: F401
+    ProjectCategory, Project, TaskTemplate, TaskTemplateRequirement, TaskTemplateDependency, ProjectPricing,
+)
+from app.models.project_milestone_models import PaymentMilestone, CustomerProjectMilestoneStatus  # noqa: F401
 from app.models.supplier_models import Supplier  # noqa: F401
 from app.models.email_models import VendorEmailConfig, EmailTemplate  # noqa: F401
-from app.models.lead_models import LeadPollingConfig, Lead, LeadPollingLog  # noqa: F401
-from app.models.customer_models import Customer, CustomerProjectAssignment  # noqa: F401
+from app.models.lead_models import LeadPollingConfig, Lead, LeadPollingLog, LeadModuleSetting  # noqa: F401
+from app.models.customer_models import (  # noqa: F401
+    Customer, CustomerProjectAssignment, CustomerProjectQuotation, CustomerProjectPurchaseOrder,
+    CustomerProjectPayment,
+)
 from app.models.project_quotation_models import ProjectQuotationTemplate  # noqa: F401
 from app.models.whatsapp_models import (  # noqa: F401
     VendorWhatsAppConfig, WhatsAppModuleSetting, WhatsAppConversation, WhatsAppMessage, WhatsAppWebhookEvent,
@@ -30,7 +36,8 @@ from app.models.employee_models import (  # noqa: F401
 from app.models.leave_models import (  # noqa: F401
     LeaveRequest, LeaveBalance, LeaveQuotaPolicy, AILeaveConversation, LeaveBalanceAdjustment,
 )
-__all__ = ["ProjectCategory", "Project", "TaskTemplate", "ProjectPricing", "Supplier", "VendorEmailConfig", "EmailTemplate", "LeadPollingConfig", "Lead", "LeadPollingLog", "Customer", "CustomerProjectAssignment", "ProjectQuotationTemplate", "VendorWhatsAppConfig", "WhatsAppModuleSetting", "WhatsAppConversation", "WhatsAppMessage", "WhatsAppWebhookEvent", "RootUser", "IAMUser", "EmployeePermissionOverride", "EmployeePermissionOverrideAudit", "RefreshToken", "LoginLockout", "Employee", "Department", "Designation", "EmployeeOnboardingSession", "EmployeeDocument", "EmployeeMemo", "EmployeeAllowance", "EmployeeStatusHistory", "LeaveRequest", "LeaveBalance", "LeaveQuotaPolicy", "AILeaveConversation", "LeaveBalanceAdjustment"]  # re-exported from dedicated model files
+from app.models.email_send_rule_models import EmailSendRule, EmailSendRuleRecipient  # noqa: F401
+__all__ = ["ProjectCategory", "Project", "TaskTemplate", "ProjectPricing", "PaymentMilestone", "CustomerProjectMilestoneStatus", "Supplier", "VendorEmailConfig", "EmailTemplate", "LeadPollingConfig", "Lead", "LeadPollingLog", "LeadModuleSetting", "Customer", "CustomerProjectAssignment", "CustomerProjectQuotation", "CustomerProjectPurchaseOrder", "CustomerProjectPayment", "ProjectQuotationTemplate", "VendorWhatsAppConfig", "WhatsAppModuleSetting", "WhatsAppConversation", "WhatsAppMessage", "WhatsAppWebhookEvent", "RootUser", "IAMUser", "EmployeePermissionOverride", "EmployeePermissionOverrideAudit", "RefreshToken", "LoginLockout", "Employee", "Department", "Designation", "EmployeeOnboardingSession", "EmployeeDocument", "EmployeeMemo", "EmployeeAllowance", "EmployeeStatusHistory", "LeaveRequest", "LeaveBalance", "LeaveQuotaPolicy", "AILeaveConversation", "LeaveBalanceAdjustment", "EmailSendRule", "EmailSendRuleRecipient"]  # re-exported from dedicated model files
 
 # ──────────────────────────────────────────────
 # Shared SQLAlchemy Enum types
@@ -165,6 +172,11 @@ class Vendor(Base):
     customer_info = relationship(
         "Customer",
         back_populates="vendor_info",
+        cascade="all, delete-orphan",
+    )
+    payment_milestones = relationship(
+        "PaymentMilestone",
+        back_populates="vendor",
         cascade="all, delete-orphan",
     )
 

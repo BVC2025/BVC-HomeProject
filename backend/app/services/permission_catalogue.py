@@ -112,6 +112,7 @@ CATALOGUE = [
     ("project.task_templates.delete", "Delete task templates", "Projects", None),
     ("project.task_templates.export", "Export task templates", "Projects", "Download to Excel"),
     ("project.task_templates.reorder","Reorder task templates","Projects", "Drag-and-drop sequence change"),
+    ("project.task_templates.execution_groups.manage", "Manage task execution groups", "Projects", "Assign, create, and remove tasks from parallel-execution groups"),
 
     ("project.pricing.view",   "View project pricing",   "Projects", None),
     ("project.pricing.create", "Create project pricing",  "Projects", None),
@@ -170,6 +171,13 @@ CATALOGUE = [
     ("customer.master.delete", "Delete customer master rows", "Sales", None),
     ("customer.master.export", "Export customer master",      "Sales", "Download to Excel"),
     ("customer.master.import", "Bulk import customer master", "Sales", "Bulk upload via Excel"),
+
+    ("customer.payments.view",       "View customer payments",        "Sales", "Payment history/totals per Customer Lead/Project"),
+    ("customer.payments.create",     "Create customer payment records","Sales", None),
+    ("customer.payments.update",     "Edit customer payment records", "Sales", None),
+    ("customer.payments.delete",     "Delete customer payment records","Sales", None),
+    ("customer.payments.view_proof", "View payment proof files",      "Sales", "Open/preview uploaded payment proof documents"),
+    ("customer.payments.manual_add", "Add manual customer payment",   "Sales", "Accounts recording a payment received outside the upload flow"),
     ("sales_order.view",    "View sales orders",    "Sales", None),
     ("sales_order.manage",  "Manage sales orders",  "Sales", "Create, edit, cancel, record payments"),
     ("quotation.manage",    "Manage quotations",    "Sales", "Create and approve"),
@@ -222,6 +230,21 @@ CATALOGUE = [
     ("lead.records.owner_select_create", "Select lead owner when creating a lead", "Lead Management", None),
     ("lead.records.owner_select_update", "Select lead owner when editing a lead",  "Lead Management", None),
     ("lead.records.convert",             "Convert a lead to a customer",           "Lead Management", "Creates/links a Customer and a project assignment, then marks the lead CONVERTED"),
+    ("lead.config.whatsapp_automation.view",   "View WhatsApp automation setting",           "Lead Management", "The auto-send-welcome-message toggle on the Lead Management Configuration page"),
+    ("lead.config.whatsapp_automation.manage", "Manage WhatsApp automation setting",         "Lead Management", None),
+    ("lead.config.auto_po_request.view",       "View auto purchase-order-request setting",   "Lead Management", "Whether approving a quotation auto-emails a Purchase Order Request"),
+    ("lead.config.auto_po_request.manage",     "Manage auto purchase-order-request setting", "Lead Management", None),
+
+    # ---- Email Send Rule (System) ----
+    ("system.email_send_rule.view",   "View email send rules",   "System", "Which employees are notified when a customer approves/rejects a quotation"),
+    ("system.email_send_rule.manage", "Manage email send rules", "System", None),
+
+    # ---- Payment Milestones (System) — common vendor-level configuration
+    # shared across all Customer Lead Projects, no longer per-project ----
+    ("system.payment_milestones.view",   "View payment milestones",   "System", "Common vendor-level milestone configuration"),
+    ("system.payment_milestones.create", "Create payment milestones", "System", None),
+    ("system.payment_milestones.update", "Edit payment milestones",   "System", "Includes activating/deactivating a milestone"),
+    ("system.payment_milestones.delete", "Delete payment milestones", "System", None),
 
     # ---- Performance ----
     ("star_performance.view",   "View star performance",   "Performance", "Star ratings, bands, summaries"),
@@ -305,6 +328,10 @@ PAGE_LABELS = {
 
     "lead.config.view":      "Configuration",
     "lead.config.manage":    "Configuration",
+    "lead.config.whatsapp_automation.view":   "Configuration",
+    "lead.config.whatsapp_automation.manage": "Configuration",
+    "lead.config.auto_po_request.view":       "Configuration",
+    "lead.config.auto_po_request.manage":     "Configuration",
     "lead.live.view":        "Live Lead Viewer",
     "lead.records.view":     "Lead Records",
     "lead.records.create":   "Lead Records",
@@ -322,12 +349,27 @@ PAGE_LABELS = {
     "lead.records.owner_select_update": "Lead Records",
     "lead.records.convert":             "Lead Records",
 
+    "system.email_send_rule.view":   "Email Send Rule",
+    "system.email_send_rule.manage": "Email Send Rule",
+
+    "system.payment_milestones.view":   "Payment Milestones",
+    "system.payment_milestones.create": "Payment Milestones",
+    "system.payment_milestones.update": "Payment Milestones",
+    "system.payment_milestones.delete": "Payment Milestones",
+
     "customer.master.view":   "Customer Master",
     "customer.master.create": "Customer Master",
     "customer.master.update": "Customer Master",
     "customer.master.delete": "Customer Master",
     "customer.master.export": "Customer Master",
     "customer.master.import": "Customer Master",
+
+    "customer.payments.view":       "Customer Payments",
+    "customer.payments.create":     "Customer Payments",
+    "customer.payments.update":     "Customer Payments",
+    "customer.payments.delete":     "Customer Payments",
+    "customer.payments.view_proof": "Customer Payments",
+    "customer.payments.manual_add": "Customer Payments",
     "lead.polling_log.view": "Polling Activity",
 
     "project.view":   "Project List",
@@ -347,6 +389,7 @@ PAGE_LABELS = {
     "project.task_templates.delete":  "Task Templates",
     "project.task_templates.export":  "Task Templates",
     "project.task_templates.reorder": "Task Templates",
+    "project.task_templates.execution_groups.manage": "Task Templates",
 
     "project.pricing.view":   "Project Pricing",
     "project.pricing.create": "Project Pricing",

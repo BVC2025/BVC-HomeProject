@@ -681,48 +681,72 @@
 }
 
 .taskEditor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+/* Each task is its own card (drag handle, #, Name, Duration, Task Scope,
+   remove) with a nested Manpower Requirements sub-editor below — mirrors
+   TaskTemplatePage.jsx's Add/Edit modal exactly, embedded per task, so a
+   task's requirements can be fully configured without leaving this wizard. */
+.taskCard2 {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  overflow: hidden;
+  background: var(--card-bg);
   box-shadow: var(--shadow-xs);
-}
-
-.taskEditorHead {
-  display: grid;
-  grid-template-columns: 24px 32px minmax(0, 1fr) 180px 150px 150px 32px;
-  gap: 8px;
-  padding: 9px 12px;
-  background: var(--table-th-bg);
-  border-bottom: 2px solid var(--border);
-  font-size: 0.71rem;
-  font-weight: var(--fw-semi);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-}
-
-.thDrag,
-.thNum,
-.thDel {
-  text-align: center;
-}
-
-.taskRow {
-  display: grid;
-  grid-template-columns: 24px 32px minmax(0, 1fr) 180px 150px 150px 32px;
-  gap: 8px;
-  padding: 8px 12px;
-  align-items: center;
-  border-bottom: 1px solid var(--table-td-border);
+  padding: 12px 14px;
   transition: background 0.12s;
 }
 
-.taskRow:last-child {
-  border-bottom: none;
+.taskCard2Head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-.taskRow:hover {
-  background: var(--table-hover);
+.taskNameInput {
+  flex: 1 1 240px;
+  min-width: 180px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-sm);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--ease), box-shadow var(--ease);
+}
+
+.taskNameInput:focus {
+  border-color: var(--clr-primary);
+  box-shadow: 0 0 0 2px var(--clr-primary-muted);
+}
+
+.taskScopeCell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 150px;
+}
+
+.taskScopeHint {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  line-height: 1.3;
+  max-width: 220px;
+}
+
+.taskSelectError {
+  border: 1px solid var(--danger) !important;
+  border-radius: var(--radius-sm);
+}
+
+.taskFieldError {
+  font-size: var(--font-xs);
+  color: var(--danger);
+  line-height: 1.2;
 }
 
 .taskRowDragging {
@@ -743,23 +767,6 @@
   font-size: var(--font-sm);
   color: var(--text-muted);
   font-weight: var(--fw-semi);
-}
-
-.taskInput {
-  width: 100%;
-  padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-sm);
-  background: var(--card-bg);
-  color: var(--text-primary);
-  outline: none;
-  transition: border-color var(--ease), box-shadow var(--ease);
-}
-
-.taskInput:focus {
-  border-color: var(--clr-primary);
-  box-shadow: 0 0 0 2px var(--clr-primary-muted);
 }
 
 .durCell {
@@ -817,6 +824,106 @@
 .removeBtn:disabled {
   opacity: 0.3;
   cursor: not-allowed;
+}
+
+/* ── Manpower Requirements — repeatable card list nested under each task,
+   ported verbatim from TaskTemplatePage.module.css so both pages' editors
+   look and behave identically ─────────────────────────────────────────── */
+.requirementsSection {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--border);
+}
+
+.requirementsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-2);
+}
+
+.requirementsTitle {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semi);
+  color: var(--text-primary);
+}
+
+.requirementRow {
+  margin-top: var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.requirementRowHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+
+.requirementRowTitle {
+  font-weight: var(--fw-semi);
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.removeRowBtn {
+  background: none;
+  border: none;
+  color: var(--danger);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.requirementGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-3);
+}
+
+.requirementFieldCell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.requirementFieldCell label {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+.inputError {
+  border-color: var(--danger) !important;
+}
+
+.addRowBtn {
+  margin-top: var(--sp-2);
+  padding: 10px 16px;
+  border: 1px dashed var(--clr-primary);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--clr-primary);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semi);
+  cursor: pointer;
+  width: 100%;
+}
+
+.addRowBtn:hover {
+  background: var(--clr-primary-muted, rgba(220, 38, 38, 0.08));
+}
+
+@media (max-width: 640px) {
+  .requirementGrid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 /* ── Review */
@@ -1009,11 +1116,6 @@
 
   .modeCards {
     flex-direction: column;
-  }
-
-  .taskEditorHead,
-  .taskRow {
-    grid-template-columns: 24px 28px minmax(0, 1fr) 120px 110px 110px 28px;
   }
 }
 

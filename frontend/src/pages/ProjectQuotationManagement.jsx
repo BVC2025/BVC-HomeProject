@@ -724,11 +724,12 @@ function ProjectQuotationManagement() {
   const canDownload = !previewDirty && !!quotationId && !downloadingPdf && !downloadingDocx;
 
   if (loadingList) {
-    return <div className={styles.page}><div className={styles.loadingMsg}>Loading projects…</div></div>;
+    return <div className={styles.page}><div className={styles.card}><div className={styles.loadingMsg}>Loading projects…</div></div></div>;
   }
 
   return (
     <div className={styles.page}>
+      <div className={styles.card}>
       {/* ── Top bar ── */}
       <div className={styles.topBar}>
         <div className={styles.topLeft}>
@@ -869,6 +870,7 @@ function ProjectQuotationManagement() {
           />
         </div>
 
+      </div>
       </div>
     </div>
   );

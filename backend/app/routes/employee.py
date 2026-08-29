@@ -33,6 +33,7 @@ from app.schemas.employee_schema import (
 from app.services.auth_service import hash_password
 from app.services.email_service import send_via_resend, send_via_vendor_smtp
 from app.services.email_template_service import get_or_create_template, render_template
+from app.services.email_logo_service import build_email_logo, apply_cid_logo, extract_cid_logo
 from app.services.company_settings_service import get_company_settings, format_full_address
 from app.models.email_models import VendorEmailConfig
 from app.auth.auth_bearer import (
@@ -405,12 +406,17 @@ def create_employee(
             "company_address":    format_full_address(company),
             "contact_number":     company.PHONE or "",
             "website":            company.WEBSITE or "",
-            "logo_html":          "",
+            "logo_html":          build_email_logo(company)[2],
         }
 
         tmpl_html = tmpl.BODY_HTML if tmpl else ""
         tmpl_subject = tmpl.SUBJECT if tmpl else "Welcome — Your Login Credentials"
         rendered_subject, rendered_html = render_template(tmpl_html, tmpl_subject, variables)
+
+        logo_bytes, logo_content_type, _logo_html = build_email_logo(company)
+        rendered_html = apply_cid_logo(rendered_html, logo_bytes, company)
+        if not logo_bytes:
+            rendered_html, logo_bytes, logo_content_type = extract_cid_logo(rendered_html)
 
         if emp.EMAIL:
             active_cfgs = db.query(VendorEmailConfig).filter(
@@ -420,7 +426,10 @@ def create_employee(
 
             sent = False
             for cfg in active_cfgs:
-                ok, _err, _detail = send_via_vendor_smtp(cfg, emp.EMAIL, rendered_subject, rendered_html)
+                ok, _err, _detail = send_via_vendor_smtp(
+                    cfg, emp.EMAIL, rendered_subject, rendered_html,
+                    logo_bytes=logo_bytes, logo_content_type=logo_content_type,
+                )
                 if ok:
                     sent = True
                     break

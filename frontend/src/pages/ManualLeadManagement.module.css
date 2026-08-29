@@ -199,6 +199,76 @@
   border-color: rgba(220, 38, 38, 0.2);
 }
 
+.statusPill[data-status="QUOTE_APPROVAL_PENDING"] {
+  background: rgba(234, 88, 12, 0.1);
+  color: #ea580c;
+  border-color: rgba(234, 88, 12, 0.2);
+}
+
+.statusPill[data-status="QUOTE_APPROVED"] {
+  background: rgba(22, 163, 74, 0.1);
+  color: #16a34a;
+  border-color: rgba(22, 163, 74, 0.2);
+}
+
+.statusPill[data-status="QUOTE_REJECTED"] {
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--danger);
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+.statusPill[data-status="REVISED_QUOTE_APPROVAL_PENDING"] {
+  background: rgba(124, 58, 237, 0.1);
+  color: #7c3aed;
+  border-color: rgba(124, 58, 237, 0.2);
+}
+
+.statusPill[data-status="REVISED_QUOTE_APPROVED"] {
+  background: rgba(22, 163, 74, 0.1);
+  color: #16a34a;
+  border-color: rgba(22, 163, 74, 0.2);
+}
+
+.statusPill[data-status="REVISED_QUOTE_REJECTED"] {
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--danger);
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+.statusPill[data-status="PO_REQUESTED"] {
+  background: rgba(234, 88, 12, 0.1);
+  color: #ea580c;
+  border-color: rgba(234, 88, 12, 0.2);
+}
+
+.statusPill[data-status="PO_RECEIVED"] {
+  background: rgba(22, 163, 74, 0.1);
+  color: #16a34a;
+  border-color: rgba(22, 163, 74, 0.2);
+}
+
+/* Generic quotation-record status (CustomerProjectQuotation.QUOTATION_STATUS
+   — PENDING/APPROVED/REJECTED), used inside the Lead Quotation modal's
+   table. Same color language as the QUOTE_ and REVISED_QUOTE_ Lead statuses
+   above (orange=pending, green=approved, red=rejected). */
+.statusPill[data-status="PENDING"] {
+  background: rgba(234, 88, 12, 0.1);
+  color: #ea580c;
+  border-color: rgba(234, 88, 12, 0.2);
+}
+
+.statusPill[data-status="APPROVED"] {
+  background: rgba(22, 163, 74, 0.1);
+  color: #16a34a;
+  border-color: rgba(22, 163, 74, 0.2);
+}
+
+.statusPill[data-status="REJECTED"] {
+  background: rgba(220, 38, 38, 0.08);
+  color: var(--danger);
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
 .rowActions {
   display: flex;
   gap: var(--sp-2);
@@ -279,6 +349,14 @@
   font-family: inherit;
   box-shadow: var(--shadow-xs);
   transition: border-color var(--ease), box-shadow var(--ease);
+}
+
+.poPreviewFrame {
+  width: 100%;
+  height: 70vh;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
 }
 
 .textarea:focus {

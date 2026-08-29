@@ -24,11 +24,29 @@ import UploadIcon from "../assets/Icons/uploadIcon.webp"
 import styles from "./ProjectPage.module.css";
 
 const DURATION_UNITS = ["HOURS", "DAYS", "WEEKS", "MONTHS", "YEARS"];
+const EXPERIENCE_LEVELS = ["FRESHER", "INTERMEDIATE", "EXPERIENCED"];
+const TASK_SCOPES = ["PROJECT", "UNIT"];
+const TASK_SCOPE_HELP = {
+  PROJECT: "Task is created once for the complete project.",
+  UNIT: "Task is created separately for each project unit/quantity.",
+};
+const ASSIGNMENT_MODE_OPTIONS = [
+  { value: "PARALLEL", label: "Parallel" },
+  { value: "SEQUENTIAL", label: "Sequential" },
+];
 
+// Full parity with /task-templates' own requirements editor — each task
+// carries its own requirements array, so multiple manpower requirements
+// (e.g. Supervisor + Technician + Helper) can be configured directly here
+// without needing to visit /task-templates afterward.
+const EMPTY_REQUIREMENT = () => ({
+  _key: Math.random().toString(36).slice(2),
+  DEPARTMENT_ID: "", ROLE_ID: "", EXPERIENCE_LEVEL: "", REQUIRED_COUNT: 1,
+});
 const EMPTY_TASK = () => ({
   _key: Math.random().toString(36).slice(2),
   NAME: "", DESCRIPTION: "", DURATION_VALUE: 1, DURATION_UNIT: "DAYS",
-  DEPARTMENT_ID: "", ROLE_ID: "",
+  TASK_SCOPE: "UNIT", requirements: [],
 });
 
 export default function ProjectPage() {
@@ -53,8 +71,9 @@ export default function ProjectPage() {
   const [wizard, setWizard] = useState(null);
   const [editRow, setEditRow] = useState(null);
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState({ CATEGORY_ID: "", NAME: "", DESCRIPTION: "", BOM_MODE: "MANUAL" });
+  const [form, setForm] = useState({ CATEGORY_ID: "", NAME: "", DESCRIPTION: "", BOM_MODE: "MANUAL", ASSIGNMENT_MODE: "PARALLEL" });
   const [tasks, setTasks] = useState([EMPTY_TASK()]);
+  const [taskErrors, setTaskErrors] = useState({}); // { [task._key]: { [requirement._key]: { EXPERIENCE_LEVEL?, REQUIRED_COUNT?, DUPLICATE? } } }
   const [saving, setSaving] = useState(false);
 
   // BOM parse
@@ -154,15 +173,19 @@ export default function ProjectPage() {
   );
 
   const openCreate = useCallback(() => {
-    setForm({ CATEGORY_ID: "", NAME: "", DESCRIPTION: "", BOM_MODE: "MANUAL" });
+    setForm({ CATEGORY_ID: "", NAME: "", DESCRIPTION: "", BOM_MODE: "MANUAL", ASSIGNMENT_MODE: "PARALLEL" });
     setTasks([EMPTY_TASK()]);
+    setTaskErrors({});
     setBomFile(null); setBomSheets([]); setBomSheet(""); setBomParsed(false);
     setStep(1); setEditRow(null); setWizard("create");
     resetCfValues();
   }, [resetCfValues]);
 
   const openEdit = useCallback(async (row) => {
-    setForm({ CATEGORY_ID: row.CATEGORY_ID, NAME: row.NAME, DESCRIPTION: row.DESCRIPTION || "", BOM_MODE: row.BOM_MODE || "MANUAL" });
+    setForm({
+      CATEGORY_ID: row.CATEGORY_ID, NAME: row.NAME, DESCRIPTION: row.DESCRIPTION || "",
+      BOM_MODE: row.BOM_MODE || "MANUAL", ASSIGNMENT_MODE: row.ASSIGNMENT_MODE || "PARALLEL",
+    });
     setEditRow(row);
     try {
       const taskRes = await taskService.getByProject(row.ID);
@@ -175,20 +198,27 @@ export default function ProjectPage() {
             DESCRIPTION: t.DESCRIPTION || "",
             DURATION_VALUE: t.DURATION_VALUE,
             DURATION_UNIT: t.DURATION_UNIT,
-            DEPARTMENT_ID: t.DEPARTMENT_ID ? String(t.DEPARTMENT_ID) : "",
-            ROLE_ID: t.ROLE_ID ? String(t.ROLE_ID) : "",
+            TASK_SCOPE: t.TASK_SCOPE || "PROJECT",
+            requirements: (t.requirements || []).map((r) => ({
+              _key: r.ID,
+              DEPARTMENT_ID: r.DEPARTMENT_ID ? String(r.DEPARTMENT_ID) : "",
+              ROLE_ID: r.ROLE_ID ? String(r.ROLE_ID) : "",
+              EXPERIENCE_LEVEL: r.EXPERIENCE_LEVEL || "",
+              REQUIRED_COUNT: r.REQUIRED_COUNT || 1,
+            })),
           }))
           : [EMPTY_TASK()]
       );
     } catch {
       setTasks([EMPTY_TASK()]);
     }
+    setTaskErrors({});
     setBomFile(null); setBomSheets([]); setBomSheet(""); setBomParsed(false);
     setStep(1); setWizard("edit");
     loadCfValues(row.ID);
   }, [loadCfValues]);
 
-  const closeWizard = useCallback(() => { setWizard(null); setStep(1); setEditRow(null); }, []);
+  const closeWizard = useCallback(() => { setWizard(null); setStep(1); setEditRow(null); setTaskErrors({}); }, []);
 
   const handleDelete = useCallback((row) => {
     setConfirmModal({
@@ -213,6 +243,56 @@ export default function ProjectPage() {
     if (cfError) { toast.showWarning(cfError); return; }
     setStep(2);
   }, [form, toast, validateCf]);
+
+  // Every named task's manpower requirements must be complete before the
+  // wizard can move on — blank placeholder task rows (no name typed yet)
+  // are excluded, matching the existing "only named rows are real tasks"
+  // convention used everywhere else in this file (handleSave, the task
+  // count badges, the Review step's task list). Mirrors
+  // TaskTemplatePage.jsx's validateRequirements() exactly: a task may have
+  // zero requirements, and Department/Role on any requirement may be left
+  // blank — only Experience Level and Required Count are mandatory once a
+  // requirement row exists, and duplicate Department+Role+Experience
+  // combinations within one task are rejected.
+  const validateTasks = useCallback(() => {
+    const errors = {};
+    for (const t of tasks) {
+      if (!t.NAME.trim()) continue;
+      const reqErrors = {};
+      const seen = new Set();
+      for (const r of t.requirements) {
+        const rowErrors = {};
+        if (!r.EXPERIENCE_LEVEL) rowErrors.EXPERIENCE_LEVEL = "Experience level is required";
+        const count = parseInt(r.REQUIRED_COUNT, 10);
+        if (r.REQUIRED_COUNT === "" || Number.isNaN(count) || count < 1) {
+          rowErrors.REQUIRED_COUNT = "Enter a whole number of 1 or more";
+        }
+        const dupKey = `${r.DEPARTMENT_ID || ""}|${r.ROLE_ID || ""}|${r.EXPERIENCE_LEVEL || ""}`;
+        if (seen.has(dupKey)) {
+          rowErrors.DUPLICATE = "This Department + Role + Experience Level combination is already added — increase its Required Count instead.";
+        }
+        seen.add(dupKey);
+        if (Object.keys(rowErrors).length > 0) reqErrors[r._key] = rowErrors;
+      }
+      if (Object.keys(reqErrors).length > 0) errors[t._key] = reqErrors;
+    }
+    return errors;
+  }, [tasks]);
+
+  const goStep3 = useCallback(() => {
+    if (tasks.filter((t) => t.NAME.trim()).length === 0) {
+      toast.showWarning("Add at least one task");
+      return;
+    }
+    const errors = validateTasks();
+    if (Object.keys(errors).length > 0) {
+      setTaskErrors(errors);
+      toast.showWarning("Please fix the manpower requirement fields highlighted below before continuing.");
+      return;
+    }
+    setTaskErrors({});
+    setStep(3);
+  }, [tasks, validateTasks, toast]);
 
   const handleBomFile = useCallback(async (e) => {
     const f = e.target.files[0]; if (!f) return;
@@ -251,8 +331,8 @@ export default function ProjectPage() {
         DESCRIPTION: r.description || r.DESCRIPTION || "",
         DURATION_VALUE: r.duration_value || 1,
         DURATION_UNIT: r.duration_unit || "DAYS",
-        DEPARTMENT_ID: "",
-        ROLE_ID: "",
+        TASK_SCOPE: "UNIT",
+        requirements: [],
       }))
     );
     setBomParsed(true);
@@ -260,8 +340,43 @@ export default function ProjectPage() {
 
   const addTask = useCallback(() => setTasks((prev) => [...prev, EMPTY_TASK()]), []);
   const removeTask = useCallback((idx) => setTasks((prev) => prev.filter((_, i) => i !== idx)), []);
-  const updateTask = useCallback((idx, field, value) =>
-    setTasks((prev) => prev.map((t, i) => (i === idx ? { ...t, [field]: value } : t))), []);
+  const updateTask = useCallback((idx, field, value) => {
+    setTasks((prev) => prev.map((t, i) => (i === idx ? { ...t, [field]: value } : t)));
+  }, []);
+
+  // Manpower requirement helpers — identical logic to TaskTemplatePage.jsx's
+  // addRequirement/removeRequirement/updateRequirement, parameterized by
+  // which task's requirements array to operate on.
+  const addRequirement = useCallback((taskIdx) => {
+    setTasks((prev) => prev.map((t, i) => (i === taskIdx ? { ...t, requirements: [...t.requirements, EMPTY_REQUIREMENT()] } : t)));
+  }, []);
+
+  const removeRequirement = useCallback((taskIdx, reqIdx) => {
+    setTasks((prev) => prev.map((t, i) => (i === taskIdx ? { ...t, requirements: t.requirements.filter((_, ri) => ri !== reqIdx) } : t)));
+  }, []);
+
+  const updateRequirement = useCallback((taskIdx, reqIdx, field, value) => {
+    setTasks((prev) => {
+      const task = prev[taskIdx];
+      const nextRequirements = task.requirements.map((r, ri) => (ri === reqIdx ? { ...r, [field]: value } : r));
+      const reqKey = nextRequirements[reqIdx]._key;
+      setTaskErrors((prevErrors) => {
+        const taskKey = task._key;
+        if (!prevErrors[taskKey]?.[reqKey]) return prevErrors;
+        const rowErrors = { ...prevErrors[taskKey][reqKey] };
+        delete rowErrors[field];
+        delete rowErrors.DUPLICATE; // any edit can resolve a stale duplicate flag too
+        const updatedTaskErrors = { ...prevErrors[taskKey] };
+        if (Object.keys(rowErrors).length > 0) updatedTaskErrors[reqKey] = rowErrors;
+        else delete updatedTaskErrors[reqKey];
+        const updated = { ...prevErrors };
+        if (Object.keys(updatedTaskErrors).length > 0) updated[taskKey] = updatedTaskErrors;
+        else delete updated[taskKey];
+        return updated;
+      });
+      return prev.map((t, i) => (i === taskIdx ? { ...t, requirements: nextRequirements } : t));
+    });
+  }, []);
 
   const onDragStart = useCallback((idx) => setDragIdx(idx), []);
   const onDragOver = useCallback((e, idx) => {
@@ -280,6 +395,17 @@ export default function ProjectPage() {
   const handleSave = useCallback(async () => {
     const validTasks = tasks.filter((t) => t.NAME.trim());
     if (validTasks.length === 0) { toast.showWarning("Add at least one task"); return; }
+    // Defense-in-depth — goStep3() already blocks entry to the Review step
+    // without this, but re-check here too in case Review is ever reached
+    // another way, so a project can never be saved with a task missing
+    // its Department/Role.
+    const errors = validateTasks();
+    if (Object.keys(errors).length > 0) {
+      setTaskErrors(errors);
+      setStep(2);
+      toast.showWarning("Please fix the manpower requirement fields highlighted below before saving.");
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -287,14 +413,20 @@ export default function ProjectPage() {
         NAME: form.NAME,
         DESCRIPTION: form.DESCRIPTION || null,
         BOM_MODE: form.BOM_MODE,
+        ASSIGNMENT_MODE: form.ASSIGNMENT_MODE || "PARALLEL",
         tasks: validTasks.map((t, i) => ({
           NAME: t.NAME,
           DESCRIPTION: t.DESCRIPTION || null,
           DURATION_VALUE: parseFloat(t.DURATION_VALUE) || 1,
           DURATION_UNIT: t.DURATION_UNIT,
           SEQUENCE_NUMBER: i,
-          DEPARTMENT_ID: t.DEPARTMENT_ID ? parseInt(t.DEPARTMENT_ID) : null,
-          ROLE_ID: t.ROLE_ID ? parseInt(t.ROLE_ID) : null,
+          TASK_SCOPE: t.TASK_SCOPE || "UNIT",
+          requirements: t.requirements.map((r) => ({
+            DEPARTMENT_ID: r.DEPARTMENT_ID ? parseInt(r.DEPARTMENT_ID) : null,
+            ROLE_ID: r.ROLE_ID ? parseInt(r.ROLE_ID) : null,
+            EXPERIENCE_LEVEL: r.EXPERIENCE_LEVEL,
+            REQUIRED_COUNT: parseInt(r.REQUIRED_COUNT) || 1,
+          })),
         })),
       };
       if (wizard === "edit" && editRow) {
@@ -314,7 +446,7 @@ export default function ProjectPage() {
     } finally {
       setSaving(false);
     }
-  }, [tasks, form, wizard, editRow, closeWizard, loadAll, toast, saveCfValues]);
+  }, [tasks, form, wizard, editRow, closeWizard, loadAll, toast, saveCfValues, validateTasks]);
 
   const handleExport = useCallback(() => {
     const data = filtered.map((r, i) => {
@@ -566,6 +698,16 @@ export default function ProjectPage() {
                     rows={3}
                   />
                 </div>
+                <div className={styles.formGroup}>
+                  <label>Assignment Mode</label>
+                  <PMSelect
+                    options={ASSIGNMENT_MODE_OPTIONS}
+                    value={form.ASSIGNMENT_MODE}
+                    onChange={(val) => setForm((f) => ({ ...f, ASSIGNMENT_MODE: val || "PARALLEL" }))}
+                    valueKey="value"
+                    labelKey="label"
+                  />
+                </div>
                 <CustomFieldsSection
                   fields={cfFields}
                   values={cfValues}
@@ -651,76 +793,146 @@ export default function ProjectPage() {
                 </div>
 
                 <div className={styles.taskEditor}>
-                  <div className={styles.taskEditorHead}>
-                    <span className={styles.thDrag} />
-                    <span className={styles.thNum}>#</span>
-                    <span className={styles.thName}>Task Name *</span>
-                    <span className={styles.thDur}>Duration</span>
-                    <span className={styles.thDept}>Department</span>
-                    <span className={styles.thRole}>Role</span>
-                    <span className={styles.thDel} />
-                  </div>
                   {tasks.map((t, idx) => (
                     <div
                       key={t._key}
-                      className={`${styles.taskRow} ${dragIdx === idx ? styles.taskRowDragging : ""}`}
+                      className={`${styles.taskCard2} ${dragIdx === idx ? styles.taskRowDragging : ""}`}
                       draggable
                       onDragStart={() => onDragStart(idx)}
                       onDragOver={(e) => onDragOver(e, idx)}
                       onDragEnd={onDragEnd}
                     >
-                      <span className={styles.dragHandle}>⠿</span>
-                      <span className={styles.rowNum}>{idx + 1}</span>
-                      <input
-                        className={styles.taskInput}
-                        value={t.NAME}
-                        onChange={(e) => updateTask(idx, "NAME", e.target.value)}
-                        placeholder="Task name"
-                      />
-                      <div className={styles.durCell}>
+                      <div className={styles.taskCard2Head}>
+                        <span className={styles.dragHandle}>⠿</span>
+                        <span className={styles.rowNum}>{idx + 1}</span>
                         <input
-                          className={styles.durInput}
-                          type="number"
-                          min={0.5}
-                          step={0.5}
-                          value={t.DURATION_VALUE}
-                          onChange={(e) => updateTask(idx, "DURATION_VALUE", e.target.value)}
+                          className={styles.taskNameInput}
+                          value={t.NAME}
+                          onChange={(e) => updateTask(idx, "NAME", e.target.value)}
+                          placeholder="Task name"
                         />
-                        <PMSelect
-                          options={DURATION_UNITS}
-                          value={t.DURATION_UNIT}
-                          onChange={(val) => updateTask(idx, "DURATION_UNIT", val)}
-                          size="sm"
-                          style={{ flex: 1 }}
-                        />
+                        <div className={styles.durCell}>
+                          <input
+                            className={styles.durInput}
+                            type="number"
+                            min={0.5}
+                            step={0.5}
+                            value={t.DURATION_VALUE}
+                            onChange={(e) => updateTask(idx, "DURATION_VALUE", e.target.value)}
+                          />
+                          <PMSelect
+                            options={DURATION_UNITS}
+                            value={t.DURATION_UNIT}
+                            onChange={(val) => updateTask(idx, "DURATION_UNIT", val)}
+                            size="sm"
+                            style={{ flex: 1 }}
+                          />
+                        </div>
+                        <div className={styles.taskScopeCell}>
+                          <PMSelect
+                            options={TASK_SCOPES}
+                            value={t.TASK_SCOPE}
+                            onChange={(val) => updateTask(idx, "TASK_SCOPE", val)}
+                            size="sm"
+                          />
+                          <span className={styles.taskScopeHint}>{TASK_SCOPE_HELP[t.TASK_SCOPE]}</span>
+                        </div>
+                        <button
+                          className={styles.removeBtn}
+                          onClick={() => removeTask(idx)}
+                          disabled={tasks.length === 1}
+                          title="Remove task"
+                        >
+                          ×
+                        </button>
                       </div>
-                      <PMSelect
-                        options={departments}
-                        value={t.DEPARTMENT_ID}
-                        onChange={(val) => updateTask(idx, "DEPARTMENT_ID", val)}
-                        valueKey="ID"
-                        labelKey="NAME"
-                        allowClear
-                        clearLabel="—"
-                        size="sm"
-                      />
-                      <PMSelect
-                        options={rolesForDept(t.DEPARTMENT_ID)}
-                        value={t.ROLE_ID}
-                        onChange={(val) => updateTask(idx, "ROLE_ID", val)}
-                        valueKey="ID"
-                        labelKey="NAME"
-                        allowClear
-                        clearLabel="—"
-                        size="sm"
-                      />
-                      <button
-                        className={styles.removeBtn}
-                        onClick={() => removeTask(idx)}
-                        disabled={tasks.length === 1}
-                      >
-                        ×
-                      </button>
+
+                      <div className={styles.requirementsSection}>
+                        <div className={styles.requirementsHeader}>
+                          <span className={styles.requirementsTitle}>
+                            Manpower Requirements {t.requirements.length > 0 && `(${t.requirements.length})`}
+                          </span>
+                        </div>
+                        {t.requirements.length === 0 && (
+                          <p className={styles.hint}>No manpower requirements added yet — this task has no specific staffing need, or add one below.</p>
+                        )}
+                        {t.requirements.map((r, ridx) => (
+                          <div key={r._key} className={styles.requirementRow}>
+                            <div className={styles.requirementRowHead}>
+                              <span className={styles.requirementRowTitle}>Requirement {ridx + 1}</span>
+                              <button
+                                type="button"
+                                className={styles.removeRowBtn}
+                                onClick={() => removeRequirement(idx, ridx)}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                            <div className={styles.requirementGrid}>
+                              <div className={styles.requirementFieldCell}>
+                                <label>Department</label>
+                                <PMSelect
+                                  options={departments}
+                                  value={r.DEPARTMENT_ID}
+                                  onChange={(val) => updateRequirement(idx, ridx, "DEPARTMENT_ID", val)}
+                                  valueKey="ID"
+                                  labelKey="NAME"
+                                  allowClear
+                                  clearLabel="— None —"
+                                  size="sm"
+                                />
+                              </div>
+                              <div className={styles.requirementFieldCell}>
+                                <label>Role</label>
+                                <PMSelect
+                                  options={rolesForDept(r.DEPARTMENT_ID)}
+                                  value={r.ROLE_ID}
+                                  onChange={(val) => updateRequirement(idx, ridx, "ROLE_ID", val)}
+                                  valueKey="ID"
+                                  labelKey="NAME"
+                                  allowClear
+                                  clearLabel="— None —"
+                                  size="sm"
+                                />
+                              </div>
+                              <div className={styles.requirementFieldCell}>
+                                <label>Experience <span className={styles.req}>*</span></label>
+                                <PMSelect
+                                  options={EXPERIENCE_LEVELS}
+                                  value={r.EXPERIENCE_LEVEL}
+                                  onChange={(val) => updateRequirement(idx, ridx, "EXPERIENCE_LEVEL", val)}
+                                  placeholder="Select Experience Level"
+                                  size="sm"
+                                  className={taskErrors[t._key]?.[r._key]?.EXPERIENCE_LEVEL ? styles.taskSelectError : ""}
+                                />
+                                {taskErrors[t._key]?.[r._key]?.EXPERIENCE_LEVEL && (
+                                  <span className={styles.taskFieldError}>{taskErrors[t._key][r._key].EXPERIENCE_LEVEL}</span>
+                                )}
+                              </div>
+                              <div className={styles.requirementFieldCell}>
+                                <label>Required Count <span className={styles.req}>*</span></label>
+                                <input
+                                  className={`${styles.durInput}${taskErrors[t._key]?.[r._key]?.REQUIRED_COUNT ? " " + styles.inputError : ""}`}
+                                  type="number"
+                                  min={1}
+                                  step={1}
+                                  value={r.REQUIRED_COUNT}
+                                  onChange={(e) => updateRequirement(idx, ridx, "REQUIRED_COUNT", e.target.value)}
+                                />
+                                {taskErrors[t._key]?.[r._key]?.REQUIRED_COUNT && (
+                                  <span className={styles.taskFieldError}>{taskErrors[t._key][r._key].REQUIRED_COUNT}</span>
+                                )}
+                              </div>
+                            </div>
+                            {taskErrors[t._key]?.[r._key]?.DUPLICATE && (
+                              <span className={styles.taskFieldError}>{taskErrors[t._key][r._key].DUPLICATE}</span>
+                            )}
+                          </div>
+                        ))}
+                        <button type="button" className={styles.addRowBtn} onClick={() => addRequirement(idx)}>
+                          + Add Requirement
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -744,6 +956,12 @@ export default function ProjectPage() {
                       <span className={styles.reviewLabel}>Mode</span>
                       <span className={styles.reviewValue}>
                         {form.BOM_MODE === "BOM_UPLOAD" ? "BOM Upload" : "Manual"}
+                      </span>
+                    </div>
+                    <div className={styles.reviewItem}>
+                      <span className={styles.reviewLabel}>Assignment Mode</span>
+                      <span className={styles.reviewValue}>
+                        {form.ASSIGNMENT_MODE === "SEQUENTIAL" ? "Sequential" : "Parallel"}
                       </span>
                     </div>
                     {form.DESCRIPTION && (
@@ -781,7 +999,7 @@ export default function ProjectPage() {
               <div style={{ flex: 1 }} />
               <PMButton variant="outline" onClick={closeWizard}>Cancel</PMButton>
               {step < 3
-                ? <PMButton variant="primary" onClick={step === 1 ? goStep2 : () => setStep(3)}>Next →</PMButton>
+                ? <PMButton variant="primary" onClick={step === 1 ? goStep2 : goStep3}>Next →</PMButton>
                 : <PMButton variant="primary" onClick={handleSave} disabled={saving}>
                   {saving ? "Saving…" : wizard === "edit" ? "Save Changes" : "Create Project"}
                 </PMButton>}

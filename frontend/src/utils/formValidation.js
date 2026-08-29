@@ -433,11 +433,27 @@ export const EMPLOYEE_RULES = {
   ],
 };
 
+/** True when the Add-mode form has an Existing Customer picked — in that
+ * case the contact/address/GST fields are hidden and filled at submit
+ * time from the selected Customer Master record instead of being
+ * user-entered, so they must not be validated as if they were. */
+function _usingExistingCustomer(data) {
+  return data.CUSTOMER_ASSIGNMENT_TYPE === "EXISTING" && !!data.CUSTOMER_ID;
+}
+
 /** Manual Lead Management Add/Edit modal. Pass `_IS_EDIT: modal === "edit"`
  * alongside the form data — CUSTOMER_ASSIGNMENT_TYPE/CUSTOMER_ID are only
- * required at creation time (assignment type isn't editable afterward). */
+ * required at creation time (assignment type isn't editable afterward).
+ * Pass `_CAN_SELECT_OWNER` (canSelectOwnerAdd/canSelectOwnerEdit) too — Lead
+ * Owner is only required when the field is actually rendered; users without
+ * owner-select permission never see it and keep auto-assigning to themselves. */
 export const LEAD_RULES = {
-  CONTACT_NAME: ["required", minLength(2), maxLength(200)],
+  CONTACT_NAME: [
+    (value, data) => {
+      if (_usingExistingCustomer(data)) return null;
+      return _required(value) || minLength(2)(value) || maxLength(200)(value);
+    },
+  ],
   CONTACT_MOBILE: ["phone"],
   CONTACT_EMAIL: ["email"],
   COMPANY_NAME: [maxLength(255)],
@@ -454,6 +470,9 @@ export const LEAD_RULES = {
   CUSTOMER_ID: [
     (value, data) => (!data._IS_EDIT && data.CUSTOMER_ASSIGNMENT_TYPE === "EXISTING" && !value)
       ? "Please select an existing customer." : null,
+  ],
+  ASSIGNED_TO_ID: [
+    (value, data) => (data._CAN_SELECT_OWNER && !value) ? "Lead Owner is required." : null,
   ],
 };
 
@@ -478,4 +497,10 @@ export const CUSTOMER_MASTER_RULES = {
   EMAIL: ["required", "email"],
   ADDRESS: ["required", maxLength(255)],
   GST_NUMBER: ["gst"],
+  PINCODE: [
+    (value) => {
+      if (!value || !String(value).trim()) return null;
+      return /^\d{4,10}$/.test(String(value).trim()) ? null : "Enter a valid pincode.";
+    },
+  ],
 };
