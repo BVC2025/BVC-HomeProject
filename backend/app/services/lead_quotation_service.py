@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 
 
 def _backend_url() -> str:
-    return os.getenv("BACKEND_URL", "").rstrip("/") or "http://192.168.1.10:8001"
+    return os.getenv("BACKEND_URL", "").rstrip("/") or "http://192.168.1.10:8000"
 
 
 def build_action_links(action_token: str) -> tuple:

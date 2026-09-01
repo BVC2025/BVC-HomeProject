@@ -1,14 +1,22 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, time as dt_time
 from pathlib import Path
 import uuid
 import shutil
 
 from app.database.database import get_db
 
-from app.models.models import Setting, CompanyMaster
+from app.models.models import Setting, CompanyMaster, CompanyWorkingBreak
+
+from app.services.company_schedule_service import (
+    validate_schedule,
+    validate_breaks,
+    recalculate_and_store_work_hours,
+    calculate_task_schedule,
+    ScheduleValidationError,
+)
 
 from app.services.company_settings_service import (
     get_company_settings,
@@ -306,7 +314,16 @@ def send_test_email(
 # ====================================================================
 
 from pydantic import BaseModel
-from typing import Optional
+from typing import List, Optional
+
+
+class CompanyWorkingBreakIn(BaseModel):
+
+    BREAK_NAME: str
+    BREAK_START_TIME: dt_time
+    BREAK_END_TIME: dt_time
+    SEQUENCE_NUMBER: int = 0
+    IS_ACTIVE: bool = True
 
 
 class CompanySettingsBody(BaseModel):
@@ -333,6 +350,17 @@ class CompanySettingsBody(BaseModel):
     UPI_ID:              Optional[str] = None
     NOTES:               Optional[str] = None
 
+    # ---- Working schedule ----
+    # WORK_HOURS is intentionally NOT accepted here — it is always
+    # server-computed from these fields (see recalculate_and_store_work_hours()).
+    WORK_START_TIME:  Optional[dt_time] = None
+    WORK_END_TIME:    Optional[dt_time] = None
+    WORKING_TIMEZONE: Optional[str] = None
+
+    # None (omitted) = leave existing breaks untouched.
+    # A list (including []) = replace all existing breaks with this set.
+    working_breaks: Optional[List[CompanyWorkingBreakIn]] = None
+
 
 @router.get("/settings/company", dependencies=[Depends(require("setting.modify"))])
 def read_company_settings(
@@ -356,11 +384,23 @@ def update_company_settings(
     db: Session = Depends(get_db)
 ):
     """Update any subset of fields. Empty strings are coerced to NULL
-    so HR can clear a value by submitting an empty string."""
+    so HR can clear a value by submitting an empty string.
+
+    WORK_HOURS is never accepted as input — it is always recalculated
+    from WORK_START_TIME/WORK_END_TIME/working_breaks below, so a
+    manually supplied value (however it was conflicting) can never be
+    persisted."""
 
     row = get_company_settings(db, vendor_id)
 
-    for k, v in body.model_dump(exclude_unset=True).items():
+    # working_breaks is handled separately below, using the parsed pydantic
+    # objects (with their field defaults already applied) rather than the
+    # exclude_unset dump — dumping nested items with exclude_unset would drop
+    # IS_ACTIVE/SEQUENCE_NUMBER whenever the caller relies on their defaults.
+    payload = body.model_dump(exclude_unset=True, exclude={"working_breaks"})
+    working_breaks_in = body.working_breaks
+
+    for k, v in payload.items():
 
         # Coerce empty strings to None so the column becomes NULL
         if isinstance(v, str) and v.strip() == "":
@@ -368,6 +408,57 @@ def update_company_settings(
             v = None
 
         setattr(row, k, v)
+
+    try:
+        validate_schedule(row.WORK_START_TIME, row.WORK_END_TIME)
+
+        if working_breaks_in is not None:
+
+            new_breaks = [
+                {
+                    "BREAK_NAME": b.BREAK_NAME,
+                    "BREAK_START_TIME": b.BREAK_START_TIME,
+                    "BREAK_END_TIME": b.BREAK_END_TIME,
+                    "IS_ACTIVE": b.IS_ACTIVE,
+                }
+                for b in working_breaks_in
+            ]
+
+            validate_breaks(new_breaks, row.WORK_START_TIME, row.WORK_END_TIME)
+
+            db.query(CompanyWorkingBreak).filter(
+                CompanyWorkingBreak.COMPANY_MASTER_ID == row.ID
+            ).delete()
+
+            for b in working_breaks_in:
+                db.add(CompanyWorkingBreak(
+                    COMPANY_MASTER_ID=row.ID,
+                    BREAK_NAME=b.BREAK_NAME,
+                    BREAK_START_TIME=b.BREAK_START_TIME,
+                    BREAK_END_TIME=b.BREAK_END_TIME,
+                    SEQUENCE_NUMBER=b.SEQUENCE_NUMBER,
+                    IS_ACTIVE=b.IS_ACTIVE,
+                ))
+
+            db.flush()
+
+        else:
+            existing_breaks = [
+                {
+                    "BREAK_NAME": b.BREAK_NAME,
+                    "BREAK_START_TIME": b.BREAK_START_TIME,
+                    "BREAK_END_TIME": b.BREAK_END_TIME,
+                    "IS_ACTIVE": b.IS_ACTIVE,
+                }
+                for b in row.working_breaks
+            ]
+            validate_breaks(existing_breaks, row.WORK_START_TIME, row.WORK_END_TIME)
+
+        recalculate_and_store_work_hours(db, row)
+
+    except ScheduleValidationError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc))
 
     db.commit()
 
@@ -377,6 +468,64 @@ def update_company_settings(
         "message": "Company settings updated.",
         "company": serialize_company(row),
     }
+
+
+@router.post("/settings/company/schedule-preview", dependencies=[Depends(require("setting.modify"))])
+def preview_company_task_schedule(
+    body: dict,
+    vendor_id: int = 1,
+    db: Session = Depends(get_db)
+):
+    """Given a start datetime and a duration (hours), returns when a task
+    would finish under the company's configured working schedule —
+    skipping breaks, stopping at closing time, and rolling unfinished
+    work to the next working day. Demonstrates the real scheduling
+    engine used by project task-duration calculations."""
+
+    row = get_company_settings(db, vendor_id)
+
+    if row.WORK_START_TIME is None or row.WORK_END_TIME is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Company working schedule is not configured yet."
+        )
+
+    try:
+        start_raw = body.get("start_datetime")
+        duration_hours = float(body.get("duration_hours", 0))
+
+        if not start_raw:
+            raise ScheduleValidationError("start_datetime is required.")
+
+        start_dt = datetime.fromisoformat(start_raw)
+
+        breaks = [
+            {
+                "BREAK_START_TIME": b.BREAK_START_TIME,
+                "BREAK_END_TIME": b.BREAK_END_TIME,
+                "IS_ACTIVE": b.IS_ACTIVE,
+            }
+            for b in row.working_breaks
+        ]
+
+        result = calculate_task_schedule(
+            row.WORK_START_TIME, row.WORK_END_TIME, breaks, start_dt, duration_hours
+        )
+
+        return {
+            "start_datetime": result["start_datetime"].isoformat(),
+            "end_datetime": result["end_datetime"].isoformat(),
+            "end_date": result["end_date"].isoformat(),
+            "end_time": result["end_time"].strftime("%H:%M:%S"),
+            "days_spanned": result["days_spanned"],
+            "segments": [
+                {"start": s["start"].isoformat(), "end": s["end"].isoformat()}
+                for s in result["segments"]
+            ],
+        }
+
+    except (ScheduleValidationError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
 
 _ALLOWED_LOGO_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".svg"}

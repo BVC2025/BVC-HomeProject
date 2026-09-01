@@ -46,18 +46,13 @@ import {
 import ConfirmDialog from "../components/ConfirmDialog";
 import Employees from "./Employees";
 import EmployeeOnboardingReview from "./EmployeeOnboardingReview";
-import Quotations from "./Quotations";
-import SalesOrders from "./SalesOrders";
 import InvoiceOrder from "./InvoiceOrder";
 import Inventory from "./Inventory";
 import Attendance from "./Attendance";
-import Machines from "./Machines";
 import Reports from "./Reports";
 import Settings from "./Settings";
 import Organization from "./Organization";
 // MDReview removed Phase 2 — superseded by Star Performance
-import Production from "./Production";
-import Quality from "./Quality";
 import LeaveManagement from "./LeaveManagement";
 import DashboardHome from "./DashboardHome";
 import AdminDashboard from "./AdminDashboard";
@@ -66,7 +61,6 @@ import EnterpriseCommandCenter from "./EnterpriseCommandCenter";
 import RoleManagement from "./RoleManagement";
 import RbacPermissions from "./RbacPermissions";
 import HolidayCalendar from "./HolidayCalendar";
-import WorkCenters from "./WorkCenters";
 import GeofenceSettings from "./GeofenceSettings";
 import BiometricImport from "./BiometricImport";
 import EmployeeMemos from "./EmployeeMemos";
@@ -102,6 +96,9 @@ const ManualLeadManagement = lazy(() => import("./ManualLeadManagement"));
 const CustomerMaster = lazy(() => import("./CustomerMaster"));
 const CustomerPayments = lazy(() => import("./CustomerPayments"));
 const PaymentMilestonePage = lazy(() => import("./PaymentMilestonePage"));
+const CustomerTaskTimeline = lazy(() => import("./CustomerTaskTimeline"));
+const ProductionScheduleApproval = lazy(() => import("./ProductionScheduleApproval"));
+const PurchaseOrderApproval = lazy(() => import("./PurchaseOrderApproval"));
 
 const AIModulesPage = lazy(() => import("./AIModulesPage"));
 const AIKnowledgeBasePage = lazy(() => import("./AIKnowledgeBasePage"));
@@ -1393,49 +1390,21 @@ function SidebarIcon({ name }) {
           <path d="M6 15h4" />
         </svg>
       );
-    case "quotations":
+    case "task-timeline":
       return (
         <svg {...props}>
-          <path d="M7 3h7l4 4v14H7z" />
-          <path d="M14 3v4h4" />
-          <path d="M10 13h4M10 17h4" />
-        </svg>
-      );
-    case "salesorders":
-      return (
-        <svg {...props}>
-          <rect x="6" y="4" width="12" height="17" rx="2" />
-          <rect x="9" y="2.5" width="6" height="3" rx="1" />
-          <path d="M9 11h6M9 15h6" />
+          {/* Gantt-bar rows — task timeline */}
+          <path d="M4 6h9" />
+          <path d="M4 12h14" />
+          <path d="M4 18h7" />
+          <circle cx="18" cy="6" r="1.4" fill="currentColor" stroke="none" />
+          <circle cx="9" cy="18" r="1.4" fill="currentColor" stroke="none" />
         </svg>
       );
     case "projects":
       return (
         <svg {...props}>
           <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
-        </svg>
-      );
-    case "machines":
-      return (
-        <svg {...props}>
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1c.5.5 1.2.6 1.8.3.7-.3 1.1-1 1.1-1.7V3a2 2 0 0 1 4 0v.1c0 .7.4 1.4 1 1.7.6.3 1.3.2 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8c.3.6 1 1 1.7 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
-        </svg>
-      );
-    case "production":
-      return (
-        <svg {...props}>
-          <path d="M3 21V11l5 3V11l5 3V11l5 3v7z" />
-          <path d="M3 21h18" />
-          <rect x="9" y="17" width="2" height="3" />
-          <rect x="14" y="17" width="2" height="3" />
-        </svg>
-      );
-    case "quality":
-      return (
-        <svg {...props}>
-          <path d="M12 3l8 3v6c0 5-3.6 8.4-8 9-4.4-.6-8-4-8-9V6l8-3z" />
-          <path d="M8.5 12l2.5 2.5L15.5 10" />
         </svg>
       );
     case "suppliers":
@@ -1484,15 +1453,6 @@ function SidebarIcon({ name }) {
           <circle cx="8" cy="14" r="1.2" fill="currentColor" />
           <circle cx="16" cy="14" r="1.2" fill="currentColor" />
           <circle cx="12" cy="17.5" r="1.2" fill="currentColor" />
-        </svg>
-      );
-    case "workcenters":
-      return (
-        <svg {...props}>
-          <rect x="3" y="10" width="4" height="11" rx="0.6" />
-          <rect x="10" y="6" width="4" height="15" rx="0.6" />
-          <rect x="17" y="13" width="4" height="8" rx="0.6" />
-          <path d="M3 21h18" />
         </svg>
       );
     case "settings":
@@ -1713,15 +1673,6 @@ const NAV_GROUPS = [
     ]
   },
   {
-    key: "crm",
-    label: "CRM & Sales",
-    items: [
-      { to: "/quotations", icon: <SidebarIcon name="quotations" />, label: "Quotations" },
-      { to: "/sales-orders", icon: <SidebarIcon name="salesorders" />, label: "Sales Orders" }
-
-    ]
-  },
-  {
     key: "lead-mgmt",
     label: "Lead Management",
     items: [
@@ -1736,7 +1687,8 @@ const NAV_GROUPS = [
     label: "Customer Management",
     items: [
       { to: "/customer-master", icon: <SidebarIcon name="customer-master" />, label: "Customer Master" },
-      { to: "/customer-payments", icon: <SidebarIcon name="customer-payments" />, label: "Customer Payments" }
+      { to: "/customer-payments", icon: <SidebarIcon name="customer-payments" />, label: "Customer Payments" },
+      { to: "/customer-task-timeline", icon: <SidebarIcon name="task-timeline" />, label: "Task Timeline" }
     ]
   },
   {
@@ -1768,16 +1720,6 @@ const NAV_GROUPS = [
       { to: "/task-templates", icon: <SidebarIcon name="task-tmpl" />, label: "Task Templates" },
       { to: "/project-pricing", icon: <SidebarIcon name="proj-pricing" />, label: "Project Pricing" },
       { to: "/project-quotations", icon: <SidebarIcon name="proj-quotation" />, label: "Quotation Templates" },
-    ]
-  },
-  {
-    key: "manufacturing",
-    label: "Manufacturing",
-    items: [
-      { to: "/machines", icon: <SidebarIcon name="machines" />, label: "Machines" },
-      { to: "/work-centers", icon: <SidebarIcon name="workcenters" />, label: "Work Centers" },
-      { to: "/production", icon: <SidebarIcon name="production" />, label: "Production & BOM" },
-      { to: "/quality", icon: <SidebarIcon name="quality" />, label: "Quality Management" }
     ]
   },
   {
@@ -2215,16 +2157,6 @@ function Dashboard() {
           />
 
           <Route
-            path="/quotations"
-            element={<RequirePermission code={permissionForRoute("/quotations")}><Quotations /></RequirePermission>}
-          />
-
-          <Route
-            path="/sales-orders"
-            element={<RequirePermission code={permissionForRoute("/sales-orders")}><SalesOrders /></RequirePermission>}
-          />
-
-          <Route
             path="/projects"
             element={<RequirePermission code={permissionForRoute("/projects")}><Suspense fallback={null}><ProjectPage /></Suspense></RequirePermission>}
           />
@@ -2232,26 +2164,6 @@ function Dashboard() {
           <Route
             path="/inventory"
             element={<RequirePermission code={permissionForRoute("/inventory")}><Inventory /></RequirePermission>}
-          />
-
-          <Route
-            path="/machines"
-            element={<RequirePermission code={permissionForRoute("/machines")}><Machines /></RequirePermission>}
-          />
-
-          <Route
-            path="/work-centers"
-            element={<RequirePermission code={permissionForRoute("/work-centers")}><WorkCenters /></RequirePermission>}
-          />
-
-          <Route
-            path="/production"
-            element={<RequirePermission code={permissionForRoute("/production")}><Production /></RequirePermission>}
-          />
-
-          <Route
-            path="/quality"
-            element={<RequirePermission code={permissionForRoute("/quality")}><Quality /></RequirePermission>}
           />
 
           {/* ram-development commit 3eef8b5e removed Suppliers.jsx /
@@ -2333,6 +2245,9 @@ function Dashboard() {
           <Route path="/customer-master" element={<RequirePermission code={permissionForRoute("/customer-master")}><Suspense fallback={null}><CustomerMaster /></Suspense></RequirePermission>} />
           <Route path="/customer-payments" element={<RequirePermission code={permissionForRoute("/customer-payments")}><Suspense fallback={null}><CustomerPayments /></Suspense></RequirePermission>} />
           <Route path="/payment-milestones" element={<RequirePermission code={permissionForRoute("/payment-milestones")}><Suspense fallback={null}><PaymentMilestonePage /></Suspense></RequirePermission>} />
+          <Route path="/customer-task-timeline" element={<RequirePermission code={permissionForRoute("/customer-task-timeline")}><Suspense fallback={null}><CustomerTaskTimeline /></Suspense></RequirePermission>} />
+          <Route path="/production-schedule/:id" element={<RequirePermission code={permissionForRoute("/production-schedule/:id")}><Suspense fallback={null}><ProductionScheduleApproval /></Suspense></RequirePermission>} />
+          <Route path="/purchase-order-approval/:id" element={<RequirePermission code={permissionForRoute("/purchase-order-approval/:id")}><Suspense fallback={null}><PurchaseOrderApproval /></Suspense></RequirePermission>} />
 
           <Route path="/ai-platform/modules" element={<RequirePermission code={permissionForRoute("/ai-platform/modules")}><Suspense fallback={null}><AIModulesPage /></Suspense></RequirePermission>} />
           <Route path="/ai-platform/knowledge-base" element={<RequirePermission code={permissionForRoute("/ai-platform/knowledge-base")}><Suspense fallback={null}><AIKnowledgeBasePage /></Suspense></RequirePermission>} />

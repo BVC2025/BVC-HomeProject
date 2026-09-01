@@ -42,15 +42,15 @@ from app.models.models import (
     Supplier,
     Employee,
     Project,
-    ProductModel,
     Inventory,
-    BOMItem,
     PurchaseOrder,
     PurchaseOrderLine,
     GoodsReceiptNote,
     GoodsReceiptLine,
     PurchaseOrderActivity
 )
+from app.models.inventory_models import InventoryBatch
+from app.services.inventory_automation_service import record_movement
 
 from app.schemas.purchase_order_schema import (
     PurchaseOrderCreate,
@@ -59,7 +59,6 @@ from app.schemas.purchase_order_schema import (
     POLineUpdate,
     POCancellation,
     GRNCreate,
-    AutoFromProjectRequest
 )
 
 from app.services.email_service import send_alert_email
@@ -248,7 +247,6 @@ def _serialize_po_line(l: PurchaseOrderLine, db: Session = None) -> dict:
         "ID": l.ID,
         "PO_ID": l.PO_ID,
         "PRODUCT_ID": l.PRODUCT_ID,
-        "BOM_ITEM_ID": l.BOM_ITEM_ID,
         "DESCRIPTION": l.DESCRIPTION,
         "HSN_CODE": l.HSN_CODE,
         # Canonical naming
@@ -416,7 +414,27 @@ def _send_po_email(db: Session, po: PurchaseOrder) -> tuple:
 
     html = _build_po_email_html(po, supplier)
 
-    return send_alert_email(subject, html, recipient=supplier.EMAIL)
+    attachments = None
+    try:
+        from app.services.company_settings_service import get_company_settings
+        from app.services.purchase_order_pdf_service import render_po_pdf_bytes
+        lines = db.query(PurchaseOrderLine).filter(PurchaseOrderLine.PO_ID == po.ID).order_by(PurchaseOrderLine.SORT_ORDER).all()
+        company = get_company_settings(db, po.VENDOR_ID or 1)
+        pdf_bytes, pdf_error = render_po_pdf_bytes(po, supplier, lines, company)
+        if pdf_bytes:
+            attachments = [{
+                "filename": f"{po.PO_NUMBER}.pdf",
+                "content": pdf_bytes,
+                "content_type": "application/pdf",
+            }]
+        else:
+            import logging
+            logging.getLogger(__name__).warning("_send_po_email: PDF render failed for PO %s: %s", po.ID, pdf_error)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("_send_po_email: PDF attachment step failed for PO %s", po.ID)
+
+    return send_alert_email(subject, html, recipient=supplier.EMAIL, attachments=attachments)
 
 
 # =========================
@@ -616,7 +634,6 @@ def create_po(
         line = PurchaseOrderLine(
             PO_ID=po.ID,
             PRODUCT_ID=line_data.PRODUCT_ID,
-            BOM_ITEM_ID=line_data.BOM_ITEM_ID,
             DESCRIPTION=line_data.DESCRIPTION,
             HSN_CODE=line_data.HSN_CODE,
             QUANTITY=line_data.QUANTITY or 1.0,
@@ -796,7 +813,6 @@ def add_line(
     line = PurchaseOrderLine(
         PO_ID=po_id,
         PRODUCT_ID=data.PRODUCT_ID,
-        BOM_ITEM_ID=data.BOM_ITEM_ID,
         DESCRIPTION=data.DESCRIPTION,
         HSN_CODE=data.HSN_CODE,
         QUANTITY=data.QUANTITY or 1.0,
@@ -1213,14 +1229,16 @@ def _serialize_grn(db: Session, g: GoodsReceiptNote) -> dict:
 
 
 def _apply_grn_to_inventory(db: Session, grn: GoodsReceiptNote) -> int:
-    """Pushes accepted (not rejected) quantities from a GRN into
-    Inventory. Returns count of inventory rows touched. Caller commits.
+    """Pushes accepted (not rejected) quantities from a GRN into the
+    ProductMaster-keyed inventory system (InventoryStock/InventoryBatch/
+    InventoryMovement). Returns count of products touched. Caller commits.
 
     For each GRN line:
       - Look up the PO line (for PRODUCT_ID, UNIT_PRICE)
-      - Find matching Inventory row (vendor + material)
-      - QUANTITY += QUANTITY_RECEIVED
-      - UNIT_PRICE = weighted average of old and new costs
+      - Increment InventoryStock.CURRENT_QTY for that product
+      - Create a new InventoryBatch (this specific receipt keeps its own
+        cost — no more weighted-average blending into one running price)
+      - Record an InventoryMovement (STOCK_IN, REFERENCE_TYPE="GRN")
     """
 
     touched = 0
@@ -1232,6 +1250,8 @@ def _apply_grn_to_inventory(db: Session, grn: GoodsReceiptNote) -> int:
     if not po:
 
         return 0
+
+    vendor_id = po.VENDOR_ID or 1
 
     grn_lines = db.query(GoodsReceiptLine).filter(
         GoodsReceiptLine.GRN_ID == grn.ID
@@ -1260,49 +1280,34 @@ def _apply_grn_to_inventory(db: Session, grn: GoodsReceiptNote) -> int:
 
         if not po_line.PRODUCT_ID:
 
-            # Free-text line — can't update Inventory, skip silently
+            # Free-text line — can't update inventory, skip silently
             continue
 
         product_id = po_line.PRODUCT_ID
 
         unit_price = float(po_line.UNIT_PRICE or 0)
 
-        inv = db.query(Inventory).filter(
-            Inventory.PRODUCT_ID == product_id,
-            Inventory.VENDOR_ID == (po.VENDOR_ID or 1)
-        ).first()
+        batch = InventoryBatch(
+            VENDOR_ID=vendor_id,
+            PRODUCT_ID=product_id,
+            BATCH_NUMBER=f"{grn.GRN_NUMBER}-{gl.ID}",
+            SUPPLIER_ID=po.SUPPLIER_ID,
+            PO_ID=po.ID,
+            GRN_ID=grn.ID,
+            RECEIVED_DATE=grn.RECEIVED_DATE,
+            QTY_RECEIVED=qty_in,
+            QTY_REMAINING=qty_in,
+            UNIT_COST=unit_price or None,
+            STATUS="ACTIVE",
+        )
+        db.add(batch)
+        db.flush()
 
-        if inv:
-
-            old_qty = float(inv.QUANTITY or 0)
-
-            old_price = float(inv.UNIT_PRICE or 0)
-
-            new_qty = old_qty + qty_in
-
-            # Weighted average — keeps Inventory price honest as
-            # market prices drift across multiple POs.
-            if new_qty > 0 and unit_price > 0:
-
-                inv.UNIT_PRICE = round(
-                    (old_qty * old_price + qty_in * unit_price) / new_qty,
-                    2
-                )
-
-            inv.QUANTITY = int(new_qty)
-
-        else:
-
-            # First time we're stocking this product — create row
-            inv = Inventory(
-                PRODUCT_ID=product_id,
-                MATERIAL_NAME=po_line.DESCRIPTION,
-                QUANTITY=int(qty_in),
-                UNIT_PRICE=unit_price,
-                VENDOR_ID=po.VENDOR_ID or 1
-            )
-
-            db.add(inv)
+        record_movement(
+            db, vendor_id, product_id, "STOCK_IN", qty_in,
+            reference_type="GRN", reference_id=str(grn.ID),
+            batch_id=batch.ID, unit_cost=unit_price or None,
+        )
 
         touched += 1
 
@@ -1747,209 +1752,3 @@ def delete_po_activity_row(
     return {"message": "Activity row removed"}
 
 
-# =========================
-# Auto-from-project
-# =========================
-
-@router.post("/purchase-orders/auto-from-project", dependencies=[Depends(require("purchase_order.manage"))])
-def auto_from_project(
-    data: AutoFromProjectRequest,
-    db: Session = Depends(get_db)
-):
-    """Generate POs from a project's BOM. BOM items are grouped by
-    PREFERRED_SUPPLIER_ID — one PO per supplier. Quantities are
-    multiplied by the project's TARGET_UNITS (or 1 if missing)."""
-
-    project = db.query(Project).filter(Project.ID == data.PROJECT_ID).first()
-
-    if not project:
-
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    if not project.PRODUCT_MODEL_ID:
-
-        # Self-heal: try to repoint by matching project name to a
-        # product's MODEL_NAME. This recovers from a procurement
-        # reset that nullified the link.
-        candidates = db.query(ProductModel).filter(
-            ProductModel.VENDOR_ID == (data.VENDOR_ID or 1)
-        ).all()
-
-        pname = (project.PROJECT_NAME or "").lower()
-
-        matched = None
-
-        for c in candidates:
-
-            mname = (c.MODEL_NAME or "").lower()
-
-            if mname and (mname in pname or pname.startswith(mname)):
-
-                matched = c
-
-                break
-
-        if matched:
-
-            project.PRODUCT_MODEL_ID = matched.ID
-
-            db.commit()
-
-        else:
-
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "Project has no PRODUCT_MODEL_ID and no product "
-                    "matches the project name. "
-                    "Likely cause: the linked product was deleted by "
-                    "a procurement reset. Delete and recreate the "
-                    "project from the customer's Requirement."
-                )
-            )
-
-    bom_rows = db.query(BOMItem).filter(
-        BOMItem.PRODUCT_MODEL_ID == project.PRODUCT_MODEL_ID,
-        BOMItem.ITEM_TYPE == "PURCHASE"
-    ).all()
-
-    if not bom_rows:
-
-        raise HTTPException(
-            status_code=400,
-            detail="Product has no PURCHASE BOM lines"
-        )
-
-    units = max(1, int(getattr(project, "TARGET_UNITS", 1) or 1))
-
-    # Group by supplier
-    by_supplier = {}
-
-    unassigned = []
-
-    for b in bom_rows:
-
-        if b.PREFERRED_SUPPLIER_ID:
-
-            by_supplier.setdefault(b.PREFERRED_SUPPLIER_ID, []).append(b)
-
-        else:
-
-            unassigned.append(b)
-
-    created_pos = []
-
-    # Lookup inventory unit prices for the products
-    product_ids = [b.PRODUCT_ID for b in bom_rows if b.PRODUCT_ID]
-
-    inv_prices = {}
-
-    if product_ids:
-
-        for inv in db.query(Inventory).filter(
-            Inventory.PRODUCT_ID.in_(product_ids),
-            Inventory.VENDOR_ID == (data.VENDOR_ID or 1)
-        ).all():
-
-            inv_prices[inv.PRODUCT_ID] = float(inv.UNIT_PRICE or 0)
-
-    for supplier_id, items in by_supplier.items():
-
-        po = PurchaseOrder(
-            PO_NUMBER=_next_po_number(db),
-            SUPPLIER_ID=supplier_id,
-            PO_DATE=date.today(),
-            EXPECTED_DELIVERY_DATE=data.EXPECTED_DELIVERY_DATE,
-            DISCOUNT_PERCENT=0.0,
-            TAX_PERCENT=18.0,
-            PREPARED_BY=data.PREPARED_BY,
-            VENDOR_ID=data.VENDOR_ID or 1,
-            STATUS="DRAFT",
-            NOTES=(
-                f"Auto-generated from Project #{project.ID} "
-                f"({project.PROJECT_NAME or 'unnamed'}) "
-                f"for {units} unit(s)"
-            )
-        )
-
-        db.add(po)
-
-        db.flush()
-
-        for idx, b in enumerate(items):
-
-            qty = float(b.QUANTITY or 0) * units
-
-            unit_price = inv_prices.get(b.PRODUCT_ID, 0.0)
-
-            line = PurchaseOrderLine(
-                PO_ID=po.ID,
-                PRODUCT_ID=b.PRODUCT_ID,
-                BOM_ITEM_ID=b.ID,
-                DESCRIPTION=b.MATERIAL_NAME,
-                QUANTITY=qty,
-                UNIT=b.UNIT or "pcs",
-                UNIT_PRICE=unit_price,
-                DISCOUNT_PERCENT=0.0,
-                SORT_ORDER=idx
-            )
-
-            line.LINE_TOTAL = _compute_line_total(line)
-
-            db.add(line)
-
-        db.flush()
-
-        _recompute_po_totals(db, po)
-
-        _log_activity(
-            db, po.ID, "CREATED",
-            detail=(
-                f"Auto-generated from Project #{project.ID} BOM "
-                f"({len(items)} line(s), {units} unit(s))"
-            )
-        )
-
-        created_pos.append(po)
-
-    # Handle unassigned BOM items if requested — single placeholder PO
-    # with SUPPLIER_ID=NULL is invalid (FK), so we surface them in the
-    # response instead. The user assigns suppliers in the BOM page and
-    # re-runs.
-    response_meta = {
-        "project_id": project.ID,
-        "units": units,
-        "pos_created": [
-            {
-                "ID": p.ID,
-                "PO_NUMBER": p.PO_NUMBER,
-                "SUPPLIER_ID": p.SUPPLIER_ID,
-                "GRAND_TOTAL": p.GRAND_TOTAL,
-                "lines": len(by_supplier[p.SUPPLIER_ID])
-            }
-            for p in created_pos
-        ],
-        "unassigned_materials": [
-            {
-                "BOM_ITEM_ID": b.ID,
-                "MATERIAL_NAME": b.MATERIAL_NAME,
-                "QUANTITY_NEEDED": float(b.QUANTITY or 0) * units
-            }
-            for b in unassigned
-        ]
-    }
-
-    db.commit()
-
-    return {
-        "message": (
-            f"Created {len(created_pos)} PO(s) across "
-            f"{len(created_pos)} supplier(s)"
-            + (
-                f". {len(unassigned)} BOM item(s) skipped — "
-                "no preferred supplier set."
-                if unassigned else ""
-            )
-        ),
-        **response_meta
-    }

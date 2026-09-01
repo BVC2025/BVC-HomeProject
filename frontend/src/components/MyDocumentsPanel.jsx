@@ -22,7 +22,7 @@ import styles from "./MyDocumentsPanel.module.css";
 
 // Backend URL for opening files directly (documents already have a
 // public FILE_URL that includes /static/employee-docs/...).
-const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8001";
+const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8000";
 
 function absoluteUrl(path) {
   if (!path) return null;

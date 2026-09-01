@@ -7,10 +7,7 @@ import Dashboard from "./pages/Dashboard";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import BiometricCheckIn from "./pages/BiometricCheckIn";
 import ApplyLeave from "./pages/ApplyLeave";
-import QuotationPrint from "./pages/QuotationPrint";
-import PublicQuotation from "./pages/PublicQuotation";
 import PublicEnquiry from "./pages/PublicEnquiry";
-import SalesOrderPrint from "./pages/SalesOrderPrint";
 import EmployeeOnboardingChat from "./pages/EmployeeOnboardingChat";
 import SupplierRegistrationPortal from "./pages/SupplierRegistrationPortal";
 import PublicPOUpload from "./pages/PublicPOUpload";
@@ -83,21 +80,6 @@ function App() {
         element={<ApplyLeave />}
       />
 
-      <Route
-        path="/quotation-print/:id"
-        element={
-          <ProtectedRoute>
-            <QuotationPrint />
-          </ProtectedRoute>
-        }
-      />
-
-      {/* Public share link — no auth required so customers can open it */}
-      <Route
-        path="/q/:token"
-        element={<PublicQuotation />}
-      />
-
       {/* Public customer enquiry chatbot — no auth */}
       <Route
         path="/enquiry"
@@ -128,15 +110,6 @@ function App() {
       <Route
         path="/po-upload/:token"
         element={<PublicPOUpload />}
-      />
-
-      <Route
-        path="/so-print/:id"
-        element={
-          <ProtectedRoute>
-            <SalesOrderPrint />
-          </ProtectedRoute>
-        }
       />
 
       <Route

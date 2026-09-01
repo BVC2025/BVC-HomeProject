@@ -263,62 +263,65 @@ export const PRODUCT_RULES = {
   UNIT: ["required"],
 };
 
-/** Inventory Item Add/Edit modal */
+/** Inventory Item (Stock Threshold) Add/Edit modal — InventoryStock now
+ * sits directly on ProductMaster (one row per product, no more
+ * LOCATION/BATCH_TRACKING/REORDER_QTY/SAFETY_STOCK/MAX_STOCK columns —
+ * those all belonged to the removed InventoryItem table). Only
+ * MIN_QTY/MAX_QTY are managed here; MAX_QTY is optional ("no cap"). */
 export const ITEM_RULES = {
   PRODUCT_ID: ["required"],
-  LOCATION: [maxLength(200)],
-  REORDER_LEVEL: ["nonNegativeNumber"],
-  REORDER_QTY: ["nonNegativeNumber"],
-  SAFETY_STOCK: ["nonNegativeNumber"],
-  MAX_STOCK: ["nonNegativeNumber"],
-  // Cross-field: safety stock ≤ reorder level (only checked when max_stock > 0)
-  _STOCK_LEVELS: (_, data) => {
-    const reorder = Number(data.REORDER_LEVEL) || 0;
-    const safety = Number(data.SAFETY_STOCK) || 0;
-    const max = Number(data.MAX_STOCK) || 0;
-    if (max > 0 && reorder > max) {
-      return "Reorder Level cannot exceed Max Stock.";
-    }
-    if (safety > reorder) {
-      return "Safety Stock cannot exceed Reorder Level.";
-    }
-    return null;
-  },
+  MIN_QTY: ["nonNegativeNumber"],
+  MAX_QTY: [
+    (value) => {
+      if (value === "" || value === null || value === undefined) return null; // optional — no cap
+      return _nonNegativeNumber(value);
+    },
+  ],
+  // Cross-field: Max Qty (when set) cannot be below Min Qty. Must be
+  // wrapped in an array — validateForm iterates each field's rules.
+  _QTY_RANGE: [
+    (_, data) => {
+      if (data.MAX_QTY === "" || data.MAX_QTY === null || data.MAX_QTY === undefined) return null;
+      const min = Number(data.MIN_QTY) || 0;
+      const max = Number(data.MAX_QTY);
+      if (!isNaN(max) && max < min) return "Max Qty cannot be less than Min Qty.";
+      return null;
+    },
+  ],
 };
 
-/** Batch Add modal */
+/** Batch Add modal — manual batch receipt. The backend rejects creation
+ * unless at least one of DC_FILE_URL/INVOICE_FILE_URL is provided. */
 export const BATCH_RULES = {
-  INVENTORY_ITEM_ID: ["required"],
+  PRODUCT_ID: ["required"],
   BATCH_NUMBER: ["required", maxLength(100)],
-  MFG_DATE: ["validDate"],
+  MANUFACTURING_DATE: ["validDate"],
   EXPIRY_DATE: [
     "validDate",
     (value, data) => {
-      if (!value || !data.MFG_DATE) return null;
-      return new Date(value) > new Date(data.MFG_DATE)
+      if (!value || !data.MANUFACTURING_DATE) return null;
+      return new Date(value) > new Date(data.MANUFACTURING_DATE)
         ? null
         : "Expiry date must be after the manufacturing date.";
     },
   ],
-  QTY_RECEIVED: ["nonNegativeNumber"],
+  QTY_RECEIVED: ["positiveNumber"],
   UNIT_COST: ["nonNegativeNumber"],
+  _FILE_REQUIRED: [
+    (_, data) => {
+      if (!String(data.DC_FILE_URL || "").trim() && !String(data.INVOICE_FILE_URL || "").trim()) {
+        return "Provide a Delivery Challan or Invoice file URL — at least one is required.";
+      }
+      return null;
+    },
+  ],
 };
 
-/** Batch Edit modal (no INVENTORY_ITEM_ID) */
+/** Batch Edit modal — the backend's BatchUpdate schema only accepts
+ * STATUS/QTY_REMAINING/NOTES (product/dates/qty-received are fixed at
+ * creation time), so that's all this form can actually change. */
 export const BATCH_EDIT_RULES = {
-  BATCH_NUMBER: ["required", maxLength(100)],
-  MFG_DATE: ["validDate"],
-  EXPIRY_DATE: [
-    "validDate",
-    (value, data) => {
-      if (!value || !data.MFG_DATE) return null;
-      return new Date(value) > new Date(data.MFG_DATE)
-        ? null
-        : "Expiry date must be after the manufacturing date.";
-    },
-  ],
-  QTY_RECEIVED: ["nonNegativeNumber"],
-  UNIT_COST: ["nonNegativeNumber"],
+  QTY_REMAINING: ["nonNegativeNumber"],
 };
 
 /** Lead Polling Configuration Add/Edit modal */

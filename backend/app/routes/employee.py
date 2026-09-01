@@ -1135,9 +1135,8 @@ def delete_employee(
     events, payroll slips, task assignments, etc.) then removes
     the employee row.
 
-    History-bearing rows (Tasks, WorkOrderStageProgress, QC
-    inspections, Department head, photos uploaded by them) have
-    their EMPLOYEE_ID pointer set to NULL so the records survive
+    History-bearing rows (Tasks, Department head, photos uploaded
+    by them) have their EMPLOYEE_ID pointer set to NULL so the records survive
     — losing the human-readable name is preferable to losing
     months of attendance / task history.
     """
@@ -1151,14 +1150,8 @@ def delete_employee(
         LeaveBalance,
         BiometricEvent,
         PayrollSlip,
-        WorkOrderStageProgress,
-        QCInspection,
         Department,
-        Machine,
-        NCR,
         PerformanceScore,
-        Quotation,
-        SalesOrder,
         PurchaseOrder,
         EmployeeOnboardingSession,
         EmployeeDocument,
@@ -1273,17 +1266,8 @@ def delete_employee(
 
     # ---- 2. Null-out history-bearing references ----
 
-    # Quotation / SalesOrder / PurchaseOrder PREPARED_BY — keep the
-    # business docs, lose the preparer name.
-    _try("quotations_preparer_unlinked", lambda: db.query(Quotation)
-         .filter(Quotation.PREPARED_BY == employee_id)
-         .update({Quotation.PREPARED_BY: None},
-                 synchronize_session=False))
-
-    _try("sales_orders_preparer_unlinked", lambda: db.query(SalesOrder)
-         .filter(SalesOrder.PREPARED_BY == employee_id)
-         .update({SalesOrder.PREPARED_BY: None},
-                 synchronize_session=False))
+    # PurchaseOrder PREPARED_BY — keep the business docs, lose the
+    # preparer name.
 
     _try("purchase_orders_preparer_unlinked", lambda: db.query(PurchaseOrder)
          .filter(PurchaseOrder.PREPARED_BY == employee_id)
@@ -1354,15 +1338,6 @@ def delete_employee(
          .filter(Task.ASSIGNED_TO == employee_id)
          .update({Task.ASSIGNED_TO: None}, synchronize_session=False))
 
-    _try("wo_stages_unlinked", lambda: db.query(WorkOrderStageProgress)
-         .filter(WorkOrderStageProgress.ASSIGNED_TO_ID == employee_id)
-         .update({WorkOrderStageProgress.ASSIGNED_TO_ID: None},
-                 synchronize_session=False))
-
-    _try("qc_inspections_unlinked", lambda: db.query(QCInspection)
-         .filter(QCInspection.INSPECTOR_ID == employee_id)
-         .update({QCInspection.INSPECTOR_ID: None},
-                 synchronize_session=False))
 
     _try("department_heads_unlinked", lambda: db.query(Department)
          .filter(Department.HEAD_EMPLOYEE_ID == employee_id)
@@ -1381,31 +1356,6 @@ def delete_employee(
          .filter(TaskAssignment.ASSIGNED_BY_ID == employee_id)
          .update({TaskAssignment.ASSIGNED_BY_ID: None},
                  synchronize_session=False))
-
-    # Machine + NCR have optional employee FKs depending on schema
-    # version. _try catches column-doesn't-exist and moves on.
-    if hasattr(Machine, "ASSIGNED_TO"):
-
-        _try("machines_unlinked", lambda: db.query(Machine)
-             .filter(Machine.ASSIGNED_TO == employee_id)
-             .update({Machine.ASSIGNED_TO: None},
-                     synchronize_session=False))
-
-    # NCR has TWO employee FKs that block deletes: REPORTED_BY_ID
-    # and ASSIGNED_TO_ID. Both must be nulled out before the
-    # employee row can be removed.
-    for fk_field in ("REPORTED_BY_ID", "ASSIGNED_TO_ID"):
-
-        if hasattr(NCR, fk_field):
-
-            col = getattr(NCR, fk_field)
-
-            _try(
-                f"ncr_{fk_field.lower()}_unlinked",
-                lambda c=col: db.query(NCR)
-                    .filter(c == employee_id)
-                    .update({c: None}, synchronize_session=False)
-            )
 
     # ---- 3. Delete the employee photo file (if any) ----
     if emp.PHOTO_URL:

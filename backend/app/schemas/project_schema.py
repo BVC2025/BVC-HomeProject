@@ -1,4 +1,3 @@
-from datetime import date
 from typing import Optional
 
 from pydantic import BaseModel
@@ -17,23 +16,6 @@ class ProjectCreate(BaseModel):
     DEPARTMENT_ID: Optional[int] = None
     CUSTOMER_ID: Optional[str] = None
     VENDOR_ID: int
-
-
-class ProjectFromProductRequest(BaseModel):
-    """The new BVC24 way to create a project.
-
-    Required: a customer who wants a product + the product itself.
-    Everything else (skills, stages, tasks, employee assignments,
-    emails) is orchestrated automatically.
-    """
-
-    CUSTOMER_ID: str
-    PRODUCT_MODEL_ID: int
-    QUANTITY: int = 1
-    PRIORITY: Optional[str] = "MEDIUM"   # HIGH / MEDIUM / LOW
-    TARGET_DATE: Optional[date] = None
-    NOTES: Optional[str] = None
-    VENDOR_ID: int = 1
 
 
 class TaskApprovalDecision(BaseModel):

@@ -1,0 +1,770 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  background: var(--layout-bg);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  flex: 1;
+}
+
+/* ── Customer / Assignment selector card — mirrors CustomerPayments.jsx */
+.selectorCard {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--clr-primary);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  box-shadow: var(--shadow-md);
+}
+
+.selectorLabel {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semi);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Filter bar — mirrors ManualLeadManagement.module.css */
+.filterBar {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+  box-shadow: var(--shadow-sm);
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 180px;
+}
+
+.filterGroup label {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+.filterActions {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+/* ── Legend — colorful, bigger status pills so the chart's status
+   language reads clearly at a glance before scanning any bar. */
+.legend {
+  display: flex;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid;
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semi);
+  letter-spacing: 0.01em;
+  box-shadow: var(--shadow-xs);
+}
+
+.legendIcon {
+  font-size: 1.05em;
+  line-height: 1;
+}
+
+/* ── Gantt chart shell */
+.ganttWrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.ganttBox {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.ganttEmptyMonth {
+  padding: var(--sp-5) var(--sp-3);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+/* ── Month pagination toolbar */
+.monthPaginator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.monthPaginatorCenter {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 1;
+  justify-content: center;
+}
+
+.monthLabel {
+  font-size: var(--font-md);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.monthRangePill {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-semi);
+  color: var(--text-secondary);
+  padding: 3px 10px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+}
+
+.monthNavBtn {
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-weight: var(--fw-semi);
+  font-size: var(--font-sm);
+  cursor: pointer;
+}
+
+.monthNavBtn:hover:not(:disabled) {
+  border-color: var(--clr-primary-border);
+  color: var(--clr-primary-dark);
+}
+
+.monthNavBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ── Gantt column header + rows */
+.ganttColHeader {
+  display: grid;
+  grid-template-columns: 280px 1fr 150px;
+  gap: var(--sp-3);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.timelineHeader {
+  position: relative;
+  height: 34px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.timelineCell {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: var(--fw-semi);
+  color: var(--text-muted);
+  border-right: 1px solid var(--border-light);
+}
+
+.ganttRow {
+  display: grid;
+  grid-template-columns: 280px 1fr 150px;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border-light);
+  align-items: center;
+}
+
+.ganttRow:last-child {
+  border-bottom: none;
+}
+
+.ganttRowLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.groupLabel {
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--clr-primary-dark);
+}
+
+.taskNameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.taskColorDot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.06);
+}
+
+.taskName {
+  font-size: var(--font-md);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.employeeChip {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  font-weight: var(--fw-medium);
+}
+
+.ganttTrack {
+  position: relative;
+  height: 52px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.trackCell {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-right: 1px solid var(--border-light);
+}
+
+.ganttBar {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  border: 3px solid;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.ganttBar:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg, var(--shadow-md));
+}
+
+.ganttBarStatusIcon {
+  font-size: 13px;
+  line-height: 1;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+}
+
+.ganttBarLabel {
+  font-size: 12.5px;
+  font-weight: var(--fw-bold);
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.ganttRowStatus {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* ── Status pill — colorful, bigger, icon + label. Colors come from
+   STATUS_THEME in JS (inline style) rather than a data-attribute
+   selector here, since the theme now also drives the legend, the Gantt
+   bar ring, and the Task Details modal header — one source of truth. */
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 14px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  white-space: nowrap;
+  border: 1.5px solid;
+  box-shadow: var(--shadow-xs);
+}
+
+.statusPillLg {
+  padding: 7px 18px;
+  font-size: var(--font-md);
+}
+
+.statusPillIcon {
+  font-size: 1.05em;
+  line-height: 1;
+}
+
+/* ── Not-yet-scheduled tasks list */
+.unscheduledBox {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--sp-4);
+}
+
+.unscheduledTitle {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semi);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--sp-2);
+}
+
+.unscheduledList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.unscheduledItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: var(--font-sm);
+  cursor: pointer;
+  text-align: left;
+}
+
+.unscheduledItem:hover {
+  border-color: var(--clr-primary-border);
+  background: var(--clr-primary-light);
+}
+
+.unscheduledItemName {
+  font-weight: var(--fw-semi);
+}
+
+@media (max-width: 760px) {
+  .ganttColHeader,
+  .ganttRow {
+    grid-template-columns: 1fr;
+  }
+  .ganttRowStatus {
+    justify-content: flex-start;
+  }
+}
+
+/* ── Assignment Search Select — local port of CustomerPayments.module.css's
+   own AssignmentFilterSelect styling, copied (not shared) so a future
+   change to either page's picker can never affect the other. */
+.apWrap {
+  position: relative;
+  max-width: 560px;
+  width: 100%;
+}
+
+.apTrigger {
+  width: 100%;
+  height: 44px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: var(--font-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  cursor: pointer;
+  box-shadow: var(--shadow-xs);
+  text-align: left;
+}
+
+.apTrigger:hover {
+  border-color: var(--clr-primary-border);
+}
+
+.apTriggerValue {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apTriggerPlaceholder {
+  color: var(--text-muted);
+}
+
+.apChevron {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.apDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  min-width: 520px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg, var(--shadow-md));
+  z-index: 40;
+  overflow: hidden;
+}
+
+.apSearchWrap {
+  padding: var(--sp-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.apSearchInput {
+  width: 100%;
+  height: 34px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  outline: none;
+}
+
+.apSearchInput:focus {
+  border-color: var(--clr-primary);
+}
+
+.apTableHead {
+  display: grid;
+  grid-template-columns: 1.2fr 1.2fr 0.5fr 0.9fr;
+  gap: var(--sp-2);
+  padding: 6px var(--sp-3);
+  background: var(--table-th-bg);
+  border-bottom: 1px solid var(--table-border);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-semi);
+  color: var(--table-th-color);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.apList {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.apOption {
+  display: grid;
+  grid-template-columns: 1.2fr 1.2fr 0.5fr 0.9fr;
+  gap: var(--sp-2);
+  padding: 8px var(--sp-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--font-sm);
+  align-items: center;
+}
+
+.apOption:hover {
+  background: var(--clr-primary-light);
+}
+
+.apOptionSelected {
+  background: var(--clr-primary-muted);
+}
+
+.apOptionLead {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.apOptionLeadName {
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apOptionLeadCompany {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.apOptionProject {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.apOptionDate {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.apAllOption {
+  padding: 8px var(--sp-2);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--font-sm);
+  font-weight: var(--fw-medium);
+  color: var(--clr-primary);
+}
+
+.apAllOption:hover {
+  background: var(--clr-primary-light);
+}
+
+.apNoMatch {
+  padding: var(--sp-4);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--font-sm);
+}
+
+@media (max-width: 640px) {
+  .apDropdown {
+    min-width: 0;
+  }
+  .apTableHead,
+  .apOption {
+    grid-template-columns: 1fr 1fr;
+  }
+  .apOptionDate {
+    display: none;
+  }
+}
+
+/* ── Quantity/Lead/Project summary strip, shown once an assignment is picked */
+.assignmentSummaryBar {
+  display: flex;
+  gap: var(--sp-5);
+  flex-wrap: wrap;
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border-light);
+}
+
+.assignmentSummaryBar strong {
+  color: var(--text-primary);
+}
+
+/* ── Gantt bar hover-card — a richer replacement for the native title
+   tooltip (which can't usefully render 9+ lines of detail). Pure-CSS,
+   pointer-events:none so it never interferes with the bar's own onClick. */
+.barHoverWrap {
+  position: relative;
+}
+
+.hoverCard {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  min-width: 240px;
+  max-width: 320px;
+  background: var(--text-primary, #0f172a);
+  color: #ffffff;
+  border-radius: var(--radius-md);
+  padding: var(--sp-3);
+  font-size: var(--font-xs);
+  line-height: 1.6;
+  box-shadow: var(--shadow-lg, var(--shadow-md));
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s;
+  pointer-events: none;
+  z-index: 30;
+}
+
+.barHoverWrap:hover .hoverCard {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.hoverCardTitle {
+  font-weight: var(--fw-bold);
+  margin-bottom: 4px;
+  color: #ffffff;
+}
+
+.hoverCardRow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.hoverCardRow strong {
+  color: #ffffff;
+  font-weight: var(--fw-medium);
+}
+
+/* ── Task Details modal — deliberately mirrors ManualLeadManagement.
+   module.css's own leadDetail* classes (gradient header banner, sectioned
+   cards, uppercase section titles, 2-column field grid) 1:1, copied
+   locally rather than shared so a future change to the Lead Details
+   modal can never affect this page and vice versa. */
+.taskDetailBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.taskDetailHeader {
+  background: linear-gradient(135deg, var(--clr-primary-light) 0%, var(--surface) 100%);
+  border: 1px solid var(--clr-primary-border);
+  border-left: 4px solid;
+  border-radius: var(--radius-md);
+  padding: var(--sp-4) var(--sp-5);
+}
+
+.taskDetailCompany {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.taskDetailCompanyIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-round);
+  padding: 8px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+}
+
+.taskDetailCompanyIcon img {
+  width: 90%;
+  height: 90%;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+}
+
+.taskDetailCompanyName {
+  font-size: var(--font-lg);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.taskDetailSection {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.taskDetailSectionTitle {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-semi);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--sp-2);
+}
+
+.taskDetailGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3) var(--sp-4);
+}
+
+.taskDetailField {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.taskDetailFieldLabel {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  font-weight: var(--fw-medium);
+}
+
+.taskDetailFieldValue {
+  font-size: var(--font-base);
+  color: var(--text-primary);
+  font-weight: var(--fw-medium);
+}
+
+@media (max-width: 560px) {
+  .taskDetailGrid {
+    grid-template-columns: 1fr;
+  }
+}

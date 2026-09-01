@@ -1,0 +1,160 @@
+.section {
+  margin-bottom: 22px;
+}
+
+.section:last-child {
+  margin-bottom: 4px;
+}
+
+.label {
+  display: block;
+  font-size: var(--font-sm);
+  font-weight: var(--fw-semi);
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.req {
+  color: var(--danger);
+}
+
+.sectionHint {
+  display: block;
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.input {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-sm);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--clr-primary);
+}
+
+.fieldError {
+  display: block;
+  font-size: var(--font-xs);
+  color: var(--danger);
+  margin-top: 6px;
+}
+
+.hint {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+  padding: 14px 4px;
+  text-align: center;
+}
+
+/* ── Task picker table ─────────────────────────────────────────── */
+.pickerWrap {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  background: var(--surface, var(--card-bg));
+}
+
+.pickerTableWrap {
+  max-height: 220px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+
+.pickerTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-xs);
+}
+
+.pickerTable th {
+  position: sticky;
+  top: 0;
+  background: var(--table-th-bg, var(--surface, var(--card-bg)));
+  color: var(--text-muted);
+  text-align: left;
+  padding: 6px 8px;
+  font-weight: var(--fw-semi);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.pickerTable td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--table-td-border, var(--border));
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.pickerTable tbody tr {
+  cursor: pointer;
+  transition: background var(--ease, 0.15s);
+}
+
+.pickerTable tbody tr:hover {
+  background: var(--table-hover, rgba(0, 0, 0, 0.03));
+}
+
+.rowSelected {
+  background: var(--clr-primary-light, rgba(99, 102, 241, 0.08));
+}
+
+.rowSelected:hover {
+  background: var(--clr-primary-light, rgba(99, 102, 241, 0.12)) !important;
+}
+
+.pickCol {
+  width: 32px;
+  text-align: center !important;
+}
+
+.seqCell {
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.nameCell {
+  font-weight: var(--fw-medium);
+  white-space: normal;
+}
+
+.scopeBadge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-full, 999px);
+  font-size: 10px;
+  font-weight: var(--fw-semi);
+  background: var(--clr-primary-light, rgba(99, 102, 241, 0.1));
+  color: var(--clr-primary);
+}
+
+.selectedCount {
+  margin-top: 8px;
+  font-size: var(--font-xs);
+  font-weight: var(--fw-semi);
+  color: var(--clr-primary);
+}
+
+.footerRow {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .pickerTable th:nth-child(4),
+  .pickerTable td:nth-child(4) {
+    display: none;
+  }
+}

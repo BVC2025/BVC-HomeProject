@@ -30,7 +30,18 @@ const LEAD_STATUS_LABELS = {
   REVISED_QUOTE_REJECTED: "Revised Quote Rejected",
   PO_REQUESTED: "Purchase Order Requested",
   PO_RECEIVED: "Purchase Order Received",
+  PRODUCTION_SCHEDULED: "Production Scheduled",
+  PRODUCTION_STARTED: "Production Started",
 };
+
+// A lead's Customer Payment Summary becomes meaningful once its PO is
+// received — and stays meaningful for every later stage of the same
+// lifecycle. PRODUCTION_SCHEDULED/PRODUCTION_STARTED are set well after
+// PO_RECEIVED by the automatic production scheduling engine, so a lead
+// sitting at either must still show this section exactly like one still
+// at PO_RECEIVED — an exact `=== "PO_RECEIVED"` check would incorrectly
+// hide it (and stop fetching payment data) the moment the lead moves on.
+const PO_RECEIVED_OR_LATER_STATUSES = new Set(["PO_RECEIVED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED"]);
 
 function formatAmount(v) {
   if (v == null) return "—";
@@ -45,7 +56,7 @@ export const LeadDetailModal = memo(function LeadDetailModal({ open, onClose, da
   const [paymentsLoading, setPaymentsLoading] = useState(false);
 
   useEffect(() => {
-    if (!open || !data?.ID || data.LEAD_STATUS !== "PO_RECEIVED") {
+    if (!open || !data?.ID || !PO_RECEIVED_OR_LATER_STATUSES.has(data.LEAD_STATUS)) {
       setPayments(null);
       return;
     }
@@ -207,8 +218,9 @@ export const LeadDetailModal = memo(function LeadDetailModal({ open, onClose, da
             </div>
           )}
 
-          {/* Customer Payment Summary — only once a Purchase Order has been received */}
-          {data.LEAD_STATUS === "PO_RECEIVED" && (
+          {/* Customer Payment Summary — once a Purchase Order has been received,
+              or the lead has since moved on to Production Scheduled/Started */}
+          {PO_RECEIVED_OR_LATER_STATUSES.has(data.LEAD_STATUS) && (
             <div className={styles.leadDetailSection}>
               <div className={styles.leadDetailSectionTitle}>Customer Payment Summary</div>
               {paymentsLoading ? (

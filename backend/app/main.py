@@ -43,7 +43,6 @@ from app.routes.task import router as task_router
 from app.routes.inventory import router as inventory_router
 from app.routes.analytics import router as analytics_router
 from app.routes.attendance import router as attendance_router
-from app.routes.machine import router as machine_router
 from app.routes.notification import router as notification_router
 from app.routes.announcement import router as announcement_router
 from app.routes.org_chart import router as org_chart_router
@@ -58,17 +57,12 @@ from app.routes.biometric import router as biometric_router
 from app.routes.iclock import router as iclock_router  # ADMS Push (ZKTeco/ESSL X2008)
 from app.routes.bvc24_seed import router as bvc24_seed_router
 from app.routes.performance import router as performance_router
-from app.routes.production import router as production_router
-from app.routes.quality import router as quality_router
 from app.routes.supplier import router as supplier_router
-from app.routes.process import router as process_router
 from app.routes.leave import router as leave_router
 from app.routes.connect import router as connect_router
 from app.routes.payroll import router as payroll_router
-from app.routes.quotation import router as quotation_router
 from app.routes.purchase_order import router as purchase_order_router
 from app.routes.procurement_seed import router as procurement_seed_router
-from app.routes.sales_order import router as sales_order_router
 from app.routes.whatsapp import router as whatsapp_router
 from app.routes.employee_onboarding import router as employee_onboarding_router
 from app.routes.employee_documents import router as employee_documents_router
@@ -82,7 +76,6 @@ from app.routes.employee_portal import router as employee_portal_router
 from app.routes.audit import router as audit_router  # Phase 3 security
 from app.routes.rbac import router as rbac_router    # Phase 2 RBAC
 from app.routes.holiday import router as holiday_router    # Phase 2 Holiday Calendar
-from app.routes.work_center import router as work_center_router  # Mfg Phase 1 — Work Centers
 from app.routes.allowance import router as allowance_router  # Employee expense claims
 from app.routes.recruitment import router as recruitment_router  # Phase 2 — AI Recruitment Assistant
 from app.routes.employee_payslips import router as my_payslips_router  # Employee self-service payslips
@@ -113,6 +106,8 @@ from app.routes.email_send_rule import router as email_send_rule_router
 from app.routes.customer_master import router as customer_master_router
 from app.routes.customer_payment import router as customer_payment_router
 from app.routes.payment_milestone import router as payment_milestone_router
+from app.routes.production_schedule import router as production_schedule_router
+from app.routes.purchase_order_approval import router as purchase_order_approval_router
 from app.routes.whatsapp_config import router as whatsapp_config_router
 from app.routes.whatsapp_module_settings import router as whatsapp_module_settings_router
 from app.routes.whatsapp_webhook import router as whatsapp_webhook_router
@@ -414,16 +409,6 @@ def _auto_migrate():
         ("customer", "FOLLOW_UP_DATE",       "DATE NULL"),
         ("customer", "NEXT_MEETING_DATE",    "DATETIME NULL"),
         ("customer", "REQUIREMENT_NOTES",    "VARCHAR(2000) NULL"),
-        # ---- Phase 3: Quotation tracking (send/view) ----
-        ("quotation", "PUBLIC_TOKEN",       "VARCHAR(64) NULL"),
-        ("quotation", "EMAIL_SENT_AT",      "DATETIME NULL"),
-        ("quotation", "EMAIL_SENT_COUNT",   "INT NOT NULL DEFAULT 0"),
-        ("quotation", "LAST_EMAIL_STATUS",  "VARCHAR(200) NULL"),
-        ("quotation", "VIEWED_AT",          "DATETIME NULL"),
-        ("quotation", "LAST_VIEWED_AT",     "DATETIME NULL"),
-        ("quotation", "VIEW_COUNT",         "INT NOT NULL DEFAULT 0"),
-        # ---- Phase 5: SO advance-due tracking ----
-        ("sales_order", "ADVANCE_DUE_DATE", "DATE NULL"),
         # ---- Unified Employee Dashboard (Permission support) ----
         # LEAVE_TYPE='PERMISSION' rows track sub-day time-off in hours
         ("leave_request",   "DURATION_HOURS", "FLOAT NULL"),
@@ -637,30 +622,6 @@ def _auto_migrate():
                 KEY `ix_sp_po` (`PO_ID`),
                 KEY `ix_sp_status` (`STATUS`),
                 KEY `ix_sp_vendor` (`VENDOR_ID`)
-            )
-            """
-        ),
-        (
-            "discount_request",
-            """
-            CREATE TABLE IF NOT EXISTS `discount_request` (
-                `ID` INT NOT NULL AUTO_INCREMENT,
-                `QUOTATION_ID` INT NOT NULL,
-                `REQUESTED_DISCOUNT_PERCENT` FLOAT NOT NULL,
-                `CUSTOMER_REASON` VARCHAR(500) NULL,
-                `BOT_ACTION` VARCHAR(20) NULL,
-                `STATUS` VARCHAR(20) NULL DEFAULT 'PENDING',
-                `REJECTION_REASON` VARCHAR(500) NULL,
-                `REQUESTED_BY_ID` VARCHAR(36) NULL,
-                `APPROVED_BY_ID` VARCHAR(36) NULL,
-                `APPROVED_AT` DATETIME NULL,
-                `VENDOR_ID` INT NULL,
-                `CREATED_AT` DATETIME NULL,
-                `UPDATED_AT` DATETIME NULL,
-                PRIMARY KEY (`ID`),
-                KEY `ix_dr_quotation` (`QUOTATION_ID`),
-                KEY `ix_dr_status` (`STATUS`),
-                KEY `ix_dr_vendor` (`VENDOR_ID`)
             )
             """
         ),
@@ -1486,143 +1447,6 @@ def _seed_essl_fingerprint_ids():
 _seed_essl_fingerprint_ids()
 
 
-# Canonical Work Center catalog for a manufacturing shop. Inserted
-# additively — existing custom work centers are kept. Vendor-scoped.
-_MFG_WORK_CENTERS = [
-    ("Laser Cutting",   "LC",    "FABRICATION", 5.0),
-    ("Welding",         "WLD",   "WELDING",     3.0),
-    ("Fitting",         "FIT",   "ASSEMBLY",    4.0),
-    ("Painting",        "PAINT", "PAINTING",    2.0),
-    ("Assembly",        "ASM",   "ASSEMBLY",    2.0),
-    ("Testing",         "TEST",  "TESTING",     6.0),
-    ("Quality Control", "QC",    "QC",          8.0),
-    ("Packaging",       "PKG",   "PACKAGING",   10.0),
-    ("Dispatch",        "DSP",   "OTHER",       12.0),
-]
-
-
-def _auto_seed_work_centers():
-    """Top up the work_center table with the canonical manufacturing
-    list. Existing entries are NEVER modified; only missing names
-    get inserted. Safe to re-run on every boot."""
-
-    from sqlalchemy.orm import sessionmaker
-    from app.models.models import WorkCenter
-
-    Session = sessionmaker(bind=engine)
-    db = Session()
-
-    try:
-
-        existing_names = {
-            (w.NAME or "").strip().lower()
-            for w in db.query(WorkCenter).filter(WorkCenter.VENDOR_ID == 1).all()
-        }
-
-        added = 0
-        for name, code, category, capacity in _MFG_WORK_CENTERS:
-            if name.strip().lower() in existing_names:
-                continue
-            db.add(WorkCenter(
-                NAME=name,
-                CODE=code,
-                CATEGORY=category,
-                CAPACITY_PER_HOUR=capacity,
-                IS_ACTIVE=1,
-                VENDOR_ID=1,
-            ))
-            added += 1
-
-        if added:
-            db.commit()
-            import logging
-            logging.getLogger("uvicorn").info(
-                "auto-seed-work-centers: +%d work centers", added
-            )
-
-    except Exception as exc:
-
-        db.rollback()
-
-        import logging
-        logging.getLogger("uvicorn").warning(
-            "auto-seed-work-centers skipped: %s", exc
-        )
-
-    finally:
-
-        db.close()
-
-
-_auto_seed_work_centers()
-
-
-def _auto_seed_quotation_settings():
-    """Idempotently seed the quotation policy flags (auto-SO toggle
-    + max-discount ceiling) so the new approve-time auto-SO hook has
-    a defined value on first boot."""
-
-    import logging
-
-    from sqlalchemy.orm import sessionmaker
-
-    from app.routes.quotation import seed_quotation_settings
-
-    log = logging.getLogger("uvicorn")
-
-    SessionLocal = sessionmaker(bind=engine)
-
-    db = SessionLocal()
-
-    try:
-
-        seed_quotation_settings(db)
-
-    except Exception as exc:
-
-        log.warning("auto-seed-quotation-settings skipped: %s", exc)
-
-    finally:
-
-        db.close()
-
-
-_auto_seed_quotation_settings()
-
-
-def _auto_seed_sales_order_settings():
-    """Idempotently seed the Sales Order automation flags
-    (auto_start_production + auto_create_pos) so the new
-    record_payment auto-trigger has defined defaults on first boot."""
-
-    import logging
-
-    from sqlalchemy.orm import sessionmaker
-
-    from app.routes.sales_order import seed_sales_order_settings
-
-    log = logging.getLogger("uvicorn")
-
-    SessionLocal = sessionmaker(bind=engine)
-
-    db = SessionLocal()
-
-    try:
-
-        seed_sales_order_settings(db)
-
-    except Exception as exc:
-
-        log.warning("auto-seed-sales-order-settings skipped: %s", exc)
-
-    finally:
-
-        db.close()
-
-
-_auto_seed_sales_order_settings()
-
-
 # =====================================================================
 # Weekly memo-automation scheduler
 # ---------------------------------------------------------------------
@@ -2425,6 +2249,104 @@ def _migrate_drop_legacy_project_and_fks():
 
 
 _migrate_drop_legacy_project_and_fks()
+
+
+def _migrate_drop_crm_and_manufacturing():
+    """One-time, idempotent: the CRM & Sales section (Quotation family,
+    SalesOrder family, DiscountRequest) and the Manufacturing section
+    (WorkCenter, Machine/MachineLog, ProductModel, BOMItem, WorkOrder,
+    ProcessStage, WorkOrderStageProgress, QC*, NCR) were removed
+    entirely, including their historical data. A brand-new install
+    never creates these tables, so this is a no-op there.
+
+    Exactly one column outside this set points into it:
+    purchase_order_line.BOM_ITEM_ID -> bom_item.ID (nullable, unused by
+    any live UI). Its FK + column are dropped first. Every other FK
+    among the 20 dropped tables is internal to the set — this function
+    drops each table's own outgoing FK constraints before dropping any
+    table, so the DROP TABLE calls below can run in any order."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    DROP_TABLES = [
+        "ncr",
+        "qc_inspection_result",
+        "qc_inspection",
+        "qc_checklist_item",
+        "wo_stage_progress",
+        "machine_log",
+        "machine",
+        "sales_order_activity",
+        "sales_order_line",
+        "sales_order",
+        "discount_request",
+        "quotation_negotiation",
+        "quotation_activity",
+        "quotation_line",
+        "quotation",
+        "work_order",
+        "bom_item",
+        "process_stage",
+        "product_model",
+        "work_center",
+    ]
+
+    try:
+        insp = inspect(engine)
+
+        if insp.has_table("purchase_order_line"):
+            cols = {c["name"] for c in insp.get_columns("purchase_order_line")}
+            if "BOM_ITEM_ID" in cols:
+                with engine.begin() as conn:
+                    fk_rows = conn.execute(text(
+                        "SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE "
+                        "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'purchase_order_line' "
+                        "AND COLUMN_NAME = 'BOM_ITEM_ID' AND REFERENCED_TABLE_NAME IS NOT NULL"
+                    )).fetchall()
+                    for (fk_name,) in fk_rows:
+                        try:
+                            conn.execute(text(f"ALTER TABLE `purchase_order_line` DROP FOREIGN KEY `{fk_name}`"))
+                        except Exception as exc_inner:
+                            log.warning("migrate-drop-crm-mfg: could not drop FK purchase_order_line.%s: %s", fk_name, exc_inner)
+                    try:
+                        conn.execute(text("ALTER TABLE `purchase_order_line` DROP COLUMN `BOM_ITEM_ID`"))
+                        log.info("migrate-drop-crm-mfg: dropped purchase_order_line.BOM_ITEM_ID")
+                    except Exception as exc_inner:
+                        log.warning("migrate-drop-crm-mfg: could not drop purchase_order_line.BOM_ITEM_ID: %s", exc_inner)
+
+        for table_name in DROP_TABLES:
+            if not insp.has_table(table_name):
+                continue
+            with engine.begin() as conn:
+                fk_rows = conn.execute(text(
+                    "SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE "
+                    "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t "
+                    "AND REFERENCED_TABLE_NAME IS NOT NULL"
+                ), {"t": table_name}).fetchall()
+                for (fk_name,) in fk_rows:
+                    try:
+                        conn.execute(text(f"ALTER TABLE `{table_name}` DROP FOREIGN KEY `{fk_name}`"))
+                    except Exception as exc_inner:
+                        log.warning("migrate-drop-crm-mfg: could not drop FK %s.%s: %s", table_name, fk_name, exc_inner)
+
+        for table_name in DROP_TABLES:
+            if not insp.has_table(table_name):
+                continue
+            with engine.begin() as conn:
+                try:
+                    conn.execute(text(f"DROP TABLE IF EXISTS `{table_name}`"))
+                    log.info("migrate-drop-crm-mfg: dropped table %s", table_name)
+                except Exception as exc_inner:
+                    log.warning("migrate-drop-crm-mfg: could not drop table %s: %s", table_name, exc_inner)
+
+    except Exception as exc:
+        log.warning("migrate-drop-crm-mfg skipped: %s", exc)
+
+
+_migrate_drop_crm_and_manufacturing()
 
 
 def _migrate_customer_master_columns():
@@ -3284,6 +3206,268 @@ def _migrate_add_task_template_execution_and_dependency():
 _migrate_add_task_template_execution_and_dependency()
 
 
+def _migrate_add_task_template_task_group_id():
+    """One-time, idempotent: adds TASK_GROUP_ID to `task_template`
+    (nullable FK to task_group.ID, ON DELETE SET NULL) — the real-FK
+    replacement for the old loose-string EXECUTION_GROUP_ID (dropped by
+    _migrate_drop_task_template_execution_and_dependency_columns() below,
+    only after _migrate_backfill_task_groups_from_execution_groups() has
+    had a chance to preserve any existing grouping/dependency data). A
+    brand-new install has no existing task_template rows to worry about;
+    create_all() already built `task_group`/`task_group_dependency` from
+    today's model before any _migrate_*() function runs."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("task_template") or not insp.has_table("task_group"):
+            return
+
+        cols = {c["name"] for c in insp.get_columns("task_template")}
+        if "TASK_GROUP_ID" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `task_template` ADD COLUMN `TASK_GROUP_ID` VARCHAR(36) NULL, "
+                    "ADD CONSTRAINT `fk_task_template_task_group` FOREIGN KEY (`TASK_GROUP_ID`) "
+                    "REFERENCES `task_group` (`ID`) ON DELETE SET NULL"
+                ))
+            log.info("migrate-add-task-template-task-group-id: added task_template.TASK_GROUP_ID")
+
+    except Exception as exc:
+        log.warning("migrate-add-task-template-task-group-id skipped: %s", exc)
+
+
+_migrate_add_task_template_task_group_id()
+
+
+def _migrate_add_task_group_depends_on_task_template_id():
+    """One-time, idempotent: adds DEPENDS_ON_TASK_TEMPLATE_ID to
+    `task_group` (nullable FK to task_template.ID, ON DELETE SET NULL) —
+    the single member-task trigger used only when DEPENDENCY_RULE == 'ONE'.
+    No backfill needed: task_group currently has 0 rows in every
+    environment this feature has shipped to."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("task_group") or not insp.has_table("task_template"):
+            return
+
+        cols = {c["name"] for c in insp.get_columns("task_group")}
+        if "DEPENDS_ON_TASK_TEMPLATE_ID" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `task_group` ADD COLUMN `DEPENDS_ON_TASK_TEMPLATE_ID` VARCHAR(36) NULL, "
+                    "ADD CONSTRAINT `fk_task_group_depends_on_task_template` FOREIGN KEY (`DEPENDS_ON_TASK_TEMPLATE_ID`) "
+                    "REFERENCES `task_template` (`ID`) ON DELETE SET NULL"
+                ))
+            log.info("migrate-add-task-group-depends-on-task-template-id: added task_group.DEPENDS_ON_TASK_TEMPLATE_ID")
+
+    except Exception as exc:
+        log.warning("migrate-add-task-group-depends-on-task-template-id skipped: %s", exc)
+
+
+_migrate_add_task_group_depends_on_task_template_id()
+
+
+def _migrate_backfill_task_groups_from_execution_groups():
+    """One-time, idempotent, best-effort: preserves any existing
+    EXECUTION_GROUP_ID cohorts by converting them into new TaskGroup rows,
+    before the old column is dropped below. Reads the legacy column via
+    raw SQL because the TaskTemplate ORM model no longer declares it
+    (matches the exact precedent/reasoning already used for the old
+    DEPARTMENT_ID/ROLE_ID backfill above).
+
+    Every distinct (PROJECT_ID, EXECUTION_GROUP_ID) cohort of tasks becomes
+    one new TaskGroup (DEPENDENCY_RULE defaults to 'ALL' — the old
+    DEPENDENCY_RULE column was a per-task field with different semantics
+    than today's group-level rule, so it is not carried forward), with
+    those tasks' TASK_GROUP_ID set to it.
+
+    Old per-task `task_template_dependency` edges are NOT migrated here:
+    that table modeled an arbitrary "depends on any task" edge, which the
+    current TaskGroup.DEPENDS_ON_TASK_TEMPLATE_ID design deliberately
+    restricts to "one of this same group's own members" — there is no
+    general mapping from the old edge shape to the new one. The physical
+    `task_template_dependency` table is left untouched (see the model's
+    own NOTE comment) for manual review if any environment ever has real
+    rows in it (confirmed 0 rows in every environment this has shipped to).
+
+    Guarded by EXECUTION_GROUP_ID column existence, so re-running this
+    (e.g. on every boot) after the column is dropped is an instant no-op.
+    A brand-new install has no rows to migrate."""
+
+    import logging
+    from sqlalchemy import text, inspect
+    from sqlalchemy.orm import sessionmaker
+    from app.models.project_models import TaskGroup, TaskTemplate
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("task_template") or not insp.has_table("task_group"):
+            return
+
+        cols = {c["name"] for c in insp.get_columns("task_template")}
+        if "EXECUTION_GROUP_ID" not in cols:
+            return  # already dropped in a prior run — nothing left to read
+
+        with engine.connect() as conn:
+            grouped_rows = conn.execute(text(
+                "SELECT ID, PROJECT_ID, VENDOR_ID, EXECUTION_GROUP_ID "
+                "FROM `task_template` WHERE EXECUTION_GROUP_ID IS NOT NULL"
+            )).fetchall()
+
+        if not grouped_rows:
+            return
+
+        Session = sessionmaker(bind=engine)
+        db = Session()
+        try:
+            migrated_groups = 0
+
+            # One TaskGroup per (PROJECT_ID, EXECUTION_GROUP_ID) cohort.
+            cohorts: dict = {}
+            for task_id, project_id, vendor_id, exec_group_id in grouped_rows:
+                cohorts.setdefault((project_id, exec_group_id, vendor_id), []).append(task_id)
+
+            for (project_id, _exec_group_id, vendor_id), member_ids in cohorts.items():
+                group = TaskGroup(
+                    PROJECT_ID=project_id,
+                    VENDOR_ID=vendor_id,
+                    NAME=None,
+                    DEPENDENCY_RULE="ALL",
+                    SEQUENCE_NUMBER=0,
+                )
+                db.add(group)
+                db.flush()
+                migrated_groups += 1
+                for task_id in member_ids:
+                    db.query(TaskTemplate).filter(TaskTemplate.ID == task_id).update(
+                        {"TASK_GROUP_ID": group.ID}, synchronize_session=False
+                    )
+
+            if migrated_groups:
+                db.commit()
+                log.info("migrate-backfill-task-groups: created %d task group(s)", migrated_groups)
+        finally:
+            db.close()
+
+    except Exception as exc:
+        log.warning("migrate-backfill-task-groups-from-execution-groups skipped: %s", exc)
+
+
+_migrate_backfill_task_groups_from_execution_groups()
+
+
+def _migrate_drop_task_template_execution_and_dependency_columns():
+    """One-time, idempotent: drops the now-superseded EXECUTION_GROUP_ID
+    and DEPENDENCY_RULE columns from `task_template` — every value was
+    copied forward into TaskGroup/TaskGroupDependency by
+    _migrate_backfill_task_groups_from_execution_groups() above (which
+    always runs first, in the same startup, immediately before this
+    function is even defined). Neither column has a real FK constraint to
+    unwind first (EXECUTION_GROUP_ID only had a plain secondary index,
+    auto-dropped by MySQL along with the column). A brand-new install
+    never creates these columns (the ORM model no longer declares them),
+    so this is a no-op there."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("task_template"):
+            return
+
+        cols = {c["name"] for c in insp.get_columns("task_template")}
+
+        for col_name in ("EXECUTION_GROUP_ID", "DEPENDENCY_RULE"):
+            if col_name not in cols:
+                continue
+            with engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE `task_template` DROP COLUMN `{col_name}`"))
+            log.info("migrate-drop-task-template-execution-and-dependency: dropped task_template.%s", col_name)
+
+    except Exception as exc:
+        log.warning("migrate-drop-task-template-execution-and-dependency-columns skipped: %s", exc)
+
+
+_migrate_drop_task_template_execution_and_dependency_columns()
+
+
+def _migrate_add_company_master_working_schedule():
+    """One-time, idempotent: adds WORK_START_TIME/WORK_END_TIME (nullable —
+    NULL means no schedule configured yet), WORK_HOURS (server-computed
+    only, defaults to 0.00), and WORKING_TIMEZONE (defaults to
+    Asia/Kolkata) to `company_master`. The company_working_break table
+    itself is brand-new — create_all() builds it from the model directly.
+    Every existing company gets no schedule configured; the scheduler and
+    project_template.py's _to_days() both explicitly fall back to the
+    existing hardcoded 8-hour assumption whenever WORK_HOURS is 0, so no
+    existing vendor's ESTIMATED_TOTAL_DAYS changes until they opt in."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("company_master"):
+            return
+
+        cols = {c["name"] for c in insp.get_columns("company_master")}
+
+        if "WORK_START_TIME" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `company_master` ADD COLUMN `WORK_START_TIME` TIME NULL"
+                ))
+            log.info("migrate-add-company-master-working-schedule: added company_master.WORK_START_TIME")
+
+        cols = {c["name"] for c in insp.get_columns("company_master")}
+        if "WORK_END_TIME" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `company_master` ADD COLUMN `WORK_END_TIME` TIME NULL"
+                ))
+            log.info("migrate-add-company-master-working-schedule: added company_master.WORK_END_TIME")
+
+        cols = {c["name"] for c in insp.get_columns("company_master")}
+        if "WORK_HOURS" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `company_master` ADD COLUMN `WORK_HOURS` DECIMAL(5,2) NOT NULL DEFAULT 0.00"
+                ))
+            log.info("migrate-add-company-master-working-schedule: added company_master.WORK_HOURS")
+
+        cols = {c["name"] for c in insp.get_columns("company_master")}
+        if "WORKING_TIMEZONE" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `company_master` ADD COLUMN `WORKING_TIMEZONE` VARCHAR(50) NOT NULL DEFAULT 'Asia/Kolkata'"
+                ))
+            log.info("migrate-add-company-master-working-schedule: added company_master.WORKING_TIMEZONE")
+
+    except Exception as exc:
+        log.warning("migrate-add-company-master-working-schedule skipped: %s", exc)
+
+
+_migrate_add_company_master_working_schedule()
+
+
 def _migrate_backfill_task_template_requirements():
     """One-time, idempotent: copies every existing task_template row's
     DEPARTMENT_ID/ROLE_ID into a new TaskTemplateRequirement row before
@@ -3602,6 +3786,707 @@ def _migrate_seed_payment_milestones_from_legacy():
 
 _migrate_seed_payment_milestones_from_legacy()
 
+
+def _migrate_add_customer_project_task_scheduling_columns():
+    """One-time, idempotent: adds the scheduling-related nullable columns
+    used by the automatic production scheduling / task assignment engine
+    (app/services/production_scheduling_service.py,
+    task_generation_service.py, production_reminder_scheduler.py) to the
+    `customer_project_task` table — PROJECT_UNIT_NUMBER, ASSIGNED_DATE,
+    PLANNED_START_DATE, ACTUAL_START_DATE, DAY_BEFORE_REMINDER_SENT_AT,
+    START_DATE_REMINDER_SENT_AT. Purely additive/nullable — no backfill
+    needed, existing rows simply have these as NULL. A brand-new install
+    never hits this — create_all() builds the table from today's model
+    directly."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    NEW_COLUMNS = [
+        ("PROJECT_UNIT_NUMBER", "INT NULL"),
+        ("ASSIGNED_DATE", "DATETIME NULL"),
+        ("PLANNED_START_DATE", "DATETIME NULL"),
+        ("ACTUAL_START_DATE", "DATETIME NULL"),
+        ("DAY_BEFORE_REMINDER_SENT_AT", "DATETIME NULL"),
+        ("START_DATE_REMINDER_SENT_AT", "DATETIME NULL"),
+    ]
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("customer_project_task"):
+            return
+
+        for col_name, col_ddl in NEW_COLUMNS:
+            cols = {c["name"] for c in insp.get_columns("customer_project_task")}
+            if col_name not in cols:
+                with engine.begin() as conn:
+                    conn.execute(text(
+                        f"ALTER TABLE `customer_project_task` ADD COLUMN `{col_name}` {col_ddl}"
+                    ))
+                log.info("migrate-add-customer-project-task-scheduling-columns: added customer_project_task.%s", col_name)
+
+    except Exception as exc:
+        log.warning("migrate-add-customer-project-task-scheduling-columns skipped: %s", exc)
+
+
+_migrate_add_customer_project_task_scheduling_columns()
+
+
+def _migrate_email_send_rule_event_enum_add_production_schedule_approval():
+    """One-time, idempotent: widens `email_send_rule`.EVENT_TYPE's native
+    MySQL ENUM to add PRODUCTION_SCHEDULE_APPROVAL_NEEDED alongside the
+    existing QUOTATION_DECISION/PO_UPLOADED/PO_REQUESTED values. Purely
+    additive. A brand-new install never hits this — create_all() builds
+    the table from today's model directly."""
+
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("email_send_rule"):
+            return
+
+        with engine.connect() as conn:
+            column_type = conn.execute(text(
+                "SELECT COLUMN_TYPE FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'email_send_rule' AND COLUMN_NAME = 'EVENT_TYPE'"
+            )).scalar()
+
+        if column_type and "PRODUCTION_SCHEDULE_APPROVAL_NEEDED" not in column_type:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `email_send_rule` MODIFY COLUMN `EVENT_TYPE` "
+                    "ENUM('QUOTATION_DECISION','PO_UPLOADED','PO_REQUESTED','PRODUCTION_SCHEDULE_APPROVAL_NEEDED') NOT NULL"
+                ))
+            log.info("migrate-email-send-rule-event-enum: widened EVENT_TYPE with PRODUCTION_SCHEDULE_APPROVAL_NEEDED")
+
+    except Exception as exc:
+        log.warning("migrate-email-send-rule-event-enum-add-production-schedule-approval skipped: %s", exc)
+
+
+_migrate_email_send_rule_event_enum_add_production_schedule_approval()
+
+
+# =========================================================================
+# Inventory consolidation migration sequence.
+#
+# Two inventory systems used to exist side by side: a legacy `Inventory`
+# model (MATERIAL_NAME/QUANTITY/UNIT_PRICE/MIN_STOCK, keyed by PRODUCT_ID+
+# VENDOR_ID) that real GRN receiving actually wrote to, and a newer
+# InventoryCategory -> ProductMaster -> InventoryItem -> InventoryStock/
+# Batch/Movement system that was never wired to real procurement at all.
+# This sequence consolidates everything onto the newer system, now keyed
+# directly by PRODUCT_ID (InventoryItem's location dimension is dropped).
+#
+# Runs in strict order every boot, each step idempotent and independently
+# guarded by schema introspection — see each function's own docstring.
+# =========================================================================
+
+def _drop_fk_on_column_if_exists(insp, table: str, column: str) -> None:
+    """MySQL refuses to DROP COLUMN on a column that still backs a
+    foreign key constraint — the constraint must be dropped first. FK
+    names are MySQL-auto-generated (e.g. inventory_stock_ibfk_2) and can
+    vary by environment/creation order, so this looks the actual
+    constraint up by its constrained column rather than hardcoding a
+    name."""
+    from sqlalchemy import text
+    for fk in insp.get_foreign_keys(table):
+        if fk.get("constrained_columns") == [column] and fk.get("name"):
+            with engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE `{table}` DROP FOREIGN KEY `{fk['name']}`"))
+
+
+def _migrate_inventory_add_product_id_columns():
+    """Step 1 (additive, zero risk): adds a nullable PRODUCT_ID column to
+    inventory_stock/inventory_movement/inventory_batch (backfilled in the
+    next step, made NOT NULL + FK'd once backfilled), plus the new
+    columns the simplified schema needs: MIN_QTY/MAX_QTY on
+    inventory_stock (replacing InventoryItem.REORDER_LEVEL/MAX_STOCK),
+    and RECEIVED_DATE/DC_FILE_URL/INVOICE_FILE_URL/CREATED_BY on
+    inventory_batch. Every operation is independently guarded so one
+    failure never blocks the others."""
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+    insp = inspect(engine)
+
+    additions = [
+        ("inventory_stock", "PRODUCT_ID", "VARCHAR(36) NULL"),
+        ("inventory_stock", "MIN_QTY", "FLOAT NULL DEFAULT 0"),
+        ("inventory_stock", "MAX_QTY", "FLOAT NULL"),
+        ("inventory_movement", "PRODUCT_ID", "VARCHAR(36) NULL"),
+        ("inventory_batch", "PRODUCT_ID", "VARCHAR(36) NULL"),
+        ("inventory_batch", "RECEIVED_DATE", "DATE NULL"),
+        ("inventory_batch", "DC_FILE_URL", "VARCHAR(500) NULL"),
+        ("inventory_batch", "INVOICE_FILE_URL", "VARCHAR(500) NULL"),
+        ("inventory_batch", "CREATED_BY", "VARCHAR(36) NULL"),
+    ]
+
+    for table, column, ddl in additions:
+        try:
+            if not insp.has_table(table):
+                continue
+            cols = {c["name"] for c in insp.get_columns(table)}
+            if column in cols:
+                continue
+            with engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE `{table}` ADD COLUMN `{column}` {ddl}"))
+            log.info("migrate-inventory-add-product-id-columns: added %s.%s", table, column)
+        except Exception as exc:
+            log.warning("migrate-inventory-add-product-id-columns: %s.%s skipped: %s", table, column, exc)
+
+
+_migrate_inventory_add_product_id_columns()
+
+
+def _migrate_backfill_inventory_product_id():
+    """Step 2: populates the new PRODUCT_ID column on inventory_movement/
+    inventory_batch/inventory_stock from the (still-present)
+    inventory_item table's own PRODUCT_ID, via a raw-SQL UPDATE...JOIN —
+    the ORM no longer declares InventoryItem, so this reads the physical
+    table directly, same precedent as _migrate_backfill_task_groups_
+    from_execution_groups()'s EXECUTION_GROUP_ID read.
+
+    inventory_movement/inventory_batch are 1:1 (each row keeps its own
+    identity, just gains a PRODUCT_ID). inventory_stock is potentially
+    N:1 (the old model allowed multiple InventoryItem locations per
+    product) — after the join-update, any (VENDOR_ID, PRODUCT_ID)
+    duplicates are collapsed: the row with the highest CURRENT_QTY
+    survives, its CURRENT_QTY becomes the SUM across the group (no stock
+    is lost), the other rows are deleted. Guarded by inventory_item still
+    existing AND unbackfilled rows remaining, so this is a no-op on every
+    boot after the first successful run."""
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("inventory_item"):
+            return
+
+        for table in ("inventory_movement", "inventory_batch"):
+            if not insp.has_table(table):
+                continue
+            cols = {c["name"] for c in insp.get_columns(table)}
+            if "PRODUCT_ID" not in cols or "INVENTORY_ITEM_ID" not in cols:
+                continue  # already finalized (INVENTORY_ITEM_ID dropped) — nothing left to backfill
+            with engine.begin() as conn:
+                result = conn.execute(text(
+                    f"UPDATE `{table}` t JOIN `inventory_item` i ON t.INVENTORY_ITEM_ID = i.ID "
+                    f"SET t.PRODUCT_ID = i.PRODUCT_ID WHERE t.PRODUCT_ID IS NULL"
+                ))
+            if result.rowcount:
+                log.info("migrate-backfill-inventory-product-id: backfilled %d row(s) in %s", result.rowcount, table)
+
+        stock_cols = {c["name"] for c in insp.get_columns("inventory_stock")} if insp.has_table("inventory_stock") else set()
+        if insp.has_table("inventory_stock") and "PRODUCT_ID" in stock_cols and "INVENTORY_ITEM_ID" in stock_cols:
+            with engine.begin() as conn:
+                result = conn.execute(text(
+                    "UPDATE `inventory_stock` t JOIN `inventory_item` i ON t.INVENTORY_ITEM_ID = i.ID "
+                    "SET t.PRODUCT_ID = i.PRODUCT_ID WHERE t.PRODUCT_ID IS NULL"
+                ))
+            if result.rowcount:
+                log.info("migrate-backfill-inventory-product-id: backfilled %d row(s) in inventory_stock", result.rowcount)
+
+            # Collapse any (VENDOR_ID, PRODUCT_ID) duplicates created by
+            # multiple InventoryItem locations for the same product.
+            with engine.connect() as conn:
+                dupes = conn.execute(text(
+                    "SELECT VENDOR_ID, PRODUCT_ID, COUNT(*) AS cnt FROM `inventory_stock` "
+                    "WHERE PRODUCT_ID IS NOT NULL GROUP BY VENDOR_ID, PRODUCT_ID HAVING COUNT(*) > 1"
+                )).fetchall()
+
+            if dupes:
+                log.info("migrate-backfill-inventory-product-id: found %d duplicate (vendor,product) stock group(s) to collapse", len(dupes))
+                for vendor_id, product_id, _cnt in dupes:
+                    with engine.connect() as conn:
+                        rows = conn.execute(text(
+                            "SELECT ID, CURRENT_QTY FROM `inventory_stock` "
+                            "WHERE VENDOR_ID = :v AND PRODUCT_ID = :p ORDER BY CURRENT_QTY DESC"
+                        ), {"v": vendor_id, "p": product_id}).fetchall()
+                    if not rows:
+                        continue
+                    survivor_id = rows[0][0]
+                    total_qty = sum(float(r[1] or 0) for r in rows)
+                    loser_ids = [r[0] for r in rows[1:]]
+                    with engine.begin() as conn:
+                        conn.execute(text(
+                            "UPDATE `inventory_stock` SET CURRENT_QTY = :q WHERE ID = :id"
+                        ), {"q": total_qty, "id": survivor_id})
+                        if loser_ids:
+                            conn.execute(
+                                text("DELETE FROM `inventory_stock` WHERE ID IN :ids").bindparams(
+                                    __import__("sqlalchemy").bindparam("ids", expanding=True)
+                                ),
+                                {"ids": loser_ids},
+                            )
+                    log.info(
+                        "migrate-backfill-inventory-product-id: collapsed %d duplicate stock row(s) for vendor=%s product=%s into %s (total qty=%s)",
+                        len(loser_ids), vendor_id, product_id, survivor_id, total_qty,
+                    )
+
+    except Exception as exc:
+        log.warning("migrate-backfill-inventory-product-id skipped: %s", exc)
+
+
+_migrate_backfill_inventory_product_id()
+
+
+def _migrate_backfill_inventory_stock_from_legacy():
+    """Step 3: merges the legacy `inventory` model's rows (real GRN
+    receiving wrote here until this migration) into the new PRODUCT_ID-
+    keyed `inventory_stock`. For each legacy row (resolving PRODUCT_ID by
+    name-match against ProductMaster.PRODUCT_NAME when the legacy row's
+    own PRODUCT_ID is NULL, same fallback create_material() already
+    used): if no inventory_stock row exists yet for that (VENDOR_ID,
+    PRODUCT_ID), insert one (CURRENT_QTY/MIN_QTY from the legacy row,
+    MAX_QTY left NULL — the legacy model never had a ceiling concept, so
+    inventing one risks a false OVERSTOCK alert). If one already exists
+    (independently seeded by the newer, previously-disconnected system),
+    merge via max() on both CURRENT_QTY and MIN_QTY — never sum, since
+    this migration re-runs every boot and sum would double-count on
+    every restart while max() converges and stays stable. Every legacy
+    row is left in place afterward (this only ever inserts/updates
+    inventory_stock — it does not delete or modify the legacy `inventory`
+    table), so this is safe to re-run indefinitely."""
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("inventory") or not insp.has_table("inventory_stock"):
+            return
+        if "PRODUCT_ID" not in {c["name"] for c in insp.get_columns("inventory_stock")}:
+            return
+
+        with engine.connect() as conn:
+            legacy_rows = conn.execute(text(
+                "SELECT l.ID, l.VENDOR_ID, l.PRODUCT_ID, l.MATERIAL_NAME, l.QUANTITY, l.MIN_STOCK, p.ID AS resolved_product_id "
+                "FROM `inventory` l "
+                "LEFT JOIN `product_master` p "
+                "  ON p.VENDOR_ID = l.VENDOR_ID AND p.PRODUCT_NAME = l.MATERIAL_NAME"
+            )).fetchall()
+
+        if not legacy_rows:
+            return
+
+        inserted = merged = skipped = 0
+
+        for row in legacy_rows:
+            _id, vendor_id, product_id, material_name, quantity, min_stock, resolved_product_id = row
+            product_id = product_id or resolved_product_id
+            if not product_id or vendor_id is None:
+                skipped += 1
+                log.info(
+                    "migrate-backfill-inventory-stock-from-legacy: could not resolve product for "
+                    "legacy inventory.ID=%s (MATERIAL_NAME=%r) — skipped", _id, material_name,
+                )
+                continue
+
+            quantity = float(quantity or 0)
+            min_stock = float(min_stock or 0)
+
+            with engine.connect() as conn:
+                existing = conn.execute(text(
+                    "SELECT ID, CURRENT_QTY, MIN_QTY FROM `inventory_stock` WHERE VENDOR_ID = :v AND PRODUCT_ID = :p"
+                ), {"v": vendor_id, "p": product_id}).fetchone()
+
+            if existing:
+                stock_id, cur_qty, cur_min = existing
+                new_qty = max(float(cur_qty or 0), quantity)
+                new_min = max(float(cur_min or 0), min_stock)
+                with engine.begin() as conn:
+                    conn.execute(text(
+                        "UPDATE `inventory_stock` SET CURRENT_QTY = :q, MIN_QTY = :m WHERE ID = :id"
+                    ), {"q": new_qty, "m": new_min, "id": stock_id})
+                merged += 1
+            else:
+                from app.services.inventory_automation_service import _compute_status
+                status = _compute_status(quantity, min_stock, None)
+                with engine.begin() as conn:
+                    conn.execute(text(
+                        "INSERT INTO `inventory_stock` (ID, VENDOR_ID, PRODUCT_ID, MIN_QTY, MAX_QTY, CURRENT_QTY, STATUS, UPDATED_AT) "
+                        "VALUES (:id, :v, :p, :minq, NULL, :curq, :status, NOW())"
+                    ), {
+                        "id": __import__("uuid").uuid4().hex,
+                        "v": vendor_id, "p": product_id, "minq": min_stock, "curq": quantity, "status": status,
+                    })
+                inserted += 1
+
+        log.info(
+            "migrate-backfill-inventory-stock-from-legacy: %d inserted, %d merged, %d skipped (of %d legacy rows)",
+            inserted, merged, skipped, len(legacy_rows),
+        )
+
+    except Exception as exc:
+        log.warning("migrate-backfill-inventory-stock-from-legacy skipped: %s", exc)
+
+
+_migrate_backfill_inventory_stock_from_legacy()
+
+
+def _migrate_inventory_stock_finalize_schema():
+    """Step 4: drops the now-superseded INVENTORY_ITEM_ID column/
+    constraint from inventory_stock, makes PRODUCT_ID mandatory, and adds
+    the new (VENDOR_ID, PRODUCT_ID) unique constraint + FK. Each
+    operation is independently guarded/try-wrapped so a leftover
+    duplicate (if the collapse in step 2 somehow missed one) only blocks
+    that one ALTER — logged for manual review — not the whole sequence."""
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+    insp = inspect(engine)
+
+    if not insp.has_table("inventory_stock"):
+        return
+
+    try:
+        constraints = {c["name"] for c in insp.get_unique_constraints("inventory_stock")}
+        if "uq_inv_stock_item" in constraints:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE `inventory_stock` DROP INDEX `uq_inv_stock_item`"))
+            log.info("migrate-inventory-stock-finalize-schema: dropped uq_inv_stock_item")
+    except Exception as exc:
+        log.warning("migrate-inventory-stock-finalize-schema: drop uq_inv_stock_item skipped: %s", exc)
+
+    for col in ("INVENTORY_ITEM_ID", "RESERVED_QTY", "AVAILABLE_QTY", "UNIT_COST", "LAST_MOVEMENT_AT"):
+        try:
+            cols = {c["name"] for c in insp.get_columns("inventory_stock")}
+            if col not in cols:
+                continue
+            _drop_fk_on_column_if_exists(insp, "inventory_stock", col)
+            with engine.begin() as conn:
+                conn.execute(text(f"ALTER TABLE `inventory_stock` DROP COLUMN `{col}`"))
+            log.info("migrate-inventory-stock-finalize-schema: dropped inventory_stock.%s", col)
+        except Exception as exc:
+            log.warning("migrate-inventory-stock-finalize-schema: drop %s skipped: %s", col, exc)
+
+    try:
+        cols = {c["name"] for c in insp.get_columns("inventory_stock")}
+        if "PRODUCT_ID" in cols:
+            with engine.connect() as conn:
+                remaining_null = conn.execute(text(
+                    "SELECT COUNT(*) FROM `inventory_stock` WHERE PRODUCT_ID IS NULL"
+                )).scalar()
+            if remaining_null:
+                log.warning(
+                    "migrate-inventory-stock-finalize-schema: %d row(s) still have NULL PRODUCT_ID "
+                    "(unresolvable legacy data) — leaving PRODUCT_ID nullable until resolved manually",
+                    remaining_null,
+                )
+            else:
+                with engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE `inventory_stock` MODIFY COLUMN `PRODUCT_ID` VARCHAR(36) NOT NULL"))
+                log.info("migrate-inventory-stock-finalize-schema: PRODUCT_ID is now NOT NULL")
+    except Exception as exc:
+        log.warning("migrate-inventory-stock-finalize-schema: modify PRODUCT_ID NOT NULL skipped: %s", exc)
+
+    try:
+        constraints = {c["name"] for c in insp.get_unique_constraints("inventory_stock")}
+        if "uq_inv_stock_vendor_product" not in constraints:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `inventory_stock` ADD CONSTRAINT `uq_inv_stock_vendor_product` "
+                    "UNIQUE (`VENDOR_ID`, `PRODUCT_ID`)"
+                ))
+            log.info("migrate-inventory-stock-finalize-schema: added uq_inv_stock_vendor_product")
+    except Exception as exc:
+        log.warning("migrate-inventory-stock-finalize-schema: add unique constraint skipped: %s", exc)
+
+    try:
+        fks = {fk["name"] for fk in insp.get_foreign_keys("inventory_stock") if fk["name"]}
+        has_product_fk = any(fk.get("constrained_columns") == ["PRODUCT_ID"] for fk in insp.get_foreign_keys("inventory_stock"))
+        if not has_product_fk:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `inventory_stock` ADD CONSTRAINT `fk_inv_stock_product` "
+                    "FOREIGN KEY (`PRODUCT_ID`) REFERENCES `product_master`(`ID`)"
+                ))
+            log.info("migrate-inventory-stock-finalize-schema: added PRODUCT_ID foreign key")
+    except Exception as exc:
+        log.warning("migrate-inventory-stock-finalize-schema: add FK skipped: %s", exc)
+
+
+_migrate_inventory_stock_finalize_schema()
+
+
+def _migrate_inventory_movement_finalize_schema():
+    """Step 5a: same finalize pattern as inventory_stock, for
+    inventory_movement — drop INVENTORY_ITEM_ID + its old index, add the
+    new PRODUCT_ID-based composite index, make PRODUCT_ID mandatory + FK.
+    inventory_movement is an append-only ledger — every existing row's ID
+    is preserved throughout (only columns change, never rows)."""
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+    insp = inspect(engine)
+
+    if not insp.has_table("inventory_movement"):
+        return
+
+    try:
+        indexes = {i["name"] for i in insp.get_indexes("inventory_movement")}
+        if "ix_inv_mov_item_date" in indexes:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE `inventory_movement` DROP INDEX `ix_inv_mov_item_date`"))
+            log.info("migrate-inventory-movement-finalize-schema: dropped ix_inv_mov_item_date")
+    except Exception as exc:
+        log.warning("migrate-inventory-movement-finalize-schema: drop old index skipped: %s", exc)
+
+    try:
+        cols = {c["name"] for c in insp.get_columns("inventory_movement")}
+        if "INVENTORY_ITEM_ID" in cols:
+            _drop_fk_on_column_if_exists(insp, "inventory_movement", "INVENTORY_ITEM_ID")
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE `inventory_movement` DROP COLUMN `INVENTORY_ITEM_ID`"))
+            log.info("migrate-inventory-movement-finalize-schema: dropped INVENTORY_ITEM_ID")
+    except Exception as exc:
+        log.warning("migrate-inventory-movement-finalize-schema: drop INVENTORY_ITEM_ID skipped: %s", exc)
+
+    try:
+        cols = {c["name"] for c in insp.get_columns("inventory_movement")}
+        if "PRODUCT_ID" in cols:
+            with engine.connect() as conn:
+                remaining_null = conn.execute(text(
+                    "SELECT COUNT(*) FROM `inventory_movement` WHERE PRODUCT_ID IS NULL"
+                )).scalar()
+            if not remaining_null:
+                with engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE `inventory_movement` MODIFY COLUMN `PRODUCT_ID` VARCHAR(36) NOT NULL"))
+                log.info("migrate-inventory-movement-finalize-schema: PRODUCT_ID is now NOT NULL")
+            else:
+                log.warning(
+                    "migrate-inventory-movement-finalize-schema: %d row(s) still have NULL PRODUCT_ID — leaving nullable",
+                    remaining_null,
+                )
+    except Exception as exc:
+        log.warning("migrate-inventory-movement-finalize-schema: modify PRODUCT_ID NOT NULL skipped: %s", exc)
+
+    try:
+        indexes = {i["name"] for i in insp.get_indexes("inventory_movement")}
+        if "ix_inv_mov_product_date" not in indexes:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "CREATE INDEX `ix_inv_mov_product_date` ON `inventory_movement` (`VENDOR_ID`, `PRODUCT_ID`, `CREATED_AT`)"
+                ))
+            log.info("migrate-inventory-movement-finalize-schema: added ix_inv_mov_product_date")
+    except Exception as exc:
+        log.warning("migrate-inventory-movement-finalize-schema: add new index skipped: %s", exc)
+
+    try:
+        has_product_fk = any(fk.get("constrained_columns") == ["PRODUCT_ID"] for fk in insp.get_foreign_keys("inventory_movement"))
+        if not has_product_fk:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `inventory_movement` ADD CONSTRAINT `fk_inv_movement_product` "
+                    "FOREIGN KEY (`PRODUCT_ID`) REFERENCES `product_master`(`ID`)"
+                ))
+            log.info("migrate-inventory-movement-finalize-schema: added PRODUCT_ID foreign key")
+    except Exception as exc:
+        log.warning("migrate-inventory-movement-finalize-schema: add FK skipped: %s", exc)
+
+
+_migrate_inventory_movement_finalize_schema()
+
+
+def _migrate_inventory_batch_finalize_schema():
+    """Step 5b: same finalize pattern for inventory_batch — drop
+    INVENTORY_ITEM_ID + its old unique constraint/index, add the new
+    (VENDOR_ID, PRODUCT_ID, BATCH_NUMBER) unique constraint + PRODUCT_ID
+    FK. EXPIRY_DATE/MANUFACTURING_DATE/LOT_NUMBER/PO_ID/GRN_ID are kept
+    (not part of this table's superseded-column list) — dropping them
+    would break the live "expiring soon" feature and PO/GRN traceability
+    for no benefit."""
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+    insp = inspect(engine)
+
+    if not insp.has_table("inventory_batch"):
+        return
+
+    try:
+        constraints = {c["name"] for c in insp.get_unique_constraints("inventory_batch")}
+        if "uq_inv_batch_vendor_item_batch" in constraints:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE `inventory_batch` DROP INDEX `uq_inv_batch_vendor_item_batch`"))
+            log.info("migrate-inventory-batch-finalize-schema: dropped uq_inv_batch_vendor_item_batch")
+    except Exception as exc:
+        log.warning("migrate-inventory-batch-finalize-schema: drop old unique constraint skipped: %s", exc)
+
+    try:
+        cols = {c["name"] for c in insp.get_columns("inventory_batch")}
+        if "INVENTORY_ITEM_ID" in cols:
+            _drop_fk_on_column_if_exists(insp, "inventory_batch", "INVENTORY_ITEM_ID")
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE `inventory_batch` DROP COLUMN `INVENTORY_ITEM_ID`"))
+            log.info("migrate-inventory-batch-finalize-schema: dropped INVENTORY_ITEM_ID")
+    except Exception as exc:
+        log.warning("migrate-inventory-batch-finalize-schema: drop INVENTORY_ITEM_ID skipped: %s", exc)
+
+    try:
+        cols = {c["name"] for c in insp.get_columns("inventory_batch")}
+        if "PRODUCT_ID" in cols:
+            with engine.connect() as conn:
+                remaining_null = conn.execute(text(
+                    "SELECT COUNT(*) FROM `inventory_batch` WHERE PRODUCT_ID IS NULL"
+                )).scalar()
+            if not remaining_null:
+                with engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE `inventory_batch` MODIFY COLUMN `PRODUCT_ID` VARCHAR(36) NOT NULL"))
+                log.info("migrate-inventory-batch-finalize-schema: PRODUCT_ID is now NOT NULL")
+            else:
+                log.warning(
+                    "migrate-inventory-batch-finalize-schema: %d row(s) still have NULL PRODUCT_ID — leaving nullable",
+                    remaining_null,
+                )
+    except Exception as exc:
+        log.warning("migrate-inventory-batch-finalize-schema: modify PRODUCT_ID NOT NULL skipped: %s", exc)
+
+    try:
+        constraints = {c["name"] for c in insp.get_unique_constraints("inventory_batch")}
+        if "uq_inv_batch_vendor_product_batch" not in constraints:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `inventory_batch` ADD CONSTRAINT `uq_inv_batch_vendor_product_batch` "
+                    "UNIQUE (`VENDOR_ID`, `PRODUCT_ID`, `BATCH_NUMBER`)"
+                ))
+            log.info("migrate-inventory-batch-finalize-schema: added uq_inv_batch_vendor_product_batch")
+    except Exception as exc:
+        log.warning("migrate-inventory-batch-finalize-schema: add unique constraint skipped: %s", exc)
+
+    try:
+        has_product_fk = any(fk.get("constrained_columns") == ["PRODUCT_ID"] for fk in insp.get_foreign_keys("inventory_batch"))
+        if not has_product_fk:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `inventory_batch` ADD CONSTRAINT `fk_inv_batch_product` "
+                    "FOREIGN KEY (`PRODUCT_ID`) REFERENCES `product_master`(`ID`)"
+                ))
+            log.info("migrate-inventory-batch-finalize-schema: added PRODUCT_ID foreign key")
+    except Exception as exc:
+        log.warning("migrate-inventory-batch-finalize-schema: add FK skipped: %s", exc)
+
+
+_migrate_inventory_batch_finalize_schema()
+
+
+def _migrate_add_purchase_order_batch_id():
+    """Adds the nullable BATCH_ID FK to purchase_order (links a supplier
+    PO to the PurchaseOrderApprovalBatch that proposed it, when it was
+    auto-generated by the low-stock reorder workflow rather than created
+    manually). purchase_order_approval_batch itself is a brand-new table
+    — create_all() builds it, no migration needed."""
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("purchase_order"):
+            return
+        cols = {c["name"] for c in insp.get_columns("purchase_order")}
+        if "BATCH_ID" in cols:
+            return
+        with engine.begin() as conn:
+            conn.execute(text(
+                "ALTER TABLE `purchase_order` ADD COLUMN `BATCH_ID` VARCHAR(36) NULL"
+            ))
+        log.info("migrate-add-purchase-order-batch-id: added purchase_order.BATCH_ID")
+    except Exception as exc:
+        log.warning("migrate-add-purchase-order-batch-id skipped: %s", exc)
+
+
+_migrate_add_purchase_order_batch_id()
+
+
+def _migrate_email_send_rule_event_enum_add_purchase_order_approval():
+    """Idempotent: widens email_send_rule.EVENT_TYPE to include
+    PURCHASE_ORDER_APPROVAL_NEEDED (exact mirror of the
+    ..._add_production_schedule_approval() migration above)."""
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("email_send_rule"):
+            return
+
+        with engine.connect() as conn:
+            col_type = conn.execute(text(
+                "SELECT COLUMN_TYPE FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'email_send_rule' AND COLUMN_NAME = 'EVENT_TYPE'"
+            )).scalar()
+
+        if col_type and "PURCHASE_ORDER_APPROVAL_NEEDED" not in col_type:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `email_send_rule` MODIFY COLUMN `EVENT_TYPE` "
+                    "ENUM('QUOTATION_DECISION','PO_UPLOADED','PO_REQUESTED','PRODUCTION_SCHEDULE_APPROVAL_NEEDED','PURCHASE_ORDER_APPROVAL_NEEDED') NOT NULL"
+                ))
+            log.info("migrate-email-send-rule-event-enum: widened EVENT_TYPE with PURCHASE_ORDER_APPROVAL_NEEDED")
+
+    except Exception as exc:
+        log.warning("migrate-email-send-rule-event-enum-add-purchase-order-approval skipped: %s", exc)
+
+
+_migrate_email_send_rule_event_enum_add_purchase_order_approval()
+
+
+def _migrate_lead_status_enum_add_production_statuses():
+    """Idempotent: widens lead.LEAD_STATUS to include PRODUCTION_SCHEDULED
+    and PRODUCTION_STARTED (same ALTER-MODIFY-ENUM pattern as every other
+    enum widening this codebase already does — e.g. _migrate_email_send_
+    rule_event_enum_add_production_schedule_approval() above)."""
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("lead"):
+            return
+
+        with engine.connect() as conn:
+            col_type = conn.execute(text(
+                "SELECT COLUMN_TYPE FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'lead' AND COLUMN_NAME = 'LEAD_STATUS'"
+            )).scalar()
+
+        if col_type and "PRODUCTION_SCHEDULED" not in col_type:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `lead` MODIFY COLUMN `LEAD_STATUS` "
+                    "ENUM('NEW','VIEWED','CONVERTED','IGNORED','QUOTE_APPROVAL_PENDING','QUOTE_APPROVED','QUOTE_REJECTED',"
+                    "'REVISED_QUOTE_APPROVAL_PENDING','REVISED_QUOTE_APPROVED','REVISED_QUOTE_REJECTED',"
+                    "'PO_REQUESTED','PO_RECEIVED','PRODUCTION_SCHEDULED','PRODUCTION_STARTED') NOT NULL DEFAULT 'NEW'"
+                ))
+            log.info("migrate-lead-status-enum: widened LEAD_STATUS with PRODUCTION_SCHEDULED/PRODUCTION_STARTED")
+
+    except Exception as exc:
+        log.warning("migrate-lead-status-enum-add-production-statuses skipped: %s", exc)
+
+
+_migrate_lead_status_enum_add_production_statuses()
+
+
 from app.services.speech_service import speech_service  # noqa: E402
 speech_service.initialize()  # non-blocking — Piper models load on a background thread
 
@@ -3611,15 +4496,19 @@ start_scheduler()
 from app.whatsapp_scheduler import start_whatsapp_scheduler, stop_whatsapp_scheduler  # noqa: E402 — separate scheduler instance, see module docstring
 start_whatsapp_scheduler()
 
+from app.production_reminder_scheduler import start_production_reminder_scheduler, stop_production_reminder_scheduler  # noqa: E402 — separate scheduler instance, see module docstring
+start_production_reminder_scheduler()
+
 
 @app.on_event("shutdown")
 def _stop_background_schedulers():
-    """Stop both BackgroundScheduler instances before the process's thread
+    """Stop all BackgroundScheduler instances before the process's thread
     pools are torn down — without this, their interval jobs keep firing
     during interpreter shutdown and spam 'cannot schedule new futures
     after shutdown', which is what makes Ctrl+C take a while to land."""
     stop_scheduler()
     stop_whatsapp_scheduler()
+    stop_production_reminder_scheduler()
 
 
 
@@ -3638,7 +4527,6 @@ app.include_router(project_router, tags=["Projects"])
 app.include_router(users_router, tags=["Users"])
 app.include_router(vendor_router, tags=["Vendors"])
 app.include_router(inventory_router, tags=["Inventory"])
-app.include_router(machine_router, tags=["Machines"])
 app.include_router(attendance_router, tags=["Attendance"])
 app.include_router(notification_router, tags=["Notifications"])
 app.include_router(announcement_router)
@@ -3650,17 +4538,12 @@ app.include_router(biometric_router)
 app.include_router(iclock_router)  # ADMS Push (biometric device -> ERP)
 app.include_router(bvc24_seed_router)
 app.include_router(performance_router)
-app.include_router(production_router)
-app.include_router(quality_router)
 app.include_router(supplier_router)
-app.include_router(process_router)
 app.include_router(leave_router)
 app.include_router(connect_router)
 app.include_router(payroll_router)
-app.include_router(quotation_router, tags=["Quotations"])
 app.include_router(purchase_order_router, tags=["Purchase Orders"])
 app.include_router(procurement_seed_router, tags=["Procurement Seed"])
-app.include_router(sales_order_router, tags=["Sales Orders"])
 app.include_router(whatsapp_router, tags=["WhatsApp Alerts"])
 app.include_router(employee_onboarding_router, tags=["Employee Onboarding Portal"])
 app.include_router(employee_documents_router, tags=["Employee Documents"])
@@ -3674,7 +4557,6 @@ app.include_router(employee_portal_router, tags=["Employee Portal"])
 app.include_router(audit_router)
 app.include_router(rbac_router)
 app.include_router(holiday_router)
-app.include_router(work_center_router)
 app.include_router(allowance_router, tags=["Allowances"])
 app.include_router(recruitment_router)
 app.include_router(my_payslips_router)
@@ -3700,6 +4582,8 @@ app.include_router(email_send_rule_router, tags=["Email Send Rule"])
 app.include_router(customer_master_router, tags=["Customer Master"])
 app.include_router(customer_payment_router, tags=["Customer Payments"])
 app.include_router(payment_milestone_router, tags=["Payment Milestones"])
+app.include_router(production_schedule_router, tags=["Production Scheduling"])
+app.include_router(purchase_order_approval_router, tags=["Purchase Order Approval"])
 app.include_router(whatsapp_config_router, tags=["WhatsApp Configuration"])
 app.include_router(whatsapp_module_settings_router, tags=["WhatsApp Module Settings"])
 app.include_router(whatsapp_webhook_router, tags=["WhatsApp Webhook"])

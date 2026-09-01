@@ -1,12 +1,11 @@
 // =====================================================================
 // Admin Dashboard — BVC24 Manufacturing ERP
 // =====================================================================
-// 12 KPI tiles + cinematic effects:
+// 7 KPI tiles + cinematic effects:
 //   - Staggered fade-up entrance (each tile 60ms after the previous)
 //   - Count-up animation on every value (1.2s ease-out)
 //   - Hover lift + glow + scale on each card
 //   - Auto-refresh every 30 seconds
-//   - Production Status tile is a mini donut (PLANNED vs IN_PROGRESS vs DONE)
 // =====================================================================
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -18,16 +17,11 @@ import styles from "./AdminDashboard.module.css";
 
 const TILES = [
   { key: "total_customers", label: "Total Customers", icon: "👥", gradient: "#ef4444", accent: "#fef2f2", format: "int", href: "/customers" },
-  { key: "total_quotations", label: "Total Quotations", icon: "📋", gradient: "#3b82f6", accent: "#eff6ff", format: "int", href: "/quotations" },
-  { key: "total_sales_orders", label: "Total Sales Orders", icon: "🛒", gradient: "#10b981", accent: "#f0fdf4", format: "int", href: "/sales-orders" },
   { key: "active_projects", label: "Active Projects", icon: "🏗️", gradient: "#f59e0b", accent: "#fffbeb", format: "int", href: "/projects" },
   { key: "purchase_orders", label: "Purchase Orders", icon: "📦", gradient: "#6366f1", accent: "#f5f3ff", format: "int" },
   { key: "inventory_value", label: "Inventory Value", icon: "🏷️", gradient: "#0ea5e9", accent: "#f0f9ff", format: "money", href: "/inventory" },
   { key: "employees_present_today", label: "Employees Present Today", icon: "🟢", gradient: "#22c55e", accent: "#f0fdf4", format: "int", href: "/attendance" },
   { key: "leave_requests_pending", label: "Leave Requests Pending", icon: "📅", gradient: "#f97316", accent: "#fff7ed", format: "int", href: "/leave" },
-  { key: "production_status", label: "Production Status", icon: "🏭", gradient: "#ec4899", accent: "#fdf2f8", format: "production", href: "/production" },
-  { key: "monthly_revenue", label: "Monthly Revenue", icon: "💰", gradient: "#16a34a", accent: "#f0fdf4", format: "money", href: "/sales-orders" },
-  { key: "pending_payments", label: "Pending Payments", icon: "💳", gradient: "#dc2626", accent: "#fef2f2", format: "money", href: "/sales-orders" },
   { key: "ai_notifications", label: "AI Notifications", icon: "🔔", gradient: "#f59e0b", accent: "#fffbeb", format: "int", href: "#" },
 ];
 
@@ -77,72 +71,15 @@ function useCountUp(value, duration = 1200) {
 }
 
 
-// --- Production mini donut --------------------------------------------
-
-function ProductionDonut({ data, tileColor }) {
-  const planned = data?.PLANNED || 0;
-  const inProg = data?.IN_PROGRESS || 0;
-  const done = data?.DONE || 0;
-  const total = Math.max(1, planned + inProg + done);
-  const r = 28;
-  const c = 2 * Math.PI * r;
-
-  const segments = [
-    { v: planned, color: "#e2e8f0" },
-    { v: inProg, color: tileColor || "#3b82f6" },
-    { v: done, color: "#f59e0b" },
-  ];
-
-  let acc = 0;
-  return (
-    <div className={styles.donutWrap}>
-      <svg width={80} height={80}>
-        <circle cx={40} cy={40} r={r} stroke="#f1f5f9" strokeWidth={10} fill="none" />
-        {segments.map((s, i) => {
-          const len = (s.v / total) * c;
-          const seg = (
-            <circle
-              key={i}
-              cx={40} cy={40} r={r}
-              stroke={s.color}
-              strokeWidth={10}
-              fill="none"
-              strokeDasharray={`${len} ${c - len}`}
-              strokeDashoffset={-acc}
-              strokeLinecap="round"
-              className={styles.donutSegment}
-            />
-          );
-          acc += len;
-          return seg;
-        })}
-      </svg>
-      <div className={styles.donutCenter}>
-        <div className={styles.donutTotal}>
-          {planned + inProg + done}
-        </div>
-        <div className={styles.donutLabel}>
-          WO
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
 // --- Single tile ------------------------------------------------------
 
 function CinematicTile({ tile, value, index, onClick }) {
-  const numeric = useMemo(() => {
-    if (tile.format === "production") return value?.TOTAL_ACTIVE || 0;
-    return Number(value) || 0;
-  }, [tile.format, value]);
+  const numeric = useMemo(() => Number(value) || 0, [value]);
 
   const animated = useCountUp(numeric, 1200);
 
   const displayText = useMemo(() => {
     if (tile.format === "money") return formatMoney(animated);
-    if (tile.format === "production") return formatInt(Math.round(animated));
     return formatInt(Math.round(animated));
   }, [tile.format, animated]);
 
@@ -161,40 +98,20 @@ function CinematicTile({ tile, value, index, onClick }) {
 
       <div className={styles.tileValueRow}>
         <div>
-          {tile.format === "production" ? (
-            <div>
-              <div className={styles.tileValueProd} style={{ color: tile.gradient }}>
-                {displayText}
-                <span className={styles.tileActiveLabel}>
-                  active
-                </span>
-              </div>
-              <div className={styles.tileProdSub}>
-                <span>● Planned {value?.PLANNED || 0}</span>
-                <span>● In-Progress {value?.IN_PROGRESS || 0}</span>
-                <span className={styles.tileDoneLabel}>● Done {value?.DONE || 0}</span>
-              </div>
-            </div>
-          ) : (
-            <div className={styles.tileValue} style={{ color: tile.gradient }}>
-              {displayText}
-            </div>
-          )}
+          <div className={styles.tileValue} style={{ color: tile.gradient }}>
+            {displayText}
+          </div>
         </div>
 
-        {tile.format === "production" ? (
-          <ProductionDonut data={value} tileColor={tile.gradient} />
-        ) : (
-          <div
-            className={styles.tileIcon}
-            style={{
-              background: tile.accent,
-              border: `1px solid ${tile.gradient}22`,
-            }}
-          >
-            {tile.icon}
-          </div>
-        )}
+        <div
+          className={styles.tileIcon}
+          style={{
+            background: tile.accent,
+            border: `1px solid ${tile.gradient}22`,
+          }}
+        >
+          {tile.icon}
+        </div>
       </div>
 
       <div className={styles.tileProgressTrack}>
@@ -250,7 +167,7 @@ export default function AdminDashboard() {
           <div className={styles.heroEyebrow}>BVC24 · Admin Command Center</div>
           <div className={styles.heroTitle}>Welcome back, {username}</div>
           <div className={styles.heroSub}>
-            Live snapshot of customers, sales, production and finance —
+            Live snapshot of customers, projects and finance —
             auto-refreshing every 30 seconds.
           </div>
         </div>
@@ -269,7 +186,7 @@ export default function AdminDashboard() {
         <div className={styles.errorBanner}>⚠ {error}</div>
       )}
 
-      {/* 12-tile cinematic grid */}
+      {/* 7-tile cinematic grid */}
       <div className={styles.tilesGrid}>
         {TILES.map((tile, i) => (
           <CinematicTile
@@ -284,8 +201,8 @@ export default function AdminDashboard() {
 
       <div className={styles.footerHint}>
         Click any tile to jump into the module · Data sourced from
-        customer, quotation, sales_order, project, purchase_order,
-        inventory, attendance, leave_request, work_order, notification
+        customer, project, purchase_order, inventory, attendance,
+        leave_request, notification
       </div>
     </div>
   );

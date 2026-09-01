@@ -123,4 +123,4 @@ $plain = $null
 
 Write-Host ""
 Write-Host "Done. Start uvicorn now:" -ForegroundColor Cyan
-Write-Host "  .\venv\Scripts\python.exe -m uvicorn app.main:app --reload --reload-dir app --host 0.0.0.0 --port 8001" -ForegroundColor White
+Write-Host "  .\venv\Scripts\python.exe -m uvicorn app.main:app --reload --reload-dir app --host 0.0.0.0 --port 8000" -ForegroundColor White

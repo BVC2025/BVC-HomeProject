@@ -14,6 +14,8 @@ const EVENT_OPTIONS = [
   { value: "QUOTATION_DECISION", label: "Customer Quotation Approval / Rejection" },
   { value: "PO_REQUESTED", label: "Purchase Order Requested / Re-requested" },
   { value: "PO_UPLOADED", label: "Purchase Order Uploaded / Reuploaded" },
+  { value: "PRODUCTION_SCHEDULE_APPROVAL_NEEDED", label: "Production Schedule Awaiting Approval" },
+  { value: "PURCHASE_ORDER_APPROVAL_NEEDED", label: "Purchase Order Approval Needed (Low Stock Reorder)" },
 ];
 
 const LEAD_OWNER_ID = "__LEAD_OWNER__";

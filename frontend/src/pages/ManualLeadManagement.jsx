@@ -49,7 +49,21 @@ const LEAD_STATUS_OPTIONS = [
   { value: "REVISED_QUOTE_REJECTED", label: "Revised Quote Rejected" },
   { value: "PO_REQUESTED", label: "PO Requested" },
   { value: "PO_RECEIVED", label: "PO Received" },
+  { value: "PRODUCTION_SCHEDULED", label: "Production Scheduled" },
+  { value: "PRODUCTION_STARTED", label: "Production Started" },
 ];
+
+// Set automatically by the automatic production scheduling engine
+// (PRODUCTION_SCHEDULED when a schedule is approved, PRODUCTION_STARTED
+// once the scheduled start date arrives) — never a manual Status dropdown
+// selection. Backend independently blocks this too (lead_management.py's
+// _SYSTEM_ONLY_LEAD_STATUSES) — excluded here so the UI never offers a
+// selection the backend will reject. The existing PO_RECEIVED option is
+// already only offered "while the lead is exactly at PO_REQUESTED" (see
+// editStatusOptions below), so it naturally stops being offered the
+// moment a lead moves on to PRODUCTION_SCHEDULED/PRODUCTION_STARTED —
+// no extra rule needed for that half of the requirement.
+const _PRODUCTION_LIFECYCLE_STATUSES = new Set(["PRODUCTION_SCHEDULED", "PRODUCTION_STARTED"]);
 
 // Statuses reachable only once a quotation has actually been emailed to
 // the customer — convert_lead() sets LEAD_STATUS="CONVERTED" first and
@@ -57,12 +71,25 @@ const LEAD_STATUS_OPTIONS = [
 // succeeds (see lead_management.py:763-806), so CONVERTED alone does NOT
 // guarantee a quotation email went out (it could have failed to send).
 // The Quotations row-action icon is gated on this set so it never opens
-// on an empty "nothing sent yet" modal.
+// on an empty "nothing sent yet" modal. PRODUCTION_SCHEDULED/
+// PRODUCTION_STARTED are included too — both sit well after PO_RECEIVED
+// in the same lifecycle, so a quotation was definitely already sent by
+// then; omitting them here previously made the Quotations icon vanish
+// the moment a lead progressed that far, even though nothing about its
+// quotation history changed.
 const _QUOTATION_SENT_STATUSES = new Set([
   "QUOTE_APPROVAL_PENDING", "QUOTE_APPROVED", "QUOTE_REJECTED",
   "REVISED_QUOTE_APPROVAL_PENDING", "REVISED_QUOTE_APPROVED", "REVISED_QUOTE_REJECTED",
-  "PO_REQUESTED", "PO_RECEIVED",
+  "PO_REQUESTED", "PO_RECEIVED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED",
 ]);
+
+// A lead's Purchase Order stays viewable for every stage at or after
+// PO_RECEIVED — PRODUCTION_SCHEDULED/PRODUCTION_STARTED are later stages
+// of the exact same converted lifecycle, not a different one, so the
+// "View Purchase Order" row-action must not disappear once a lead
+// reaches either (mirrors the same fix in LeadDetailModal.jsx and
+// customer_payment.py's /by-customer endpoint).
+const _PO_RECEIVED_OR_LATER_STATUSES = new Set(["PO_RECEIVED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED"]);
 
 // These statuses only ever change as a side effect of the customer
 // clicking Accept/Reject on a quotation email, or the initial quotation
@@ -763,6 +790,7 @@ export default function ManualLeadManagement() {
       if (o.value === "PO_RECEIVED") return canConvert && selected?.LEAD_STATUS === "PO_REQUESTED";
       if (o.value === _REJECTED_TO_APPROVED_STATUS[form.LEAD_STATUS]) return canConvert;
       if (_QUOTE_LIFECYCLE_STATUSES.has(o.value)) return false;
+      if (_PRODUCTION_LIFECYCLE_STATUSES.has(o.value)) return false;
       return true;
     });
   }, [canConvert, form.LEAD_STATUS, selected]);
@@ -1317,7 +1345,7 @@ export default function ManualLeadManagement() {
                             <img src={QuotationIcon} alt="Quotations" />
                           </button>
                         )}
-                        {r.LEAD_STATUS === "PO_RECEIVED" && (
+                        {_PO_RECEIVED_OR_LATER_STATUSES.has(r.LEAD_STATUS) && (
                           <button className={styles.iconBtn} onClick={() => setPoModalLead(r)} title="View Purchase Order">
                             <img src={PurchaseOrderIcon} alt="Purchase Order" />
                           </button>

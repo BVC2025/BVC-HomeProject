@@ -2,17 +2,16 @@ import { useEffect, useState } from "react";
 
 import { useNavigate } from "react-router-dom";
 
-import API, { API_BASE_URL } from "../services/api";
+import API from "../services/api";
 
 import { formatISTTime } from "../utils/time";
 
-import { bomIconTileStyle } from "../utils/bomIcons";
 import styles from "./EntityDrawer.module.css";
 
 
 // ===================================================================
 // EntityDrawer — one reusable side-drawer that opens for ANY entity
-// (employee / project / work-order / supplier). Uses the /connect/*
+// (employee / project / supplier). Uses the /connect/*
 // 360° endpoints to fetch the full picture in one HTTP call, then
 // renders a tabbed view with cross-links into the matching module.
 //
@@ -36,11 +35,6 @@ const TYPE_CONFIG = {
     api: (id) => `/connect/project/${id}/360`,
     label: "Project 360°",
     accent: "#10b981"
-  },
-  "work-order": {
-    api: (id) => `/connect/work-order/${id}/360`,
-    label: "Work Order 360°",
-    accent: "#f59e0b"
   },
   supplier: {
     api: (id) => `/connect/supplier/${id}/360`,
@@ -118,8 +112,6 @@ function EmployeeView({ data, openEntity, navigate, onClose }) {
   const att = data?.today_attendance;
 
   const tasks = data?.active_tasks || [];
-
-  const stages = data?.active_production_stages || [];
 
   const scans = data?.recent_scans || [];
 
@@ -224,29 +216,6 @@ function EmployeeView({ data, openEntity, navigate, onClose }) {
         ))}
       </Section>
 
-      {stages.length > 0 && (
-        <Section title="Manufacturing Stages Assigned">
-          {stages.map((s, i) => (
-            <div
-              key={i}
-              className={styles.stageCard}
-              onClick={() => openEntity("work-order", s.WO_ID)}
-            >
-              <div className={styles.stageCardTitle}>
-                {s.STAGE_NAME}
-              </div>
-              <div className={styles.stageCardMeta}>
-                {s.WO_NUMBER} · {s.MODEL_NAME}
-                {" · "}
-                <Pill color={s.PROGRESS_STATUS === "DONE" ? "#10b981" : "#f59e0b"}>
-                  {s.PROGRESS_STATUS}
-                </Pill>
-              </div>
-            </div>
-          ))}
-        </Section>
-      )}
-
       {balance && (
         <Section title="Leave Balance">
           <div className={styles.statsGrid3}>
@@ -317,311 +286,11 @@ function EmployeeView({ data, openEntity, navigate, onClose }) {
 }
 
 
-// One BOM row in the Excel-style layout: image | item no | part name | qty.
-// Click the row (anywhere outside the image) to expand a supplier
-// picker / process stage info underneath. Image is rendered from
-// /static/bom/<file> served by the backend.
-function BomRow({ item, suppliers, savingId, updateSupplier }) {
-
-  const [expanded, setExpanded] = useState(false);
-
-  const isProcess = item.ITEM_TYPE === "PROCESS";
-
-  const imageUrl = item.IMAGE_URL
-    ? `${API_BASE_URL}${item.IMAGE_URL}`
-    : null;
-
-  return (
-
-    <>
-
-      <tr
-        onClick={() => setExpanded((v) => !v)}
-        className={styles.bomTr}
-        style={{ background: expanded ? "#f8fafc" : "white" }}
-      >
-
-        {/* Preview cell */}
-        <td className={styles.bomTdPreview}>
-          {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={item.MATERIAL_NAME}
-              className={styles.bomImg}
-            />
-          ) : (() => {
-
-            const tile = bomIconTileStyle(item.MATERIAL_NAME, 56);
-
-            return (
-
-              <div
-                style={tile.container}
-                title={tile.label}
-              >
-                {tile.icon}
-              </div>
-            );
-          })()}
-        </td>
-
-        {/* Item no */}
-        <td className={styles.bomTdItemNo}>
-          {item.ITEM_NO ?? "—"}
-        </td>
-
-        {/* Part number */}
-        <td className={styles.bomTdPart}>
-          <div className={styles.bomPartName}>
-            {item.MATERIAL_NAME}
-          </div>
-          <div className={styles.bomPartMeta}>
-            <span>{item.PER_UNIT_QUANTITY} {item.UNIT} per unit</span>
-            {isProcess && (
-              <span className={styles.bomTagProcess}>
-                IN-HOUSE
-              </span>
-            )}
-            {item.PREFERRED_SUPPLIER_NAME && (
-              <span className={styles.bomTagSupplier}>
-                🏢 {item.PREFERRED_SUPPLIER_NAME}
-              </span>
-            )}
-            <span className={styles.bomExpandHint}>
-              {expanded ? "▴ hide" : "▾ supplier"}
-            </span>
-          </div>
-        </td>
-
-        {/* Qty */}
-        <td className={styles.bomTdQty}>
-          {item.TOTAL_QUANTITY}
-        </td>
-
-      </tr>
-
-      {expanded && (
-        <tr className={styles.bomExpandRow}>
-          <td colSpan={4} className={styles.bomExpandCell}>
-            {isProcess ? (
-              <div className={styles.bomProcessText}>
-                <strong>Made in-house</strong> · Stage:{" "}
-                <span style={{ color: "var(--text-primary, #0f172a)" }}>
-                  {item.PROCESS_STAGE_NAME || "—"}
-                </span>
-              </div>
-            ) : (
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className={styles.bomSupplierRow}
-              >
-                <label className={styles.bomSupplierLabel}>
-                  Supplier:
-                </label>
-                <select
-                  value={item.PREFERRED_SUPPLIER_ID || ""}
-                  onChange={(e) => updateSupplier(item.ID, e.target.value)}
-                  disabled={savingId === item.ID}
-                  className={styles.bomSupplierSelect}
-                  style={{ background: savingId === item.ID ? "#f1f5f9" : "white" }}
-                >
-                  <option value="">— Pick supplier —</option>
-                  {suppliers.map((s) => (
-                    <option key={s.ID} value={s.ID}>
-                      {s.COMPANY_NAME}
-                      {s.SUPPLIER_CODE ? ` (${s.SUPPLIER_CODE})` : ""}
-                    </option>
-                  ))}
-                </select>
-                {savingId === item.ID && (
-                  <span className={styles.bomSavingText}>
-                    Saving…
-                  </span>
-                )}
-              </div>
-            )}
-          </td>
-        </tr>
-      )}
-
-    </>
-  );
-}
-
-
-function ProjectBomSection({
-  bom,
-  suppliers,
-  projectQuantity,
-  productLinked,
-  productModelId,
-  navigate,
-  onClose,
-  refresh
-}) {
-
-  const [savingId, setSavingId] = useState(null);
-
-  const [errorMsg, setErrorMsg] = useState(null);
-
-  const [seeding, setSeeding] = useState(false);
-
-  if (!productLinked) {
-
-    return null;
-  }
-
-  const seedDefaultBom = async () => {
-
-    if (!productModelId) return;
-
-    setSeeding(true);
-
-    setErrorMsg(null);
-
-    try {
-
-      await API.post(`/production/models/${productModelId}/seed-default-bom`);
-
-      if (refresh) refresh();
-
-    } catch (err) {
-
-      setErrorMsg(err?.response?.data?.detail || "Failed to seed BOM");
-
-    } finally {
-
-      setSeeding(false);
-    }
-  };
-
-  const updateSupplier = async (bomItemId, supplierId) => {
-
-    setSavingId(bomItemId);
-
-    setErrorMsg(null);
-
-    try {
-
-      await API.patch(`/production/bom/${bomItemId}`, {
-        PREFERRED_SUPPLIER_ID: supplierId ? Number(supplierId) : null
-      });
-
-      if (refresh) refresh();
-
-    } catch (err) {
-
-      setErrorMsg(err?.response?.data?.detail || "Failed to update supplier");
-
-    } finally {
-
-      setSavingId(null);
-    }
-  };
-
-  return (
-
-    <Section title={`Required BOM (rolled up × ${projectQuantity})`}>
-
-      {bom.length === 0 && (
-        <div className={styles.bomEmptyBox}>
-          This product has no BOM lines yet. You can auto-seed the
-          common vending-machine BOM (cabinet, motor, control board,
-          touchscreen, payment terminal, glass, etc.) — suppliers are
-          pre-linked where they match your supplier directory.
-
-          {errorMsg && (
-            <div className={styles.bomErrorBox}>
-              {errorMsg}
-            </div>
-          )}
-
-          <div className={styles.bomSeedActions}>
-            <button
-              onClick={seedDefaultBom}
-              disabled={seeding || !productModelId}
-              className={styles.bomSeedBtn}
-              style={{
-                background: seeding ? "#cbd5e1" : "#f59e0b",
-                cursor: seeding ? "default" : "pointer"
-              }}
-            >
-              {seeding ? "Seeding…" : "✨ Seed Common BOM"}
-            </button>
-            <button
-              onClick={() => { onClose(); navigate("/production"); }}
-              className={styles.bomManualBtn}
-            >
-              Or add manually →
-            </button>
-          </div>
-        </div>
-      )}
-
-      {bom.length > 0 && (
-        <div>
-
-          {errorMsg && (
-            <div className={styles.bomErrorBoxInline}>
-              {errorMsg}
-            </div>
-          )}
-
-          <div className={styles.bomHint}>
-            Excel-style BOM with image preview. Tap any row to expand
-            the supplier picker.
-          </div>
-
-          <table className={styles.bomTable}>
-            <thead>
-              <tr className={styles.bomTableHead}>
-                <th className={styles.bomThPreview}>
-                  Preview
-                </th>
-                <th className={styles.bomThItemNo}>
-                  Item No.
-                </th>
-                <th className={styles.bomThPart}>
-                  Part Number
-                </th>
-                <th className={styles.bomThQty}>
-                  Qty
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {bom.map((b) => (
-                <BomRow
-                  key={b.ID}
-                  item={b}
-                  suppliers={suppliers}
-                  savingId={savingId}
-                  updateSupplier={updateSupplier}
-                />
-              ))}
-            </tbody>
-          </table>
-
-          <div className={styles.bomNote}>
-            Note: supplier choice is saved on the product's BOM and applies
-            to every project using this product.
-          </div>
-
-        </div>
-      )}
-
-    </Section>
-  );
-}
-
-
 function ProjectView({ data, openEntity, navigate, onClose, refresh }) {
 
   const proj = data?.project || {};
 
   const customer = data?.customer;
-
-  const wos = data?.work_orders || [];
 
   const emps = data?.assigned_employees || [];
 
@@ -699,7 +368,6 @@ function ProjectView({ data, openEntity, navigate, onClose, refresh }) {
       </div>
 
       <div className={styles.statsGrid4}>
-        <StatTile label="Work Orders" value={wos.length} accent="#f59e0b" />
         <StatTile label="Tasks Total" value={stats.total ?? 0} accent="#3b82f6" />
         <StatTile label="Tasks Done" value={stats.completed ?? 0} accent="#10b981" />
         <StatTile label="Assigned" value={emps.length} sub="employees" accent="#6366f1" />
@@ -755,34 +423,6 @@ function ProjectView({ data, openEntity, navigate, onClose, refresh }) {
         </Section>
       )}
 
-      <Section title={`Work Orders (${wos.length})`}>
-        {wos.length === 0 && (
-          <div className={styles.emptyMsg}>No work orders yet.</div>
-        )}
-        {wos.map((wo) => (
-          <div
-            key={wo.ID}
-            onClick={() => openEntity("work-order", wo.ID)}
-            className={styles.taskCard}
-          >
-            <div className={styles.flexRow}>
-              <div>
-                <div className={styles.woHeroCode}>
-                  {wo.WO_NUMBER}
-                </div>
-                <div className={styles.taskCardTitle} style={{ marginTop: 2 }}>
-                  {wo.MODEL_NAME} × {wo.QUANTITY}
-                </div>
-              </div>
-              <Pill color={
-                wo.STATUS === "DONE" ? "#10b981" :
-                wo.STATUS === "IN_PROGRESS" ? "#f59e0b" : "#64748b"
-              }>{wo.STATUS}</Pill>
-            </div>
-          </div>
-        ))}
-      </Section>
-
       <Section title={`Assigned Employees (${emps.length})`}>
         <div className={styles.empChipWrap}>
           {emps.map((e) => (
@@ -797,25 +437,7 @@ function ProjectView({ data, openEntity, navigate, onClose, refresh }) {
         </div>
       </Section>
 
-      <ProjectBomSection
-        bom={data?.bom_rolled_up || []}
-        suppliers={data?.suppliers_for_picker || []}
-        projectQuantity={data?.project_quantity || 1}
-        productLinked={!!proj.PRODUCT_MODEL_ID}
-        productModelId={proj.PRODUCT_MODEL_ID}
-        navigate={navigate}
-        onClose={onClose}
-        refresh={refresh}
-      />
-
       <div className={styles.navRow}>
-        <button
-          onClick={() => { onClose(); navigate("/production"); }}
-          className={styles.navBtn}
-          style={{ background: "#f59e0b", boxShadow: "0 4px 12px #f59e0b66" }}
-        >
-          Production & BOM →
-        </button>
         <button
           onClick={() => { onClose(); navigate("/projects"); }}
           className={styles.navBtn}
@@ -829,173 +451,9 @@ function ProjectView({ data, openEntity, navigate, onClose, refresh }) {
 }
 
 
-function WorkOrderView({ data, openEntity, navigate, onClose }) {
-
-  const wo = data?.work_order || {};
-
-  const model = data?.machine_model;
-
-  const project = data?.project;
-
-  const bom = data?.bom || [];
-
-  const stages = data?.stages || [];
-
-  const inspections = data?.inspections || [];
-
-  const ncrs = data?.ncrs || [];
-
-  const stagesDone = stages.filter((s) => s.STATUS === "DONE").length;
-
-  const progressPct = stages.length ? Math.round((stagesDone / stages.length) * 100) : 0;
-
-  return (
-
-    <>
-      <div className={styles.woHero}>
-        <div className={styles.woHeroCode}>
-          {wo.WO_NUMBER}
-        </div>
-        <div className={styles.woHeroName}>
-          {model?.MODEL_NAME || "—"} × {wo.QUANTITY}
-        </div>
-        <div className={styles.woHeroPills}>
-          <Pill color={
-            wo.STATUS === "DONE" ? "#10b981" :
-            wo.STATUS === "IN_PROGRESS" ? "#f59e0b" : "#64748b"
-          }>{wo.STATUS}</Pill>
-          {model && <Pill color="#8b5cf6">{model.CATEGORY || "—"}</Pill>}
-        </div>
-      </div>
-
-      <div className={styles.statsGrid4}>
-        <StatTile label="Progress" value={`${progressPct}%`} sub={`${stagesDone}/${stages.length}`} accent="#10b981" />
-        <StatTile label="BOM Lines" value={bom.length} accent="#6366f1" />
-        <StatTile label="Inspections" value={inspections.length} accent="#3b82f6" />
-        <StatTile label="NCRs" value={ncrs.length} accent={ncrs.length ? "#ef4444" : "#94a3b8"} />
-      </div>
-
-      {project && (
-        <Section title="Project">
-          <button
-            onClick={() => openEntity("project", project.ID)}
-            className={styles.projLinkBtn}
-          >
-            <div className={styles.projLinkBtnName}>
-              📁 {project.PROJECT_NAME}
-            </div>
-            <div className={styles.projLinkBtnSub}>
-              Status: {project.STATUS}
-            </div>
-          </button>
-        </Section>
-      )}
-
-      <Section title={`Manufacturing Stages (${stages.length})`}>
-        {stages.map((s) => (
-          <div key={s.STAGE_ID} className={styles.stageSeqRow}>
-            <div
-              className={styles.stageSeqBadge}
-              style={{
-                background: s.STATUS === "DONE" ? "#dcfce7" : s.STATUS === "IN_PROGRESS" ? "#fef3c7" : "#f1f5f9",
-                color: s.STATUS === "DONE" ? "#166534" : s.STATUS === "IN_PROGRESS" ? "#854d0e" : "#475569"
-              }}
-            >
-              {s.SEQUENCE}
-            </div>
-            <div className={styles.flex1}>
-              <div className={styles.stageSeqName}>
-                {s.STAGE_NAME}
-              </div>
-              <div className={styles.stageSeqType}>
-                {s.STAGE_TYPE}
-                {s.ASSIGNED_TO_NAME && (
-                  <button
-                    onClick={() => openEntity("employee", s.ASSIGNED_TO_ID)}
-                    className={styles.stageAssignBtn}
-                  >
-                    · 👤 {s.ASSIGNED_TO_NAME}
-                  </button>
-                )}
-              </div>
-            </div>
-            <Pill color={
-              s.STATUS === "DONE" ? "#10b981" :
-              s.STATUS === "IN_PROGRESS" ? "#f59e0b" :
-              s.STATUS === "FAILED" ? "#ef4444" : "#64748b"
-            }>{s.STATUS}</Pill>
-          </div>
-        ))}
-      </Section>
-
-      <Section title={`BOM Rolled-up (×${wo.QUANTITY})`}>
-        {bom.length === 0 && <div className={styles.emptyMsg}>No BOM lines.</div>}
-        {bom.slice(0, 10).map((b) => (
-          <div key={b.ID} className={styles.bomRow}>
-            <span className={styles.bomRowName}>
-              {b.MATERIAL_NAME}
-              {b.SUPPLIER_NAME && (
-                <button
-                  onClick={() => openEntity("supplier", b.SUPPLIER_ID)}
-                  className={styles.bomSupplierBtn}
-                >
-                  · {b.SUPPLIER_NAME}
-                </button>
-              )}
-            </span>
-            <span className={styles.bomRowQty}>{b.TOTAL_FOR_WO} {b.UNIT}</span>
-            <Pill color={b.TYPE === "PURCHASE" ? "#3b82f6" : "#8b5cf6"}>{b.TYPE}</Pill>
-          </div>
-        ))}
-      </Section>
-
-      {ncrs.length > 0 && (
-        <Section title={`NCRs (${ncrs.length})`}>
-          {ncrs.map((n) => (
-            <div key={n.ID} className={styles.ncrCard}>
-              <div className={styles.ncrCardHead}>
-                <strong className={styles.ncrCode}>{n.NCR_NUMBER}</strong>
-                <Pill color={
-                  n.SEVERITY === "CRITICAL" ? "#991b1b" :
-                  n.SEVERITY === "MAJOR" ? "#b91c1c" : "#64748b"
-                }>{n.SEVERITY}</Pill>
-              </div>
-              <div className={styles.ncrCheckpoint}>{n.CHECK_POINT}</div>
-            </div>
-          ))}
-        </Section>
-      )}
-
-      <div className={styles.navRow}>
-        <button
-          onClick={() => { onClose(); navigate("/production"); }}
-          className={styles.navBtn}
-          style={{ background: "#f59e0b", boxShadow: "0 4px 12px #f59e0b66" }}
-        >
-          Production →
-        </button>
-        <button
-          onClick={() => { onClose(); navigate("/quality"); }}
-          className={styles.navBtn}
-          style={{ background: "#10b981", boxShadow: "0 4px 12px #10b98166" }}
-        >
-          Quality →
-        </button>
-      </div>
-    </>
-  );
-}
-
-
-function SupplierView({ data, openEntity, navigate, onClose }) {
+function SupplierView({ data, navigate, onClose }) {
 
   const sup = data?.supplier || {};
-
-  const models = data?.models_supplied || [];
-
-  const activeWOs = data?.active_work_orders_needing_supplier || [];
-
-  const sum = data?.summary || {};
 
   return (
 
@@ -1013,12 +471,6 @@ function SupplierView({ data, openEntity, navigate, onClose }) {
         </div>
       </div>
 
-      <div className={styles.statsGrid3}>
-        <StatTile label="Models" value={sum.models_count ?? 0} sub="supplied" accent="#6366f1" />
-        <StatTile label="BOM Lines" value={sum.total_bom_lines ?? 0} accent="#3b82f6" />
-        <StatTile label="Active WOs" value={sum.active_wos_count ?? 0} sub="need parts" accent="#f59e0b" />
-      </div>
-
       <Section title="Contact & KYC">
         <div className={styles.supContactGrid}>
           <div>👤 {sup.CONTACT_PERSON || "—"}</div>
@@ -1031,38 +483,6 @@ function SupplierView({ data, openEntity, navigate, onClose }) {
           <div>💳 {sup.PAYMENT_TERMS || "—"}</div>
         </div>
       </Section>
-
-      <Section title={`Models Using This Supplier (${models.length})`}>
-        {models.map((m) => (
-          <div key={m.MODEL_ID} className={styles.supModelCard}>
-            <div className={styles.supModelName}>{m.MODEL_NAME}</div>
-            <div className={styles.supModelCode}>
-              {m.MODEL_CODE}
-            </div>
-            {m.parts.map((p, i) => (
-              <div key={i} className={styles.supModelPart}>
-                · {p.MATERIAL_NAME} ({p.QUANTITY} {p.UNIT})
-              </div>
-            ))}
-          </div>
-        ))}
-      </Section>
-
-      {activeWOs.length > 0 && (
-        <Section title="Active Work Orders Depending On This Supplier">
-          {activeWOs.map((wo) => (
-            <div
-              key={wo.WO_ID}
-              onClick={() => openEntity("work-order", wo.WO_ID)}
-              className={styles.activeWoChip}
-            >
-              <strong className={styles.activeWoCode}>{wo.WO_NUMBER}</strong>
-              {" · "}{wo.MODEL_NAME} × {wo.QUANTITY}{" · "}
-              <Pill color="#f59e0b">{wo.STATUS}</Pill>
-            </div>
-          ))}
-        </Section>
-      )}
 
       <div className={styles.navRow}>
         <button
@@ -1237,15 +657,6 @@ export default function EntityDrawer({ open, type, id, onClose }) {
             navigate={navigate}
             onClose={onClose}
             refresh={() => fetchData(currentType, currentId)}
-          />
-        )}
-
-        {!loading && data && !data.error && currentType === "work-order" && (
-          <WorkOrderView
-            data={data}
-            openEntity={openEntity}
-            navigate={navigate}
-            onClose={onClose}
           />
         )}
 

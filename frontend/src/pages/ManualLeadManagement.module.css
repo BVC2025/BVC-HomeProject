@@ -247,6 +247,18 @@
   border-color: rgba(22, 163, 74, 0.2);
 }
 
+.statusPill[data-status="PRODUCTION_SCHEDULED"] {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+  border-color: rgba(37, 99, 235, 0.2);
+}
+
+.statusPill[data-status="PRODUCTION_STARTED"] {
+  background: rgba(13, 148, 136, 0.1);
+  color: #0d9488;
+  border-color: rgba(13, 148, 136, 0.2);
+}
+
 /* Generic quotation-record status (CustomerProjectQuotation.QUOTATION_STATUS
    — PENDING/APPROVED/REJECTED), used inside the Lead Quotation modal's
    table. Same color language as the QUOTE_ and REVISED_QUOTE_ Lead statuses

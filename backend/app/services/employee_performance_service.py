@@ -8,8 +8,6 @@ Pure, read-only computations over the existing operational tables:
                        (TASK_STATUS, START_TIME, END_TIME, DUE_DATE)
   - Attendance      -- one row per (employee, date)
                        (STATUS in PRESENT / LATE / ABSENT / HALF_DAY)
-  - WorkOrderStageProgress -- shop-floor stage work (STATUS,
-                       STARTED_AT, COMPLETED_AT, ASSIGNED_TO_ID)
 
 The functions in this module never write to the database; they only
 read. All time-dependent calls (date.today / datetime.utcnow) are kept
@@ -39,7 +37,6 @@ from app.models.models import (
     Attendance,
     Employee,
     TaskAssignment,
-    WorkOrderStageProgress,
 )
 
 
@@ -54,9 +51,6 @@ _COMPLETED_STATUSES = ("COMPLETED", "DONE")
 _IN_PROGRESS_STATUSES = ("IN_PROGRESS",)
 _PENDING_STATUSES = ("PENDING",)
 _ON_HOLD_STATUSES = ("ON_HOLD",)
-
-# Stage-progress equivalents on the production side.
-_STAGE_COMPLETED_STATUSES = ("DONE", "COMPLETED")
 
 
 def _safe_div(num: float, den: float) -> float:
@@ -292,56 +286,9 @@ def compute_performance(
     #
     # TaskAssignment.PROJECT_ID (the project_legacy FK) was removed
     # along with CustomerProject — there is no remaining way to group
-    # task assignments by project, so this always falls to the "no
-    # projects" branch now.
+    # task assignments by project, so this is always 0 now.
     # -----------------------------------------------------------------
-    project_ids = set()
-
-    if project_ids:
-        project_total_completed = (
-            db.query(func.count(TaskAssignment.TASK_ID))
-            .filter(
-                TaskAssignment.PROJECT_ID.in_(project_ids),
-                func.upper(TaskAssignment.TASK_STATUS).in_(
-                    _COMPLETED_STATUSES
-                ),
-                or_(
-                    TaskAssignment.ASSIGNED_DATE >= window_start,
-                    TaskAssignment.ASSIGNED_DATE.is_(None),
-                ),
-            )
-            .scalar()
-        ) or 0
-
-        project_contribution_pct = round(
-            _safe_div(tasks_completed, project_total_completed) * 100.0,
-            2,
-        )
-    else:
-        project_contribution_pct = 0.0
-
-    # Fold in shop-floor stage completions as a bonus to project
-    # contribution -- they don't live in TaskAssignment but they ARE
-    # real work delivered by the employee.
-    stage_completed = (
-        db.query(func.count(WorkOrderStageProgress.ID))
-        .filter(
-            WorkOrderStageProgress.ASSIGNED_TO_ID == employee_id,
-            func.upper(WorkOrderStageProgress.STATUS).in_(
-                _STAGE_COMPLETED_STATUSES
-            ),
-            WorkOrderStageProgress.COMPLETED_AT.isnot(None),
-            WorkOrderStageProgress.COMPLETED_AT >= datetime.combine(
-                window_start, datetime.min.time()
-            ),
-        )
-        .scalar()
-    ) or 0
-
-    # If they've only done stage work (no task assignments in projects),
-    # surface that as 100% contribution to their own slice.
-    if project_contribution_pct == 0.0 and stage_completed > 0:
-        project_contribution_pct = 100.0
+    project_contribution_pct = 0.0
 
     # -----------------------------------------------------------------
     # Productivity score

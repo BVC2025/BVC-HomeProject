@@ -33,6 +33,15 @@ log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/customer-payments", tags=["Customer Payments"])
 
+# A Lead's payment/production data becomes meaningful once its PO is
+# received — and stays meaningful for every later stage of the lifecycle.
+# PRODUCTION_SCHEDULED/PRODUCTION_STARTED are automatically set well after
+# PO_RECEIVED by the production scheduling engine (production_scheduling_
+# service.py) — a Lead sitting at either of those must still show up here
+# exactly like one still at PO_RECEIVED, since it's simply further along
+# the SAME converted lifecycle, not a different one.
+_PO_RECEIVED_OR_LATER_STATUSES = {"PO_RECEIVED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED"}
+
 
 def _serialize_payment(p: CustomerProjectPayment) -> dict:
     return {
@@ -64,21 +73,27 @@ def _payment_status_label(accepted_amount, total_paid, remaining_balance) -> str
 @router.get("/by-customer/{customer_id}", dependencies=[Depends(require("customer.payments.view"))])
 def get_customer_payments(customer_id: str, vendor_id: Optional[int] = Query(None), db: Session = Depends(get_db)):
     """Every Lead/Project assignment for this customer whose Lead has
-    reached PO_RECEIVED, with accepted quotation amount, payment summary,
-    and the payment record list — powers the /customer-payments page once
-    a customer is selected.
+    reached PO_RECEIVED **or any later stage of the same lifecycle**
+    (PRODUCTION_SCHEDULED/PRODUCTION_STARTED), with accepted quotation
+    amount, payment summary, and the payment record list — powers the
+    /customer-payments page once a customer is selected, and (via the
+    same customerPaymentService.getByCustomer() call) the Lead/Project
+    picker on /customer-task-timeline too.
 
     Scoped two ways, both required:
       - vendor isolation: the resolved Customer (and, defensively, every
         assignment row) must belong to the requested vendor.
       - lifecycle gating: an assignment is only surfaced once its driving
-        Lead has actually reached PO_RECEIVED — a Lead still mid-quotation
-        (or anywhere earlier in the pipeline) has no meaningful payment
-        data yet and previously showed up here as a confusing, empty-looking
-        "extra" record. Assignments with no linked Lead (LEAD_ID is
+        Lead has actually reached PO_RECEIVED-or-later — a Lead still
+        mid-quotation (or anywhere earlier in the pipeline) has no
+        meaningful payment data yet and previously showed up here as a
+        confusing, empty-looking "extra" record. An exact `== "PO_RECEIVED"`
+        check would incorrectly DROP a Lead the moment it progresses to
+        PRODUCTION_SCHEDULED/PRODUCTION_STARTED — exactly the bug this set
+        membership check fixes. Assignments with no linked Lead (LEAD_ID is
         nullable — see CustomerProjectAssignment's own model comment) are
         excluded for the same reason: there's no Lead lifecycle to confirm
-        PO_RECEIVED against."""
+        PO_RECEIVED-or-later against."""
     q = db.query(Customer).filter(Customer.ID == customer_id)
     if vendor_id is not None:
         q = q.filter(Customer.VENDOR_ID == vendor_id)
@@ -94,7 +109,7 @@ def get_customer_payments(customer_id: str, vendor_id: Optional[int] = Query(Non
     rows = []
     for assignment in assignments:
         lead = db.query(Lead).filter(Lead.ID == assignment.LEAD_ID).first() if assignment.LEAD_ID else None
-        if not lead or lead.LEAD_STATUS != "PO_RECEIVED":
+        if not lead or lead.LEAD_STATUS not in _PO_RECEIVED_OR_LATER_STATUSES:
             continue
 
         project = db.query(Project).filter(Project.ID == assignment.PROJECT_ID).first()

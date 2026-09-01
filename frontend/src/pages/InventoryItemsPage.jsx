@@ -6,6 +6,9 @@ import {
   PMButton, PMConfirmModal, PMSelect,
 } from "../components/pm";
 import { inventoryItemService } from "../services/inventoryItemService";
+import { productMasterService } from "../services/productMasterService";
+import { customerMasterService } from "../services/customerMasterService";
+import { projectService } from "../services/projectService";
 import { useToast } from "../hooks/useToast";
 import { useCustomFields, useTableCfValues } from "../hooks/useCustomFields";
 import { exportToExcel, downloadTemplate as dlTemplate } from "../utils/exportExcel";
@@ -16,6 +19,12 @@ import DeleteIcon from "../assets/Icons/deleteIcon.webp";
 import UploadIcon from "../assets/Icons/uploadIcon.webp";
 import styles from "./InventoryItemsPage.module.css";
 import { validateForm, clearFieldError, ITEM_RULES, BATCH_RULES, BATCH_EDIT_RULES } from "../utils/formValidation";
+
+// Custom Field values for this page's rows are stored under table name
+// "inventory_stock" — matching the backend's own _cf_fields_for_table()
+// calls in inventory_items.py (InventoryStock is what these rows are;
+// the old InventoryItem table this used to be keyed to no longer exists).
+const CF_TABLE = "inventory_stock";
 
 const MOVEMENT_TYPES = [
   { value: "STOCK_IN", label: "Stock In" },
@@ -36,17 +45,30 @@ const STATUS_OPTIONS = [
   { value: "OVERSTOCK", label: "Overstock" },
 ];
 
-const ITEM_EMPTY_FORM = {
-  PRODUCT_ID: "", LOCATION: "", BATCH_TRACKING: false,
-  REORDER_LEVEL: 0, REORDER_QTY: 0, SAFETY_STOCK: 0, MAX_STOCK: 0,
-};
+const BATCH_STATUS_OPTIONS = [
+  { value: "ACTIVE", label: "Active" },
+  { value: "CONSUMED", label: "Consumed" },
+  { value: "EXPIRED", label: "Expired" },
+  { value: "RETURNED", label: "Returned" },
+];
+
+// InventoryStock now sits directly on ProductMaster — one row per
+// product, holding only Min/Max Qty thresholds (LOCATION/BATCH_TRACKING/
+// REORDER_QTY/SAFETY_STOCK/MAX_STOCK all belonged to the removed
+// InventoryItem table and no longer exist anywhere).
+const ITEM_EMPTY_FORM = { PRODUCT_ID: "", MIN_QTY: 0, MAX_QTY: "" };
 
 const STOCK_OP_EMPTY = { QTY: "", REASON: "", BATCH_ID: "" };
 
+// A manual batch now requires a Product (not an InventoryItem) plus at
+// least one of DC_FILE_URL / INVOICE_FILE_URL (enforced by the backend).
 const BATCH_EMPTY_FORM = {
-  INVENTORY_ITEM_ID: "", BATCH_NUMBER: "", LOT_NUMBER: "",
-  MFG_DATE: "", EXPIRY_DATE: "", QTY_RECEIVED: 0, UNIT_COST: 0,
+  PRODUCT_ID: "", BATCH_NUMBER: "", LOT_NUMBER: "",
+  RECEIVED_DATE: "", MANUFACTURING_DATE: "", EXPIRY_DATE: "",
+  QTY_RECEIVED: 0, UNIT_COST: 0, DC_FILE_URL: "", INVOICE_FILE_URL: "",
 };
+
+const BATCH_EDIT_EMPTY_FORM = { STATUS: "ACTIVE", QTY_REMAINING: 0, NOTES: "" };
 
 const TABS = [
   { key: "items", label: "Items" },
@@ -84,6 +106,9 @@ function isExpired(expiry) {
 export default function InventoryItemsPage() {
   const [activeTab, setActiveTab] = useState("items");
 
+  // Shared product picker (Items + Batches "Add" forms)
+  const [products, setProducts] = useState([]);
+
   // Items
   const [items, setItems] = useState([]);
   const [itemsLoading, setItemsLoading] = useState(true);
@@ -117,7 +142,14 @@ export default function InventoryItemsPage() {
   const [movLoading, setMovLoading] = useState(false);
   const [movSearch, setMovSearch] = useState("");
   const [movTypeFilter, setMovTypeFilter] = useState("");
+  const [movProductFilter, setMovProductFilter] = useState("");
+  const [movCustomerFilter, setMovCustomerFilter] = useState("");
+  const [movProjectFilter, setMovProjectFilter] = useState("");
+  const [movFilterFrom, setMovFilterFrom] = useState("");
+  const [movFilterTo, setMovFilterTo] = useState("");
   const [movPage, setMovPage] = useState(1);
+  const [customers, setCustomers] = useState([]);
+  const [projects, setProjects] = useState([]);
 
   // Batches
   const [batches, setBatches] = useState([]);
@@ -127,6 +159,7 @@ export default function InventoryItemsPage() {
   const [batchModal, setBatchModal] = useState(null); // null | "add" | "edit"
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [batchForm, setBatchForm] = useState(BATCH_EMPTY_FORM);
+  const [batchEditForm, setBatchEditForm] = useState(BATCH_EDIT_EMPTY_FORM);
   const [batchErrors, setBatchErrors] = useState({});
   const [batchSaving, setBatchSaving] = useState(false);
 
@@ -137,10 +170,23 @@ export default function InventoryItemsPage() {
     fields: cfFields, cfValues, handleCfChange,
     loadValues: loadCfValues, resetValues: resetCfValues,
     validateCf, saveCfValues, refreshFields,
-  } = useCustomFields("inventory_item");
-  const cfValuesMap = useTableCfValues("inventory_item", items);
+  } = useCustomFields(CF_TABLE);
+  const cfValuesMap = useTableCfValues(CF_TABLE, items);
 
   useEffect(() => { if (!cfOpen) refreshFields(); }, [cfOpen, refreshFields]);
+
+  // ── Product picker (Items "Add"/"Edit" + Batches "Add") ─────────────────
+  useEffect(() => {
+    productMasterService.getAll({ page_size: 5000 }).then((res) => {
+      const d = res.data;
+      setProducts(Array.isArray(d) ? d : (d?.items || []));
+    }).catch(() => { /* picker just stays empty */ });
+  }, []);
+
+  const productOptions = useMemo(
+    () => products.map((p) => ({ value: p.ID, label: `${p.PRODUCT_CODE} — ${p.PRODUCT_NAME}` })),
+    [products]
+  );
 
   // ── Loaders ────────────────────────────────────────────────────────────
   const loadItems = useCallback(async (silent = false) => {
@@ -160,7 +206,14 @@ export default function InventoryItemsPage() {
   const loadMovements = useCallback(async () => {
     setMovLoading(true);
     try {
-      const res = await inventoryItemService.getMovements({ page_size: 5000 });
+      const params = { page_size: 5000 };
+      if (movTypeFilter) params.movement_type = movTypeFilter;
+      if (movProductFilter) params.product_id = movProductFilter;
+      if (movCustomerFilter) params.customer_id = movCustomerFilter;
+      if (movProjectFilter) params.project_id = movProjectFilter;
+      if (movFilterFrom) params.from_date = movFilterFrom;
+      if (movFilterTo) params.to_date = movFilterTo;
+      const res = await inventoryItemService.getMovements(params);
       const d = res.data;
       setMovements(Array.isArray(d) ? d : (d?.items || []));
     } catch {
@@ -168,7 +221,7 @@ export default function InventoryItemsPage() {
     } finally {
       setMovLoading(false);
     }
-  }, []);
+  }, [movTypeFilter, movProductFilter, movCustomerFilter, movProjectFilter, movFilterFrom, movFilterTo]);
 
   const loadBatches = useCallback(async () => {
     setBatchLoading(true);
@@ -193,12 +246,28 @@ export default function InventoryItemsPage() {
     if (activeTab === "movements" && !fetchedRef.current.movements) {
       fetchedRef.current.movements = true;
       loadMovements();
+      customerMasterService.getAll().then((res) => {
+        setCustomers(res.data?.rows || res.data || []);
+      }).catch(() => {});
+      projectService.getAll().then((res) => {
+        setProjects(res.data || []);
+      }).catch(() => {});
     }
     if (activeTab === "batches" && !fetchedRef.current.batches) {
       fetchedRef.current.batches = true;
       loadBatches();
     }
   }, [activeTab, loadItems, loadMovements, loadBatches]);
+
+  // Re-fetch movements (server-side filtered) whenever a movement filter
+  // changes, while the tab is active — mirrors the showExpiringSoon ->
+  // loadBatches effect below.
+  useEffect(() => {
+    if (activeTab === "movements") {
+      setMovPage(1);
+      loadMovements();
+    }
+  }, [movTypeFilter, movProductFilter, movCustomerFilter, movProjectFilter, movFilterFrom, movFilterTo]);
 
   useEffect(() => {
     if (activeTab === "batches") {
@@ -207,34 +276,42 @@ export default function InventoryItemsPage() {
     }
   }, [showExpiringSoon]);
 
+  const customerOptions = useMemo(
+    () => customers.map((c) => ({ value: c.ID, label: c.COMPANY_NAME ? `${c.NAME} — ${c.COMPANY_NAME}` : c.NAME })),
+    [customers]
+  );
+  const projectOptions = useMemo(
+    () => projects.map((p) => ({ value: p.ID, label: p.NAME })),
+    [projects]
+  );
+
   const handleRefresh = useCallback(() => {
     if (activeTab === "items") { fetchedRef.current.items = false; loadItems(true); }
-    if (activeTab === "movements") { fetchedRef.current.movements = false; loadMovements(); }
+    if (activeTab === "movements") { loadMovements(); }
     if (activeTab === "batches") { fetchedRef.current.batches = false; loadBatches(); }
   }, [activeTab, loadItems, loadMovements, loadBatches]);
 
   // ── Derived ─────────────────────────────────────────────────────────────
-  const lowStockItems = useMemo(() => items.filter((i) => i.stock?.STATUS === "LOW_STOCK" || i.STATUS === "LOW_STOCK"), [items]);
-  const outOfStockItems = useMemo(() => items.filter((i) => i.stock?.STATUS === "OUT_OF_STOCK" || i.STATUS === "OUT_OF_STOCK"), [items]);
+  const lowStockItems = useMemo(() => items.filter((i) => i.STATUS === "LOW_STOCK"), [items]);
+  const outOfStockItems = useMemo(() => items.filter((i) => i.STATUS === "OUT_OF_STOCK"), [items]);
 
   const filteredItems = useMemo(() => {
     let list = items;
-    if (filterStatus) list = list.filter((i) => (i.stock?.STATUS || i.STATUS) === filterStatus);
+    if (filterStatus) list = list.filter((i) => i.STATUS === filterStatus);
     if (itemSearch.trim()) {
       const t = itemSearch.toLowerCase();
       list = list.filter(
         (i) =>
-          (i.product?.PRODUCT_NAME || "").toLowerCase().includes(t) ||
-          (i.product?.PRODUCT_CODE || "").toLowerCase().includes(t) ||
-          (i.LOCATION || "").toLowerCase().includes(t)
+          (i.PRODUCT_NAME || "").toLowerCase().includes(t) ||
+          (i.PRODUCT_CODE || "").toLowerCase().includes(t)
       );
     }
     if (itemFilterFrom || itemFilterTo) {
       const from = itemFilterFrom ? new Date(itemFilterFrom) : null;
       const to = itemFilterTo ? new Date(itemFilterTo) : null;
       list = list.filter((i) => {
-        if (!i.CREATED_AT) return false;
-        const d = new Date(i.CREATED_AT);
+        if (!i.UPDATED_AT) return false;
+        const d = new Date(i.UPDATED_AT);
         if (from && d < from) return false;
         if (to && d > to) return false;
         return true;
@@ -250,17 +327,18 @@ export default function InventoryItemsPage() {
 
   const filteredMovements = useMemo(() => {
     let list = movements;
-    if (movTypeFilter) list = list.filter((m) => m.MOVEMENT_TYPE === movTypeFilter);
     if (movSearch.trim()) {
       const t = movSearch.toLowerCase();
       list = list.filter(
         (m) =>
-          (m.item?.product?.PRODUCT_NAME || "").toLowerCase().includes(t) ||
-          (m.REFERENCE_TYPE || "").toLowerCase().includes(t)
+          (m.PRODUCT_NAME || "").toLowerCase().includes(t) ||
+          (m.PRODUCT_CODE || "").toLowerCase().includes(t) ||
+          (m.REFERENCE_TYPE || "").toLowerCase().includes(t) ||
+          (m.reference_detail?.label || "").toLowerCase().includes(t)
       );
     }
     return list;
-  }, [movements, movTypeFilter, movSearch]);
+  }, [movements, movSearch]);
 
   const movPaginated = useMemo(
     () => filteredMovements.slice((movPage - 1) * 25, movPage * 25),
@@ -274,7 +352,7 @@ export default function InventoryItemsPage() {
 
   const itemStats = useMemo(() => [
     { value: items.length, label: "Total Items" },
-    { value: items.filter((i) => (i.stock?.STATUS || i.STATUS) === "IN_STOCK").length, label: "In Stock" },
+    { value: items.filter((i) => i.STATUS === "IN_STOCK").length, label: "In Stock" },
     { value: lowStockItems.length, label: "Low Stock" },
     { value: outOfStockItems.length, label: "Out of Stock" },
   ], [items, lowStockItems, outOfStockItems]);
@@ -290,12 +368,8 @@ export default function InventoryItemsPage() {
   const openEdit = useCallback((item) => {
     setItemForm({
       PRODUCT_ID: item.PRODUCT_ID || "",
-      LOCATION: item.LOCATION || "",
-      BATCH_TRACKING: item.BATCH_TRACKING || false,
-      REORDER_LEVEL: item.REORDER_LEVEL ?? 0,
-      REORDER_QTY: item.REORDER_QTY ?? 0,
-      SAFETY_STOCK: item.SAFETY_STOCK ?? 0,
-      MAX_STOCK: item.MAX_STOCK ?? 0,
+      MIN_QTY: item.MIN_QTY ?? 0,
+      MAX_QTY: item.MAX_QTY != null ? item.MAX_QTY : "",
     });
     setSelectedItem(item);
     setModal("edit");
@@ -321,22 +395,24 @@ export default function InventoryItemsPage() {
   const handleSaveItem = useCallback(async () => {
     const { isValid: itemValid, errors: itemValidErrors } = validateForm(ITEM_RULES, itemForm);
     if (!itemValid) {
-      const errCopy = { ...itemValidErrors };
-      if (errCopy._STOCK_LEVELS) { delete errCopy._STOCK_LEVELS; errCopy._stockCrossField = itemValidErrors._STOCK_LEVELS; }
-      setItemErrors(errCopy);
+      setItemErrors(itemValidErrors);
       return;
     }
     const cfError = validateCf();
     if (cfError) { toast.showWarning(cfError); return; }
     setItemSaving(true);
     try {
+      const payload = { MIN_QTY: itemForm.MIN_QTY === "" ? 0 : Number(itemForm.MIN_QTY) };
+      if (itemForm.MAX_QTY !== "" && itemForm.MAX_QTY !== null && itemForm.MAX_QTY !== undefined) {
+        payload.MAX_QTY = Number(itemForm.MAX_QTY);
+      }
       if (modal === "add") {
-        const res = await inventoryItemService.create(itemForm);
+        const res = await inventoryItemService.create({ ...payload, PRODUCT_ID: itemForm.PRODUCT_ID });
         const newId = res.data?.ID;
         if (newId) await saveCfValues(newId);
         toast.showSuccess("Inventory item added");
       } else {
-        await inventoryItemService.update(selectedItem.ID, itemForm);
+        await inventoryItemService.update(selectedItem.ID, payload);
         await saveCfValues(selectedItem.ID);
         toast.showSuccess("Item updated");
       }
@@ -352,7 +428,7 @@ export default function InventoryItemsPage() {
   const handleDeleteItem = useCallback((item) => {
     setConfirmModal({
       title: "Delete Inventory Item",
-      description: `Delete "${item.product?.PRODUCT_NAME || item.ID}" from inventory? This cannot be undone.`,
+      description: `Delete "${item.PRODUCT_NAME || item.ID}" from inventory? This cannot be undone.`,
       onConfirm: async () => {
         try {
           await inventoryItemService.remove(item.ID);
@@ -380,18 +456,17 @@ export default function InventoryItemsPage() {
     setStockSaving(true);
     try {
       const payload = {
-        INVENTORY_ITEM_ID: item.ID,
+        PRODUCT_ID: item.PRODUCT_ID,
         QTY: parseFloat(stockForm.QTY),
-        REASON: stockForm.REASON,
+        REASON: stockForm.REASON || undefined,
         BATCH_ID: stockForm.BATCH_ID || undefined,
       };
       if (type === "in") await inventoryItemService.stockIn(payload);
       else if (type === "out") await inventoryItemService.stockOut(payload);
-      else if (type === "adjust") await inventoryItemService.stockAdjust({ ...payload, ADJUSTMENT_QTY: parseFloat(stockForm.QTY) });
+      else if (type === "adjust") await inventoryItemService.stockAdjust(payload);
       toast.showSuccess(`Stock ${type === "in" ? "added" : type === "out" ? "removed" : "adjusted"} successfully`);
       setStockModal(null);
       fetchedRef.current.items = false;
-      fetchedRef.current.movements = false;
       loadItems(true);
     } catch (e) {
       toast.showError(e?.response?.data?.detail || "Stock operation failed");
@@ -405,14 +480,14 @@ export default function InventoryItemsPage() {
     const data = filteredItems.map((item, i) => {
       const row = {
         "S.No": i + 1,
-        "Product Code": item.product?.PRODUCT_CODE || "",
-        "Product Name": item.product?.PRODUCT_NAME || "",
-        Location: item.LOCATION || "",
-        "Current Qty": item.stock?.CURRENT_QTY ?? 0,
-        "Available Qty": item.stock?.AVAILABLE_QTY ?? 0,
-        "Unit Cost": item.stock?.UNIT_COST ?? 0,
-        "Reorder Level": item.REORDER_LEVEL ?? 0,
-        Status: item.stock?.STATUS || item.STATUS || "",
+        "Product Code": item.PRODUCT_CODE || "",
+        "Product Name": item.PRODUCT_NAME || "",
+        Unit: item.UNIT || "",
+        "Current Qty": item.CURRENT_QTY ?? 0,
+        "Min Qty": item.MIN_QTY ?? 0,
+        "Max Qty": item.MAX_QTY ?? "",
+        Status: item.STATUS || "",
+        "Updated At": item.UPDATED_AT || "",
       };
       cfFields.forEach((f) => {
         const val = cfValuesMap[String(item.ID)]?.[f.ID];
@@ -437,7 +512,7 @@ export default function InventoryItemsPage() {
 
   const handleDownloadTemplate = useCallback(async () => {
     const headers = [
-      "Product Code", "Location", "Reorder Level", "Reorder Qty", "Safety Stock", "Max Stock",
+      "Product Code", "Min Qty", "Max Qty",
       ...cfFields.map((f) => f.FIELD_NAME),
     ];
     await dlTemplate("InventoryItems", headers, "inventory_items_template");
@@ -464,28 +539,72 @@ export default function InventoryItemsPage() {
   }, [loadItems, toast]);
 
   // ── Batches ────────────────────────────────────────────────────────────
+  const openAddBatch = useCallback(() => {
+    setBatchForm(BATCH_EMPTY_FORM);
+    setSelectedBatch(null);
+    setBatchModal("add");
+    setBatchErrors({});
+  }, []);
+
+  const openEditBatch = useCallback((b) => {
+    setBatchEditForm({
+      STATUS: b.STATUS || "ACTIVE",
+      QTY_REMAINING: b.QTY_REMAINING ?? 0,
+      NOTES: b.NOTES || "",
+    });
+    setSelectedBatch(b);
+    setBatchModal("edit");
+    setBatchErrors({});
+  }, []);
+
   const handleSaveBatch = useCallback(async () => {
-    const batchRules = batchModal === "add" ? BATCH_RULES : BATCH_EDIT_RULES;
-    const { isValid: batchValid, errors: batchValidErrors } = validateForm(batchRules, batchForm);
-    if (!batchValid) { setBatchErrors(batchValidErrors); return; }
-    setBatchSaving(true);
-    try {
-      if (batchModal === "add") {
-        await inventoryItemService.createBatch(batchForm);
+    if (batchModal === "add") {
+      const { isValid, errors } = validateForm(BATCH_RULES, batchForm);
+      if (!isValid) { setBatchErrors(errors); return; }
+      setBatchSaving(true);
+      try {
+        await inventoryItemService.createBatch({
+          PRODUCT_ID: batchForm.PRODUCT_ID,
+          BATCH_NUMBER: batchForm.BATCH_NUMBER,
+          LOT_NUMBER: batchForm.LOT_NUMBER || undefined,
+          RECEIVED_DATE: batchForm.RECEIVED_DATE || undefined,
+          MANUFACTURING_DATE: batchForm.MANUFACTURING_DATE || undefined,
+          EXPIRY_DATE: batchForm.EXPIRY_DATE || undefined,
+          QTY_RECEIVED: parseFloat(batchForm.QTY_RECEIVED) || 0,
+          UNIT_COST: batchForm.UNIT_COST === "" ? undefined : parseFloat(batchForm.UNIT_COST),
+          DC_FILE_URL: batchForm.DC_FILE_URL || undefined,
+          INVOICE_FILE_URL: batchForm.INVOICE_FILE_URL || undefined,
+        });
         toast.showSuccess("Batch created");
-      } else {
-        await inventoryItemService.updateBatch(selectedBatch.ID, batchForm);
-        toast.showSuccess("Batch updated");
+        setBatchModal(null);
+        fetchedRef.current.batches = false;
+        loadBatches();
+      } catch (e) {
+        toast.showError(e?.response?.data?.detail || "Save failed");
+      } finally {
+        setBatchSaving(false);
       }
-      setBatchModal(null);
-      fetchedRef.current.batches = false;
-      loadBatches();
-    } catch (e) {
-      toast.showError(e?.response?.data?.detail || "Save failed");
-    } finally {
-      setBatchSaving(false);
+    } else {
+      const { isValid, errors } = validateForm(BATCH_EDIT_RULES, batchEditForm);
+      if (!isValid) { setBatchErrors(errors); return; }
+      setBatchSaving(true);
+      try {
+        await inventoryItemService.updateBatch(selectedBatch.ID, {
+          STATUS: batchEditForm.STATUS,
+          QTY_REMAINING: parseFloat(batchEditForm.QTY_REMAINING) || 0,
+          NOTES: batchEditForm.NOTES || undefined,
+        });
+        toast.showSuccess("Batch updated");
+        setBatchModal(null);
+        fetchedRef.current.batches = false;
+        loadBatches();
+      } catch (e) {
+        toast.showError(e?.response?.data?.detail || "Save failed");
+      } finally {
+        setBatchSaving(false);
+      }
     }
-  }, [batchForm, batchModal, selectedBatch, loadBatches, toast]);
+  }, [batchForm, batchEditForm, batchModal, selectedBatch, loadBatches, toast]);
 
   const isRefreshing = (
     (activeTab === "items" && itemsRefreshing) ||
@@ -514,7 +633,7 @@ export default function InventoryItemsPage() {
           ) : activeTab === "movements" ? (
             <ExportButton onClick={handleExportMovements} label="Export Movements" />
           ) : activeTab === "batches" ? (
-            <PMButton variant="primary" onClick={() => { setBatchForm(BATCH_EMPTY_FORM); setSelectedBatch(null); setBatchModal("add"); }}>Add Batch</PMButton>
+            <PMButton variant="primary" onClick={openAddBatch}>Add Batch</PMButton>
           ) : null
         }
       />
@@ -561,7 +680,7 @@ export default function InventoryItemsPage() {
             <SearchBar
               value={itemSearch}
               onChange={(v) => { setItemSearch(v); setItemPage(1); }}
-              placeholder="Search by product name, code, location…"
+              placeholder="Search by product name or code…"
             />
             <div className={styles.filterSelect}>
               <PMSelect
@@ -575,7 +694,7 @@ export default function InventoryItemsPage() {
               <button className={styles.clearFilter} onClick={() => setFilterStatus("")}>✕ Clear</button>
             )}
             <div className={styles.dateFilters}>
-              <label className={styles.dateLabel}>From</label>
+              <label className={styles.dateLabel}>Updated From</label>
               <input type="datetime-local" className={styles.dateInput} value={itemFilterFrom} onChange={(e) => { setItemFilterFrom(e.target.value); setItemPage(1); }} />
               <label className={styles.dateLabel}>To</label>
               <input type="datetime-local" className={styles.dateInput} value={itemFilterTo} onChange={(e) => { setItemFilterTo(e.target.value); setItemPage(1); }} />
@@ -590,23 +709,21 @@ export default function InventoryItemsPage() {
                 <tr>
                   <th>#</th>
                   <th>Product</th>
-                  <th>Location</th>
                   <th>Current Qty</th>
-                  <th>Available</th>
-                  <th>Unit Cost</th>
-                  <th>Reorder Lvl</th>
+                  <th>Min Qty</th>
+                  <th>Max Qty</th>
                   <th>Status</th>
-                  <th>Created Date</th>
+                  <th>Updated At</th>
                   {cfFields.map((f) => <th key={f.ID}>{f.FIELD_NAME}</th>)}
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {itemsLoading ? (
-                  <tr><td colSpan={10 + cfFields.length}><Loader /></td></tr>
+                  <tr><td colSpan={8 + cfFields.length}><Loader /></td></tr>
                 ) : itemsPaginated.length === 0 ? (
                   <tr>
-                    <td colSpan={10 + cfFields.length}>
+                    <td colSpan={8 + cfFields.length}>
                       <EmptyState
                         icon={InventoryIcon}
                         iconAlt="Inventory"
@@ -617,26 +734,23 @@ export default function InventoryItemsPage() {
                   </tr>
                 ) : (
                   itemsPaginated.map((item, i) => {
-                    const stock = item.stock || {};
-                    const status = stock.STATUS || item.STATUS || "IN_STOCK";
+                    const status = item.STATUS || "IN_STOCK";
                     return (
                       <tr key={item.ID}>
                         <td className={styles.idx}>{(itemPage - 1) * itemPageSize + i + 1}</td>
                         <td className={styles.productCell}>
-                          <span className={styles.productName}>{item.product?.PRODUCT_NAME || <span className={styles.muted}>—</span>}</span>
-                          {item.product?.PRODUCT_CODE && <span className={styles.productCode}>{item.product.PRODUCT_CODE}</span>}
+                          <span className={styles.productName}>{item.PRODUCT_NAME || <span className={styles.muted}>—</span>}</span>
+                          {item.PRODUCT_CODE && <span className={styles.productCode}>{item.PRODUCT_CODE}</span>}
                         </td>
-                        <td className={styles.descCell}>{item.LOCATION || <span className={styles.muted}>—</span>}</td>
-                        <td className={styles.numCell}>{stock.CURRENT_QTY != null ? stock.CURRENT_QTY.toLocaleString() : "—"}</td>
-                        <td className={styles.numCell}>{stock.AVAILABLE_QTY != null ? stock.AVAILABLE_QTY.toLocaleString() : "—"}</td>
-                        <td className={styles.numCell}>{stock.UNIT_COST != null ? `₹${Number(stock.UNIT_COST).toLocaleString()}` : "—"}</td>
-                        <td className={styles.numCell}>{item.REORDER_LEVEL ?? "—"}</td>
+                        <td className={styles.numCell}>{item.CURRENT_QTY != null ? item.CURRENT_QTY.toLocaleString() : "—"}</td>
+                        <td className={styles.numCell}>{item.MIN_QTY ?? "—"}</td>
+                        <td className={styles.numCell}>{item.MAX_QTY != null ? item.MAX_QTY : <span className={styles.muted}>No cap</span>}</td>
                         <td>
                           <span className={`${styles.statusBadge} ${statusClass(status)}`}>
                             {status.replace("_", " ")}
                           </span>
                         </td>
-                        <td>{formatDateTime(item.CREATED_AT)}</td>
+                        <td>{formatDateTime(item.UPDATED_AT)}</td>
                         {cfFields.map((f) => {
                           const val = cfValuesMap[String(item.ID)]?.[f.ID];
                           return (
@@ -688,10 +802,47 @@ export default function InventoryItemsPage() {
             <div className={styles.filterSelect}>
               <PMSelect
                 value={movTypeFilter}
-                onChange={(v) => { setMovTypeFilter(v); setMovPage(1); }}
+                onChange={(v) => setMovTypeFilter(v)}
                 options={[{ value: "", label: "All Types" }, ...MOVEMENT_TYPES]}
                 placeholder="All Types"
               />
+            </div>
+            <div className={styles.filterSelect}>
+              <PMSelect
+                value={movProductFilter}
+                onChange={(v) => setMovProductFilter(v)}
+                options={productOptions}
+                allowClear
+                clearLabel="All Products"
+                placeholder="All Products"
+              />
+            </div>
+            <div className={styles.filterSelect}>
+              <PMSelect
+                value={movCustomerFilter}
+                onChange={(v) => setMovCustomerFilter(v)}
+                options={customerOptions}
+                allowClear
+                clearLabel="All Customers"
+                placeholder="All Customers"
+              />
+            </div>
+            <div className={styles.filterSelect}>
+              <PMSelect
+                value={movProjectFilter}
+                onChange={(v) => setMovProjectFilter(v)}
+                options={projectOptions}
+                allowClear
+                clearLabel="All Projects"
+                placeholder="All Projects"
+              />
+            </div>
+            <div className={styles.dateFilters}>
+              <label className={styles.dateLabel}>From</label>
+              <input type="date" className={styles.dateInput} value={movFilterFrom} onChange={(e) => setMovFilterFrom(e.target.value)} />
+              <label className={styles.dateLabel}>To</label>
+              <input type="date" className={styles.dateInput} value={movFilterTo} onChange={(e) => setMovFilterTo(e.target.value)} />
+              {(movFilterFrom || movFilterTo) && <button className={styles.clearFilter} onClick={() => { setMovFilterFrom(""); setMovFilterTo(""); }}>✕</button>}
             </div>
             <span className={styles.count}>{filteredMovements.length} movement{filteredMovements.length !== 1 ? "s" : ""}</span>
           </div>
@@ -707,16 +858,17 @@ export default function InventoryItemsPage() {
                   <th>Qty</th>
                   <th>Before</th>
                   <th>After</th>
+                  <th>Diff</th>
                   <th>Reference</th>
                   <th>Performed By</th>
                 </tr>
               </thead>
               <tbody>
                 {movLoading ? (
-                  <tr><td colSpan={9}><Loader /></td></tr>
+                  <tr><td colSpan={10}><Loader /></td></tr>
                 ) : movPaginated.length === 0 ? (
                   <tr>
-                    <td colSpan={9}>
+                    <td colSpan={10}>
                       <EmptyState icon={InventoryIcon} iconAlt="Movements" title="No movements found" />
                     </td>
                   </tr>
@@ -726,7 +878,8 @@ export default function InventoryItemsPage() {
                       <td className={styles.idx}>{(movPage - 1) * 25 + i + 1}</td>
                       <td className={styles.dateCell}>{m.CREATED_AT ? new Date(m.CREATED_AT).toLocaleString() : "—"}</td>
                       <td className={styles.productCell}>
-                        <span className={styles.productName}>{m.item?.product?.PRODUCT_NAME || m.INVENTORY_ITEM_ID}</span>
+                        <span className={styles.productName}>{m.PRODUCT_NAME || m.PRODUCT_ID}</span>
+                        {m.PRODUCT_CODE && <span className={styles.productCode}>{m.PRODUCT_CODE}</span>}
                       </td>
                       <td>
                         <span className={`${styles.movType} ${movTypeClass(m.MOVEMENT_TYPE)}`}>
@@ -736,8 +889,13 @@ export default function InventoryItemsPage() {
                       <td className={styles.numCell}>{m.QTY != null ? m.QTY.toLocaleString() : "—"}</td>
                       <td className={styles.numCell}>{m.QTY_BEFORE != null ? m.QTY_BEFORE.toLocaleString() : "—"}</td>
                       <td className={styles.numCell}>{m.QTY_AFTER != null ? m.QTY_AFTER.toLocaleString() : "—"}</td>
-                      <td className={styles.descCell}>{m.REFERENCE_TYPE ? `${m.REFERENCE_TYPE}` : <span className={styles.muted}>—</span>}</td>
-                      <td className={styles.descCell}>{m.performed_by?.NAME || <span className={styles.muted}>—</span>}</td>
+                      <td className={styles.numCell}>
+                        {m.DIFFERENCE != null ? (m.DIFFERENCE > 0 ? `+${m.DIFFERENCE}` : m.DIFFERENCE) : "—"}
+                      </td>
+                      <td className={styles.descCell} title={m.reference_detail?.label || m.REFERENCE_ID || ""}>
+                        {m.reference_detail?.label || m.REFERENCE_TYPE || <span className={styles.muted}>—</span>}
+                      </td>
+                      <td className={styles.descCell}>{m.PERFORMED_BY_NAME || <span className={styles.muted}>—</span>}</td>
                     </tr>
                   ))
                 )}
@@ -778,17 +936,19 @@ export default function InventoryItemsPage() {
                   <th>Lot No.</th>
                   <th>Qty Remaining</th>
                   <th>Unit Cost</th>
+                  <th>Received</th>
                   <th>MFG Date</th>
                   <th>Expiry</th>
+                  <th>Status</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {batchLoading ? (
-                  <tr><td colSpan={9}><Loader /></td></tr>
+                  <tr><td colSpan={11}><Loader /></td></tr>
                 ) : batchPaginated.length === 0 ? (
                   <tr>
-                    <td colSpan={9}>
+                    <td colSpan={11}>
                       <EmptyState icon={InventoryIcon} iconAlt="Batches" title="No batches found" description="Add a batch to start tracking inventory lots." />
                     </td>
                   </tr>
@@ -799,24 +959,25 @@ export default function InventoryItemsPage() {
                       <tr key={b.ID}>
                         <td className={styles.idx}>{(batchPage - 1) * 25 + i + 1}</td>
                         <td className={styles.productCell}>
-                          <span className={styles.productName}>{b.item?.product?.PRODUCT_NAME || b.INVENTORY_ITEM_ID}</span>
+                          <span className={styles.productName}>{b.PRODUCT_NAME || b.PRODUCT_ID}</span>
+                          {b.PRODUCT_CODE && <span className={styles.productCode}>{b.PRODUCT_CODE}</span>}
                         </td>
                         <td className={styles.monoCell}>{b.BATCH_NUMBER}</td>
                         <td className={styles.monoCell}>{b.LOT_NUMBER || <span className={styles.muted}>—</span>}</td>
                         <td className={styles.numCell}>{b.QTY_REMAINING?.toLocaleString() ?? "—"}</td>
                         <td className={styles.numCell}>{b.UNIT_COST != null ? `₹${Number(b.UNIT_COST).toLocaleString()}` : "—"}</td>
-                        <td className={styles.dateCell}>{b.MFG_DATE ? new Date(b.MFG_DATE).toLocaleDateString() : "—"}</td>
+                        <td className={styles.dateCell}>{b.RECEIVED_DATE ? new Date(b.RECEIVED_DATE).toLocaleDateString() : "—"}</td>
+                        <td className={styles.dateCell}>{b.MANUFACTURING_DATE ? new Date(b.MANUFACTURING_DATE).toLocaleDateString() : "—"}</td>
                         <td className={`${styles.dateCell} ${expClass}`}>
                           {b.EXPIRY_DATE ? new Date(b.EXPIRY_DATE).toLocaleDateString() : "—"}
                           {isExpired(b.EXPIRY_DATE) && <span className={styles.expiredTag}> Expired</span>}
                           {!isExpired(b.EXPIRY_DATE) && isExpiringSoon(b.EXPIRY_DATE) && <span className={styles.soonTag}> !</span>}
                         </td>
                         <td>
-                          <button className={styles.iconBtn} onClick={() => {
-                            setBatchForm({ INVENTORY_ITEM_ID: b.INVENTORY_ITEM_ID, BATCH_NUMBER: b.BATCH_NUMBER, LOT_NUMBER: b.LOT_NUMBER || "", MFG_DATE: b.MFG_DATE?.split("T")[0] || "", EXPIRY_DATE: b.EXPIRY_DATE?.split("T")[0] || "", QTY_RECEIVED: b.QTY_RECEIVED ?? 0, UNIT_COST: b.UNIT_COST ?? 0 });
-                            setSelectedBatch(b);
-                            setBatchModal("edit");
-                          }} title="Edit">
+                          <span className={styles.statusBadge}>{b.STATUS}</span>
+                        </td>
+                        <td>
+                          <button className={styles.iconBtn} onClick={() => openEditBatch(b)} title="Edit">
                             <img src={EditIcon} alt="Edit" />
                           </button>
                         </td>
@@ -855,42 +1016,27 @@ export default function InventoryItemsPage() {
       >
         <div className={styles.formGrid}>
           <div className={`${styles.formGroup} ${styles.fullWidth}`}>
-            <label>Product ID <span className={styles.req}>*</span></label>
-            <input className={`${styles.input}${itemErrors.PRODUCT_ID ? " " + styles.inputError : ""}`} value={itemForm.PRODUCT_ID} onChange={(e) => handleItemFormChange("PRODUCT_ID", e.target.value)} placeholder="Product ID (UUID)" />
+            <label>Product <span className={styles.req}>*</span></label>
+            <PMSelect
+              options={productOptions}
+              value={itemForm.PRODUCT_ID}
+              onChange={(v) => handleItemFormChange("PRODUCT_ID", v)}
+              placeholder="Select a product…"
+              disabled={modal === "edit"}
+            />
+            {modal === "edit" && <span className={styles.fieldHint}>Product cannot be changed after the stock row is created.</span>}
             {itemErrors.PRODUCT_ID && <span className={styles.fieldError}>{itemErrors.PRODUCT_ID}</span>}
           </div>
-          <div className={`${styles.formGroup} ${styles.fullWidth}`}>
-            <label>Location</label>
-            <input className={`${styles.input}${itemErrors.LOCATION ? " " + styles.inputError : ""}`} value={itemForm.LOCATION} onChange={(e) => handleItemFormChange("LOCATION", e.target.value)} placeholder="e.g. Warehouse A, Shelf 3B" />
-            {itemErrors.LOCATION && <span className={styles.fieldError}>{itemErrors.LOCATION}</span>}
+          <div className={styles.formGroup}>
+            <label>Min Qty (reorder at)</label>
+            <input className={`${styles.input}${itemErrors.MIN_QTY ? " " + styles.inputError : ""}`} type="number" min={0} step="any" value={itemForm.MIN_QTY} onChange={(e) => handleItemFormChange("MIN_QTY", e.target.value === "" ? "" : parseFloat(e.target.value))} />
+            {itemErrors.MIN_QTY && <span className={styles.fieldError}>{itemErrors.MIN_QTY}</span>}
           </div>
           <div className={styles.formGroup}>
-            <label>Reorder Level</label>
-            <input className={`${styles.input}${itemErrors.REORDER_LEVEL ? " " + styles.inputError : ""}`} type="number" min={0} value={itemForm.REORDER_LEVEL} onChange={(e) => handleItemFormChange("REORDER_LEVEL", parseFloat(e.target.value) || 0)} />
-            {itemErrors.REORDER_LEVEL && <span className={styles.fieldError}>{itemErrors.REORDER_LEVEL}</span>}
-          </div>
-          <div className={styles.formGroup}>
-            <label>Reorder Qty</label>
-            <input className={`${styles.input}${itemErrors.REORDER_QTY ? " " + styles.inputError : ""}`} type="number" min={0} value={itemForm.REORDER_QTY} onChange={(e) => handleItemFormChange("REORDER_QTY", parseFloat(e.target.value) || 0)} />
-            {itemErrors.REORDER_QTY && <span className={styles.fieldError}>{itemErrors.REORDER_QTY}</span>}
-          </div>
-          <div className={styles.formGroup}>
-            <label>Safety Stock</label>
-            <input className={`${styles.input}${itemErrors.SAFETY_STOCK ? " " + styles.inputError : ""}`} type="number" min={0} value={itemForm.SAFETY_STOCK} onChange={(e) => handleItemFormChange("SAFETY_STOCK", parseFloat(e.target.value) || 0)} />
-            {itemErrors.SAFETY_STOCK && <span className={styles.fieldError}>{itemErrors.SAFETY_STOCK}</span>}
-          </div>
-          <div className={styles.formGroup}>
-            <label>Max Stock</label>
-            <input className={`${styles.input}${itemErrors.MAX_STOCK ? " " + styles.inputError : ""}`} type="number" min={0} value={itemForm.MAX_STOCK} onChange={(e) => handleItemFormChange("MAX_STOCK", parseFloat(e.target.value) || 0)} />
-            {itemErrors.MAX_STOCK && <span className={styles.fieldError}>{itemErrors.MAX_STOCK}</span>}
-            {itemErrors._stockCrossField && <span className={styles.fieldError}>{itemErrors._stockCrossField}</span>}
-          </div>
-          <div className={styles.formGroup}>
-            <label>Batch Tracking</label>
-            <label className={styles.checkLabel}>
-              <input type="checkbox" checked={itemForm.BATCH_TRACKING} onChange={(e) => setItemForm((p) => ({ ...p, BATCH_TRACKING: e.target.checked }))} />
-              Enable batch/lot tracking
-            </label>
+            <label>Max Qty (cap)</label>
+            <input className={`${styles.input}${itemErrors.MAX_QTY ? " " + styles.inputError : ""}`} type="number" min={0} step="any" value={itemForm.MAX_QTY} onChange={(e) => handleItemFormChange("MAX_QTY", e.target.value === "" ? "" : parseFloat(e.target.value))} placeholder="blank = no cap" />
+            {itemErrors.MAX_QTY && <span className={styles.fieldError}>{itemErrors.MAX_QTY}</span>}
+            {itemErrors._QTY_RANGE && <span className={styles.fieldError}>{itemErrors._QTY_RANGE}</span>}
           </div>
         </div>
         <CustomFieldsSection fields={cfFields} values={cfValues} onChange={handleCfChange} />
@@ -921,9 +1067,9 @@ export default function InventoryItemsPage() {
         {stockModal && (
           <div className={styles.formStack}>
             <div className={styles.stockItemInfo}>
-              <span className={styles.stockItemName}>{stockModal.item.product?.PRODUCT_NAME}</span>
+              <span className={styles.stockItemName}>{stockModal.item.PRODUCT_NAME}</span>
               <span className={styles.stockItemCurrent}>
-                Current: {stockModal.item.stock?.CURRENT_QTY ?? 0} | Available: {stockModal.item.stock?.AVAILABLE_QTY ?? 0}
+                Current: {stockModal.item.CURRENT_QTY ?? 0}
               </span>
             </div>
             <div className={styles.formGroup}>
@@ -954,29 +1100,32 @@ export default function InventoryItemsPage() {
         )}
       </PMModal>
 
-      {/* ── Add/Edit Batch Modal ── */}
+      {/* ── Add Batch Modal ── */}
       <PMModal
-        open={!!batchModal}
+        open={batchModal === "add"}
         onClose={() => { setBatchModal(null); setBatchErrors({}); }}
-        title={batchModal === "add" ? "Add Batch" : "Edit Batch"}
+        title="Add Batch"
         size="sm"
         footer={
           <>
             <PMButton variant="outline" onClick={() => { setBatchModal(null); setBatchErrors({}); }}>Cancel</PMButton>
             <PMButton variant="primary" onClick={handleSaveBatch} disabled={batchSaving}>
-              {batchSaving ? "Saving…" : batchModal === "add" ? "Create Batch" : "Save"}
+              {batchSaving ? "Saving…" : "Create Batch"}
             </PMButton>
           </>
         }
       >
         <div className={styles.formGrid}>
-          {batchModal === "add" && (
-            <div className={`${styles.formGroup} ${styles.fullWidth}`}>
-              <label>Inventory Item ID <span className={styles.req}>*</span></label>
-              <input className={`${styles.input}${batchErrors.INVENTORY_ITEM_ID ? " " + styles.inputError : ""}`} value={batchForm.INVENTORY_ITEM_ID} onChange={(e) => handleBatchFormChange("INVENTORY_ITEM_ID", e.target.value)} placeholder="Item ID" />
-              {batchErrors.INVENTORY_ITEM_ID && <span className={styles.fieldError}>{batchErrors.INVENTORY_ITEM_ID}</span>}
-            </div>
-          )}
+          <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+            <label>Product <span className={styles.req}>*</span></label>
+            <PMSelect
+              options={productOptions}
+              value={batchForm.PRODUCT_ID}
+              onChange={(v) => handleBatchFormChange("PRODUCT_ID", v)}
+              placeholder="Select a product…"
+            />
+            {batchErrors.PRODUCT_ID && <span className={styles.fieldError}>{batchErrors.PRODUCT_ID}</span>}
+          </div>
           <div className={styles.formGroup}>
             <label>Batch Number <span className={styles.req}>*</span></label>
             <input className={`${styles.input}${batchErrors.BATCH_NUMBER ? " " + styles.inputError : ""}`} value={batchForm.BATCH_NUMBER} onChange={(e) => handleBatchFormChange("BATCH_NUMBER", e.target.value)} placeholder="BATCH-001" />
@@ -987,9 +1136,14 @@ export default function InventoryItemsPage() {
             <input className={styles.input} value={batchForm.LOT_NUMBER} onChange={(e) => setBatchForm((p) => ({ ...p, LOT_NUMBER: e.target.value }))} placeholder="LOT-001" />
           </div>
           <div className={styles.formGroup}>
+            <label>Received Date</label>
+            <input className={styles.input} type="date" value={batchForm.RECEIVED_DATE} onChange={(e) => handleBatchFormChange("RECEIVED_DATE", e.target.value)} />
+            <span className={styles.fieldHint}>Defaults to today if left blank.</span>
+          </div>
+          <div className={styles.formGroup}>
             <label>MFG Date</label>
-            <input className={`${styles.input}${batchErrors.MFG_DATE ? " " + styles.inputError : ""}`} type="date" value={batchForm.MFG_DATE} onChange={(e) => handleBatchFormChange("MFG_DATE", e.target.value)} />
-            {batchErrors.MFG_DATE && <span className={styles.fieldError}>{batchErrors.MFG_DATE}</span>}
+            <input className={`${styles.input}${batchErrors.MANUFACTURING_DATE ? " " + styles.inputError : ""}`} type="date" value={batchForm.MANUFACTURING_DATE} onChange={(e) => handleBatchFormChange("MANUFACTURING_DATE", e.target.value)} />
+            {batchErrors.MANUFACTURING_DATE && <span className={styles.fieldError}>{batchErrors.MANUFACTURING_DATE}</span>}
           </div>
           <div className={styles.formGroup}>
             <label>Expiry Date</label>
@@ -997,7 +1151,7 @@ export default function InventoryItemsPage() {
             {batchErrors.EXPIRY_DATE && <span className={styles.fieldError}>{batchErrors.EXPIRY_DATE}</span>}
           </div>
           <div className={styles.formGroup}>
-            <label>Qty Received</label>
+            <label>Qty Received <span className={styles.req}>*</span></label>
             <input className={`${styles.input}${batchErrors.QTY_RECEIVED ? " " + styles.inputError : ""}`} type="number" min={0} value={batchForm.QTY_RECEIVED} onChange={(e) => handleBatchFormChange("QTY_RECEIVED", parseFloat(e.target.value) || 0)} />
             {batchErrors.QTY_RECEIVED && <span className={styles.fieldError}>{batchErrors.QTY_RECEIVED}</span>}
           </div>
@@ -1006,13 +1160,66 @@ export default function InventoryItemsPage() {
             <input className={`${styles.input}${batchErrors.UNIT_COST ? " " + styles.inputError : ""}`} type="number" min={0} step={0.01} value={batchForm.UNIT_COST} onChange={(e) => handleBatchFormChange("UNIT_COST", parseFloat(e.target.value) || 0)} />
             {batchErrors.UNIT_COST && <span className={styles.fieldError}>{batchErrors.UNIT_COST}</span>}
           </div>
+          <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+            <label>Delivery Challan File URL</label>
+            <input className={styles.input} value={batchForm.DC_FILE_URL} onChange={(e) => handleBatchFormChange("DC_FILE_URL", e.target.value)} placeholder="https://…" />
+          </div>
+          <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+            <label>Invoice File URL</label>
+            <input className={styles.input} value={batchForm.INVOICE_FILE_URL} onChange={(e) => handleBatchFormChange("INVOICE_FILE_URL", e.target.value)} placeholder="https://…" />
+            <span className={styles.fieldHint}>At least one of Delivery Challan / Invoice URL is required to create a batch.</span>
+            {batchErrors._FILE_REQUIRED && <span className={styles.fieldError}>{batchErrors._FILE_REQUIRED}</span>}
+          </div>
         </div>
+      </PMModal>
+
+      {/* ── Edit Batch Modal — only STATUS/QTY_REMAINING/NOTES are
+          actually editable server-side (BatchUpdate schema) ── */}
+      <PMModal
+        open={batchModal === "edit"}
+        onClose={() => { setBatchModal(null); setBatchErrors({}); }}
+        title="Edit Batch"
+        size="sm"
+        footer={
+          <>
+            <PMButton variant="outline" onClick={() => { setBatchModal(null); setBatchErrors({}); }}>Cancel</PMButton>
+            <PMButton variant="primary" onClick={handleSaveBatch} disabled={batchSaving}>
+              {batchSaving ? "Saving…" : "Save"}
+            </PMButton>
+          </>
+        }
+      >
+        {selectedBatch && (
+          <div className={styles.formStack}>
+            <div className={styles.stockItemInfo}>
+              <span className={styles.stockItemName}>{selectedBatch.PRODUCT_NAME}</span>
+              <span className={styles.stockItemCurrent}>Batch {selectedBatch.BATCH_NUMBER}</span>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Status</label>
+              <PMSelect
+                options={BATCH_STATUS_OPTIONS}
+                value={batchEditForm.STATUS}
+                onChange={(v) => setBatchEditForm((p) => ({ ...p, STATUS: v }))}
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Qty Remaining</label>
+              <input className={`${styles.input}${batchErrors.QTY_REMAINING ? " " + styles.inputError : ""}`} type="number" min={0} step="any" value={batchEditForm.QTY_REMAINING} onChange={(e) => setBatchEditForm((p) => ({ ...p, QTY_REMAINING: e.target.value }))} />
+              {batchErrors.QTY_REMAINING && <span className={styles.fieldError}>{batchErrors.QTY_REMAINING}</span>}
+            </div>
+            <div className={styles.formGroup}>
+              <label>Notes</label>
+              <textarea className={styles.textarea} rows={2} value={batchEditForm.NOTES} onChange={(e) => setBatchEditForm((p) => ({ ...p, NOTES: e.target.value }))} />
+            </div>
+          </div>
+        )}
       </PMModal>
 
       {/* ── Bulk Upload Modal ── */}
       <PMModal open={bulkModal} onClose={() => setBulkModal(false)} title="Bulk Upload Inventory Items" size="sm">
         <p className={styles.bulkHint}>
-          Upload an Excel file with sheet <strong>"InventoryItems"</strong>. Required columns: <strong>Product Code</strong>, <strong>Location</strong>. Optional: Reorder Level, Reorder Qty, Safety Stock, Max Stock{cfFields.length > 0 ? ", and custom field columns" : ""}.
+          Upload an Excel file with sheet <strong>"InventoryItems"</strong>. Required column: <strong>Product Code</strong>. Optional: Min Qty, Max Qty{cfFields.length > 0 ? ", and custom field columns" : ""}.
         </p>
         <div className={styles.dropzone} onClick={() => fileRef.current?.click()}>
           <span className={styles.dropIconWrap}><img src={UploadIcon} alt="Upload" /></span>
@@ -1046,7 +1253,7 @@ export default function InventoryItemsPage() {
       </PMModal>
 
       {/* Custom Fields Modal */}
-      <CustomFieldsModal open={cfOpen} onClose={() => setCfOpen(false)} tableName="inventory_item" />
+      <CustomFieldsModal open={cfOpen} onClose={() => setCfOpen(false)} tableName={CF_TABLE} />
 
       {/* Confirm Modal */}
       <PMConfirmModal

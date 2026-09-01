@@ -144,7 +144,7 @@ SUPPLIERS = [
         "SUPPLIER_CODE": "SUP-MOTOR-01",
         "COMPANY_NAME": "Crompton Greaves Industrial",
         "CONTACT_PERSON": "Ramesh Patil",
-        "PHONE": "+91 22 6755 8001",
+        "PHONE": "+91 22 6755 8000",
         "EMAIL": "industrial.sales@cgglobal.com",
         "ADDRESS_LINE1": "Tata Power Building, Bandra Kurla Complex",
         "CITY": "Mumbai",

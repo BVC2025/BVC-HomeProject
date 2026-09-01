@@ -1,9 +1,8 @@
 // =====================================================================
 // Admin Module 4 — Approval Center
 // =====================================================================
-// Single page that surfaces every pending approval across 6 buckets:
-//   Leaves · Permissions · Quotations · Purchase Orders ·
-//   Supplier Payments · Discount Requests
+// Single page that surfaces every pending approval across 4 buckets:
+//   Leaves · Permissions · Purchase Orders · Supplier Payments
 //
 // Approve / Reject inline, reason prompt on reject, auto-refresh
 // every 30s, optimistic UI on action.
@@ -56,14 +55,6 @@ function Icon({ name, size = 18, color, className }) {
           <path d="M12 7v5l3 2" />
         </svg>
       );
-    case "quotation":
-      return (
-        <svg {...common}>
-          <path d="M7 3h7l4 4v14H7z" />
-          <path d="M14 3v4h4" />
-          <path d="M10 13h4M10 17h4" />
-        </svg>
-      );
     case "purchase_order":
       return (
         <svg {...common}>
@@ -77,13 +68,6 @@ function Icon({ name, size = 18, color, className }) {
         <svg {...common}>
           <rect x="2" y="5" width="20" height="14" rx="2" />
           <path d="M2 10h20" />
-        </svg>
-      );
-    case "discount":
-      return (
-        <svg {...common}>
-          <path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9-9-9Z" />
-          <circle cx="7.5" cy="7.5" r="1.4" fill={color || "currentColor"} />
         </svg>
       );
     case "success":
@@ -147,13 +131,6 @@ const BUCKET_META = {
     color: "#DC2626",
     accent: "#FECACA",
   },
-  quotations: {
-    label: "Quotations",
-    kind: "quotation",
-    icon: "quotation",
-    color: "#10B981",
-    accent: "#A7F3D0",
-  },
   purchase_orders: {
     label: "Purchase Orders",
     kind: "purchase_order",
@@ -168,22 +145,13 @@ const BUCKET_META = {
     color: "#14B8A6",
     accent: "#99F6E4",
   },
-  discount_requests: {
-    label: "Customer Discounts",
-    kind: "discount_request",
-    icon: "discount",
-    color: "#EC4899",
-    accent: "#FBCFE8",
-  },
 };
 
 const BUCKET_ORDER = [
   "leaves",
   "permissions",
-  "quotations",
   "purchase_orders",
   "supplier_payments",
-  "discount_requests",
 ];
 
 function formatMoney(n) {

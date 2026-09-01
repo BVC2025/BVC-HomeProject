@@ -21,7 +21,7 @@ from datetime import date, datetime, timedelta
 from typing import Optional, Any, Dict, List
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
+from sqlalchemy import or_
 
 from app.models.models import (
     Employee,
@@ -29,17 +29,9 @@ from app.models.models import (
     Department,
     TaskAssignment,
     Inventory,
-    Machine,
     Attendance,
     Customer,
     Supplier,
-    ProductModel,
-    BOMItem,
-    WorkOrder,
-    ProcessStage,
-    WorkOrderStageProgress,
-    QCInspection,
-    NCR,
     LeaveRequest,
     LeaveBalance,
     BiometricEvent,
@@ -155,32 +147,6 @@ def tool_bvc24_overview(db: Session, **_) -> Dict:
         .count()
     )
 
-    wo_in_progress = (
-        db.query(WorkOrder).filter(WorkOrder.STATUS == "IN_PROGRESS").count()
-    )
-
-    units_in_progress = (
-        db.query(func.coalesce(func.sum(WorkOrder.QUANTITY), 0))
-        .filter(WorkOrder.STATUS == "IN_PROGRESS")
-        .scalar()
-        or 0
-    )
-
-    open_ncrs = (
-        db.query(NCR)
-        .filter(NCR.STATUS.in_(["OPEN", "IN_PROGRESS"]))
-        .count()
-    )
-
-    critical_ncrs = (
-        db.query(NCR)
-        .filter(
-            NCR.STATUS.in_(["OPEN", "IN_PROGRESS"]),
-            NCR.SEVERITY == "CRITICAL"
-        )
-        .count()
-    )
-
     suppliers = (
         db.query(Supplier).filter(Supplier.STATUS == "ACTIVE").count()
     )
@@ -189,264 +155,8 @@ def tool_bvc24_overview(db: Session, **_) -> Dict:
         "active_employees": employees,
         "in_office_now": in_office,
         "pending_leave_requests": pending_leaves,
-        "work_orders_in_progress": wo_in_progress,
-        "units_in_progress": int(units_in_progress),
-        "open_ncrs": open_ncrs,
-        "critical_ncrs": critical_ncrs,
         "active_suppliers": suppliers
     }
-
-
-def tool_production_status(db: Session, **_) -> Dict:
-
-    by_status = {}
-
-    for s in ["PLANNED", "IN_PROGRESS", "ON_HOLD", "DONE", "CANCELLED"]:
-
-        by_status[s] = (
-            db.query(WorkOrder).filter(WorkOrder.STATUS == s).count()
-        )
-
-    units = (
-        db.query(func.coalesce(func.sum(WorkOrder.QUANTITY), 0))
-        .filter(WorkOrder.STATUS == "IN_PROGRESS")
-        .scalar()
-        or 0
-    )
-
-    return {
-        "total_work_orders": sum(by_status.values()),
-        "by_status": by_status,
-        "units_currently_in_production": int(units)
-    }
-
-
-def tool_list_work_orders(
-    db: Session,
-    status: Optional[str] = None,
-    limit: int = 10,
-    **_
-) -> List[Dict]:
-
-    q = (
-        db.query(WorkOrder, ProductModel)
-        .outerjoin(
-            ProductModel,
-            WorkOrder.PRODUCT_MODEL_ID == ProductModel.ID
-        )
-    )
-
-    if status:
-
-        q = q.filter(WorkOrder.STATUS == status.upper())
-
-    rows = q.order_by(WorkOrder.CREATED_AT.desc()).limit(limit).all()
-
-    return [
-        {
-            "wo_number": wo.WO_NUMBER,
-            "model": model.MODEL_NAME if model else None,
-            "model_code": model.MODEL_CODE if model else None,
-            "quantity": wo.QUANTITY,
-            "status": wo.STATUS,
-            "notes": wo.NOTES
-        }
-        for wo, model in rows
-    ]
-
-
-def tool_list_machine_models(db: Session, **_) -> List[Dict]:
-
-    rows = db.query(ProductModel).order_by(ProductModel.MODEL_NAME).all()
-
-    return [
-        {
-            "model_code": m.MODEL_CODE,
-            "name": m.MODEL_NAME,
-            "category": m.CATEGORY,
-            "build_days": m.ESTIMATED_BUILD_DAYS,
-            "description": m.DESCRIPTION,
-            "status": m.STATUS
-        }
-        for m in rows
-    ]
-
-
-def tool_get_bom_for_model(
-    db: Session,
-    model_code_or_name: str,
-    **_
-) -> Dict:
-
-    needle = (model_code_or_name or "").strip().lower()
-
-    if not needle:
-
-        return {"error": "model_code_or_name is required"}
-
-    model = (
-        db.query(ProductModel)
-        .filter(
-            or_(
-                ProductModel.MODEL_CODE.ilike(f"%{needle}%"),
-                ProductModel.MODEL_NAME.ilike(f"%{needle}%")
-            )
-        )
-        .first()
-    )
-
-    if not model:
-
-        return {"error": f"No model matched '{model_code_or_name}'"}
-
-    bom = (
-        db.query(BOMItem)
-        .filter(BOMItem.PRODUCT_MODEL_ID == model.ID)
-        .order_by(BOMItem.ID)
-        .all()
-    )
-
-    return {
-        "model_code": model.MODEL_CODE,
-        "model_name": model.MODEL_NAME,
-        "category": model.CATEGORY,
-        "bom_items": [
-            {
-                "material": b.MATERIAL_NAME,
-                "quantity": b.QUANTITY,
-                "unit": b.UNIT or "pcs",
-                "type": b.ITEM_TYPE or "PURCHASE"
-            }
-            for b in bom
-        ]
-    }
-
-
-def tool_get_stages_for_model(
-    db: Session,
-    model_code_or_name: str,
-    **_
-) -> Dict:
-
-    needle = (model_code_or_name or "").strip().lower()
-
-    model = (
-        db.query(ProductModel)
-        .filter(
-            or_(
-                ProductModel.MODEL_CODE.ilike(f"%{needle}%"),
-                ProductModel.MODEL_NAME.ilike(f"%{needle}%")
-            )
-        )
-        .first()
-    )
-
-    if not model:
-
-        return {"error": f"No model matched '{model_code_or_name}'"}
-
-    stages = (
-        db.query(ProcessStage)
-        .filter(
-            ProcessStage.PRODUCT_MODEL_ID == model.ID,
-            ProcessStage.IS_ACTIVE == 1
-        )
-        .order_by(ProcessStage.SEQUENCE)
-        .all()
-    )
-
-    return {
-        "model_code": model.MODEL_CODE,
-        "model_name": model.MODEL_NAME,
-        "stages": [
-            {
-                "sequence": s.SEQUENCE,
-                "name": s.STAGE_NAME,
-                "type": s.STAGE_TYPE,
-                "estimated_hours": s.ESTIMATED_HOURS,
-                "description": s.DESCRIPTION
-            }
-            for s in stages
-        ]
-    }
-
-
-def tool_quality_status(db: Session, **_) -> Dict:
-
-    by_status = {}
-
-    for s in ["PENDING", "PASS", "FAIL", "REWORK"]:
-
-        by_status[s] = (
-            db.query(QCInspection).filter(QCInspection.STATUS == s).count()
-        )
-
-    total = sum(by_status.values())
-
-    pass_rate = (
-        round(by_status["PASS"] / total * 100, 1) if total else 0
-    )
-
-    open_ncrs = (
-        db.query(NCR)
-        .filter(NCR.STATUS.in_(["OPEN", "IN_PROGRESS"]))
-        .count()
-    )
-
-    critical = (
-        db.query(NCR)
-        .filter(
-            NCR.STATUS.in_(["OPEN", "IN_PROGRESS"]),
-            NCR.SEVERITY == "CRITICAL"
-        )
-        .count()
-    )
-
-    return {
-        "total_inspections": total,
-        "by_status": by_status,
-        "pass_rate_pct": pass_rate,
-        "open_ncrs": open_ncrs,
-        "critical_open_ncrs": critical
-    }
-
-
-def tool_list_ncrs(
-    db: Session,
-    severity: Optional[str] = None,
-    status: Optional[str] = None,
-    limit: int = 20,
-    **_
-) -> List[Dict]:
-
-    q = db.query(NCR)
-
-    if severity:
-
-        q = q.filter(NCR.SEVERITY == severity.upper())
-
-    if status:
-
-        q = q.filter(NCR.STATUS == status.upper())
-
-    else:
-
-        # Default to open ones
-        q = q.filter(NCR.STATUS.in_(["OPEN", "IN_PROGRESS"]))
-
-    rows = q.order_by(NCR.OPENED_AT.desc()).limit(limit).all()
-
-    return [
-        {
-            "ncr_number": n.NCR_NUMBER,
-            "check_point": n.CHECK_POINT,
-            "severity": n.SEVERITY,
-            "status": n.STATUS,
-            "description": n.DESCRIPTION,
-            "opened_at": n.OPENED_AT.isoformat() if n.OPENED_AT else None
-        }
-        for n in rows
-    ]
 
 
 def tool_list_suppliers(
@@ -876,121 +586,10 @@ TOOL_REGISTRY = {
             "name": "bvc24_overview",
             "description": (
                 "Get a system-wide snapshot of BVC24: active employees, "
-                "in-office count, pending leave requests, work orders "
-                "in progress, open NCRs, active suppliers. Use for "
-                "general 'how are things' questions."
+                "in-office count, pending leave requests, active "
+                "suppliers. Use for general 'how are things' questions."
             ),
             "parameters": {"type": "object", "properties": {}}
-        }
-    },
-    "production_status": {
-        "fn": tool_production_status,
-        "decl": {
-            "name": "production_status",
-            "description": (
-                "Production summary: total work orders, count by "
-                "status (PLANNED/IN_PROGRESS/ON_HOLD/DONE), units "
-                "currently being manufactured."
-            ),
-            "parameters": {"type": "object", "properties": {}}
-        }
-    },
-    "list_work_orders": {
-        "fn": tool_list_work_orders,
-        "decl": {
-            "name": "list_work_orders",
-            "description": (
-                "List recent work orders. Optionally filter by status "
-                "(PLANNED, IN_PROGRESS, DONE, etc.)."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "status": {
-                        "type": "string",
-                        "description": "Optional status filter"
-                    },
-                    "limit": {"type": "integer"}
-                }
-            }
-        }
-    },
-    "list_machine_models": {
-        "fn": tool_list_machine_models,
-        "decl": {
-            "name": "list_machine_models",
-            "description": (
-                "List all vending machine models BVC24 manufactures "
-                "(Snack Combo, Medicine Dispenser, Hot Food Box, "
-                "Cosmetics Kiosk, Fruits & Veg)."
-            ),
-            "parameters": {"type": "object", "properties": {}}
-        }
-    },
-    "get_bom_for_model": {
-        "fn": tool_get_bom_for_model,
-        "decl": {
-            "name": "get_bom_for_model",
-            "description": (
-                "Bill of Materials (BOM) for a specific machine model. "
-                "Pass the model code (e.g. BVC-SBC-01) or its name "
-                "(e.g. 'Snack Combo'). Returns parts list with "
-                "quantities and PURCHASE/PROCESS classification."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "model_code_or_name": {"type": "string"}
-                },
-                "required": ["model_code_or_name"]
-            }
-        }
-    },
-    "get_stages_for_model": {
-        "fn": tool_get_stages_for_model,
-        "decl": {
-            "name": "get_stages_for_model",
-            "description": (
-                "Manufacturing process stages for a machine model "
-                "(Design → Mechanical → Electrical → ... → Packaging)."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "model_code_or_name": {"type": "string"}
-                },
-                "required": ["model_code_or_name"]
-            }
-        }
-    },
-    "quality_status": {
-        "fn": tool_quality_status,
-        "decl": {
-            "name": "quality_status",
-            "description": (
-                "QC overview: inspection counts by status, pass rate %, "
-                "open NCRs, critical NCR count."
-            ),
-            "parameters": {"type": "object", "properties": {}}
-        }
-    },
-    "list_ncrs": {
-        "fn": tool_list_ncrs,
-        "decl": {
-            "name": "list_ncrs",
-            "description": (
-                "List Non-Conformance Reports. Optionally filter by "
-                "severity (CRITICAL/MAJOR/MINOR) and status "
-                "(OPEN/IN_PROGRESS/CLOSED)."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "severity": {"type": "string"},
-                    "status": {"type": "string"},
-                    "limit": {"type": "integer"}
-                }
-            }
         }
     },
     "list_suppliers": {

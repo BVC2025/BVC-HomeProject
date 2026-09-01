@@ -33,8 +33,6 @@ from app.models.models import (
     Employee,
     Attendance,
     TaskAssignment,
-    WorkOrderStageProgress,
-    ProcessStage,
     Role,
     LeaveRequest,
     PerformanceScore
@@ -264,78 +262,6 @@ def _score_permission(
     return {
         "hours": round(hours, 2),
         "stars": stars
-    }
-
-
-def _score_productivity(
-    db: Session, employee_id: str,
-    year: int, month: int
-) -> Dict:
-    """Stars based on estimated vs actual hours on completed stages."""
-
-    first, last = _month_range(year, month)
-
-    rows = (
-        db.query(WorkOrderStageProgress, ProcessStage)
-        .join(ProcessStage,
-              WorkOrderStageProgress.STAGE_ID == ProcessStage.ID)
-        .filter(
-            WorkOrderStageProgress.ASSIGNED_TO_ID == employee_id,
-            WorkOrderStageProgress.STATUS == "DONE",
-            WorkOrderStageProgress.COMPLETED_AT.isnot(None)
-        )
-        .all()
-    )
-
-    estimated = 0.0
-
-    actual = 0.0
-
-    for prog, stage in rows:
-
-        if not prog.COMPLETED_AT:
-
-            continue
-
-        if not (first <= prog.COMPLETED_AT.date() <= last):
-
-            continue
-
-        est = float(stage.ESTIMATED_HOURS or 0)
-
-        estimated += est
-
-        if prog.STARTED_AT:
-
-            elapsed_h = (
-                prog.COMPLETED_AT - prog.STARTED_AT
-            ).total_seconds() / 3600.0
-
-            actual += max(0.5, elapsed_h)
-
-        else:
-
-            actual += est
-
-    if actual <= 0 or estimated <= 0:
-
-        return {
-            "estimated_hours": round(estimated, 2),
-            "actual_hours": round(actual, 2),
-            "stars": 2.5,
-            "ratio": 1.0
-        }
-
-    ratio = estimated / actual
-
-    # Cap at 1.0 — finishing in half the time still maxes at 5★
-    stars = _snap_half_star(min(ratio, 1.0) * 5)
-
-    return {
-        "estimated_hours": round(estimated, 2),
-        "actual_hours": round(actual, 2),
-        "stars": stars,
-        "ratio": round(ratio, 3)
     }
 
 

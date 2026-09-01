@@ -123,7 +123,7 @@ Write-Host "All 3 files updated." -ForegroundColor Green
 Write-Host ""
 Write-Host "Now restart both dev servers so the new env values load:" -ForegroundColor Cyan
 Write-Host "  Backend  : Ctrl+C the uvicorn window, then" -ForegroundColor Gray
-Write-Host '             .\venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001' -ForegroundColor Gray
+Write-Host '             .\venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000' -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Frontend : Ctrl+C the Vite window, then" -ForegroundColor Gray
 Write-Host '             npm run dev' -ForegroundColor Gray

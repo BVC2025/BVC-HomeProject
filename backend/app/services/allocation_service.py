@@ -26,17 +26,13 @@ from app.models.models import (
     Project,
     TaskAssignment,
     DailyAllocation,
-    WorkOrder,
-    ProcessStage,
-    WorkOrderStageProgress,
     Role
 )
 
 
 # Role names that should NEVER receive shop-floor task assignments
 # on biometric check-in. Admins clock in to manage the ERP, not to
-# execute manufacturing tasks. Kept in sync with ADMIN_ROLE_NAMES
-# in project_from_product_service.py.
+# execute manufacturing tasks.
 _ADMIN_ROLE_NAMES = {
     "super_admin",
     "admin",
@@ -217,87 +213,26 @@ def _explain(breakdown: dict, project: Project) -> str:
     )
 
 
-def _pick_next_stage(
-    db: Session,
-    project: Project
-) -> tuple[Optional[ProcessStage], Optional[WorkOrderStageProgress], Optional[WorkOrder]]:
-    """
-    For a given project, find the next pending manufacturing stage
-    so the employee gets a *specific* daily task instead of a
-    generic "Today's work" label.
-
-    Logic:
-      1. Pick an active Work Order under the project (IN_PROGRESS
-         preferred; else PLANNED).
-      2. Find the lowest-sequence stage whose progress is PENDING.
-      3. Return (stage, progress, wo). All None if nothing applies.
-
-    WorkOrder.PROJECT_ID (the project_legacy FK) was removed, so there
-    is no remaining way to resolve a project's active Work Order —
-    always returns "nothing found", matching this function's own
-    existing contract for "no WO/stage applies".
-    """
-
-    return None, None, None
-
-
 def _create_task_assignment(
     db: Session,
     employee: Employee,
     project: Project,
     sequence: int
 ) -> TaskAssignment:
-    """
-    Create today's TaskAssignment.
-
-    We try to pin it to a *specific* manufacturing stage from the
-    project's active Work Order so the employee sees something like
-    "Stage 4: Sheet Metal Fabrication" instead of a generic
-    "Today's work". If no WO/stage applies, fall back to the
-    project-name task.
-
-    Side effect: the linked WorkOrderStageProgress is also moved
-    to IN_PROGRESS and tagged with this employee.
-    """
+    """Create today's TaskAssignment for the project-name task."""
 
     today = date.today()
 
-    stage, progress, wo = _pick_next_stage(db, project)
+    task_name = (
+        f"Task {sequence} — {project.PROJECT_NAME}"
+        if sequence > 1
+        else f"Today's work — {project.PROJECT_NAME}"
+    )
 
-    if stage:
-
-        task_name = f"Stage {stage.SEQUENCE}: {stage.STAGE_NAME}"
-
-        task_details = (
-            f"{stage.DESCRIPTION or ''}\n\n"
-            f"Project: {project.PROJECT_NAME}\n"
-            f"Work Order: {wo.WO_NUMBER} ({wo.QUANTITY} units)\n"
-            f"Stage type: {stage.STAGE_TYPE} · "
-            f"Estimated: {stage.ESTIMATED_HOURS}h"
-        ).strip()
-
-        # Reserve the stage so the next allocator call doesn't pick
-        # the same one for someone else.
-        if progress:
-
-            progress.STATUS = "IN_PROGRESS"
-
-            progress.ASSIGNED_TO_ID = employee.ID
-
-            progress.STARTED_AT = datetime.utcnow()
-
-    else:
-
-        task_name = (
-            f"Task {sequence} — {project.PROJECT_NAME}"
-            if sequence > 1
-            else f"Today's work — {project.PROJECT_NAME}"
-        )
-
-        task_details = (
-            project.DESCRIPTION
-            or "Auto-allocated by biometric check-in."
-        )
+    task_details = (
+        project.DESCRIPTION
+        or "Auto-allocated by biometric check-in."
+    )
 
     assignment = TaskAssignment(
         EMPLOYEE_ID=employee.ID,

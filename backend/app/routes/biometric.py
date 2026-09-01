@@ -28,9 +28,6 @@ from app.models.models import (
     Attendance,
     BiometricEvent,
     TaskAssignment,
-    Project,
-    ProductModel,
-    BOMItem
 )
 
 from app.schemas.biometric_schema import (
@@ -181,52 +178,15 @@ def _build_task_sheet_payload(
         for t in pending_rows
     ]
 
-    # ---- 2. BOM materials for the active project's product ----
+    # BOM-materials-for-project lookup removed — it relied on
+    # Project.PRODUCT_MODEL_ID, a field the current Project catalog
+    # model has never had (only the Manufacturing ProductModel/BOMItem
+    # models it pointed at, now removed, made this reachable-looking
+    # at all), so this always raised AttributeError before it could
+    # run. Kept as static defaults for API-shape compatibility.
     bom_for_project = []
 
     project_quantity = 1
-
-    if active_project_id:
-
-        project = db.query(Project).filter(
-            Project.ID == active_project_id
-        ).first()
-
-        if project and project.PRODUCT_MODEL_ID:
-
-            project_quantity = project.QUANTITY or 1
-
-            rows = (
-                db.query(BOMItem)
-                .filter(
-                    BOMItem.PRODUCT_MODEL_ID
-                    == project.PRODUCT_MODEL_ID
-                )
-                .order_by(
-                    case(
-                        (BOMItem.ITEM_NO.is_(None), 1),
-                        else_=0
-                    ),
-                    BOMItem.ITEM_NO.asc(),
-                    BOMItem.ID
-                )
-                .limit(40)
-                .all()
-            )
-
-            for item in rows:
-
-                bom_for_project.append({
-                    "ID": item.ID,
-                    "ITEM_NO": item.ITEM_NO,
-                    "MATERIAL_NAME": item.MATERIAL_NAME,
-                    "PER_UNIT_QUANTITY": item.QUANTITY,
-                    "TOTAL_QUANTITY": round(
-                        (item.QUANTITY or 0) * project_quantity, 3
-                    ),
-                    "UNIT": item.UNIT,
-                    "ITEM_TYPE": item.ITEM_TYPE or "PURCHASE"
-                })
 
     return {
         "pending_tasks": pending_tasks,

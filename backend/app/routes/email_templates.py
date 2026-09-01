@@ -94,7 +94,7 @@ def _get_editor_logo_html(db: Session, vendor_id: int) -> str:
         company = get_company_settings(db, vendor_id)
         if not company or not company.LOGO_URL:
             return ""
-        backend_base = os.getenv("BACKEND_URL", "http://localhost:8001").rstrip("/")
+        backend_base = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
         logo_url = (
             company.LOGO_URL
             if company.LOGO_URL.startswith("http")

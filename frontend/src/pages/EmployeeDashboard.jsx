@@ -965,7 +965,7 @@ function EmployeeDashboardBody() {
   // is the "inbox".
   useEffect(() => {
     if (!notifToast) return undefined;
-    const t = setTimeout(() => setNotifToast(null), 8001);
+    const t = setTimeout(() => setNotifToast(null), 8000);
     return () => clearTimeout(t);
   }, [notifToast]);
 

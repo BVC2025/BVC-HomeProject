@@ -28,16 +28,9 @@ const TASK_SCOPE_HELP = {
   UNIT: "Task is created separately for each project unit/quantity.",
 };
 
-const DEPENDENCY_RULES = ["ALL", "ANY"];
-const DEPENDENCY_RULE_HELP = {
-  ALL: "Every dependency must be completed before this task can start.",
-  ANY: "At least one dependency must be completed before this task can start.",
-};
-
 const EMPTY_FORM = {
   NAME: "", DESCRIPTION: "", DURATION_VALUE: 1,
   DURATION_UNIT: "DAYS", TASK_SCOPE: "UNIT", SEQUENCE_NUMBER: 0,
-  EXECUTION_GROUP_ID: "", DEPENDENCY_RULE: "ALL",
 };
 
 const EMPTY_REQUIREMENT = () => ({
@@ -61,7 +54,6 @@ export default function TaskTemplatePage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [requirements, setRequirements] = useState([]);
   const [requirementErrors, setRequirementErrors] = useState({}); // { [_key]: { DEPARTMENT_ID?, ROLE_ID?, EXPERIENCE_LEVEL?, REQUIRED_COUNT?, DUPLICATE? } }
-  const [dependencies, setDependencies] = useState([]); // [DEPENDS_ON_TASK_TEMPLATE_ID, ...]
   const [editId, setEditId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [dragIdx, setDragIdx] = useState(null);
@@ -137,47 +129,6 @@ export default function TaskTemplatePage() {
     setForm((prev) => ({ ...prev, [field]: val }));
   }, []);
 
-  // Execution Group options — built from the OTHER tasks already in this
-  // project (excluding the one being edited), grouped by EXECUTION_GROUP_ID.
-  // "+ Create New Group" generates a fresh UUID client-side — the user
-  // never sees or types a raw group ID.
-  const groupOptions = useMemo(() => {
-    const groups = new Map(); // groupId -> [taskNames]
-    for (const t of tasks) {
-      if (t.ID === editId || !t.EXECUTION_GROUP_ID) continue;
-      if (!groups.has(t.EXECUTION_GROUP_ID)) groups.set(t.EXECUTION_GROUP_ID, []);
-      groups.get(t.EXECUTION_GROUP_ID).push(t.NAME);
-    }
-    const opts = [{ value: "", label: "— None (runs independently) —" }];
-    let i = 1;
-    for (const [groupId, names] of groups) {
-      opts.push({ value: groupId, label: `Group ${i++} (${names.join(", ")})` });
-    }
-    opts.push({ value: "__NEW__", label: "+ Create New Group" });
-    return opts;
-  }, [tasks, editId]);
-
-  const handleGroupChange = useCallback((val) => {
-    if (val === "__NEW__") {
-      handleFormChange("EXECUTION_GROUP_ID", crypto.randomUUID());
-    } else {
-      handleFormChange("EXECUTION_GROUP_ID", val);
-    }
-  }, [handleFormChange]);
-
-  // Other named tasks in this project this task could depend on — self
-  // excluded so a circular/self dependency can never even be selected.
-  const dependencyCandidates = useMemo(
-    () => tasks.filter((t) => t.ID !== editId),
-    [tasks, editId]
-  );
-
-  const toggleDependency = useCallback((taskId) => {
-    setDependencies((prev) => (
-      prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]
-    ));
-  }, []);
-
   const currentProject = useMemo(
     () => projects.find((p) => String(p.ID) === String(selectedProject)),
     [projects, selectedProject]
@@ -212,7 +163,6 @@ export default function TaskTemplatePage() {
     setForm({ ...EMPTY_FORM, SEQUENCE_NUMBER: tasks.length });
     setRequirements([]);
     setRequirementErrors({});
-    setDependencies([]);
     setEditId(null);
     setModal("task");
     resetCfValues();
@@ -226,8 +176,6 @@ export default function TaskTemplatePage() {
       DURATION_UNIT: t.DURATION_UNIT,
       TASK_SCOPE: t.TASK_SCOPE || "PROJECT",
       SEQUENCE_NUMBER: t.SEQUENCE_NUMBER,
-      EXECUTION_GROUP_ID: t.EXECUTION_GROUP_ID || "",
-      DEPENDENCY_RULE: t.DEPENDENCY_RULE || "ALL",
     });
     setRequirements(
       (t.requirements || []).map((r) => ({
@@ -239,7 +187,6 @@ export default function TaskTemplatePage() {
       }))
     );
     setRequirementErrors({});
-    setDependencies((t.dependencies || []).map((d) => d.DEPENDS_ON_TASK_TEMPLATE_ID));
     setEditId(t.ID);
     setModal("task");
     loadCfValues(t.ID);
@@ -323,15 +270,12 @@ export default function TaskTemplatePage() {
         DURATION_UNIT: form.DURATION_UNIT,
         SEQUENCE_NUMBER: seq,
         TASK_SCOPE: form.TASK_SCOPE || "PROJECT",
-        EXECUTION_GROUP_ID: form.EXECUTION_GROUP_ID || "",
-        DEPENDENCY_RULE: form.DEPENDENCY_RULE || "ALL",
         requirements: requirements.map((r) => ({
           DEPARTMENT_ID: r.DEPARTMENT_ID ? parseInt(r.DEPARTMENT_ID) : null,
           ROLE_ID: r.ROLE_ID ? parseInt(r.ROLE_ID) : null,
           EXPERIENCE_LEVEL: r.EXPERIENCE_LEVEL,
           REQUIRED_COUNT: parseInt(r.REQUIRED_COUNT) || 1,
         })),
-        dependencies: dependencies.map((id) => ({ DEPENDS_ON_TASK_TEMPLATE_ID: id })),
         PROJECT_ID: selectedProject,
       };
       if (editId) {
@@ -351,7 +295,7 @@ export default function TaskTemplatePage() {
     } finally {
       setSaving(false);
     }
-  }, [form, requirements, dependencies, tasks, validateRequirements, editId, selectedProject, closeModal, loadTasks, toast, validateCf, saveCfValues]);
+  }, [form, requirements, tasks, validateRequirements, editId, selectedProject, closeModal, loadTasks, toast, validateCf, saveCfValues]);
 
   const handleDelete = useCallback((t) => {
     setConfirmModal({
@@ -424,22 +368,9 @@ export default function TaskTemplatePage() {
   }, []);
 
   const gridCols = useMemo(
-    () => `28px 40px minmax(0,1fr) 140px 100px 190px 150px 120px 130px 150px ${cfFields.map(() => "130px").join(" ")} 130px`.trim(),
+    () => `28px 40px minmax(0,1fr) 140px 100px 190px 130px 150px ${cfFields.map(() => "130px").join(" ")} 130px`.trim(),
     [cfFields]
   );
-
-  // Friendly "Group N" label for a task's EXECUTION_GROUP_ID, consistent
-  // across rows within the currently-loaded task list (Map preserves
-  // first-seen insertion order, so the same group always gets the same
-  // number for as long as this page stays open).
-  const groupLabelMap = useMemo(() => {
-    const map = new Map();
-    let i = 1;
-    for (const t of tasks) {
-      if (t.EXECUTION_GROUP_ID && !map.has(t.EXECUTION_GROUP_ID)) map.set(t.EXECUTION_GROUP_ID, `Group ${i++}`);
-    }
-    return map;
-  }, [tasks]);
 
   const handleExport = useCallback(() => {
     const data = filtered.map((t, i) => {
@@ -587,8 +518,6 @@ export default function TaskTemplatePage() {
                   <span className={styles.thDur}>Duration</span>
                   <span className={styles.thDept}>Task Scope</span>
                   <span className={styles.thRole}>Manpower</span>
-                  <span>Execution Group</span>
-                  <span>Dependencies</span>
                   <span>Created Date</span>
                   {cfFields.map((f) => <span key={f.ID}>{f.FIELD_NAME}</span>)}
                   <span className={styles.thAct}>Actions</span>
@@ -617,18 +546,6 @@ export default function TaskTemplatePage() {
                         title={manpowerParts(t).join("\n") || undefined}
                       >
                         {manpowerSummary(t) || <span className={styles.muted}>—</span>}
-                      </span>
-                      <span>
-                        {t.EXECUTION_GROUP_ID
-                          ? <span className={styles.groupChip}>{groupLabelMap.get(t.EXECUTION_GROUP_ID)}</span>
-                          : <span className={styles.muted}>—</span>}
-                      </span>
-                      <span
-                        title={(t.dependencies || []).map((d) => d.DEPENDS_ON_TASK_NAME).join("\n") || undefined}
-                      >
-                        {t.dependencies?.length > 0
-                          ? <span className={styles.groupChip}>{t.dependencies.length} ({t.DEPENDENCY_RULE})</span>
-                          : <span className={styles.muted}>—</span>}
                       </span>
                       <span className={styles.cfText}>{formatDateTime(t.CREATED_AT)}</span>
                       {cfFields.map((f) => {
@@ -727,15 +644,6 @@ export default function TaskTemplatePage() {
               onChange={(val) => handleFormChange("TASK_SCOPE", val)}
             />
             <span className={styles.hint}>{TASK_SCOPE_HELP[form.TASK_SCOPE]}</span>
-          </div>
-          <div className={styles.formGroup}>
-            <label>Execution Group</label>
-            <PMSelect
-              options={groupOptions}
-              value={form.EXECUTION_GROUP_ID}
-              onChange={handleGroupChange}
-            />
-            <span className={styles.hint}>Tasks in the same group are eligible to run in parallel.</span>
           </div>
           <div className={`${styles.formGroup} ${styles.fullWidth}`}>
             <label>Description</label>
@@ -840,42 +748,6 @@ export default function TaskTemplatePage() {
           <button type="button" className={styles.addRowBtn} onClick={addRequirement}>
             + Add Requirement
           </button>
-        </div>
-
-        <div className={styles.requirementsSection}>
-          <div className={styles.requirementsHeader}>
-            <span className={styles.requirementsTitle}>
-              Dependencies {dependencies.length > 0 && `(${dependencies.length})`}
-            </span>
-          </div>
-          {dependencyCandidates.length === 0 ? (
-            <p className={styles.hint}>No other tasks in this project yet to depend on.</p>
-          ) : (
-            <div className={styles.dependencyList}>
-              {dependencyCandidates.map((t) => (
-                <label key={t.ID} className={styles.dependencyItem}>
-                  <input
-                    type="checkbox"
-                    checked={dependencies.includes(t.ID)}
-                    onChange={() => toggleDependency(t.ID)}
-                  />
-                  <span>{t.NAME}</span>
-                </label>
-              ))}
-            </div>
-          )}
-          {dependencies.length > 1 && (
-            <div className={`${styles.formGroup} ${styles.dependencyRuleField}`}>
-              <label>Dependency Rule</label>
-              <PMSelect
-                options={DEPENDENCY_RULES}
-                value={form.DEPENDENCY_RULE}
-                onChange={(val) => handleFormChange("DEPENDENCY_RULE", val)}
-                size="sm"
-              />
-              <span className={styles.hint}>{DEPENDENCY_RULE_HELP[form.DEPENDENCY_RULE]}</span>
-            </div>
-          )}
         </div>
 
         <CustomFieldsSection

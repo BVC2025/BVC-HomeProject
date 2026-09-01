@@ -207,343 +207,6 @@ function ProjectCard({ project, onOpen, onDelete }) {
 }
 
 
-// =================================================================
-// Create-from-Product modal
-// =================================================================
-
-function CreateFromProductModal({ onClose, onCreated }) {
-
-  const [customers, setCustomers] = useState([]);
-
-  const [products, setProducts] = useState([]);
-
-  const [loading, setLoading] = useState(true);
-
-  const [customerId, setCustomerId] = useState("");
-
-  const [productId, setProductId] = useState("");
-
-  const [quantity, setQuantity] = useState(1);
-
-  const [priority, setPriority] = useState("MEDIUM");
-
-  const [targetDate, setTargetDate] = useState("");
-
-  const [notes, setNotes] = useState("");
-
-  const [submitting, setSubmitting] = useState(false);
-
-  const [result, setResult] = useState(null);
-
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-
-    Promise.all([
-      API.get("/customers").catch(() => ({ data: [] })),
-      API.get("/production/models?vendor_id=1").catch(() => ({ data: [] }))
-    ]).then(([c, p]) => {
-
-      setCustomers(c.data || []);
-
-      setProducts(p.data || []);
-
-      setLoading(false);
-    });
-  }, []);
-
-  const selectedProduct = products.find((p) => String(p.ID) === String(productId));
-
-  const selectedCustomer = customers.find((c) => String(c.ID) === String(customerId));
-
-  const submit = async (e) => {
-
-    e?.preventDefault?.();
-
-    if (!customerId) { setError("Pick a customer"); return; }
-
-    if (!productId) { setError("Pick a product"); return; }
-
-    setError("");
-
-    setSubmitting(true);
-
-    setResult(null);
-
-    try {
-
-      const res = await API.post("/projects/from-product", {
-        CUSTOMER_ID: customerId,
-        PRODUCT_MODEL_ID: parseInt(productId),
-        QUANTITY: parseInt(quantity) || 1,
-        PRIORITY: priority,
-        TARGET_DATE: targetDate || null,
-        NOTES: notes || null,
-        VENDOR_ID: 1
-      });
-
-      setResult(res.data);
-
-      onCreated?.();
-
-    } catch (err) {
-
-      setError(err?.response?.data?.detail || "Failed to create project");
-
-    } finally {
-
-      setSubmitting(false);
-    }
-  };
-
-  return (
-
-    <div
-      className={styles.modalOverlay}
-      onClick={onClose}
-    >
-
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className={styles.modalPanel}
-      >
-
-        <div className={styles.modalHeader}>
-          <div>
-            <div className={styles.modalEyebrow}>
-              New Project · Product → Project Workflow
-            </div>
-            <div className={styles.modalTitle}>
-              Create a project from an existing product
-            </div>
-            <div className={styles.modalSubtitle}>
-              The product's BOM + manufacturing stages will auto-flow into the project.
-              Each stage becomes a task, assigned to the best-skill employee, and they'll get an
-              email asking them to accept it.
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className={styles.modalCloseBtn}
-          >
-            ×
-          </button>
-        </div>
-
-        {!result && (
-
-          <form onSubmit={submit}>
-
-            <div className={styles.formGrid}>
-
-              <div className={styles.formGroup}>
-                <label className={`${styles.formLabel} ${styles.formLabelCustomer}`}>
-                  🤝 Customer *
-                </label>
-                <select
-                  value={customerId}
-                  onChange={(e) => setCustomerId(e.target.value)}
-                  disabled={loading}
-                  className={styles.formInput}
-                >
-                  <option value="">— pick customer —</option>
-                  {customers.map((c) => (
-                    <option key={c.ID} value={c.ID}>
-                      {c.COMPANY_NAME || c.NAME}
-                    </option>
-                  ))}
-                </select>
-                {selectedCustomer && (
-                  <div className={styles.formFieldHint}>
-                    📞 {selectedCustomer.PHONE_NUMBER || "—"}
-                  </div>
-                )}
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={`${styles.formLabel} ${styles.formLabelProduct}`}>
-                  🏭 Product (Machine Model) *
-                </label>
-                <select
-                  value={productId}
-                  onChange={(e) => setProductId(e.target.value)}
-                  disabled={loading}
-                  className={styles.formInput}
-                >
-                  <option value="">— pick product —</option>
-                  {products.map((p) => (
-                    <option key={p.ID} value={p.ID}>
-                      {p.MODEL_CODE} — {p.MODEL_NAME}
-                    </option>
-                  ))}
-                </select>
-                {selectedProduct && (
-                  <div className={styles.formFieldHint}>
-                    {selectedProduct.CATEGORY} · {selectedProduct.ESTIMATED_BUILD_DAYS}d build
-                  </div>
-                )}
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={`${styles.formLabel} ${styles.formLabelQty}`}>
-                  Quantity *
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  className={styles.formInput}
-                />
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={`${styles.formLabel} ${styles.formLabelPriority}`}>
-                  Priority
-                </label>
-                <select
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value)}
-                  className={styles.formInput}
-                >
-                  <option value="HIGH">High</option>
-                  <option value="MEDIUM">Medium</option>
-                  <option value="LOW">Low</option>
-                </select>
-              </div>
-
-              <div className={styles.formGroup}>
-                <label className={`${styles.formLabel} ${styles.formLabelDate}`}>
-                  Target Date
-                </label>
-                <input
-                  type="date"
-                  value={targetDate}
-                  onChange={(e) => setTargetDate(e.target.value)}
-                  className={styles.formInput}
-                />
-              </div>
-            </div>
-
-            <div className={styles.formGroupFull}>
-              <label className={`${styles.formLabel} ${styles.formLabelNotes}`}>
-                Notes
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={2}
-                className={styles.formTextarea}
-                placeholder="Any special instructions for this order..."
-              />
-            </div>
-
-            <div className={styles.infoCallout}>
-              <strong>✨ What happens when you click Create:</strong>
-              <ol>
-                <li>Project is created, inheriting the product's category + skills</li>
-                <li>A Work Order spawns with all 10 manufacturing stages</li>
-                <li>Each stage becomes a task auto-assigned by skill match</li>
-                <li>Each employee gets an email asking to accept their tasks</li>
-                <li>Tasks appear in their dashboards only after acceptance</li>
-              </ol>
-            </div>
-
-            {error && (
-              <div className={styles.errorBanner}>
-                {error}
-              </div>
-            )}
-
-            <div className={styles.formActions}>
-              <button
-                type="button"
-                onClick={onClose}
-                className={styles.btnCancel}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className={styles.btnSubmit}
-              >
-                {submitting ? "Creating…" : "✨ Create Project + Assign Tasks"}
-              </button>
-            </div>
-          </form>
-        )}
-
-        {result && <CreateResult result={result} onClose={onClose} />}
-      </div>
-    </div>
-  );
-}
-
-
-function CreateResult({ result, onClose }) {
-
-  return (
-
-    <div>
-
-      <div className={styles.resultSuccess}>
-        <div className={styles.resultSuccessTitle}>
-          ✓ Project created!
-        </div>
-        <div className={styles.resultSuccessMsg}>
-          {result.message}
-        </div>
-      </div>
-
-      <div className={styles.resultStatsGrid}>
-        <StatTile label="Tasks" value={result.tasks_generated} color="#6366f1" />
-        <StatTile label="Employees" value={result.employees_assigned} color="#10b981" sub="auto-assigned" />
-        <StatTile label="Emails Sent" value={result.emails_sent?.sent ?? 0} color="#f59e0b" sub={result.emails_sent?.failed ? `${result.emails_sent.failed} failed` : ""} />
-      </div>
-
-      <div className={styles.resultSectionLabel}>
-        Task assignments (PENDING acceptance)
-      </div>
-
-      <div className={styles.resultTaskList}>
-        {result.tasks?.map((t) => (
-          <div key={t.task_id} className={styles.resultTaskRow}>
-            <div className={styles.resultTaskLeft}>
-              <div className={styles.resultTaskName}>
-                {t.stage_name}
-              </div>
-              <div className={styles.resultTaskMeta}>
-                {t.stage_type} · → {t.assigned_employee_name || "Unassigned"}
-                {t.assigned_employee_code && (
-                  <span className={styles.resultTaskCode}>({t.assigned_employee_code})</span>
-                )}
-              </div>
-            </div>
-            <div className={styles.resultTaskRight}>
-              {/* Pill bg/fg come from static values — acceptable status-badge exception */}
-              <Pill bg="#fef3c7" fg="#854d0e">{t.approval_status}</Pill>
-              {t.skill_match_score > 0 && (
-                <div className={styles.resultMatchScore}>
-                  {Math.round(t.skill_match_score * 100)}% match
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className={styles.resultActions}>
-        <button
-          onClick={onClose}
-          className={styles.btnDone}
-        >
-          Done
-        </button>
-      </div>
-    </div>
-  );
-}
 
 
 // =================================================================
@@ -562,8 +225,6 @@ function Projects() {
 
   const [priorityFilter, setPriorityFilter] = useState("");
 
-  const [showCreate, setShowCreate] = useState(false);
-
   const [drawerId, setDrawerId] = useState(null);
 
   const fetchAll = async () => {
@@ -580,24 +241,16 @@ function Projects() {
         return await API.get("/projects");
       });
 
-      // Enrich with customer + product names via a separate fetch
-      const [custRes, prodRes] = await Promise.all([
-        API.get("/customers").catch(() => ({ data: [] })),
-        API.get("/production/models?vendor_id=1").catch(() => ({ data: [] }))
-      ]);
+      // Enrich with customer names via a separate fetch
+      const custRes = await API.get("/customers").catch(() => ({ data: [] }));
 
       const custMap = Object.fromEntries(
         (custRes.data || []).map((c) => [c.ID, c.COMPANY_NAME || c.NAME])
       );
 
-      const prodMap = Object.fromEntries(
-        (prodRes.data || []).map((p) => [p.ID, p.MODEL_NAME])
-      );
-
       const enriched = (res.data || []).map((p) => ({
         ...p,
         CUSTOMER_NAME: p.CUSTOMER_NAME || custMap[p.CUSTOMER_ID] || null,
-        PRODUCT_MODEL_NAME: prodMap[p.PRODUCT_MODEL_ID] || null
       }));
 
       setProjects(enriched);
@@ -707,13 +360,6 @@ function Projects() {
         <div className={styles.heroActions}>
 
           <button
-            onClick={() => setShowCreate(true)}
-            className={styles.btnCreateProject}
-          >
-            + Create Project
-          </button>
-
-          <button
             onClick={async () => {
 
               const msg =
@@ -722,8 +368,8 @@ function Projects() {
                 "task assignments + work orders + daily allocations\n" +
                 "+ notifications.\n\n" +
                 "Purchase Orders keep their data (LINKED_PROJECT_ID\n" +
-                "is just nulled out). Customers, Employees, Suppliers,\n" +
-                "Quotations are untouched.\n\n" +
+                "is just nulled out). Customers, Employees, and\n" +
+                "Suppliers are untouched.\n\n" +
                 "Use this to clear old test data before launching\n" +
                 "the real customer-driven project workflow.\n\n" +
                 "Continue?";
@@ -885,15 +531,6 @@ function Projects() {
             </div>
           )}
         </>
-      )}
-
-      {showCreate && (
-        <CreateFromProductModal
-          onClose={() => setShowCreate(false)}
-          onCreated={() => {
-            fetchAll();
-          }}
-        />
       )}
 
       <EntityDrawer

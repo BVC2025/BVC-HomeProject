@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import API from "../services/api";
 
 import Pagination from "../components/Pagination";
-
+import ManualPurchaseOrderModal from "../components/inventory/ManualPurchaseOrderModal";
+import { formatDateTime } from "../utils/formatDateTime";
 
 import styles from "./Inventory.module.css";
 
@@ -11,16 +12,19 @@ import styles from "./Inventory.module.css";
 // ===================================================================
 // Inventory — redesigned page (BVC24 red theme).
 //
-// Live stock view of raw materials. Updates automatically when GRNs
-// are finalized in the Purchase Orders module — this page just
-// reflects the current inventory state via /inventory/full.
+// Live stock view of products. Updates automatically when GRNs are
+// finalized in the Purchase Orders module, or when stock is
+// received/adjusted/consumed anywhere else — this page just reflects
+// the current inventory state via /inventory/full (ProductMaster ->
+// InventoryStock, no more location-scoped InventoryItem dimension).
 // ===================================================================
 
 
 const STATUS_THEME = {
-  OUT: { bg: "#fee2e2", fg: "#991b1b", color: "#ef4444", icon: "🛑", label: "Out of stock" },
-  LOW: { bg: "#fef3c7", fg: "#854d0e", color: "#f59e0b", icon: "⚠️", label: "Low stock" },
-  OK: { bg: "#dcfce7", fg: "#166534", color: "#10b981", icon: "✅", label: "In stock" }
+  OUT_OF_STOCK: { bg: "#fee2e2", fg: "#991b1b", color: "#ef4444", icon: "🛑", label: "Out of stock" },
+  LOW_STOCK: { bg: "#fef3c7", fg: "#854d0e", color: "#f59e0b", icon: "⚠️", label: "Low stock" },
+  IN_STOCK: { bg: "#dcfce7", fg: "#166534", color: "#10b981", icon: "✅", label: "In stock" },
+  OVERSTOCK: { bg: "#ede9fe", fg: "#5b21b6", color: "#8b5cf6", icon: "📈", label: "Overstock" }
 };
 
 
@@ -39,8 +43,25 @@ const CATEGORY_THEME = {
   "Heating": { bg: "#fef2f2", fg: "#991b1b", icon: "🔥" },
   "Power": { bg: "#fef9c3", fg: "#713f12", icon: "⚡" },
   "Packaging": { bg: "#fef3c7", fg: "#92400e", icon: "📦" },
+  "Uncategorized": { bg: "#f1f5f9", fg: "#64748b", icon: "🧰" },
   "Other": { bg: "#f1f5f9", fg: "#64748b", icon: "🧰" }
 };
+
+
+// Movement types that increase stock vs decrease it — used by the
+// detail drawer's movement list to sign the quantity correctly.
+// ADJUSTMENT is neither: QTY is an absolute value, not a delta.
+const ADDITIVE_MOVEMENT_TYPES = ["STOCK_IN", "TRANSFER_IN", "RETURN", "OPENING_STOCK"];
+
+const MOVEMENT_TYPE_LABELS = {
+  STOCK_IN: "Stock In", STOCK_OUT: "Stock Out", ADJUSTMENT: "Adjustment",
+  TRANSFER_IN: "Transfer In", TRANSFER_OUT: "Transfer Out",
+  RETURN: "Return", WRITE_OFF: "Write Off", OPENING_STOCK: "Opening Stock"
+};
+
+function movementTypeLabel(type) {
+  return MOVEMENT_TYPE_LABELS[type] || (type ? type.replace(/_/g, " ") : "Movement");
+}
 
 
 function inr(n) {
@@ -86,15 +107,19 @@ function StatTile({ label, value, sub, color, icon }) {
 
 
 // =================================================================
-// Material card
+// Product card
 // =================================================================
 function MaterialCard({ item, onOpen, onAdjust }) {
 
-  const statusTheme = STATUS_THEME[item.STOCK_STATUS] || STATUS_THEME.OK;
+  const statusTheme = STATUS_THEME[item.STATUS] || STATUS_THEME.IN_STOCK;
 
-  const catTheme = CATEGORY_THEME[item.CATEGORY] || CATEGORY_THEME.Other;
+  const catTheme = CATEGORY_THEME[item.CATEGORY_NAME] || CATEGORY_THEME.Other;
 
-  const fillPct = Math.min(100, Math.max(2, Math.round((item.QUANTITY / 20) * 100)));
+  const belowMin = item.STATUS === "LOW_STOCK" || item.STATUS === "OUT_OF_STOCK";
+
+  const scale = item.MAX_QTY && item.MAX_QTY > 0 ? item.MAX_QTY : 20;
+
+  const fillPct = Math.min(100, Math.max(2, Math.round((item.CURRENT_QTY / scale) * 100)));
 
   return (
     <div
@@ -110,14 +135,14 @@ function MaterialCard({ item, onOpen, onAdjust }) {
       <div className={styles.cardHeader}>
         <div className={styles.cardTitleArea}>
           <div className={styles.cardMaterialName}>
-            {item.MATERIAL_NAME}
+            {item.PRODUCT_NAME}
           </div>
           <span
             className={styles.categoryChip}
             style={{ background: catTheme.bg, color: catTheme.fg }}
           >
             <span>{catTheme.icon}</span>
-            {item.CATEGORY}
+            {item.CATEGORY_NAME}
           </span>
         </div>
 
@@ -128,10 +153,10 @@ function MaterialCard({ item, onOpen, onAdjust }) {
           >
             {statusTheme.icon} {statusTheme.label}
           </span>
-          {item.BELOW_MIN && (
+          {belowMin && (
             <span
               className={styles.reorderChip}
-              title={`Stock ${item.QUANTITY} is at or below reorder threshold ${item.MIN_STOCK}`}
+              title={`Stock ${item.CURRENT_QTY} is at or below reorder threshold ${item.MIN_QTY}`}
             >
               🔔 Reorder alert
             </span>
@@ -141,8 +166,8 @@ function MaterialCard({ item, onOpen, onAdjust }) {
 
       <div className={styles.quantityArea}>
         <div className={styles.quantityRow}>
-          <div className={styles.quantityValue}>{item.QUANTITY}</div>
-          <div className={styles.quantityUnit}>in stock</div>
+          <div className={styles.quantityValue}>{item.CURRENT_QTY}</div>
+          <div className={styles.quantityUnit}>{item.UNIT || "units"} in stock</div>
         </div>
 
         <div className={styles.progressTrack}>
@@ -152,17 +177,21 @@ function MaterialCard({ item, onOpen, onAdjust }) {
           />
         </div>
 
-        {item.MIN_STOCK > 0 && (
-          <div className={`${styles.reorderNote} ${item.BELOW_MIN ? styles.reorderNoteAlert : styles.reorderNoteNormal}`}>
-            Reorder at: <strong>{item.MIN_STOCK}</strong>
+        {item.MIN_QTY > 0 && (
+          <div className={`${styles.reorderNote} ${belowMin ? styles.reorderNoteAlert : styles.reorderNoteNormal}`}>
+            Reorder at: <strong>{item.MIN_QTY}</strong>
           </div>
         )}
+
+        <div className={styles.maxCapNote}>
+          Max cap: <strong>{item.MAX_QTY != null ? item.MAX_QTY : "No cap"}</strong>
+        </div>
       </div>
 
       <div className={styles.cardPriceGrid}>
         <div>
-          <div className={styles.priceLabel}>Unit price</div>
-          <div className={styles.priceValue}>{inr(item.UNIT_PRICE)}</div>
+          <div className={styles.priceLabel}>Unit cost</div>
+          <div className={styles.priceValue}>{inr(item.UNIT_COST)}</div>
         </div>
         <div className={styles.priceValueRight}>
           <div className={styles.priceLabel}>Total value</div>
@@ -170,16 +199,16 @@ function MaterialCard({ item, onOpen, onAdjust }) {
         </div>
       </div>
 
-      {(item.SUPPLIER || item.LAST_RECEIVED) && (
+      {(item.PREFERRED_SUPPLIER || item.LAST_MOVEMENT_AT) && (
         <div className={styles.cardMeta}>
-          {item.SUPPLIER && (
+          {item.PREFERRED_SUPPLIER && (
             <span className={styles.supplierLabel} title="Preferred supplier">
-              🚚 {item.SUPPLIER.COMPANY_NAME}
+              🚚 {item.PREFERRED_SUPPLIER.COMPANY_NAME}
             </span>
           )}
-          {item.LAST_RECEIVED && (
-            <span title="Last received">
-              📅 {item.LAST_RECEIVED}
+          {item.LAST_MOVEMENT_AT && (
+            <span title="Last stock movement">
+              📅 {formatDateTime(item.LAST_MOVEMENT_AT)}
             </span>
           )}
         </div>
@@ -201,7 +230,7 @@ function MaterialCard({ item, onOpen, onAdjust }) {
 // =================================================================
 function AdjustModal({ item, onClose, onSaved }) {
 
-  const [qty, setQty] = useState(item.QUANTITY);
+  const [qty, setQty] = useState(item.CURRENT_QTY);
 
   const [reason, setReason] = useState("");
 
@@ -209,17 +238,23 @@ function AdjustModal({ item, onClose, onSaved }) {
 
   const [saving, setSaving] = useState(false);
 
-  // Reorder-alert threshold — admin can set this from the same modal.
-  // Empty string means "leave unchanged"; 0 means "disable alerting".
-  const [minStock, setMinStock] = useState(
-    item.MIN_STOCK != null ? String(item.MIN_STOCK) : ""
+  // Min/Max Qty thresholds — admin can set these from the same modal.
+  // Blank means "leave unchanged" (the backend only updates a threshold
+  // when its key is present in the request body).
+  const [minQty, setMinQty] = useState(
+    item.MIN_QTY != null ? String(item.MIN_QTY) : ""
+  );
+  const [maxQty, setMaxQty] = useState(
+    item.MAX_QTY != null ? String(item.MAX_QTY) : ""
   );
 
-  const delta = Number(qty) - item.QUANTITY;
-  const initialMin = Number(item.MIN_STOCK || 0);
-  const targetMin = minStock === "" ? initialMin : Number(minStock) || 0;
-  const minChanged = targetMin !== initialMin;
-  const qtyChanged = Number(qty) !== Number(item.QUANTITY);
+  const delta = Number(qty) - Number(item.CURRENT_QTY);
+  const qtyChanged = Number(qty) !== Number(item.CURRENT_QTY);
+
+  const initialMin = Number(item.MIN_QTY || 0);
+  const initialMax = item.MAX_QTY != null ? Number(item.MAX_QTY) : null;
+  const minChanged = minQty !== "" && Number(minQty) !== initialMin;
+  const maxChanged = maxQty !== "" && Number(maxQty) !== initialMax;
 
   const save = async () => {
 
@@ -230,7 +265,7 @@ function AdjustModal({ item, onClose, onSaved }) {
       return;
     }
 
-    if (!qtyChanged && !minChanged) {
+    if (!qtyChanged && !minChanged && !maxChanged) {
 
       onClose?.();
       return;
@@ -249,10 +284,11 @@ function AdjustModal({ item, onClose, onSaved }) {
         });
       }
 
-      if (minChanged) {
-        await API.patch(`/inventory/${item.ID}/min-stock`, {
-          MIN_STOCK: targetMin
-        });
+      if (minChanged || maxChanged) {
+        const payload = {};
+        if (minChanged) payload.MIN_QTY = Number(minQty);
+        if (maxChanged) payload.MAX_QTY = Number(maxQty);
+        await API.patch(`/inventory/${item.ID}/min-stock`, payload);
       }
 
       onSaved?.();
@@ -274,18 +310,19 @@ function AdjustModal({ item, onClose, onSaved }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className={styles.modalTitle}>⚖️ Adjust stock</div>
-        <div className={styles.modalSubtitle}>{item.MATERIAL_NAME}</div>
+        <div className={styles.modalSubtitle}>{item.PRODUCT_NAME}</div>
 
         <div className={styles.modalQtyGrid}>
           <div>
             <div className={styles.modalFieldLabel}>Current</div>
-            <div className={styles.modalCurrentQty}>{item.QUANTITY}</div>
+            <div className={styles.modalCurrentQty}>{item.CURRENT_QTY}</div>
           </div>
           <div>
             <div className={styles.modalFieldLabel}>New</div>
             <input
               type="number"
               min="0"
+              step="any"
               value={qty}
               onChange={(e) => setQty(e.target.value)}
               className={styles.modalInput}
@@ -293,7 +330,7 @@ function AdjustModal({ item, onClose, onSaved }) {
           </div>
         </div>
 
-        {delta !== 0 && (
+        {delta !== 0 && !isNaN(delta) && (
           <div
             className={styles.deltaBadge}
             style={{
@@ -334,30 +371,44 @@ function AdjustModal({ item, onClose, onSaved }) {
           />
         </div>
 
-        {/* Reorder threshold — independent of the quantity change above.
-            Setting it to 0 (or leaving blank when it was 0) disables
-            alerting for this row. */}
+        {/* Min/Max Qty thresholds — independent of the quantity change
+            above. Leaving a field blank leaves that threshold unchanged. */}
         <div className={styles.reorderBox}>
           <div className={styles.reorderBoxTitle}>
-            🔔 Reorder alert
+            🔔 Stock thresholds
           </div>
           <div className={styles.reorderBoxRow}>
             <span className={styles.reorderBoxText}>
-              Notify when stock falls at or below
+              Min Qty (reorder at)
             </span>
             <input
               type="number"
               min="0"
-              value={minStock}
-              onChange={(e) => setMinStock(e.target.value)}
-              placeholder="0 = off"
+              step="any"
+              value={minQty}
+              onChange={(e) => setMinQty(e.target.value)}
+              placeholder="blank = unchanged"
               className={styles.reorderInput}
             />
-            <span className={styles.reorderBoxText}>units</span>
+          </div>
+          <div className={styles.reorderBoxRow} style={{ marginTop: 8 }}>
+            <span className={styles.reorderBoxText}>
+              Max Qty (cap)
+            </span>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              value={maxQty}
+              onChange={(e) => setMaxQty(e.target.value)}
+              placeholder="blank = unchanged"
+              className={styles.reorderInput}
+            />
           </div>
           <div className={styles.reorderBoxNote}>
-            Current threshold: <strong>{initialMin || "off"}</strong>
-            {minChanged && <> · will change to <strong>{targetMin || "off"}</strong></>}
+            Current: Min <strong>{item.MIN_QTY ?? 0}</strong> · Max{" "}
+            <strong>{item.MAX_QTY != null ? item.MAX_QTY : "No cap"}</strong>
+            {(minChanged || maxChanged) && <> · will update on save</>}
           </div>
         </div>
 
@@ -404,9 +455,9 @@ function DetailDrawer({ item, onClose }) {
 
   if (!item) return null;
 
-  const catTheme = CATEGORY_THEME[item.CATEGORY] || CATEGORY_THEME.Other;
+  const catTheme = CATEGORY_THEME[item.CATEGORY_NAME] || CATEGORY_THEME.Other;
 
-  const statusTheme = STATUS_THEME[item.STOCK_STATUS] || STATUS_THEME.OK;
+  const statusTheme = STATUS_THEME[item.STATUS] || STATUS_THEME.IN_STOCK;
 
   return (
     <div className={styles.drawerOverlay} onClick={onClose}>
@@ -421,14 +472,14 @@ function DetailDrawer({ item, onClose }) {
           >×</button>
 
           <div className={styles.drawerEyebrow}>
-            INVENTORY · MATERIAL DETAIL
+            INVENTORY · PRODUCT DETAIL
           </div>
           <h2 className={styles.drawerTitle}>
-            {item.MATERIAL_NAME}
+            {item.PRODUCT_NAME}
           </h2>
           <div className={styles.drawerBadges}>
             <span className={styles.drawerCatChip}>
-              {catTheme.icon} {item.CATEGORY}
+              {catTheme.icon} {item.CATEGORY_NAME}
             </span>
             <span
               className={styles.drawerStatusChip}
@@ -441,67 +492,71 @@ function DetailDrawer({ item, onClose }) {
 
         <div className={styles.drawerBody}>
           <div className={styles.summaryBoxGrid}>
-            <SummaryBox label="In Stock" value={item.QUANTITY} color="var(--text-primary, #0f172a)" />
-            <SummaryBox label="Unit Price" value={inr(item.UNIT_PRICE)} color="var(--text-secondary, #475569)" small />
+            <SummaryBox label="In Stock" value={item.CURRENT_QTY} color="var(--text-primary, #0f172a)" />
+            <SummaryBox label="Unit Cost" value={inr(item.UNIT_COST)} color="var(--text-secondary, #475569)" small />
             <SummaryBox label="Total Value" value={inr(item.TOTAL_VALUE)} color="#047857" small />
           </div>
 
-          {item.SUPPLIER && (
+          <div className={styles.thresholdRow}>
+            Min Qty: <strong>{item.MIN_QTY ?? 0}</strong> · Max Qty:{" "}
+            <strong>{item.MAX_QTY != null ? item.MAX_QTY : "No cap"}</strong>
+          </div>
+
+          {item.PREFERRED_SUPPLIER && (
             <Section title="🚚 Preferred Supplier">
               <div className={styles.supplierBlock}>
                 <div className={styles.supplierName}>
-                  {item.SUPPLIER.COMPANY_NAME}
+                  {item.PREFERRED_SUPPLIER.COMPANY_NAME}
                 </div>
                 <div className={styles.supplierMeta}>
-                  Code: {item.SUPPLIER.SUPPLIER_CODE}
-                  {item.SUPPLIER.CATEGORY && ` · ${item.SUPPLIER.CATEGORY}`}
+                  Code: {item.PREFERRED_SUPPLIER.SUPPLIER_CODE}
+                  {item.PREFERRED_SUPPLIER.CATEGORY && ` · ${item.PREFERRED_SUPPLIER.CATEGORY}`}
                 </div>
               </div>
             </Section>
           )}
 
-          {(item.USED_IN_PRODUCTS?.length || 0) > 0 && (
-            <Section title="🏭 Used in Products">
-              <div className={styles.productChips}>
-                {item.USED_IN_PRODUCTS.map((p) => (
-                  <span key={p.ID} className={styles.productChip}>
-                    {p.MODEL_CODE}
-                  </span>
-                ))}
-              </div>
-            </Section>
-          )}
-
-          <Section title="📥 Recent Stock Movements (from GRN)">
+          <Section title="📥 Recent Stock Movements">
             {movements === null && (
               <div className={styles.movementsLoading}>Loading…</div>
             )}
             {movements?.length === 0 && (
               <div className={styles.movementsEmpty}>
-                No goods receipts yet. Stock changes appear here once
-                a Purchase Order's GRN is finalized.
+                No stock movements yet. Stock changes (receipts,
+                adjustments, consumption, etc.) appear here as they happen.
               </div>
             )}
             {(movements?.length || 0) > 0 && (
               <div className={styles.movementList}>
-                {movements.map((m, i) => (
-                  <div key={i} className={styles.movementRow}>
-                    <div>
-                      <div className={styles.movementGRN}>{m.GRN_NUMBER}</div>
-                      <div className={styles.movementMeta}>
-                        Received {m.RECEIVED_DATE} · {inr(m.UNIT_PRICE)} / unit
+                {movements.map((m) => {
+
+                  const isAdjustment = m.MOVEMENT_TYPE === "ADJUSTMENT";
+                  const additive = ADDITIVE_MOVEMENT_TYPES.includes(m.MOVEMENT_TYPE);
+
+                  return (
+                    <div key={m.ID} className={styles.movementRow}>
+                      <div>
+                        <div className={styles.movementGRN}>{movementTypeLabel(m.MOVEMENT_TYPE)}</div>
+                        <div className={styles.movementMeta}>
+                          {formatDateTime(m.CREATED_AT)}
+                          {m.REASON && ` · ${m.REASON}`}
+                          {m.PERFORMED_BY_NAME && ` · by ${m.PERFORMED_BY_NAME}`}
+                        </div>
+                      </div>
+                      <div className={styles.movementRight}>
+                        {isAdjustment ? (
+                          <div className={styles.movementQtyNeutral}>
+                            {m.QTY_BEFORE} → {m.QTY_AFTER}
+                          </div>
+                        ) : (
+                          <div className={additive ? styles.movementQty : styles.movementQtyNegative}>
+                            {additive ? "+" : "-"}{m.QTY}
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <div className={styles.movementRight}>
-                      <div className={styles.movementQty}>+{m.QUANTITY_RECEIVED}</div>
-                      {m.QUANTITY_REJECTED > 0 && (
-                        <div className={styles.movementRejected}>
-                          {m.QUANTITY_REJECTED} rejected
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </Section>
@@ -561,6 +616,8 @@ function Inventory() {
 
   const [adjustItem, setAdjustItem] = useState(null);
 
+  const [poModalOpen, setPoModalOpen] = useState(false);
+
   const load = () => {
 
     setLoading(true);
@@ -581,16 +638,16 @@ function Inventory() {
 
     return data.items.filter((it) => {
 
-      if (categoryFilter && it.CATEGORY !== categoryFilter) return false;
+      if (categoryFilter && it.CATEGORY_NAME !== categoryFilter) return false;
 
-      if (statusFilter && it.STOCK_STATUS !== statusFilter) return false;
+      if (statusFilter && it.STATUS !== statusFilter) return false;
 
       if (s) {
 
         const hay = (
-          it.MATERIAL_NAME + " " +
-          (it.SUPPLIER?.COMPANY_NAME || "") + " " +
-          (it.CATEGORY || "")
+          it.PRODUCT_NAME + " " +
+          (it.PREFERRED_SUPPLIER?.COMPANY_NAME || "") + " " +
+          (it.CATEGORY_NAME || "")
         ).toLowerCase();
 
         if (!hay.includes(s)) return false;
@@ -612,6 +669,12 @@ function Inventory() {
     return filtered.slice(start, start + pageSize);
   }, [filtered, page, pageSize]);
 
+  const stockByProduct = useMemo(() => {
+    const map = {};
+    for (const item of data?.items || []) map[item.PRODUCT_ID] = item;
+    return map;
+  }, [data]);
+
   return (
     <div className={styles.pageWrapper}>
 
@@ -626,8 +689,8 @@ function Inventory() {
       {/* KPIs */}
       <div className={styles.kpiGrid}>
         <StatTile
-          label="Total Materials"
-          value={summary.total_materials ?? "—"}
+          label="Total Products"
+          value={summary.total_products ?? "—"}
           sub={`${summary.in_stock_count ?? 0} in stock`}
           color="#ef4444"
           icon="📦"
@@ -635,14 +698,14 @@ function Inventory() {
         <StatTile
           label="Total Stock Value"
           value={compactNum(summary.total_value)}
-          sub="across all materials"
+          sub="across all products"
           color="#10b981"
           icon="💰"
         />
         <StatTile
           label="Low Stock"
           value={summary.low_stock_count ?? 0}
-          sub={`≤ ${summary.low_threshold ?? 5} units`}
+          sub="at or below min qty"
           color="#f59e0b"
           icon="⚠️"
         />
@@ -653,13 +716,20 @@ function Inventory() {
           color="#ef4444"
           icon="🛑"
         />
+        <StatTile
+          label="Overstock"
+          value={summary.overstock_count ?? 0}
+          sub="above max qty"
+          color="#8b5cf6"
+          icon="📈"
+        />
       </div>
 
       {/* Filter bar */}
       <div className={styles.filterBar}>
         <input
           type="text"
-          placeholder="🔍 Search materials, suppliers, categories..."
+          placeholder="🔍 Search products, suppliers, categories..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className={styles.filterSearch}
@@ -679,7 +749,7 @@ function Inventory() {
         </select>
 
         <div className={styles.statusBtns}>
-          {["", "OK", "LOW", "OUT"].map((s) => {
+          {["", "IN_STOCK", "LOW_STOCK", "OUT_OF_STOCK", "OVERSTOCK"].map((s) => {
 
             const theme = s ? STATUS_THEME[s] : null;
 
@@ -700,6 +770,14 @@ function Inventory() {
         </div>
 
         <button
+          onClick={() => setPoModalOpen(true)}
+          title="Create a manual Purchase Order"
+          className={styles.createPoBtn}
+        >
+          🧾 Create Purchase Order
+        </button>
+
+        <button
           onClick={load}
           title="Refresh"
           className={styles.refreshBtn}
@@ -717,11 +795,12 @@ function Inventory() {
 
       {!loading && filtered.length === 0 && (
         <div className={styles.emptyState}>
-          📭 No materials match your filters.
+          📭 No products match your filters.
           {(!data?.items?.length) && (
             <div className={styles.emptyStateSub}>
-              Hit <b>Suppliers → 🔄 Reset &amp; Seed Demo Data</b> to load
-              the 47 starter materials.
+              No products are being tracked in inventory yet. Add a stock
+              row for a product from the Inventory Items page to start
+              tracking it here.
             </div>
           )}
         </div>
@@ -761,6 +840,13 @@ function Inventory() {
           onSaved={() => { setAdjustItem(null); load(); }}
         />
       )}
+
+      <ManualPurchaseOrderModal
+        open={poModalOpen}
+        onClose={() => setPoModalOpen(false)}
+        onCreated={load}
+        stockByProduct={stockByProduct}
+      />
 
     </div>
   );

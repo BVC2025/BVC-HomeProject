@@ -9,13 +9,8 @@ endpoints here. One HTTP call returns the full picture.
 Routes
 ------
   GET /connect/employee/{id}/360        — tasks + attendance + leave +
-                                          performance + scans + stages
-  GET /connect/project/{id}/360         — work orders + tasks + assigned
-                                          employees + customer
-  GET /connect/work-order/{id}/360      — model + BOM + stages + inspections
-                                          + NCRs + assigned employees
-  GET /connect/supplier/{id}/360        — BOM lines using this supplier +
-                                          which machine models depend on it
+                                          performance + scans
+  GET /connect/supplier/{id}/360        — supplier profile
   GET /connect/workflow/snapshot        — live counts at every step of the
                                           BVC24 flow, for the Workflow page
 """
@@ -37,20 +32,10 @@ from app.models.models import (
     Attendance,
     Inventory,
     Supplier,
-    ProductModel,
-    BOMItem,
-    WorkOrder,
-    ProcessStage,
-    WorkOrderStageProgress,
-    QCChecklistItem,
-    QCInspection,
-    QCInspectionResult,
-    NCR,
     LeaveRequest,
     LeaveBalance,
     BiometricEvent,
     DailyAllocation,
-    Machine
 )
 
 
@@ -87,8 +72,8 @@ def employee_360(employee_id: str, db: Session = Depends(get_db)):
     """Returns everything connected to one employee in one payload.
 
     Pulls from: Employee, Department, TaskAssignment, Attendance,
-    LeaveRequest, LeaveBalance, BiometricEvent, DailyAllocation,
-    WorkOrderStageProgress + performance score.
+    LeaveRequest, LeaveBalance, BiometricEvent, DailyAllocation +
+    performance score.
     """
 
     emp = db.query(Employee).filter(Employee.ID == employee_id).first()
@@ -164,28 +149,6 @@ def employee_360(employee_id: str, db: Session = Depends(get_db)):
         .filter(LeaveRequest.EMPLOYEE_ID == emp.ID)
         .order_by(LeaveRequest.CREATED_AT.desc())
         .limit(10)
-        .all()
-    )
-
-    # ---- WO stages currently assigned to this employee ----
-    in_progress_stages = (
-        db.query(WorkOrderStageProgress, ProcessStage, WorkOrder, ProductModel)
-        .join(
-            ProcessStage,
-            WorkOrderStageProgress.STAGE_ID == ProcessStage.ID
-        )
-        .join(
-            WorkOrder,
-            WorkOrderStageProgress.WORK_ORDER_ID == WorkOrder.ID
-        )
-        .outerjoin(
-            ProductModel,
-            WorkOrder.PRODUCT_MODEL_ID == ProductModel.ID
-        )
-        .filter(
-            WorkOrderStageProgress.ASSIGNED_TO_ID == emp.ID,
-            WorkOrderStageProgress.STATUS.in_(["IN_PROGRESS", "PENDING"])
-        )
         .all()
     )
 
@@ -282,18 +245,6 @@ def employee_360(employee_id: str, db: Session = Depends(get_db)):
             }
             for lv in leave_requests
         ],
-        "active_production_stages": [
-            {
-                "WO_ID": wo.ID,
-                "WO_NUMBER": wo.WO_NUMBER,
-                "MODEL_NAME": model.MODEL_NAME if model else None,
-                "STAGE_NAME": stage.STAGE_NAME,
-                "STAGE_TYPE": stage.STAGE_TYPE,
-                "PROGRESS_STATUS": progress.STATUS,
-                "STARTED_AT": _iso(progress.STARTED_AT)
-            }
-            for progress, stage, wo, model in in_progress_stages
-        ],
         "performance": perf
     }
 
@@ -314,151 +265,6 @@ def employee_360(employee_id: str, db: Session = Depends(get_db)):
 # along with /customers in favor of /customer-master.
 
 
-# ================================================================
-# WORK ORDER 360°
-# ================================================================
-
-@router.get("/work-order/{wo_id}/360", dependencies=[Depends(get_current_admin)])
-def work_order_360(wo_id: int, db: Session = Depends(get_db)):
-
-    row = (
-        db.query(WorkOrder, ProductModel)
-        .outerjoin(
-            ProductModel,
-            WorkOrder.PRODUCT_MODEL_ID == ProductModel.ID
-        )
-        .filter(WorkOrder.ID == wo_id)
-        .first()
-    )
-
-    if not row:
-
-        raise HTTPException(status_code=404, detail="Work order not found")
-
-    wo, model = row
-
-    # ---- BOM rolled up by quantity ----
-    bom = (
-        db.query(BOMItem, Supplier, ProcessStage)
-        .outerjoin(
-            Supplier,
-            BOMItem.PREFERRED_SUPPLIER_ID == Supplier.ID
-        )
-        .outerjoin(
-            ProcessStage,
-            BOMItem.PROCESS_STAGE_ID == ProcessStage.ID
-        )
-        .filter(BOMItem.PRODUCT_MODEL_ID == wo.PRODUCT_MODEL_ID)
-        .all()
-        if wo.PRODUCT_MODEL_ID else []
-    )
-
-    # ---- Stage progress for this WO ----
-    stages = (
-        db.query(WorkOrderStageProgress, ProcessStage, Employee)
-        .join(
-            ProcessStage,
-            WorkOrderStageProgress.STAGE_ID == ProcessStage.ID
-        )
-        .outerjoin(
-            Employee,
-            WorkOrderStageProgress.ASSIGNED_TO_ID == Employee.ID
-        )
-        .filter(WorkOrderStageProgress.WORK_ORDER_ID == wo.ID)
-        .order_by(ProcessStage.SEQUENCE)
-        .all()
-    )
-
-    # ---- Inspections + NCRs ----
-    inspections = (
-        db.query(QCInspection)
-        .filter(QCInspection.WORK_ORDER_ID == wo.ID)
-        .order_by(QCInspection.CREATED_AT.desc())
-        .all()
-    )
-
-    ncrs = (
-        db.query(NCR)
-        .filter(NCR.WORK_ORDER_ID == wo.ID)
-        .order_by(NCR.OPENED_AT.desc())
-        .all()
-    )
-
-    return {
-        "work_order": {
-            "ID": wo.ID,
-            "WO_NUMBER": wo.WO_NUMBER,
-            "QUANTITY": wo.QUANTITY,
-            "STATUS": wo.STATUS,
-            "PLANNED_START_DATE": _iso(wo.PLANNED_START_DATE),
-            "PLANNED_END_DATE": _iso(wo.PLANNED_END_DATE),
-            "ACTUAL_START_DATE": _iso(wo.ACTUAL_START_DATE),
-            "ACTUAL_END_DATE": _iso(wo.ACTUAL_END_DATE),
-            "NOTES": wo.NOTES
-        },
-        "machine_model": (
-            {
-                "ID": model.ID,
-                "MODEL_CODE": model.MODEL_CODE,
-                "MODEL_NAME": model.MODEL_NAME,
-                "CATEGORY": model.CATEGORY,
-                "ESTIMATED_BUILD_DAYS": model.ESTIMATED_BUILD_DAYS
-            }
-            if model else None
-        ),
-        "bom": [
-            {
-                "ID": b.ID,
-                "MATERIAL_NAME": b.MATERIAL_NAME,
-                "PER_UNIT": b.QUANTITY,
-                "TOTAL_FOR_WO": round((b.QUANTITY or 0) * wo.QUANTITY, 3),
-                "UNIT": b.UNIT,
-                "TYPE": b.ITEM_TYPE or "PURCHASE",
-                "SUPPLIER_ID": sup.ID if sup else None,
-                "SUPPLIER_NAME": sup.COMPANY_NAME if sup else None,
-                "STAGE_NAME": stage.STAGE_NAME if stage else None
-            }
-            for b, sup, stage in bom
-        ],
-        "stages": [
-            {
-                "STAGE_ID": stage.ID,
-                "SEQUENCE": stage.SEQUENCE,
-                "STAGE_NAME": stage.STAGE_NAME,
-                "STAGE_TYPE": stage.STAGE_TYPE,
-                "STATUS": progress.STATUS,
-                "ASSIGNED_TO_ID": progress.ASSIGNED_TO_ID,
-                "ASSIGNED_TO_NAME": emp.NAME if emp else None,
-                "STARTED_AT": _iso(progress.STARTED_AT),
-                "COMPLETED_AT": _iso(progress.COMPLETED_AT),
-                "NOTES": progress.NOTES
-            }
-            for progress, stage, emp in stages
-        ],
-        "inspections": [
-            {
-                "ID": i.ID,
-                "STATUS": i.STATUS,
-                "PASS_COUNT": i.PASS_COUNT,
-                "FAIL_COUNT": i.FAIL_COUNT,
-                "REWORK_COUNT": i.REWORK_COUNT,
-                "INSPECTION_DATE": _iso(i.INSPECTION_DATE)
-            }
-            for i in inspections
-        ],
-        "ncrs": [
-            {
-                "ID": n.ID,
-                "NCR_NUMBER": n.NCR_NUMBER,
-                "CHECK_POINT": n.CHECK_POINT,
-                "SEVERITY": n.SEVERITY,
-                "STATUS": n.STATUS,
-                "OPENED_AT": _iso(n.OPENED_AT)
-            }
-            for n in ncrs
-        ]
-    }
-
 
 # ================================================================
 # SUPPLIER 360°
@@ -472,57 +278,6 @@ def supplier_360(supplier_id: int, db: Session = Depends(get_db)):
     if not sup:
 
         raise HTTPException(status_code=404, detail="Supplier not found")
-
-    # ---- BOM lines using this supplier (which parts in which models) ----
-    bom_links = (
-        db.query(BOMItem, ProductModel)
-        .outerjoin(
-            ProductModel,
-            BOMItem.PRODUCT_MODEL_ID == ProductModel.ID
-        )
-        .filter(BOMItem.PREFERRED_SUPPLIER_ID == sup.ID)
-        .all()
-    )
-
-    # Group BOM lines by model
-    by_model = {}
-
-    for b, m in bom_links:
-
-        if not m:
-
-            continue
-
-        key = m.ID
-
-        if key not in by_model:
-
-            by_model[key] = {
-                "MODEL_ID": m.ID,
-                "MODEL_CODE": m.MODEL_CODE,
-                "MODEL_NAME": m.MODEL_NAME,
-                "parts": []
-            }
-
-        by_model[key]["parts"].append({
-            "MATERIAL_NAME": b.MATERIAL_NAME,
-            "QUANTITY": b.QUANTITY,
-            "UNIT": b.UNIT
-        })
-
-    # ---- Active WOs that need parts from this supplier ----
-    active_wos = (
-        db.query(WorkOrder, ProductModel)
-        .join(
-            ProductModel,
-            WorkOrder.PRODUCT_MODEL_ID == ProductModel.ID
-        )
-        .filter(
-            WorkOrder.STATUS.in_(["PLANNED", "IN_PROGRESS"]),
-            ProductModel.ID.in_(by_model.keys()) if by_model else False
-        )
-        .all()
-    ) if by_model else []
 
     return {
         "supplier": {
@@ -545,22 +300,6 @@ def supplier_360(supplier_id: int, db: Session = Depends(get_db)):
             "CATEGORY": sup.CATEGORY,
             "PAYMENT_TERMS": sup.PAYMENT_TERMS,
             "STATUS": sup.STATUS
-        },
-        "models_supplied": list(by_model.values()),
-        "active_work_orders_needing_supplier": [
-            {
-                "WO_ID": wo.ID,
-                "WO_NUMBER": wo.WO_NUMBER,
-                "MODEL_NAME": m.MODEL_NAME,
-                "QUANTITY": wo.QUANTITY,
-                "STATUS": wo.STATUS
-            }
-            for wo, m in active_wos
-        ],
-        "summary": {
-            "models_count": len(by_model),
-            "active_wos_count": len(active_wos),
-            "total_bom_lines": len(bom_links)
         }
     }
 
@@ -600,34 +339,6 @@ def workflow_snapshot(db: Session = Depends(get_db)):
             ).count()
         },
 
-        "products": {
-            "machine_models": db.query(ProductModel).count(),
-            "bom_lines": db.query(BOMItem).count(),
-            "process_stages_defined": db.query(ProcessStage).filter(
-                ProcessStage.IS_ACTIVE == 1
-            ).count()
-        },
-
-        "production": {
-            "work_orders_total": db.query(WorkOrder).count(),
-            "work_orders_in_progress": db.query(WorkOrder).filter(
-                WorkOrder.STATUS == "IN_PROGRESS"
-            ).count(),
-            "work_orders_done": db.query(WorkOrder).filter(
-                WorkOrder.STATUS == "DONE"
-            ).count(),
-            "units_in_pipeline": int(
-                db.query(func.coalesce(func.sum(WorkOrder.QUANTITY), 0))
-                .filter(WorkOrder.STATUS == "IN_PROGRESS")
-                .scalar() or 0
-            ),
-            "stage_progress_rows": db.query(WorkOrderStageProgress).count(),
-            "stages_done_today": db.query(WorkOrderStageProgress).filter(
-                WorkOrderStageProgress.STATUS == "DONE",
-                func.date(WorkOrderStageProgress.COMPLETED_AT) == today
-            ).count()
-        },
-
         "biometric": {
             "scans_total": db.query(BiometricEvent).count(),
             "scans_today": db.query(BiometricEvent).filter(
@@ -657,23 +368,6 @@ def workflow_snapshot(db: Session = Depends(get_db)):
             "tasks_completed_today": db.query(TaskAssignment).filter(
                 TaskAssignment.ASSIGNED_DATE == today,
                 TaskAssignment.TASK_STATUS.in_(["DONE", "COMPLETED"])
-            ).count()
-        },
-
-        "quality": {
-            "inspections_total": db.query(QCInspection).count(),
-            "inspections_pass": db.query(QCInspection).filter(
-                QCInspection.STATUS == "PASS"
-            ).count(),
-            "inspections_fail": db.query(QCInspection).filter(
-                QCInspection.STATUS == "FAIL"
-            ).count(),
-            "open_ncrs": db.query(NCR).filter(
-                NCR.STATUS.in_(["OPEN", "IN_PROGRESS"])
-            ).count(),
-            "critical_open_ncrs": db.query(NCR).filter(
-                NCR.STATUS.in_(["OPEN", "IN_PROGRESS"]),
-                NCR.SEVERITY == "CRITICAL"
             ).count()
         },
 

@@ -3,7 +3,7 @@
 # ---------------------------------------------------------------------
 # Starts the backend the same way every time, on the port the rest of
 # the codebase (frontend api.js, deploy scripts, docs) already
-# expects: 8001. Plain `uvicorn app.main:app --reload` defaults to
+# expects: 8000. Plain `uvicorn app.main:app --reload` defaults to
 # uvicorn's own built-in port (8000) when --port isn't passed — this
 # script exists so you don't have to remember the flag.
 #
@@ -12,7 +12,7 @@
 # =====================================================================
 
 param(
-    [int]$Port = 8001
+    [int]$Port = 8000
 )
 
 $RepoRoot   = Split-Path -Parent $MyInvocation.MyCommand.Path

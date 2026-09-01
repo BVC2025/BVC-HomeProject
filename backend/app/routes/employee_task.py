@@ -1181,74 +1181,9 @@ def update_task_status(
 
     db.commit()
 
-    # ---- Propagate to the manufacturing Gantt --------------------
-    # If the task came from the AI allocator, the corresponding
-    # WorkOrderStageProgress row was set to IN_PROGRESS at
-    # allocation time. Mirror the employee's UI action onto that
-    # stage so the Production Gantt + MD Performance both reflect
-    # what just happened.
-    stage_synced = False
-
-    if task.PROJECT_ID:
-
-        try:
-
-            from app.models.models import (
-                WorkOrder,
-                WorkOrderStageProgress,
-                ProcessStage
-            )
-
-            in_progress_row = (
-                db.query(WorkOrderStageProgress, WorkOrder)
-                .join(
-                    WorkOrder,
-                    WorkOrderStageProgress.WORK_ORDER_ID == WorkOrder.ID
-                )
-                .filter(
-                    WorkOrder.PROJECT_ID == task.PROJECT_ID,
-                    WorkOrderStageProgress.ASSIGNED_TO_ID == task.EMPLOYEE_ID,
-                    WorkOrderStageProgress.STATUS == "IN_PROGRESS"
-                )
-                .first()
-            )
-
-            if in_progress_row:
-
-                progress, _ = in_progress_row
-
-                if new_status == "COMPLETED":
-
-                    progress.STATUS = "DONE"
-
-                    progress.COMPLETED_AT = now
-
-                    stage_synced = True
-
-                elif new_status == "ON_HOLD":
-
-                    # Reflect hold on the Gantt as PENDING so the next
-                    # allocator scan can pick it up again.
-                    progress.STATUS = "PENDING"
-
-                    progress.ASSIGNED_TO_ID = None
-
-                    stage_synced = True
-
-                if stage_synced:
-
-                    db.commit()
-
-        except Exception as e:
-
-            # Stage sync is best-effort — never fail the task update
-            # if the production module isn't set up.
-            print(f"[stage sync] {e}")
-
     return {
         "message": "Task status updated",
         "TASK": serialize_task(task),
-        "stage_synced_to_gantt": stage_synced
     }
 
 
@@ -1363,42 +1298,14 @@ def reject_task(
             )
         )
 
-    rejected_by = task.EMPLOYEE_ID
-
-    # Try to reassign to the next best employee using the same
-    # skill-based picker.
+    # The Manufacturing skill-based picker (project_from_product_service)
+    # was removed, and project_legacy (CustomerProject) was already
+    # removed earlier, so there is no remaining way to find a
+    # replacement assignee here — leave the task unassigned for the
+    # admin to handle.
     new_assignee = None
 
     new_score = 0
-
-    try:
-
-        from app.services.project_from_product_service import (
-            find_best_employee,
-            STAGE_TYPE_SKILLS
-        )
-
-        # project_legacy (CustomerProject) was removed, so a task's
-        # linked project can no longer supply required skills/vendor/
-        # department — always take the same "no project" fallback
-        # this code already used whenever task.PROJECT_ID was unset.
-        required = ""
-
-        vendor_id = 1
-
-        dept_id = None
-
-        new_assignee, new_score = find_best_employee(
-            db,
-            required_skills=required,
-            vendor_id=vendor_id,
-            department_id=dept_id,
-            exclude_employee_ids={rejected_by} if rejected_by else None
-        )
-
-    except Exception:
-
-        new_assignee = None
 
     if new_assignee:
 

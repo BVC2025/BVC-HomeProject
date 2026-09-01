@@ -123,12 +123,12 @@ ORG_PRESETS = {
             ]),
             ("Fabrication", "FAB", [
                 ("Fabricator", 30000),
-                ("Senior Fabricator", 48001),
+                ("Senior Fabricator", 48000),
             ]),
             ("Production", "PRD", [
-                ("Production Operator", 28001),
+                ("Production Operator", 28000),
                 ("Production Supervisor", 50000),
-                ("Production Head", 80010),
+                ("Production Head", 80000),
             ]),
             ("Assembly", "ASM", [
                 ("Assembly Technician", 30000),
@@ -140,7 +140,7 @@ ORG_PRESETS = {
                 ("Senior Electrician", 50000),
             ]),
             ("Electronics", "ELTR", [
-                ("Electronics Technician", 38001),
+                ("Electronics Technician", 38000),
                 ("Senior Electronics Engineer", 65000),
             ]),
             ("Quality Control", "QC", [
@@ -154,11 +154,11 @@ ORG_PRESETS = {
             ]),
             ("Installation", "INST", [
                 ("Installation Technician", 32000),
-                ("Installation Lead", 48001),
+                ("Installation Lead", 48000),
             ]),
             ("Packaging & Dispatch", "PKG", [
                 ("Packaging Operator", 25000),
-                ("Dispatch Coordinator", 38001),
+                ("Dispatch Coordinator", 38000),
             ]),
         ]
     },
@@ -174,7 +174,7 @@ ORG_PRESETS = {
                 ("Senior Backend Developer", 110000),
             ]),
             ("DevOps", "OPS", [
-                ("DevOps Engineer", 80010),
+                ("DevOps Engineer", 80000),
                 ("Senior DevOps Engineer", 130000),
             ]),
             ("QA", "QA", [
@@ -196,7 +196,7 @@ ORG_PRESETS = {
         "departments": [
             ("Sales", "SLS", [
                 ("Sales Executive", 40000),
-                ("Sales Manager", 80010),
+                ("Sales Manager", 80000),
             ]),
             ("Operations", "OPS", [
                 ("Operations Executive", 45000),
@@ -241,7 +241,6 @@ PERMISSIONS_CATALOG = [
     # Customer
     ("customer.view", "View customers", "Customers", ""),
     ("customer.manage", "Manage customers", "Customers", "Create/edit/delete customers"),
-    ("quotation.manage", "Manage quotations", "Customers", "Create and approve quotations"),
 
     # Projects
     ("project.view", "View projects", "Projects", ""),
@@ -263,10 +262,6 @@ PERMISSIONS_CATALOG = [
     ("inventory.consume", "Consume inventory", "Inventory", "Issue materials to a task"),
     ("inventory.purchase", "Purchase / receive stock", "Inventory", "Add stock from suppliers"),
 
-    # Manufacturing / machines
-    ("machine.view", "View machines", "Manufacturing", ""),
-    ("machine.update.stage", "Update machine stage", "Manufacturing", ""),
-
     # Reports
     ("report.export", "Export reports", "Reports", "PDF / Excel"),
 
@@ -280,10 +275,6 @@ PERMISSIONS_CATALOG = [
     ("audit.view", "View audit log", "Settings", ""),
 
     # ---- Phase: User & Role Management (Admin Module 2) ----
-    # Sales / Quotation / SO
-    ("sales_order.view",   "View sales orders",      "Sales",     ""),
-    ("sales_order.manage", "Manage sales orders",    "Sales",     "Create / edit / cancel / record payments"),
-
     # Purchase / Suppliers / GRN
     ("supplier.manage",     "Manage suppliers",      "Purchase",  ""),
     ("purchase_order.view", "View purchase orders",  "Purchase",  ""),
@@ -316,11 +307,10 @@ STANDARD_ROLES = [
         "employee.view", "employee.create", "employee.update",
         "org.view", "org.manage", "role.manage",
         "attendance.view.all", "attendance.mark.others",
-        "customer.view", "customer.manage", "quotation.manage",
+        "customer.view", "customer.manage",
         "project.view", "project.create", "project.update", "project.delete",
         "task.view.all", "task.assign", "task.update.status",
         "inventory.view", "inventory.purchase",
-        "machine.view", "machine.update.stage",
         "report.export", "notification.broadcast",
         "setting.modify", "audit.view"
     ]),
@@ -340,7 +330,6 @@ STANDARD_ROLES = [
         "project.view", "project.create", "project.update",
         "task.view.team", "task.assign", "task.update.status",
         "inventory.view", "inventory.consume",
-        "machine.view", "machine.update.stage",
         "report.export"
     ]),
 
@@ -351,7 +340,6 @@ STANDARD_ROLES = [
         "project.view", "project.update",
         "task.view.all", "task.assign", "task.update.status",
         "inventory.view", "inventory.consume", "inventory.purchase",
-        "machine.view", "machine.update.stage",
         "report.export"
     ]),
 
@@ -361,7 +349,6 @@ STANDARD_ROLES = [
         "project.view",
         "task.view.team", "task.update.status",
         "task.qc.approve", "task.qc.reject",
-        "machine.view", "machine.update.stage",
         "report.export"
     ]),
 
@@ -382,8 +369,6 @@ STANDARD_ROLES = [
         "project.view",
         "task.view.all",
         "inventory.view",
-        "machine.view",
-        "sales_order.view",
         "purchase_order.view",
         "payroll.view",
         "accounts.view",
@@ -401,10 +386,8 @@ STANDARD_ROLES = [
         "report.export"
     ]),
 
-    ("SALES_MANAGER", "Sales — customers, quotations, sales orders", [
+    ("SALES_MANAGER", "Sales — customer relationship management", [
         "customer.view", "customer.manage",
-        "quotation.manage",
-        "sales_order.view", "sales_order.manage",
         "project.view",
         "report.export"
     ]),
@@ -424,7 +407,6 @@ STANDARD_ROLES = [
         "task.view.all", "task.assign", "task.update.status",
         "task.qc.approve", "task.qc.reject",
         "inventory.view", "inventory.consume",
-        "machine.view", "machine.update.stage",
         "report.export"
     ]),
 
@@ -436,7 +418,6 @@ STANDARD_ROLES = [
 
     ("ACCOUNTS_MANAGER", "Finance — payroll, payments, accounts", [
         "payroll.view", "payroll.manage",
-        "sales_order.view",
         "purchase_order.view",
         "payment.record",
         "accounts.view",

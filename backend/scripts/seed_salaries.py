@@ -20,7 +20,7 @@ from app.models.models import Employee
 # Tunables — adjust the band if the company policy changes.
 MIN_SALARY = 15000.0
 MAX_SALARY = 20000.0
-DEFAULT_SALARY = 18001.0   # midpoint, used for all non-admin staff
+DEFAULT_SALARY = 18000.0   # midpoint, used for all non-admin staff
 ADMIN_SALARY   = 20000.0   # admins/system_administrator get the ceiling
 
 

@@ -33,12 +33,6 @@ from app.services.approval_service import (
 
 from app.schemas.project_schema import (
     ProjectCreate,
-    ProjectFromProductRequest
-)
-
-from app.services.project_from_product_service import (
-    create_project_from_product,
-    backfill_project_tasks
 )
 
 router = APIRouter()
@@ -439,84 +433,6 @@ def create_project(
         )
 
 
-# =========================
-# CREATE PROJECT FROM PRODUCT (the new BVC24 way)
-# =========================
-
-@router.post("/projects/from-product", dependencies=[Depends(require("project.create"))])
-def create_project_from_product_route(
-    data: ProjectFromProductRequest,
-    db: Session = Depends(get_db)
-):
-    """
-    Single endpoint that captures the entire new BVC24 workflow:
-
-        Customer + Product  →  Project + WorkOrder
-                            →  Tasks (one per process stage)
-                            →  Auto-assigned by skill match
-                            →  Emails fired
-                            →  Awaiting employee acceptance
-
-    Replaces the old "create blank project" form. A project is
-    now always an instance of a Product being built for a
-    Customer — no more orphan projects.
-    """
-
-    try:
-
-        result = create_project_from_product(
-            db,
-            customer_id=data.CUSTOMER_ID,
-            product_model_id=data.PRODUCT_MODEL_ID,
-            quantity=data.QUANTITY,
-            priority=data.PRIORITY or "MEDIUM",
-            target_date=data.TARGET_DATE,
-            notes=data.NOTES,
-            vendor_id=data.VENDOR_ID
-        )
-
-        return result
-
-    except ValueError as e:
-
-        raise HTTPException(status_code=404, detail=str(e))
-
-    except Exception as e:
-
-        db.rollback()
-
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/projects/{project_id}/backfill-tasks", dependencies=[Depends(require("project.update"))])
-def backfill_project_tasks_route(
-    project_id: int,
-    db: Session = Depends(get_db)
-):
-    """
-    Rescue a product-driven project that was created before the
-    stage auto-seeding fix (or before the product had any stages).
-    Seeds the default stages on the product if needed, creates
-    the missing WorkOrderStageProgress rows, generates skill-matched
-    TaskAssignments for any stage that doesn't already have one,
-    and emails the assigned employees.
-
-    Idempotent — safe to re-run; existing tasks aren't duplicated.
-    """
-
-    try:
-
-        return backfill_project_tasks(db, project_id)
-
-    except ValueError as e:
-
-        raise HTTPException(status_code=404, detail=str(e))
-
-    except Exception as e:
-
-        db.rollback()
-
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 VALID_PROJECT_STATUSES = {
@@ -628,23 +544,13 @@ def get_customers(
 def get_projects(
     db: Session = Depends(get_db)
 ):
-    """List every project enriched with Work Order info.
+    """List every project.
 
-    Adds three derived fields per project so the UI can split
-    Active vs Done sections without separate API calls:
-      - wo_count         : total work orders linked to this project
-      - wo_done_count    : how many of those are STATUS='DONE'
-      - effective_status : "DONE" if project itself is marked
-                           COMPLETED/DONE OR any of its WOs is DONE.
-                           Otherwise falls back to project.STATUS.
-
-    The "any WO done -> project done" rule matches the user's flow:
-    in Production & BOM, marking a WO DONE makes the linked project
-    automatically appear in the Done section of the Projects page.
-    No manual project-level toggle needed.
+    Adds a derived `effective_status` field per project so the UI
+    can split Active vs Done sections without separate API calls:
+    "DONE" if the project itself is marked COMPLETED/DONE, otherwise
+    falls back to project.STATUS.
     """
-
-    from app.models.models import WorkOrder
 
     projects = db.query(Project).all()
 
@@ -652,44 +558,13 @@ def get_projects(
 
         return []
 
-    proj_ids = [p.ID for p in projects]
-
-    # Aggregate WO counts per project in a single grouped query
-    wo_rows = (
-        db.query(
-            WorkOrder.PROJECT_ID,
-            WorkOrder.STATUS,
-        )
-        .filter(WorkOrder.PROJECT_ID.in_(proj_ids))
-        .all()
-    )
-
-    total_by_proj: dict = {}
-
-    done_by_proj: dict = {}
-
-    for proj_id, status in wo_rows:
-
-        total_by_proj[proj_id] = total_by_proj.get(proj_id, 0) + 1
-
-        if (status or "").upper() == "DONE":
-
-            done_by_proj[proj_id] = done_by_proj.get(proj_id, 0) + 1
-
     DONE_PROJECT_STATUSES = {"COMPLETED", "DONE"}
 
     out = []
 
     for p in projects:
 
-        wo_count = total_by_proj.get(p.ID, 0)
-
-        wo_done_count = done_by_proj.get(p.ID, 0)
-
-        is_done = (
-            (p.STATUS or "").upper() in DONE_PROJECT_STATUSES
-            or wo_done_count > 0
-        )
+        is_done = (p.STATUS or "").upper() in DONE_PROJECT_STATUSES
 
         # SQLAlchemy models can be serialized via __dict__ but that
         # includes internal _sa fields. Use the model's columns
@@ -698,10 +573,6 @@ def get_projects(
         row = {
             c.name: getattr(p, c.name) for c in Project.__table__.columns
         }
-
-        row["wo_count"] = wo_count
-
-        row["wo_done_count"] = wo_done_count
 
         row["effective_status"] = "DONE" if is_done else (
             (p.STATUS or "PENDING").upper()
@@ -925,17 +796,13 @@ def delete_project(
     so the work / financial history is preserved:
 
       - TaskAssignment, legacy Task        (.PROJECT_ID)
-      - WorkOrder                          (.PROJECT_ID, keeps WO #, BOM, QC chain)
       - DailyAllocation                    (.PROJECT_ID, keeps attendance audit)
       - PurchaseOrder                      (.LINKED_PROJECT_ID, financial)
-      - SalesOrderLine                     (.SPAWNED_PROJECT_ID, contract audit)
     """
 
     from app.models.models import (
-        WorkOrder,
         DailyAllocation,
         PurchaseOrder,
-        SalesOrderLine
     )
 
     from sqlalchemy.exc import IntegrityError
@@ -969,13 +836,6 @@ def delete_project(
             synchronize_session=False
         )
 
-        unlinked_wo = db.query(WorkOrder).filter(
-            WorkOrder.PROJECT_ID == project_id
-        ).update(
-            {WorkOrder.PROJECT_ID: None},
-            synchronize_session=False
-        )
-
         unlinked_da = db.query(DailyAllocation).filter(
             DailyAllocation.PROJECT_ID == project_id
         ).update(
@@ -987,13 +847,6 @@ def delete_project(
             PurchaseOrder.LINKED_PROJECT_ID == project_id
         ).update(
             {PurchaseOrder.LINKED_PROJECT_ID: None},
-            synchronize_session=False
-        )
-
-        unlinked_sol = db.query(SalesOrderLine).filter(
-            SalesOrderLine.SPAWNED_PROJECT_ID == project_id
-        ).update(
-            {SalesOrderLine.SPAWNED_PROJECT_ID: None},
             synchronize_session=False
         )
 
@@ -1030,10 +883,6 @@ def delete_project(
 
         parts.append(f"{(unlinked_ta or 0) + (unlinked_t or 0)} task(s) unlinked")
 
-    if unlinked_wo:
-
-        parts.append(f"{unlinked_wo} work order(s) unlinked")
-
     if unlinked_da:
 
         parts.append(f"{unlinked_da} daily allocation(s) unlinked")
@@ -1042,20 +891,14 @@ def delete_project(
 
         parts.append(f"{unlinked_po} purchase order(s) unlinked")
 
-    if unlinked_sol:
-
-        parts.append(f"{unlinked_sol} sales order line(s) unlinked")
-
     summary = " · ".join(parts) if parts else "no related rows"
 
     return {
         "message": f"Project '{project_name}' deleted. {summary}.",
         "project_id": project_id,
         "tasks_unlinked": (unlinked_ta or 0) + (unlinked_t or 0),
-        "work_orders_unlinked": unlinked_wo or 0,
         "daily_allocations_unlinked": unlinked_da or 0,
         "purchase_orders_unlinked": unlinked_po or 0,
-        "sales_order_lines_unlinked": unlinked_sol or 0
     }
 
 
@@ -1065,14 +908,12 @@ def wipe_all_projects(
 ):
     """
     Nuclear option — deletes EVERY project and all child rows
-    (tasks, task_assignments, daily_allocations, work_orders,
-    wo_stage_progress, qc_inspections, ncrs that reference work
-    orders, notifications, project-linked rows).
+    (tasks, task_assignments, daily_allocations, notifications,
+    project-linked rows).
 
-    Customers / Employees / Suppliers / Quotations / Inventory
-    are preserved. Purchase Orders keep their LINKED_PROJECT_ID
-    nulled out (the POs themselves aren't deleted — those are
-    procurement history).
+    Customers / Employees / Suppliers / Inventory are preserved.
+    Purchase Orders keep their LINKED_PROJECT_ID nulled out (the
+    POs themselves aren't deleted — those are procurement history).
 
     Uses MySQL SET FOREIGN_KEY_CHECKS=0 like the employee wipe
     so FK ordering doesn't block. Idempotent — safe to re-run.
@@ -1115,13 +956,7 @@ def wipe_all_projects(
             "task_assignment",
             # Tasks (referenced by daily_allocation, task_assignment)
             "task",
-            # Work order child rows
-            "wo_stage_progress",
-            "qc_inspection",
-            "ncr",
             "approval_token",
-            # Work orders (parent of the above)
-            "work_order",
             # Projects (last)
             "project",
         ]

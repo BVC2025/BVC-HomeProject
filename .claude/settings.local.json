@@ -17,7 +17,8 @@
       "WebFetch(domain:www.bvc24.com)",
       "Bash(node --input-type=module)",
       "Bash(sed -n '995,1075p' /tmp/rd_models_current.py | grep -n \"PROJECT_ID\" -A 5 *)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(python \"C:/Users/BHARAT~2/AppData/Local/Temp/claude/d--Ram-Productions-React-Web-Application-BVC-HOME-PROJECT-HOME-PROJECT-NEW/c8e140e0-c30a-4b43-b2b8-69905df09562/scratchpad/investigate_prod_schedule_bug.py\")"
     ]
   }
 }

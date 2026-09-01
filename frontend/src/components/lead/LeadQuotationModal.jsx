@@ -19,6 +19,17 @@ const STATUS_FILTER_OPTIONS = [
 const TYPE_LABELS = { FINAL_QUOTATION: "Final Quotation", REVISED_QUOTATION: "Revised Quotation" };
 const STATUS_LABELS = { PENDING: "Pending", APPROVED: "Approved", REJECTED: "Rejected" };
 
+// "Send PO Request" must stop being offered once the PO has genuinely
+// been received — and stay stopped for every LATER stage of the same
+// lifecycle too. PRODUCTION_SCHEDULED/PRODUCTION_STARTED are set well
+// after PO_RECEIVED by the automatic production scheduling engine, so a
+// lead sitting at either has obviously already had its PO received; an
+// exact `!== "PO_RECEIVED"` check would incorrectly re-enable sending
+// another PO Request email to a customer whose production has already
+// started (mirrors the same fix in ManualLeadManagement.jsx/
+// LeadDetailModal.jsx/customer_payment.py's /by-customer endpoint).
+const PO_RECEIVED_OR_LATER_STATUSES = new Set(["PO_RECEIVED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED"]);
+
 function formatAmount(v) {
   if (v == null) return "—";
   return `₹${Number(v).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -97,7 +108,7 @@ export const LeadQuotationModal = memo(function LeadQuotationModal({ open, onClo
   // available until the PO has actually been received, not just until
   // the first send. PO_REQUEST_SENT_AT only decides the button's label.
   const isPORequestSent = !!poEligibleQuotation?.PO_REQUEST_SENT_AT;
-  const canSendPO = canSendRevised && !!poEligibleQuotation && lead?.LEAD_STATUS !== "PO_RECEIVED";
+  const canSendPO = canSendRevised && !!poEligibleQuotation && !PO_RECEIVED_OR_LATER_STATUSES.has(lead?.LEAD_STATUS);
 
   const handleSendPORequest = useCallback(async () => {
     if (!lead) return;

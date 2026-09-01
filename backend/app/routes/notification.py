@@ -10,7 +10,6 @@ from app.models.models import (
     Notification,
     Inventory,
     Task,
-    Machine,
     TaskAssignment,
     Employee,
     Setting
@@ -397,31 +396,6 @@ def generate_system_alerts(
             ))
 
             new_alerts.append((title, msg, "WARNING"))
-
-            created += 1
-
-    down_machines = db.query(Machine).filter(
-        Machine.STATUS == "DOWN"
-    ).all()
-
-    for m in down_machines:
-
-        title = "Machine Down"
-
-        msg = (
-            f"{m.MACHINE_NAME} is reported DOWN."
-        )
-
-        if not _notification_exists(db, title, msg):
-
-            db.add(Notification(
-                TITLE=title,
-                MESSAGE=msg,
-                TYPE="ERROR",
-                VENDOR_ID=m.VENDOR_ID
-            ))
-
-            new_alerts.append((title, msg, "ERROR"))
 
             created += 1
 

@@ -9,7 +9,7 @@ Follow the script in order — every step has a "what to click" + "what to say".
 
 Open **3 browser tabs** in this order:
 
-1. **Tab 1**: http://192.168.1.10:8001/docs (Swagger — backend health check)
+1. **Tab 1**: http://192.168.1.10:8000/docs (Swagger — backend health check)
 2. **Tab 2**: http://localhost:5173/biometric (Gate kiosk — keep this large/full-screen)
 3. **Tab 3**: http://localhost:5173/login (Admin dashboard)
 4. **Tab 4**: http://localhost:5173/apply-leave (Employee leave page)
@@ -276,7 +276,7 @@ Run **seed once** in Tab 1: `POST /demo/seed-bvc24` → Execute. Confirm respons
 | "Allow popups" prompt blocks print | Click "Always allow popups from localhost" in URL bar |
 | Voice doesn't play | Check system volume + Chrome → Site Settings → Sound: Allowed |
 | Seed fails 500 | Run the ALTER queries from `docs/KNOWN_ISSUES.md` then retry |
-| Backend not responding | Check terminal — restart: `python -m uvicorn app.main:app --reload --port 8001` |
+| Backend not responding | Check terminal — restart: `python -m uvicorn app.main:app --reload --port 8000` |
 | Email approval link 404 | Token may have been used. Apply a fresh leave from Tab 4 |
 | Gantt timeline empty | The WO has no spawned stage rows yet. Re-run seed once |
 
@@ -299,7 +299,7 @@ Be honest + frame as next iteration:
 
 ## ✅ Demo-ready checklist (right before MD walks in)
 
-- [ ] Backend running on http://192.168.1.10:8001 (Swagger loads)
+- [ ] Backend running on http://192.168.1.10:8000 (Swagger loads)
 - [ ] Frontend running on http://localhost:5173 (login page loads)
 - [ ] `POST /demo/seed-bvc24` returned 200 with all counts > 0
 - [ ] Tab 2 (biometric) speaker volume ON

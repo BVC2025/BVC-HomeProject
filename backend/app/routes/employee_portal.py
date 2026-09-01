@@ -49,7 +49,6 @@ from app.services.employee_performance_service import (
     compute_monthly_productivity_report,
     award_points_on_task_complete,
 )
-from app.services.stage_auto_unlock_service import handle_stage_completed
 from app.auth.auth_bearer import get_current_user, assert_self_or_admin
 
 
@@ -646,31 +645,6 @@ def patch_task_status(
                     "unlocked": False,
                     "reason": f"points-award failed: {exc_pts}",
                 }
-
-            # Mirror onto a paired WorkOrderStageProgress row if one
-            # exists for this employee + project. TaskAssignment.PROJECT_ID
-            # / WorkOrder.PROJECT_ID (the project_legacy FK) were removed
-            # along with CustomerProject, so there is no remaining way to
-            # correlate a task to a work order this way — always no-op now.
-            try:
-                wo_progress = None
-                if wo_progress is not None:
-                    wo_progress.STATUS = "DONE"
-                    wo_progress.COMPLETED_AT = now
-                    db.flush()
-                    unlock_result = handle_stage_completed(
-                        db, wo_progress.ID
-                    )
-            except Exception as exc_stage:
-                # Stage unlock is best-effort; don't bury the
-                # primary status update.
-                if unlock_result is None:
-                    unlock_result = {
-                        "unlocked": False,
-                        "reason": (
-                            f"stage-unlock failed: {exc_stage}"
-                        ),
-                    }
 
         elif new_status == "ON_HOLD":
             # No HOLD_AT column on TaskAssignment in this schema —

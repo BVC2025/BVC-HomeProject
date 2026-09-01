@@ -112,7 +112,18 @@ CATALOGUE = [
     ("project.task_templates.delete", "Delete task templates", "Projects", None),
     ("project.task_templates.export", "Export task templates", "Projects", "Download to Excel"),
     ("project.task_templates.reorder","Reorder task templates","Projects", "Drag-and-drop sequence change"),
+    # Superseded by project.task_groups.* below — TaskGroup is now a
+    # first-class resource with its own table and standalone endpoints
+    # rather than a loose EXECUTION_GROUP_ID string on TaskTemplate. Left
+    # in place (never referenced by any endpoint) since
+    # ensure_permission_catalogue() is insert-only and never deletes, so
+    # removing this tuple would have zero effect on already-seeded DBs.
     ("project.task_templates.execution_groups.manage", "Manage task execution groups", "Projects", "Assign, create, and remove tasks from parallel-execution groups"),
+
+    ("project.task_groups.view",   "View task groups",   "Projects", None),
+    ("project.task_groups.create", "Create task groups", "Projects", None),
+    ("project.task_groups.update", "Edit task groups",   "Projects", "Includes managing members and dependencies"),
+    ("project.task_groups.delete", "Delete task groups", "Projects", None),
 
     ("project.pricing.view",   "View project pricing",   "Projects", None),
     ("project.pricing.create", "Create project pricing",  "Projects", None),
@@ -159,9 +170,6 @@ CATALOGUE = [
     ("inventory.movements.view",   "View inventory movements", "Inventory", "Stock movement history"),
     ("inventory.movements.export", "Export inventory movements","Inventory", "Download to Excel"),
 
-    ("machine.view",       "View machines",        "Production", None),
-    ("machine.update.stage","Update machine stage","Production", None),
-
     # ---- Customer / Sales / Payment ----
     ("customer.view",       "View customers",       "Sales", None),
     ("customer.manage",     "Manage customers",     "Sales", "Create/edit/delete"),
@@ -178,10 +186,6 @@ CATALOGUE = [
     ("customer.payments.delete",     "Delete customer payment records","Sales", None),
     ("customer.payments.view_proof", "View payment proof files",      "Sales", "Open/preview uploaded payment proof documents"),
     ("customer.payments.manual_add", "Add manual customer payment",   "Sales", "Accounts recording a payment received outside the upload flow"),
-    ("sales_order.view",    "View sales orders",    "Sales", None),
-    ("sales_order.manage",  "Manage sales orders",  "Sales", "Create, edit, cancel, record payments"),
-    ("quotation.manage",    "Manage quotations",    "Sales", "Create and approve"),
-
     # ---- Procurement ----
     ("supplier.manage",       "Manage suppliers",        "Procurement", None),
     ("supplier.view",         "View suppliers",          "Procurement", "Read-only — supplier.manage already covers this too"),
@@ -201,6 +205,7 @@ CATALOGUE = [
 
     # ---- System / Admin ----
     ("setting.modify",        "Modify system settings", "System", None),
+    ("company.working_schedule.manage", "Manage company working schedule", "System", "Configure working start/end time, timezone, and break periods on the Company Profile page"),
     ("role.manage",           "Manage roles & grants",  "System", "Read + write to permission catalogue"),
     ("iam_user.manage",       "Manage IAM users",       "System", "Create/deactivate IAM user login accounts — Root-grantable only, see self-escalation guard"),
     ("permission.override.manage", "Manage permission overrides", "System", "Create/edit per-employee grant/deny exceptions — Root-grantable only, see self-escalation guard"),
@@ -263,15 +268,6 @@ CATALOGUE = [
     ("recruitment.view",   "View recruitment/ATS", "Recruitment", "Jobs, candidates, applications, interviews, offers"),
     ("recruitment.manage", "Manage recruitment",   "Recruitment", "Create/edit jobs, screen candidates, schedule interviews, issue offers"),
 
-    # ---- Manufacturing — production/quality/work-center CRUD (RBAC plan gap;
-    # only machine.view/machine.update.stage existed before) ----
-    ("production.view",   "View production/BOM/work orders", "Production", "Product models, BOM, work orders, process stages"),
-    ("production.manage",  "Manage production/BOM/work orders", "Production", "Create/edit/delete product models, BOM, work orders"),
-    ("quality.view",       "View quality/QC inspections", "Production", "Checklist items, inspections, NCRs"),
-    ("quality.manage",     "Manage quality/QC inspections", "Production", "Create/edit checklist items, record inspections, manage NCRs"),
-    ("work_center.view",   "View work centers",   "Production", None),
-    ("work_center.manage", "Manage work centers",  "Production", "Create/edit/delete work centers"),
-
     # ---- Help Desk — RBAC plan gap, admin actions were role-allowlist only ----
     ("helpdesk.view.all",  "View all help desk tickets", "System", "Admin ticket queue"),
     ("helpdesk.manage",    "Manage help desk tickets",   "System", "Assign, close, view stats"),
@@ -282,6 +278,17 @@ CATALOGUE = [
     ("rag.document.delete", "Delete KB documents",       "AI Platform", "Soft-delete a document + its vectors"),
     ("rag.query",           "Use AI chat/playground",    "AI Platform", "Ask questions via any AI module's chat endpoint"),
     ("rag.settings.manage", "Manage AI settings",        "AI Platform", "Edit per-module LLM model / global RAG settings"),
+
+    # ---- Automatic Production Scheduling (payment-milestone-triggered
+    # task assignment engine) — a distinct category from the existing
+    # "Production" (BOM/work orders) codes above, so the two don't get
+    # mixed together in the RBAC UI's grouping. ----
+    ("production_schedule.view",    "View production schedules",              "Production Scheduling", "See proposed/approved/rejected schedules and the Gantt timeline"),
+    ("production_schedule.create",  "Generate production schedule",           "Production Scheduling", "Manually (re)trigger schedule proposal for an assignment"),
+    ("production_schedule.approve", "Approve production schedule",            "Production Scheduling", None),
+    ("production_schedule.reject",  "Reject/reschedule production schedule",  "Production Scheduling", "Reject a proposal and choose a new start date"),
+    ("production_schedule.edit",    "Edit a proposed production schedule",    "Production Scheduling", None),
+    ("customer.task_timeline.view", "View customer task timeline",            "Production Scheduling", "Gantt chart of assigned tasks per customer/project — includes task detail view"),
 ]
 
 
@@ -320,6 +327,8 @@ FILTER_DEPENDENCIES = {
 # =====================================================================
 
 PAGE_LABELS = {
+    "company.working_schedule.manage": "Company Profile",
+
     "attendance.holiday.view":   "Holiday Calendar",
     "attendance.holiday.manage": "Holiday Calendar",
 
@@ -391,6 +400,11 @@ PAGE_LABELS = {
     "project.task_templates.reorder": "Task Templates",
     "project.task_templates.execution_groups.manage": "Task Templates",
 
+    "project.task_groups.view":   "Task Groups",
+    "project.task_groups.create": "Task Groups",
+    "project.task_groups.update": "Task Groups",
+    "project.task_groups.delete": "Task Groups",
+
     "project.pricing.view":   "Project Pricing",
     "project.pricing.create": "Project Pricing",
     "project.pricing.update": "Project Pricing",
@@ -440,6 +454,13 @@ PAGE_LABELS = {
 
     "supplier.products.view":   "Supplier Product Pricing",
     "supplier.products.manage": "Supplier Product Pricing",
+
+    "production_schedule.view":    "Production Schedule Approval",
+    "production_schedule.create":  "Production Schedule Approval",
+    "production_schedule.approve": "Production Schedule Approval",
+    "production_schedule.reject":  "Production Schedule Approval",
+    "production_schedule.edit":    "Production Schedule Approval",
+    "customer.task_timeline.view": "Customer Task Timeline",
 }
 
 

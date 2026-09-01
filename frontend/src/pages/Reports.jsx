@@ -51,14 +51,6 @@ const MODULES = [
     icon: "🕒",
     category: "HR",
     accent: "#db2777"
-  },
-  {
-    key: "machines",
-    label: "Machines",
-    description: "Machine status and last update",
-    icon: "🛠",
-    category: "Production",
-    accent: "#dc2626"
   }
 ];
 

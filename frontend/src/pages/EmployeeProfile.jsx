@@ -26,7 +26,7 @@ import styles from "./EmployeeProfile.module.css";
 const BVC_RED = "var(--clr-primary)";
 const BVC_DARK = "var(--clr-primary-dark)";
 
-const BACKEND_URL = API.defaults.baseURL || "http://192.168.1.10:8001";
+const BACKEND_URL = API.defaults.baseURL || "http://192.168.1.10:8000";
 
 
 // Tone mapping reused from Employees.jsx's status-pill system — same

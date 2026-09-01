@@ -985,6 +985,427 @@ _PURCHASE_ORDER_REQUESTED_NOTIFICATION_FALLBACK = """\
 </html>"""
 
 
+_PRODUCTION_SCHEDULE_APPROVAL_FALLBACK = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Production Schedule Approval Needed</title>
+</head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+         style="background:#f8fafc;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" role="presentation"
+             style="background:#ffffff;border-radius:10px;overflow:hidden;
+                    box-shadow:0 4px 16px rgba(0,0,0,0.08);max-width:600px;width:100%;">
+        <tr>
+          <td style="background:#DC2626;padding:32px 48px;text-align:center;">
+            <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;letter-spacing:-0.3px;">
+              Production Schedule Awaiting Approval
+            </h1>
+            <p style="color:rgba(255,255,255,0.82);margin:10px 0 0;font-size:12px;
+                      letter-spacing:0.8px;text-transform:uppercase;">
+              {{project_name}}
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:40px 48px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:15px;line-height:1.75;color:#475569;">
+            <p style="margin:0 0 16px;">Dear <strong>{{recipient_name}}</strong>,</p>
+            <p style="margin:0 0 20px;">
+              A production schedule has been proposed for <strong>{{project_name}}</strong>
+              (<strong>{{customer_name}}</strong> — {{company_name}}) and is awaiting your
+              approval before work can begin.
+            </p>
+            <table cellpadding="0" cellspacing="0" role="presentation" width="100%"
+                   style="margin:0 0 20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+              <tr><td style="padding:20px 24px;">
+                <p style="margin:0 0 8px;"><strong>Customer:</strong> {{customer_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Company:</strong> {{company_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Project:</strong> {{project_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Lead Owner:</strong> {{lead_owner_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Quantity:</strong> {{quantity}}</p>
+                <p style="margin:0 0 8px;"><strong>Available Production Capacity:</strong> {{available_production_capacity}} unit(s) in parallel</p>
+                <p style="margin:0 0 8px;"><strong>Suggested Start Date:</strong> {{suggested_start_date}}</p>
+                <p style="margin:0 0 8px;"><strong>Estimated Completion Date:</strong> {{estimated_completion_date}}</p>
+                <p style="margin:0;"><strong>Estimated Duration:</strong> {{estimated_duration_days}} days</p>
+              </td></tr>
+            </table>
+            <table cellpadding="0" cellspacing="0" role="presentation" width="100%"
+                   style="margin:0 0 24px;background:#fef2f2;border-left:4px solid #DC2626;border-radius:4px;">
+              <tr><td style="padding:16px 20px;">
+                <p style="margin:0;color:#7f1d1d;font-size:14px;line-height:1.7;">
+                  <strong>Reason:</strong> {{suggested_reason}}
+                </p>
+              </td></tr>
+            </table>
+            <div style="margin:0 0 20px;">
+              <p style="margin:0 0 6px;font-weight:700;color:#0f172a;">Unit Production Plan</p>
+              {{unit_plan_table_html}}
+            </div>
+            <div style="margin:0 0 24px;">
+              <p style="margin:0 0 6px;font-weight:700;color:#0f172a;">Manpower Assignment Summary</p>
+              {{manpower_summary_table_html}}
+            </div>
+            <table cellpadding="0" cellspacing="0" role="presentation" width="100%">
+              <tr><td align="center">
+                <table cellpadding="0" cellspacing="0" role="presentation">
+                  <tr>
+                    <td style="background:#DC2626;border-radius:7px;">
+                      <a href="{{review_url}}"
+                         style="display:inline-block;padding:14px 32px;color:#ffffff;
+                                text-decoration:none;font-weight:700;font-size:15px;">
+                        Review &amp; Approve Schedule →
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td></tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px 48px;background:#f8fafc;">
+            <p style="color:#94a3b8;font-size:12px;line-height:2;margin:0;text-align:center;">
+              Internal notification — Production Scheduling. This link requires you to be
+              signed in to the ERP.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+
+_PURCHASE_ORDER_APPROVAL_FALLBACK = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Purchase Order Approval Needed</title>
+</head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+         style="background:#f8fafc;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" role="presentation"
+             style="background:#ffffff;border-radius:10px;overflow:hidden;
+                    box-shadow:0 4px 16px rgba(0,0,0,0.08);max-width:600px;width:100%;">
+        <tr>
+          <td style="background:#DC2626;padding:32px 48px;text-align:center;">
+            <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;letter-spacing:-0.3px;">
+              Purchase Order Approval Needed
+            </h1>
+            <p style="color:rgba(255,255,255,0.82);margin:10px 0 0;font-size:12px;
+                      letter-spacing:0.8px;text-transform:uppercase;">
+              Low Stock Reorder — {{trigger_note}}
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:40px 48px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:15px;line-height:1.75;color:#475569;">
+            <p style="margin:0 0 16px;">Dear <strong>{{recipient_name}}</strong>,</p>
+            <p style="margin:0 0 20px;">
+              The following {{supplier_count}} supplier purchase order(s) were
+              automatically generated because their products fell at or below the
+              configured reorder level. Please review and Approve or Reject before
+              they are sent to the suppliers.
+            </p>
+            <div style="margin:0 0 20px;">{{supplier_groups_table_html}}</div>
+            <table cellpadding="0" cellspacing="0" role="presentation" width="100%">
+              <tr><td align="center">
+                <table cellpadding="0" cellspacing="0" role="presentation">
+                  <tr>
+                    <td style="background:#DC2626;border-radius:7px;">
+                      <a href="{{review_batch_url}}"
+                         style="display:inline-block;padding:14px 32px;color:#ffffff;
+                                text-decoration:none;font-weight:700;font-size:15px;">
+                        Review &amp; Approve Purchase Orders →
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td></tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px 48px;background:#f8fafc;">
+            <p style="color:#94a3b8;font-size:12px;line-height:2;margin:0;text-align:center;">
+              Internal notification — Inventory Reorder Automation. This link requires
+              you to be signed in to the ERP.
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+
+_PRODUCTION_SCHEDULED_NOTIFICATION_FALLBACK = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Production Scheduled</title>
+</head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+         style="background:#f8fafc;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" role="presentation"
+             style="background:#ffffff;border-radius:10px;overflow:hidden;
+                    box-shadow:0 4px 16px rgba(0,0,0,0.08);max-width:600px;width:100%;">
+        <tr>
+          <td style="background:#16a34a;padding:32px 48px;text-align:center;">
+            <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;letter-spacing:-0.3px;">
+              Your Production Has Been Scheduled
+            </h1>
+            <p style="color:rgba(255,255,255,0.85);margin:10px 0 0;font-size:12px;
+                      letter-spacing:0.8px;text-transform:uppercase;">
+              {{project_name}}
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:40px 48px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:15px;line-height:1.75;color:#475569;">
+            <p style="margin:0 0 16px;">Dear <strong>{{recipient_name}}</strong>,</p>
+            <p style="margin:0 0 20px;">
+              Good news — production has now been scheduled for your project
+              <strong>{{project_name}}</strong>. Here are the details:
+            </p>
+            <table cellpadding="0" cellspacing="0" role="presentation" width="100%"
+                   style="margin:0 0 20px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;">
+              <tr><td style="padding:20px 24px;">
+                <p style="margin:0 0 8px;"><strong>Project:</strong> {{project_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Production Start Date:</strong> {{production_start_date}}</p>
+                <p style="margin:0;"><strong>Estimated Completion Date:</strong> {{estimated_completion_date}}</p>
+              </td></tr>
+            </table>
+            <p style="margin:0;">
+              We will keep you informed as work progresses. Thank you for choosing
+              {{our_company_name}}.
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:28px 48px;background:#f8fafc;">
+            <p style="color:#94a3b8;font-size:12px;line-height:2;margin:0;text-align:center;">
+              {{our_company_name}} — Production Scheduling
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+
+_EMPLOYEE_TASK_ASSIGNMENT_FALLBACK = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>New Task Assignment</title>
+</head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+         style="background:#f8fafc;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" role="presentation"
+             style="background:#ffffff;border-radius:10px;overflow:hidden;
+                    box-shadow:0 4px 16px rgba(0,0,0,0.08);max-width:600px;width:100%;">
+        <tr>
+          <td style="background:#DC2626;padding:32px 48px;text-align:center;">
+            <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;letter-spacing:-0.3px;">
+              New Task Assignment
+            </h1>
+            <p style="color:rgba(255,255,255,0.82);margin:10px 0 0;font-size:12px;
+                      letter-spacing:0.8px;text-transform:uppercase;">
+              {{project_name}}
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:40px 48px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:15px;line-height:1.75;color:#475569;">
+            <p style="margin:0 0 16px;">Dear <strong>{{recipient_name}}</strong>,</p>
+            <p style="margin:0 0 24px;">
+              You have been assigned <strong>{{task_count}}</strong> task(s) on
+              <strong>{{project_name}}</strong> for <strong>{{customer_name}}</strong>.
+              Details are listed below.
+            </p>
+            <div style="margin:0 0 20px;">{{tasks_table_html}}</div>
+            <p style="color:#64748b;font-size:13px;line-height:1.7;margin:0;">
+              Please plan your schedule accordingly and reach out to your supervisor if you
+              have any questions about these tasks.
+            </p>
+          </td>
+        </tr>
+        <tr><td style="padding:0 48px;">
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:0;">
+        </td></tr>
+        <tr>
+          <td style="padding:28px 48px;background:#f8fafc;">
+            <p style="color:#94a3b8;font-size:12px;line-height:2;margin:0;text-align:center;">
+              Automated notification — Task Assignment
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+
+_TASK_REMINDER_DAY_BEFORE_FALLBACK = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Task Reminder</title>
+</head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+         style="background:#f8fafc;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" role="presentation"
+             style="background:#ffffff;border-radius:10px;overflow:hidden;
+                    box-shadow:0 4px 16px rgba(0,0,0,0.08);max-width:600px;width:100%;">
+        <tr>
+          <td style="background:#DC2626;padding:32px 48px;text-align:center;">
+            <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;letter-spacing:-0.3px;">
+              Your Task Starts Tomorrow
+            </h1>
+            <p style="color:rgba(255,255,255,0.82);margin:10px 0 0;font-size:12px;
+                      letter-spacing:0.8px;text-transform:uppercase;">
+              {{project_name}}
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:40px 48px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:15px;line-height:1.75;color:#475569;">
+            <p style="margin:0 0 16px;">Dear <strong>{{recipient_name}}</strong>,</p>
+            <p style="margin:0 0 20px;">
+              This is a reminder that your task <strong>{{task_name}}</strong> on
+              <strong>{{project_name}}</strong> for <strong>{{customer_name}}</strong> is
+              scheduled to start tomorrow.
+            </p>
+            <table cellpadding="0" cellspacing="0" role="presentation" width="100%"
+                   style="margin:0 0 20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+              <tr><td style="padding:20px 24px;">
+                <p style="margin:0 0 8px;"><strong>Task:</strong> {{task_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Planned Start Date:</strong> {{planned_start_date}}</p>
+                <p style="margin:0 0 8px;"><strong>Due Date:</strong> {{due_date}}</p>
+                <p style="margin:0 0 8px;"><strong>Department:</strong> {{department}}</p>
+                <p style="margin:0;"><strong>Role:</strong> {{role}}</p>
+              </td></tr>
+            </table>
+            <p style="color:#64748b;font-size:13px;line-height:1.7;margin:0;">
+              Please ensure you are prepared to begin this task on schedule.
+            </p>
+          </td>
+        </tr>
+        <tr><td style="padding:0 48px;">
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:0;">
+        </td></tr>
+        <tr>
+          <td style="padding:28px 48px;background:#f8fafc;">
+            <p style="color:#94a3b8;font-size:12px;line-height:2;margin:0;text-align:center;">
+              Automated notification — Task Reminder
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+
+_TASK_REMINDER_START_DATE_FALLBACK = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Task Reminder</title>
+</head>
+<body style="margin:0;padding:0;background:#f8fafc;font-family:Arial,Helvetica,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+         style="background:#f8fafc;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" role="presentation"
+             style="background:#ffffff;border-radius:10px;overflow:hidden;
+                    box-shadow:0 4px 16px rgba(0,0,0,0.08);max-width:600px;width:100%;">
+        <tr>
+          <td style="background:#DC2626;padding:32px 48px;text-align:center;">
+            <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;letter-spacing:-0.3px;">
+              Your Task Starts Today
+            </h1>
+            <p style="color:rgba(255,255,255,0.82);margin:10px 0 0;font-size:12px;
+                      letter-spacing:0.8px;text-transform:uppercase;">
+              {{project_name}}
+            </p>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:40px 48px;font-family:Arial,Helvetica,sans-serif;
+                     font-size:15px;line-height:1.75;color:#475569;">
+            <p style="margin:0 0 16px;">Dear <strong>{{recipient_name}}</strong>,</p>
+            <p style="margin:0 0 20px;">
+              This is a reminder that your task <strong>{{task_name}}</strong> on
+              <strong>{{project_name}}</strong> for <strong>{{customer_name}}</strong> is
+              scheduled to start today.
+            </p>
+            <table cellpadding="0" cellspacing="0" role="presentation" width="100%"
+                   style="margin:0 0 20px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+              <tr><td style="padding:20px 24px;">
+                <p style="margin:0 0 8px;"><strong>Task:</strong> {{task_name}}</p>
+                <p style="margin:0 0 8px;"><strong>Planned Start Date:</strong> {{planned_start_date}}</p>
+                <p style="margin:0 0 8px;"><strong>Due Date:</strong> {{due_date}}</p>
+                <p style="margin:0 0 8px;"><strong>Department:</strong> {{department}}</p>
+                <p style="margin:0;"><strong>Role:</strong> {{role}}</p>
+              </td></tr>
+            </table>
+            <p style="color:#64748b;font-size:13px;line-height:1.7;margin:0;">
+              Please ensure you are prepared to begin this task today.
+            </p>
+          </td>
+        </tr>
+        <tr><td style="padding:0 48px;">
+          <hr style="border:none;border-top:1px solid #e2e8f0;margin:0;">
+        </td></tr>
+        <tr>
+          <td style="padding:28px 48px;background:#f8fafc;">
+            <p style="color:#94a3b8;font-size:12px;line-height:2;margin:0;text-align:center;">
+              Automated notification — Task Reminder
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>"""
+
+
 # ── Load templates from HTML files (fallbacks used only if files are missing) ─
 
 _SUPPLIER_INVITATION_HTML = _load_html("supplier_invitation.html", _INVITATION_FALLBACK)
@@ -998,6 +1419,12 @@ _PAYMENT_MILESTONE_REQUEST_HTML = _load_html("payment_milestone_request.html", _
 _QUOTATION_DECISION_NOTIFICATION_HTML = _load_html("quotation_decision_notification.html", _QUOTATION_DECISION_NOTIFICATION_FALLBACK)
 _PURCHASE_ORDER_UPLOADED_NOTIFICATION_HTML = _load_html("purchase_order_uploaded_notification.html", _PURCHASE_ORDER_UPLOADED_NOTIFICATION_FALLBACK)
 _PURCHASE_ORDER_REQUESTED_NOTIFICATION_HTML = _load_html("purchase_order_requested_notification.html", _PURCHASE_ORDER_REQUESTED_NOTIFICATION_FALLBACK)
+_PRODUCTION_SCHEDULE_APPROVAL_HTML = _load_html("production_schedule_approval.html", _PRODUCTION_SCHEDULE_APPROVAL_FALLBACK)
+_PURCHASE_ORDER_APPROVAL_HTML = _load_html("purchase_order_approval.html", _PURCHASE_ORDER_APPROVAL_FALLBACK)
+_PRODUCTION_SCHEDULED_NOTIFICATION_HTML = _load_html("production_scheduled_notification.html", _PRODUCTION_SCHEDULED_NOTIFICATION_FALLBACK)
+_EMPLOYEE_TASK_ASSIGNMENT_HTML = _load_html("employee_task_assignment.html", _EMPLOYEE_TASK_ASSIGNMENT_FALLBACK)
+_TASK_REMINDER_DAY_BEFORE_HTML = _load_html("task_reminder_day_before.html", _TASK_REMINDER_DAY_BEFORE_FALLBACK)
+_TASK_REMINDER_START_DATE_HTML = _load_html("task_reminder_start_date.html", _TASK_REMINDER_START_DATE_FALLBACK)
 
 
 # ── Template catalog ──────────────────────────────────────────────────────────
@@ -1059,6 +1486,36 @@ TEMPLATE_CATALOG: dict = {
         "display_name": "Purchase Order Requested / Re-requested Notification",
         "subject":      "Purchase Order {{request_mode_label}} — {{project_name}}",
         "html":         _PURCHASE_ORDER_REQUESTED_NOTIFICATION_HTML,
+    },
+    "PRODUCTION_SCHEDULE_APPROVAL": {
+        "display_name": "Production Schedule Approval Needed",
+        "subject":      "Production Schedule Awaiting Approval — {{project_name}}",
+        "html":         _PRODUCTION_SCHEDULE_APPROVAL_HTML,
+    },
+    "PRODUCTION_SCHEDULED_NOTIFICATION": {
+        "display_name": "Production Scheduled (Customer Notification)",
+        "subject":      "Your Production Has Been Scheduled — {{project_name}}",
+        "html":         _PRODUCTION_SCHEDULED_NOTIFICATION_HTML,
+    },
+    "PURCHASE_ORDER_APPROVAL": {
+        "display_name": "Purchase Order Approval Needed",
+        "subject":      "Purchase Order Approval Needed — {{supplier_count}} Supplier(s)",
+        "html":         _PURCHASE_ORDER_APPROVAL_HTML,
+    },
+    "EMPLOYEE_TASK_ASSIGNMENT": {
+        "display_name": "Employee Task Assignment",
+        "subject":      "New Task Assignment{{task_count_suffix}} — {{project_name}}",
+        "html":         _EMPLOYEE_TASK_ASSIGNMENT_HTML,
+    },
+    "TASK_REMINDER_DAY_BEFORE": {
+        "display_name": "Task Reminder — One Day Before",
+        "subject":      "Reminder: Your task starts tomorrow — {{task_name}}",
+        "html":         _TASK_REMINDER_DAY_BEFORE_HTML,
+    },
+    "TASK_REMINDER_START_DATE": {
+        "display_name": "Task Reminder — Start Date",
+        "subject":      "Reminder: Your task starts today — {{task_name}}",
+        "html":         _TASK_REMINDER_START_DATE_HTML,
     },
 }
 
@@ -1267,6 +1724,101 @@ _TEMPLATE_INITIAL_DESIGN: dict = {
             "({{company_name}}) for <strong>{{project_name}}</strong> — {{request_mode_label}}.</p>"
             "<p>Quotation Type: <strong>{{quotation_type_label}}</strong> — Approved Price: "
             "<strong>&#8377;{{quoted_price}}</strong> — Lead Owner: <strong>{{lead_owner_name}}</strong></p>"
+        ),
+        "customNotes": "",
+    },
+    "PRODUCTION_SCHEDULE_APPROVAL": {
+        "version":     1,
+        "logoDataUrl": "",
+        "headerTitle": "Production Schedule Awaiting Approval",
+        "contentHtml": (
+            "<p>Dear <strong>{{recipient_name}}</strong>,</p>"
+            "<p>A production schedule has been proposed for <strong>{{project_name}}</strong> "
+            "(<strong>{{customer_name}}</strong> — {{company_name}}) and is awaiting your "
+            "approval before work can begin.</p>"
+            "<p>Lead Owner: <strong>{{lead_owner_name}}</strong> — Suggested Start Date: "
+            "<strong>{{suggested_start_date}}</strong></p>"
+            "<p>Estimated Completion Date: <strong>{{estimated_completion_date}}</strong> — "
+            "Estimated Duration: <strong>{{estimated_duration_days}}</strong> days</p>"
+            "<p><strong>Reason:</strong> {{suggested_reason}}</p>"
+        ),
+        "customNotes": "",
+        "buttons": [
+            {"id": "review_schedule", "text": "Review & Approve Schedule"},
+        ],
+    },
+    "PURCHASE_ORDER_APPROVAL": {
+        "version":     1,
+        "logoDataUrl": "",
+        "headerTitle": "Purchase Order Approval Needed",
+        "contentHtml": (
+            "<p>Dear <strong>{{recipient_name}}</strong>,</p>"
+            "<p>The following {{supplier_count}} supplier purchase order(s) were "
+            "automatically generated because their products fell at or below the "
+            "configured reorder level. Please review and Approve or Reject before "
+            "they are sent to the suppliers.</p>"
+            "<div>{{supplier_groups_table_html}}</div>"
+        ),
+        "customNotes": "",
+        "buttons": [
+            {"id": "review_batch", "text": "Review & Approve Purchase Orders"},
+        ],
+    },
+    "PRODUCTION_SCHEDULED_NOTIFICATION": {
+        "version":     1,
+        "logoDataUrl": "",
+        "headerTitle": "Your Production Has Been Scheduled",
+        "contentHtml": (
+            "<p>Dear <strong>{{recipient_name}}</strong>,</p>"
+            "<p>Good news — production has now been scheduled for your project "
+            "<strong>{{project_name}}</strong>.</p>"
+            "<p>Production Start Date: <strong>{{production_start_date}}</strong> — "
+            "Estimated Completion Date: <strong>{{estimated_completion_date}}</strong></p>"
+            "<p>We will keep you informed as work progresses. Thank you for choosing "
+            "{{our_company_name}}.</p>"
+        ),
+        "customNotes": "",
+    },
+    "EMPLOYEE_TASK_ASSIGNMENT": {
+        "version":     1,
+        "logoDataUrl": "",
+        "headerTitle": "New Task Assignment",
+        "contentHtml": (
+            "<p>Dear <strong>{{recipient_name}}</strong>,</p>"
+            "<p>You have been assigned <strong>{{task_count}}</strong> task(s) on "
+            "<strong>{{project_name}}</strong> for <strong>{{customer_name}}</strong>. "
+            "Details are listed below.</p>"
+            "<div>{{tasks_table_html}}</div>"
+        ),
+        "customNotes": "",
+    },
+    "TASK_REMINDER_DAY_BEFORE": {
+        "version":     1,
+        "logoDataUrl": "",
+        "headerTitle": "Your Task Starts Tomorrow",
+        "contentHtml": (
+            "<p>Dear <strong>{{recipient_name}}</strong>,</p>"
+            "<p>This is a reminder that your task <strong>{{task_name}}</strong> on "
+            "<strong>{{project_name}}</strong> for <strong>{{customer_name}}</strong> is "
+            "scheduled to start tomorrow.</p>"
+            "<p>Planned Start Date: <strong>{{planned_start_date}}</strong> — Due Date: "
+            "<strong>{{due_date}}</strong></p>"
+            "<p>Department: <strong>{{department}}</strong> — Role: <strong>{{role}}</strong></p>"
+        ),
+        "customNotes": "",
+    },
+    "TASK_REMINDER_START_DATE": {
+        "version":     1,
+        "logoDataUrl": "",
+        "headerTitle": "Your Task Starts Today",
+        "contentHtml": (
+            "<p>Dear <strong>{{recipient_name}}</strong>,</p>"
+            "<p>This is a reminder that your task <strong>{{task_name}}</strong> on "
+            "<strong>{{project_name}}</strong> for <strong>{{customer_name}}</strong> is "
+            "scheduled to start today.</p>"
+            "<p>Planned Start Date: <strong>{{planned_start_date}}</strong> — Due Date: "
+            "<strong>{{due_date}}</strong></p>"
+            "<p>Department: <strong>{{department}}</strong> — Role: <strong>{{role}}</strong></p>"
         ),
         "customNotes": "",
     },

@@ -369,7 +369,7 @@ def tool_send_quotation_pdf(db: Session, context: dict, project_name: str) -> di
     if not quotation:
         return {"ok": False, "error": "No quotation document available for this project yet — a sales rep will follow up with pricing details."}
 
-    backend_base = os.getenv("BACKEND_URL", "http://localhost:8001").rstrip("/")
+    backend_base = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
     media_url = f"{backend_base}/projects/{project.ID}/quotation/pdf"
 
     if not conversation_id:

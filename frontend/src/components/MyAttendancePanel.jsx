@@ -104,7 +104,7 @@ function getPositionSilent(options = {}) {
         reason: null,
       }),
       (err) => resolve({ coords: null, reason: err.code || "error" }),
-      { enableHighAccuracy: true, timeout: 8001, maximumAge: 60_000, ...options }
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60_000, ...options }
     );
   });
 }

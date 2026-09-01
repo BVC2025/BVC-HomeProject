@@ -16,7 +16,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
-from app.models.models import Supplier, Vendor, BOMItem
+from app.models.models import Supplier, Vendor
 from app.models.supplier_models import (
     SupplierPerformanceMetrics,
     SupplierRanking,
@@ -276,15 +276,8 @@ def get_supplier(
 
         raise HTTPException(status_code=404, detail="Supplier not found")
 
-    # Also surface which BOM items use this supplier — handy for
-    # the supplier detail view
-    using_bom_count = db.query(BOMItem).filter(
-        BOMItem.PREFERRED_SUPPLIER_ID == supplier_id
-    ).count()
-
     return {
         "supplier": _serialize_supplier(supplier),
-        "bom_items_linked": using_bom_count
     }
 
 
@@ -325,8 +318,7 @@ def delete_supplier(
     """Permanently delete a BLACKLISTED supplier.
 
     Only suppliers with STATUS == BLACKLISTED may be deleted.
-    BOMItem.PREFERRED_SUPPLIER_ID references are nulled before deletion;
-    all other child records (SupplierProduct, rankings, metrics,
+    All child records (SupplierProduct, rankings, metrics,
     price history, purchase recommendations) cascade via DB-level ON DELETE CASCADE.
     """
     from sqlalchemy.exc import IntegrityError as _IntegrityError
@@ -346,11 +338,6 @@ def delete_supplier(
                 "Change the supplier status to BLACKLISTED first."
             ),
         )
-
-    # BOMItem has no ON DELETE CASCADE/SET NULL on PREFERRED_SUPPLIER_ID — null it manually
-    db.query(BOMItem).filter(
-        BOMItem.PREFERRED_SUPPLIER_ID == supplier_id
-    ).update({"PREFERRED_SUPPLIER_ID": None}, synchronize_session=False)
 
     db.delete(supplier)
 

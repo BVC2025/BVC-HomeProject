@@ -15,7 +15,7 @@ from app.utils.datetime_utils import now_ist
 
 from sqlalchemy import (
     Column, String, Integer, ForeignKey, Text, DateTime, Numeric,
-    UniqueConstraint, Boolean, Index,
+    UniqueConstraint, Boolean, Index, Float,
 )
 from sqlalchemy.orm import relationship
 
@@ -52,19 +52,27 @@ EXPERIENCE_LEVEL_ENUM = SAEnum(
 
 # PROJECT: the task is created once for the whole project, regardless of
 # quantity. UNIT: the task is created once per project unit/quantity.
-# Metadata only today — no task-generation engine reads this yet (see
-# TaskTemplate's own docstring).
+# Actively read by task_generation_service.build_schedule_plan(): a
+# PROJECT-scope task is scheduled once per project; a UNIT-scope task is
+# scheduled once per CustomerProjectAssignment.QUANTITY, each unit
+# progressing independently except where they contend for the same
+# employees.
 TASK_SCOPE_ENUM = SAEnum(
     "PROJECT", "UNIT",
     name="task_scope_enum", create_constraint=True,
 )
 
-# ALL: every TaskTemplateDependency row for a task must be satisfied before
-# it can start. ANY: at least one must be. Evaluated by the pure function
-# task_dependency_service.can_task_start() — see that module's docstring
-# for why this is a pure function rather than a live engine today.
+# Describes how THIS group's own member tasks gate the next task/group in
+# sequence — there is no external "depends on another group" concept.
+# ALL: every member task of the group must be COMPLETED. ANY: any one
+# member task must be COMPLETED. ONE: one specific, user-chosen member task
+# (TaskGroup.DEPENDS_ON_TASK_TEMPLATE_ID) must be COMPLETED. Evaluated by
+# the pure function task_dependency_service.can_task_start() — see that
+# module's docstring for why this is a pure function rather than a live
+# engine today. Lives on TaskGroup (not TaskTemplate) — dependency/grouping
+# configuration is a project-level, group-scoped concept.
 DEPENDENCY_RULE_ENUM = SAEnum(
-    "ALL", "ANY",
+    "ALL", "ANY", "ONE",
     name="dependency_rule_enum", create_constraint=True,
 )
 
@@ -131,6 +139,11 @@ class Project(Base):
         order_by="TaskTemplate.SEQUENCE_NUMBER",
         cascade="all, delete-orphan"
     )
+    task_groups = relationship(
+        "TaskGroup", back_populates="project",
+        order_by="TaskGroup.SEQUENCE_NUMBER",
+        cascade="all, delete-orphan"
+    )
     quotation_template = relationship(
         "ProjectQuotationTemplate", back_populates="project",
         uselist=False, cascade="all, delete-orphan"
@@ -138,6 +151,10 @@ class Project(Base):
     pricing = relationship(
         "ProjectPricing", back_populates="project",
         uselist=False, cascade="all, delete-orphan"
+    )
+    product_requirements = relationship(
+        "ProjectProductRequirement", back_populates="project",
+        cascade="all, delete-orphan"
     )
 
 
@@ -179,6 +196,36 @@ class ProjectPricing(Base):
     project = relationship("Project", back_populates="pricing")
 
 
+class ProjectProductRequirement(Base):
+    """Which inventory products (ProductMaster rows) a project needs, and
+    how many of each — one row per unit of PROJECT_ID's Quantity=1
+    baseline. Consumed automatically (multiplied by the winning
+    CustomerProjectAssignment.QUANTITY) once production starts — see
+    inventory_consumption_service.consume_stock_for_assignment(),
+    called from production_scheduling_service.approve_schedule()/
+    reject_and_reschedule()."""
+
+    __tablename__ = "project_product_requirement"
+
+    __table_args__ = (
+        UniqueConstraint("PROJECT_ID", "PRODUCT_ID", name="uq_proj_product_req_project_product"),
+    )
+
+    ID = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    PROJECT_ID = Column(String(36), ForeignKey("project.ID", ondelete="CASCADE"), nullable=False, index=True)
+    VENDOR_ID  = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
+    PRODUCT_ID = Column(String(36), ForeignKey("product_master.ID", ondelete="RESTRICT"), nullable=False, index=True)
+
+    REQUIRED_QTY = Column(Float, nullable=False, default=1.0)
+
+    CREATED_AT = Column(DateTime, default=now_ist)
+    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
+
+    project = relationship("Project", back_populates="product_requirements")
+    product = relationship("ProductMaster")
+
+
 class TaskTemplate(Base):
     """A single task can need several manpower combinations (e.g. 1
     Experienced Supervisor + 2 Intermediate Technicians), so Department/
@@ -198,17 +245,18 @@ class TaskTemplate(Base):
 
     TASK_SCOPE      = Column(TASK_SCOPE_ENUM, default="PROJECT", nullable=False)
 
-    # Plain shared string, not a foreign key to a separate "group" table —
-    # tasks with the same EXECUTION_GROUP_ID are eligible to run in
-    # parallel. NULL = not grouped, runs independently. The frontend
-    # generates this UUID client-side; there is no backend "create group"
-    # endpoint. Independent of SEQUENCE_NUMBER by design.
-    EXECUTION_GROUP_ID = Column(String(36), nullable=True, index=True)
-
-    # ALL/ANY — how this task's TaskTemplateDependency rows are combined to
-    # decide whether it can start. Irrelevant (and harmless) when the task
-    # has zero dependencies.
-    DEPENDENCY_RULE = Column(DEPENDENCY_RULE_ENUM, default="ALL", nullable=False)
+    # Real FK to a first-class TaskGroup row — replaces the old
+    # EXECUTION_GROUP_ID (a loose, unconstrained shared string with no
+    # backing table). NULL = not grouped, runs independently. A single
+    # scalar FK naturally enforces "a task belongs to at most one group."
+    # Deleting the group sets this back to NULL (see TaskGroup) — the task
+    # template itself is never deleted by a group operation.
+    TASK_GROUP_ID = Column(
+        String(36),
+        ForeignKey("task_group.ID", ondelete="SET NULL"),
+        nullable=True,
+        index=True
+    )
 
     CREATED_AT      = Column(DateTime, default=now_ist)
     UPDATED_AT      = Column(DateTime, default=now_ist, onupdate=now_ist)
@@ -218,9 +266,8 @@ class TaskTemplate(Base):
         "TaskTemplateRequirement", back_populates="task_template",
         cascade="all, delete-orphan"
     )
-    dependencies = relationship(
-        "TaskTemplateDependency", foreign_keys="TaskTemplateDependency.TASK_TEMPLATE_ID",
-        back_populates="task_template", cascade="all, delete-orphan"
+    task_group = relationship(
+        "TaskGroup", foreign_keys=[TASK_GROUP_ID], back_populates="task_templates"
     )
 
 
@@ -253,34 +300,83 @@ class TaskTemplateRequirement(Base):
     role          = relationship("Role",       foreign_keys=[ROLE_ID])
 
 
-class TaskTemplateDependency(Base):
-    """An exact "must finish before this one can start" edge between two
-    TaskTemplate rows in the SAME project. TASK_TEMPLATE_ID is the task
-    waiting to start; DEPENDS_ON_TASK_TEMPLATE_ID is the task that must be
-    completed first (subject to TaskTemplate.DEPENDENCY_RULE — ALL/ANY —
-    when a task has more than one of these rows). See
-    task_dependency_service.py for cycle detection and the ALL/ANY
-    evaluation itself."""
+class TaskGroup(Base):
+    """A first-class, named set of TaskTemplate rows (in the SAME project)
+    that are eligible to run in parallel — the "Task Group" configuration
+    unit. Replaces the old EXECUTION_GROUP_ID loose-string approach:
+    membership is now a real FK on TaskTemplate.TASK_GROUP_ID rather than an
+    arbitrary shared value with no backing row.
 
-    __tablename__ = "task_template_dependency"
+    DEPENDENCY_RULE (ALL/ANY/ONE) describes how this group's OWN member
+    tasks gate the next task/group in sequence — there is no external
+    "depends on another group" concept:
+      - ALL: every member task must be COMPLETED.
+      - ANY: any one member task must be COMPLETED.
+      - ONE: the one specific member task named by
+        DEPENDS_ON_TASK_TEMPLATE_ID must be COMPLETED.
+    DEPENDS_ON_TASK_TEMPLATE_ID is therefore always one of this group's own
+    `task_templates` (validated in project_template.py) and is NULL
+    whenever DEPENDENCY_RULE is ALL/ANY. See task_dependency_service.py
+    for the (still-unwired, pure) rule-evaluation function."""
 
-    __table_args__ = (
-        UniqueConstraint("TASK_TEMPLATE_ID", "DEPENDS_ON_TASK_TEMPLATE_ID", name="uq_ttd_task_dependency"),
-    )
+    __tablename__ = "task_group"
 
     ID = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
 
-    TASK_TEMPLATE_ID = Column(String(36), ForeignKey("task_template.ID", ondelete="CASCADE"), nullable=False, index=True)
-    DEPENDS_ON_TASK_TEMPLATE_ID = Column(String(36), ForeignKey("task_template.ID", ondelete="CASCADE"), nullable=False, index=True)
+    PROJECT_ID = Column(String(36), ForeignKey("project.ID", ondelete="CASCADE"), nullable=False, index=True)
+    VENDOR_ID  = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
+
+    # Optional custom label — the frontend falls back to a computed
+    # "Group N" (by creation/SEQUENCE_NUMBER order) when this is blank.
+    NAME = Column(String(100), nullable=True)
+
+    DEPENDENCY_RULE = Column(DEPENDENCY_RULE_ENUM, default="ALL", nullable=False)
+
+    # Only meaningful (non-NULL) when DEPENDENCY_RULE == "ONE" — the single
+    # member task whose completion gates the next task/group in sequence.
+    # ON DELETE SET NULL: if that task template is ever deleted, this just
+    # reverts to no explicit trigger rather than blocking the delete.
+    DEPENDS_ON_TASK_TEMPLATE_ID = Column(
+        String(36),
+        ForeignKey("task_template.ID", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    SEQUENCE_NUMBER = Column(Integer, nullable=False, default=0)
 
     CREATED_AT = Column(DateTime, default=now_ist)
+    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
 
-    task_template = relationship(
-        "TaskTemplate", foreign_keys=[TASK_TEMPLATE_ID], back_populates="dependencies"
+    project = relationship("Project", back_populates="task_groups")
+    task_templates = relationship(
+        "TaskTemplate", back_populates="task_group",
+        order_by="TaskTemplate.SEQUENCE_NUMBER",
+        foreign_keys="TaskTemplate.TASK_GROUP_ID",
     )
     depends_on_task_template = relationship(
         "TaskTemplate", foreign_keys=[DEPENDS_ON_TASK_TEMPLATE_ID]
     )
+
+
+# NOTE: TaskGroupDependency (table `task_group_dependency`) was removed
+# here — it modeled an external "this group depends on an arbitrary task"
+# edge with cross-group cycle detection, which turned out not to match the
+# real requirement: a group's dependency can only ever be one of its own
+# member tasks (see TaskGroup.DEPENDS_ON_TASK_TEMPLATE_ID above), which
+# needs no child table and no cycle detection at all. The physical
+# `task_group_dependency` table is deliberately left untouched in the
+# database (not dropped, though it holds no rows) — same convention as
+# TaskTemplateDependency/ProjectPaymentMilestone below.
+
+# NOTE: TaskTemplateDependency (table `task_template_dependency`) was
+# removed here — dependency/grouping configuration is now a project-level,
+# group-scoped concept (see TaskGroup above) rather than a per-TaskTemplate
+# edge. The physical `task_template_dependency` table and its data are
+# deliberately left untouched in the database (not dropped) — see
+# main.py's _migrate_backfill_task_groups_from_execution_groups() for the
+# one-time, best-effort migration of any existing per-task grouping/
+# dependency configuration into the new TaskGroup table.
 
 
 # NOTE: ProjectPaymentMilestone (table `project_payment_milestone`) was

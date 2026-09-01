@@ -169,6 +169,22 @@ def evaluate_milestones_for_assignment(db: Session, assignment) -> list:
             status_row.COMPLETED_AT = now_ist()
             if was_requested:
                 _attribute_latest_payment(db, assignment, m)
+            if m.MILESTONE_ORDER == milestones[0].MILESTONE_ORDER:
+                # First milestone reached (PO + payment proof cleared) —
+                # kick off automatic production scheduling. Local import
+                # avoids a service/service import cycle at module load
+                # time (production_scheduling_service pulls in the task
+                # generation / employee matching stack), matching this
+                # codebase's existing convention (see po_notification_
+                # service.py's own local import of po_service).
+                from app.services.production_scheduling_service import evaluate_and_propose_schedule
+                try:
+                    evaluate_and_propose_schedule(db, assignment)
+                except Exception:
+                    log.exception(
+                        "evaluate_milestones_for_assignment: production scheduling failed for assignment %s",
+                        assignment.ID,
+                    )
         elif status_row.STATUS == "PENDING":
             ok, message = _send_payment_milestone_request_email(db, assignment, m, summary, milestones)
             if not ok:

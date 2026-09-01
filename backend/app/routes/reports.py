@@ -39,7 +39,6 @@ from app.models.models import (
     Task,
     Inventory,
     Attendance,
-    Machine
 )
 
 from app.auth.auth_bearer import require
@@ -236,38 +235,6 @@ def attendance_data(db):
     )
 
 
-def machines_data(db):
-
-    rows = db.query(Machine).all()
-
-    return (
-        [
-            "ID",
-            "Name",
-            "Type",
-            "Location",
-            "Status",
-            "Last Updated"
-        ],
-        [
-            [
-                r.ID,
-                r.MACHINE_NAME or "",
-                r.MACHINE_TYPE or "",
-                r.LOCATION or "—",
-                r.STATUS or "",
-                (
-                    r.LAST_UPDATED.strftime(
-                        "%Y-%m-%d %H:%M"
-                    )
-                    if r.LAST_UPDATED else ""
-                )
-            ]
-            for r in rows
-        ]
-    )
-
-
 MODULES = {
     "employees": ("Employees", employees_data),
     "customers": ("Customers", customers_data),
@@ -275,7 +242,6 @@ MODULES = {
     "tasks": ("Tasks", tasks_data),
     "inventory": ("Inventory", inventory_data),
     "attendance": ("Attendance", attendance_data),
-    "machines": ("Machines", machines_data)
 }
 
 

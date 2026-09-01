@@ -33,7 +33,7 @@ export default defineConfig(({ mode }) => {
     envDir: __dirname,
     server: {
       host: '0.0.0.0',
-      port: 5174,
+      port: 5173,
       // Allow Cloudflare Tunnel + ngrok hosts. The leading "." is
       // Vite's suffix-match syntax — any subdomain is accepted.
       allowedHosts: [

@@ -2,7 +2,7 @@
 # install-services.ps1  —  One-shot installer for all 3 Windows services
 # ---------------------------------------------------------------------
 # Installs (or reinstalls) the three production services in order:
-#   1. BVC24-Backend     (uvicorn FastAPI on :8001)
+#   1. BVC24-Backend     (uvicorn FastAPI on :8000)
 #   2. BVC24-Frontend    (vite preview on :4173, 127.0.0.1 only)
 #   3. BVC24-Cloudflared (named tunnel exposing both publicly)
 #
@@ -100,7 +100,7 @@ Write-Host "=============================================================" -Fore
 Write-Host ""
 Write-Host "Verify:"
 Write-Host "  Locally:  http://127.0.0.1:4173      (frontend)"
-Write-Host "            http:///127.0.0.1:8001/docs (backend OpenAPI)"
+Write-Host "            http:///127.0.0.1:8000/docs (backend OpenAPI)"
 Write-Host ""
 Write-Host "  Public:   https://erp.bvc24.com      (frontend)"
 Write-Host "            https://api.bvc24.com/docs (backend)"

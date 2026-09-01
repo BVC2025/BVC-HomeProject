@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, String, Integer, ForeignKey, Float, Date,
+    Column, String, Integer, ForeignKey, Float, Date, Time,
     Text, UniqueConstraint, DateTime, Boolean, Numeric, JSON,
     Enum as SAEnum
 )
@@ -11,7 +11,8 @@ import uuid
 from app.utils.datetime_utils import now_ist
 
 from app.models.project_models import (  # noqa: F401
-    ProjectCategory, Project, TaskTemplate, TaskTemplateRequirement, TaskTemplateDependency, ProjectPricing,
+    ProjectCategory, Project, TaskTemplate, TaskTemplateRequirement, TaskGroup, ProjectPricing,
+    ProjectProductRequirement,
 )
 from app.models.project_milestone_models import PaymentMilestone, CustomerProjectMilestoneStatus  # noqa: F401
 from app.models.supplier_models import Supplier  # noqa: F401
@@ -19,7 +20,7 @@ from app.models.email_models import VendorEmailConfig, EmailTemplate  # noqa: F4
 from app.models.lead_models import LeadPollingConfig, Lead, LeadPollingLog, LeadModuleSetting  # noqa: F401
 from app.models.customer_models import (  # noqa: F401
     Customer, CustomerProjectAssignment, CustomerProjectQuotation, CustomerProjectPurchaseOrder,
-    CustomerProjectPayment,
+    CustomerProjectPayment, CustomerProjectTask, ProductionSchedule,
 )
 from app.models.project_quotation_models import ProjectQuotationTemplate  # noqa: F401
 from app.models.whatsapp_models import (  # noqa: F401
@@ -364,157 +365,6 @@ class Inventory(Base):
     )
 
 
-class WorkCenter(Base):
-    """A physical or logical work-station capability used in routing.
-
-    Odoo-style separation: ProcessStage = "WHAT to do in the process",
-    WorkCenter = "WHERE / by what capability it gets done". Multiple
-    Machines may belong to the same Work Center (e.g. three identical
-    welding bays); routing assigns each stage to one Work Center, and
-    the scheduler picks an available machine from that pool.
-
-    Adding this table does NOT touch any existing data — current
-    BOMs and Work Orders keep working without a Work Center reference.
-    The Routing feature (next phase) starts populating it.
-    """
-
-    __tablename__ = "work_center"
-
-    __table_args__ = (
-        UniqueConstraint(
-            "VENDOR_ID", "NAME",
-            name="uq_work_center_vendor_name"
-        ),
-    )
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    NAME = Column(String(100), nullable=False)
-    # Human-readable: "Laser Cutting", "Welding Bay", "Assembly Line A"
-
-    CODE = Column(String(20), nullable=True)
-    # Short code for reports: "LC", "WLD", "PAINT", "ASM", "TEST"
-
-    CATEGORY = Column(String(40), default="ASSEMBLY")
-    # FABRICATION / WELDING / PAINTING / ASSEMBLY / TESTING /
-    # PACKAGING / QC / OTHER — informational grouping
-
-    CAPACITY_PER_HOUR = Column(Float, default=1.0)
-    # Theoretical throughput in units/hour. Used later for Gantt
-    # scheduling. Default 1 = "one unit per hour" — safe placeholder.
-
-    HOURLY_COST = Column(Float, default=0.0)
-    # Optional costing field for future job-cost rollup.
-
-    LOCATION = Column(String(200), nullable=True)
-    # Free text — "Bay 3, Ground Floor"
-
-    NOTES = Column(String(500), nullable=True)
-
-    IS_ACTIVE = Column(Integer, default=1)
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID"),
-        nullable=False,
-        default=1,
-        index=True
-    )
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-
-    UPDATED_AT = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
-
-
-class Machine(Base):
-
-    __tablename__ = "machine"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        index=True
-    )
-
-    MACHINE_NAME = Column(String(100))
-
-    MACHINE_TYPE = Column(String(50))
-
-    STATUS = Column(
-        String(20),
-        default="IDLE"
-    )
-
-    LOCATION = Column(String(100), nullable=True)
-
-    LAST_UPDATED = Column(
-        DateTime,
-        default=datetime.utcnow
-    )
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID")
-    )
-
-    # Auto-sync provenance: every manufactured unit of every active
-    # Work Order becomes a Machine row, so the monitoring page is
-    # populated automatically without manual entry.
-    PRODUCT_MODEL_ID = Column(
-        Integer,
-        ForeignKey("product_model.ID"),
-        nullable=True,
-        index=True
-    )
-
-    WORK_ORDER_ID = Column(
-        Integer,
-        ForeignKey("work_order.ID"),
-        nullable=True,
-        index=True
-    )
-
-    UNIT_NUMBER = Column(Integer, nullable=True)
-    # 1..QUANTITY — which physical unit of the WO this is.
-
-    SERIAL_NO = Column(String(60), nullable=True, index=True)
-    # Globally unique-ish identifier e.g. "CVM-2001-WO0007-U01"
-
-
-class MachineLog(Base):
-
-    __tablename__ = "machine_log"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        index=True
-    )
-
-    MACHINE_ID = Column(
-        Integer,
-        ForeignKey("machine.ID")
-    )
-
-    STATUS = Column(String(20))
-
-    NOTE = Column(String(255), nullable=True)
-
-    TIMESTAMP = Column(
-        DateTime,
-        default=datetime.utcnow
-    )
-
-
 class Setting(Base):
 
     __tablename__ = "setting"
@@ -786,556 +636,6 @@ class AttendanceSecurityLog(Base):
     IP_ADDRESS  = Column(String(60), nullable=True)
     VENDOR_ID   = Column(Integer, ForeignKey("vendor.ID"), nullable=True)
     CREATED_AT  = Column(DateTime, default=datetime.utcnow, index=True)
-
-
-class ProductModel(Base):
-    """
-    Catalog of vending machine models BVC24 manufactures.
-    One row per machine variant (Snack Combo, Medicine
-    Dispenser, Hot Food Box, etc.). Acts as the parent for the
-    BOM (which materials go into one unit) and as the target of
-    work orders (how many units to build).
-    """
-
-    __tablename__ = "product_model"
-
-    __table_args__ = (
-        UniqueConstraint(
-            "VENDOR_ID", "MODEL_CODE",
-            name="uq_product_model_vendor_code"
-        ),
-    )
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    MODEL_NAME = Column(String(150))
-
-    MODEL_CODE = Column(String(40), index=True)
-    # short SKU-style code per vendor, e.g. "BVC-SBC-01"
-
-    CATEGORY = Column(String(60), nullable=True)
-    # snack-beverage / medicine / hot-food / kiosk / fruits-veg /
-    # cosmetics / alcohol — matches BVC24's product line.
-
-    DESCRIPTION = Column(String(500), nullable=True)
-
-    ESTIMATED_BUILD_DAYS = Column(Integer, default=7)
-
-    STATUS = Column(
-        String(20),
-        default="ACTIVE"
-    )
-    # ACTIVE / DISCONTINUED
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID"),
-        index=True
-    )
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-
-    UPDATED_AT = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
-
-
-class BOMItem(Base):
-    """
-    One line of the Bill of Materials for a ProductModel.
-    Captures which material goes in, how many of it, and the
-    unit of measure.
-
-    Each line is classified as either:
-      - PURCHASE: bought from an external Supplier
-                  (PREFERRED_SUPPLIER_ID hints which supplier)
-      - PROCESS:  produced in-house at a specific ProcessStage
-                  (PROCESS_STAGE_ID points to the stage)
-
-    Cost rollup intentionally not in this iteration —
-    quantities only.
-    """
-
-    __tablename__ = "bom_item"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    PRODUCT_MODEL_ID = Column(
-        Integer,
-        ForeignKey("product_model.ID"),
-        index=True
-    )
-
-    PRODUCT_ID = Column(
-        String(36),
-        ForeignKey("product_master.ID", ondelete="SET NULL"),
-        nullable=True,
-        index=True
-    )
-
-    MATERIAL_NAME = Column(String(150))
-    # denormalized for fast list rendering even when the
-    # product entry is missing.
-
-    QUANTITY = Column(Float, default=1.0)
-
-    UNIT = Column(String(20), default="pcs")
-    # pcs / kg / m / l / set
-
-    ITEM_TYPE = Column(
-        String(20),
-        default="PURCHASE",
-        index=True
-    )
-    # PURCHASE / PROCESS
-
-    PREFERRED_SUPPLIER_ID = Column(
-        Integer,
-        ForeignKey("supplier.ID"),
-        nullable=True,
-        index=True
-    )
-    # Set when ITEM_TYPE = PURCHASE; the default vendor for
-    # this part. Procurement picks it as the starting choice.
-
-    PROCESS_STAGE_ID = Column(
-        Integer,
-        ForeignKey("process_stage.ID"),
-        nullable=True,
-        index=True
-    )
-    # Set when ITEM_TYPE = PROCESS; which stage produces it.
-
-    NOTES = Column(String(255), nullable=True)
-
-    # Excel-style BOM presentation fields. ITEM_NO mirrors the
-    # "ITEM NO." column from the 8 Par BOM sheet (gaps are normal —
-    # sub-components share the parent's number). IMAGE_URL points to
-    # /static/bom/<file> served by the backend; uploaded per-line
-    # via POST /production/bom/{id}/upload-image.
-    ITEM_NO = Column(Integer, nullable=True)
-
-    IMAGE_URL = Column(String(255), nullable=True)
-
-
-class WorkOrder(Base):
-    """
-    A production run: 'build N units of model X'. Optionally
-    tied to a customer Project (the sales order that triggered
-    the production). Status moves PLANNED -> IN_PROGRESS ->
-    DONE (or ON_HOLD / CANCELLED off the happy path).
-    """
-
-    __tablename__ = "work_order"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    WO_NUMBER = Column(
-        String(30),
-        unique=True,
-        index=True
-    )
-    # human-friendly identifier, e.g. "WO-2026-0001"
-
-    PRODUCT_MODEL_ID = Column(
-        Integer,
-        ForeignKey("product_model.ID"),
-        index=True
-    )
-
-    QUANTITY = Column(Integer, default=1)
-
-    STATUS = Column(
-        String(20),
-        default="PLANNED",
-        index=True
-    )
-    # PLANNED / IN_PROGRESS / ON_HOLD / DONE / CANCELLED
-
-    PLANNED_START_DATE = Column(Date, nullable=True)
-
-    PLANNED_END_DATE = Column(Date, nullable=True)
-
-    ACTUAL_START_DATE = Column(Date, nullable=True)
-
-    ACTUAL_END_DATE = Column(Date, nullable=True)
-
-    NOTES = Column(String(500), nullable=True)
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID"),
-        index=True
-    )
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-
-    UPDATED_AT = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
-class ProcessStage(Base):
-    """
-    One manufacturing step in the per-machine production flow.
-    A ProductModel has an ordered list of stages: Design,
-    Mechanical, Electrical, Wiring, Assembly, QC, etc.
-
-    Each Work Order auto-spawns one WorkOrderStageProgress per
-    active stage, which the shop floor marks ✓ DONE or ✗ FAILED
-    independently (free order — no strict gating).
-    """
-
-    __tablename__ = "process_stage"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    PRODUCT_MODEL_ID = Column(
-        Integer,
-        ForeignKey("product_model.ID"),
-        index=True
-    )
-
-    SEQUENCE = Column(Integer, default=1)
-
-    STAGE_NAME = Column(String(120))
-
-    STAGE_TYPE = Column(
-        String(40),
-        default="ASSEMBLY"
-    )
-    # DESIGN / MECHANICAL / ELECTRICAL / WIRING / FABRICATION /
-    # ASSEMBLY / TESTING / QC / PACKAGING / OTHER
-
-    DESCRIPTION = Column(String(500), nullable=True)
-
-    ESTIMATED_HOURS = Column(Float, default=8.0)
-
-    IS_ACTIVE = Column(Integer, default=1)
-
-
-class WorkOrderStageProgress(Base):
-    """
-    Per-WorkOrder progress on a specific ProcessStage. Created
-    automatically when a Work Order is opened — one row per
-    active stage of the WO's ProductModel.
-    """
-
-    __tablename__ = "wo_stage_progress"
-
-    __table_args__ = (
-        UniqueConstraint(
-            "WORK_ORDER_ID", "STAGE_ID",
-            name="uq_wo_stage"
-        ),
-    )
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    WORK_ORDER_ID = Column(
-        Integer,
-        ForeignKey("work_order.ID"),
-        index=True
-    )
-
-    STAGE_ID = Column(
-        Integer,
-        ForeignKey("process_stage.ID"),
-        index=True
-    )
-
-    STATUS = Column(
-        String(20),
-        default="PENDING",
-        index=True
-    )
-    # PENDING / IN_PROGRESS / DONE / FAILED / SKIPPED
-
-    ASSIGNED_TO_ID = Column(
-        String(36),
-        ForeignKey("employee.ID"),
-        nullable=True
-    )
-
-    STARTED_AT = Column(DateTime, nullable=True)
-
-    COMPLETED_AT = Column(DateTime, nullable=True)
-
-    NOTES = Column(String(500), nullable=True)
-    # FAILED status — capture the reason here (the "X mark" note)
-
-    UPDATED_AT = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
-
-
-class QCChecklistItem(Base):
-    """
-    Template item: one row per (ProductModel, inspection point).
-    Pre-dispatch QC for that model walks through every active
-    row and produces a QCInspectionResult per item.
-    """
-
-    __tablename__ = "qc_checklist_item"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    PRODUCT_MODEL_ID = Column(
-        Integer,
-        ForeignKey("product_model.ID"),
-        index=True
-    )
-
-    SEQUENCE = Column(Integer, default=1)
-    # display order within the checklist
-
-    CHECK_POINT = Column(String(255))
-    # short label, e.g. "All dispensing motors functional"
-
-    DESCRIPTION = Column(String(500), nullable=True)
-    # longer instruction for the inspector
-
-    SEVERITY = Column(
-        String(20),
-        default="MAJOR"
-    )
-    # MAJOR / MINOR / CRITICAL — drives NCR escalation
-
-    IS_ACTIVE = Column(Integer, default=1)
-
-
-class QCInspection(Base):
-    """
-    One inspection cycle for a Work Order. Captures who
-    inspected, when, overall result, and rolls up per-item
-    results via QCInspectionResult.
-    """
-
-    __tablename__ = "qc_inspection"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    WORK_ORDER_ID = Column(
-        Integer,
-        ForeignKey("work_order.ID"),
-        index=True
-    )
-
-    PRODUCT_MODEL_ID = Column(
-        Integer,
-        ForeignKey("product_model.ID"),
-        index=True
-    )
-
-    INSPECTOR_ID = Column(
-        String(36),
-        ForeignKey("employee.ID"),
-        nullable=True
-    )
-
-    INSPECTION_DATE = Column(Date, default=datetime.utcnow)
-
-    STATUS = Column(
-        String(20),
-        default="PENDING",
-        index=True
-    )
-    # PENDING / PASS / FAIL / REWORK
-
-    PASS_COUNT = Column(Integer, default=0)
-
-    FAIL_COUNT = Column(Integer, default=0)
-
-    REWORK_COUNT = Column(Integer, default=0)
-
-    NOTES = Column(String(500), nullable=True)
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID"),
-        index=True
-    )
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-
-    UPDATED_AT = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
-
-
-class QCInspectionResult(Base):
-    """
-    One row per (QCInspection, checklist item). Captures the
-    inspector's verdict for that specific check.
-    """
-
-    __tablename__ = "qc_inspection_result"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    INSPECTION_ID = Column(
-        Integer,
-        ForeignKey("qc_inspection.ID"),
-        index=True
-    )
-
-    CHECKLIST_ITEM_ID = Column(
-        Integer,
-        ForeignKey("qc_checklist_item.ID"),
-        nullable=True
-    )
-
-    CHECK_POINT = Column(String(255))
-    # denormalised label so the result stays readable even if
-    # the checklist item is edited later.
-
-    RESULT = Column(
-        String(20),
-        default="PENDING"
-    )
-    # PASS / FAIL / NEEDS_REWORK / NA
-
-    NOTES = Column(String(500), nullable=True)
-
-    RECORDED_AT = Column(DateTime, default=datetime.utcnow)
-
-
-class NCR(Base):
-    """
-    Non-Conformance Report — auto-created when an inspection
-    item is marked FAIL or NEEDS_REWORK. Tracks corrective
-    action and closure separately from the inspection itself
-    so RCA work can outlive the original inspection cycle.
-    """
-
-    __tablename__ = "ncr"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    NCR_NUMBER = Column(
-        String(30),
-        unique=True,
-        index=True
-    )
-    # e.g. "NCR-2026-0001"
-
-    INSPECTION_ID = Column(
-        Integer,
-        ForeignKey("qc_inspection.ID"),
-        nullable=True,
-        index=True
-    )
-
-    WORK_ORDER_ID = Column(
-        Integer,
-        ForeignKey("work_order.ID"),
-        nullable=True,
-        index=True
-    )
-
-    PRODUCT_MODEL_ID = Column(
-        Integer,
-        ForeignKey("product_model.ID"),
-        nullable=True
-    )
-
-    CHECK_POINT = Column(String(255))
-
-    SEVERITY = Column(
-        String(20),
-        default="MAJOR"
-    )
-    # CRITICAL / MAJOR / MINOR
-
-    DESCRIPTION = Column(String(1000))
-
-    ROOT_CAUSE = Column(String(1000), nullable=True)
-
-    CORRECTIVE_ACTION = Column(String(1000), nullable=True)
-
-    STATUS = Column(
-        String(20),
-        default="OPEN",
-        index=True
-    )
-    # OPEN / IN_PROGRESS / CLOSED
-
-    REPORTED_BY_ID = Column(
-        String(36),
-        ForeignKey("employee.ID"),
-        nullable=True
-    )
-
-    ASSIGNED_TO_ID = Column(
-        String(36),
-        ForeignKey("employee.ID"),
-        nullable=True
-    )
-
-    OPENED_AT = Column(DateTime, default=datetime.utcnow)
-
-    CLOSED_AT = Column(DateTime, nullable=True)
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID"),
-        index=True
-    )
-
-
-# LeaveRequest, LeaveBalance, LeaveQuotaPolicy moved to
-# app/models/leave_models.py (re-exported below).
 
 
 class BiometricEvent(Base):
@@ -1853,250 +1153,6 @@ class PerformanceScore(Base):
 # Phase 3 — Quotation Module
 # ====================================================================
 
-class Quotation(Base):
-    """
-    A formal price offer issued to a customer. One quotation can
-    have many lines (different machines / configurations). When the
-    customer accepts, the quotation is "converted" → a Sales Order
-    that in turn spawns Projects.
-
-    Lifecycle:
-      DRAFT       — being prepared
-      GENERATED   — auto-generated from requirements, awaiting send
-      SENT        — emailed/shared with customer
-      VIEWED      — customer opened the public link
-      NEGOTIATION — customer wants modifications, sales rep iterating
-      APPROVED    — customer accepted (ready to convert)
-      REJECTED    — customer said no
-      CONVERTED   — turned into a sales order / project
-      EXPIRED     — past validity, no decision
-    """
-
-    __tablename__ = "quotation"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    QUOTATION_NUMBER = Column(String(30), unique=True, index=True)
-
-    CUSTOMER_ID = Column(
-        String(36),
-        ForeignKey("customer.ID"),
-        index=True
-    )
-
-    QUOTATION_DATE = Column(Date, default=datetime.utcnow)
-
-    VALIDITY_DAYS = Column(Integer, default=30)
-
-    EXPIRY_DATE = Column(Date, nullable=True)
-
-    STATUS = Column(String(20), default="DRAFT", index=True)
-
-    SUBTOTAL = Column(Float, default=0.0)
-
-    DISCOUNT_PERCENT = Column(Float, default=0.0)
-
-    DISCOUNT_AMOUNT = Column(Float, default=0.0)
-
-    TAX_PERCENT = Column(Float, default=18.0)
-
-    TAX_AMOUNT = Column(Float, default=0.0)
-
-    GRAND_TOTAL = Column(Float, default=0.0)
-
-    TERMS_AND_CONDITIONS = Column(String(3000), nullable=True)
-
-    NOTES = Column(String(2000), nullable=True)
-
-    PREPARED_BY = Column(
-        String(36),
-        ForeignKey("employee.ID"),
-        nullable=True
-    )
-
-    SENT_AT = Column(DateTime, nullable=True)
-
-    APPROVED_AT = Column(DateTime, nullable=True)
-
-    REJECTED_AT = Column(DateTime, nullable=True)
-
-    REJECTION_REASON = Column(String(500), nullable=True)
-
-    # ---- Tracking (sharing + view) ----
-    PUBLIC_TOKEN = Column(String(64), unique=True, index=True, nullable=True)
-    # Opaque random token for the public share URL /q/<token>
-
-    EMAIL_SENT_AT = Column(DateTime, nullable=True)
-    # Last time an email was successfully dispatched to the customer
-
-    EMAIL_SENT_COUNT = Column(Integer, default=0)
-    # Number of times the quotation has been emailed (incl. resends)
-
-    LAST_EMAIL_STATUS = Column(String(200), nullable=True)
-    # Success message or error from the email provider
-
-    VIEWED_AT = Column(DateTime, nullable=True)
-    # First time the customer opened the public link
-
-    LAST_VIEWED_AT = Column(DateTime, nullable=True)
-    # Most recent view
-
-    VIEW_COUNT = Column(Integer, default=0)
-    # How many times the public link has been opened
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID"),
-        index=True,
-        nullable=True
-    )
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-
-    UPDATED_AT = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
-
-
-class QuotationActivity(Base):
-    """
-    Timeline of everything that happened to a Quotation — created,
-    sent, emailed, viewed, approved, etc. One row per event, ordered
-    by CREATED_AT for the UI timeline.
-    """
-
-    __tablename__ = "quotation_activity"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    QUOTATION_ID = Column(
-        Integer,
-        ForeignKey("quotation.ID"),
-        index=True
-    )
-
-    EVENT_TYPE = Column(String(40), index=True)
-    # CREATED / SENT / EMAIL_SENT / EMAIL_FAILED / VIEWED /
-    # APPROVED / REJECTED / EXPIRED / CONVERTED / RESENT
-
-    EVENT_DETAIL = Column(String(500), nullable=True)
-    # Free-text — e.g. "Email to procurement@xyz.in" or
-    # "Viewed from IP 49.205.x.x"
-
-    ACTOR_TYPE = Column(String(20), nullable=True)
-    # SYSTEM / SALES / CUSTOMER
-
-    ACTOR_NAME = Column(String(150), nullable=True)
-    # Salesperson name or "customer" or "system"
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow, index=True)
-
-
-class QuotationNegotiation(Base):
-    """
-    Transcript of the AI Negotiation Assistant chat held on the
-    public `/q/{token}` quotation page. One row per message (either
-    from the customer or from the assistant). Auditable so sales can
-    later review what was promised by the bot.
-    """
-
-    __tablename__ = "quotation_negotiation"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    QUOTATION_ID = Column(
-        Integer,
-        ForeignKey("quotation.ID"),
-        index=True
-    )
-
-    ROLE = Column(String(20), index=True)
-    # 'customer' | 'assistant'
-
-    CONTENT = Column(Text)
-    # Raw chat message body. Text (unbounded) because customers may
-    # type long descriptions of their requirements.
-
-    INTENT = Column(String(30), nullable=True)
-    # DISCOUNT | WARRANTY | INSTALL | DELIVERY | QUANTITY | INFO | OTHER
-    # NULL for customer rows (intent is classified by the bot).
-
-    ACTION = Column(String(30), nullable=True)
-    # AUTO_APPROVE | COUNTER | DECLINE | INFO_ONLY (bot rows only)
-
-    DISCOUNT_PERCENT = Column(Float, nullable=True)
-    # The discount the bot offered on this turn (if any).
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow, index=True)
-
-
-class QuotationLine(Base):
-    """
-    One line item on a quotation. Either references an existing
-    ProductModel or describes a custom build via DESCRIPTION.
-    LINE_TOTAL is denormalized so we don't re-compute on every read.
-    """
-
-    __tablename__ = "quotation_line"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    QUOTATION_ID = Column(
-        Integer,
-        ForeignKey("quotation.ID"),
-        index=True
-    )
-
-    PRODUCT_MODEL_ID = Column(
-        Integer,
-        ForeignKey("product_model.ID"),
-        nullable=True,
-        index=True
-    )
-
-    DESCRIPTION = Column(String(500))
-
-    HSN_CODE = Column(String(20), nullable=True)
-
-    QUANTITY = Column(Float, default=1.0)
-
-    UNIT = Column(String(20), default="nos")
-
-    UNIT_PRICE = Column(Float, default=0.0)
-
-    DISCOUNT_PERCENT = Column(Float, default=0.0)
-
-    LINE_TOTAL = Column(Float, default=0.0)
-
-    SORT_ORDER = Column(Integer, default=0)
-
-
-# ====================================================================
-# Phase 4 — Purchase Order Module
-# ====================================================================
-
 class PurchaseOrder(Base):
     """
     A purchase order BVC24 issues to a Supplier when buying raw
@@ -2184,6 +1240,17 @@ class PurchaseOrder(Base):
         nullable=True
     )
 
+    # Set only when this PO was auto-generated by the low-stock reorder
+    # workflow (inventory_reorder_service) — links it to the batch of
+    # sibling per-supplier POs proposed together for one consolidated
+    # approval. NULL for a manually-created PO.
+    BATCH_ID = Column(
+        String(36),
+        ForeignKey("purchase_order_approval_batch.ID", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     CREATED_AT = Column(DateTime, default=datetime.utcnow)
 
     UPDATED_AT = Column(
@@ -2191,6 +1258,8 @@ class PurchaseOrder(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow
     )
+
+    approval_batch = relationship("PurchaseOrderApprovalBatch", back_populates="purchase_orders")
 
 
 class PurchaseOrderLine(Base):
@@ -2371,6 +1440,45 @@ class PurchaseOrderActivity(Base):
     CREATED_AT = Column(DateTime, default=datetime.utcnow, index=True)
 
 
+class PurchaseOrderApprovalBatch(Base):
+    """One row per automatic-reorder proposal cycle — groups the N
+    per-supplier DRAFT PurchaseOrder rows that
+    inventory_reorder_service.evaluate_and_propose_reorder() creates
+    together (one supplier's low-stock products = one PO; several
+    suppliers triggered at once = several POs, all under one batch) so
+    they can be reviewed and Approved/Rejected as a single consolidated
+    decision, mirroring production_scheduling_service.ProductionSchedule's
+    propose -> approve/reject shape. A manually-created PO (Part D of the
+    inventory-automation feature) simply has no PurchaseOrder row
+    pointing at any batch."""
+
+    __tablename__ = "purchase_order_approval_batch"
+
+    ID = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
+
+    STATUS = Column(String(20), default="PROPOSED", index=True)  # PROPOSED / APPROVED / REJECTED
+    TRIGGER_TYPE = Column(String(20), default="LOW_STOCK")  # LOW_STOCK / MANUAL
+
+    # Human-readable note — e.g. lists any low-stock products that
+    # couldn't be assigned a supplier and were left out of this batch,
+    # so the approver isn't left wondering why a known-low product isn't
+    # on any of the batch's POs.
+    TRIGGER_NOTE = Column(String(1000), nullable=True)
+
+    APPROVED_BY_ID = Column(String(36), ForeignKey("employee.ID", ondelete="SET NULL"), nullable=True)
+    APPROVED_AT = Column(DateTime, nullable=True)
+
+    REJECTED_BY_ID = Column(String(36), ForeignKey("employee.ID", ondelete="SET NULL"), nullable=True)
+    REJECTED_AT = Column(DateTime, nullable=True)
+    REJECT_REASON = Column(String(500), nullable=True)
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+
+    purchase_orders = relationship("PurchaseOrder", back_populates="approval_batch")
+
+
 # ====================================================================
 # Phase 5 — Sales Order Module
 # ====================================================================
@@ -2378,245 +1486,6 @@ class PurchaseOrderActivity(Base):
 # quotation. Each SO line represents a machine/product to be built,
 # and finalizing the SO auto-spawns Projects that drive the
 # manufacturing workflow already wired in Phases 1-4.
-
-class SalesOrder(Base):
-    """
-    Customer-facing sales contract. Spawned from an APPROVED
-    Quotation (or hand-created from scratch). Each line becomes a
-    Project; payment milestones drive when invoices fire.
-
-    Lifecycle:
-      DRAFT          — building / negotiating
-      CONFIRMED      — customer accepted, advance received
-      IN_PRODUCTION  — projects spawned, manufacturing started
-      SHIPPED        — goods dispatched to customer
-      DELIVERED      — customer signed acceptance
-      CLOSED         — final payment received, contract complete
-      CANCELLED      — voided before close
-    """
-
-    __tablename__ = "sales_order"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    SO_NUMBER = Column(String(30), unique=True, index=True)
-
-    CUSTOMER_ID = Column(
-        String(36),
-        ForeignKey("customer.ID"),
-        index=True
-    )
-
-    QUOTATION_ID = Column(
-        Integer,
-        ForeignKey("quotation.ID"),
-        nullable=True,
-        index=True
-    )
-    # Optional source quotation — auto-set when created via
-    # /sales-orders/from-quotation
-
-    SO_DATE = Column(Date, default=datetime.utcnow)
-
-    EXPECTED_DELIVERY_DATE = Column(Date, nullable=True)
-
-    ADVANCE_DUE_DATE = Column(Date, nullable=True)
-    # Date by which the customer must pay the advance.  When
-    # /confirm is fired we email this to them. Status stays
-    # AWAITING_ADVANCE until ADVANCE_RECEIVED >= required advance.
-
-    STATUS = Column(String(20), default="DRAFT", index=True)
-
-    SUBTOTAL = Column(Float, default=0.0)
-
-    DISCOUNT_PERCENT = Column(Float, default=0.0)
-
-    DISCOUNT_AMOUNT = Column(Float, default=0.0)
-
-    TAX_PERCENT = Column(Float, default=18.0)
-
-    TAX_AMOUNT = Column(Float, default=0.0)
-
-    GRAND_TOTAL = Column(Float, default=0.0)
-
-    # ---- Payment milestones (sum should be 100) ----
-    ADVANCE_PERCENT = Column(Float, default=50.0)
-
-    DISPATCH_PERCENT = Column(Float, default=40.0)
-
-    INSTALLATION_PERCENT = Column(Float, default=10.0)
-
-    ADVANCE_RECEIVED = Column(Float, default=0.0)
-
-    DISPATCH_RECEIVED = Column(Float, default=0.0)
-
-    INSTALLATION_RECEIVED = Column(Float, default=0.0)
-
-    # ---- Operational fields ----
-    SHIPPING_ADDRESS = Column(String(500), nullable=True)
-
-    BILLING_ADDRESS = Column(String(500), nullable=True)
-
-    TERMS_AND_CONDITIONS = Column(String(3000), nullable=True)
-
-    NOTES = Column(String(2000), nullable=True)
-
-    PREPARED_BY = Column(
-        String(36),
-        ForeignKey("employee.ID"),
-        nullable=True
-    )
-
-    CONFIRMED_AT = Column(DateTime, nullable=True)
-
-    PRODUCTION_STARTED_AT = Column(DateTime, nullable=True)
-
-    SHIPPED_AT = Column(DateTime, nullable=True)
-
-    DELIVERED_AT = Column(DateTime, nullable=True)
-
-    CLOSED_AT = Column(DateTime, nullable=True)
-
-    CANCELLED_AT = Column(DateTime, nullable=True)
-
-    CANCEL_REASON = Column(String(500), nullable=True)
-
-    EMAIL_SENT_AT = Column(DateTime, nullable=True)
-
-    EMAIL_SENT_COUNT = Column(Integer, default=0)
-
-    LAST_EMAIL_STATUS = Column(String(200), nullable=True)
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID"),
-        index=True,
-        nullable=True
-    )
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-
-    UPDATED_AT = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
-
-
-class SalesOrderLine(Base):
-    """One product on a sales order. Each line maps 1-to-1 to a
-    spawned Project once the SO is confirmed and production starts."""
-
-    __tablename__ = "sales_order_line"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    SO_ID = Column(
-        Integer,
-        ForeignKey("sales_order.ID"),
-        index=True
-    )
-
-    PRODUCT_MODEL_ID = Column(
-        Integer,
-        ForeignKey("product_model.ID"),
-        nullable=True,
-        index=True
-    )
-
-    QUOTATION_LINE_ID = Column(
-        Integer,
-        ForeignKey("quotation_line.ID"),
-        nullable=True,
-        index=True
-    )
-    # Trace back to the originating quotation line for audit
-
-
-    DESCRIPTION = Column(String(500))
-
-    HSN_CODE = Column(String(20), nullable=True)
-
-    QUANTITY = Column(Float, default=1.0)
-
-    UNIT = Column(String(20), default="nos")
-
-    UNIT_PRICE = Column(Float, default=0.0)
-
-    DISCOUNT_PERCENT = Column(Float, default=0.0)
-
-    LINE_TOTAL = Column(Float, default=0.0)
-
-    SORT_ORDER = Column(Integer, default=0)
-
-
-class SalesOrderActivity(Base):
-    """Timeline for SO events — created, confirmed, projects spawned,
-    payment received, shipped, etc."""
-
-    __tablename__ = "sales_order_activity"
-
-    ID = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        index=True
-    )
-
-    SO_ID = Column(
-        Integer,
-        ForeignKey("sales_order.ID"),
-        index=True
-    )
-
-    EVENT_TYPE = Column(String(40), index=True)
-    # CREATED / CONFIRMED / EMAIL_SENT / EMAIL_FAILED /
-    # PROJECTS_SPAWNED / PAYMENT_RECEIVED / SHIPPED / DELIVERED /
-    # CLOSED / CANCELLED
-
-    EVENT_DETAIL = Column(String(500), nullable=True)
-
-    ACTOR_TYPE = Column(String(20), nullable=True)
-
-    ACTOR_NAME = Column(String(150), nullable=True)
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow, index=True)
-
-
-# =================================================================
-# Employee Self-Onboarding Portal (chatbot-driven invite flow)
-# =================================================================
-#
-# Mirrors CustomerOnboardingSession but for new hires. Admin
-# generates an invite token, the candidate fills out their
-# profile via a chatbot, then admin reviews & approves — at
-# which point the Employee row is created (or linked, if
-# EMPLOYEE_CODE was pre-allocated).
-
-# EmployeeOnboardingSession, EmployeeDocument, EmployeeMemo moved to
-# app/models/employee_models.py (re-exported below).
-
-
-# ====================================================================
-# Holiday Calendar (Phase 2 — replaces hardcoded 26 working days)
-# ====================================================================
-# One row per declared holiday. Used by:
-#   - payroll_service._working_days_in_month(year, month, vendor_id)
-#   - star_performance_service (working-day denominator)
-#
-# Sundays are implicitly holidays (handled in code, not stored). Saturday
-# may or may not be a holiday depending on company policy — for BVC24,
-# Saturdays are working days. To mark a Saturday as off, just add a row.
 
 class HolidayCalendar(Base):
     """Vendor-scoped list of non-working calendar dates."""
@@ -2745,66 +1614,6 @@ class SupplierPayment(Base):
     )
 
 
-class DiscountRequest(Base):
-    """A customer discount ask that requires admin sign-off (because
-    it exceeds the auto-approve cap). Created either by the
-    quotation negotiation bot or manually by an admin from the
-    Approval Center."""
-
-    __tablename__ = "discount_request"
-
-    ID = Column(Integer, primary_key=True, autoincrement=True)
-
-    QUOTATION_ID = Column(
-        Integer,
-        ForeignKey("quotation.ID"),
-        nullable=False,
-        index=True
-    )
-
-    REQUESTED_DISCOUNT_PERCENT = Column(Float, nullable=False)
-
-    CUSTOMER_REASON = Column(String(500), nullable=True)
-    # What the customer said (from the negotiation chat)
-
-    BOT_ACTION = Column(String(20), nullable=True)
-    # AUTO_APPROVE / COUNTER / DECLINE / INFO_ONLY / ESCALATE
-
-    STATUS = Column(String(20), default="PENDING", index=True)
-    # PENDING / APPROVED / REJECTED
-
-    REJECTION_REASON = Column(String(500), nullable=True)
-
-    REQUESTED_BY_ID = Column(
-        String(36),
-        ForeignKey("employee.ID"),
-        nullable=True
-    )
-
-    APPROVED_BY_ID = Column(
-        String(36),
-        ForeignKey("employee.ID"),
-        nullable=True
-    )
-
-    APPROVED_AT = Column(DateTime, nullable=True)
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID"),
-        nullable=True,
-        index=True
-    )
-
-    CREATED_AT = Column(DateTime, default=datetime.utcnow)
-
-    UPDATED_AT = Column(
-        DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
-
-
 class CompanyMaster(Base):
     """Company master / branding settings — one row per vendor."""
 
@@ -2863,6 +1672,23 @@ class CompanyMaster(Base):
 
     NOTES = Column(String(1000), nullable=True)
 
+    # ---- Working schedule ----
+    # WORK_START_TIME/WORK_END_TIME nullable = no schedule configured yet;
+    # the scheduler and task-duration calculation both fall back to the
+    # existing hardcoded 8-hour assumption in that case (see
+    # project_template.py's _to_days()) — zero behavior change for any
+    # vendor that hasn't opted in.
+    WORK_START_TIME = Column(Time, nullable=True)
+    WORK_END_TIME   = Column(Time, nullable=True)
+
+    # Server-computed only (never accepted as direct API input) — mirrors
+    # ProjectPricing.FINAL_PRICE's own "server-computed only" convention.
+    # Recalculated by company_schedule_service.recalculate_and_store_work_hours()
+    # whenever WORK_START_TIME/WORK_END_TIME/breaks change.
+    WORK_HOURS = Column(Numeric(5, 2), nullable=False, default=0.0)
+
+    WORKING_TIMEZONE = Column(String(50), nullable=False, default="Asia/Kolkata")
+
     CREATED_AT = Column(DateTime, default=datetime.utcnow)
 
     UPDATED_AT = Column(
@@ -2870,6 +1696,44 @@ class CompanyMaster(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow
     )
+
+    working_breaks = relationship(
+        "CompanyWorkingBreak",
+        back_populates="company",
+        cascade="all, delete-orphan",
+        order_by="CompanyWorkingBreak.SEQUENCE_NUMBER",
+    )
+
+
+class CompanyWorkingBreak(Base):
+    """Configurable company break period (morning tea, lunch, evening tea,
+    etc.) — a company can have any number of these. Deliberately a child
+    table rather than fixed MORNING_BREAK_START/END-style columns, so the
+    set of breaks stays open-ended (same reasoning already applied to
+    TaskTemplateRequirement's Department+Role+Experience rows)."""
+
+    __tablename__ = "company_working_break"
+
+    ID = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    COMPANY_MASTER_ID = Column(
+        Integer,
+        ForeignKey("company_master.ID", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    BREAK_NAME = Column(String(100), nullable=False)
+    BREAK_START_TIME = Column(Time, nullable=False)
+    BREAK_END_TIME   = Column(Time, nullable=False)
+
+    SEQUENCE_NUMBER = Column(Integer, nullable=False, default=0)
+    IS_ACTIVE = Column(Boolean, nullable=False, default=True)
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    company = relationship("CompanyMaster", back_populates="working_breaks")
 
 
 # =============================================================

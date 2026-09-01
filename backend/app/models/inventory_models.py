@@ -126,7 +126,12 @@ class ProductMaster(Base):
     # Relationships
     category = relationship("InventoryCategory", back_populates="products")
     department = relationship("Department", foreign_keys=[DEPARTMENT_ID])
-    inventory_items = relationship("InventoryItem", back_populates="product")
+    stock = relationship("InventoryStock", back_populates="product", uselist=False,
+                          cascade="all, delete-orphan")
+    batches = relationship("InventoryBatch", back_populates="product",
+                            cascade="all, delete-orphan")
+    movements = relationship("InventoryMovement", back_populates="product",
+                              cascade="all, delete-orphan")
     supplier_products = relationship("SupplierProduct", back_populates="product")
     ranking_entries = relationship("SupplierRanking", back_populates="product")
     recommendation = relationship(
@@ -135,17 +140,38 @@ class ProductMaster(Base):
 
 
 # ──────────────────────────────────────────────────────────────────────
-# Table 3: InventoryItem
-# Physical item master: links a product to a storage location.
-# One ProductMaster can have items in multiple locations.
+# NOTE — InventoryItem removed (inventory-consolidation migration).
+#
+# InventoryItem used to sit between ProductMaster and InventoryStock/
+# InventoryBatch/InventoryMovement, modelling "this product, at this
+# storage location." The simplified architecture drops the location
+# dimension entirely: InventoryStock/InventoryBatch/InventoryMovement
+# now reference ProductMaster.ID directly via a PRODUCT_ID column.
+#
+# See backend/app/main.py's _migrate_inventory_add_product_id_columns() /
+# _migrate_backfill_inventory_product_id() / _migrate_inventory_stock_
+# finalize_schema() / _migrate_inventory_movement_finalize_schema() /
+# _migrate_inventory_batch_finalize_schema() for the migration that
+# backfilled every existing row onto PRODUCT_ID before this class was
+# removed. The physical `inventory_item` table is intentionally left in
+# place in MySQL (not dropped) — same "unmap, don't drop" convention
+# already used for TaskTemplateDependency / ProjectPaymentMilestone.
 # ──────────────────────────────────────────────────────────────────────
-class InventoryItem(Base):
-    __tablename__ = "inventory_item"
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Table 4: InventoryStock
+# One row per (VENDOR_ID, PRODUCT_ID) — the current real-time stock
+# snapshot. Always updated atomically with InventoryMovement via
+# inventory_automation_service.record_movement().
+# ──────────────────────────────────────────────────────────────────────
+class InventoryStock(Base):
+    __tablename__ = "inventory_stock"
 
     __table_args__ = (
         UniqueConstraint(
-            "VENDOR_ID", "PRODUCT_ID", "LOCATION",
-            name="uq_inv_item_vendor_product_loc"
+            "VENDOR_ID", "PRODUCT_ID",
+            name="uq_inv_stock_vendor_product"
         ),
     )
 
@@ -166,90 +192,41 @@ class InventoryItem(Base):
         nullable=False, index=True
     )
 
-    LOCATION = Column(String(200), nullable=True)   # warehouse / bin / shelf
+    MIN_QTY = Column(Float, nullable=False, default=0.0)
+    # Reorder threshold. When CURRENT_QTY drops at or below this value,
+    # the low-stock automatic-reorder workflow triggers. 0 disables it.
 
-    BATCH_TRACKING = Column(Boolean, default=False)
-
-    REORDER_LEVEL = Column(Float, default=0.0)
-    REORDER_QTY = Column(Float, default=0.0)
-    SAFETY_STOCK = Column(Float, default=0.0)
-    MAX_STOCK = Column(Float, default=0.0)
-
-    CREATED_AT = Column(DateTime, default=now_ist)
-    UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
-
-    # Relationships
-    product = relationship("ProductMaster", back_populates="inventory_items")
-    stock = relationship(
-        "InventoryStock", back_populates="inventory_item",
-        uselist=False, cascade="all, delete-orphan"
-    )
-    movements = relationship(
-        "InventoryMovement", back_populates="inventory_item",
-        cascade="all, delete-orphan"
-    )
-    batches = relationship(
-        "InventoryBatch", back_populates="inventory_item",
-        cascade="all, delete-orphan"
-    )
-
-
-# ──────────────────────────────────────────────────────────────────────
-# Table 4: InventoryStock
-# One row per InventoryItem — the current real-time stock snapshot.
-# Always updated atomically with InventoryMovement via record_movement().
-# ──────────────────────────────────────────────────────────────────────
-class InventoryStock(Base):
-    __tablename__ = "inventory_stock"
-
-    __table_args__ = (
-        UniqueConstraint(
-            "INVENTORY_ITEM_ID",
-            name="uq_inv_stock_item"
-        ),
-    )
-
-    ID = Column(
-        String(36), primary_key=True,
-        default=lambda: str(uuid.uuid4())
-    )
-
-    VENDOR_ID = Column(
-        Integer,
-        ForeignKey("vendor.ID", ondelete="RESTRICT"),
-        nullable=False, index=True
-    )
-
-    INVENTORY_ITEM_ID = Column(
-        String(36),
-        ForeignKey("inventory_item.ID", ondelete="CASCADE"),
-        nullable=False, index=True
-    )
+    MAX_QTY = Column(Float, nullable=True)
+    # Desired stock ceiling. NULL = no cap (never flagged OVERSTOCK,
+    # and the low-stock reorder-qty math falls back to MIN_QTY-based
+    # sizing instead of MAX_QTY - CURRENT_QTY).
 
     CURRENT_QTY = Column(Float, nullable=False, default=0.0)
-    RESERVED_QTY = Column(Float, default=0.0)    # held for open POs / work orders
-    AVAILABLE_QTY = Column(Float, default=0.0)   # CURRENT_QTY - RESERVED_QTY
-    UNIT_COST = Column(Float, default=0.0)        # weighted average cost
 
     STATUS = Column(INV_STATUS_ENUM, default="OUT_OF_STOCK")
 
-    LAST_MOVEMENT_AT = Column(DateTime, nullable=True)
     UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
 
     # Relationship
-    inventory_item = relationship("InventoryItem", back_populates="stock")
+    product = relationship("ProductMaster", back_populates="stock")
 
 
 # ──────────────────────────────────────────────────────────────────────
 # Table 5: InventoryMovement
 # Append-only stock-ledger.  Every stock change (in/out/adjust/transfer)
 # creates a new row here; rows are NEVER updated after insert.
+#
+# QTY semantics: for STOCK_IN/STOCK_OUT/TRANSFER_IN/TRANSFER_OUT/RETURN/
+# WRITE_OFF/OPENING_STOCK, QTY is the delta actually applied. For
+# ADJUSTMENT, QTY is the ABSOLUTE new quantity that was set (not a
+# delta) — the true difference for an adjustment row is always
+# QTY_AFTER - QTY_BEFORE, never QTY itself.
 # ──────────────────────────────────────────────────────────────────────
 class InventoryMovement(Base):
     __tablename__ = "inventory_movement"
 
     __table_args__ = (
-        Index("ix_inv_mov_item_date", "VENDOR_ID", "INVENTORY_ITEM_ID", "CREATED_AT"),
+        Index("ix_inv_mov_product_date", "VENDOR_ID", "PRODUCT_ID", "CREATED_AT"),
         Index("ix_inv_mov_type_date", "VENDOR_ID", "MOVEMENT_TYPE", "CREATED_AT"),
     )
 
@@ -264,21 +241,22 @@ class InventoryMovement(Base):
         nullable=False, index=True
     )
 
-    INVENTORY_ITEM_ID = Column(
+    PRODUCT_ID = Column(
         String(36),
-        ForeignKey("inventory_item.ID", ondelete="CASCADE"),
+        ForeignKey("product_master.ID", ondelete="RESTRICT"),
         nullable=False, index=True
     )
 
     MOVEMENT_TYPE = Column(INV_MOVEMENT_TYPE_ENUM, nullable=False, index=True)
 
-    QTY = Column(Float, nullable=False)      # always positive; direction is implied by MOVEMENT_TYPE
+    QTY = Column(Float, nullable=False)      # see class docstring for ADJUSTMENT semantics
     QTY_BEFORE = Column(Float, nullable=False)
     QTY_AFTER = Column(Float, nullable=False)
 
     UNIT_COST = Column(Float, nullable=True)
 
-    REFERENCE_TYPE = Column(String(30), nullable=True)   # "PO", "GRN", "SO", "MANUAL", etc.
+    # "PO" | "GRN" | "MANUAL" | "CUSTOMER_PROJECT_ASSIGNMENT" | etc.
+    REFERENCE_TYPE = Column(String(30), nullable=True)
     REFERENCE_ID = Column(String(36), nullable=True, index=True)
 
     BATCH_ID = Column(
@@ -299,22 +277,24 @@ class InventoryMovement(Base):
     CREATED_AT = Column(DateTime, default=now_ist, index=True)
 
     # Relationships
-    inventory_item = relationship("InventoryItem", back_populates="movements")
+    product = relationship("ProductMaster", back_populates="movements")
     batch = relationship("InventoryBatch", back_populates="movements")
+    performed_by = relationship("Employee", foreign_keys=[PERFORMED_BY_ID])
 
 
 # ──────────────────────────────────────────────────────────────────────
 # Table 6: InventoryBatch
-# Batch / lot tracking for received goods.
-# Linked to the GRN that created the batch.
+# Batch / lot tracking for received goods — one row per receipt (a
+# second delivery of the same product, even from the same supplier, is
+# always its own batch, never merged into an existing one).
 # ──────────────────────────────────────────────────────────────────────
 class InventoryBatch(Base):
     __tablename__ = "inventory_batch"
 
     __table_args__ = (
         UniqueConstraint(
-            "VENDOR_ID", "INVENTORY_ITEM_ID", "BATCH_NUMBER",
-            name="uq_inv_batch_vendor_item_batch"
+            "VENDOR_ID", "PRODUCT_ID", "BATCH_NUMBER",
+            name="uq_inv_batch_vendor_product_batch"
         ),
         Index("ix_inv_batch_expiry", "EXPIRY_DATE"),
     )
@@ -330,14 +310,30 @@ class InventoryBatch(Base):
         nullable=False, index=True
     )
 
-    INVENTORY_ITEM_ID = Column(
+    PRODUCT_ID = Column(
         String(36),
-        ForeignKey("inventory_item.ID", ondelete="CASCADE"),
+        ForeignKey("product_master.ID", ondelete="RESTRICT"),
         nullable=False, index=True
     )
 
     BATCH_NUMBER = Column(String(100), nullable=False)
+
+    # Kept additively alongside the spec's own suggested column list —
+    # dropping these would regress the already-live "expiring soon"
+    # batch feature and lose direct PO/GRN traceability for no benefit.
     LOT_NUMBER = Column(String(100), nullable=True)
+    MANUFACTURING_DATE = Column(Date, nullable=True)
+    EXPIRY_DATE = Column(Date, nullable=True)
+    PO_ID = Column(
+        Integer,
+        ForeignKey("purchase_order.ID", ondelete="SET NULL"),
+        nullable=True, index=True
+    )
+    GRN_ID = Column(
+        Integer,
+        ForeignKey("goods_receipt_note.ID", ondelete="SET NULL"),
+        nullable=True, index=True
+    )
 
     SUPPLIER_ID = Column(
         Integer,
@@ -345,33 +341,31 @@ class InventoryBatch(Base):
         nullable=True, index=True
     )
 
-    PO_ID = Column(
-        Integer,
-        ForeignKey("purchase_order.ID", ondelete="SET NULL"),
-        nullable=True, index=True
-    )
-
-    GRN_ID = Column(
-        Integer,
-        ForeignKey("goods_receipt_note.ID", ondelete="SET NULL"),
-        nullable=True, index=True
-    )
-
-    MANUFACTURING_DATE = Column(Date, nullable=True)
-    EXPIRY_DATE = Column(Date, nullable=True)
+    RECEIVED_DATE = Column(Date, nullable=True)
 
     QTY_RECEIVED = Column(Float, nullable=False)
     QTY_REMAINING = Column(Float, nullable=False)
     UNIT_COST = Column(Float, nullable=True)
+
+    # Delivery-Challan / Invoice upload — at least one is required when a
+    # batch is created manually (enforced at the route layer).
+    DC_FILE_URL = Column(String(500), nullable=True)
+    INVOICE_FILE_URL = Column(String(500), nullable=True)
 
     # ACTIVE / CONSUMED / EXPIRED / RETURNED — varchar, not enum, so values can grow
     STATUS = Column(String(20), default="ACTIVE")
 
     NOTES = Column(Text, nullable=True)
 
+    CREATED_BY = Column(
+        String(36),
+        ForeignKey("employee.ID", ondelete="SET NULL"),
+        nullable=True
+    )
+
     CREATED_AT = Column(DateTime, default=now_ist)
     UPDATED_AT = Column(DateTime, default=now_ist, onupdate=now_ist)
 
     # Relationships
-    inventory_item = relationship("InventoryItem", back_populates="batches")
+    product = relationship("ProductMaster", back_populates="batches")
     movements = relationship("InventoryMovement", back_populates="batch")

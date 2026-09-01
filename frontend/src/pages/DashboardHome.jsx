@@ -6,11 +6,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
@@ -24,8 +19,7 @@ import styles from "./DashboardHome.module.css";
 // BVC24 Modern Dashboard
 //
 // Animated hero, KPI cards with count-up, live activity feed,
-// production + quality pulse, recharts area + donut. Auto-refreshes
-// every 10 seconds.
+// recharts donut. Auto-refreshes every 10 seconds.
 // =================================================================
 
 
@@ -279,48 +273,10 @@ function DistributionDonut({ data, title }) {
 }
 
 
-// ---- Production pulse area chart --------------------------------
-
-function ProductionPulse({ stats }) {
-
-  const data = useMemo(() => {
-    const counts = stats?.work_orders_by_status || {};
-    return [
-      { name: "Planned",     value: counts.PLANNED     || 0 },
-      { name: "In Progress", value: counts.IN_PROGRESS || 0 },
-      { name: "On Hold",     value: counts.ON_HOLD     || 0 },
-      { name: "Done",        value: counts.DONE        || 0 }
-    ];
-  }, [stats]);
-
-  return (
-    <div className={styles.areaWrap}>
-      <ResponsiveContainer>
-        <AreaChart data={data}>
-          <defs>
-            <linearGradient id="bvcProdFill" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor="#6366f1" stopOpacity={0.85} />
-              <stop offset="100%" stopColor="#6366f1" stopOpacity={0.08} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid stroke="#f1f5f9" vertical={false} />
-          <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} axisLine={false} tickLine={false} allowDecimals={false} />
-          <Tooltip contentStyle={{ borderRadius: 10, border: "1px solid #e2e8f0", fontSize: 12 }} />
-          <Area type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={3} fill="url(#bvcProdFill)" isAnimationActive animationDuration={1000} />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
-
-
 // ---- Quick action grid ------------------------------------------
 
 const QUICK_ACTIONS = [
   { to: "/biometric",        icon: "👆", label: "Gate Kiosk",  color: "#ef4444" },
-  { to: "/production",       icon: "🏭", label: "Production", color: "#ef4444" },
-  { to: "/quality",          icon: "✅", label: "Quality",    color: "#10b981" },
   { to: "/suppliers",        icon: "🏢", label: "Suppliers",  color: "#f59e0b" },
   { to: "/leave-management", icon: "🌴", label: "Leave",      color: "#ef4444" },
   { to: "/md-review",        icon: "📊", label: "MD Review",  color: "#ef4444" }
@@ -356,25 +312,19 @@ function QuickActions() {
 function DashboardHome() {
 
   const [boardData, setBoardData]     = useState(null);
-  const [prodData, setProdData]       = useState(null);
-  const [qualityData, setQualityData] = useState(null);
   const [leaveData, setLeaveData]     = useState(null);
   const [recent, setRecent]           = useState([]);
   const [loading, setLoading]         = useState(true);
 
   const fetchAll = async () => {
     try {
-      const [boardRes, prodRes, qualityRes, leaveRes, eventsRes] =
+      const [boardRes, leaveRes, eventsRes] =
         await Promise.all([
           API.get("/attendance/live-board").catch(() => ({ data: null })),
-          API.get("/production/dashboard?vendor_id=1").catch(() => ({ data: null })),
-          API.get("/quality/dashboard?vendor_id=1").catch(() => ({ data: null })),
           API.get("/leave/dashboard?vendor_id=1").catch(() => ({ data: null })),
           API.get("/biometric/events?limit=8").catch(() => ({ data: [] }))
         ]);
       setBoardData(boardRes.data);
-      setProdData(prodRes.data);
-      setQualityData(qualityRes.data);
       setLeaveData(leaveRes.data);
       setRecent(eventsRes.data || []);
     } finally {
@@ -395,9 +345,8 @@ function DashboardHome() {
     return {
       in_office: boardData?.summary?.in_office,
       tasks_completed_today: totalTasksDone,
-      open_ncrs: qualityData?.open_ncrs ?? 0
     };
-  }, [boardData, qualityData]);
+  }, [boardData]);
 
   const deptData = useMemo(() => {
     const grouped = {};
@@ -407,11 +356,6 @@ function DashboardHome() {
     });
     return Object.entries(grouped).map(([name, value]) => ({ name, value }));
   }, [boardData]);
-
-  const prodChartData = useMemo(
-    () => ({ work_orders_by_status: prodData?.by_status || {} }),
-    [prodData]
-  );
 
   void summary;
 
@@ -424,24 +368,13 @@ function DashboardHome() {
       <div className={styles.kpiGrid}>
         <KPI icon="👥" label="In Office Now"     value={boardData?.summary?.in_office}            sub={`of ${boardData?.summary?.total_active ?? 0} active`} palette={KPI_PALETTES[0]} delay={50}  />
         <KPI icon="✓"  label="Tasks Done Today"  value={summary.tasks_completed_today}             sub="auto-counted by AI"                                    palette={KPI_PALETTES[1]} delay={120} />
-        <KPI icon="🏭" label="Units In Pipeline" value={prodData?.total_units_in_progress}         sub={`${prodData?.total_work_orders ?? 0} work orders`}      palette={KPI_PALETTES[2]} delay={190} />
-        <KPI icon="🔍" label="QC Pass Rate"      value={Math.round(qualityData?.pass_rate_pct ?? 0)} sub={`${qualityData?.open_ncrs ?? 0} open NCRs`}           palette={KPI_PALETTES[3]} delay={260} />
         <KPI icon="🌴" label="On Leave Today"    value={leaveData?.on_leave_today}                 sub={`${leaveData?.pending ?? 0} pending requests`}          palette={KPI_PALETTES[4]} delay={330} />
         <KPI icon="📋" label="Checked Out"       value={boardData?.summary?.checked_out}           sub="done for the day"                                       palette={KPI_PALETTES[5]} delay={400} />
       </div>
 
       {/* TWO COLUMN GRID */}
       <div className={styles.col2x1}>
-        <SectionCard subtitle="Production" title="Work Orders by Status" accent="#ef4444" delay={250}>
-          <ProductionPulse stats={prodChartData} />
-        </SectionCard>
-        <ActivityFeed items={recent} loading={loading} />
-      </div>
-
-      {/* THREE COLUMN GRID */}
-      <div className={styles.col3}>
-
-        <SectionCard subtitle="Workforce" title="Department Mix" accent="#ef4444" delay={400}>
+        <SectionCard subtitle="Workforce" title="Department Mix" accent="#ef4444" delay={250}>
           {deptData.length === 0 ? (
             <div className={styles.deptEmpty}>
               Run seed to populate.
@@ -450,42 +383,16 @@ function DashboardHome() {
             <DistributionDonut data={deptData} title="People" />
           )}
         </SectionCard>
-
-        <SectionCard subtitle="Quality" title="Inspections Today" accent="#10b981" delay={470}>
-          <div className={styles.qualityGrid}>
-            {[
-              ["PASS",    qualityData?.by_status?.PASS    ?? 0, styles.qualityTilePass],
-              ["FAIL",    qualityData?.by_status?.FAIL    ?? 0, styles.qualityTileFail],
-              ["PENDING", qualityData?.by_status?.PENDING ?? 0, styles.qualityTilePending],
-              ["REWORK",  qualityData?.by_status?.REWORK  ?? 0, styles.qualityTileRework]
-            ].map(([k, v, tileClass]) => (
-              <div key={k} className={tileClass}>
-                <div className={styles.qualityTileKey}>{k}</div>
-                <div className={styles.qualityTileVal}>{v}</div>
-              </div>
-            ))}
-          </div>
-          <div className={styles.qualityFooter}>
-            {qualityData?.critical_open_ncrs > 0 ? (
-              <span className={styles.qualityFooterDanger}>
-                ⚠ {qualityData.critical_open_ncrs} CRITICAL NCR(s) open
-              </span>
-            ) : (
-              <span className={styles.qualityFooterOk}>
-                ✓ No critical NCRs open
-              </span>
-            )}
-          </div>
-        </SectionCard>
-
-        <SectionCard subtitle="Shortcuts" title="Quick Actions" accent="#f59e0b" delay={540}>
-          <QuickActions />
-        </SectionCard>
+        <ActivityFeed items={recent} loading={loading} />
       </div>
+
+      <SectionCard subtitle="Shortcuts" title="Quick Actions" accent="#f59e0b" delay={540}>
+        <QuickActions />
+      </SectionCard>
 
       <div className={styles.footerNote}>
         <span className={styles.bvcLiveDot} />
-        Auto-refreshing every 10 seconds · BVC24 AI Smart Manufacturing ERP
+        Auto-refreshing every 10 seconds · BVC24 AI Smart ERP
       </div>
     </div>
   );

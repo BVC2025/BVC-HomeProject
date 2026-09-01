@@ -1,8 +1,8 @@
 """Admin Module 4 — Approval Center.
 
-Single endpoint that returns every pending item across 6 buckets
-(Leaves, Permissions, Quotations, Purchase Orders, Supplier Payments,
-Discount Requests) plus a unified approve/reject dispatcher.
+Single endpoint that returns every pending item across 4 buckets
+(Leaves, Permissions, Purchase Orders, Supplier Payments) plus a
+unified approve/reject dispatcher.
 
 Wire-up:
 
@@ -10,9 +10,8 @@ Wire-up:
   POST   /admin/approvals/{kind}/{id}/approve
   POST   /admin/approvals/{kind}/{id}/reject
   POST   /admin/approvals/supplier-payments        — create
-  POST   /admin/approvals/discount-requests        — create
 
-`kind` ∈ {leave, permission, quotation, purchase_order, supplier_payment, discount_request}
+`kind` ∈ {leave, permission, purchase_order, supplier_payment}
 """
 
 from datetime import datetime
@@ -28,10 +27,8 @@ from app.auth.auth_bearer import get_current_admin, get_current_user
 
 from app.models.models import (
     LeaveRequest,
-    Quotation,
     PurchaseOrder,
     SupplierPayment,
-    DiscountRequest,
     Employee,
     Customer,
     Supplier,
@@ -86,29 +83,6 @@ def _serialize_leave(db: Session, lr: LeaveRequest, kind: str):
         "leave_type":   lr.LEAVE_TYPE,
         "subtype":      lr.PERMISSION_SUBTYPE,
         "status":       lr.STATUS,
-    }
-
-
-def _serialize_quotation(db: Session, q: Quotation):
-
-    cust = (
-        db.query(Customer).filter(Customer.ID == q.CUSTOMER_ID).first()
-        if q.CUSTOMER_ID else None
-    )
-
-    return {
-        "kind":         "quotation",
-        "id":           q.ID,
-        "title":        q.QUOTATION_NUMBER or f"Quotation #{q.ID}",
-        "subtitle":     (cust.NAME if cust else "—"),
-        "reason":       q.NOTES or "",
-        "amount":       float(q.GRAND_TOTAL or 0.0),
-        "requested_at": (
-            q.CREATED_AT.isoformat()
-            if getattr(q, "CREATED_AT", None) else None
-        ),
-        "actor":        None,
-        "status":       q.STATUS,
     }
 
 
@@ -170,47 +144,11 @@ def _serialize_sup_pay(db: Session, sp: SupplierPayment):
     }
 
 
-def _serialize_discount(db: Session, dr: DiscountRequest):
-
-    q = (
-        db.query(Quotation).filter(Quotation.ID == dr.QUOTATION_ID).first()
-        if dr.QUOTATION_ID else None
-    )
-
-    cust = None
-
-    if q and q.CUSTOMER_ID:
-
-        c = db.query(Customer).filter(Customer.ID == q.CUSTOMER_ID).first()
-
-        cust = c.NAME if c else None
-
-    return {
-        "kind":         "discount_request",
-        "id":           dr.ID,
-        "title":        (
-            f"{cust or 'Customer'} — "
-            f"{(dr.REQUESTED_DISCOUNT_PERCENT or 0):g}% discount"
-        ),
-        "subtitle":     (
-            f"Quotation {q.QUOTATION_NUMBER if q else f'#{dr.QUOTATION_ID}'} "
-            f"· Bot: {dr.BOT_ACTION or '—'}"
-        ),
-        "reason":       dr.CUSTOMER_REASON or "",
-        "amount":       (
-            float(q.GRAND_TOTAL or 0.0) if q else None
-        ),
-        "requested_at": dr.CREATED_AT.isoformat() if dr.CREATED_AT else None,
-        "actor":        _emp(db, dr.REQUESTED_BY_ID),
-        "status":       dr.STATUS,
-    }
-
-
 # ---- Pending feed --------------------------------------------------
 
 @router.get("/pending", dependencies=[Depends(get_current_admin)])
 def list_pending_approvals(db: Session = Depends(get_db)):
-    """Returns all 6 buckets in one call. Each bucket is an array of
+    """Returns all 4 buckets in one call. Each bucket is an array of
     items shaped uniformly so the frontend can render one card per
     item without bucket-specific code paths."""
 
@@ -230,14 +168,7 @@ def list_pending_approvals(db: Session = Depends(get_db)):
 
     perm_items = [_serialize_leave(db, lr, "permission") for lr in perms]
 
-    # 3. Quotations — SENT and NEGOTIATION are awaiting internal sign-off
-    quotes = db.query(Quotation).filter(
-        Quotation.STATUS.in_(["SENT", "NEGOTIATION"])
-    ).order_by(Quotation.ID.desc()).all()
-
-    quote_items = [_serialize_quotation(db, q) for q in quotes]
-
-    # 4. Purchase Orders — DRAFTs are pending review before being sent
+    # 3. Purchase Orders — DRAFTs are pending review before being sent
     pos = db.query(PurchaseOrder).filter(
         PurchaseOrder.STATUS == "DRAFT"
     ).order_by(PurchaseOrder.ID.desc()).all()
@@ -251,20 +182,11 @@ def list_pending_approvals(db: Session = Depends(get_db)):
 
     sp_items = [_serialize_sup_pay(db, sp) for sp in sps]
 
-    # 6. Discount Requests
-    drs = db.query(DiscountRequest).filter(
-        DiscountRequest.STATUS == "PENDING"
-    ).order_by(DiscountRequest.CREATED_AT.desc()).all()
-
-    dr_items = [_serialize_discount(db, dr) for dr in drs]
-
     buckets = {
         "leaves":             leave_items,
         "permissions":        perm_items,
-        "quotations":         quote_items,
         "purchase_orders":    po_items,
         "supplier_payments":  sp_items,
-        "discount_requests":  dr_items,
     }
 
     total = sum(len(v) for v in buckets.values())
@@ -332,33 +254,7 @@ def approve_item(
 
         return {"message": f"{kind.title()} approved.", "id": lr.ID}
 
-    # 2. Quotation
-    if kind == "quotation":
-
-        q = db.query(Quotation).filter(Quotation.ID == item_id).first()
-
-        if not q:
-
-            raise HTTPException(status_code=404, detail="Quotation not found")
-
-        if q.STATUS not in ("DRAFT", "SENT", "NEGOTIATION"):
-
-            raise HTTPException(
-                status_code=400,
-                detail=f"Cannot approve — current status is {q.STATUS}"
-            )
-
-        q.STATUS = "APPROVED"
-
-        if hasattr(q, "APPROVED_AT"):
-
-            q.APPROVED_AT = now
-
-        db.commit()
-
-        return {"message": "Quotation approved.", "id": q.ID}
-
-    # 3. Purchase Order — approve = SENT
+    # 2. Purchase Order — approve = SENT
     if kind == "purchase_order":
 
         po = db.query(PurchaseOrder).filter(PurchaseOrder.ID == item_id).first()
@@ -384,7 +280,7 @@ def approve_item(
 
         return {"message": "Purchase Order approved & sent.", "id": po.ID}
 
-    # 4. Supplier Payment
+    # 3. Supplier Payment
     if kind == "supplier_payment":
 
         sp = db.query(SupplierPayment).filter(SupplierPayment.ID == item_id).first()
@@ -407,43 +303,6 @@ def approve_item(
         db.commit()
 
         return {"message": "Supplier payment approved.", "id": sp.ID}
-
-    # 5. Discount Request — apply to parent quotation if approved
-    if kind == "discount_request":
-
-        dr = db.query(DiscountRequest).filter(DiscountRequest.ID == item_id).first()
-
-        if not dr:
-
-            raise HTTPException(status_code=404, detail="Discount request not found")
-
-        if dr.STATUS != "PENDING":
-
-            raise HTTPException(
-                status_code=400,
-                detail=f"Cannot approve — current status is {dr.STATUS}"
-            )
-
-        # Apply the discount to the parent quotation
-        q = db.query(Quotation).filter(Quotation.ID == dr.QUOTATION_ID).first()
-
-        if q and hasattr(q, "DISCOUNT_PERCENT"):
-
-            q.DISCOUNT_PERCENT = dr.REQUESTED_DISCOUNT_PERCENT
-
-        dr.STATUS         = "APPROVED"
-        dr.APPROVED_AT    = now
-        dr.APPROVED_BY_ID = admin_id
-
-        db.commit()
-
-        return {
-            "message": (
-                f"Discount {dr.REQUESTED_DISCOUNT_PERCENT}% approved "
-                "and applied to the quotation."
-            ),
-            "id": dr.ID
-        }
 
     raise HTTPException(status_code=400, detail=f"Unknown approval kind: {kind}")
 
@@ -487,35 +346,6 @@ def reject_item(
         db.commit()
 
         return {"message": f"{kind.title()} rejected.", "id": lr.ID}
-
-    if kind == "quotation":
-
-        q = db.query(Quotation).filter(Quotation.ID == item_id).first()
-
-        if not q:
-
-            raise HTTPException(status_code=404, detail="Quotation not found")
-
-        if q.STATUS not in ("DRAFT", "SENT", "NEGOTIATION"):
-
-            raise HTTPException(
-                status_code=400,
-                detail=f"Cannot reject — current status is {q.STATUS}"
-            )
-
-        q.STATUS = "REJECTED"
-
-        if hasattr(q, "REJECTED_AT"):
-
-            q.REJECTED_AT = now
-
-        if hasattr(q, "REJECTION_REASON"):
-
-            q.REJECTION_REASON = reason
-
-        db.commit()
-
-        return {"message": "Quotation rejected.", "id": q.ID}
 
     if kind == "purchase_order":
 
@@ -569,30 +399,6 @@ def reject_item(
         db.commit()
 
         return {"message": "Supplier payment rejected.", "id": sp.ID}
-
-    if kind == "discount_request":
-
-        dr = db.query(DiscountRequest).filter(DiscountRequest.ID == item_id).first()
-
-        if not dr:
-
-            raise HTTPException(status_code=404, detail="Discount request not found")
-
-        if dr.STATUS != "PENDING":
-
-            raise HTTPException(
-                status_code=400,
-                detail=f"Cannot reject — current status is {dr.STATUS}"
-            )
-
-        dr.STATUS            = "REJECTED"
-        dr.REJECTION_REASON  = reason
-        dr.APPROVED_BY_ID    = admin_id
-        dr.APPROVED_AT       = now
-
-        db.commit()
-
-        return {"message": "Discount request rejected.", "id": dr.ID}
 
     raise HTTPException(status_code=400, detail=f"Unknown approval kind: {kind}")
 
@@ -660,55 +466,3 @@ def create_supplier_payment(
     }
 
 
-class DiscountRequestCreate(BaseModel):
-
-    QUOTATION_ID: int
-    REQUESTED_DISCOUNT_PERCENT: float
-    CUSTOMER_REASON: Optional[str] = None
-    BOT_ACTION: Optional[str] = "ESCALATE"
-
-
-@router.post("/discount-requests", dependencies=[Depends(get_current_user)])
-def create_discount_request(
-    body: DiscountRequestCreate,
-    db: Session = Depends(get_db)
-):
-    """Log a discount request that needs admin sign-off. Called either
-    by the quotation negotiation bot (when the asked-for discount
-    exceeds the auto-approve cap) or by an admin manually."""
-
-    q = db.query(Quotation).filter(Quotation.ID == body.QUOTATION_ID).first()
-
-    if not q:
-
-        raise HTTPException(status_code=404, detail="Quotation not found")
-
-    if not (0 < body.REQUESTED_DISCOUNT_PERCENT <= 100):
-
-        raise HTTPException(
-            status_code=400,
-            detail="REQUESTED_DISCOUNT_PERCENT must be between 0 and 100"
-        )
-
-    dr = DiscountRequest(
-        QUOTATION_ID=body.QUOTATION_ID,
-        REQUESTED_DISCOUNT_PERCENT=body.REQUESTED_DISCOUNT_PERCENT,
-        CUSTOMER_REASON=body.CUSTOMER_REASON,
-        BOT_ACTION=body.BOT_ACTION,
-        STATUS="PENDING",
-        VENDOR_ID=getattr(q, "VENDOR_ID", None) or 1,
-    )
-
-    db.add(dr)
-
-    db.commit()
-
-    db.refresh(dr)
-
-    return {
-        "message": (
-            f"Discount request {dr.REQUESTED_DISCOUNT_PERCENT}% on "
-            f"{q.QUOTATION_NUMBER} queued for admin approval."
-        ),
-        "request": _serialize_discount(db, dr),
-    }

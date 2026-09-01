@@ -77,7 +77,24 @@ _SYSTEM_ONLY_LEAD_STATUSES = {
         "Use the 'Send Purchase Order Request' action instead of setting this status directly.",
     "PO_RECEIVED":
         "Upload the Purchase Order document to mark it received instead of setting this status directly.",
+    "PRODUCTION_SCHEDULED":
+        "This status is set automatically when a production schedule is approved — it cannot be set manually.",
+    "PRODUCTION_STARTED":
+        "This status is set automatically once the scheduled production start date arrives — it cannot be set manually.",
 }
+
+# A lead's PO has been received once its status reaches PO_RECEIVED, and
+# stays received for every later stage of the same lifecycle —
+# PRODUCTION_SCHEDULED/PRODUCTION_STARTED are set well after PO_RECEIVED
+# by the automatic production scheduling engine, not a separate branch.
+# Used to block send_lead_po_request() from re-sending a "Purchase Order
+# Request" email (and regressing LEAD_STATUS back to PO_REQUESTED) for a
+# lead whose PO has already been received — an exact `== "PO_RECEIVED"`
+# check would miss PRODUCTION_SCHEDULED/PRODUCTION_STARTED and let this
+# fire again on a lead that's already in production. Mirrors the same
+# fix in customer_payment.py's /by-customer endpoint and the frontend's
+# LeadQuotationModal.jsx/LeadDetailModal.jsx/ManualLeadManagement.jsx.
+_PO_RECEIVED_OR_LATER_STATUSES = {"PO_RECEIVED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED"}
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1007,6 +1024,13 @@ def send_lead_po_request(
     working since get_or_create_purchase_order_row() never rotates the
     upload token."""
     lead = _get_lead_or_404(db, lead_id, admin)
+
+    if lead.LEAD_STATUS in _PO_RECEIVED_OR_LATER_STATUSES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"This lead's Purchase Order has already been received (status: {lead.LEAD_STATUS}) — "
+                   "a new Purchase Order Request cannot be sent.",
+        )
 
     assignment = db.query(CustomerProjectAssignment).filter(CustomerProjectAssignment.LEAD_ID == lead.ID).first()
     if not assignment:

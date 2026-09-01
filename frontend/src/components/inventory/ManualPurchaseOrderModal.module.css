@@ -1,0 +1,130 @@
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin-bottom: var(--sp-4);
+}
+
+.formGroup label {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+.req {
+  color: var(--danger);
+}
+
+.tableWrap {
+  overflow-x: auto;
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-sm);
+}
+
+.table th, .table td {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.table th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-weight: var(--fw-semi);
+  text-transform: uppercase;
+  font-size: var(--font-xs);
+  letter-spacing: 0.03em;
+  z-index: 1;
+}
+
+.numCol {
+  text-align: right;
+}
+
+.productCell {
+  display: flex;
+  flex-direction: column;
+}
+
+.productName {
+  color: var(--text-primary);
+  font-weight: var(--fw-medium);
+}
+
+.productCode {
+  font-size: var(--font-xs);
+  color: var(--text-muted);
+}
+
+.qtyInput {
+  width: 90px;
+  height: 30px;
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--font-sm);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  text-align: right;
+}
+
+.qtyInput:disabled {
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.footerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.grandTotalPreview {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+  font-weight: var(--fw-medium);
+}
+
+.successBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4) 0;
+}
+
+.successTitle {
+  font-size: var(--font-lg);
+  font-weight: var(--fw-bold);
+  color: var(--success-dark, #047857);
+}
+
+.successMeta {
+  font-size: var(--font-sm);
+  color: var(--text-secondary);
+}
+
+.successHint {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+  margin: var(--sp-2) 0 0;
+}
+
+.successActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+}

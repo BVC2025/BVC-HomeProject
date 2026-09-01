@@ -316,10 +316,10 @@ cd backend
 python -m venv venv && venv/Scripts/activate
 pip install -r requirements.txt
 # Create .env per Appendix C
-uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 # 4. Seed
-# Visit http://127.0.0.1:8001/docs and POST:
+# Visit http://127.0.0.1:8000/docs and POST:
 #   /seed-org, /seed-admin, /seed-employees, /seed-bvc24,
 #   /seed-materials, /seed-project-templates
 
@@ -341,7 +341,7 @@ Single-VM topology (4 vCPU / 8 GB RAM) is sufficient for the current scale.
                     └───┬────┘
               ┌─────────┴───────────┐
         ┌─────┴───────┐      ┌──────┴─────┐
-        │/api/* → 8001│      │/ → dist/   │
+        │/api/* → 8000│      │/ → dist/   │
         │(Uvicorn × 2)│      │(static)    │
         └─────┬───────┘      └────────────┘
               │
@@ -362,7 +362,7 @@ Type=simple
 User=www-data
 WorkingDirectory=/opt/bvc24-erp/backend
 ExecStart=/opt/bvc24-erp/backend/venv/bin/uvicorn app.main:app \
-          --host 127.0.0.1 --port 8001 --workers 2
+          --host 127.0.0.1 --port 8000 --workers 2
 Restart=always
 
 [Install]
@@ -381,7 +381,7 @@ server {
     try_files $uri /index.html;
 
     location /api/ {
-        proxy_pass http://127.0.0.1:8001/;
+        proxy_pass http://127.0.0.1:8000/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;

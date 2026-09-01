@@ -7,7 +7,6 @@ from pydantic import BaseModel
 class POLineCreate(BaseModel):
 
     PRODUCT_ID: Optional[str] = None
-    BOM_ITEM_ID: Optional[int] = None
     DESCRIPTION: str
     HSN_CODE: Optional[str] = None
     QUANTITY: float = 1.0
@@ -88,16 +87,3 @@ class GRNCreate(BaseModel):
     # immediately. If False, stays in DRAFT for later review.
 
     LINES: List[GRNLineInput] = []
-
-
-class AutoFromProjectRequest(BaseModel):
-    """Generate POs from a project's BOM. Groups BOM items by their
-    PREFERRED_SUPPLIER_ID → one PO per supplier."""
-
-    PROJECT_ID: int
-    EXPECTED_DELIVERY_DATE: Optional[date] = None
-    PREPARED_BY: Optional[str] = None
-    INCLUDE_UNASSIGNED: bool = False
-    # If True, BOM items without a preferred supplier go into a
-    # "needs supplier" placeholder PO (so the user sees them).
-    VENDOR_ID: Optional[int] = 1

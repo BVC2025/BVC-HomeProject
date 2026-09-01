@@ -158,7 +158,7 @@ def _store_inbound_message(db: Session, cfg: VendorWhatsAppConfig, m: dict, prof
         STATUS="RECEIVED",
         PROCESSING_STATE="PENDING",
         NEXT_ATTEMPT_AT=now_ist() + timedelta(seconds=_DEBOUNCE_SECONDS),
-        RAW_PAYLOAD=json.dumps(m, default=str)[:8001],
+        RAW_PAYLOAD=json.dumps(m, default=str)[:8000],
     ))
     try:
         db.commit()

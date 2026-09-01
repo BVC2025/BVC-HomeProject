@@ -81,9 +81,9 @@ The HTTP API is organised by router. Each file is a complete endpoint reference 
 
 ## Quick Links
 
-- **Backend base URL (dev)**: `http://127.0.0.1:8001`
+- **Backend base URL (dev)**: `http://127.0.0.1:8000`
 - **Frontend base URL (dev)**: `http://localhost:5173`
-- **API Documentation (Swagger)**: `http://127.0.0.1:8001/docs`
+- **API Documentation (Swagger)**: `http://127.0.0.1:8000/docs`
 - **Total HTTP endpoints**: ~200
 - **Total database tables**: 50+
 - **Frontend pages**: 35

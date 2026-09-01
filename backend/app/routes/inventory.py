@@ -1,27 +1,40 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+"""
+/inventory — the at-a-glance product stock overview page.
+
+Rebuilt against the consolidated inventory system (ProductMaster ->
+InventoryStock/InventoryBatch/InventoryMovement, see inventory_models.py)
+— the legacy Inventory model (MATERIAL_NAME/QUANTITY/UNIT_PRICE/MIN_STOCK)
+this file used to serve is no longer written to by anything (GRN
+receiving was rewired to the new system in purchase_order.py's
+_apply_grn_to_inventory) and is kept only as an unmapped historical
+table (see models.py's own retirement note next to the class).
+
+/inventory-items (inventory_items.py) is the companion detailed
+stock-operations page (adjust/threshold-edit + Batches + Movements
+tabs) — this page is the summary/overview + entry point for creating a
+Purchase Order.
+"""
+
 from typing import Optional
 
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
 from app.database.database import get_db
-
-from app.models.models import (
-    Inventory,
-    Employee,
-    Vendor,
-)
-from app.models.inventory_models import ProductMaster
-
-from pydantic import BaseModel, Field
-
+from app.models.models import Employee, Notification
+from app.models.inventory_models import ProductMaster, InventoryCategory, InventoryStock, InventoryMovement
+from app.models.supplier_models import Supplier, SupplierProduct
 from app.auth.auth_bearer import get_current_employee, require
-
-from app.schemas.inventory_schema import (
-    InventoryCreate,
-    StockUpdate
-)
+from app.services.inventory_automation_service import record_movement, get_latest_unit_cost
 
 router = APIRouter()
 
+
+# =========================================================================
+# Employee-scoped read (department-based), unchanged scoping rules
+# =========================================================================
 
 @router.get("/materials/for-me")
 def materials_for_me(
@@ -29,53 +42,40 @@ def materials_for_me(
     db: Session = Depends(get_db),
     user=Depends(get_current_employee)
 ):
-    """
-    Returns inventory rows scoped for the logged-in employee.
-    Scoping uses ProductMaster.DEPARTMENT_ID — products belonging to
-    the employee's (or project's) department.
-    Admins / managers see everything.
-    """
+    """Returns inventory stock rows scoped for the logged-in employee.
+    Scoping uses ProductMaster.DEPARTMENT_ID — products belonging to the
+    employee's department. Admins/managers see everything."""
 
     role = user.get("role")
+    admin_like = role in ("SUPER_ADMIN", "ADMIN", "MANAGER", "PRODUCTION_HEAD", "HR")
 
-    admin_like = role in (
-        "SUPER_ADMIN", "ADMIN", "MANAGER", "PRODUCTION_HEAD", "HR"
-    )
-
-    def _serialize(r):
+    def _serialize(stock: InventoryStock):
         return {
-            "ID": r.ID,
-            "PRODUCT_ID": r.PRODUCT_ID,
-            "MATERIAL_NAME": r.MATERIAL_NAME,
-            "QUANTITY": r.QUANTITY,
-            "UNIT_PRICE": r.UNIT_PRICE,
-            "VENDOR_ID": r.VENDOR_ID,
+            "ID": stock.ID,
+            "PRODUCT_ID": stock.PRODUCT_ID,
+            "PRODUCT_NAME": stock.product.PRODUCT_NAME if stock.product else None,
+            "CURRENT_QTY": stock.CURRENT_QTY,
+            "STATUS": stock.STATUS,
+            "VENDOR_ID": stock.VENDOR_ID,
         }
 
     if admin_like and project_id is None:
-        rows = db.query(Inventory).all()
+        rows = db.query(InventoryStock).all()
         return {"scope": "all", "ROLE": role, "INVENTORY": [_serialize(r) for r in rows]}
 
-    # Determine which department to filter by. project_id-based scoping
-    # was removed along with CustomerProject (table project_legacy) — the
-    # employee-department fallback below (already this function's
-    # existing behavior whenever project_id was omitted or had no
-    # department) is now the only scoping path.
     scope_department_id = None
     scope_source = None
 
-    if scope_department_id is None:
-        emp = db.query(Employee).filter(Employee.ID == user.get("employee_id")).first()
-        if not emp or not emp.DEPARTMENT_ID:
-            return {
-                "scope": "department", "DEPARTMENT_ID": None,
-                "PROJECT_ID": project_id, "INVENTORY": [],
-                "message": "No department to scope by. Ask your admin to set your department first."
-            }
-        scope_department_id = emp.DEPARTMENT_ID
-        scope_source = "employee"
+    emp = db.query(Employee).filter(Employee.ID == user.get("employee_id")).first()
+    if not emp or not emp.DEPARTMENT_ID:
+        return {
+            "scope": "department", "DEPARTMENT_ID": None,
+            "PROJECT_ID": project_id, "INVENTORY": [],
+            "message": "No department to scope by. Ask your admin to set your department first."
+        }
+    scope_department_id = emp.DEPARTMENT_ID
+    scope_source = "employee"
 
-    # Products belonging to this department
     allowed_product_ids = [
         p.ID for p in db.query(ProductMaster).filter(
             ProductMaster.DEPARTMENT_ID == scope_department_id
@@ -90,7 +90,7 @@ def materials_for_me(
             "message": "No products are assigned to this department yet.",
         }
 
-    rows = db.query(Inventory).filter(Inventory.PRODUCT_ID.in_(allowed_product_ids)).all()
+    rows = db.query(InventoryStock).filter(InventoryStock.PRODUCT_ID.in_(allowed_product_ids)).all()
 
     return {
         "scope": "department",
@@ -101,642 +101,253 @@ def materials_for_me(
     }
 
 
-# =========================
-# ADD MATERIAL (stock entry)
-# =========================
-
-@router.post("/create-material", dependencies=[Depends(require("inventory.purchase"))])
-def create_material(
-    data: InventoryCreate,
-    db: Session = Depends(get_db)
-):
-
-    try:
-
-        # Resolve product — accept either PRODUCT_ID or MATERIAL_NAME (matches PRODUCT_NAME)
-        product_id = data.PRODUCT_ID
-        material_name = data.MATERIAL_NAME
-
-        if product_id:
-            product = db.query(ProductMaster).filter(ProductMaster.ID == product_id).first()
-            if not product:
-                raise HTTPException(status_code=400, detail="Product not found")
-            material_name = product.PRODUCT_NAME
-
-        elif material_name:
-            product = db.query(ProductMaster).filter(
-                ProductMaster.PRODUCT_NAME == material_name
-            ).first()
-            if not product:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"No product named '{material_name}' found. Create it in the product catalogue first.",
-                )
-            product_id = product.ID
-
-        else:
-            raise HTTPException(
-                status_code=400,
-                detail="PRODUCT_ID or MATERIAL_NAME is required",
-            )
-
-        vendor = db.query(Vendor).filter(Vendor.ID == data.VENDOR_ID).first()
-        if not vendor:
-            raise HTTPException(status_code=400, detail="Vendor not found")
-
-        material = Inventory(
-            PRODUCT_ID=product_id,
-            MATERIAL_NAME=material_name,
-            QUANTITY=data.QUANTITY,
-            UNIT_PRICE=data.UNIT_PRICE,
-            VENDOR_ID=data.VENDOR_ID,
-        )
-
-        db.add(material)
-        db.commit()
-        db.refresh(material)
-
-        return {"message": "Material created successfully", "material_id": material.ID}
-
-    except HTTPException:
-
-        raise
-
-    except Exception as e:
-
-        db.rollback()
-
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# =========================
-# VIEW MATERIALS (optionally filtered by vendor)
-# =========================
-
-@router.get("/materials", dependencies=[Depends(require("inventory.view"))])
-def get_materials(
-    vendor_id: Optional[int] = Query(None),
-    db: Session = Depends(get_db)
-):
-
-    q = db.query(Inventory)
-
-    if vendor_id is not None:
-
-        q = q.filter(Inventory.VENDOR_ID == vendor_id)
-
-    return q.all()
-
-
-# =========================
-# UPDATE STOCK
-# =========================
-
-@router.put("/update-stock/{material_id}", dependencies=[Depends(require("inventory.purchase"))])
-def update_stock(
-    material_id: int,
-    data: StockUpdate,
-    db: Session = Depends(get_db)
-):
-
-    material = db.query(Inventory).filter(
-        Inventory.ID == material_id
-    ).first()
-
-    if not material:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Material not found"
-        )
-
-    material.QUANTITY = data.QUANTITY
-
-    db.commit()
-
-    return {
-        "message": "Stock updated"
-    }
-
-
-# =========================
-# DELETE MATERIAL
-# =========================
-
-@router.delete("/delete-material/{material_id}", dependencies=[Depends(require("inventory.purchase"))])
-def delete_material(
-    material_id: int,
-    db: Session = Depends(get_db)
-):
-
-    material = db.query(Inventory).filter(
-        Inventory.ID == material_id
-    ).first()
-
-    if not material:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Material not found"
-        )
-
-    db.delete(material)
-
-    db.commit()
-
-    return {
-        "message": "Material deleted"
-    }
-
-
 # =========================================================================
-# ENRICHED INVENTORY (for the new Inventory page)
+# Enriched inventory overview — powers the /inventory page
 # =========================================================================
-# Returns a fat row per material — quantity, value, preferred supplier
-# (resolved from BOM), products that use it, low-stock flag, and the
-# last-received date from finalized GRNs. One DB roundtrip's worth of
-# queries, all aggregated server-side so the React page can just render.
 
-from sqlalchemy import func
-
-from app.models.models import (
-    BOMItem,
-    Supplier,
-    ProductModel,
-    GoodsReceiptNote,
-    GoodsReceiptLine,
-    PurchaseOrderLine
-)
-
-
-# Tunable: anything below this is flagged "LOW STOCK" in the UI
-DEFAULT_LOW_STOCK_THRESHOLD = 5
-
-
-def _category_for_material(material_name: str) -> str:
-    """Best-effort category from the material name. Mirrors the chip
-    colors on the inventory grid."""
-
-    n = (material_name or "").lower()
-
-    rules = [
-        ("Sheet Metal",   ("sheet", "gi ", "ss ", "ms angle", "rod ")),
-        ("Refrigeration", ("compressor", "condenser", "evaporator",
-                            "refrigerant", "capillary")),
-        ("Electronics",   ("pcb", "microcontroller", "sensor", "relay",
-                            "ic ", "stm32", "dht")),
-        ("Display",       ("lcd", "touch", "led indicator")),
-        ("Motors",        ("motor", "stepper", "spiral", "gear")),
-        ("Payment",       ("coin", "bill", "nfc", "qr ", "scanner",
-                            "payment")),
-        ("Glass",         ("glass", "acrylic")),
-        ("Wires",         ("wiring", "cable", "harness")),
-        ("Hardware",      ("lock", "hinge", "screw", "bolt", "nut",
-                            "gasket")),
-        ("Insulation",    ("insulation", "foam", "rubber")),
-        ("Plumbing",      ("pump", "tubing", "filter", "pipe")),
-        ("Heating",       ("heating", "boiler", "thermostat", "heater")),
-        ("Power",         ("smps", "power", "supply", "fan ", "battery")),
-        ("Packaging",     ("box", "padding", "sticker", "label"))
-    ]
-
-    for cat, kws in rules:
-
-        for kw in kws:
-
-            if kw in n:
-
-                return cat
-
-    return "Other"
+def _resolve_preferred_supplier(db: Session, vendor_id: int, product_ids: list) -> dict:
+    """One preferred (or, failing that, first active) SupplierProduct per
+    PRODUCT_ID — mirrors the same resolution used by the low-stock reorder
+    engine (inventory_reorder_service.resolve_supplier_for_product), kept
+    intentionally simple here (display-only, not a reorder decision)."""
+    if not product_ids:
+        return {}
+    rows = (
+        db.query(SupplierProduct, Supplier)
+        .join(Supplier, Supplier.ID == SupplierProduct.SUPPLIER_ID)
+        .filter(
+            SupplierProduct.VENDOR_ID == vendor_id,
+            SupplierProduct.PRODUCT_ID.in_(product_ids),
+            SupplierProduct.STATUS == "ACTIVE",
+        )
+        .order_by(SupplierProduct.IS_PREFERRED.desc(), SupplierProduct.UNIT_PRICE.asc())
+        .all()
+    )
+    resolved = {}
+    for sp, supplier in rows:
+        if sp.PRODUCT_ID in resolved:
+            continue
+        resolved[sp.PRODUCT_ID] = {
+            "ID": supplier.ID, "COMPANY_NAME": supplier.COMPANY_NAME,
+            "SUPPLIER_CODE": supplier.SUPPLIER_CODE, "CATEGORY": supplier.CATEGORY,
+        }
+    return resolved
 
 
 @router.get("/inventory/full", dependencies=[Depends(require("inventory.view"))])
 def inventory_full(
     vendor_id: int = Query(1),
-    low_threshold: int = Query(DEFAULT_LOW_STOCK_THRESHOLD),
     db: Session = Depends(get_db)
 ):
-    """Fat inventory view powering the redesigned Inventory page.
+    """Fat inventory overview powering /inventory. Returns
+    { summary: {...}, items: [...] } — one row per tracked product
+    (an InventoryStock row already exists for it), each enriched with
+    category name, latest unit cost, preferred supplier, and last
+    movement date."""
 
-    Returns: { summary: {...}, items: [...] }
-    where each item has supplier, product usage, and the last GRN date.
-    """
+    rows = (
+        db.query(InventoryStock)
+        .join(ProductMaster, ProductMaster.ID == InventoryStock.PRODUCT_ID)
+        .filter(InventoryStock.VENDOR_ID == vendor_id)
+        .all()
+    )
 
-    rows = db.query(Inventory).filter(
-        Inventory.VENDOR_ID == vendor_id
-    ).all()
+    product_ids = [r.PRODUCT_ID for r in rows]
 
-    # --- Pre-fetch per-material relations ----------------------------------
-    material_ids = [r.PRODUCT_ID for r in rows if r.PRODUCT_ID]
+    category_ids = {r.product.CATEGORY_ID for r in rows if r.product and r.product.CATEGORY_ID}
+    categories = {
+        c.ID: c.NAME for c in db.query(InventoryCategory).filter(InventoryCategory.ID.in_(category_ids)).all()
+    } if category_ids else {}
 
-    # BOMItem → preferred supplier mapping (one supplier per material;
-    # if a material is in multiple BOMs with different suppliers, the
-    # first non-null wins).
-    supplier_by_material = {}
+    supplier_by_product = _resolve_preferred_supplier(db, vendor_id, product_ids)
 
-    products_by_material = {}
-
-    if material_ids:
-
-        boms = db.query(BOMItem).filter(
-            BOMItem.PRODUCT_ID.in_(material_ids)
-        ).all()
-
-        supplier_ids = {b.PREFERRED_SUPPLIER_ID for b in boms if b.PREFERRED_SUPPLIER_ID}
-
-        supplier_map = {}
-
-        if supplier_ids:
-
-            for s in db.query(Supplier).filter(Supplier.ID.in_(supplier_ids)).all():
-
-                supplier_map[s.ID] = {
-                    "ID": s.ID,
-                    "COMPANY_NAME": s.COMPANY_NAME,
-                    "SUPPLIER_CODE": s.SUPPLIER_CODE,
-                    "CATEGORY": s.CATEGORY
-                }
-
-        product_ids = {b.PRODUCT_MODEL_ID for b in boms if b.PRODUCT_MODEL_ID}
-
-        product_map = {}
-
-        if product_ids:
-
-            for p in db.query(ProductModel).filter(ProductModel.ID.in_(product_ids)).all():
-
-                product_map[p.ID] = {
-                    "ID": p.ID,
-                    "MODEL_CODE": p.MODEL_CODE,
-                    "MODEL_NAME": p.MODEL_NAME
-                }
-
-        for b in boms:
-
-            if b.PRODUCT_ID is None:
-
-                continue
-
-            if b.PREFERRED_SUPPLIER_ID and b.PRODUCT_ID not in supplier_by_material:
-
-                sup = supplier_map.get(b.PREFERRED_SUPPLIER_ID)
-
-                if sup:
-
-                    supplier_by_material[b.PRODUCT_ID] = sup
-
-            if b.PRODUCT_MODEL_ID:
-
-                pm = product_map.get(b.PRODUCT_MODEL_ID)
-
-                if pm:
-
-                    products_by_material.setdefault(b.PRODUCT_ID, []).append(pm)
-
-    # Last-received date per material via FINAL GRN line → PO line → material
-    last_received_by_material = {}
-
-    if material_ids:
-
+    last_movement_by_product = {}
+    if product_ids:
         sub = (
-            db.query(
-                PurchaseOrderLine.PRODUCT_ID,
-                func.max(GoodsReceiptNote.RECEIVED_DATE).label("last_date")
-            )
-            .join(
-                GoodsReceiptLine,
-                GoodsReceiptLine.PO_LINE_ID == PurchaseOrderLine.ID
-            )
-            .join(
-                GoodsReceiptNote,
-                GoodsReceiptNote.ID == GoodsReceiptLine.GRN_ID
-            )
-            .filter(
-                GoodsReceiptNote.STATUS == "FINAL",
-                PurchaseOrderLine.PRODUCT_ID.in_(material_ids)
-            )
-            .group_by(PurchaseOrderLine.PRODUCT_ID)
+            db.query(InventoryMovement.PRODUCT_ID, func.max(InventoryMovement.CREATED_AT).label("last_at"))
+            .filter(InventoryMovement.PRODUCT_ID.in_(product_ids))
+            .group_by(InventoryMovement.PRODUCT_ID)
             .all()
         )
+        for pid, last_at in sub:
+            if last_at:
+                last_movement_by_product[pid] = last_at.isoformat()
 
-        for mat_id, last_date in sub:
-
-            if last_date:
-
-                last_received_by_material[mat_id] = last_date.isoformat()
-
-    # --- Build response ----------------------------------------------------
     items = []
-
     total_value = 0.0
-
     low_count = 0
-
     out_count = 0
-
+    overstock_count = 0
     cat_totals = {}
 
-    for r in rows:
-
-        qty = int(r.QUANTITY or 0)
-
-        price = float(r.UNIT_PRICE or 0)
-
-        # Per-row reorder threshold — falls back to the global default
-        # when the admin hasn't set a specific value yet. This is the
-        # source of truth for the BELOW_MIN / Reorder-Alert flag.
-        row_min = int(r.MIN_STOCK or 0)
-
-        effective_threshold = row_min if row_min > 0 else low_threshold
-
-        line_value = qty * price
-
+    for stock in rows:
+        product = stock.product
+        qty = float(stock.CURRENT_QTY or 0)
+        unit_cost = get_latest_unit_cost(db, vendor_id, stock.PRODUCT_ID) or 0.0
+        line_value = qty * unit_cost
         total_value += line_value
 
-        if qty == 0:
-
-            stock_status = "OUT"
-
+        status = stock.STATUS or "OUT_OF_STOCK"
+        if status == "OUT_OF_STOCK":
             out_count += 1
-
-        elif qty <= effective_threshold:
-
-            stock_status = "LOW"
-
+        elif status == "LOW_STOCK":
             low_count += 1
+        elif status == "OVERSTOCK":
+            overstock_count += 1
 
-        else:
-
-            stock_status = "OK"
-
-        # Distinct flag for the "row has explicit MIN_STOCK set AND
-        # we're at or below it" case — feeds the Reorder-Alert badge
-        # in the UI vs the default global LOW indication.
-        below_min = row_min > 0 and qty <= row_min
-
-        category = _category_for_material(r.MATERIAL_NAME)
-
-        cat_totals[category] = cat_totals.get(category, 0) + 1
+        category_name = categories.get(product.CATEGORY_ID) if product else None
+        category_name = category_name or "Uncategorized"
+        cat_totals[category_name] = cat_totals.get(category_name, 0) + 1
 
         items.append({
-            "ID": r.ID,
-            "PRODUCT_ID": r.PRODUCT_ID,
-            "MATERIAL_NAME": r.MATERIAL_NAME,
-            "CATEGORY": category,
-            "QUANTITY": qty,
-            "UNIT_PRICE": price,
-            "MIN_STOCK": row_min,
-            "BELOW_MIN": below_min,
+            "ID": stock.ID,
+            "PRODUCT_ID": stock.PRODUCT_ID,
+            "PRODUCT_CODE": product.PRODUCT_CODE if product else None,
+            "PRODUCT_NAME": product.PRODUCT_NAME if product else "Unknown Product",
+            "CATEGORY_ID": product.CATEGORY_ID if product else None,
+            "CATEGORY_NAME": category_name,
+            "UNIT": product.UNIT if product else "PCS",
+            "CURRENT_QTY": qty,
+            "MIN_QTY": float(stock.MIN_QTY or 0),
+            "MAX_QTY": float(stock.MAX_QTY) if stock.MAX_QTY is not None else None,
+            "UNIT_COST": unit_cost,
             "TOTAL_VALUE": round(line_value, 2),
-            "STOCK_STATUS": stock_status,
-            "SUPPLIER": supplier_by_material.get(r.PRODUCT_ID),
-            "USED_IN_PRODUCTS": products_by_material.get(r.PRODUCT_ID, []),
-            "LAST_RECEIVED": last_received_by_material.get(r.PRODUCT_ID),
-            "VENDOR_ID": r.VENDOR_ID
+            "STATUS": status,
+            "PREFERRED_SUPPLIER": supplier_by_product.get(stock.PRODUCT_ID),
+            "LAST_MOVEMENT_AT": last_movement_by_product.get(stock.PRODUCT_ID),
+            "VENDOR_ID": stock.VENDOR_ID,
         })
 
-    # Sort: lowest stock first so the user sees urgent items at the top
-    items.sort(
-        key=lambda x: (
-            0 if x["STOCK_STATUS"] == "OUT" else
-            (1 if x["STOCK_STATUS"] == "LOW" else 2),
-            -x["TOTAL_VALUE"]
-        )
-    )
+    # Sort: most urgent first (out of stock, then low, then overstock, then ok), highest value first within each bucket
+    _status_rank = {"OUT_OF_STOCK": 0, "LOW_STOCK": 1, "OVERSTOCK": 2, "IN_STOCK": 3}
+    items.sort(key=lambda x: (_status_rank.get(x["STATUS"], 4), -x["TOTAL_VALUE"]))
 
     return {
         "summary": {
-            "total_materials": len(items),
+            "total_products": len(items),
             "total_value": round(total_value, 2),
             "low_stock_count": low_count,
             "out_of_stock_count": out_count,
-            "in_stock_count": len(items) - low_count - out_count,
+            "overstock_count": overstock_count,
+            "in_stock_count": len(items) - low_count - out_count - overstock_count,
             "categories": cat_totals,
-            "low_threshold": low_threshold
         },
-        "items": items
+        "items": items,
     }
 
 
 class StockAdjustRequest(BaseModel):
-    """Manual stock correction — used for opening stock, write-offs,
-    cycle-count adjustments. Always recorded with a reason."""
-
-    QUANTITY: int
+    QUANTITY: float
     REASON: str
     NOTES: Optional[str] = None
+    PERFORMED_BY_ID: Optional[str] = None
 
 
-@router.post("/inventory/{inventory_id}/adjust", dependencies=[Depends(require("inventory.purchase"))])
-def adjust_stock(
-    inventory_id: int,
-    data: StockAdjustRequest,
-    db: Session = Depends(get_db)
-):
-    """Manual stock adjustment. Sets the inventory row's quantity
-    to the requested value. Reason is required to keep an audit
-    trail (logged to console for now; can be moved to a dedicated
-    audit table later)."""
-
-    inv = db.query(Inventory).filter(Inventory.ID == inventory_id).first()
-
-    if not inv:
-
-        raise HTTPException(status_code=404, detail="Inventory row not found")
-
+@router.post("/inventory/{stock_id}/adjust", dependencies=[Depends(require("inventory.purchase"))])
+def adjust_stock(stock_id: str, data: StockAdjustRequest, db: Session = Depends(get_db)):
+    """Manual stock correction — goes through record_movement()
+    (MOVEMENT_TYPE="ADJUSTMENT") so it's captured in the InventoryMovement
+    ledger with Reason/Performed-By/Previous/New already recorded;
+    Difference is QTY_AFTER - QTY_BEFORE, always derived, never stored."""
+    stock = db.query(InventoryStock).filter(InventoryStock.ID == stock_id).first()
+    if not stock:
+        raise HTTPException(status_code=404, detail="Inventory stock row not found")
     if data.QUANTITY < 0:
-
-        raise HTTPException(
-            status_code=400,
-            detail="Quantity cannot be negative"
-        )
-
+        raise HTTPException(status_code=400, detail="Quantity cannot be negative")
     if not (data.REASON or "").strip():
+        raise HTTPException(status_code=400, detail="A reason is required for stock adjustments")
 
-        raise HTTPException(
-            status_code=400,
-            detail="A reason is required for stock adjustments"
-        )
-
-    old_qty = inv.QUANTITY
-
-    inv.QUANTITY = data.QUANTITY
-
-    db.commit()
-
-    import logging
-
-    logging.getLogger(__name__).info(
-        "Stock adjust: %s (#%s) %s → %s | reason=%s",
-        inv.MATERIAL_NAME, inv.ID, old_qty, data.QUANTITY, data.REASON
+    movement = record_movement(
+        db, stock.VENDOR_ID, stock.PRODUCT_ID, "ADJUSTMENT", data.QUANTITY,
+        performed_by_id=data.PERFORMED_BY_ID, reason=data.REASON, notes=data.NOTES,
     )
-
-    # Mfg Phase 1 — Reorder Alert: fire a Notification only when this
-    # write crosses the threshold (was above, now at-or-below). Avoids
-    # spamming when subsequent writes stay below the threshold.
-    _maybe_notify_low_stock(db, inv, old_qty, data.QUANTITY)
+    db.commit()
 
     return {
         "message": "Stock adjusted",
-        "old_quantity": old_qty,
-        "new_quantity": data.QUANTITY,
-        "delta": data.QUANTITY - old_qty
+        "old_quantity": movement.QTY_BEFORE,
+        "new_quantity": movement.QTY_AFTER,
+        "delta": movement.QTY_AFTER - movement.QTY_BEFORE,
     }
 
 
-class MinStockRequest(BaseModel):
-    MIN_STOCK: int = Field(..., ge=0)
-    # Set to 0 to disable alerting for this row.
+class ThresholdRequest(BaseModel):
+    MIN_QTY: Optional[float] = None
+    MAX_QTY: Optional[float] = None
 
 
-@router.patch("/inventory/{inventory_id}/min-stock", dependencies=[Depends(require("inventory.purchase"))])
-def set_min_stock(
-    inventory_id: int,
-    data: MinStockRequest,
-    db: Session = Depends(get_db),
-):
-    """Set the per-row reorder threshold. When QUANTITY later drops
-    at or below MIN_STOCK, a low-stock Notification is generated."""
+@router.patch("/inventory/{stock_id}/min-stock", dependencies=[Depends(require("inventory.purchase"))])
+def set_min_stock(stock_id: str, data: ThresholdRequest, db: Session = Depends(get_db)):
+    """Set MIN_QTY/MAX_QTY thresholds, recomputing STATUS immediately
+    (a threshold edit can flip status even with no stock movement)."""
+    stock = db.query(InventoryStock).filter(InventoryStock.ID == stock_id).first()
+    if not stock:
+        raise HTTPException(status_code=404, detail="Inventory stock row not found")
 
-    inv = db.query(Inventory).filter(Inventory.ID == inventory_id).first()
+    old_min, old_max = stock.MIN_QTY, stock.MAX_QTY
+    if data.MIN_QTY is not None:
+        stock.MIN_QTY = data.MIN_QTY
+    if data.MAX_QTY is not None:
+        stock.MAX_QTY = data.MAX_QTY
 
-    if not inv:
-        raise HTTPException(status_code=404, detail="Inventory row not found")
-
-    old_min = int(inv.MIN_STOCK or 0)
-
-    inv.MIN_STOCK = data.MIN_STOCK
-
+    from app.services.inventory_automation_service import _compute_status
+    stock.STATUS = _compute_status(stock.CURRENT_QTY, stock.MIN_QTY, stock.MAX_QTY)
     db.commit()
 
-    # If the user raised the threshold above the current stock,
-    # fire an immediate notification — the row is now "below min"
-    # even though stock didn't actually change.
-    if data.MIN_STOCK > 0 and int(inv.QUANTITY or 0) <= data.MIN_STOCK:
-        _push_low_stock_notification(db, inv)
+    if stock.STATUS in ("LOW_STOCK", "OUT_OF_STOCK") and (old_min != stock.MIN_QTY or old_max != stock.MAX_QTY):
+        try:
+            from app.services.inventory_reorder_service import evaluate_and_propose_reorder
+            evaluate_and_propose_reorder(db, stock.VENDOR_ID, product_ids=[stock.PRODUCT_ID])
+            db.commit()
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception("set_min_stock: reorder evaluation failed for stock %s", stock_id)
 
     return {
-        "message": "Reorder threshold updated",
-        "min_stock": inv.MIN_STOCK,
-        "old_min_stock": old_min,
-        "current_quantity": inv.QUANTITY,
+        "message": "Thresholds updated",
+        "min_qty": stock.MIN_QTY, "max_qty": stock.MAX_QTY,
+        "old_min_qty": old_min, "old_max_qty": old_max,
+        "current_quantity": stock.CURRENT_QTY, "status": stock.STATUS,
     }
 
 
-# ---------------------------------------------------------------------
-# Low-stock notification helpers (Mfg Phase 1 — Reorder Alerts)
-# ---------------------------------------------------------------------
-
-def _maybe_notify_low_stock(
-    db: Session, inv: Inventory, old_qty: int, new_qty: int
-) -> None:
-    """Notification fires only on a fresh crossing of the threshold —
-    old_qty was strictly above MIN_STOCK and new_qty is now at or
-    below. Re-adjusts that keep stock below the threshold do NOT
-    re-fire to prevent spam."""
-
-    min_stock = int(inv.MIN_STOCK or 0)
-
-    if min_stock <= 0:
-        return
-
-    if int(old_qty or 0) > min_stock and int(new_qty or 0) <= min_stock:
-        _push_low_stock_notification(db, inv)
-
-
-def _push_low_stock_notification(db: Session, inv: Inventory) -> None:
-    """Insert a single Notification row about this low-stock material.
-    Best-effort — wraps in try/except so any failure here never breaks
-    the inventory write that triggered it."""
-
-    try:
-
-        from app.models.models import Notification
-
-        title = f"Low stock: {inv.MATERIAL_NAME or 'Material'}"
-
-        body = (
-            f"{inv.MATERIAL_NAME or 'Material'} stock is {inv.QUANTITY} units "
-            f"(reorder threshold: {inv.MIN_STOCK}). Place a purchase order."
-        )
-
-        db.add(Notification(
-            TITLE=title,
-            MESSAGE=body[:500],
-            TYPE="WARNING",
-            VENDOR_ID=inv.VENDOR_ID or 1,
-        ))
-
-        db.commit()
-
-    except Exception as e:
-
-        import logging
-        logging.getLogger(__name__).warning(
-            "low-stock notification skipped: %s: %s",
-            type(e).__name__, e,
-        )
-
-
-@router.get("/inventory/{inventory_id}/movements", dependencies=[Depends(require("inventory.view"))])
-def inventory_movements(
-    inventory_id: int,
-    db: Session = Depends(get_db)
-):
-    """Recent stock movements for a single material — finalized GRN
-    receipts that hit this material. Powers the detail drawer in the
-    new Inventory page."""
-
-    inv = db.query(Inventory).filter(Inventory.ID == inventory_id).first()
-
-    if not inv:
-
-        raise HTTPException(status_code=404, detail="Inventory row not found")
-
-    if not inv.PRODUCT_ID:
-
-        return {"inventory": {"ID": inv.ID, "MATERIAL_NAME": inv.MATERIAL_NAME},
-                "movements": []}
+@router.get("/inventory/{stock_id}/movements", dependencies=[Depends(require("inventory.view"))])
+def inventory_movements_for_stock(stock_id: str, db: Session = Depends(get_db)):
+    """Recent stock movements for a single product — powers the detail
+    drawer on /inventory. Unlike the old GRN-only view, this now shows
+    every movement type (receipts, adjustments, write-offs, production
+    consumption, etc.) since InventoryMovement is the single ledger for
+    all of them."""
+    stock = db.query(InventoryStock).filter(InventoryStock.ID == stock_id).first()
+    if not stock:
+        raise HTTPException(status_code=404, detail="Inventory stock row not found")
 
     rows = (
-        db.query(
-            GoodsReceiptLine,
-            GoodsReceiptNote,
-            PurchaseOrderLine
-        )
-        .join(GoodsReceiptNote, GoodsReceiptNote.ID == GoodsReceiptLine.GRN_ID)
-        .join(PurchaseOrderLine, PurchaseOrderLine.ID == GoodsReceiptLine.PO_LINE_ID)
-        .filter(
-            PurchaseOrderLine.PRODUCT_ID == inv.PRODUCT_ID,
-            GoodsReceiptNote.STATUS == "FINAL"
-        )
-        .order_by(GoodsReceiptNote.FINALIZED_AT.desc())
+        db.query(InventoryMovement)
+        .filter(InventoryMovement.PRODUCT_ID == stock.PRODUCT_ID)
+        .order_by(InventoryMovement.CREATED_AT.desc())
         .limit(30)
         .all()
     )
 
-    movements = []
-
-    for grn_line, grn, po_line in rows:
-
-        movements.append({
-            "GRN_NUMBER": grn.GRN_NUMBER,
-            "GRN_ID": grn.ID,
-            "RECEIVED_DATE": grn.RECEIVED_DATE.isoformat() if grn.RECEIVED_DATE else None,
-            "FINALIZED_AT": grn.FINALIZED_AT.isoformat() if grn.FINALIZED_AT else None,
-            "QUANTITY_RECEIVED": float(grn_line.QUANTITY_RECEIVED or 0),
-            "QUANTITY_REJECTED": float(grn_line.QUANTITY_REJECTED or 0),
-            "UNIT_PRICE": float(po_line.UNIT_PRICE or 0),
-            "PO_NUMBER": None  # filled below if needed
-        })
+    movements = [{
+        "ID": m.ID,
+        "MOVEMENT_TYPE": m.MOVEMENT_TYPE,
+        "QTY": m.QTY,
+        "QTY_BEFORE": m.QTY_BEFORE,
+        "QTY_AFTER": m.QTY_AFTER,
+        "UNIT_COST": m.UNIT_COST,
+        "REFERENCE_TYPE": m.REFERENCE_TYPE,
+        "REFERENCE_ID": m.REFERENCE_ID,
+        "REASON": m.REASON,
+        "PERFORMED_BY_NAME": m.performed_by.NAME if m.performed_by else None,
+        "CREATED_AT": m.CREATED_AT.isoformat() if m.CREATED_AT else None,
+    } for m in rows]
 
     return {
         "inventory": {
-            "ID": inv.ID,
-            "MATERIAL_NAME": inv.MATERIAL_NAME,
-            "QUANTITY": inv.QUANTITY,
-            "UNIT_PRICE": inv.UNIT_PRICE
+            "ID": stock.ID, "PRODUCT_NAME": stock.product.PRODUCT_NAME if stock.product else None,
+            "CURRENT_QTY": stock.CURRENT_QTY,
         },
-        "movements": movements
+        "movements": movements,
     }

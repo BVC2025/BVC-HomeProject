@@ -501,6 +501,165 @@
   color: var(--text-primary);
 }
 
+/* ── Working schedule: break summary chips + "Manage Breaks" ──── */
+.breaksSummaryRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-top: 14px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.breaksSummaryList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.breakChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  background: color-mix(in srgb, var(--clr-primary) 8%, transparent);
+  color: var(--clr-primary);
+  border: 1px solid color-mix(in srgb, var(--clr-primary) 25%, transparent);
+  white-space: nowrap;
+}
+
+.breakChipInactive {
+  background: var(--layout-bg);
+  color: var(--text-muted);
+  border-color: var(--border);
+  text-decoration: line-through;
+}
+
+.hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.req {
+  color: #dc2626;
+}
+
+.inputError {
+  border-color: #dc2626 !important;
+}
+
+.taskFieldError {
+  display: block;
+  font-size: 0.75rem;
+  color: #dc2626;
+  margin-top: 6px;
+}
+
+/* ── Break rows (Manage Breaks modal) — mirrors the Manpower
+   Requirements repeatable-card pattern used on Task Templates ──── */
+.requirementRow {
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--layout-bg);
+}
+
+.requirementRowHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.requirementRowTitle {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.removeRowBtn {
+  background: none;
+  border: none;
+  color: #dc2626;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.breakRowGrid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.requirementFieldCell {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.requirementFieldCell label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.breakActiveLabel {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 6px;
+  text-transform: none !important;
+  font-size: 0.82rem !important;
+  color: var(--text-primary) !important;
+  height: 38px;
+}
+
+.addRowBtn {
+  margin-top: 12px;
+  padding: 10px 16px;
+  border: 1px dashed var(--clr-primary);
+  border-radius: var(--radius-md, 8px);
+  background: transparent;
+  color: var(--clr-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.15s;
+}
+
+.addRowBtn:hover {
+  background: color-mix(in srgb, var(--clr-primary) 8%, transparent);
+}
+
+.modalFooterRow {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .breakRowGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 /* ── Custom fields card ───────────────────────────────────────── */
 .cfHeader {
   display: flex;

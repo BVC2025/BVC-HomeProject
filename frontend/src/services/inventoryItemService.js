@@ -38,8 +38,10 @@ export const inventoryItemService = {
   stockAdjust: (data) =>
     API.post("/api/inventory-items/stock-adjust", { ...data, VENDOR_ID }),
 
-  stockTransfer: (data) =>
-    API.post("/api/inventory-items/stock-transfer", { ...data, VENDOR_ID }),
+  // stock-transfer was removed from the backend — a location-to-location
+  // transfer doesn't make sense without InventoryItem's location
+  // dimension (see inventory_items.py's module docstring). Deliberately
+  // not reintroduced here.
 
   // ── Bulk / Export ────────────────────────────────────────────
   bulkUpload: (formData) =>

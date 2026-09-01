@@ -1,23 +1,20 @@
 // =====================================================================
 // BVC24 — Enterprise Command Center
 //
-// CEO / MD / Factory Director dashboard. Inspired by SAP S/4HANA,
+// CEO / MD dashboard. Inspired by SAP S/4HANA,
 // Oracle NetSuite, Microsoft Dynamics 365.
 //
 // Priority order shown (top to bottom):
 //   1. Hero strip (compact, dark glass)
-//   2. Executive KPI row (6 large tiles)
+//   2. Executive KPI row
 //   3. AI Priority Center
-//   4. Business Health 4-quadrant
+//   4. Business Health quadrants
 //   5. Health Score gauge
-//   6. Production Pipeline
-//   7. Factory Floor
-//   8. Approval Center
-//   9. CRM Funnel
-//  10. Inventory Command
-//  11. Employee Leaderboard
-//  12. Activity Timeline
-//  13. Executive Analytics
+//   6. Approval Center
+//   7. Inventory Command
+//   8. Employee Leaderboard
+//   9. Activity Timeline
+//  10. Executive Analytics
 //
 // Floating: Quick Actions FAB + AI Assistant FAB (existing)
 // =====================================================================
@@ -98,7 +95,6 @@ const T = {
 // Font tokens (referenced by inline-styled cells that haven't been
 // migrated to CSS modules yet). Kept after the colour palette so they're
 // available to every component below.
-const FONT_BODY = "var(--font, 'Segoe UI', system-ui, -apple-system, sans-serif)";
 const FONT_HEAD = "var(--font, 'Segoe UI', system-ui, -apple-system, sans-serif)";
 
 // =====================================================================
@@ -195,11 +191,10 @@ function HeroBar({ stats }) {
     timeZone: "Asia/Kolkata"
   });
 
-  // Pared down to the three things a CEO actually wants on first glance.
+  // Pared down to the things a CEO actually wants on first glance.
   const items = [
-    { label: "Revenue · MTD", value: inrShort(stats.monthly_revenue || 0) },
     { label: "Approvals Pending", value: stats.pending_approvals ?? "—" },
-    { label: "Factory Health", value: stats.factory_health || "—" }
+    { label: "Business Health", value: stats.factory_health || "—" }
   ];
 
   return (
@@ -415,13 +410,11 @@ function ExecKPIRow({ stats }) {
 
   const nav = useNavigate();
 
-  // Four headline metrics only — the ones a CEO opens the app to see.
+  // Headline metrics only — the ones a CEO opens the app to see.
   // Inventory + Employees moved to their dedicated sections below.
   const items = [
-    { label: "Revenue · MTD", value: inrShort(stats.monthly_revenue || 0), accent: T.red, iconName: "rupee", trend: stats.revenue_trend, to: "/sales-orders" },
     { label: "Customers", value: stats.total_customers ?? 0, accent: T.amber, iconName: "users", trend: stats.customers_trend, to: "/customers" },
-    { label: "Active Orders", value: stats.total_sales_orders ?? 0, accent: T.blue, iconName: "bag", trend: stats.orders_trend, to: "/sales-orders" },
-    { label: "Production WOs", value: stats.active_wos ?? 0, accent: T.purple, iconName: "factory", trend: stats.production_trend, to: "/production" }
+    { label: "Purchase Orders", value: stats.purchase_orders ?? 0, accent: T.blue, iconName: "bag", trend: stats.orders_trend, to: "/supplier-management" }
   ];
 
   return (
@@ -574,58 +567,6 @@ function StatBars({ color }) {
 }
 
 
-// Machine-state badge icons — play / pause / gear / warning.
-function MachineIcon({ name, color }) {
-
-  const common = {
-    width: 14, height: 14,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: color,
-    strokeWidth: 2.2,
-    strokeLinecap: "round",
-    strokeLinejoin: "round"
-  };
-
-  if (name === "play") {
-    return (
-      <svg {...common}>
-        <polygon points="6 4 20 12 6 20 6 4" fill={color} />
-      </svg>
-    );
-  }
-
-  if (name === "pause") {
-    return (
-      <svg {...common}>
-        <rect x="6" y="4" width="4" height="16" fill={color} />
-        <rect x="14" y="4" width="4" height="16" fill={color} />
-      </svg>
-    );
-  }
-
-  if (name === "gear") {
-    return (
-      <svg {...common}>
-        <circle cx="12" cy="12" r="3" />
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.36.6.59 1.29.6 2v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z" />
-      </svg>
-    );
-  }
-
-  if (name === "warning") {
-    return (
-      <svg {...common}>
-        <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
-        <path d="M12 9v4M12 17h.01" />
-      </svg>
-    );
-  }
-
-  return null;
-}
-
-
 function HealthQuad({ title, marker, accent, items }) {
 
   return (
@@ -681,17 +622,7 @@ function HealthQuad({ title, marker, accent, items }) {
 }
 
 
-function BusinessHealthGrid({ stats, factory }) {
-
-  const sales_total = stats.total_sales_orders || 0;
-
-  const sales_won = Math.round(sales_total * 0.65);
-
-  const sales_pending = sales_total - sales_won;
-
-  const conversion = sales_total ? Math.round((sales_won / sales_total) * 100) : 0;
-
-  const machines = factory?.machines || {};
+function BusinessHealthGrid({ stats }) {
 
   const procurement = {
     open_pos: stats.purchase_orders || 0,
@@ -705,27 +636,7 @@ function BusinessHealthGrid({ stats, factory }) {
 
       <div className={styles.businessHealthGrid}>
         <HealthQuad
-          title="Sales" marker="01" accent={T.red}
-          items={[
-            { label: "Target", value: inrShort(stats.sales_target || 1500000) },
-            { label: "Achieved", value: inrShort(stats.monthly_revenue || 0) },
-            { label: "Pending", value: sales_pending, sub: "sales orders" },
-            { label: "Conversion", value: `${conversion}%` }
-          ]}
-        />
-
-        <HealthQuad
-          title="Production" marker="02" accent={T.amber}
-          items={[
-            { label: "In Production", value: machines.in_production ?? (stats.active_wos || 0) },
-            { label: "Completed", value: machines.completed ?? 0 },
-            { label: "Delayed", value: machines.delayed ?? 0 },
-            { label: "On Hold", value: machines.on_hold ?? 0 }
-          ]}
-        />
-
-        <HealthQuad
-          title="Procurement" marker="03" accent={T.green}
+          title="Procurement" marker="01" accent={T.green}
           items={[
             { label: "Open POs", value: procurement.open_pos },
             { label: "Received", value: procurement.received },
@@ -735,7 +646,7 @@ function BusinessHealthGrid({ stats, factory }) {
         />
 
         <HealthQuad
-          title="HR" marker="04" accent={T.blue}
+          title="HR" marker="02" accent={T.blue}
           items={[
             { label: "Employees", value: stats.total_employees || 0 },
             { label: "Present", value: stats.employees_present_today || 0 },
@@ -863,166 +774,6 @@ function HealthGauge({ health }) {
 
 
 // =====================================================================
-// PRODUCTION PIPELINE — 8-stage horizontal flow
-// =====================================================================
-
-function ProductionPipeline({ flow }) {
-
-  const stages = flow?.stages || [
-    { key: "quotation", label: "Quotation", count: 0, value: 0, conversion: null },
-    { key: "sales_order", label: "Sales Order", count: 0, value: 0, conversion: null },
-    { key: "project", label: "Project", count: 0, value: 0, conversion: null },
-    { key: "work_order", label: "Work Order", count: 0, value: 0, conversion: null },
-    { key: "production", label: "Production", count: 0, value: 0, conversion: null },
-    { key: "qc", label: "QC", count: 0, value: 0, conversion: null },
-    { key: "dispatch", label: "Dispatch", count: 0, value: 0, conversion: null },
-    { key: "completed", label: "Completed", count: 0, value: 0, conversion: null }
-  ];
-
-  return (
-    <Card style={{ marginBottom: 22 }}>
-      <SectionTitle
-        eyebrow="Order to Delivery"
-        title="Production Pipeline"
-        action={<Pill bg={T.redSoft} color={T.redDeep}>Live</Pill>}
-      />
-
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: `repeat(${stages.length}, 1fr)`,
-        gap: 4,
-        alignItems: "stretch"
-      }}>
-        {stages.map((s, idx) => {
-
-          const isLast = idx === stages.length - 1;
-
-          return (
-            <div key={s.key} className={styles.pipelineStageCol}>
-
-              {/* Connector arrow */}
-              {!isLast && (
-                <div className={styles.pipelineArrow}>
-                  ›
-                </div>
-              )}
-
-              <div className={styles.pipelineStageCircle}>
-                {s.count ?? 0}
-              </div>
-
-              <div className={styles.pipelineStageLabel}>
-                {s.label}
-              </div>
-
-              <div className={styles.pipelineStageValue}>
-                {inrShort(s.value || 0)}
-              </div>
-
-              {(s.conversion_pct ?? s.conversion) != null && (
-                <div
-                  className={styles.pipelineConvBadge}
-                  style={{ color: T.green, background: T.greenSoft }}
-                >
-                  {s.conversion_pct ?? s.conversion}%
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </Card>
-  );
-}
-
-
-// =====================================================================
-// FACTORY FLOOR LIVE STATUS — machine utilization
-// =====================================================================
-
-function FactoryFloor({ factory }) {
-
-  const m = factory?.machines || {};
-
-  const running = m.running || m.in_production || 0;
-
-  const idle = m.idle || 0;
-
-  const maintenance = m.maintenance || 0;
-
-  const breakdown = m.breakdown || 0;
-
-  const total = running + idle + maintenance + breakdown;
-
-  const utilization = total ? Math.round((running / total) * 100) : 0;
-
-  // Utilization colour is runtime-computed — kept inline.
-  const utilColor = utilization >= 80 ? T.green : utilization >= 50 ? T.amber : T.red;
-
-  const segs = [
-    { label: "Running", value: running, color: T.green, iconName: "play" },
-    { label: "Idle", value: idle, color: T.amber, iconName: "pause" },
-    { label: "Maintenance", value: maintenance, color: T.blue, iconName: "gear" },
-    { label: "Breakdown", value: breakdown, color: T.red, iconName: "warning" }
-  ];
-
-  return (
-    <Card>
-      <SectionTitle
-        eyebrow="Shop Floor"
-        title="Machine Utilization"
-        action={
-          <div className={styles.factoryUtilLabel} style={{ color: utilColor }}>
-            {utilization}<span className={styles.factoryUtilUnit}>% util.</span>
-          </div>
-        }
-      />
-
-      {/* Stacked horizontal bar */}
-      <div className={styles.factoryBarTrack}>
-        {segs.map((s) => total > 0 && s.value > 0 && (
-          <div key={s.label} style={{
-            width: `${(s.value / total) * 100}%`,
-            background: s.color
-          }} />
-        ))}
-      </div>
-
-      <div className={styles.factoryMachineGrid}>
-        {segs.map((s) => (
-
-          <div key={s.label} style={{
-            border: `1px solid ${T.border}`, borderRadius: 10, padding: "10px 12px",
-            display: "flex", alignItems: "center", gap: 10
-          }}>
-            <span style={{
-              width: 30, height: 30, borderRadius: 15,
-              background: s.color + "1a",
-              display: "inline-flex", alignItems: "center", justifyContent: "center",
-              flexShrink: 0
-            }}>
-              <MachineIcon name={s.iconName} color={s.color} />
-            </span>
-            <div>
-              <div style={{
-                fontSize: 10, fontWeight: 700, color: T.muted, letterSpacing: 0.8,
-                textTransform: "uppercase", fontFamily: FONT_BODY
-              }}>
-                {s.label}
-              </div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: T.text, fontFamily: FONT_HEAD, lineHeight: 1.1 }}>
-                {s.value}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-
-// =====================================================================
 // APPROVAL CENTER — direct approve buttons
 // =====================================================================
 
@@ -1032,10 +783,9 @@ function ApprovalCenter({ buckets }) {
 
   const items = [
     { key: "leaves", label: "Leaves", marker: "01", count: buckets?.leaves?.count || 0, to: "/approvals" },
-    { key: "quotations", label: "Quotations", marker: "02", count: buckets?.quotations?.count || 0, to: "/quotations" },
-    { key: "pos", label: "Purchase Orders", marker: "03", count: buckets?.purchase_orders?.count || 0, to: "/purchase-orders" },
-    { key: "payroll", label: "Payroll", marker: "04", count: buckets?.payroll?.count || 0, to: "/payroll" },
-    { key: "customers", label: "Customer Approvals", marker: "05", count: buckets?.customers?.count || 0, to: "/customers" }
+    { key: "pos", label: "Purchase Orders", marker: "02", count: buckets?.purchase_orders?.count || 0, to: "/purchase-orders" },
+    { key: "payroll", label: "Payroll", marker: "03", count: buckets?.payroll?.count || 0, to: "/payroll" },
+    { key: "customers", label: "Customer Approvals", marker: "04", count: buckets?.customers?.count || 0, to: "/customers" }
   ];
 
   const total = items.reduce((s, x) => s + x.count, 0);
@@ -1093,65 +843,6 @@ function ApprovalCenter({ buckets }) {
             </button>
           </div>
         ))}
-      </div>
-    </Card>
-  );
-}
-
-
-// =====================================================================
-// CRM FUNNEL — sales funnel stages
-// =====================================================================
-
-function CRMFunnel({ stats }) {
-
-  const total = Math.max(1, stats.total_customers || 0);
-
-  // Heuristic distribution since we don't have a real funnel endpoint yet
-  const stages = [
-    { label: "Lead", count: total, color: "#94a3b8" },
-    { label: "Qualified", count: Math.round(total * 0.7), color: "#60a5fa" },
-    { label: "Quotation", count: stats.total_quotations || 0, color: "#a78bfa" },
-    { label: "Negotiation", count: Math.round((stats.total_quotations || 0) * 0.6), color: "#fbbf24" },
-    { label: "Won", count: stats.total_sales_orders || 0, color: "#34d399" },
-    { label: "Lost", count: Math.round((stats.total_quotations || 0) * 0.1), color: "#f87171" }
-  ];
-
-  const maxCount = Math.max(...stages.map((s) => s.count), 1);
-
-  return (
-    <Card>
-      <SectionTitle
-        eyebrow="Customer Acquisition"
-        title="Sales Funnel"
-      />
-
-      <div className={styles.funnelList}>
-        {stages.map((s, idx) => {
-
-          const widthPct = Math.max(8, (s.count / maxCount) * 100);
-
-          const conv = idx > 0 ? Math.round((s.count / stages[idx - 1].count) * 100) : 100;
-
-          return (
-            <div key={s.label} className={styles.funnelRow}>
-              <div className={styles.funnelStageLabel}>
-                {s.label}
-              </div>
-              <div className={styles.funnelBarTrack}>
-                <div
-                  className={styles.funnelBarFill}
-                  style={{ width: `${widthPct}%`, background: s.color }}
-                >
-                  {s.count}
-                </div>
-              </div>
-              <div className={styles.funnelConvLabel}>
-                {idx > 0 && `${conv}%`}
-              </div>
-            </div>
-          );
-        })}
       </div>
     </Card>
   );
@@ -1561,9 +1252,6 @@ function QuickActionsFAB() {
   const actions = [
     { label: "Employee", icon: "👤", to: "/employees" },
     { label: "Customer", icon: "🤝", to: "/customers" },
-    { label: "Quotation", icon: "📄", to: "/quotations" },
-    { label: "Sales Order", icon: "📑", to: "/sales-orders" },
-    { label: "Work Order", icon: "🏭", to: "/production" },
     { label: "Purchase Order", icon: "🛒", to: "/purchase-orders" },
     { label: "Payroll Run", icon: "💰", to: "/payroll" },
     { label: "Inventory Item", icon: "📦", to: "/inventory" }
@@ -1619,11 +1307,7 @@ export default function EnterpriseCommandCenter() {
 
   const [health, setHealth] = useState(null);
 
-  const [factory, setFactory] = useState(null);
-
   const [insights, setInsights] = useState([]);
-
-  const [flow, setFlow] = useState(null);
 
   const [activity, setActivity] = useState([]);
 
@@ -1643,15 +1327,13 @@ export default function EnterpriseCommandCenter() {
     Promise.all([
       safe(API.get("/admin/dashboard-stats"), {}),
       safe(API.get("/admin/dashboard/health-score"), null),
-      safe(API.get("/admin/dashboard/factory-status"), null),
       safe(API.get("/admin/dashboard/insights"), []),
-      safe(API.get("/admin/dashboard/production-flow"), null),
       safe(API.get("/admin/dashboard/activity-feed"), []),
       safe(API.get("/admin/dashboard/top-performers"), []),
       safe(API.get("/admin/approvals/pending"), {}),
       safe(API.get("/inventory?status=LOW_STOCK&limit=5"), []),
       safe(API.get("/memos/stats"), {})
-    ]).then(([s, h, f, ins, fl, act, perf, buck, lowStk, memos]) => {
+    ]).then(([s, h, ins, act, perf, buck, lowStk, memos]) => {
 
       setStats(s || {});
 
@@ -1672,11 +1354,7 @@ export default function EnterpriseCommandCenter() {
         setHealth(h);
       }
 
-      setFactory(f);
-
       setInsights(Array.isArray(ins) ? ins : (ins?.insights || []));
-
-      setFlow(fl);
 
       setActivity(Array.isArray(act) ? act : (act?.items || act?.events || []));
 
@@ -1736,8 +1414,6 @@ export default function EnterpriseCommandCenter() {
     factory_health: factoryHealthLabel,
     pending_approvals: Object.values(buckets || {})
       .reduce((sum, b) => sum + (b?.count || 0), 0),
-    active_wos: factory?.active_wos || stats.active_wos || 0,
-    monthly_revenue: stats.monthly_revenue || 0
   };
 
   return (
@@ -1749,30 +1425,19 @@ export default function EnterpriseCommandCenter() {
 
       {/* <AIPriorityCenter insights={insights} /> — temporarily hidden */}
 
-      <BusinessHealthGrid stats={stats} factory={factory} />
+      <BusinessHealthGrid stats={stats} />
 
 
-      {/* Health gauge + Production pipeline side-by-side */}
-      <div className={`${styles.twoColGrid} ${styles.twoColGrid12}`}>
+      {/* Health gauge */}
+      <div className={styles.singleColSection}>
         <HealthGauge health={health} />
-        <FactoryFloor factory={factory} />
-      </div>
-
-      {/* Health gauge + Production pipeline side-by-side */}
-      <div className={`${styles.twoColGrid} ${styles.twoColGrid12}`}>
-        <HealthGauge health={health} />
-        <FactoryFloor factory={factory} />
       </div>
 
 
-      {/* CRM funnel */}
       <div className={styles.singleColSection}>
 
-        {/* Approval + CRM funnel side-by-side */}
-        <div className={`${styles.twoColGrid} ${styles.twoColGrid12x1}`}>
+        <div className={styles.singleColSection}>
           <ApprovalCenter buckets={buckets} />
-
-          <CRMFunnel stats={stats} />
         </div>
 
         <div className={styles.singleColSection}>
@@ -1781,7 +1446,6 @@ export default function EnterpriseCommandCenter() {
 
         {/* Sections below temporarily hidden to keep the dashboard focused on
             the day-one essentials. Restore by uncommenting:
-              <ProductionPipeline flow={flow} />
               <MemoSummaryCard stats={memoStats} />
               <EmployeeLeaderboard performers={performers} />
               <ExecutiveAnalytics />

@@ -22,6 +22,8 @@ EMAIL_SEND_RULE_EVENT_ENUM = SAEnum(
     "QUOTATION_DECISION",  # "Customer Quotation Approval / Rejection" — Final/Revised, Approved/Rejected
     "PO_UPLOADED",         # "Purchase Order Uploaded / Reuploaded" — by customer or staff
     "PO_REQUESTED",        # "Purchase Order Requested / Re-requested" — auto-on-approval or manual
+    "PRODUCTION_SCHEDULE_APPROVAL_NEEDED",  # a proposed production schedule is awaiting staff approval
+    "PURCHASE_ORDER_APPROVAL_NEEDED",  # an auto-generated low-stock reorder batch is awaiting staff approval
     name="email_send_rule_event_enum", create_constraint=True,
 )
 

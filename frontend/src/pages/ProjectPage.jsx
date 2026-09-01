@@ -6,12 +6,21 @@ import {
   SearchBar, EmptyState, ExportButton, Loader,
   PMButton, PMSelect, PMConfirmModal,
 } from "../components/pm";
+import TaskGroupModal from "../components/projectTaskGroups/TaskGroupModal";
+import ProjectGroupsModal from "../components/projectTaskGroups/ProjectGroupsModal";
+import ProjectInventoryRequirementsModal from "../components/projectInventory/ProjectInventoryRequirementsModal";
 import { projectService } from "../services/projectService";
 import { taskService } from "../services/taskService";
+import { taskGroupService } from "../services/taskGroupService";
+import { projectProductRequirementService } from "../services/projectProductRequirementService";
 import { categoryService } from "../services/categoryService";
 import { departmentService } from "../services/departmentService";
 import { roleService } from "../services/roleService";
+import { inventoryCategoryService } from "../services/inventoryCategoryService";
+import { productMasterService } from "../services/productMasterService";
+import API from "../services/api";
 import { useToast } from "../hooks/useToast";
+import { useAuth } from "../context/AuthContext";
 import { useCustomFields, useTableCfValues } from "../hooks/useCustomFields";
 import { exportToExcel, downloadTemplate as dlTemplate } from "../utils/exportExcel";
 import { formatDateTime } from "../utils/formatDateTime";
@@ -43,14 +52,98 @@ const EMPTY_REQUIREMENT = () => ({
   _key: Math.random().toString(36).slice(2),
   DEPARTMENT_ID: "", ROLE_ID: "", EXPERIENCE_LEVEL: "", REQUIRED_COUNT: 1,
 });
+
+// Group/dependency configuration now lives at the project level (Task
+// Group step below), not per-task — a task carries no group/dependency
+// fields of its own any more.
 const EMPTY_TASK = () => ({
   _key: Math.random().toString(36).slice(2),
   NAME: "", DESCRIPTION: "", DURATION_VALUE: 1, DURATION_UNIT: "DAYS",
   TASK_SCOPE: "UNIT", requirements: [],
 });
 
+// One row per product a project requires from inventory — added via the
+// Inventory Requirement wizard step (after Task Group, before Review).
+// A product can only appear once per project (enforced both client-side,
+// by excluding already-added PRODUCT_IDs from the picker, and server-side
+// via a unique constraint) — mirrors TaskGroupModal's own "exclude
+// already-selected" inversion pattern from the Task Group work.
+const EMPTY_PRODUCT_REQ = (product) => ({
+  _key: Math.random().toString(36).slice(2),
+  PRODUCT_ID: product.ID,
+  PRODUCT_CODE: product.PRODUCT_CODE,
+  PRODUCT_NAME: product.PRODUCT_NAME,
+  UNIT: product.UNIT,
+  CATEGORY_ID: product.CATEGORY_ID,
+  REQUIRED_QTY: 1,
+});
+
+// ---------------------------------------------------------------------
+// Duration calculation — a client-side PREVIEW only, mirroring the
+// backend's authoritative calculate_project_estimated_duration() exactly
+// (project_template.py) so the Review step can show a live estimate
+// before saving. The backend always recalculates and stores the real
+// value on save; this preview is never sent to the server.
+// ---------------------------------------------------------------------
+const UNIT_TO_DAYS = { DAYS: 1, WEEKS: 5, MONTHS: 22, YEARS: 260 };
+
+function taskDurationHours(t, workHours) {
+  const val = parseFloat(t.DURATION_VALUE) || 0;
+  const unit = (t.DURATION_UNIT || "DAYS").toUpperCase();
+  if (unit === "HOURS") return val;
+  return val * (UNIT_TO_DAYS[unit] || 1) * workHours;
+}
+
+function computeDurationBreakdown(tasks, taskGroups, assignmentMode, workHours) {
+  const named = tasks.filter((t) => t.NAME.trim());
+  const groupedKeys = new Set();
+  const groups = [];
+  taskGroups.forEach((g, i) => {
+    const members = named.filter((t) => g.taskKeys.includes(t._key));
+    if (members.length === 0) return;
+    members.forEach((t) => groupedKeys.add(t._key));
+    const hoursList = members.map((t) => taskDurationHours(t, workHours));
+    const maxHours = Math.max(...hoursList);
+    groups.push({
+      key: g._key,
+      name: g.NAME || `Group ${i + 1}`,
+      members,
+      durationHours: maxHours,
+      durationDays: workHours > 0 ? maxHours / workHours : 0,
+    });
+  });
+  const standalone = named.filter((t) => !groupedKeys.has(t._key)).map((t) => ({
+    key: t._key,
+    name: t.NAME,
+    durationHours: taskDurationHours(t, workHours),
+    durationDays: workHours > 0 ? taskDurationHours(t, workHours) / workHours : 0,
+  }));
+  const topLevelHours = [...groups.map((g) => g.durationHours), ...standalone.map((s) => s.durationHours)];
+  let totalHours = 0;
+  if (topLevelHours.length > 0) {
+    totalHours = assignmentMode === "PARALLEL"
+      ? Math.max(...topLevelHours)
+      : topLevelHours.reduce((a, b) => a + b, 0);
+  }
+  return {
+    totalHours,
+    totalDays: workHours > 0 ? totalHours / workHours : 0,
+    groups,
+    standalone,
+  };
+}
+
+
 export default function ProjectPage() {
   const navigate = useNavigate();
+  const { hasPermission } = useAuth();
+  const canViewGroups = hasPermission("project.task_groups.view");
+  // Read-only surface — reuses the existing project.view permission rather
+  // than adding a new permission-catalogue row for a view-only modal.
+  const canViewInventory = hasPermission("project.view");
+  const canCreateGroups = hasPermission("project.task_groups.create");
+  const canUpdateGroups = hasPermission("project.task_groups.update");
+  const canDeleteGroups = hasPermission("project.task_groups.delete");
 
   const [rows, setRows] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -66,15 +159,28 @@ export default function ProjectPage() {
   const [confirmModal, setConfirmModal] = useState(null);
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
+  const [groupsRowProject, setGroupsRowProject] = useState(null);
+  const [inventoryRowProject, setInventoryRowProject] = useState(null);
+  const [companyWorkHours, setCompanyWorkHours] = useState(8);
 
   // Wizard
   const [wizard, setWizard] = useState(null);
   const [editRow, setEditRow] = useState(null);
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState("Basic Info");
   const [form, setForm] = useState({ CATEGORY_ID: "", NAME: "", DESCRIPTION: "", BOM_MODE: "MANUAL", ASSIGNMENT_MODE: "PARALLEL" });
   const [tasks, setTasks] = useState([EMPTY_TASK()]);
   const [taskErrors, setTaskErrors] = useState({}); // { [task._key]: { [requirement._key]: { EXPERIENCE_LEVEL?, REQUIRED_COUNT?, DUPLICATE? } } }
+  const [taskGroups, setTaskGroups] = useState([]);
+  const [groupModalState, setGroupModalState] = useState(null); // { editing: group|null } | null
+  const [productRequirements, setProductRequirements] = useState([]);
+  const [invCategories, setInvCategories] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
+  const [reqCategoryFilter, setReqCategoryFilter] = useState("");
+  const [reqSelectedProductId, setReqSelectedProductId] = useState("");
+  const [reqQty, setReqQty] = useState(1);
   const [saving, setSaving] = useState(false);
+  const tasksRef = useRef(tasks);
+  useEffect(() => { tasksRef.current = tasks; }, [tasks]);
 
   // BOM parse
   const [bomFile, setBomFile] = useState(null);
@@ -103,16 +209,20 @@ export default function ProjectPage() {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
-      const [projRes, catRes, deptRes, roleRes] = await Promise.all([
+      const [projRes, catRes, deptRes, roleRes, invCatRes, productRes] = await Promise.all([
         projectService.getAll(),
         categoryService.getAll(),
         departmentService.getAll(),
         roleService.getAll(),
+        inventoryCategoryService.getAll(),
+        productMasterService.getAll({ page_size: 5000 }),
       ]);
       setRows(projRes.data || []);
       setCategories(catRes.data || []);
       setDepartments(deptRes.data || []);
       setAllRoles(roleRes.data || []);
+      setInvCategories(invCatRes.data || []);
+      setAllProducts(productRes.data?.items || []);
     } catch {
       toast.showError("Failed to load data");
     } finally {
@@ -125,6 +235,15 @@ export default function ProjectPage() {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     loadAll();
+    // Used only for the wizard's client-side duration PREVIEW (Review
+    // step) — the backend independently resolves and stores the
+    // authoritative WORK_HOURS itself on every save.
+    API.get("/settings/company")
+      .then((res) => {
+        const wh = parseFloat(res.data?.WORK_HOURS);
+        if (wh && wh > 0) setCompanyWorkHours(wh);
+      })
+      .catch(() => {});
   }, [loadAll]);
 
   const handleRefresh = useCallback(() => loadAll(true), [loadAll]);
@@ -175,9 +294,12 @@ export default function ProjectPage() {
   const openCreate = useCallback(() => {
     setForm({ CATEGORY_ID: "", NAME: "", DESCRIPTION: "", BOM_MODE: "MANUAL", ASSIGNMENT_MODE: "PARALLEL" });
     setTasks([EMPTY_TASK()]);
+    setTaskGroups([]);
+    setProductRequirements([]);
+    setReqCategoryFilter(""); setReqSelectedProductId(""); setReqQty(1);
     setTaskErrors({});
     setBomFile(null); setBomSheets([]); setBomSheet(""); setBomParsed(false);
-    setStep(1); setEditRow(null); setWizard("create");
+    setStep("Basic Info"); setEditRow(null); setWizard("create");
     resetCfValues();
   }, [resetCfValues]);
 
@@ -188,7 +310,11 @@ export default function ProjectPage() {
     });
     setEditRow(row);
     try {
-      const taskRes = await taskService.getByProject(row.ID);
+      const [taskRes, groupRes, reqRes] = await Promise.all([
+        taskService.getByProject(row.ID),
+        taskGroupService.getByProject(row.ID),
+        projectProductRequirementService.getByProject(row.ID),
+      ]);
       setTasks(
         taskRes.data.length > 0
           ? taskRes.data.map((t) => ({
@@ -209,16 +335,42 @@ export default function ProjectPage() {
           }))
           : [EMPTY_TASK()]
       );
+      // Each task's own _key equals its real ID here (see _key: t.ID
+      // above), so referencing group membership/dependencies by real
+      // TaskTemplate ID directly works as _key lookups too.
+      setTaskGroups(
+        (groupRes.data || []).map((g) => ({
+          _key: g.ID,
+          NAME: g.NAME || "",
+          taskKeys: g.task_templates.map((t) => t.ID),
+          DEPENDENCY_RULE: g.DEPENDENCY_RULE,
+          dependencyKey: g.DEPENDS_ON_TASK_TEMPLATE_ID || null,
+        }))
+      );
+      setProductRequirements(
+        (reqRes.data || []).map((r) => ({
+          _key: r.ID,
+          PRODUCT_ID: r.PRODUCT_ID,
+          PRODUCT_CODE: r.PRODUCT_CODE,
+          PRODUCT_NAME: r.PRODUCT_NAME,
+          UNIT: r.UNIT,
+          CATEGORY_ID: r.CATEGORY_ID,
+          REQUIRED_QTY: r.REQUIRED_QTY || 1,
+        }))
+      );
     } catch {
       setTasks([EMPTY_TASK()]);
+      setTaskGroups([]);
+      setProductRequirements([]);
     }
+    setReqCategoryFilter(""); setReqSelectedProductId(""); setReqQty(1);
     setTaskErrors({});
     setBomFile(null); setBomSheets([]); setBomSheet(""); setBomParsed(false);
-    setStep(1); setWizard("edit");
+    setStep("Basic Info"); setWizard("edit");
     loadCfValues(row.ID);
   }, [loadCfValues]);
 
-  const closeWizard = useCallback(() => { setWizard(null); setStep(1); setEditRow(null); setTaskErrors({}); }, []);
+  const closeWizard = useCallback(() => { setWizard(null); setStep("Basic Info"); setEditRow(null); setTaskErrors({}); }, []);
 
   const handleDelete = useCallback((row) => {
     setConfirmModal({
@@ -236,24 +388,30 @@ export default function ProjectPage() {
     });
   }, [loadAll, toast]);
 
-  const goStep2 = useCallback(() => {
-    if (!form.CATEGORY_ID) { toast.showWarning("Please select a category"); return; }
-    if (!form.NAME.trim()) { toast.showWarning("Project name is required"); return; }
-    const cfError = validateCf();
-    if (cfError) { toast.showWarning(cfError); return; }
-    setStep(2);
-  }, [form, toast, validateCf]);
+  // Dynamic wizard steps: the Task Group step only appears for SEQUENTIAL
+  // projects (and only if the user can view groups at all). Leaving Basic
+  // Info always advances to "Tasks" in both cases, so `step` (a step NAME,
+  // not a raw index) never becomes invalid for the current `steps` array —
+  // ASSIGNMENT_MODE can only be edited while on "Basic Info" itself.
+  const steps = useMemo(() => {
+    const s = ["Basic Info", "Tasks"];
+    if (form.ASSIGNMENT_MODE === "SEQUENTIAL" && canViewGroups) s.push("Task Group");
+    s.push("Inventory Requirement");
+    s.push("Review");
+    return s;
+  }, [form.ASSIGNMENT_MODE, canViewGroups]);
+  const stepIndex = Math.max(0, steps.indexOf(step));
 
   // Every named task's manpower requirements must be complete before the
   // wizard can move on — blank placeholder task rows (no name typed yet)
   // are excluded, matching the existing "only named rows are real tasks"
   // convention used everywhere else in this file (handleSave, the task
   // count badges, the Review step's task list). Mirrors
-  // TaskTemplatePage.jsx's validateRequirements() exactly: a task may have
-  // zero requirements, and Department/Role on any requirement may be left
-  // blank — only Experience Level and Required Count are mandatory once a
-  // requirement row exists, and duplicate Department+Role+Experience
-  // combinations within one task are rejected.
+  // TaskTemplatePage.jsx's validateRequirements() exactly: Department,
+  // Role, Experience Level, and Required Count are all mandatory on any
+  // requirement row that exists (a task may still have zero requirements),
+  // duplicate Department+Role+Experience combinations within one task are
+  // rejected, and a task cannot depend on itself or form a circular chain.
   const validateTasks = useCallback(() => {
     const errors = {};
     for (const t of tasks) {
@@ -262,6 +420,8 @@ export default function ProjectPage() {
       const seen = new Set();
       for (const r of t.requirements) {
         const rowErrors = {};
+        if (!r.DEPARTMENT_ID) rowErrors.DEPARTMENT_ID = "Department is required";
+        if (!r.ROLE_ID) rowErrors.ROLE_ID = "Role is required";
         if (!r.EXPERIENCE_LEVEL) rowErrors.EXPERIENCE_LEVEL = "Experience level is required";
         const count = parseInt(r.REQUIRED_COUNT, 10);
         if (r.REQUIRED_COUNT === "" || Number.isNaN(count) || count < 1) {
@@ -279,20 +439,43 @@ export default function ProjectPage() {
     return errors;
   }, [tasks]);
 
-  const goStep3 = useCallback(() => {
-    if (tasks.filter((t) => t.NAME.trim()).length === 0) {
-      toast.showWarning("Add at least one task");
+  const goNext = useCallback(() => {
+    if (step === "Basic Info") {
+      if (!form.CATEGORY_ID) { toast.showWarning("Please select a category"); return; }
+      if (!form.NAME.trim()) { toast.showWarning("Project name is required"); return; }
+      const cfError = validateCf();
+      if (cfError) { toast.showWarning(cfError); return; }
+      setStep("Tasks");
       return;
     }
-    const errors = validateTasks();
-    if (Object.keys(errors).length > 0) {
-      setTaskErrors(errors);
-      toast.showWarning("Please fix the manpower requirement fields highlighted below before continuing.");
+    if (step === "Tasks") {
+      if (tasks.filter((t) => t.NAME.trim()).length === 0) {
+        toast.showWarning("Add at least one task");
+        return;
+      }
+      const errors = validateTasks();
+      if (Object.keys(errors).length > 0) {
+        setTaskErrors(errors);
+        toast.showWarning("Please fix the manpower requirement fields highlighted below before continuing.");
+        return;
+      }
+      setTaskErrors({});
+      setStep(steps.includes("Task Group") ? "Task Group" : "Inventory Requirement");
       return;
     }
-    setTaskErrors({});
-    setStep(3);
-  }, [tasks, validateTasks, toast]);
+    if (step === "Task Group") {
+      setStep("Inventory Requirement");
+      return;
+    }
+    if (step === "Inventory Requirement") {
+      setStep("Review");
+    }
+  }, [step, form, toast, validateCf, tasks, validateTasks, steps]);
+
+  const goBack = useCallback(() => {
+    const idx = steps.indexOf(step);
+    if (idx > 0) setStep(steps[idx - 1]);
+  }, [step, steps]);
 
   const handleBomFile = useCallback(async (e) => {
     const f = e.target.files[0]; if (!f) return;
@@ -335,11 +518,36 @@ export default function ProjectPage() {
         requirements: [],
       }))
     );
+    // The old task _keys any groups referenced are gone now — a fresh BOM
+    // import replaces the task list wholesale, so any groups configured
+    // against the previous list can no longer be resolved.
+    setTaskGroups([]);
     setBomParsed(true);
   };
 
   const addTask = useCallback(() => setTasks((prev) => [...prev, EMPTY_TASK()]), []);
-  const removeTask = useCallback((idx) => setTasks((prev) => prev.filter((_, i) => i !== idx)), []);
+
+  // Removing a task also cleans up any Task Group that referenced it —
+  // as a member or as a dependency target — so no group is left pointing
+  // at a task that no longer exists. A group left with zero members is
+  // dropped entirely (an empty group can never be re-saved as valid
+  // anyway). The task itself is simply removed from the wizard's staged
+  // list — nothing is deleted server-side until Save.
+  const removeTask = useCallback((idx) => {
+    const removedKey = tasksRef.current[idx]?._key;
+    setTasks((prev) => prev.filter((_, i) => i !== idx));
+    if (removedKey) {
+      setTaskGroups((prev) => prev
+        .map((g) => ({
+          ...g,
+          taskKeys: g.taskKeys.filter((k) => k !== removedKey),
+          dependencyKey: g.dependencyKey === removedKey ? null : g.dependencyKey,
+        }))
+        .filter((g) => g.taskKeys.length > 0)
+      );
+    }
+  }, []);
+
   const updateTask = useCallback((idx, field, value) => {
     setTasks((prev) => prev.map((t, i) => (i === idx ? { ...t, [field]: value } : t)));
   }, []);
@@ -378,6 +586,119 @@ export default function ProjectPage() {
     });
   }, []);
 
+  // ── Task Group step (wizard) ──────────────────────────────────────────
+  // Tasks passed to the shared TaskGroupModal picker table, in the shape
+  // it expects — only named tasks are real candidates.
+  const pickerTasksFromWizard = useMemo(
+    () => tasks.filter((t) => t.NAME.trim()).map((t, i) => ({
+      id: t._key,
+      NAME: t.NAME,
+      SEQUENCE_NUMBER: i,
+      DURATION_VALUE: t.DURATION_VALUE,
+      DURATION_UNIT: t.DURATION_UNIT,
+      TASK_SCOPE: t.TASK_SCOPE,
+      TOTAL_REQUIRED_COUNT: t.requirements.reduce((sum, r) => sum + (parseInt(r.REQUIRED_COUNT, 10) || 0), 0),
+    })),
+    [tasks]
+  );
+
+  // Task keys already claimed by ANOTHER group (the group currently open
+  // in the modal, if any, is excluded so its own members stay selectable).
+  const groupedTaskKeysExcludingCurrent = useMemo(() => {
+    const editingKey = groupModalState?.editing?._key;
+    const claimed = new Set();
+    taskGroups.forEach((g) => {
+      if (g._key === editingKey) return;
+      g.taskKeys.forEach((k) => claimed.add(k));
+    });
+    return Array.from(claimed);
+  }, [taskGroups, groupModalState]);
+
+  const initialGroupForWizardModal = useMemo(() => {
+    const g = groupModalState?.editing;
+    if (!g) return null;
+    return {
+      id: g._key,
+      NAME: g.NAME || "",
+      memberIds: g.taskKeys,
+      DEPENDENCY_RULE: g.DEPENDENCY_RULE,
+      dependencyId: g.dependencyKey || null,
+    };
+  }, [groupModalState]);
+
+  const openCreateGroupModal = useCallback(() => setGroupModalState({ editing: null }), []);
+  const openEditGroupModal = useCallback((g) => setGroupModalState({ editing: g }), []);
+  const closeGroupModal = useCallback(() => setGroupModalState(null), []);
+
+  const handleSaveGroupModal = useCallback((draft) => {
+    setTaskGroups((prev) => {
+      if (draft.id) {
+        return prev.map((g) => (g._key === draft.id
+          ? { ...g, NAME: draft.NAME, taskKeys: draft.memberIds, DEPENDENCY_RULE: draft.DEPENDENCY_RULE, dependencyKey: draft.dependencyId }
+          : g));
+      }
+      return [...prev, {
+        _key: Math.random().toString(36).slice(2),
+        NAME: draft.NAME, taskKeys: draft.memberIds,
+        DEPENDENCY_RULE: draft.DEPENDENCY_RULE, dependencyKey: draft.dependencyId,
+      }];
+    });
+    setGroupModalState(null);
+  }, []);
+
+  const handleDeleteGroup = useCallback((groupKey) => {
+    setTaskGroups((prev) => prev.filter((g) => g._key !== groupKey));
+  }, []);
+
+  // Removing a task from a group only clears its group assignment — the
+  // task itself stays in the Tasks list untouched, and becomes selectable
+  // for another group immediately. A group left with no members is
+  // dropped (an empty group is never a valid, savable state).
+  const handleRemoveTaskFromGroup = useCallback((groupKey, taskKey) => {
+    setTaskGroups((prev) => prev
+      .map((g) => (g._key === groupKey ? { ...g, taskKeys: g.taskKeys.filter((k) => k !== taskKey) } : g))
+      .filter((g) => g.taskKeys.length > 0)
+    );
+  }, []);
+
+  // Products already added to this project are excluded from the picker
+  // (a product may only appear once per project — the same inversion
+  // pattern TaskGroupModal uses to exclude already-selected members).
+  const availableProductsForReq = useMemo(() => {
+    const addedIds = new Set(productRequirements.map((r) => r.PRODUCT_ID));
+    return allProducts.filter((p) => {
+      if (addedIds.has(p.ID)) return false;
+      if (reqCategoryFilter && p.CATEGORY_ID !== reqCategoryFilter) return false;
+      return true;
+    });
+  }, [allProducts, productRequirements, reqCategoryFilter]);
+
+  const handleAddProductRequirement = useCallback(() => {
+    const product = allProducts.find((p) => p.ID === reqSelectedProductId);
+    if (!product) { toast.showWarning("Select a product first"); return; }
+    const qty = parseFloat(reqQty);
+    if (!reqQty || Number.isNaN(qty) || qty <= 0) { toast.showWarning("Enter a required quantity greater than 0"); return; }
+    if (productRequirements.some((r) => r.PRODUCT_ID === product.ID)) {
+      toast.showWarning("This product has already been added to the project.");
+      return;
+    }
+    setProductRequirements((prev) => [...prev, { ...EMPTY_PRODUCT_REQ(product), REQUIRED_QTY: qty }]);
+    setReqSelectedProductId(""); setReqQty(1);
+  }, [allProducts, reqSelectedProductId, reqQty, productRequirements, toast]);
+
+  const handleRemoveProductRequirement = useCallback((key) => {
+    setProductRequirements((prev) => prev.filter((r) => r._key !== key));
+  }, []);
+
+  const handleProductRequirementQtyChange = useCallback((key, value) => {
+    setProductRequirements((prev) => prev.map((r) => (r._key === key ? { ...r, REQUIRED_QTY: value } : r)));
+  }, []);
+
+  const durationBreakdown = useMemo(
+    () => computeDurationBreakdown(tasks, taskGroups, form.ASSIGNMENT_MODE, companyWorkHours),
+    [tasks, taskGroups, form.ASSIGNMENT_MODE, companyWorkHours]
+  );
+
   const onDragStart = useCallback((idx) => setDragIdx(idx), []);
   const onDragOver = useCallback((e, idx) => {
     e.preventDefault();
@@ -395,19 +716,29 @@ export default function ProjectPage() {
   const handleSave = useCallback(async () => {
     const validTasks = tasks.filter((t) => t.NAME.trim());
     if (validTasks.length === 0) { toast.showWarning("Add at least one task"); return; }
-    // Defense-in-depth — goStep3() already blocks entry to the Review step
+    // Defense-in-depth — goNext() already blocks leaving the Tasks step
     // without this, but re-check here too in case Review is ever reached
-    // another way, so a project can never be saved with a task missing
-    // its Department/Role.
+    // another way, so a project can never be saved with an incomplete
+    // manpower requirement. Group validity (membership, dependency rule,
+    // cycles) is already enforced per-group at group-save time in the
+    // Task Group step's modal — the backend re-validates all of it
+    // authoritatively regardless.
     const errors = validateTasks();
     if (Object.keys(errors).length > 0) {
       setTaskErrors(errors);
-      setStep(2);
+      setStep("Tasks");
       toast.showWarning("Please fix the manpower requirement fields highlighted below before saving.");
       return;
     }
     setSaving(true);
     try {
+      // Groups/dependencies reference tasks by _key in this component's
+      // state; the backend needs their 0-based position within the
+      // tasks[] array actually being submitted (validTasks) instead,
+      // since brand-new tasks have no real ID yet — see TaskGroupIn /
+      // TaskGroupDependencyIndexIn in project_template.py.
+      const indexByKey = new Map(validTasks.map((t, i) => [t._key, i]));
+      const validGroups = taskGroups.filter((g) => g.taskKeys.some((k) => indexByKey.has(k)));
       const payload = {
         CATEGORY_ID: form.CATEGORY_ID,
         NAME: form.NAME,
@@ -428,11 +759,32 @@ export default function ProjectPage() {
             REQUIRED_COUNT: parseInt(r.REQUIRED_COUNT) || 1,
           })),
         })),
+        task_groups: validGroups.map((g) => ({
+          NAME: g.NAME || null,
+          task_indexes: g.taskKeys.filter((k) => indexByKey.has(k)).map((k) => indexByKey.get(k)),
+          DEPENDENCY_RULE: g.DEPENDENCY_RULE,
+          DEPENDS_ON_TASK_INDEX: g.dependencyKey && indexByKey.has(g.dependencyKey)
+            ? indexByKey.get(g.dependencyKey)
+            : null,
+        })),
+        product_requirements: productRequirements.map((r) => ({
+          PRODUCT_ID: r.PRODUCT_ID,
+          REQUIRED_QTY: parseFloat(r.REQUIRED_QTY) || 1,
+        })),
       };
       if (wizard === "edit" && editRow) {
-        await projectService.update(editRow.ID, payload);
+        const res = await projectService.update(editRow.ID, payload);
         await saveCfValues(editRow.ID);
-        toast.showSuccess("Project updated");
+        // The task/group list is frozen once real production tasks have
+        // already been generated/assigned against it (see the backend's
+        // _project_has_live_production_tasks() guard) — everything else
+        // in this save still applied, but call out the one thing that
+        // didn't so it's never a silent, confusing no-op.
+        if (res.data?.tasks_skipped_reason) {
+          toast.showWarning(res.data.tasks_skipped_reason);
+        } else {
+          toast.showSuccess("Project updated");
+        }
       } else {
         const res = await projectService.create(payload);
         const newId = res.data?.ID;
@@ -446,7 +798,7 @@ export default function ProjectPage() {
     } finally {
       setSaving(false);
     }
-  }, [tasks, form, wizard, editRow, closeWizard, loadAll, toast, saveCfValues, validateTasks]);
+  }, [tasks, taskGroups, productRequirements, form, wizard, editRow, closeWizard, loadAll, toast, saveCfValues, validateTasks]);
 
   const handleExport = useCallback(() => {
     const data = filtered.map((r, i) => {
@@ -614,6 +966,12 @@ export default function ProjectPage() {
                           <img src={EditIcon} alt="Edit" />
                         </button>
                         <PMButton variant="ghost" size="sm" onClick={() => navigate(`/task-templates?project_id=${r.ID}`)}>Tasks</PMButton>
+                        {canViewGroups && (
+                          <PMButton variant="ghost" size="sm" onClick={() => setGroupsRowProject(r)}>Group</PMButton>
+                        )}
+                        {canViewInventory && (
+                          <PMButton variant="ghost" size="sm" onClick={() => setInventoryRowProject(r)}>Inventory</PMButton>
+                        )}
                         <button className={styles.iconBtnDanger} onClick={() => handleDelete(r)} title="Delete">
                           <img src={DeleteIcon} alt="Delete" />
                         </button>
@@ -645,14 +1003,14 @@ export default function ProjectPage() {
                   {wizard === "edit" ? "Edit Project" : "New Project"}
                 </h2>
                 <div className={styles.stepRow}>
-                  {["Basic Info", "Tasks", "Review"].map((s, i) => (
+                  {steps.map((s, i) => (
                     <div
-                      key={i}
-                      className={`${styles.stepItem} ${step === i + 1 ? styles.stepActive : step > i + 1 ? styles.stepDone : ""}`}
+                      key={s}
+                      className={`${styles.stepItem} ${step === s ? styles.stepActive : stepIndex > i ? styles.stepDone : ""}`}
                     >
-                      <span className={styles.stepDot}>{step > i + 1 ? "✓" : i + 1}</span>
+                      <span className={styles.stepDot}>{stepIndex > i ? "✓" : i + 1}</span>
                       <span className={styles.stepLabel}>{s}</span>
-                      {i < 2 && <span className={styles.stepLine} />}
+                      {i < steps.length - 1 && <span className={styles.stepLine} />}
                     </div>
                   ))}
                 </div>
@@ -664,8 +1022,8 @@ export default function ProjectPage() {
               </button>
             </div>
 
-            {/* Step 1 */}
-            {step === 1 && (
+            {/* Basic Info */}
+            {step === "Basic Info" && (
               <div className={styles.wizardBody}>
                 <div className={styles.formGroup}>
                   <label>Category <span className={styles.req}>*</span></label>
@@ -746,7 +1104,7 @@ export default function ProjectPage() {
             )}
 
             {/* Step 2 */}
-            {step === 2 && (
+            {step === "Tasks" && (
               <div className={styles.wizardBody}>
                 {form.BOM_MODE === "BOM_UPLOAD" && !bomParsed && (
                   <div className={styles.bomSection}>
@@ -870,30 +1228,36 @@ export default function ProjectPage() {
                             </div>
                             <div className={styles.requirementGrid}>
                               <div className={styles.requirementFieldCell}>
-                                <label>Department</label>
+                                <label>Department <span className={styles.req}>*</span></label>
                                 <PMSelect
                                   options={departments}
                                   value={r.DEPARTMENT_ID}
                                   onChange={(val) => updateRequirement(idx, ridx, "DEPARTMENT_ID", val)}
                                   valueKey="ID"
                                   labelKey="NAME"
-                                  allowClear
-                                  clearLabel="— None —"
+                                  placeholder="Select Department"
                                   size="sm"
+                                  className={taskErrors[t._key]?.[r._key]?.DEPARTMENT_ID ? styles.taskSelectError : ""}
                                 />
+                                {taskErrors[t._key]?.[r._key]?.DEPARTMENT_ID && (
+                                  <span className={styles.taskFieldError}>{taskErrors[t._key][r._key].DEPARTMENT_ID}</span>
+                                )}
                               </div>
                               <div className={styles.requirementFieldCell}>
-                                <label>Role</label>
+                                <label>Role <span className={styles.req}>*</span></label>
                                 <PMSelect
                                   options={rolesForDept(r.DEPARTMENT_ID)}
                                   value={r.ROLE_ID}
                                   onChange={(val) => updateRequirement(idx, ridx, "ROLE_ID", val)}
                                   valueKey="ID"
                                   labelKey="NAME"
-                                  allowClear
-                                  clearLabel="— None —"
+                                  placeholder="Select Role"
                                   size="sm"
+                                  className={taskErrors[t._key]?.[r._key]?.ROLE_ID ? styles.taskSelectError : ""}
                                 />
+                                {taskErrors[t._key]?.[r._key]?.ROLE_ID && (
+                                  <span className={styles.taskFieldError}>{taskErrors[t._key][r._key].ROLE_ID}</span>
+                                )}
                               </div>
                               <div className={styles.requirementFieldCell}>
                                 <label>Experience <span className={styles.req}>*</span></label>
@@ -933,14 +1297,146 @@ export default function ProjectPage() {
                           + Add Requirement
                         </button>
                       </div>
+
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Step 3 */}
-            {step === 3 && (
+            {/* Task Group — only shown for SEQUENTIAL projects */}
+            {step === "Task Group" && (
+              <div className={styles.wizardBody}>
+                <div className={styles.taskEditorHeader}>
+                  <span className={styles.taskEditorTitle}>Task Groups ({taskGroups.length})</span>
+                  {canCreateGroups && (
+                    <PMButton variant="outline" size="sm" onClick={openCreateGroupModal}>+ Create Group</PMButton>
+                  )}
+                </div>
+                {taskGroups.length === 0 ? (
+                  <p className={styles.hint}>
+                    No task groups yet. Group tasks that should run in parallel and configure what each group
+                    depends on — ungrouped tasks continue to run individually, in sequence.
+                  </p>
+                ) : (
+                  <div className={styles.taskEditor}>
+                    {taskGroups.map((g, i) => {
+                      const members = tasks.filter((t) => g.taskKeys.includes(t._key));
+                      const depName = g.dependencyKey
+                        ? tasks.find((t) => t._key === g.dependencyKey)?.NAME
+                        : null;
+                      return (
+                        <div key={g._key} className={styles.groupCard}>
+                          <div className={styles.groupCardHead}>
+                            <span className={styles.rowNum}>{i + 1}</span>
+                            <span className={styles.groupCardName}>{g.NAME || `Group ${i + 1}`}</span>
+                            <div style={{ flex: 1 }} />
+                            {canUpdateGroups && (
+                              <button className={styles.linkBtn} onClick={() => openEditGroupModal(g)}>Edit</button>
+                            )}
+                            {canDeleteGroups && (
+                              <button className={styles.linkBtnDanger} onClick={() => handleDeleteGroup(g._key)}>Delete Group</button>
+                            )}
+                          </div>
+                          <div className={styles.groupMemberList}>
+                            {members.map((t) => (
+                              <div key={t._key} className={styles.groupMemberRow}>
+                                <span>{t.NAME}</span>
+                                <span className={styles.muted}>{t.DURATION_VALUE} {t.DURATION_UNIT}</span>
+                                {canUpdateGroups && (
+                                  <button className={styles.removeRowBtn} onClick={() => handleRemoveTaskFromGroup(g._key, t._key)}>Remove</button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                          <p className={styles.hint}>
+                            Dependency Rule: <strong>{g.DEPENDENCY_RULE}</strong>
+                            {depName && <> — Depends on: {depName}</>}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {step === "Inventory Requirement" && (
+              <div className={styles.wizardBody}>
+                <div className={styles.taskEditorHeader}>
+                  <span className={styles.taskEditorTitle}>Required Inventory ({productRequirements.length})</span>
+                </div>
+                <p className={styles.hint}>
+                  Select the inventory products this project needs, and how many of each — this is per one
+                  unit of the project; the actual quantity purchased by a customer multiplies this automatically.
+                </p>
+
+                <div className={styles.reqPickerRow}>
+                  <PMSelect
+                    value={reqCategoryFilter}
+                    onChange={(v) => { setReqCategoryFilter(v); setReqSelectedProductId(""); }}
+                    options={[{ value: "", label: "All Categories" }, ...invCategories.map((c) => ({ value: c.ID, label: c.NAME }))]}
+                    placeholder="Inventory Category"
+                  />
+                  <PMSelect
+                    value={reqSelectedProductId}
+                    onChange={setReqSelectedProductId}
+                    options={availableProductsForReq.map((p) => ({ value: p.ID, label: `${p.PRODUCT_NAME} (${p.PRODUCT_CODE})` }))}
+                    placeholder={availableProductsForReq.length === 0 ? "No more products available" : "Select a Product"}
+                    disabled={availableProductsForReq.length === 0}
+                  />
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="any"
+                    value={reqQty}
+                    onChange={(e) => setReqQty(e.target.value)}
+                    className={styles.input}
+                    placeholder="Qty"
+                    style={{ maxWidth: 100 }}
+                  />
+                  <PMButton variant="outline" size="sm" onClick={handleAddProductRequirement} disabled={!reqSelectedProductId}>
+                    + Add
+                  </PMButton>
+                </div>
+
+                {productRequirements.length === 0 ? (
+                  <p className={styles.hint}>No inventory products required yet — this project won't automatically consume any stock.</p>
+                ) : (
+                  <table className={styles.reviewReqTable}>
+                    <thead>
+                      <tr><th>Product Code</th><th>Product Name</th><th>Unit</th><th>Required Qty</th><th></th></tr>
+                    </thead>
+                    <tbody>
+                      {productRequirements.map((r) => (
+                        <tr key={r._key}>
+                          <td>{r.PRODUCT_CODE}</td>
+                          <td>{r.PRODUCT_NAME}</td>
+                          <td>{r.UNIT || "—"}</td>
+                          <td>
+                            <input
+                              type="number"
+                              min="0.01"
+                              step="any"
+                              value={r.REQUIRED_QTY}
+                              onChange={(e) => handleProductRequirementQtyChange(r._key, e.target.value)}
+                              className={styles.input}
+                              style={{ maxWidth: 90 }}
+                            />
+                          </td>
+                          <td>
+                            <button className={styles.removeRowBtn} onClick={() => handleRemoveProductRequirement(r._key)}>Remove</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
+
+            {/* Review */}
+            {step === "Review" && (
               <div className={styles.wizardBody}>
                 <div className={styles.reviewSection}>
                   <div className={styles.reviewGrid}>
@@ -972,34 +1468,141 @@ export default function ProjectPage() {
                     )}
                   </div>
                 </div>
+                <div className={styles.reviewDurationCard}>
+                  <div className={styles.reviewDurationHead}>Estimated Project Duration</div>
+                  <div className={styles.reviewDurationStats}>
+                    <span className={styles.reviewDurationValue}>{durationBreakdown.totalDays.toFixed(1)} Days</span>
+                    <span className={styles.reviewDurationSub}>{durationBreakdown.totalHours.toFixed(1)} Working Hours</span>
+                  </div>
+                  {(durationBreakdown.groups.length > 0 || durationBreakdown.standalone.length > 0) && (
+                    <div className={styles.reviewDurationBreakdown}>
+                      {durationBreakdown.groups.map((g) => (
+                        <div key={g.key} className={styles.reviewDurationRow}>
+                          <span>{g.name} ({g.members.map((m) => m.NAME).join(" + ")}) — Parallel</span>
+                          <span>{g.durationDays.toFixed(1)} Days</span>
+                        </div>
+                      ))}
+                      {durationBreakdown.standalone.map((s) => (
+                        <div key={s.key} className={styles.reviewDurationRow}>
+                          <span>{s.name}</span>
+                          <span>{s.durationDays.toFixed(1)} Days</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {taskGroups.length > 0 && (
+                  <>
+                    <div className={styles.reviewTasksTitle}>Task Groups ({taskGroups.length})</div>
+                    <div className={styles.reviewTaskList}>
+                      {taskGroups.map((g, i) => {
+                        const members = tasks.filter((t) => g.taskKeys.includes(t._key) && t.NAME.trim());
+                        const depName = g.dependencyKey
+                          ? tasks.find((t) => t._key === g.dependencyKey)?.NAME
+                          : null;
+                        return (
+                          <div key={g._key} className={styles.reviewTaskDetailCard}>
+                            <div className={styles.reviewTaskDetailHead}>
+                              <span className={styles.reviewTaskName}>{g.NAME || `Group ${i + 1}`}</span>
+                            </div>
+                            <table className={styles.reviewReqTable}>
+                              <thead>
+                                <tr><th>Seq</th><th>Task</th><th>Duration</th><th>Scope</th><th>Manpower</th></tr>
+                              </thead>
+                              <tbody>
+                                {members.map((t) => (
+                                  <tr key={t._key}>
+                                    <td>{tasks.indexOf(t) + 1}</td>
+                                    <td>{t.NAME}</td>
+                                    <td>{t.DURATION_VALUE} {t.DURATION_UNIT}</td>
+                                    <td>{t.TASK_SCOPE}</td>
+                                    <td>{t.requirements.reduce((s, r) => s + (parseInt(r.REQUIRED_COUNT, 10) || 0), 0)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            <p className={styles.hint}>
+                              Dependency Rule: <strong>{g.DEPENDENCY_RULE}</strong>
+                              {depName && <> — Depends on: {depName}</>}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+
                 <div className={styles.reviewTasksTitle}>
                   Tasks ({tasks.filter((t) => t.NAME.trim()).length})
                 </div>
                 <div className={styles.reviewTaskList}>
                   {tasks.filter((t) => t.NAME.trim()).map((t, i) => (
-                    <div key={t._key} className={styles.reviewTaskRow}>
-                      <span className={styles.reviewSeq}>{i + 1}</span>
-                      <span className={styles.reviewTaskName}>{t.NAME}</span>
-                      <span className={styles.reviewDur}>{t.DURATION_VALUE} {t.DURATION_UNIT}</span>
-                      {t.DEPARTMENT_ID && (
-                        <span className={styles.reviewDept}>
-                          {departments.find((d) => String(d.ID) === String(t.DEPARTMENT_ID))?.NAME}
-                        </span>
+                    <div key={t._key} className={styles.reviewTaskDetailCard}>
+                      <div className={styles.reviewTaskDetailHead}>
+                        <span className={styles.reviewSeq}>{i + 1}</span>
+                        <span className={styles.reviewTaskName}>{t.NAME}</span>
+                        <span className={styles.durBadge}>{t.DURATION_VALUE} {t.DURATION_UNIT}</span>
+                        <span className={styles.durBadge}>{t.TASK_SCOPE || "UNIT"}</span>
+                      </div>
+                      {t.DESCRIPTION && <p className={styles.hint}>{t.DESCRIPTION}</p>}
+                      {t.requirements.length > 0 ? (
+                        <table className={styles.reviewReqTable}>
+                          <thead>
+                            <tr><th>Department</th><th>Role</th><th>Experience</th><th>Count</th></tr>
+                          </thead>
+                          <tbody>
+                            {t.requirements.map((r) => (
+                              <tr key={r._key}>
+                                <td>{departments.find((d) => String(d.ID) === String(r.DEPARTMENT_ID))?.NAME || "—"}</td>
+                                <td>{rolesForDept(r.DEPARTMENT_ID).find((role) => String(role.ID) === String(r.ROLE_ID))?.NAME || "—"}</td>
+                                <td>{r.EXPERIENCE_LEVEL || "—"}</td>
+                                <td>{r.REQUIRED_COUNT}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : (
+                        <p className={styles.hint}>No manpower requirements configured.</p>
                       )}
                     </div>
                   ))}
                 </div>
+
+                <div className={styles.reviewTasksTitle}>
+                  Required Inventory ({productRequirements.length})
+                </div>
+                {productRequirements.length === 0 ? (
+                  <p className={styles.hint}>No inventory products required for this project.</p>
+                ) : (
+                  <table className={styles.reviewReqTable}>
+                    <thead>
+                      <tr><th>Category</th><th>Product Code</th><th>Product Name</th><th>Unit</th><th>Required Qty</th></tr>
+                    </thead>
+                    <tbody>
+                      {productRequirements.map((r) => (
+                        <tr key={r._key}>
+                          <td>{invCategories.find((c) => c.ID === r.CATEGORY_ID)?.NAME || "—"}</td>
+                          <td>{r.PRODUCT_CODE}</td>
+                          <td>{r.PRODUCT_NAME}</td>
+                          <td>{r.UNIT || "—"}</td>
+                          <td>{r.REQUIRED_QTY}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             )}
 
             <div className={styles.wizardFooter}>
-              {step > 1 && (
-                <PMButton variant="outline" onClick={() => setStep((s) => s - 1)}>← Back</PMButton>
+              {stepIndex > 0 && (
+                <PMButton variant="outline" onClick={goBack}>← Back</PMButton>
               )}
               <div style={{ flex: 1 }} />
               <PMButton variant="outline" onClick={closeWizard}>Cancel</PMButton>
-              {step < 3
-                ? <PMButton variant="primary" onClick={step === 1 ? goStep2 : goStep3}>Next →</PMButton>
+              {stepIndex < steps.length - 1
+                ? <PMButton variant="primary" onClick={goNext}>Next →</PMButton>
                 : <PMButton variant="primary" onClick={handleSave} disabled={saving}>
                   {saving ? "Saving…" : wizard === "edit" ? "Save Changes" : "Create Project"}
                 </PMButton>}
@@ -1086,6 +1689,34 @@ export default function ProjectPage() {
         description={confirmModal?.description}
         confirmLabel="Delete"
         cancelLabel="Cancel"
+      />
+
+      {/* Create/Edit Task Group modal — wizard's Task Group step */}
+      <TaskGroupModal
+        open={!!groupModalState}
+        onClose={closeGroupModal}
+        onSave={handleSaveGroupModal}
+        tasks={pickerTasksFromWizard}
+        groupedIds={groupedTaskKeysExcludingCurrent}
+        initialGroup={initialGroupForWizardModal}
+      />
+
+      {/* "Group" row action — manage an existing project's groups outside the wizard */}
+      <ProjectGroupsModal
+        open={!!groupsRowProject}
+        onClose={() => setGroupsRowProject(null)}
+        project={groupsRowProject}
+        canCreate={canCreateGroups}
+        canUpdate={canUpdateGroups}
+        canDelete={canDeleteGroups}
+      />
+
+      {/* "Inventory" row action — read-only view of a project's configured
+          Inventory Requirements outside the create/edit wizard. */}
+      <ProjectInventoryRequirementsModal
+        open={!!inventoryRowProject}
+        onClose={() => setInventoryRowProject(null)}
+        project={inventoryRowProject}
       />
     </div>
   );

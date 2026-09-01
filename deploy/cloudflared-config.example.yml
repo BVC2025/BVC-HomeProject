@@ -12,7 +12,7 @@
 #
 # Routing model: ONE tunnel process, TWO hostnames, no Caddy needed.
 #   erp.bvc24.com  -> localhost:4173   (frontend, `vite preview` build)
-#   api.bvc24.com  -> localhost:8001   (uvicorn FastAPI)
+#   api.bvc24.com  -> localhost:8000   (uvicorn FastAPI)
 # Cloudflare's edge handles HTTPS termination; local services stay HTTP.
 # =====================================================================
 
@@ -42,7 +42,7 @@ ingress:
 
   # ---- Backend API (FastAPI / uvicorn) -------------------------------
   - hostname: api.bvc24.com
-    service: http://192.168.1.10:8001:8001
+    service: http://192.168.1.10:8000:8000
     originRequest:
       connectTimeout: 10s
       noTLSVerify: true

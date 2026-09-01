@@ -674,6 +674,18 @@
   justify-content: space-between;
 }
 
+.reqPickerRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 12px 0 20px;
+}
+.reqPickerRow > * {
+  flex: 1 1 200px;
+  min-width: 140px;
+}
+
 .taskEditorTitle {
   font-size: var(--font-sm);
   font-weight: var(--fw-semi);
@@ -973,23 +985,25 @@
 }
 
 .reviewTaskList {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  box-shadow: var(--shadow-xs);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
 }
 
-.reviewTaskRow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--table-td-border);
+.reviewTaskDetailCard {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card-bg);
+  box-shadow: var(--shadow-xs);
+  padding: 12px 14px;
   font-size: var(--font-sm);
 }
 
-.reviewTaskRow:last-child {
-  border-bottom: none;
+.reviewTaskDetailHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .reviewSeq {
@@ -1014,25 +1028,158 @@
   flex: 1;
 }
 
-.reviewDur {
-  padding: 2px 8px;
-  background: var(--warning-bg);
-  border: 1px solid var(--warning-border);
-  border-radius: var(--radius-full);
-  font-size: 0.72rem;
-  font-weight: var(--fw-semi);
-  color: var(--warning-dark);
-  box-shadow: var(--shadow-xs);
+.reviewReqTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--sp-2);
+  font-size: var(--font-xs);
 }
 
-.reviewDept {
-  padding: 2px 8px;
-  background: var(--success-bg);
-  border: 1px solid var(--success-border);
-  border-radius: var(--radius-full);
-  font-size: 0.72rem;
+.reviewReqTable th {
+  text-align: left;
+  padding: 4px 8px;
+  color: var(--text-muted);
   font-weight: var(--fw-semi);
-  color: var(--success-dark);
+  border-bottom: 1px solid var(--border);
+}
+
+.reviewReqTable td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--table-td-border);
+  color: var(--text-primary);
+}
+
+/* ── Review: Estimated Project Duration summary ──────────────────── */
+.reviewDurationCard {
+  border: 1px solid var(--clr-primary-border);
+  border-radius: var(--radius-md);
+  background: var(--clr-primary-light);
+  padding: 14px 16px;
+  margin-bottom: var(--sp-4);
+}
+
+.reviewDurationHead {
+  font-size: var(--font-xs);
+  font-weight: var(--fw-semi);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.reviewDurationStats {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.reviewDurationValue {
+  font-size: var(--font-xl);
+  font-weight: var(--fw-bold);
+  color: var(--clr-primary);
+}
+
+.reviewDurationSub {
+  font-size: var(--font-sm);
+  color: var(--text-muted);
+}
+
+.reviewDurationBreakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--clr-primary-border);
+}
+
+.reviewDurationRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: var(--font-xs);
+  color: var(--text-secondary);
+}
+
+/* ── Task Group step: group summary cards ────────────────────────── */
+.groupCard {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card-bg);
+  box-shadow: var(--shadow-xs);
+  padding: 12px 14px;
+  margin-bottom: var(--sp-3);
+}
+
+.groupCardHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.groupCardName {
+  font-size: var(--font-sm);
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.groupMemberList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.groupMemberRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--table-hover);
+  font-size: var(--font-xs);
+  color: var(--text-primary);
+}
+
+.linkBtn {
+  background: none;
+  border: none;
+  color: var(--clr-primary);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-semi);
+  cursor: pointer;
+  padding: 0;
+}
+
+.linkBtnDanger {
+  background: none;
+  border: none;
+  color: var(--danger);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-semi);
+  cursor: pointer;
+  padding: 0;
+  margin-left: 14px;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.durBadge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  color: var(--warning-dark);
+  font-size: var(--font-xs);
+  font-weight: var(--fw-semi);
+  white-space: nowrap;
   box-shadow: var(--shadow-xs);
 }
 

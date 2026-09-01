@@ -12,7 +12,7 @@
 //   - Auto-refresh every 30 seconds
 //   - Responsive: 4-col → 2-col → 1-col
 //
-// Phases 2-8 (health score, factory, flow, insights, approvals embed,
+// Phases 2-8 (health score, insights, approvals embed,
 // timeline, performers, analytics, voice, FABs) will hang off this
 // foundation without changes to the tokens or theme system.
 // =====================================================================
@@ -417,21 +417,11 @@ function HeroCommandCenter({ stats, loading }) {
             loading={false}
           />
           <StatusPill
-            label="Revenue Today"
-            value={loading ? "···" : formatMoney(stats?.monthly_revenue || 0)}
-            tone="warn"
-            icon="💰"
-            loading={loading}
-            mono
-          />
-          <StatusPill
             label="Live Now"
             value={
               loading
                 ? "···"
-                : `${stats?.employees_present_today ?? 0} present · ${
-                    stats?.production_status?.TOTAL_ACTIVE ?? 0
-                  } prod`
+                : `${stats?.employees_present_today ?? 0} present`
             }
             tone="primary"
             icon="⚡"
@@ -478,19 +468,14 @@ function StatusPill({ label, value, tone, icon, loading, mono }) {
 
 
 // =====================================================================
-// KPI GRID — 12 premium tiles
+// KPI GRID — 7 premium tiles
 // =====================================================================
 
 const KPI_DEFS = [
-  { key: "monthly_revenue",         label: "Revenue (Month)",       icon: "💰", tone: "primary", format: "money", href: "/sales-orders" },
-  { key: "total_sales_orders",      label: "Sales Orders",          icon: "🛒", tone: "ok",      format: "int",   href: "/sales-orders" },
-  { key: "total_quotations",        label: "Quotations",            icon: "📋", tone: "info",    format: "int",   href: "/quotations" },
   { key: "total_customers",         label: "Customers",             icon: "👥", tone: "purple",  format: "int",   href: "/customers" },
   { key: "active_projects",         label: "Active Projects",       icon: "🏗️", tone: "warn",    format: "int",   href: "/projects" },
-  { key: "production_active",       label: "Production Running",    icon: "🏭", tone: "primary", format: "int",   href: "/production" },
   { key: "inventory_value",         label: "Inventory Value",       icon: "🏷️", tone: "ok",      format: "money", href: "/inventory" },
   { key: "purchase_orders",         label: "Purchase Orders",       icon: "📦", tone: "info",    format: "int"   },
-  { key: "pending_payments",        label: "Pending Payments",      icon: "💳", tone: "warn",    format: "money", href: "/sales-orders" },
   { key: "employees_present_today", label: "Employees Present",     icon: "🟢", tone: "ok",      format: "int",   href: "/attendance" },
   { key: "leave_requests_pending",  label: "Leave Requests",        icon: "🌴", tone: "purple",  format: "int",   href: "/approvals" },
   { key: "ai_notifications",        label: "AI Notifications",      icon: "🔔", tone: "primary", format: "int",   href: "#" },
@@ -751,8 +736,6 @@ function AdminDashboardV2Inner() {
   const [stats, setStats]             = useState({});
   const [sparklines, setSparklines]   = useState({});
   const [health, setHealth]           = useState(null);
-  const [factory, setFactory]         = useState(null);
-  const [flow, setFlow]               = useState(null);
   const [insights, setInsights]       = useState([]);
   const [activity, setActivity]       = useState([]);
   const [approvals, setApprovals]     = useState(null);
@@ -762,24 +745,19 @@ function AdminDashboardV2Inner() {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [s, sp, hs, fs, pf, ins, act, app, tp] = await Promise.all([
+      const [s, sp, hs, ins, act, app, tp] = await Promise.all([
         API.get("/admin/dashboard-stats"),
         API.get("/admin/dashboard/sparklines").catch(() => ({ data: {} })),
         API.get("/admin/dashboard/health-score").catch(() => ({ data: null })),
-        API.get("/admin/dashboard/factory-status").catch(() => ({ data: null })),
-        API.get("/admin/dashboard/production-flow").catch(() => ({ data: null })),
         API.get("/admin/dashboard/insights").catch(() => ({ data: { insights: [] } })),
         API.get("/admin/dashboard/activity-feed?limit=14").catch(() => ({ data: { items: [] } })),
         API.get("/admin/approvals/pending").catch(() => ({ data: null })),
         API.get("/admin/dashboard/top-performers").catch(() => ({ data: { categories: [] } })),
       ]);
       const d = s.data || {};
-      d.production_active = d.production_status?.TOTAL_ACTIVE ?? 0;
       setStats(d);
       setSparklines(sp.data || {});
       setHealth(hs.data);
-      setFactory(fs.data);
-      setFlow(pf.data);
       setInsights(ins.data?.insights || []);
       setActivity(act.data?.items || []);
       setApprovals(app.data || null);
@@ -827,15 +805,9 @@ function AdminDashboardV2Inner() {
         ))}
       </section>
 
-      {/* Health Score + Factory Control — 2-column row */}
-      <section className={styles.twoColRow}>
-        <HealthScorePanel data={health} />
-        <FactoryControlPanel data={factory} />
-      </section>
-
-      {/* Production Flow — full width */}
+      {/* Health Score — full width */}
       <section className={styles.fullWidthSection}>
-        <ProductionFlowPanel data={flow} />
+        <HealthScorePanel data={health} />
       </section>
 
       {/* AI Insights + Approval Center — 2-col */}
@@ -1012,11 +984,7 @@ function PerformerCard({ p, index }) {
 // =====================================================================
 
 const ANALYTICS_TABS = [
-  { key: "revenue",    label: "Revenue Trend",    icon: "💰", tone: "primary", format: "money", chart: "area" },
-  { key: "sales",      label: "Sales Growth",     icon: "🛒", tone: "ok",      format: "int",   chart: "bar"  },
-  { key: "production", label: "Production",       icon: "🏭", tone: "warn",    format: "int",   chart: "area" },
   { key: "customers",  label: "Customer Growth",  icon: "👥", tone: "purple",  format: "int",   chart: "line" },
-  { key: "inventory",  label: "Consumption",      icon: "📦", tone: "info",    format: "int",   chart: "bar"  },
 ];
 
 const ANALYTICS_RANGES = [
@@ -1340,10 +1308,8 @@ function InsightCard({ insight, index }) {
 const APPROVAL_BUCKETS = [
   { key: "leaves",            label: "Leaves",        icon: "🌴", color: "info" },
   { key: "permissions",       label: "Permissions",   icon: "⏱",  color: "warn" },
-  { key: "quotations",        label: "Quotations",    icon: "📋", color: "ok" },
   { key: "purchase_orders",   label: "POs (draft)",   icon: "📦", color: "info" },
   { key: "supplier_payments", label: "Supplier Pay",  icon: "💳", color: "primary" },
-  { key: "discount_requests", label: "Discounts",     icon: "🏷️", color: "purple" },
 ];
 
 function ApprovalEmbed({ approvals }) {
@@ -1706,273 +1672,7 @@ function HealthScorePanel({ data }) {
 
 
 // =====================================================================
-// FACTORY CONTROL PANEL — gauges + machine status + WO breakdown
-// =====================================================================
-
-function FactoryControlPanel({ data }) {
-
-  const machines = data?.machines || {};
-  const wo       = data?.work_orders || {};
-  const projects = data?.projects || {};
-  const efficiency = data?.efficiency_pct ?? 0;
-
-  const animEff = useCountUp(efficiency, 1200);
-
-  const effColor = efficiency >= 75
-    ? "var(--c-accent-ok)"
-    : efficiency >= 50
-    ? "var(--c-accent-warn)"
-    : "var(--c-primary-2)";
-
-  // SVG gauge geometry — 180° arc
-  const GR = 70, GS = 14;
-  const startA = Math.PI;
-  const endA = 0;
-  const polar = (r, a) => [96 + r * Math.cos(a), 96 + r * Math.sin(a)];
-  const [sx, sy] = polar(GR, startA);
-  const [ex, ey] = polar(GR, endA);
-  const bgPath = `M${sx},${sy} A${GR},${GR} 0 0,1 ${ex},${ey}`;
-  const fillAngle = startA + (endA - startA) * (efficiency / 100);
-  const [fx, fy] = polar(GR, fillAngle);
-  const fillPath = `M${sx},${sy} A${GR},${GR} 0 0,1 ${fx},${fy}`;
-
-  return (
-    <PanelCard
-      eyebrow="Live Factory Control"
-      title="Shop Floor Status"
-      icon="🏭"
-    >
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "auto 1fr",
-        gap: 24,
-        alignItems: "center",
-      }}>
-        {/* Efficiency gauge */}
-        <div style={{ position: "relative", width: 192, height: 130 }}>
-          <svg width="192" height="130" viewBox="0 0 192 130">
-            <path d={bgPath} stroke="var(--c-surface-2)" strokeWidth={GS}
-                  fill="none" strokeLinecap="round" />
-            <path d={fillPath} stroke={effColor} strokeWidth={GS}
-                  fill="none" strokeLinecap="round"
-                  style={{
-                    transition: "all 1.2s var(--ease-out)",
-                    filter: `drop-shadow(0 0 12px ${effColor}aa)`,
-                  }} />
-          </svg>
-          <div style={{
-            position: "absolute",
-            top: 24,
-            left: 0,
-            right: 0,
-            textAlign: "center",
-          }}>
-            <div style={{
-              fontSize: 10, fontWeight: 800, letterSpacing: 1.6,
-              color: "var(--c-text-muted)", textTransform: "uppercase",
-            }}>
-              Efficiency
-            </div>
-            <div style={{
-              fontSize: 36, fontWeight: 900,
-              fontFamily: "var(--font-mono)",
-              color: effColor,
-              lineHeight: 1, marginTop: 4,
-            }}>
-              {Math.round(animEff)}<span style={{ fontSize: 18 }}>%</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Machine + project tiles */}
-        <div style={{ display: "grid", gap: 8 }}>
-          <MachineRow icon="🟢" label="Work Orders running" value={machines.running || 0} tone="ok" />
-          <MachineRow icon="🟡" label="Work Orders idle"    value={machines.idle || 0}    tone="warn" />
-          <MachineRow icon="🔴" label="Work Orders on hold" value={machines.maintenance || 0} tone="primary" />
-          <div style={{ height: 1, background: "var(--c-border)", margin: "4px 0" }} />
-          <MachineRow icon="🏗️" label="Projects active"     value={projects.active || 0}     tone="info" />
-          <MachineRow icon="⚠️" label="Projects delayed"    value={projects.delayed || 0}    tone={projects.delayed ? "primary" : "ok"} />
-          <MachineRow icon="✅" label="Projects completed"  value={projects.completed || 0}  tone="ok" />
-        </div>
-      </div>
-    </PanelCard>
-  );
-}
-
-function MachineRow({ icon, label, value, tone }) {
-  return (
-    <div style={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      padding: "8px 12px",
-      background: "var(--c-surface-2)",
-      border: "1px solid var(--c-border)",
-      borderRadius: 10,
-    }}>
-      <div style={{
-        display: "flex", alignItems: "center", gap: 10,
-        fontSize: 12, fontWeight: 700, color: "var(--c-text)",
-      }}>
-        <span style={{ fontSize: 16 }}>{icon}</span>
-        {label}
-      </div>
-      <div style={{
-        fontSize: 18, fontWeight: 900,
-        fontFamily: "var(--font-mono)",
-        color: toneRGB(tone, 1),
-      }}>
-        {value}
-      </div>
-    </div>
-  );
-}
-
-
-// =====================================================================
-// PRODUCTION FLOW PANEL — animated pipeline w/ counts + conversion %
-// =====================================================================
-
-function ProductionFlowPanel({ data }) {
-
-  const stages = data?.stages || [];
-  const totalInPipeline = data?.total_in_pipeline || 0;
-  const completedTotal = data?.completed_total || 0;
-
-  return (
-    <PanelCard
-      eyebrow="Live Production Flow"
-      title="Pipeline · Quotation → Completed"
-      icon="🔄"
-      right={(
-        <div style={{
-          display: "flex", gap: 14, alignItems: "center",
-          fontSize: 11, color: "var(--c-text-muted)",
-        }}>
-          <div>
-            <span style={{ color: "var(--c-text)", fontWeight: 800,
-                           fontFamily: "var(--font-mono)" }}>
-              {totalInPipeline}
-            </span> in pipeline
-          </div>
-          <div>
-            <span style={{ color: "var(--c-accent-ok)", fontWeight: 800,
-                           fontFamily: "var(--font-mono)" }}>
-              {completedTotal}
-            </span> completed
-          </div>
-        </div>
-      )}
-    >
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: `repeat(${stages.length}, 1fr)`,
-        gap: 0,
-        position: "relative",
-        marginTop: 10,
-      }}>
-        {stages.map((s, i) => {
-          const isLast = i === stages.length - 1;
-          const isCompleted = i === stages.length - 1;
-          return (
-            <div key={s.label} style={{
-              position: "relative",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              padding: "10px 6px 4px",
-            }}>
-              {/* Connecting line to next stage */}
-              {!isLast && (
-                <div style={{
-                  position: "absolute",
-                  top: 30, left: "50%", right: "-50%",
-                  height: 2,
-                  background: "var(--c-primary)",
-                  zIndex: 0,
-                  opacity: 0.55,
-                }} />
-              )}
-
-              {/* Stage node */}
-              <div style={{
-                position: "relative",
-                zIndex: 2,
-                width: 60, height: 60,
-                borderRadius: "50%",
-                background: isCompleted
-                  ? "#10B981"
-                  : "var(--c-surface)",
-                border: `2px solid ${
-                  isCompleted ? "transparent" : "var(--c-primary-2)"
-                }`,
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: isCompleted
-                  ? "0 0 24px rgba(16,185,129,0.45)"
-                  : "0 4px 12px rgba(217,4,41,0.18)",
-              }}>
-                <div style={{ fontSize: 20, lineHeight: 1 }}>{s.icon}</div>
-                <div style={{
-                  fontSize: 13,
-                  fontWeight: 900,
-                  fontFamily: "var(--font-mono)",
-                  color: isCompleted ? "white" : "var(--c-primary-2)",
-                  marginTop: -2,
-                }}>
-                  {s.count}
-                </div>
-              </div>
-
-              {/* Stage label */}
-              <div style={{
-                fontSize: 10,
-                fontWeight: 800,
-                letterSpacing: 0.6,
-                color: "var(--c-text)",
-                marginTop: 10,
-                textTransform: "uppercase",
-                textAlign: "center",
-              }}>
-                {s.label}
-              </div>
-
-              {/* Conversion % to next */}
-              {!isLast && s.conversion_pct != null && (
-                <div style={{
-                  position: "absolute",
-                  top: 12, left: "75%",
-                  zIndex: 3,
-                  padding: "2px 6px",
-                  borderRadius: 999,
-                  background: "var(--c-surface)",
-                  border: "1px solid var(--c-border)",
-                  fontSize: 9,
-                  fontWeight: 800,
-                  fontFamily: "var(--font-mono)",
-                  color: s.conversion_pct >= 70
-                    ? "var(--c-accent-ok)"
-                    : s.conversion_pct >= 40
-                    ? "var(--c-accent-warn)"
-                    : "var(--c-primary-2)",
-                  whiteSpace: "nowrap",
-                }}>
-                  {s.conversion_pct}%
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </PanelCard>
-  );
-}
-
-
-// =====================================================================
-// Shared PanelCard — used by Health / Factory / Flow / future panels
+// Shared PanelCard — used by Health / future panels
 // =====================================================================
 
 function PanelCard({ eyebrow, title, icon, right, children }) {
@@ -2049,12 +1749,10 @@ function PanelCard({ eyebrow, title, icon, right, children }) {
 // =====================================================================
 
 const AI_EXAMPLE_CHIPS = [
-  "Show pending quotations",
   "Which project is delayed?",
   "How much inventory is low stock?",
   "Who is absent today?",
-  "Monthly revenue",
-  "Production status",
+  "Pending leave requests",
 ];
 
 function AIAssistantFAB({ openSignal }) {
@@ -2068,8 +1766,7 @@ function AIAssistantFAB({ openSignal }) {
       role: "assistant",
       text:
         "Hi — I'm the BVC24 AI assistant. Ask me anything about live data: " +
-        "pending quotations, delayed projects, who's absent, monthly revenue, " +
-        "production status, and more.",
+        "delayed projects, who's absent, leave requests, and more.",
       time: new Date(),
     },
   ]);
@@ -2584,8 +2281,6 @@ function renderInlineBold(text) {
 
 const QUICK_ACTIONS = [
   { icon: "👥", label: "Customer",       href: "/customers",       tone: "purple" },
-  { icon: "📋", label: "Quotation",      href: "/quotations",      tone: "info"   },
-  { icon: "🛒", label: "Sales Order",    href: "/sales-orders",    tone: "ok"     },
   { icon: "🏗️", label: "Project",        href: "/projects",        tone: "warn"   },
   { icon: "👤", label: "Employee",       href: "/employees",       tone: "purple" },
   { icon: "💰", label: "Payroll",        href: "/payroll",         tone: "ok"     },

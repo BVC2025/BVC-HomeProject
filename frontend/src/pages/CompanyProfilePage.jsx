@@ -1,12 +1,111 @@
 import { useState, useEffect, useCallback, useRef, useMemo, memo } from "react";
 import {
-  PageHeader, Loader, PMButton, PMConfirmModal,
+  PageHeader, Loader, PMButton, PMConfirmModal, PMModal,
   CustomFieldsSection, CustomFieldsModal,
 } from "../components/pm";
 import { useToast } from "../hooks/useToast";
 import { useCustomFields } from "../hooks/useCustomFields";
+import { useAuth } from "../context/AuthContext";
 import API, { API_BASE_URL } from "../services/api";
 import styles from "./CompanyProfilePage.module.css";
+
+// ---------------------------------------------------------------------------
+// Working schedule helpers — mirror company_schedule_service.py so the UI can
+// give immediate feedback before the server's own recalculation on save.
+// ---------------------------------------------------------------------------
+const TIMEZONE_OPTIONS = [
+  { value: "Asia/Kolkata", label: "Asia/Kolkata (IST)" },
+  { value: "Asia/Dubai", label: "Asia/Dubai (GST)" },
+  { value: "Asia/Singapore", label: "Asia/Singapore (SGT)" },
+  { value: "Europe/London", label: "Europe/London (GMT/BST)" },
+  { value: "America/New_York", label: "America/New York (ET)" },
+  { value: "UTC", label: "UTC" },
+];
+
+const EMPTY_BREAK = () => ({
+  _key: Math.random().toString(36).slice(2),
+  BREAK_NAME: "",
+  BREAK_START_TIME: "",
+  BREAK_END_TIME: "",
+  SEQUENCE_NUMBER: 0,
+  IS_ACTIVE: true,
+});
+
+function timeToMinutes(t) {
+  if (!t) return null;
+  const parts = String(t).split(":");
+  const h = Number(parts[0]);
+  const m = Number(parts[1] || 0);
+  if (Number.isNaN(h) || Number.isNaN(m)) return null;
+  return h * 60 + m;
+}
+
+function formatTimeLabel(t) {
+  const mins = timeToMinutes(t);
+  if (mins == null) return "--:--";
+  const h24 = Math.floor(mins / 60);
+  const m = mins % 60;
+  const period = h24 >= 12 ? "PM" : "AM";
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${String(h12).padStart(2, "0")}:${String(m).padStart(2, "0")} ${period}`;
+}
+
+function computeProductiveHours(start, end, breaks) {
+  const s = timeToMinutes(start);
+  const e = timeToMinutes(end);
+  if (s == null || e == null || e <= s) return 0;
+  let breakMinutes = 0;
+  (breaks || []).forEach((b) => {
+    if (b.IS_ACTIVE === false) return;
+    const bs = timeToMinutes(b.BREAK_START_TIME);
+    const be = timeToMinutes(b.BREAK_END_TIME);
+    if (bs == null || be == null || be <= bs) return;
+    breakMinutes += be - bs;
+  });
+  return Math.max(0, (e - s - breakMinutes) / 60);
+}
+
+// Returns a single blocking error message, or null if the break set is valid
+// for the given working window. Mirrors company_schedule_service.validate_breaks()
+// — kept in sync with that function's rules.
+function getBreaksError(breaks, workStart, workEnd) {
+  const active = (breaks || []).filter((b) => b.IS_ACTIVE !== false);
+  if (active.length === 0) return null;
+
+  const ws = timeToMinutes(workStart);
+  const we = timeToMinutes(workEnd);
+  if (ws == null || we == null) {
+    return "Set the working start and end time before adding break periods.";
+  }
+
+  const intervals = [];
+  for (const b of active) {
+    const name = (b.BREAK_NAME || "").trim();
+    if (!name) return "Every break must have a name.";
+    const bs = timeToMinutes(b.BREAK_START_TIME);
+    const be = timeToMinutes(b.BREAK_END_TIME);
+    if (bs == null || be == null || bs >= be) {
+      return `Break "${name}" must start before it ends.`;
+    }
+    if (bs < ws || be > we) {
+      return `Break "${name}" must fall fully within the working hours.`;
+    }
+    intervals.push({ bs, be, name });
+  }
+
+  intervals.sort((a, c) => a.bs - c.bs);
+  let total = 0;
+  for (let i = 0; i < intervals.length; i++) {
+    if (i > 0 && intervals[i].bs < intervals[i - 1].be) {
+      return `Break "${intervals[i].name}" overlaps with "${intervals[i - 1].name}".`;
+    }
+    total += intervals[i].be - intervals[i].bs;
+  }
+  if (total >= (we - ws)) {
+    return "Total break duration cannot equal or exceed the working hours window.";
+  }
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Field — memo-wrapped so it only re-renders when its own props change.
@@ -51,6 +150,9 @@ function SectionCard({ title, desc, children }) {
 // CompanyProfilePage
 // ---------------------------------------------------------------------------
 export default function CompanyProfilePage() {
+  const { hasPermission } = useAuth();
+  const canManageSchedule = hasPermission("company.working_schedule.manage");
+
   const [profile, setProfile] = useState(null);
   const [form, setForm] = useState({});
   const [initialForm, setInitialForm] = useState({});
@@ -60,6 +162,8 @@ export default function CompanyProfilePage() {
   const [domainStatus, setDomainStatus] = useState(null);
   const [cfModal, setCfModal] = useState(false);
   const [leaveModal, setLeaveModal] = useState(false);
+  const [breaksModalOpen, setBreaksModalOpen] = useState(false);
+  const [breaksDraft, setBreaksDraft] = useState([]);
 
   // ── Refs (never trigger re-renders) ────────────────────────────────────
   // Prevents double-fetch in React Strict Mode (mount→unmount→mount cycle).
@@ -197,12 +301,54 @@ export default function CompanyProfilePage() {
   }, [handleChange]);
 
   // Extracted handlers for non-Field inputs — no inline closures in JSX.
-  const handleWorkHoursChange = useCallback((e) => {
-    handleChange(
-      "WORK_HOURS",
-      e.target.value === "" ? null : parseFloat(e.target.value),
-    );
+  const handleTimezoneChange = useCallback((e) => {
+    handleChange("WORKING_TIMEZONE", e.target.value);
   }, [handleChange]);
+
+  // ── Break periods modal ──────────────────────────────────────────────
+  const openBreaksModal = useCallback(() => {
+    const existing = (formRef.current.working_breaks || []).map((b) => ({
+      ...b,
+      _key: b.ID || Math.random().toString(36).slice(2),
+    }));
+    setBreaksDraft(existing);
+    setBreaksModalOpen(true);
+  }, []);
+
+  const closeBreaksModal = useCallback(() => setBreaksModalOpen(false), []);
+
+  const addBreakRow = useCallback(() => {
+    setBreaksDraft((prev) => [...prev, { ...EMPTY_BREAK(), SEQUENCE_NUMBER: prev.length }]);
+  }, []);
+
+  const removeBreakRow = useCallback((key) => {
+    setBreaksDraft((prev) => prev.filter((b) => b._key !== key));
+  }, []);
+
+  const updateBreakRow = useCallback((key, field, value) => {
+    setBreaksDraft((prev) => prev.map((b) => (b._key === key ? { ...b, [field]: value } : b)));
+  }, []);
+
+  const saveBreaksModal = useCallback(() => {
+    const currentForm = formRef.current;
+    const cleaned = breaksDraft.map((b, idx) => ({
+      ID: b.ID,
+      BREAK_NAME: (b.BREAK_NAME || "").trim(),
+      BREAK_START_TIME: b.BREAK_START_TIME,
+      BREAK_END_TIME: b.BREAK_END_TIME,
+      SEQUENCE_NUMBER: idx,
+      IS_ACTIVE: b.IS_ACTIVE !== false,
+    }));
+
+    const err = getBreaksError(cleaned, currentForm.WORK_START_TIME, currentForm.WORK_END_TIME);
+    if (err) {
+      toastRef.current.showError(err);
+      return;
+    }
+
+    handleChange("working_breaks", cleaned);
+    setBreaksModalOpen(false);
+  }, [breaksDraft, handleChange]);
 
   const handleNotesChange = useCallback((e) => {
     handleChange("NOTES", e.target.value);
@@ -237,13 +383,17 @@ export default function CompanyProfilePage() {
     if (ds === "invalid") { toastRef.current.showError("Please fix the domain format before saving."); return; }
 
     const currentForm = formRef.current;
-    if (currentForm?.WORK_HOURS != null && currentForm.WORK_HOURS !== "") {
-      const wh = parseFloat(currentForm.WORK_HOURS);
-      if (isNaN(wh) || wh < 0 || wh > 24) {
-        toastRef.current.showError("Working hours must be between 0 and 24.");
+    if (currentForm?.WORK_START_TIME && currentForm?.WORK_END_TIME) {
+      if (timeToMinutes(currentForm.WORK_START_TIME) >= timeToMinutes(currentForm.WORK_END_TIME)) {
+        toastRef.current.showError("Working start time must be earlier than the working end time.");
         return;
       }
     }
+
+    const breaksErr = getBreaksError(
+      currentForm?.working_breaks, currentForm?.WORK_START_TIME, currentForm?.WORK_END_TIME,
+    );
+    if (breaksErr) { toastRef.current.showError(breaksErr); return; }
 
     const cfError = validateCfRef.current?.();
     if (cfError) { toastRef.current.showError(cfError); return; }
@@ -317,6 +467,16 @@ export default function CompanyProfilePage() {
   const logoInitial = useMemo(
     () => (form.LEGAL_NAME || "C").charAt(0).toUpperCase(),
     [form.LEGAL_NAME],
+  );
+
+  const computedWorkHours = useMemo(
+    () => computeProductiveHours(form.WORK_START_TIME, form.WORK_END_TIME, form.working_breaks),
+    [form.WORK_START_TIME, form.WORK_END_TIME, form.working_breaks],
+  );
+
+  const activeBreakCount = useMemo(
+    () => (form.working_breaks || []).filter((b) => b.IS_ACTIVE !== false).length,
+    [form.working_breaks],
   );
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -475,27 +635,65 @@ export default function CompanyProfilePage() {
                 </p>
               </SectionCard>
 
-              <SectionCard title="Working Hours" desc="Standard daily working hours for your organization.">
-                <div className={styles.workHoursRow}>
-                  <input
-                    type="number"
-                    min="0"
-                    max="24"
-                    step="0.5"
-                    value={form.WORK_HOURS ?? ""}
-                    onChange={handleWorkHoursChange}
-                    className={styles.workHoursInput}
-                    placeholder="8"
-                  />
-                  <span className={styles.workHoursUnit}>hours / day</span>
-                </div>
-                {form.WORK_HOURS != null && form.WORK_HOURS !== "" && (
-                  <div className={styles.workHoursPreview}>
-                    <span>🕗</span>
-                    <span><strong>{form.WORK_HOURS}</strong> standard working hours per day</span>
+              {canManageSchedule && (
+                <SectionCard
+                  title="Working Schedule"
+                  desc="Configure daily working hours, timezone, and break periods. Used to automatically schedule task durations — breaks are never counted as working time."
+                >
+                  <div className={styles.fieldGrid}>
+                    <Field name="WORK_START_TIME" label="Working Start Time" value={form.WORK_START_TIME} onChange={handleChange} type="time" />
+                    <Field name="WORK_END_TIME" label="Working End Time" value={form.WORK_END_TIME} onChange={handleChange} type="time" />
+                    <div className={styles.fieldGroup}>
+                      <label className={styles.fieldLabel}>Working Timezone</label>
+                      <select
+                        className={styles.input}
+                        value={form.WORKING_TIMEZONE || "Asia/Kolkata"}
+                        onChange={handleTimezoneChange}
+                      >
+                        {TIMEZONE_OPTIONS.map((tz) => (
+                          <option key={tz.value} value={tz.value}>{tz.label}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                )}
-              </SectionCard>
+
+                  {form.WORK_START_TIME && form.WORK_END_TIME && (
+                    <div className={styles.workHoursPreview}>
+                      <span>🕗</span>
+                      <span>
+                        <strong>{computedWorkHours.toFixed(2)}</strong> productive working hours per day
+                        {activeBreakCount > 0 && (
+                          <> (excluding {activeBreakCount} active break{activeBreakCount === 1 ? "" : "s"})</>
+                        )}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className={styles.breaksSummaryRow}>
+                    <div className={styles.breaksSummaryList}>
+                      {(form.working_breaks || []).length === 0 ? (
+                        <span className={styles.hint}>No break periods configured yet.</span>
+                      ) : (
+                        form.working_breaks
+                          .slice()
+                          .sort((a, b) => a.SEQUENCE_NUMBER - b.SEQUENCE_NUMBER)
+                          .map((b) => (
+                            <span
+                              key={b.ID || b.BREAK_NAME}
+                              className={`${styles.breakChip} ${b.IS_ACTIVE === false ? styles.breakChipInactive : ""}`}
+                            >
+                              {b.BREAK_NAME} · {formatTimeLabel(b.BREAK_START_TIME)}–{formatTimeLabel(b.BREAK_END_TIME)}
+                              {b.IS_ACTIVE === false && " (inactive)"}
+                            </span>
+                          ))
+                      )}
+                    </div>
+                    <PMButton variant="outline" size="sm" onClick={openBreaksModal}>
+                      Manage Breaks
+                    </PMButton>
+                  </div>
+                </SectionCard>
+              )}
 
               <SectionCard title="Notes">
                 <textarea
@@ -551,6 +749,99 @@ export default function CompanyProfilePage() {
           confirmLabel="Leave"
           cancelLabel="Stay"
         />
+      )}
+
+      {breaksModalOpen && (
+        <PMModal
+          open={breaksModalOpen}
+          onClose={closeBreaksModal}
+          title="Manage Break Periods"
+          size="lg"
+          footer={
+            <div className={styles.modalFooterRow}>
+              <PMButton variant="outline" onClick={closeBreaksModal}>Cancel</PMButton>
+              <PMButton variant="primary" onClick={saveBreaksModal}>Save Breaks</PMButton>
+            </div>
+          }
+        >
+          <p className={styles.sectionDesc}>
+            Define any number of break periods (tea breaks, lunch, etc). Each break must fall fully
+            within your working hours ({formatTimeLabel(form.WORK_START_TIME)}–{formatTimeLabel(form.WORK_END_TIME)})
+            and cannot overlap another break. Task scheduling automatically skips active break periods.
+          </p>
+
+          {breaksDraft.length === 0 && (
+            <p className={styles.hint}>No break periods yet — click "+ Add Break" below.</p>
+          )}
+
+          {breaksDraft.map((b, idx) => {
+            const nameError = !(b.BREAK_NAME || "").trim();
+            const sMin = timeToMinutes(b.BREAK_START_TIME);
+            const eMin = timeToMinutes(b.BREAK_END_TIME);
+            const timeError = sMin == null || eMin == null || sMin >= eMin;
+
+            return (
+              <div key={b._key} className={styles.requirementRow}>
+                <div className={styles.requirementRowHead}>
+                  <span className={styles.requirementRowTitle}>Break {idx + 1}</span>
+                  <button
+                    type="button"
+                    className={styles.removeRowBtn}
+                    onClick={() => removeBreakRow(b._key)}
+                  >
+                    Remove
+                  </button>
+                </div>
+                <div className={styles.breakRowGrid}>
+                  <div className={styles.requirementFieldCell}>
+                    <label>Break Name <span className={styles.req}>*</span></label>
+                    <input
+                      className={`${styles.input}${nameError ? " " + styles.inputError : ""}`}
+                      value={b.BREAK_NAME}
+                      onChange={(e) => updateBreakRow(b._key, "BREAK_NAME", e.target.value)}
+                      placeholder="e.g. Lunch Break"
+                    />
+                  </div>
+                  <div className={styles.requirementFieldCell}>
+                    <label>Start Time <span className={styles.req}>*</span></label>
+                    <input
+                      type="time"
+                      className={`${styles.input}${timeError ? " " + styles.inputError : ""}`}
+                      value={b.BREAK_START_TIME || ""}
+                      onChange={(e) => updateBreakRow(b._key, "BREAK_START_TIME", e.target.value)}
+                    />
+                  </div>
+                  <div className={styles.requirementFieldCell}>
+                    <label>End Time <span className={styles.req}>*</span></label>
+                    <input
+                      type="time"
+                      className={`${styles.input}${timeError ? " " + styles.inputError : ""}`}
+                      value={b.BREAK_END_TIME || ""}
+                      onChange={(e) => updateBreakRow(b._key, "BREAK_END_TIME", e.target.value)}
+                    />
+                  </div>
+                  <div className={styles.requirementFieldCell}>
+                    <label className={styles.breakActiveLabel}>
+                      <input
+                        type="checkbox"
+                        checked={b.IS_ACTIVE !== false}
+                        onChange={(e) => updateBreakRow(b._key, "IS_ACTIVE", e.target.checked)}
+                      />
+                      Active
+                    </label>
+                  </div>
+                </div>
+                {timeError && (
+                  <span className={styles.taskFieldError}>Start time must be before end time.</span>
+                )}
+              </div>
+            );
+          })}
+
+          <button type="button" className={styles.addRowBtn} onClick={addBreakRow}>
+            + Add Break
+          </button>
+        </PMModal>
       )}
     </div>
   );

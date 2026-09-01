@@ -24,7 +24,7 @@ import PayslipPreview from "../components/PayslipPreview";
 import styles from "./PayslipGenerator.module.css";
 
 
-const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8001";
+const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8000";
 
 
 const MONTHS = [

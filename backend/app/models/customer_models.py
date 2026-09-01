@@ -42,6 +42,27 @@ PAYMENT_STATUS_ENUM = SAEnum(
     name="customer_payment_status_enum", create_constraint=True
 )
 
+# CustomerProjectTask.STATUS lifecycle — set/transitioned by the
+# automatic production scheduling / task assignment engine (see
+# app/services/production_scheduling_service.py). EXTENDED/OVERDUE are
+# distinct from IN_PROGRESS so a task that blew past its DUE_DATE (or had
+# one) is visibly flagged rather than silently indistinguishable from one
+# still on track.
+TASK_STATUS_ENUM = SAEnum(
+    "PENDING", "IN_PROGRESS", "COMPLETED", "EXTENDED", "OVERDUE",
+    name="task_status_enum", create_constraint=True
+)
+
+# ProductionSchedule.STATUS — the propose/approve/reject workflow state
+# for ONE CustomerProjectAssignment's automatic production scheduling.
+# Deliberately separate from CustomerProjectAssignment.STATUS (which
+# already means ASSIGNED/IN_PROGRESS/COMPLETED/CANCELLED/HOLD) — see
+# ProductionSchedule's own docstring for why these are not merged.
+PRODUCTION_SCHEDULE_STATUS_ENUM = SAEnum(
+    "PROPOSED", "APPROVED", "REJECTED",
+    name="production_schedule_status_enum", create_constraint=True
+)
+
 
 class Customer(Base):
     """
@@ -173,6 +194,135 @@ class CustomerProjectAssignment(Base):
         cascade="all, delete-orphan", passive_deletes=True,
         order_by="CustomerProjectPayment.PAYMENT_DATE",
     )
+    tasks = relationship(
+        "CustomerProjectTask", back_populates="assignment",
+        cascade="all, delete-orphan", passive_deletes=True,
+    )
+    production_schedule = relationship(
+        "ProductionSchedule", back_populates="assignment",
+        uselist=False, cascade="all, delete-orphan", passive_deletes=True,
+    )
+
+
+class CustomerProjectTask(Base):
+    """One live, assignable unit of work under a CustomerProjectAssignment
+    — the runtime counterpart of a catalog TaskTemplate (project_models.py)
+    once a Lead's Purchase Order + payment milestone has cleared and the
+    project's master task list is ready to be worked. TASK_TEMPLATE_ID/
+    EMPLOYEE_ID are both nullable (RESTRICT, not SET NULL, matching your
+    spec — a resolved template/employee reference should block deletion
+    rather than silently detach) since a row can exist before either is
+    resolved. Model/table only for now — the auto-assignment engine that
+    populates these rows and the Gantt Chart view that reads them are a
+    separate, later phase."""
+
+    __tablename__ = "customer_project_task"
+
+    ID = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    ASSIGNMENT_ID = Column(
+        String(36), ForeignKey("customer_project_assignment.ID", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+
+    TASK_TEMPLATE_ID = Column(String(36), ForeignKey("task_template.ID", ondelete="RESTRICT"), nullable=True)
+
+    EMPLOYEE_ID = Column(String(36), ForeignKey("employee.ID", ondelete="RESTRICT"), nullable=True)
+
+    # 1-based unit index for TASK_SCOPE=UNIT task templates (one row set
+    # per project unit); NULL for TASK_SCOPE=PROJECT (created once).
+    PROJECT_UNIT_NUMBER = Column(Integer, nullable=True)
+
+    ESTIMATED_DAYS  = Column(Integer, default=0)
+    ESTIMATED_HOURS = Column(Numeric(5, 2), default=0.0)
+    EXTEND_COUNT    = Column(Integer, default=0)
+
+    # Populated by task_generation_service.py at generation time.
+    # DUE_DATE (below) is the planned END — kept as originally named.
+    ASSIGNED_DATE      = Column(DateTime, nullable=True)
+    PLANNED_START_DATE = Column(DateTime, nullable=True)
+    ACTUAL_START_DATE  = Column(DateTime, nullable=True)  # set when STATUS -> IN_PROGRESS
+
+    DUE_DATE        = Column(DateTime, nullable=True)
+    COMPLETED_DATE  = Column(DateTime, nullable=True)
+
+    STATUS = Column(TASK_STATUS_ENUM, default="PENDING")
+
+    # Idempotency guards for production_reminder_scheduler.py — each is
+    # stamped once its reminder email is sent, never re-sent.
+    DAY_BEFORE_REMINDER_SENT_AT = Column(DateTime, nullable=True)
+    START_DATE_REMINDER_SENT_AT = Column(DateTime, nullable=True)
+
+    CREATED_AT = Column(DateTime, nullable=False, default=now_ist)
+    UPDATED_AT = Column(DateTime, nullable=False, default=now_ist, onupdate=now_ist)
+
+    assignment = relationship("CustomerProjectAssignment", back_populates="tasks")
+    task_template = relationship("TaskTemplate", foreign_keys=[TASK_TEMPLATE_ID])
+    employee = relationship("Employee", foreign_keys=[EMPLOYEE_ID])
+
+
+class ProductionSchedule(Base):
+    """One row per CustomerProjectAssignment — tracks the automatic
+    production-scheduling workflow triggered once the first configured
+    Payment Milestone is reached (see payment_milestone_service.
+    evaluate_milestones_for_assignment(), which calls
+    production_scheduling_service.evaluate_and_propose_schedule()).
+
+    Deliberately does NOT reuse or extend CustomerProjectAssignment.STATUS
+    (ASSIGNED/IN_PROGRESS/COMPLETED/CANCELLED/HOLD already means something
+    else — the post-production progress of the assignment) — this row's
+    own STATUS (PROPOSED/APPROVED/REJECTED) plus TASKS_GENERATED_AT fully
+    describe the new pre-production workflow's state, so the two systems
+    never conflict.
+
+    PLAN_SNAPSHOT_JSON captures the proposed task/manpower/employee-
+    candidate breakdown used to build the approval email and review page.
+    The real source of truth once APPROVED is the actual generated
+    CustomerProjectTask rows, not this snapshot — it exists purely for
+    audit/display of what was originally proposed."""
+
+    __tablename__ = "production_schedule"
+
+    ID = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+
+    # unique=True: at most one schedule per assignment — a DB-level
+    # IntegrityError backstops the application-level idempotency check in
+    # evaluate_and_propose_schedule() against a concurrent duplicate-fire.
+    ASSIGNMENT_ID = Column(
+        String(36), ForeignKey("customer_project_assignment.ID", ondelete="CASCADE"),
+        nullable=False, unique=True, index=True,
+    )
+
+    SUGGESTED_START_DATE = Column(DateTime, nullable=False)
+    SUGGESTED_REASON     = Column(Text, nullable=True)
+
+    ESTIMATED_DURATION_DAYS   = Column(Numeric(10, 2), nullable=True)
+    ESTIMATED_COMPLETION_DATE = Column(DateTime, nullable=True)
+
+    # Set only when the suggested date is rejected and a new one chosen —
+    # must be >= SUGGESTED_START_DATE (enforced in
+    # production_scheduling_service.reject_and_reschedule()).
+    CHOSEN_START_DATE = Column(DateTime, nullable=True)
+
+    STATUS = Column(PRODUCTION_SCHEDULE_STATUS_ENUM, nullable=False, default="PROPOSED")
+
+    PLAN_SNAPSHOT_JSON = Column(Text, nullable=True)
+
+    APPROVED_BY_ID = Column(String(36), ForeignKey("employee.ID", ondelete="SET NULL"), nullable=True)
+    APPROVED_AT    = Column(DateTime, nullable=True)
+
+    REJECTED_BY_ID = Column(String(36), ForeignKey("employee.ID", ondelete="SET NULL"), nullable=True)
+    REJECTED_AT    = Column(DateTime, nullable=True)
+    REJECT_REASON  = Column(Text, nullable=True)
+
+    # Idempotency guard for task_generation_service.py — CustomerProjectTask
+    # rows are generated exactly once, the instant this is first set.
+    TASKS_GENERATED_AT = Column(DateTime, nullable=True)
+
+    CREATED_AT = Column(DateTime, nullable=False, default=now_ist)
+    UPDATED_AT = Column(DateTime, nullable=False, default=now_ist, onupdate=now_ist)
+
+    assignment = relationship("CustomerProjectAssignment", back_populates="production_schedule")
 
 
 class CustomerProjectQuotation(Base):

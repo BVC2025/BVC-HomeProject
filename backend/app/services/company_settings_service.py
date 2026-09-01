@@ -103,6 +103,27 @@ def serialize_company(c: CompanyMaster) -> dict:
         "UPI_ID":              c.UPI_ID,
         "LOGO_URL":            c.LOGO_URL,
         "NOTES":               c.NOTES,
+        "WORK_START_TIME": (
+            c.WORK_START_TIME.strftime("%H:%M:%S")
+            if c.WORK_START_TIME else None
+        ),
+        "WORK_END_TIME": (
+            c.WORK_END_TIME.strftime("%H:%M:%S")
+            if c.WORK_END_TIME else None
+        ),
+        "WORK_HOURS":          float(c.WORK_HOURS) if c.WORK_HOURS is not None else 0.0,
+        "WORKING_TIMEZONE":    c.WORKING_TIMEZONE,
+        "working_breaks": [
+            {
+                "ID":               b.ID,
+                "BREAK_NAME":       b.BREAK_NAME,
+                "BREAK_START_TIME": b.BREAK_START_TIME.strftime("%H:%M:%S"),
+                "BREAK_END_TIME":   b.BREAK_END_TIME.strftime("%H:%M:%S"),
+                "SEQUENCE_NUMBER":  b.SEQUENCE_NUMBER,
+                "IS_ACTIVE":        b.IS_ACTIVE,
+            }
+            for b in sorted(c.working_breaks, key=lambda x: x.SEQUENCE_NUMBER)
+        ],
         "UPDATED_AT": (
             c.UPDATED_AT.isoformat()
             if c.UPDATED_AT else None

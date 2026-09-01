@@ -22,14 +22,17 @@ from app.models.models import (
     Project,
     TaskTemplate,
     TaskTemplateRequirement,
-    TaskTemplateDependency,
+    TaskGroup,
     ProjectPricing,
+    ProjectProductRequirement,
     Department,
     Role,
     CustomField,
     CustomFieldTableValue,
     ProjectQuotationTemplate,
+    CustomerProjectTask,
 )
+from app.models.inventory_models import ProductMaster
 from app.services.company_settings_service import get_company_settings
 from app.services.project_quotation_service import (
     build_default_quotation_content,
@@ -37,7 +40,6 @@ from app.services.project_quotation_service import (
     render_quotation_html,
     sync_final_price_into_quotation,
 )
-from app.services import task_dependency_service
 
 
 router = APIRouter()
@@ -65,17 +67,38 @@ class TaskTemplateRequirementIn(BaseModel):
     REQUIRED_COUNT: int = Field(default=1, ge=1)
 
 
-class TaskTemplateDependencyIndexIn(BaseModel):
-    """Wizard path only (ProjectCreate/ProjectUpdate.tasks) — a 0-based
-    position within the SAME `tasks` array being submitted, since brand-new
-    tasks don't have real IDs yet at payload-construction time."""
-    DEPENDS_ON_TASK_INDEX: int
+class TaskGroupIn(BaseModel):
+    """Wizard path only (ProjectCreate/ProjectUpdate.task_groups) —
+    `task_indexes` and `DEPENDS_ON_TASK_INDEX` are 0-based positions within
+    the SAME `tasks` array being submitted, since brand-new tasks don't
+    have real IDs yet at payload-construction time. DEPENDS_ON_TASK_INDEX
+    is only meaningful (and required) when DEPENDENCY_RULE == "ONE", and
+    must itself be one of `task_indexes` — validated server-side."""
+    NAME: Optional[str] = None
+    task_indexes: List[int] = []
+    DEPENDENCY_RULE: str = "ALL"
+    DEPENDS_ON_TASK_INDEX: Optional[int] = None
 
 
-class TaskTemplateDependencyIn(BaseModel):
-    """Standalone /task-templates path — a real, already-persisted task ID
-    belonging to the same project."""
-    DEPENDS_ON_TASK_TEMPLATE_ID: str
+class TaskGroupCreate(BaseModel):
+    """Standalone /projects/{id}/task-groups path — real, already-
+    persisted task IDs. DEPENDS_ON_TASK_TEMPLATE_ID is only meaningful
+    (and required) when DEPENDENCY_RULE == "ONE", and must itself be one
+    of `task_template_ids` — validated server-side."""
+    NAME: Optional[str] = None
+    task_template_ids: List[str] = []
+    DEPENDENCY_RULE: str = "ALL"
+    DEPENDS_ON_TASK_TEMPLATE_ID: Optional[str] = None
+
+
+class TaskGroupUpdate(BaseModel):
+    """Full-replace-when-provided, matching the existing convention used
+    for TaskTemplateRequirement lists: omit a field to leave it untouched,
+    provide it (including an empty list/None) to replace it entirely."""
+    NAME: Optional[str] = None
+    task_template_ids: Optional[List[str]] = None
+    DEPENDENCY_RULE: Optional[str] = None
+    DEPENDS_ON_TASK_TEMPLATE_ID: Optional[str] = None
 
 
 class TaskTemplateIn(BaseModel):
@@ -85,10 +108,12 @@ class TaskTemplateIn(BaseModel):
     DURATION_UNIT: str = "DAYS"
     SEQUENCE_NUMBER: int = 0
     TASK_SCOPE: Optional[str] = "PROJECT"
-    EXECUTION_GROUP_ID: Optional[str] = None
-    DEPENDENCY_RULE: Optional[str] = "ALL"
     requirements: List[TaskTemplateRequirementIn] = []
-    dependencies: List[TaskTemplateDependencyIndexIn] = []
+
+
+class ProjectProductRequirementIn(BaseModel):
+    PRODUCT_ID: str
+    REQUIRED_QTY: float = 1.0
 
 
 class ProjectCreate(BaseModel):
@@ -99,6 +124,8 @@ class ProjectCreate(BaseModel):
     ASSIGNMENT_MODE: Optional[str] = None
     VENDOR_ID: int = 1
     tasks: Optional[List[TaskTemplateIn]] = []
+    task_groups: Optional[List[TaskGroupIn]] = []
+    product_requirements: Optional[List[ProjectProductRequirementIn]] = []
 
 
 class ProjectUpdate(BaseModel):
@@ -108,6 +135,8 @@ class ProjectUpdate(BaseModel):
     ASSIGNMENT_MODE: Optional[str] = None
     CATEGORY_ID: Optional[str] = None
     tasks: Optional[List[TaskTemplateIn]] = None
+    task_groups: Optional[List[TaskGroupIn]] = None
+    product_requirements: Optional[List[ProjectProductRequirementIn]] = None
     VENDOR_ID: int = 1
 
 
@@ -119,10 +148,7 @@ class TaskTemplateCreate(BaseModel):
     DURATION_UNIT: str = "DAYS"
     SEQUENCE_NUMBER: int = 0
     TASK_SCOPE: Optional[str] = "PROJECT"
-    EXECUTION_GROUP_ID: Optional[str] = None
-    DEPENDENCY_RULE: Optional[str] = "ALL"
     requirements: List[TaskTemplateRequirementIn] = []
-    dependencies: List[TaskTemplateDependencyIn] = []
     VENDOR_ID: int = 1
 
 
@@ -133,10 +159,7 @@ class TaskTemplateUpdate(BaseModel):
     DURATION_UNIT: Optional[str] = None
     SEQUENCE_NUMBER: Optional[int] = None
     TASK_SCOPE: Optional[str] = None
-    EXECUTION_GROUP_ID: Optional[str] = None
-    DEPENDENCY_RULE: Optional[str] = None
     requirements: Optional[List[TaskTemplateRequirementIn]] = None
-    dependencies: Optional[List[TaskTemplateDependencyIn]] = None
 
 
 class ReorderItem(BaseModel):
@@ -182,8 +205,9 @@ class ProjectPricingUpdate(BaseModel):
 # DURATION HELPERS
 # =========================
 
+_DEFAULT_WORK_HOURS = 8.0  # used whenever the vendor has no working schedule configured
+
 _UNIT_TO_DAYS = {
-    "HOURS":  1.0 / 8.0,
     "DAYS":   1.0,
     "WEEKS":  5.0,
     "MONTHS": 22.0,
@@ -191,16 +215,109 @@ _UNIT_TO_DAYS = {
 }
 
 
-def _to_days(value: float, unit: str) -> float:
-    return float(value) * _UNIT_TO_DAYS.get(unit.upper(), 1.0)
+def _resolve_work_hours(db: Session, project: Project) -> float:
+    company = get_company_settings(db, project.VENDOR_ID)
+    if company.WORK_HOURS and float(company.WORK_HOURS) > 0:
+        return float(company.WORK_HOURS)
+    return _DEFAULT_WORK_HOURS
 
 
-def _recalc_project_duration(project: Project, db: Session):
-    """Re-sum all task durations and write to ESTIMATED_TOTAL_DAYS."""
-    tasks = db.query(TaskTemplate).filter(TaskTemplate.PROJECT_ID == project.ID).all()
-    total = sum(_to_days(float(t.DURATION_VALUE), t.DURATION_UNIT) for t in tasks)
-    project.ESTIMATED_TOTAL_DAYS = round(total, 2)
+def _to_hours(value: float, unit: str, work_hours: float) -> float:
+    """Normalizes a task's DURATION_VALUE/DURATION_UNIT to hours using the
+    given company working-hours-per-day figure."""
+    unit = (unit or "DAYS").upper()
+    if unit == "HOURS":
+        return float(value)
+    return float(value) * _UNIT_TO_DAYS.get(unit, 1.0) * work_hours
+
+
+def calculate_project_estimated_duration(db: Session, project: Project) -> dict:
+    """Centralized, single source of truth for Project.ESTIMATED_TOTAL_DAYS
+    — the only place this calculation happens; every mutation that can
+    affect it (task create/update/delete, project create/update, Task
+    Group create/update/delete) calls this instead of duplicating the math.
+
+    Every task's DURATION_VALUE/DURATION_UNIT is normalized to hours using
+    the vendor's configured company working hours (falling back to the
+    existing 8h/day default when unconfigured — see _resolve_work_hours).
+    Tasks sharing a TASK_GROUP_ID run in parallel: a group's duration is
+    the MAX of its members' hours, not their sum. Top-level items (each
+    group, each ungrouped/standalone task) then combine according to
+    Project.ASSIGNMENT_MODE: SEQUENTIAL sums them (matches the existing
+    sequence/dependency-driven flow); PARALLEL takes their MAX (all
+    eligible top-level items start together and progress independently, so
+    the project's expected completion is the longest one, not their sum).
+
+    Writes project.ESTIMATED_TOTAL_DAYS and returns a breakdown dict for
+    the Review UI. Callers commit alongside their own transaction — this
+    function only flushes, so a failed sibling write in the same request
+    rolls the duration change back with it."""
+
+    tasks = (
+        db.query(TaskTemplate)
+          .filter(TaskTemplate.PROJECT_ID == project.ID)
+          .order_by(TaskTemplate.SEQUENCE_NUMBER)
+          .all()
+    )
+    work_hours = _resolve_work_hours(db, project)
+
+    grouped: "dict[str, list]" = {}
+    standalone = []
+    for t in tasks:
+        hours = _to_hours(float(t.DURATION_VALUE), t.DURATION_UNIT, work_hours)
+        if t.TASK_GROUP_ID:
+            grouped.setdefault(t.TASK_GROUP_ID, []).append((t, hours))
+        else:
+            standalone.append((t, hours))
+
+    group_name_by_id = {}
+    if grouped:
+        group_rows = db.query(TaskGroup).filter(TaskGroup.ID.in_(grouped.keys())).all()
+        group_name_by_id = {g.ID: g.NAME for g in group_rows}
+
+    group_breakdown = []
+    top_level_hours = []
+    for i, (group_id, members) in enumerate(grouped.items()):
+        duration_hours = max(h for _, h in members)
+        group_breakdown.append({
+            "TASK_GROUP_ID": group_id,
+            "NAME": group_name_by_id.get(group_id) or f"Group {i + 1}",
+            "task_count": len(members),
+            "duration_hours": round(duration_hours, 2),
+            "duration_days": round(duration_hours / work_hours, 2),
+        })
+        top_level_hours.append(duration_hours)
+
+    standalone_breakdown = []
+    for t, hours in standalone:
+        standalone_breakdown.append({
+            "TASK_TEMPLATE_ID": t.ID,
+            "NAME": t.NAME,
+            "duration_hours": round(hours, 2),
+            "duration_days": round(hours / work_hours, 2),
+        })
+        top_level_hours.append(hours)
+
+    if not top_level_hours:
+        total_hours = 0.0
+    elif project.ASSIGNMENT_MODE == "PARALLEL":
+        total_hours = max(top_level_hours)
+    else:
+        total_hours = sum(top_level_hours)
+
+    total_days = round(total_hours / work_hours, 2) if work_hours else 0.0
+
+    project.ESTIMATED_TOTAL_DAYS = total_days
     db.flush()
+
+    return {
+        "total_days": total_days,
+        "total_hours": round(total_hours, 2),
+        "work_hours": work_hours,
+        "assignment_mode": project.ASSIGNMENT_MODE,
+        "groups": group_breakdown,
+        "standalone_tasks": standalone_breakdown,
+    }
 
 
 # =========================
@@ -219,15 +336,8 @@ def _requirement_to_dict(r: TaskTemplateRequirement, dept_name=None, role_name=N
     }
 
 
-def _dependency_to_dict(dep: TaskTemplateDependency, name_map: dict):
-    return {
-        "ID": dep.ID,
-        "DEPENDS_ON_TASK_TEMPLATE_ID": dep.DEPENDS_ON_TASK_TEMPLATE_ID,
-        "DEPENDS_ON_TASK_NAME": name_map.get(dep.DEPENDS_ON_TASK_TEMPLATE_ID),
-    }
-
-
-def _task_to_dict(t: TaskTemplate, requirements: list, dependencies: list = None):
+def _task_to_dict(t: TaskTemplate, requirements: list, group_name_by_id: dict = None):
+    group_name_by_id = group_name_by_id or {}
     return {
         "ID": t.ID,
         "PROJECT_ID": t.PROJECT_ID,
@@ -237,11 +347,12 @@ def _task_to_dict(t: TaskTemplate, requirements: list, dependencies: list = None
         "DURATION_UNIT": t.DURATION_UNIT,
         "SEQUENCE_NUMBER": t.SEQUENCE_NUMBER,
         "TASK_SCOPE": t.TASK_SCOPE,
-        "EXECUTION_GROUP_ID": t.EXECUTION_GROUP_ID,
-        "DEPENDENCY_RULE": t.DEPENDENCY_RULE,
+        # Read-only, informational — group membership is configured
+        # exclusively through the Task Group endpoints, never here.
+        "TASK_GROUP_ID": t.TASK_GROUP_ID,
+        "TASK_GROUP_NAME": group_name_by_id.get(t.TASK_GROUP_ID) if t.TASK_GROUP_ID else None,
         "requirements": requirements,
         "TOTAL_REQUIRED_COUNT": sum(r["REQUIRED_COUNT"] for r in requirements),
-        "dependencies": dependencies or [],
         "VENDOR_ID": t.VENDOR_ID,
         "CREATED_AT": t.CREATED_AT.isoformat() if t.CREATED_AT else None,
         "UPDATED_AT": t.UPDATED_AT.isoformat() if t.UPDATED_AT else None
@@ -249,9 +360,8 @@ def _task_to_dict(t: TaskTemplate, requirements: list, dependencies: list = None
 
 
 def _enrich_tasks(tasks, db):
-    """Batch-fetches every referenced Department/Role/dependency-task name
-    once (instead of per row) and assembles each task's requirements and
-    dependencies lists."""
+    """Batch-fetches every referenced Department/Role/group name once
+    (instead of per row) and assembles each task's requirements list."""
     task_ids = [t.ID for t in tasks]
     reqs = (
         db.query(TaskTemplateRequirement)
@@ -274,22 +384,66 @@ def _enrich_tasks(tasks, db):
             _requirement_to_dict(r, dept_map.get(r.DEPARTMENT_ID), role_map.get(r.ROLE_ID))
         )
 
-    deps = (
-        db.query(TaskTemplateDependency)
-          .filter(TaskTemplateDependency.TASK_TEMPLATE_ID.in_(task_ids))
-          .all()
-        if task_ids else []
-    )
-    task_name_map = {t.ID: t.NAME for t in tasks}
-    deps_by_task = {}
-    for d in deps:
-        deps_by_task.setdefault(d.TASK_TEMPLATE_ID, []).append(
-            _dependency_to_dict(d, task_name_map)
-        )
+    group_ids = {t.TASK_GROUP_ID for t in tasks if t.TASK_GROUP_ID}
+    group_name_by_id = {
+        g.ID: g.NAME for g in db.query(TaskGroup).filter(TaskGroup.ID.in_(group_ids)).all()
+    } if group_ids else {}
 
     return [
-        _task_to_dict(t, reqs_by_task.get(t.ID, []), deps_by_task.get(t.ID, []))
+        _task_to_dict(t, reqs_by_task.get(t.ID, []), group_name_by_id)
         for t in tasks
+    ]
+
+
+def _task_group_to_dict(g: TaskGroup, member_dicts: list, depends_on_name: str = None):
+    return {
+        "ID": g.ID,
+        "PROJECT_ID": g.PROJECT_ID,
+        "NAME": g.NAME,
+        "SEQUENCE_NUMBER": g.SEQUENCE_NUMBER,
+        "DEPENDENCY_RULE": g.DEPENDENCY_RULE,
+        # Only meaningful when DEPENDENCY_RULE == "ONE" — always one of
+        # this group's own `task_templates` members (see
+        # DEPENDS_ON_TASK_NAME, resolved from that same member list, no
+        # extra query needed).
+        "DEPENDS_ON_TASK_TEMPLATE_ID": g.DEPENDS_ON_TASK_TEMPLATE_ID,
+        "DEPENDS_ON_TASK_NAME": depends_on_name,
+        "task_templates": member_dicts,
+        "VENDOR_ID": g.VENDOR_ID,
+        "CREATED_AT": g.CREATED_AT.isoformat() if g.CREATED_AT else None,
+        "UPDATED_AT": g.UPDATED_AT.isoformat() if g.UPDATED_AT else None,
+    }
+
+
+def _enrich_task_groups(groups, db):
+    """Batch-fetches every group's member tasks (with requirements),
+    mirroring _enrich_tasks' batching approach. The dependency target (if
+    any) is always one of a group's own members, so its name is resolved
+    directly from that same batch — no separate query needed."""
+    group_ids = [g.ID for g in groups]
+    if not group_ids:
+        return []
+
+    members = (
+        db.query(TaskTemplate)
+          .filter(TaskTemplate.TASK_GROUP_ID.in_(group_ids))
+          .order_by(TaskTemplate.SEQUENCE_NUMBER)
+          .all()
+    )
+    member_task_dicts = _enrich_tasks(members, db) if members else []
+    members_by_group = {}
+    name_by_task_id = {}
+    for d in member_task_dicts:
+        members_by_group.setdefault(d["TASK_GROUP_ID"], []).append(d)
+        name_by_task_id[d["ID"]] = d["NAME"]
+
+    return [
+        _task_group_to_dict(
+            g,
+            members_by_group.get(g.ID, []),
+            name_by_task_id.get(g.DEPENDS_ON_TASK_TEMPLATE_ID),
+        )
+        for g in groups
     ]
 
 
@@ -341,26 +495,126 @@ def _validate_unique_sequence(db: Session, project_id: str, sequence_number: int
         )
 
 
-def _validate_no_duplicate_dependencies(depends_on_ids: list):
-    seen = set()
-    for dep_id in depends_on_ids:
-        if dep_id in seen:
-            raise HTTPException(status_code=400, detail="Duplicate dependency — each task can only be depended on once per task.")
-        seen.add(dep_id)
+_VALID_DEPENDENCY_RULES = ("ALL", "ANY", "ONE")
 
 
-def _create_dependency_rows(db: Session, project_id: str, task_id: str, depends_on_ids: list, check_same_project: bool = True):
-    depends_on_ids = list(depends_on_ids)
-    if not depends_on_ids:
-        return
-    if task_id in depends_on_ids:
-        raise HTTPException(status_code=400, detail="A task cannot depend on itself.")
-    _validate_no_duplicate_dependencies(depends_on_ids)
-    if check_same_project:
-        task_dependency_service.validate_same_project(db, project_id, depends_on_ids)
-    task_dependency_service.validate_no_cycle(db, project_id, task_id, depends_on_ids)
-    for dep_id in depends_on_ids:
-        db.add(TaskTemplateDependency(TASK_TEMPLATE_ID=task_id, DEPENDS_ON_TASK_TEMPLATE_ID=dep_id))
+def _normalize_dependency_rule(rule: Optional[str]) -> str:
+    """Validates rule membership only."""
+    rule = (rule or "ALL").upper()
+    if rule not in _VALID_DEPENDENCY_RULES:
+        raise HTTPException(status_code=400, detail=f"Invalid dependency rule '{rule}'. Must be ALL, ANY, or ONE.")
+    return rule
+
+
+def _resolve_group_dependency(rule: str, depends_on_id: Optional[str], member_task_ids: list) -> Optional[str]:
+    """A TaskGroup's dependency target is always one of its own members —
+    there is no external "depends on another group/task" concept. For
+    ALL/ANY the rule is evaluated over every/any member directly, so no
+    explicit target is stored (any supplied value is ignored, not
+    errored — forgiving of a stray client value left over from switching
+    rules). For ONE, exactly one target must be supplied and it must be
+    one of `member_task_ids`."""
+    if rule != "ONE":
+        return None
+    if not depends_on_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Dependency Rule 'ONE' requires selecting one task to depend on.",
+        )
+    if depends_on_id not in member_task_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="The dependency task must be one of this group's own selected tasks.",
+        )
+    return depends_on_id
+
+
+def _project_has_live_production_tasks(db: Session, project_id: str) -> bool:
+    """True once at least one real CustomerProjectTask row exists for any
+    of this project's TaskTemplate rows — i.e. a customer's production
+    schedule has actually been approved and tasks generated/assigned
+    against the CURRENT task list (see production_scheduling_service.
+    approve_schedule()/reject_and_reschedule() -> task_generation_
+    service.generate_tasks_for_schedule()). CustomerProjectTask.
+    TASK_TEMPLATE_ID has an ON DELETE RESTRICT FK into task_template, so
+    the wizard's own delete-then-recreate replacement of tasks/groups
+    would otherwise crash with an unhandled IntegrityError (500) the
+    moment this becomes true for a project — this check exists so
+    update_project() can detect that BEFORE attempting the delete, and
+    skip the task/group replacement instead of crashing or silently
+    destroying live production data."""
+    return db.query(CustomerProjectTask.ID).join(
+        TaskTemplate, TaskTemplate.ID == CustomerProjectTask.TASK_TEMPLATE_ID
+    ).filter(TaskTemplate.PROJECT_ID == project_id).first() is not None
+
+
+def _create_tasks_and_groups(db: Session, project: Project, tasks_in: list, groups_in: list, vendor_id: int) -> list:
+    """Shared 3-pass task + group creation, used by both create_project()
+    and update_project() whenever a `tasks` array is supplied:
+      1. create every TaskTemplate row (brand new, no group/dependency
+         fields — those are configured exclusively via Task Groups now).
+      2. create every TaskGroup, resolving each group's `task_indexes`
+         (0-based positions in `tasks_in`) into the real TaskTemplate IDs
+         from pass 1, assigning membership, and resolving its own
+         DEPENDS_ON_TASK_INDEX (only meaningful for rule ONE — always one
+         of that SAME group's own indexes) into a real TaskTemplate ID.
+    Returns the created TaskTemplate IDs in submitted order."""
+
+    created_task_ids = []
+    for i, t in enumerate(tasks_in):
+        task = TaskTemplate(
+            PROJECT_ID=project.ID,
+            NAME=t.NAME,
+            DESCRIPTION=t.DESCRIPTION,
+            DURATION_VALUE=t.DURATION_VALUE,
+            DURATION_UNIT=t.DURATION_UNIT,
+            SEQUENCE_NUMBER=t.SEQUENCE_NUMBER if t.SEQUENCE_NUMBER else i,
+            TASK_SCOPE=t.TASK_SCOPE or "PROJECT",
+            VENDOR_ID=vendor_id,
+        )
+        db.add(task)
+        db.flush()
+        created_task_ids.append(task.ID)
+        _create_requirement_rows(task.ID, t.requirements, db)
+
+    groups_in = groups_in or []
+    created_group_ids = []
+    for g in groups_in:
+        member_ids = []
+        for idx in g.task_indexes:
+            if idx < 0 or idx >= len(created_task_ids):
+                raise HTTPException(status_code=400, detail=f"Invalid task reference in group \"{g.NAME or ''}\".")
+            member_ids.append(created_task_ids[idx])
+        if len(member_ids) != len(set(member_ids)):
+            raise HTTPException(status_code=400, detail=f"A task can only appear once in group \"{g.NAME or ''}\".")
+
+        rule = _normalize_dependency_rule(g.DEPENDENCY_RULE)
+
+        depends_on_id = None
+        if g.DEPENDS_ON_TASK_INDEX is not None:
+            if g.DEPENDS_ON_TASK_INDEX < 0 or g.DEPENDS_ON_TASK_INDEX >= len(created_task_ids):
+                raise HTTPException(status_code=400, detail=f"Invalid dependency reference in group \"{g.NAME or ''}\".")
+            depends_on_id = created_task_ids[g.DEPENDS_ON_TASK_INDEX]
+        depends_on_id = _resolve_group_dependency(rule, depends_on_id, member_ids)
+
+        group = TaskGroup(
+            PROJECT_ID=project.ID,
+            VENDOR_ID=vendor_id,
+            NAME=g.NAME or None,
+            DEPENDENCY_RULE=rule,
+            DEPENDS_ON_TASK_TEMPLATE_ID=depends_on_id,
+            SEQUENCE_NUMBER=len(created_group_ids),
+        )
+        db.add(group)
+        db.flush()
+        created_group_ids.append(group.ID)
+
+        if member_ids:
+            db.query(TaskTemplate).filter(TaskTemplate.ID.in_(member_ids)).update(
+                {"TASK_GROUP_ID": group.ID}, synchronize_session=False
+            )
+
+    return created_task_ids
 
 
 # =========================
@@ -552,6 +806,61 @@ def get_project(project_id: str, db: Session = Depends(get_db)):
     }
 
 
+def _create_product_requirements(db: Session, project: Project, requirements_in: list, vendor_id: int) -> None:
+    """Bulk-creates ProjectProductRequirement rows for a project — same
+    "caller deletes existing rows first on update, this only ever
+    inserts" convention as _create_tasks_and_groups. Validates every
+    PRODUCT_ID exists (for this vendor) and rejects a duplicate
+    PRODUCT_ID within the same submitted list (the DB unique constraint
+    on PROJECT_ID+PRODUCT_ID is the final backstop, but failing fast
+    here gives a much clearer error message than a raw IntegrityError)."""
+    if not requirements_in:
+        return
+    seen_product_ids = set()
+    for req in requirements_in:
+        if req.PRODUCT_ID in seen_product_ids:
+            raise HTTPException(status_code=400, detail="The same product cannot be added twice to a project's inventory requirements.")
+        seen_product_ids.add(req.PRODUCT_ID)
+
+    products = {
+        p.ID: p for p in db.query(ProductMaster).filter(
+            ProductMaster.ID.in_(seen_product_ids), ProductMaster.VENDOR_ID == vendor_id,
+        ).all()
+    }
+    missing = seen_product_ids - set(products.keys())
+    if missing:
+        raise HTTPException(status_code=404, detail=f"Product(s) not found: {', '.join(missing)}")
+
+    for req in requirements_in:
+        db.add(ProjectProductRequirement(
+            PROJECT_ID=project.ID, VENDOR_ID=vendor_id,
+            PRODUCT_ID=req.PRODUCT_ID, REQUIRED_QTY=req.REQUIRED_QTY or 1.0,
+        ))
+
+
+def _serialize_product_requirement(req: ProjectProductRequirement) -> dict:
+    product = req.product
+    return {
+        "ID": req.ID,
+        "PROJECT_ID": req.PROJECT_ID,
+        "PRODUCT_ID": req.PRODUCT_ID,
+        "PRODUCT_CODE": product.PRODUCT_CODE if product else None,
+        "PRODUCT_NAME": product.PRODUCT_NAME if product else None,
+        "UNIT": product.UNIT if product else None,
+        "CATEGORY_ID": product.CATEGORY_ID if product else None,
+        "REQUIRED_QTY": req.REQUIRED_QTY,
+    }
+
+
+@router.get("/projects/{project_id}/product-requirements", dependencies=[Depends(require("project.view"))])
+def list_product_requirements(project_id: str, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.ID == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    rows = db.query(ProjectProductRequirement).filter(ProjectProductRequirement.PROJECT_ID == project_id).all()
+    return [_serialize_product_requirement(r) for r in rows]
+
+
 @router.post("/projects", dependencies=[Depends(require("project.create"))])
 def create_project(data: ProjectCreate, db: Session = Depends(get_db)):
     cat = db.query(ProjectCategory).filter(ProjectCategory.ID == data.CATEGORY_ID).first()
@@ -594,42 +903,13 @@ def create_project(data: ProjectCreate, db: Session = Depends(get_db)):
     db.add(_qtn)
 
     if data.tasks:
-        created_task_ids = []
-        for i, t in enumerate(data.tasks):
-            task = TaskTemplate(
-                PROJECT_ID=project.ID,
-                NAME=t.NAME,
-                DESCRIPTION=t.DESCRIPTION,
-                DURATION_VALUE=t.DURATION_VALUE,
-                DURATION_UNIT=t.DURATION_UNIT,
-                SEQUENCE_NUMBER=t.SEQUENCE_NUMBER if t.SEQUENCE_NUMBER else i,
-                TASK_SCOPE=t.TASK_SCOPE or "PROJECT",
-                EXECUTION_GROUP_ID=t.EXECUTION_GROUP_ID or None,
-                DEPENDENCY_RULE=t.DEPENDENCY_RULE or "ALL",
-                VENDOR_ID=data.VENDOR_ID
-            )
-            db.add(task)
-            db.flush()
-            created_task_ids.append(task.ID)
-            _create_requirement_rows(task.ID, t.requirements, db)
-
-        # Second pass: dependencies reference other tasks in this SAME
-        # batch by array position (DEPENDS_ON_TASK_INDEX) — real IDs don't
-        # exist until after the first pass above.
-        for i, t in enumerate(data.tasks):
-            if not t.dependencies:
-                continue
-            depends_on_ids = []
-            for dep in t.dependencies:
-                if dep.DEPENDS_ON_TASK_INDEX < 0 or dep.DEPENDS_ON_TASK_INDEX >= len(created_task_ids):
-                    raise HTTPException(status_code=400, detail=f"Invalid dependency reference for task \"{t.NAME}\".")
-                if dep.DEPENDS_ON_TASK_INDEX == i:
-                    raise HTTPException(status_code=400, detail=f"Task \"{t.NAME}\" cannot depend on itself.")
-                depends_on_ids.append(created_task_ids[dep.DEPENDS_ON_TASK_INDEX])
-            _create_dependency_rows(db, project.ID, created_task_ids[i], depends_on_ids, check_same_project=False)
-
+        _create_tasks_and_groups(db, project, data.tasks, data.task_groups, data.VENDOR_ID)
         db.flush()
-        _recalc_project_duration(project, db)
+        calculate_project_estimated_duration(db, project)
+
+    if data.product_requirements:
+        _create_product_requirements(db, project, data.product_requirements, data.VENDOR_ID)
+        db.flush()
 
     try:
         db.commit()
@@ -661,42 +941,50 @@ def update_project(project_id: str, data: ProjectUpdate, db: Session = Depends(g
         if not cat:
             raise HTTPException(status_code=404, detail="Category not found")
         project.CATEGORY_ID = data.CATEGORY_ID
+    tasks_skipped_reason = None
     if data.tasks is not None:
-        db.query(TaskTemplate).filter(TaskTemplate.PROJECT_ID == project_id).delete()
-        created_task_ids = []
-        for i, t in enumerate(data.tasks):
-            task = TaskTemplate(
-                PROJECT_ID=project_id,
-                NAME=t.NAME,
-                DESCRIPTION=t.DESCRIPTION,
-                DURATION_VALUE=t.DURATION_VALUE,
-                DURATION_UNIT=t.DURATION_UNIT,
-                SEQUENCE_NUMBER=t.SEQUENCE_NUMBER if t.SEQUENCE_NUMBER else i,
-                TASK_SCOPE=t.TASK_SCOPE or "PROJECT",
-                EXECUTION_GROUP_ID=t.EXECUTION_GROUP_ID or None,
-                DEPENDENCY_RULE=t.DEPENDENCY_RULE or "ALL",
-                VENDOR_ID=data.VENDOR_ID
+        # Bulk deletes bypass ORM cascade and rely on DB-level ON DELETE
+        # rules. TaskTemplateRequirement has an FK *into* task_template, so
+        # it cascades automatically — but TaskGroup does NOT (it's the
+        # other direction: TaskTemplate points at TaskGroup). Without this
+        # explicit delete, every group would be orphaned (zero members,
+        # never cleaned up) on every wizard save.
+        # task_groups replacement is coupled to the same `tasks is not
+        # None` branch since stale group task_indexes can't stay
+        # referentially sane against a fresh task list.
+        #
+        # BUT: once a customer's production schedule has actually been
+        # approved for this project, real CustomerProjectTask rows exist
+        # that reference the CURRENT TaskTemplate rows via an ON DELETE
+        # RESTRICT FK — deleting them out from under live, already-
+        # assigned production work would either crash with an unhandled
+        # IntegrityError (what actually happened in production before this
+        # guard existed) or, if the FK were ever relaxed, silently orphan
+        # real assignment history. So once live tasks exist, the task/
+        # group list is frozen — every OTHER field on this same request
+        # (name, description, category, assignment mode, inventory
+        # requirements) still saves normally; only the task/group
+        # replacement is skipped, and the response says so explicitly
+        # rather than silently dropping the edit.
+        if _project_has_live_production_tasks(db, project_id):
+            tasks_skipped_reason = (
+                "This project already has production tasks generated and assigned for at least one "
+                "customer order, so its task list can no longer be edited here — doing so would break that "
+                "live production data. Every other change in this save (name, description, category, "
+                "inventory requirements, etc.) was still applied."
             )
-            db.add(task)
+        else:
+            db.query(TaskGroup).filter(TaskGroup.PROJECT_ID == project_id).delete()
+            db.query(TaskTemplate).filter(TaskTemplate.PROJECT_ID == project_id).delete()
             db.flush()
-            created_task_ids.append(task.ID)
-            _create_requirement_rows(task.ID, t.requirements, db)
-
-        # Second pass — same index-based dependency resolution as create_project()
-        for i, t in enumerate(data.tasks):
-            if not t.dependencies:
-                continue
-            depends_on_ids = []
-            for dep in t.dependencies:
-                if dep.DEPENDS_ON_TASK_INDEX < 0 or dep.DEPENDS_ON_TASK_INDEX >= len(created_task_ids):
-                    raise HTTPException(status_code=400, detail=f"Invalid dependency reference for task \"{t.NAME}\".")
-                if dep.DEPENDS_ON_TASK_INDEX == i:
-                    raise HTTPException(status_code=400, detail=f"Task \"{t.NAME}\" cannot depend on itself.")
-                depends_on_ids.append(created_task_ids[dep.DEPENDS_ON_TASK_INDEX])
-            _create_dependency_rows(db, project_id, created_task_ids[i], depends_on_ids, check_same_project=False)
-
+            _create_tasks_and_groups(db, project, data.tasks, data.task_groups, data.VENDOR_ID)
+            db.flush()
+            calculate_project_estimated_duration(db, project)
+    if data.product_requirements is not None:
+        db.query(ProjectProductRequirement).filter(ProjectProductRequirement.PROJECT_ID == project_id).delete()
         db.flush()
-        _recalc_project_duration(project, db)
+        _create_product_requirements(db, project, data.product_requirements, data.VENDOR_ID)
+        db.flush()
     try:
         db.commit()
     except IntegrityError as e:
@@ -705,7 +993,10 @@ def update_project(project_id: str, data: ProjectUpdate, db: Session = Depends(g
     except Exception as e:
         db.rollback()
         raise_db_error(e, "update project")
-    return {"message": "Project updated"}
+    return {
+        "message": "Project updated",
+        "tasks_skipped_reason": tasks_skipped_reason,
+    }
 
 
 @router.delete("/projects/{project_id}", dependencies=[Depends(require("project.delete"))])
@@ -1174,15 +1465,12 @@ def create_task_template(data: TaskTemplateCreate, db: Session = Depends(get_db)
         DURATION_UNIT=data.DURATION_UNIT,
         SEQUENCE_NUMBER=data.SEQUENCE_NUMBER,
         TASK_SCOPE=data.TASK_SCOPE or "PROJECT",
-        EXECUTION_GROUP_ID=data.EXECUTION_GROUP_ID or None,
-        DEPENDENCY_RULE=data.DEPENDENCY_RULE or "ALL",
         VENDOR_ID=data.VENDOR_ID
     )
     db.add(task)
     db.flush()
     _create_requirement_rows(task.ID, data.requirements, db)
-    _create_dependency_rows(db, data.PROJECT_ID, task.ID, [d.DEPENDS_ON_TASK_TEMPLATE_ID for d in data.dependencies])
-    _recalc_project_duration(project, db)
+    calculate_project_estimated_duration(db, project)
     try:
         db.commit()
         db.refresh(task)
@@ -1218,22 +1506,14 @@ def update_task_template(task_id: str, data: TaskTemplateUpdate, db: Session = D
         task.SEQUENCE_NUMBER = data.SEQUENCE_NUMBER
     if data.TASK_SCOPE is not None:
         task.TASK_SCOPE = data.TASK_SCOPE
-    if data.EXECUTION_GROUP_ID is not None:
-        task.EXECUTION_GROUP_ID = data.EXECUTION_GROUP_ID or None  # "" explicitly clears the group
-    if data.DEPENDENCY_RULE is not None:
-        task.DEPENDENCY_RULE = data.DEPENDENCY_RULE
     if data.requirements is not None:
         db.query(TaskTemplateRequirement).filter(TaskTemplateRequirement.TASK_TEMPLATE_ID == task.ID).delete()
         db.flush()
         _create_requirement_rows(task.ID, data.requirements, db)
-    if data.dependencies is not None:
-        db.query(TaskTemplateDependency).filter(TaskTemplateDependency.TASK_TEMPLATE_ID == task.ID).delete()
-        db.flush()
-        _create_dependency_rows(db, task.PROJECT_ID, task.ID, [d.DEPENDS_ON_TASK_TEMPLATE_ID for d in data.dependencies])
     db.flush()
     project = db.query(Project).filter(Project.ID == task.PROJECT_ID).first()
     if project:
-        _recalc_project_duration(project, db)
+        calculate_project_estimated_duration(db, project)
     try:
         db.commit()
     except IntegrityError as e:
@@ -1250,6 +1530,18 @@ def delete_task_template(task_id: str, db: Session = Depends(get_db)):
     task = db.query(TaskTemplate).filter(TaskTemplate.ID == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    # CustomerProjectTask.TASK_TEMPLATE_ID has an ON DELETE RESTRICT FK —
+    # deleting a task that already has real, assigned production work
+    # against it would otherwise crash with an unhandled IntegrityError
+    # (500). See _project_has_live_production_tasks()'s own docstring for
+    # the full explanation (same underlying issue as update_project()'s
+    # task/group replacement guard).
+    if db.query(CustomerProjectTask.ID).filter(CustomerProjectTask.TASK_TEMPLATE_ID == task_id).first():
+        raise HTTPException(
+            status_code=400,
+            detail=f"'{task.NAME}' already has production tasks generated and assigned for at least one "
+                   "customer order, so it can no longer be deleted.",
+        )
     project_id = task.PROJECT_ID
     db.query(CustomFieldTableValue).filter(
         CustomFieldTableValue.TABLE_NAME == "task_template",
@@ -1259,7 +1551,7 @@ def delete_task_template(task_id: str, db: Session = Depends(get_db)):
     db.flush()
     project = db.query(Project).filter(Project.ID == project_id).first()
     if project:
-        _recalc_project_duration(project, db)
+        calculate_project_estimated_duration(db, project)
     try:
         db.commit()
     except IntegrityError as e:
@@ -1279,6 +1571,196 @@ def reorder_tasks(items: List[ReorderItem], db: Session = Depends(get_db)):
             task.SEQUENCE_NUMBER = item.sequence_number
     db.commit()
     return {"message": "Tasks reordered"}
+
+
+# =========================
+# TASK GROUPS
+# =========================
+# Standalone CRUD used both by the /projects row-action "Group" modal and,
+# for edits on an already-created project, by the wizard's Task Group step.
+# Group/dependency configuration is exclusively managed here — never via
+# the Task Template endpoints above.
+
+def _validate_group_membership(db: Session, project_id: str, member_ids: list, exclude_group_id: str = None):
+    """A task must exist, belong to this SAME project, and not already
+    belong to a DIFFERENT group — the core "one group per task" rule."""
+    if not member_ids:
+        return
+    members = db.query(TaskTemplate).filter(TaskTemplate.ID.in_(member_ids)).all()
+    found_ids = {t.ID for t in members}
+    missing = set(member_ids) - found_ids
+    if missing:
+        raise HTTPException(status_code=400, detail="One or more selected tasks were not found.")
+    wrong_project = [t for t in members if t.PROJECT_ID != project_id]
+    if wrong_project:
+        raise HTTPException(
+            status_code=400,
+            detail="Tasks from another project cannot be assigned to this project's group.",
+        )
+    already_grouped = [
+        t for t in members
+        if t.TASK_GROUP_ID and t.TASK_GROUP_ID != exclude_group_id
+    ]
+    if already_grouped:
+        names = ", ".join(t.NAME for t in already_grouped)
+        raise HTTPException(
+            status_code=400,
+            detail=f"These tasks already belong to another group: {names}.",
+        )
+
+
+@router.get("/projects/{project_id}/task-groups", dependencies=[Depends(require("project.view", "project.task_groups.view"))])
+def list_task_groups(project_id: str, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.ID == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    groups = (
+        db.query(TaskGroup)
+          .filter(TaskGroup.PROJECT_ID == project_id)
+          .order_by(TaskGroup.SEQUENCE_NUMBER)
+          .all()
+    )
+    return _enrich_task_groups(groups, db)
+
+
+@router.post("/projects/{project_id}/task-groups", dependencies=[Depends(require("project.create", "project.task_groups.create"))])
+def create_task_group(project_id: str, data: TaskGroupCreate, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.ID == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    member_ids = list(dict.fromkeys(data.task_template_ids))  # de-dupe, preserve order
+    _validate_group_membership(db, project_id, member_ids)
+
+    rule = _normalize_dependency_rule(data.DEPENDENCY_RULE)
+    depends_on_id = _resolve_group_dependency(rule, data.DEPENDS_ON_TASK_TEMPLATE_ID, member_ids)
+    existing_count = db.query(TaskGroup).filter(TaskGroup.PROJECT_ID == project_id).count()
+
+    group = TaskGroup(
+        PROJECT_ID=project_id,
+        VENDOR_ID=project.VENDOR_ID,
+        NAME=data.NAME or None,
+        DEPENDENCY_RULE=rule,
+        DEPENDS_ON_TASK_TEMPLATE_ID=depends_on_id,
+        SEQUENCE_NUMBER=existing_count,
+    )
+    db.add(group)
+    db.flush()
+
+    if member_ids:
+        db.query(TaskTemplate).filter(TaskTemplate.ID.in_(member_ids)).update(
+            {"TASK_GROUP_ID": group.ID}, synchronize_session=False
+        )
+        db.flush()
+
+    calculate_project_estimated_duration(db, project)
+
+    try:
+        db.commit()
+        db.refresh(group)
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "create task group")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "create task group")
+
+    return {"message": "Task group created", "ID": group.ID}
+
+
+@router.put("/projects/{project_id}/task-groups/{group_id}", dependencies=[Depends(require("project.update", "project.task_groups.update"))])
+def update_task_group(project_id: str, group_id: str, data: TaskGroupUpdate, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.ID == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    group = db.query(TaskGroup).filter(TaskGroup.ID == group_id, TaskGroup.PROJECT_ID == project_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Task group not found")
+
+    if data.NAME is not None:
+        group.NAME = data.NAME or None
+
+    rule = _normalize_dependency_rule(data.DEPENDENCY_RULE) if data.DEPENDENCY_RULE is not None else group.DEPENDENCY_RULE
+
+    if data.task_template_ids is not None:
+        member_ids = list(dict.fromkeys(data.task_template_ids))
+        _validate_group_membership(db, project_id, member_ids, exclude_group_id=group_id)
+
+        # Full-replace membership: ungroup this group's current members,
+        # then (re)assign the submitted list. A task in both the old and
+        # new list is simply reassigned to the same group — a no-op.
+        db.query(TaskTemplate).filter(TaskTemplate.TASK_GROUP_ID == group_id).update(
+            {"TASK_GROUP_ID": None}, synchronize_session=False
+        )
+        if member_ids:
+            db.query(TaskTemplate).filter(TaskTemplate.ID.in_(member_ids)).update(
+                {"TASK_GROUP_ID": group_id}, synchronize_session=False
+            )
+        db.flush()
+    else:
+        member_ids = [
+            t.ID for t in db.query(TaskTemplate).filter(TaskTemplate.TASK_GROUP_ID == group_id).all()
+        ]
+
+    # Always re-resolve from the EFFECTIVE (new-if-provided, else existing)
+    # rule/target/membership together, rather than patching fields
+    # independently — e.g. switching rule away from ONE must clear a
+    # stale target even if DEPENDS_ON_TASK_TEMPLATE_ID wasn't resubmitted,
+    # and _resolve_group_dependency already does exactly that for ALL/ANY.
+    effective_depends_on = (
+        data.DEPENDS_ON_TASK_TEMPLATE_ID if data.DEPENDS_ON_TASK_TEMPLATE_ID is not None
+        else group.DEPENDS_ON_TASK_TEMPLATE_ID
+    )
+    group.DEPENDENCY_RULE = rule
+    group.DEPENDS_ON_TASK_TEMPLATE_ID = _resolve_group_dependency(rule, effective_depends_on, member_ids)
+
+    db.flush()
+    calculate_project_estimated_duration(db, project)
+
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "update task group")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "update task group")
+
+    return {"message": "Task group updated"}
+
+
+@router.delete("/projects/{project_id}/task-groups/{group_id}", dependencies=[Depends(require("project.delete", "project.task_groups.delete"))])
+def delete_task_group(project_id: str, group_id: str, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.ID == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    group = db.query(TaskGroup).filter(TaskGroup.ID == group_id, TaskGroup.PROJECT_ID == project_id).first()
+    if not group:
+        raise HTTPException(status_code=404, detail="Task group not found")
+
+    # Explicit ungroup (rather than relying solely on the DB's own
+    # ON DELETE SET NULL) so this same session's subsequent duration
+    # recalculation reads fresh TASK_GROUP_ID values instead of any
+    # stale identity-mapped TaskTemplate objects. Task templates
+    # themselves are never deleted here — only their group assignment
+    # is cleared.
+    db.query(TaskTemplate).filter(TaskTemplate.TASK_GROUP_ID == group_id).update(
+        {"TASK_GROUP_ID": None}, synchronize_session=False
+    )
+    db.delete(group)
+    db.flush()
+    calculate_project_estimated_duration(db, project)
+
+    try:
+        db.commit()
+    except IntegrityError as e:
+        db.rollback()
+        raise_db_error(e, "delete task group")
+    except Exception as e:
+        db.rollback()
+        raise_db_error(e, "delete task group")
+
+    return {"message": "Task group deleted"}
 
 
 # =========================
@@ -1894,7 +2376,7 @@ async def bulk_upload_task_templates(
     for pid in modified_proj_ids:
         proj_obj = db.query(Project).filter(Project.ID == pid).first()
         if proj_obj:
-            _recalc_project_duration(proj_obj, db)
+            calculate_project_estimated_duration(db, proj_obj)
 
     db.commit()
     total = inserted + updated + skipped + len(errors)

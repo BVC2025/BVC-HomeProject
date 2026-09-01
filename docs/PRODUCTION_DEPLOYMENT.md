@@ -174,7 +174,7 @@ cd $DeployRoot\deploy
 
 # What this does:
 #   - Registers a Windows service called "BVC24-Backend"
-#   - Runs uvicorn on 0.0.0.0:8001 with 2 workers
+#   - Runs uvicorn on 0.0.0.0:8000 with 2 workers
 #   - Auto-starts on boot
 #   - Restarts on crash with 5s backoff
 #   - Logs stdout/stderr to backend\logs\service\
@@ -448,7 +448,7 @@ Get-Content $DeployRoot\backend\logs\service\stderr.log -Tail 100
 # 2. Common causes
 #    - DATABASE_URL wrong / MySQL down → fix .env, restart
 #    - SECRET_KEY missing → set it in .env
-#    - Port 8001 already in use → another process; kill or change --port
+#    - Port 8000 already in use → another process; kill or change --port
 
 # 3. Run uvicorn manually outside the service to see the real error
 cd $DeployRoot\backend
@@ -549,7 +549,7 @@ After=network.target mysql.service
 Type=simple
 User=bvc24
 WorkingDirectory=/opt/bvc24/backend
-ExecStart=/opt/bvc24/backend/venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --workers 2
+ExecStart=/opt/bvc24/backend/venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
 Restart=on-failure
 RestartSec=5
 StandardOutput=append:/opt/bvc24/backend/logs/service/stdout.log

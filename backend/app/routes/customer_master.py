@@ -17,7 +17,7 @@ from pydantic import BaseModel
 from app.database.database import get_db
 from app.utils.db_error_handler import raise_db_error
 from app.auth.auth_bearer import require
-from app.models.models import Customer, CustomFieldTableValue, Quotation, SalesOrder
+from app.models.models import Customer, CustomFieldTableValue
 from app.routes.project_template import (
     _cf_fields_for_table, _upsert_cf_bulk, _validate_cf_value, _parse_bulk_xl, _cell,
 )
@@ -313,14 +313,6 @@ def delete_customer_master(customer_id: str, db: Session = Depends(get_db)):
         CustomFieldTableValue.TABLE_ROW_ID == str(customer_id),
     ).delete(synchronize_session=False)
     try:
-        db.query(Quotation).filter(
-            Quotation.CUSTOMER_ID == customer_id
-        ).update({Quotation.CUSTOMER_ID: None}, synchronize_session=False)
-
-        db.query(SalesOrder).filter(
-            SalesOrder.CUSTOMER_ID == customer_id
-        ).update({SalesOrder.CUSTOMER_ID: None}, synchronize_session=False)
-
         db.delete(cust)
         db.commit()
     except IntegrityError as e:

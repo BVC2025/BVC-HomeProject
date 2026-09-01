@@ -34,6 +34,8 @@ const PREVIEW_VARS = {
   upload_link: "#preview-upload",
   view_payment_url: "#preview-view-payment",
   login_url: "#preview-login",
+  review_schedule_url: "#preview-review-schedule",
+  review_batch_url: "#preview-review-batch",
 };
 
 // Preserved in saved BODY_HTML — substituted by backend render_template() at send time
@@ -89,6 +91,12 @@ const BUTTON_MANIFEST = {
   ],
   EMPLOYEE_ONBOARDING: [
     { id: "login", urlVar: "login_url", color: "#DC2626", defaultText: "Log In Now" },
+  ],
+  PRODUCTION_SCHEDULE_APPROVAL: [
+    { id: "review_schedule", urlVar: "review_schedule_url", color: "#DC2626", defaultText: "Review & Approve Schedule" },
+  ],
+  PURCHASE_ORDER_APPROVAL: [
+    { id: "review_batch", urlVar: "review_batch_url", color: "#DC2626", defaultText: "Review & Approve Purchase Orders" },
   ],
 };
 

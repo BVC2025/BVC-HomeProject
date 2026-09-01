@@ -196,7 +196,7 @@ def generate_for_employee(
         "OT_HOURS":          0,
 
         // Earnings (rupees per month)
-        "BASIC":              18001,
+        "BASIC":              18000,
         "HRA":                7200,
         "DA":                 0,
         "CONVEYANCE":         1600,
