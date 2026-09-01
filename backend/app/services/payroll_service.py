@@ -219,11 +219,17 @@ def calculate_employee_payroll(
         paid_leave   = float(calc_row.get("cl_used", 0.0) or 0.0) \
                      + float(calc_row.get("paid_leave_days", 0.0) or 0.0)
 
-        # Unpaid leave = LOP Attendance rows written by the leave sync.
-        unpaid_leave = float(calc_row.get("lop_days", 0.0) or 0.0)
-
         # Absent-and-unaccounted (raw absent minus CL applied).
         absent_days  = float(calc_row.get("unpaid_absent", 0.0) or 0.0)
+
+        # LOP = formal LOP leave rows + unpaid absent days (both are
+        # money-lost days, so the payslip's "LOP Days" field must
+        # show the combined figure — otherwise a plain no-show
+        # absent shows 0 LOP even though salary was deducted for it.
+        unpaid_leave = (
+            float(calc_row.get("lop_days", 0.0) or 0.0)
+            + absent_days
+        )
 
     else:
         # ----- legacy fallback (kept for backward compat) -----
@@ -286,11 +292,17 @@ def calculate_employee_payroll(
     paid_days = days_present + days_half * 0.5 + paid_leave
 
     # Reuse the salary structure fetched at the top of this function.
-    # The "earned" multiplier prorates every component by attendance —
-    # so a half-month employee earns half of every allowance.
     structure = _structure
 
-    earn_ratio = (paid_days / working_days) if working_days else 0.0
+    # BVC24 policy (admin request, 2026-08-29): the Basic salary the
+    # admin enters on the Employee master must appear on the payslip
+    # verbatim — no attendance-based proration. Attendance-driven
+    # adjustments still apply through LATE_PENALTY (unchanged) and the
+    # explicit LOP-day deductions handled elsewhere. This also fixes
+    # the earlier bug where paid_days > working_days produced ratios
+    # like 1.02 and inflated Basic above the entered amount
+    # (e.g. ₹20,000 → ₹20,416.70 on Puviyarasi's slip).
+    earn_ratio = 1.0
 
     if structure:
 
@@ -336,15 +348,25 @@ def calculate_employee_payroll(
 
     task_bonus = round(tasks_completed * task_bonus_per_task, 2)
 
-    # OT pay + late penalty: prefer Monthly-calc's values when
-    # available (they apply the HR-agreed rules — OT@19:00 with
-    # late-minute offset, and half-day penalty every 3 late arrivals).
+    # OT pay + late penalty + LOP (unpaid-absent) deduction: prefer
+    # Monthly-calc's values when available (they apply the HR-agreed
+    # rules — OT@19:00 with late-minute offset, half-day penalty every
+    # 3 late arrivals, and CL auto-consumption for casual absences).
+    #
+    # LOP semantics: `absent_deduction_only` = per_day_rate ×
+    # unpaid_absent_days. It's the money value of absent days that
+    # CL couldn't cover. Since Basic no longer prorates (previous
+    # fix), this deduction is what actually enforces LOP on the slip
+    # — routed through OTHER_DEDUCTIONS so it shows up as its own
+    # line on the payslip PDF.
     if calc_row is not None:
-        ot_pay       = float(calc_row.get("ot_pay", 0.0) or 0.0)
-        late_penalty = float(calc_row.get("late_penalty", 0.0) or 0.0)
+        ot_pay              = float(calc_row.get("ot_pay", 0.0) or 0.0)
+        late_penalty        = float(calc_row.get("late_penalty", 0.0) or 0.0)
+        lop_deduction       = float(calc_row.get("absent_deduction_only", 0.0) or 0.0)
     else:
-        ot_pay       = 0.0  # legacy path had no OT payout
-        late_penalty = round(days_late * late_penalty_per_day, 2)
+        ot_pay              = 0.0  # legacy path had no OT payout
+        late_penalty        = round(days_late * late_penalty_per_day, 2)
+        lop_deduction       = 0.0
 
     gross_pay = round(
         earned_basic + earned_hra + earned_da +
@@ -354,18 +376,32 @@ def calculate_employee_payroll(
         2
     )
 
-    # Statutory deductions (PF on basic+DA, ESI on full gross, PT slab)
-    stat = compute_statutory_deductions(
-        basic=earned_basic,
-        da=earned_da,
-        gross=gross_pay,
-        pt_state=pt_state,
-        pf_applicable=pf_applicable,
-        esi_applicable=esi_applicable
-    )
+    # BVC24 policy (admin request, 2026-08-29): the Payroll Record must
+    # match the Biometric Monthly Calculation preview exactly. The
+    # biometric calc doesn't apply PF / ESI / PT — it only deducts
+    # LATE_PENALTY + LOP (unpaid absents). So when a calc_row is
+    # available, we zero out statutory deductions so the two views
+    # agree. Statutory can be re-enabled once the admin finalises the
+    # payroll policy.
+    if calc_row is not None:
+        stat = {
+            "pf_employee": 0.0, "pf_employer": 0.0,
+            "esi_employee": 0.0, "esi_employer": 0.0,
+            "professional_tax": 0.0,
+            "employee_total": 0.0,
+        }
+    else:
+        stat = compute_statutory_deductions(
+            basic=earned_basic,
+            da=earned_da,
+            gross=gross_pay,
+            pt_state=pt_state,
+            pf_applicable=pf_applicable,
+            esi_applicable=esi_applicable
+        )
 
     total_deductions = round(
-        late_penalty + stat["employee_total"],
+        late_penalty + lop_deduction + stat["employee_total"],
         2
     )
 
@@ -401,6 +437,12 @@ def calculate_employee_payroll(
         "esi_employee": stat["esi_employee"],
         "esi_employer": stat["esi_employer"],
         "professional_tax": stat["professional_tax"],
+        # LOP goes into ABSENCE_DEDUCTION (not OTHER_DEDUCTIONS) so
+        # the payslip preview renders it under its dedicated
+        # "Absent Day Deduction" line — see employee_payslips.py:189.
+        # OTHER_DEDUCTIONS stays reserved for manual admin overrides
+        # entered in the PayslipGenerator UI.
+        "absence_deduction": round(lop_deduction, 2),
         "other_deductions": 0.0,
         "gross_pay": gross_pay,
         "total_deductions": total_deductions,
@@ -431,14 +473,16 @@ def generate_payroll_run(
 
     if working_days is None:
 
-        # Phase 2: read from HolidayCalendar (Sundays + declared
-        # holidays excluded). Falls back to Sundays-only if the table
-        # is empty for that month.
-        working_days = _working_days_in_month(
-            year, month,
-            db=db,
-            vendor_id=vendor_id,
-        )
+        # BVC24 policy (admin request, 2026-08-29): use the SAME
+        # working-days definition as the Biometric Monthly Calculation
+        # preview — calendar days minus Sundays only. Holidays are
+        # already excluded from ABSENT counts elsewhere (see
+        # attendance_payroll_calc.py) so subtracting them here as well
+        # would double-count and inflate the per-day rate. Without
+        # this, per_day = 20000 / 24 = ₹833.33 in payroll but
+        # 20000 / 26 = ₹769.23 in the biometric preview — the exact
+        # mismatch on Puviyarasi's slip.
+        working_days = _working_days_in_month(year, month)
 
     existing = db.query(PayrollRun).filter(
         PayrollRun.VENDOR_ID == vendor_id,
@@ -539,6 +583,13 @@ def generate_payroll_run(
             calc_row=calc_by_emp.get(emp.ID),
         )
 
+        # BVC24 policy (admin request, 2026-08-29): if this employee
+        # has no salary saved on the Employee master AND no Salary
+        # Structure, skip them entirely — don't create a payslip. The
+        # admin will set their salary later and re-run the month.
+        if float(breakdown.get("earned_basic") or 0.0) <= 0:
+            continue
+
         # Permission hours for this employee in the pay period.
         # PERMISSION rows store duration in LeaveRequest.DURATION_HOURS.
         permission_hours = db.query(
@@ -565,13 +616,15 @@ def generate_payroll_run(
 
             stars = 0.0
 
-        star_bonus = round(stars * BONUS_PER_STAR, 2)
+        # BVC24 policy (admin request, 2026-08-29): Star Bonus is
+        # temporarily disabled on payslips — the admin will re-enable
+        # it once the star-rating rules are finalised. `stars` is still
+        # captured for reporting, but the money value is zeroed here.
+        star_bonus = 0.0
+        _ = stars  # keep the local for the SlipCreate below
 
-        # Fold the star bonus into gross + net so the salary the
-        # employee receives matches their performance rating.
-        breakdown["gross_pay"]      = round(breakdown["gross_pay"] + star_bonus, 2)
-
-        breakdown["net_pay"]        = round(breakdown["net_pay"] + star_bonus, 2)
+        # Star bonus omitted intentionally — gross + net stay as
+        # calculate_employee_payroll returned them.
 
         slip = PayrollSlip(
             PAYROLL_RUN_ID=run.ID,
@@ -610,6 +663,7 @@ def generate_payroll_run(
             ESI_EMPLOYER=breakdown["esi_employer"],
             PROFESSIONAL_TAX=breakdown["professional_tax"],
             OTHER_DEDUCTIONS=breakdown["other_deductions"],
+            ABSENCE_DEDUCTION=breakdown.get("absence_deduction", 0.0),
             GROSS_PAY=breakdown["gross_pay"],
             TOTAL_DEDUCTIONS=breakdown["total_deductions"],
             NET_PAY=breakdown["net_pay"]

@@ -83,7 +83,7 @@ class ChatMessageIn(BaseModel):
 
 
 class LeaveDraft(BaseModel):
-    leave_type: str                          # CASUAL | SICK | EARNED | UNPAID | LOP | MATERNITY
+    leave_type: str                          # CASUAL | LOP  (BVC24 has no EL/SL/Maternity)
     start_date: str                          # YYYY-MM-DD
     end_date: str
     half_day: bool = False
@@ -275,7 +275,9 @@ def delete_history_for_employee(
 # Submit endpoint — called ONLY after the employee has verbally confirmed.
 # ---------------------------------------------------------------------------
 
-VALID_LEAVE_TYPES = {"CASUAL", "SICK", "EARNED", "UNPAID", "LOP", "MATERNITY"}
+# BVC24 ERP has ONLY two leave types: CASUAL (paid, 1/month cap) and LOP
+# (Loss of Pay — anything beyond the CL cap or annual quota).
+VALID_LEAVE_TYPES = {"CASUAL", "LOP"}
 
 
 @router.post("/submit")
@@ -315,12 +317,6 @@ def submit_from_ai(payload: SubmitIn, db: Session = Depends(get_db)) -> Dict[str
         raise HTTPException(
             status_code=400,
             detail="Half-day leave must have start_date == end_date.",
-        )
-
-    if leave_type == "MATERNITY" and (emp.GENDER or "").upper() != "FEMALE":
-        raise HTTPException(
-            status_code=400,
-            detail="MATERNITY leave is only available to female employees.",
         )
 
     days = draft.days

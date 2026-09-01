@@ -65,7 +65,14 @@ function inr(n) {
 
 function fmtDate(s) {
   if (!s) return "-";
-  try { return new Date(s).toLocaleDateString("en-IN"); }
+  try {
+    // Explicit day-month-year with month name so the date reads
+    // unambiguously ("13 Aug 2026") instead of the locale default
+    // "13/8/2026", which is easy to misread as US m/d/y.
+    return new Date(s).toLocaleDateString("en-IN", {
+      day: "2-digit", month: "short", year: "numeric",
+    });
+  }
   catch { return s; }
 }
 
@@ -290,6 +297,15 @@ export default function EmployeeProfile() {
     return designations.find((d) => d.ID === emp.DESIGNATION_ID)?.TITLE || "-";
   }, [emp, designations]);
 
+  // Role name — the RBAC role (e.g. "Admin Executive", "Manager").
+  // Replaces the older "Designation / Job Position" labels per the
+  // BVC24 org policy: one authoritative "Role" surface.
+  const roleName = useMemo(() => {
+    if (!emp) return "";
+    if (emp.ROLE && emp.ROLE.NAME) return emp.ROLE.NAME;
+    return emp.ROLE_NAME || "-";
+  }, [emp]);
+
   // Effective monthly salary — prefer the salary structure's GROSS_MONTHLY
   // when set (this is the "Total Salary" HR enters via the CTC builder);
   // otherwise fall back to emp.SALARY column.
@@ -352,6 +368,7 @@ export default function EmployeeProfile() {
           photoSrc={photoSrc}
           departmentName={departmentName}
           designationName={designationName}
+          roleName={roleName}
           onChangeStatus={() => setStatusModalOpen(true)}
         />
 
@@ -385,8 +402,8 @@ export default function EmployeeProfile() {
 
           {/* Tab body */}
           <div className={styles.tabBody}>
-            {tab === "overview" && <OverviewTab emp={emp} departmentName={departmentName} designationName={designationName} manager={manager} reports={reports} />}
-            {tab === "work" && <WorkInfoTab emp={emp} departmentName={departmentName} designationName={designationName} manager={manager} />}
+            {tab === "overview" && <OverviewTab emp={emp} departmentName={departmentName} roleName={roleName} manager={manager} reports={reports} />}
+            {tab === "work" && <WorkInfoTab emp={emp} departmentName={departmentName} roleName={roleName} manager={manager} />}
             {tab === "personal" && <PersonalInfoTab emp={emp} />}
             {tab === "documents" && <DocumentsTab emp={emp} />}
             {tab === "payroll" && <PayrollTab emp={emp} salaryStructure={salaryStructure} effectiveSalary={effectiveSalary} />}
@@ -420,7 +437,7 @@ export default function EmployeeProfile() {
 // LEFT SIDEBAR
 // =====================================================================
 
-function LeftSidebar({ emp, photoSrc, departmentName, designationName, onChangeStatus }) {
+function LeftSidebar({ emp, photoSrc, departmentName, designationName: _designationName, roleName, onChangeStatus }) {
   const navigate = useNavigate();
 
   return (
@@ -437,7 +454,6 @@ function LeftSidebar({ emp, photoSrc, departmentName, designationName, onChangeS
               height: 140,
               borderRadius: "50%",
               objectFit: "cover",
-              border: `4px solid ${BVC_RED}`,
               boxShadow: "var(--shadow-md)",
             }}
           />
@@ -453,7 +469,6 @@ function LeftSidebar({ emp, photoSrc, departmentName, designationName, onChangeS
             justifyContent: "center",
             fontSize: 56,
             fontWeight: 800,
-            border: `4px solid ${BVC_RED}`,
             boxShadow: "var(--shadow-md)",
           }}>
             {(emp.NAME || "?").charAt(0).toUpperCase()}
@@ -503,7 +518,7 @@ function LeftSidebar({ emp, photoSrc, departmentName, designationName, onChangeS
 
       {/* Identity rows */}
       <div style={{ fontSize: 12 }}>
-        <SidebarRow label="DESIGNATION" value={designationName} />
+        <SidebarRow label="ROLE" value={roleName} />
         <SidebarRow label="DEPARTMENT" value={departmentName} />
         <SidebarRow label="EMAIL" value={emp.EMAIL} mono />
         <SidebarRow label="PHONE" value={emp.PHONE} mono />
@@ -540,12 +555,12 @@ function SidebarRow({ label, value, mono }) {
 // expected fields so the page is structurally complete.
 // =====================================================================
 
-function OverviewTab({ emp, departmentName, designationName, manager, reports }) {
+function OverviewTab({ emp, departmentName, roleName, manager, reports }) {
   return (
     <div>
       <SectionTitle>Job & organization</SectionTitle>
       <FieldRow label="Department" value={departmentName} />
-      <FieldRow label="Job Position" value={designationName} />
+      <FieldRow label="Role" value={roleName} />
       <FieldRow label="Manager" value={manager ? `${manager.NAME} (${manager.EMPLOYEE_CODE})` : "-"} />
       <FieldRow label="Work Location" value={emp.WORK_LOCATION} />
       <FieldRow label="Employment Type" value={emp.EMPLOYMENT_TYPE} />
@@ -635,23 +650,27 @@ function OrgNode({ name, code, primary, muted }) {
 }
 
 
-function WorkInfoTab({ emp, departmentName, designationName, manager }) {
+function WorkInfoTab({ emp, departmentName, roleName, manager }) {
   return (
     <div>
       <SectionTitle>Work</SectionTitle>
       <FieldRow label="Department" value={departmentName} />
-      <FieldRow label="Job Position" value={designationName} />
+      <FieldRow label="Role" value={roleName} />
       <FieldRow label="Manager" value={manager ? `${manager.NAME} (${manager.EMPLOYEE_CODE})` : "-"} />
       <FieldRow label="Employment Type" value={emp.EMPLOYMENT_TYPE} />
       <FieldRow label="Joining Date" value={fmtDate(emp.JOINING_DATE)} />
-      <FieldRow label="Confirmation Date" value={fmtDate(emp.CONFIRMATION_DATE)} />
 
       <SectionTitle>Location</SectionTitle>
       <FieldRow label="Work Location" value={emp.WORK_LOCATION} />
 
       <SectionTitle>Schedule</SectionTitle>
-      <FieldRow label="Shift Start" value={emp.SHIFT_START} />
-      <FieldRow label="Shift End" value={emp.SHIFT_END} />
+      {/* Company-wide standard shift. The per-employee SHIFT_START /
+          SHIFT_END columns are legacy and were showing stale defaults;
+          BVC24 policy is 09:00–18:00 with a 20-minute grace so anyone
+          punching in by 09:20 is still counted PRESENT. */}
+      <FieldRow label="Shift Start"   value="09:00 AM" />
+      <FieldRow label="Shift End"     value="06:00 PM" />
+      <FieldRow label="Grace Period"  value="20 minutes (until 09:20 AM)" />
 
       <SectionTitle>Skills & qualifications</SectionTitle>
       <FieldRow label="Skills" value={emp.SKILLS} />
@@ -1210,11 +1229,11 @@ function LeaveTab({ emp, leaveBalance }) {
   // Backend returns { employee: {...}, balance: { CASUAL, SICK, EARNED,
   // MATERNITY } }. Each bucket is { total, used, carryover, remaining }.
   const balance = leaveBalance?.balance || null;
+  // BVC24 policy: Casual is the only real leave type; Permission is
+  // tracked separately as hours-per-month. Sick / Earned / Maternity
+  // tiles removed from this view.
   const buckets = [
     { key: "CASUAL", label: "Casual", fg: "#1e40af", bg: "#dbeafe" },
-    { key: "SICK", label: "Sick", fg: "#9a3412", bg: "#ffedd5" },
-    { key: "EARNED", label: "Earned", fg: "#166534", bg: "#dcfce7" },
-    { key: "MATERNITY", label: "Maternity", fg: "#86198f", bg: "#fae8ff" },
   ];
 
   const totalAvail = balance
@@ -1227,6 +1246,27 @@ function LeaveTab({ emp, leaveBalance }) {
   return (
     <div>
       <SectionTitle>Leave balance &middot; {leaveBalance?.balance?.YEAR || new Date().getFullYear()}</SectionTitle>
+
+      {/* BVC24 leave policy — shown so every viewer sees the quota
+          before scanning the balance grid. */}
+      <div style={{
+        background: "#fef3c7",
+        border: "1px solid #fde68a",
+        borderRadius: 10,
+        padding: "12px 16px",
+        marginBottom: 14,
+        fontSize: 13,
+        color: "#78350f",
+        lineHeight: 1.55,
+      }}>
+        <div style={{ fontWeight: 700, marginBottom: 4, color: "#92400e" }}>
+          Leave Policy
+        </div>
+        <div><strong>12</strong> Casual Leaves per year</div>
+        <div><strong>1</strong> Casual Leave per month</div>
+        <div><strong>2</strong> hours of Permission per month</div>
+      </div>
+
       {!balance ? (
         <div style={{ padding: 14, color: "#94a3b8", fontStyle: "italic", fontSize: 13 }}>
           No leave balance on file yet.

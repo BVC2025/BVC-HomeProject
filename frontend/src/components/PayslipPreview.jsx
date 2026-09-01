@@ -216,13 +216,27 @@ export default function PayslipPreview({ slipId, onClose, onDownload }) {
           <div className={styles.docFrame}>
             <div className={styles.doc}>
 
-              {/* -- Company header row -- */}
+              {/* -- Company header row: legal name + full postal
+                     address on the left, company logo + pay period on
+                     the right. Logo is the bundled /logo.webp so it
+                     ships with the app and doesn't depend on a
+                     CompanyMaster upload. --*/}
               <div className={styles.docHead}>
                 <div className={styles.docCompany}>
                   <div className={styles.companyName}>{data.COMPANY?.NAME}</div>
-                  <div className={styles.companyLoc}>{data.COMPANY?.LOCATION}</div>
+                  {data.COMPANY?.ADDRESS && (
+                    <div className={styles.companyLoc}>
+                      {data.COMPANY.ADDRESS}
+                    </div>
+                  )}
                 </div>
                 <div className={styles.docPeriod}>
+                  <img
+                    src="/logo.webp"
+                    alt={data.COMPANY?.NAME || "Company logo"}
+                    className={styles.companyLogo}
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  />
                   <div className={styles.periodLabel}>Payslip For the Month</div>
                   <div className={styles.periodValue}>{data.PAY_PERIOD_LABEL}</div>
                 </div>

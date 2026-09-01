@@ -10,6 +10,7 @@ import MyAllowanceSection from "../components/MyAllowanceSection";
 import MyPayslipsPanel from "../components/MyPayslipsPanel";
 import MyLeaveRequest from "../components/MyLeaveRequest";
 import LeaveAIAssistant from "../components/LeaveAIAssistant";
+import MyShiftSchedule from "../components/MyShiftSchedule";
 import MyPermissionRequest from "../components/MyPermissionRequest";
 import MyMemosPanel from "../components/MyMemosPanel";
 import MyPerformancePanel from "../components/MyPerformancePanel";
@@ -1184,6 +1185,10 @@ function EmployeeDashboardBody() {
                 />
               )}
             </>
+          )}
+
+          {mainTab === "shift" && (
+            <MyShiftSchedule employeeId={employeeId} />
           )}
 
           {mainTab === "leave" && (

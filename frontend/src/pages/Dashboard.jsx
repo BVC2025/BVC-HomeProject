@@ -64,6 +64,7 @@ import DashboardHome from "./DashboardHome";
 import AdminDashboard from "./AdminDashboard";
 import AdminDashboardV2 from "./AdminDashboardV2";
 import EnterpriseCommandCenter from "./EnterpriseCommandCenter";
+import AdminHome from "./AdminHome";
 import RoleManagement from "./RoleManagement";
 import RbacPermissions from "./RbacPermissions";
 import HolidayCalendar from "./HolidayCalendar";
@@ -83,6 +84,7 @@ import PayslipGenerator from "./PayslipGenerator";
 import PayrollRecords from "./PayrollRecords";
 import HelpDeskAdmin from "./HelpDeskAdmin";
 import OnboardingChecklist from "./OnboardingChecklist";
+import AdminOnboarding from "./AdminOnboarding";
 import ShiftManagement from "./ShiftManagement";
 import HrAutomation from "./HrAutomation";
 import MonthlyReports from "./MonthlyReports";
@@ -2210,7 +2212,8 @@ function Dashboard() {
         <Routes>
 
           {/* AI Mission Control — Phase 1 foundation (new default) */}
-          <Route path="/" element={<EnterpriseCommandCenter />} />
+          <Route path="/" element={<AdminHome />} />
+          <Route path="/dashboard-old" element={<EnterpriseCommandCenter />} />
           <Route path="/dashboard-v2" element={<AdminDashboardV2 />} />
 
           {/* Earlier dashboards reachable for comparison / fallback */}
@@ -2331,6 +2334,10 @@ function Dashboard() {
 
           <Route
             path="/onboarding"
+            element={<RequirePermission code={permissionForRoute("/onboarding")}><AdminOnboarding /></RequirePermission>}
+          />
+          <Route
+            path="/onboarding-legacy"
             element={<RequirePermission code={permissionForRoute("/onboarding")}><OnboardingChecklist /></RequirePermission>}
           />
 

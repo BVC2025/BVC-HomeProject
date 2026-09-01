@@ -7,7 +7,7 @@ import secrets
 import shutil
 import uuid
 
-from sqlalchemy import text
+from sqlalchemy import text, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -250,13 +250,21 @@ def create_employee(
                    "information are sent to the employee by email.",
         )
 
-    if db.query(Employee).filter(
-        Employee.EMAIL == data.EMAIL
-    ).first():
+    # Case-insensitive + trim so "Hari@x.com" and "hari@x.com" don't
+    # both squeeze past.
+    normalised_email = (data.EMAIL or "").strip()
+    existing = db.query(Employee).filter(
+        func.lower(Employee.EMAIL) == normalised_email.lower()
+    ).first()
+    if existing:
 
         raise HTTPException(
             status_code=400,
-            detail="An employee with this email already exists"
+            detail=(
+                f"This email is already used by {existing.EMPLOYEE_CODE} "
+                f"— {existing.NAME}. Use a different email, or open that "
+                f"employee's profile if this is the same person."
+            )
         )
 
     last_integrity_error = None
@@ -755,10 +763,27 @@ def update_employee(
     # employee an email address (and therefore login credentials).
     prev_email = (emp.EMAIL or "").strip()
     prev_password_set = bool(emp.PASSWORD)
+    prev_salary = float(emp.SALARY or 0.0)
 
     for field, value in updates.items():
 
         setattr(emp, field, value)
+
+    # BVC24 policy: whenever an admin edits SALARY, wipe any cached
+    # MonthlyAttendanceReport rows for this employee so the Monthly
+    # Reports page rebuilds them with the new figure on next visit.
+    # Without this, LOCKED past-month rows keep showing the old salary
+    # (e.g. Bharath saved at ₹15,000 but report still showed ₹20,000
+    # because the row was locked with the stale value).
+    new_salary = float(emp.SALARY or 0.0)
+    if new_salary != prev_salary:
+        try:
+            from app.models.models import MonthlyAttendanceReport
+            (db.query(MonthlyAttendanceReport)
+                .filter(MonthlyAttendanceReport.EMPLOYEE_ID == emp.ID)
+                .delete(synchronize_session=False))
+        except Exception:
+            pass
 
     # Auto-send login credentials when: the admin is setting an email
     # on an employee for the first time AND that employee doesn't have

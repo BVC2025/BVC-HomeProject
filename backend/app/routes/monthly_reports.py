@@ -116,9 +116,15 @@ class BulkResultOut(BaseModel):
 def generate_for_vendor(payload: GenerateIn,
                         db: Session = Depends(get_db),
                         user: dict = Depends(get_current_admin)):
+    """Bulk-regenerate every employee's report for the given month.
+    force=True so this endpoint's explicit intent (HR clicked Generate)
+    always rebuilds — including rows that were auto-locked for a past
+    month.
+    """
     svc = MonthlyReportService(db, user.get("vendor_id", 1))
     rows = svc.generate_for_vendor(payload.year, payload.month,
-                                   actor_employee_id=user.get("employee_id"))
+                                   actor_employee_id=user.get("employee_id"),
+                                   force=True)
     return BulkResultOut(year=payload.year, month=payload.month,
                          employees_processed=len(rows))
 
@@ -132,10 +138,21 @@ def generate_for_employee(emp_id: str, payload: GenerateIn,
            .first())
     if not emp:
         raise HTTPException(404, "Employee not found")
-    svc = MonthlyReportService(db, emp.VENDOR_ID)
+    # `emp.VENDOR_ID` can be NULL in single-tenant deployments — fall
+    # back to the admin's session vendor (default 1) so the service
+    # scoping doesn't return empty. Force=True so this endpoint always
+    # rebuilds the row even if it was auto-locked earlier.
+    svc = MonthlyReportService(db, emp.VENDOR_ID or user.get("vendor_id") or 1)
     row = svc.generate_for_employee(emp, payload.year, payload.month,
-                                    actor_employee_id=user.get("employee_id"))
+                                    actor_employee_id=user.get("employee_id"),
+                                    force=True)
     db.commit()
+    if row is None:
+        raise HTTPException(
+            400,
+            f"Salary is not fixed on the master for {emp.EMPLOYEE_CODE}. "
+            "Set the salary in the Employee master before generating this report.",
+        )
     return ReportOut(**svc._serialise(row, emp))
 
 
@@ -224,3 +241,28 @@ def report_pdf(emp_id: str, year: int, month: int,
         media_type="application/pdf",
         filename=path.name,
     )
+
+
+@router.delete("/{emp_id}", status_code=204)
+def delete_report(emp_id: str, year: int, month: int,
+                  db: Session = Depends(get_db),
+                  user: dict = Depends(get_current_admin)):
+    """Delete one employee's monthly report row for the given period.
+
+    Used from the Monthly Reports UI's per-row trash icon. Idempotent —
+    if the row is already gone we still return 204. Deletes the report
+    row only; underlying Attendance / LeaveRequest data is untouched.
+    """
+    emp = (db.query(Employee)
+           .filter((Employee.ID == emp_id) | (Employee.EMPLOYEE_CODE == emp_id))
+           .first())
+    if not emp:
+        raise HTTPException(404, "Employee not found")
+
+    (db.query(MonthlyAttendanceReport)
+       .filter(MonthlyAttendanceReport.EMPLOYEE_ID == emp.ID,
+               MonthlyAttendanceReport.YEAR == year,
+               MonthlyAttendanceReport.MONTH == month)
+       .delete(synchronize_session=False))
+    db.commit()
+    return None

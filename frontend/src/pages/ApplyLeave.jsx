@@ -40,6 +40,31 @@ function todayIso() {
 }
 
 
+// BVC24 policy banner — shown above the balance grid so every employee
+// sees the quota at a glance before applying.
+function LeavePolicyBanner() {
+  return (
+    <div style={{
+      background: "#fef3c7",
+      border: "1px solid #fde68a",
+      borderRadius: 10,
+      padding: "12px 16px",
+      marginBottom: 14,
+      fontSize: 13,
+      color: "#78350f",
+      lineHeight: 1.55
+    }}>
+      <div style={{ fontWeight: 700, marginBottom: 4, color: "#92400e" }}>
+        Leave Policy
+      </div>
+      <div><strong>12</strong> Casual Leaves per year</div>
+      <div><strong>1</strong> Casual Leave per month</div>
+      <div><strong>2</strong> hours of Permission per month</div>
+    </div>
+  );
+}
+
+
 function BalanceCard({ balance }) {
 
   if (!balance) return null;
@@ -48,7 +73,10 @@ function BalanceCard({ balance }) {
 
     <div className={styles.balanceCardGrid}>
 
-      {["CASUAL", "SICK", "EARNED"].map((t) => {
+      {/* Only Casual is a real leave type in BVC24 policy; Sick /
+          Earned tiles removed. Permission is tracked separately as
+          hours-per-month, shown in the policy banner. */}
+      {["CASUAL"].map((t) => {
 
         const b = balance[t];
 
@@ -323,11 +351,8 @@ function ApplyLeaveForm({ employeeId, onApplied }) {
               onChange={(e) => { setLeaveType(e.target.value); resetPreCheck(); }}
               className={styles.select}
             >
-              <option value="CASUAL">Casual</option>
-              <option value="SICK">Sick</option>
-              <option value="EARNED">Earned</option>
-              <option value="UNPAID">Unpaid</option>
-              <option value="LOP">Loss of Pay</option>
+              <option value="CASUAL">Casual Leave</option>
+              <option value="PERMISSION">Permission Hours</option>
             </select>
           </div>
 
@@ -1259,6 +1284,8 @@ function ApplyLeave() {
         {employeeId && (
 
           <>
+
+            <LeavePolicyBanner />
 
             <BalanceCard balance={balance} />
 

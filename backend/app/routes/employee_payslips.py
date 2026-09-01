@@ -228,8 +228,17 @@ def get_payslip_detail(
         "PAY_DATE":          pay_date or "—",
         "STATUS":            slip.STATUS or "PENDING",
         "COMPANY": {
-            "NAME":      company.get("NAME"),
-            "LOCATION":  company.get("LOCATION") or company.get("ADDRESS"),
+            # Prefer the legal name on the payslip letterhead so the
+            # header reads "Bharath Vending Corporation" rather than
+            # the short form (BVC24) — required for statutory docs.
+            "NAME":      company.get("legal_name") or company.get("name"),
+            # Multi-line postal address the frontend renders with
+            # `white-space: pre-line`. Built here so a single source
+            # of truth (CompanyMaster row) drives both preview + PDF.
+            "ADDRESS":   _format_company_address(company),
+            # LOGO_URL kept for backwards compatibility; the frontend
+            # now uses its own bundled /logo.webp instead.
+            "LOGO_URL":  _company_logo_url(db),
         },
         "EMPLOYEE": {
             "NAME":          emp.NAME,
@@ -240,11 +249,19 @@ def get_payslip_detail(
             "BANK_ACCOUNT":  _mask_account(getattr(emp, "BANK_ACCOUNT_NUMBER", None)),
             "PAN":           getattr(emp, "PAN_NUMBER", None),
         },
+        # Paid Days on the preview card = working_days - LOP days, so
+        # the two cells always add up to Working Days. Same math as the
+        # PDF (see get_payslip_pdf below). DAYS_PRESENT is kept as the
+        # raw physical-presence figure for anyone reading it directly.
         "DAYS": {
             "WORKING":  slip.WORKING_DAYS,
             "PRESENT":  slip.DAYS_PRESENT,
             "LATE":     slip.DAYS_LATE,
-            "PAID":     float(slip.PAID_LEAVE_DAYS or 0),
+            "PAID":     max(
+                0.0,
+                float(slip.WORKING_DAYS or 0)
+                - float(slip.UNPAID_LEAVE_DAYS or 0)
+            ),
             "LOP":      float(slip.UNPAID_LEAVE_DAYS or 0),
             "ABSENT":   float(slip.ABSENT_DAYS or 0),
             "OT_HOURS": float(slip.OT_HOURS or 0),
@@ -368,6 +385,7 @@ def get_payslip_pdf(
     }
 
     deductions = {
+        "Absent Day Deduction": float(slip.ABSENCE_DEDUCTION or 0),
         "Provident Fund (PF)":  float(slip.PF_EMPLOYEE or 0),
         "ESI":                  float(slip.ESI_EMPLOYEE or 0),
         "Professional Tax":     float(slip.PROFESSIONAL_TAX or 0),
@@ -376,6 +394,15 @@ def get_payslip_pdf(
     }
 
     company = _company_full(db)
+
+    # Paid Days shown on the payslip = working_days - LOP days.
+    # That way "Paid Days + LOP Days = Working Days" on the green
+    # summary card, which is what admin + employee expect. The raw
+    # DAYS_PRESENT (physical presence, ignores paid leave/holidays)
+    # is still stored on the slip for audit — this only affects
+    # the display column.
+    _lop_days = float(slip.UNPAID_LEAVE_DAYS or 0)
+    _paid_days = max(0.0, float(slip.WORKING_DAYS or 0) - _lop_days)
 
     pdf_bytes = render_payslip_pdf(
         payslip_number=_payslip_number(slip, run),
@@ -393,10 +420,10 @@ def get_payslip_pdf(
         },
         attendance={
             "WORKING_DAYS":  slip.WORKING_DAYS,
-            "PRESENT":       slip.DAYS_PRESENT,
+            "PRESENT":       _paid_days,
             "LATE":          slip.DAYS_LATE,
             "LEAVE":         float(slip.PAID_LEAVE_DAYS or 0),
-            "LOP":           float(slip.UNPAID_LEAVE_DAYS or 0),
+            "LOP":           _lop_days,
             "ABSENT":        float(slip.ABSENT_DAYS or 0),
             "OT_HOURS":      float(slip.OT_HOURS or 0),
         },
@@ -445,6 +472,65 @@ def _mask_account(num: Optional[str]) -> Optional[str]:
     if len(s) <= 4:
         return s
     return "X" * (len(s) - 4) + s[-4:]
+
+
+def _format_company_address(company: Dict[str, Any]) -> Optional[str]:
+    """Turn the CompanyMaster row into a clean multi-line postal
+    address string.
+
+    Layout:
+        <ADDRESS_LINE_1>,
+        <ADDRESS_LINE_2>,
+        <CITY> - <PINCODE>.
+        <STATE>, <COUNTRY>.
+
+    Every line is optional — the helper skips a line whose parts are
+    all empty so an incomplete row still renders cleanly.
+    """
+    lines: list = []
+
+    line1 = (company.get("address_line_1") or "").strip()
+    if line1:
+        lines.append(line1.rstrip(",") + ",")
+
+    line2 = (company.get("address_line_2") or "").strip()
+    if line2:
+        lines.append(line2.rstrip(",") + ",")
+
+    city_bits = []
+    if company.get("city"):
+        city_bits.append(str(company["city"]).strip())
+    if company.get("pincode"):
+        city_bits.append("- " + str(company["pincode"]).strip())
+    if city_bits:
+        lines.append(" ".join(city_bits) + ".")
+
+    tail_bits = []
+    if company.get("state"):
+        tail_bits.append(str(company["state"]).strip())
+    if company.get("country"):
+        tail_bits.append(str(company["country"]).strip())
+    if tail_bits:
+        lines.append(", ".join(tail_bits) + ".")
+
+    return "\n".join(lines) if lines else None
+
+
+def _company_logo_url(db: Session) -> Optional[str]:
+    """Public /static URL for the company logo, or None if not set.
+
+    The frontend PayslipPreview renders this as an <img> top-right of
+    the payslip document card. Same LOGO_URL row the CompanyMaster
+    admin form stores.
+    """
+    try:
+        from app.models.models import CompanyMaster
+        c = db.query(CompanyMaster).first()
+        if c and c.LOGO_URL:
+            return c.LOGO_URL
+    except Exception:
+        pass
+    return None
 
 
 def _company_full(db: Session) -> Dict[str, Any]:

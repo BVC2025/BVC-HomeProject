@@ -37,47 +37,47 @@
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-left: 4px solid #dc2626;
-  border-radius: 12px;
-  padding: 20px 24px;
-  margin-bottom: 14px;
+  border-radius: 10px;
+  padding: 12px 18px;
+  margin-bottom: 12px;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 12px;
   flex-shrink: 0;
 }
 
 .pageBannerLeft {
   display: flex;
   flex-direction: column;
-  min-width: 240px;
-  gap: 4px;
+  min-width: 220px;
+  gap: 2px;
 }
 
 .pageBannerEyebrow {
-  font-size: 10.5px;
-  letter-spacing: 1.4px;
+  font-size: 10px;
+  letter-spacing: 1.2px;
   color: #dc2626;
   font-weight: 700;
   text-transform: uppercase;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 }
 
 .pageBannerTitle {
-  font-size: 22px;
+  font-size: 17px;
   font-weight: 700;
   margin: 0;
-  line-height: 1.2;
+  line-height: 1.15;
   color: #0f172a;
-  letter-spacing: -0.4px;
+  letter-spacing: -0.3px;
 }
 
 .pageBannerSub {
-  font-size: 13px;
+  font-size: 12px;
   color: #64748b;
-  line-height: 1.5;
+  line-height: 1.4;
   max-width: 560px;
 }
 
@@ -94,16 +94,16 @@
 .bannerHint {
   display: inline-flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 6px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   color: #475569;
-  padding: 10px 14px;
-  border-radius: 10px;
-  font-size: 12.5px;
+  padding: 7px 11px;
+  border-radius: 8px;
+  font-size: 11.5px;
   font-weight: 500;
-  max-width: 520px;
-  line-height: 1.5;
+  max-width: 480px;
+  line-height: 1.4;
 }
 .bannerHint svg {
   flex-shrink: 0;
@@ -352,30 +352,6 @@
   color: white;
   border-color: var(--clr-primary, #C8102E);
   box-shadow: 0 1px 2px rgba(200, 16, 46, 0.25);
-
-  gap: var(--sp-2);
-  margin-bottom: 14px;
-  flex-wrap: wrap;
-}
-
-.statusBtn {
-  border: 1px solid var(--border);
-  background: var(--card-bg);
-  color: var(--slate-600);
-  padding: 6px var(--sp-3);
-  border-radius: var(--radius);
-  cursor: pointer;
-  font-size: var(--font-sm);
-  font-weight: var(--fw-semi);
-  font-family: var(--font);
-  transition: all var(--ease);
-}
-
-.statusBtnActive {
-  background: var(--info);
-  color: var(--text-inverse);
-  border-color: var(--info);
-
 }
 
 /* ─── Leave table ───────────────────────────────────────────── */
@@ -388,7 +364,10 @@
   border: 1px solid var(--border);
 
   flex: 1 1 auto;
-  min-height: 0;
+  /* Give the table a substantial minimum height so a page with few rows
+     still shows plenty of empty space instead of collapsing to just the
+     header + 1 row. Grows to fill remaining viewport via flex. */
+  min-height: 520px;
   display: flex;
   flex-direction: column;
 }
@@ -397,13 +376,7 @@
   overflow-y: auto;
   overflow-x: auto;
   flex: 1 1 auto;
-  min-height: 0;
-
-}
-
-.tableScroll {
-  overflow: auto;
-
+  min-height: 480px;
 }
 
 .tableEl {

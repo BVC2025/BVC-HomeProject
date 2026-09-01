@@ -102,10 +102,11 @@ def gather_employee_context(db: Session, employee_id: str) -> Dict[str, Any]:
             if (r.LEAVE_TYPE or "").upper() == t
         )
 
+    # BVC24 policy: ONLY Casual Leave exists. No EL / SL / Maternity buckets.
+    # 12 CL per year, capped at 1 per calendar month. Any leave taken
+    # beyond that becomes LOP (Loss of Pay).
     balance = {
-        "CASUAL":   {"quota": 12, "used": _days("CASUAL"),   "remaining": max(0, 12 - _days("CASUAL"))},
-        "SICK":     {"quota": 10, "used": _days("SICK"),     "remaining": max(0, 10 - _days("SICK"))},
-        "EARNED":   {"quota": 15, "used": _days("EARNED"),   "remaining": max(0, 15 - _days("EARNED"))},
+        "CASUAL": {"quota": 12, "used": _days("CASUAL"), "remaining": max(0, 12 - _days("CASUAL"))},
     }
 
     # Pending tasks — open ones assigned to this employee.
@@ -220,14 +221,20 @@ STRICT ACCESS RULES (RBAC — non-negotiable):
 - You MUST NEVER reveal salary, PAN, Aadhaar, bank details, memos, disciplinary records, or performance scores — not even the employee's own. If asked, refuse politely with the same line.
 - Only these topics are permitted for the employee's OWN data: leave balance, pending tasks, holiday calendar, permission usage, late marks, attendance summary, applying for leave.
 
-LEAVE POLICY (enforce strictly):
-- Casual Leave: 12 days/year total, max 1 per calendar month.
-- If `casual_leaves_this_month` >= 1 and employee asks for another CL, that becomes the "2nd CL this month" case:
-  * If `pending_tasks` is empty → still recommend it. Emit PROPOSE_LEAVE. In the draft, note "no pending tasks" in the reason. MD gets the email + can approve/reject.
+LEAVE POLICY (enforce strictly — BVC24 ERP has ONLY these two leave types, nothing else):
+- ONLY TWO leave types exist in this ERP: CASUAL (paid) and LOP (unpaid). There is NO Sick Leave, NO Earned Leave, NO Maternity Leave, NO Privilege Leave. NEVER mention or offer any leave type other than CASUAL or LOP.
+- Casual Leave rules: 12 days/year total, max 1 CL per calendar month.
+- If an employee requests MORE than 1 day in the same calendar month, only the FIRST day is CL. All remaining days MUST be classified as LOP (Loss of Pay — the employee's salary is deducted for those days).
+  * Example: employee asks for 3 days leave and `casual_leaves_this_month` = 0 → 1 day CL + 2 days LOP.
+  * Example: employee asks for 2 days leave and `casual_leaves_this_month` = 1 → 0 days CL + 2 days LOP.
+  * ALWAYS explain this split clearly in the reply so the employee knows how many days will be unpaid.
+- When emitting PROPOSE_LEAVE for a multi-day request that mixes CL + LOP, use `leave_type = "LOP"` for the whole draft (the app handles the CL portion automatically via monthly cap) and mention the CL/LOP day-split in the `reason` field.
+- For a single-day request that fits the monthly CL cap → `leave_type = "CASUAL"`.
+- For any request where the entire span is unpaid (monthly CL already used, or annual balance exhausted) → `leave_type = "LOP"`.
+- Pending-tasks flow (applies to BOTH CASUAL and LOP proposals):
+  * If `pending_tasks` is empty → emit PROPOSE_LEAVE directly. Note "no pending tasks" in the reason.
   * If `pending_tasks` has any tasks → ASK the employee when they will complete each pending task (get a specific YYYY-MM-DD date for each). Only after collecting a completion date for each open task, emit PROPOSE_LEAVE with those dates in `task_commitments`.
-- If requested days exceed remaining balance in `balance[TYPE].remaining` → same task-check flow as above.
 - Half-day leave: start_date must equal end_date (single day).
-- MATERNITY leave: only for employees where gender == FEMALE.
 
 PERMISSION POLICY:
 - Free permission hours: 2 hours per calendar month.
@@ -251,7 +258,7 @@ OUTPUT FORMAT — you MUST reply with a JSON object, no prose outside it:
   "reply": "<what to say out loud to the employee, in the appropriate language>",
   "action": "PROPOSE_LEAVE" | "ANSWER_ONLY",
   "draft": {{                       // ONLY when action=PROPOSE_LEAVE
-    "leave_type": "CASUAL" | "SICK" | "EARNED" | "UNPAID" | "LOP" | "MATERNITY",
+    "leave_type": "CASUAL" | "LOP",
     "start_date": "YYYY-MM-DD",
     "end_date":   "YYYY-MM-DD",
     "half_day":   true | false,

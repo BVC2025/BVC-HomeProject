@@ -65,7 +65,10 @@ export default function ShiftManagement() {
         {[
           { key: "shifts",   label: "Shift Templates" },
           { key: "calendar", label: "Calendar & Schedule" },
-          { key: "requests", label: "Change Requests" },
+          // Change Requests intentionally hidden — per business
+          // decision, admins assign shifts and employees follow;
+          // no employee-initiated swap workflow.
+          // { key: "requests", label: "Change Requests" },
         ].map((t) => (
           <button
             key={t.key}
@@ -960,27 +963,31 @@ function BulkAssignModal({ shifts, employees, initialFrom, initialTo, onClose, o
               border: `1px solid ${BORDER}`, borderRadius: 8, padding: 8,
             }}>
               <label style={{
-                display: "flex", alignItems: "center", gap: 6, marginBottom: 6,
+                display: "flex", alignItems: "center", justifyContent: "flex-start",
+                gap: 8, marginBottom: 6, width: "100%",
                 fontSize: 12, fontWeight: 700, color: MUTED,
                 cursor: "pointer",
               }}>
                 <input type="checkbox"
+                  style={{ margin: 0, flexShrink: 0 }}
                   checked={form.EMPLOYEE_IDS.length === employees.length}
                   onChange={(e) => setForm((f) => ({
                     ...f,
                     EMPLOYEE_IDS: e.target.checked ? employees.map((x) => x.ID) : [],
                   }))} />
-                Select all
+                <span>Select all</span>
               </label>
               {employees.map((e) => (
                 <label key={e.ID} style={{
-                  display: "flex", alignItems: "center", gap: 6, padding: "4px 0",
+                  display: "flex", alignItems: "center", justifyContent: "flex-start",
+                  gap: 8, padding: "4px 0", width: "100%",
                   fontSize: 12, color: TEXT, cursor: "pointer",
                 }}>
                   <input type="checkbox"
+                    style={{ margin: 0, flexShrink: 0 }}
                     checked={form.EMPLOYEE_IDS.includes(e.ID)}
                     onChange={() => toggleEmp(e.ID)} />
-                  {e.NAME} <span style={{ color: MUTED, fontSize: 11 }}>({e.EMPLOYEE_CODE || e.ID})</span>
+                  <span>{e.NAME} <span style={{ color: MUTED, fontSize: 11 }}>({e.EMPLOYEE_CODE || e.ID})</span></span>
                 </label>
               ))}
             </div>

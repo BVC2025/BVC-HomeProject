@@ -92,6 +92,7 @@ from app.routes.attendance_ai import router as attendance_ai_router  # Attendanc
 from app.routes.leave_decisions import router as leave_decisions_router  # Leave Automation (Phase 1)
 from app.routes.leave_ai_chat import router as leave_ai_chat_router  # Voice leave assistant (OpenRouter)
 from app.routes.attendance_penalties import router as attendance_penalties_router  # Auto LOP for late/permission
+from app.routes.shifts import router as shifts_router  # Shift templates + calendar assignments
 from app.routes.monthly_reports import router as monthly_reports_router  # Auto monthly attendance + payroll reports
 from app.routes.employee_status import router as employee_status_router  # Employee lifecycle status tracking
 from app.routes.employee_insights import router as employee_insights_router  # AI workforce analytics
@@ -344,6 +345,8 @@ _drop_legacy_lead_tables()
 # be imported for Base to know about it.
 from app.hrms_ai.session_store import HrmsAiConversation  # noqa: F401,E402
 from app.models.leave_chat_models import LeaveChatMessage  # noqa: F401,E402
+from app.models.shift_models import ShiftTemplate, ShiftAssignment  # noqa: F401,E402
+from app.models.recruitment_requisition_models import RecruitmentRequisition  # noqa: F401,E402
 
 Base.metadata.create_all(bind=engine)
 
@@ -363,6 +366,8 @@ def _auto_migrate():
 
     # (table, column, DDL fragment for the ADD COLUMN clause)
     pending = [
+        # ---- Shift Management ----
+        ("shift_master", "SHIFT_CODE", "VARCHAR(20) NULL"),
         ("machine",  "PRODUCT_MODEL_ID", "INT NULL"),
         ("machine",  "WORK_ORDER_ID",    "INT NULL"),
         ("machine",  "UNIT_NUMBER",      "INT NULL"),
@@ -392,6 +397,13 @@ def _auto_migrate():
         ("employee", "NOTES",              "VARCHAR(1000) NULL"),
         ("employee", "PHOTO_URL",          "VARCHAR(255) NULL"),
         ("employee", "PROFILE_SUBMITTED",  "INT NOT NULL DEFAULT 0"),
+        # ---- Onboarding automation (Phase 2) ----
+        ("employee", "CORPORATE_EMAIL",      "VARCHAR(200) NULL"),
+        ("employee", "REPORTING_MANAGER_ID", "VARCHAR(36) NULL"),
+        # ---- Offer letter accept/reject via email link ----
+        ("recruitment_offer", "RESPONSE_TOKEN", "VARCHAR(64) NULL"),
+        # ---- Requisition MD-approval-via-email link ----
+        ("recruitment_requisition", "APPROVAL_TOKEN", "VARCHAR(64) NULL"),
         # ---- Customer Master + Lead Pipeline (Phase 1) ----
         ("customer", "VENDOR_ID",            "INT NULL"),
         ("customer", "CUSTOMER_TYPE",        "VARCHAR(30) NULL"),
@@ -2444,6 +2456,7 @@ app.include_router(attendance_ai_router)
 app.include_router(leave_decisions_router)
 app.include_router(leave_ai_chat_router, prefix="/leave-ai-chat", tags=["leave-ai-chat"])
 app.include_router(attendance_penalties_router, prefix="/attendance-penalties", tags=["attendance-penalties"])
+app.include_router(shifts_router, prefix="/shifts", tags=["shifts"])
 app.include_router(monthly_reports_router)
 app.include_router(employee_status_router)
 app.include_router(employee_insights_router)

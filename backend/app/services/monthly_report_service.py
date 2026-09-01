@@ -84,25 +84,65 @@ class MonthlyReportService:
     # ---- public API --------------------------------------------------
 
     def generate_for_employee(self, emp: Employee, year: int, month: int,
-                              actor_employee_id: Optional[str] = None) -> MonthlyAttendanceReport:
-        """Idempotent — upserts the row for (emp, year, month)."""
+                              actor_employee_id: Optional[str] = None,
+                              force: bool = False) -> Optional[MonthlyAttendanceReport]:
+        """Idempotent — upserts the row for (emp, year, month).
+
+        `force=True` recomputes even LOCKED rows (used when HR clicks
+        Force re-sync or Regenerate to fix a bad number).
+
+        BVC24 policy: employees whose salary is not fixed (neither via
+        Salary Structure nor Employee.SALARY) do NOT appear in Monthly
+        Reports. Any stale row for such an employee is deleted here so
+        the list stays consistent with Payroll Records (which already
+        skips them — see payroll_service.generate_payroll_run).
+        """
+        from app.services.attendance_payroll_calc import (
+            get_effective_monthly_salary,
+        )
+        if get_effective_monthly_salary(self.db, emp) <= 0:
+            (self.db.query(MonthlyAttendanceReport)
+                    .filter(MonthlyAttendanceReport.EMPLOYEE_ID == emp.ID,
+                            MonthlyAttendanceReport.YEAR == year,
+                            MonthlyAttendanceReport.MONTH == month)
+                    .delete(synchronize_session=False))
+            return None
+
         first, last = month_range(year, month)
         signals = self._gather_signals(emp, first, last)
-        report = self._upsert(emp, year, month, signals, actor_employee_id)
+        report = self._upsert(emp, year, month, signals, actor_employee_id, force=force)
         return report
 
     def generate_for_vendor(self, year: int, month: int,
-                            actor_employee_id: Optional[str] = None
+                            actor_employee_id: Optional[str] = None,
+                            force: bool = False
                             ) -> List[MonthlyAttendanceReport]:
-        """Run for every active employee in the vendor."""
+        """Run for every active employee in the vendor whose salary has
+        been fixed on the master. Employees without a salary are
+        skipped and any stale report rows for them are deleted (see
+        generate_for_employee).
+
+        Includes employees whose VENDOR_ID is NULL (legacy rows created
+        before multi-tenant scoping) so a single-tenant deployment
+        doesn't silently return 0 reports because the DB is missing a
+        VENDOR_ID stamp.
+        """
+        from sqlalchemy import or_
         emps = (self.db.query(Employee)
-                .filter(Employee.VENDOR_ID == self.vendor_id,
-                        Employee.STATUS == "ACTIVE").all())
+                .filter(
+                    or_(
+                        Employee.VENDOR_ID == self.vendor_id,
+                        Employee.VENDOR_ID.is_(None),
+                    ),
+                    Employee.STATUS == "ACTIVE",
+                ).all())
         results = []
         for e in emps:
-            results.append(
-                self.generate_for_employee(e, year, month, actor_employee_id)
+            row = self.generate_for_employee(
+                e, year, month, actor_employee_id, force=force
             )
+            if row is not None:
+                results.append(row)
         self.db.commit()
         return results
 
@@ -148,13 +188,24 @@ class MonthlyReportService:
             return meta
 
         # How many active employees? Needed to know what "all locked" means.
+        # Also accept NULL VENDOR_ID (legacy rows in single-tenant deployments).
+        from sqlalchemy import or_
+        _vendor_match_emp = or_(
+            Employee.VENDOR_ID == self.vendor_id,
+            Employee.VENDOR_ID.is_(None),
+        )
+        _vendor_match_rep = or_(
+            MonthlyAttendanceReport.VENDOR_ID == self.vendor_id,
+            MonthlyAttendanceReport.VENDOR_ID.is_(None),
+        )
+
         active_count = (self.db.query(Employee)
-                        .filter(Employee.VENDOR_ID == self.vendor_id,
+                        .filter(_vendor_match_emp,
                                 Employee.STATUS == "ACTIVE").count())
 
         if is_past and not force:
             locked_count = (self.db.query(MonthlyAttendanceReport)
-                            .filter(MonthlyAttendanceReport.VENDOR_ID == self.vendor_id,
+                            .filter(_vendor_match_rep,
                                     MonthlyAttendanceReport.YEAR == year,
                                     MonthlyAttendanceReport.MONTH == month,
                                     MonthlyAttendanceReport.STATUS == "LOCKED")
@@ -166,7 +217,7 @@ class MonthlyReportService:
 
         if is_current and not force:
             latest_update = (self.db.query(func.max(MonthlyAttendanceReport.UPDATED_AT))
-                             .filter(MonthlyAttendanceReport.VENDOR_ID == self.vendor_id,
+                             .filter(_vendor_match_rep,
                                      MonthlyAttendanceReport.YEAR == year,
                                      MonthlyAttendanceReport.MONTH == month).scalar())
             if latest_update:
@@ -175,8 +226,9 @@ class MonthlyReportService:
                     meta["skip_reason"] = f"recently_refreshed_{int(age_secs)}s_ago"
                     return meta
 
-        # Do the regeneration
-        rows = self.generate_for_vendor(year, month)
+        # Do the regeneration — pass force through so LOCKED past-month
+        # rows can be rebuilt too when HR explicitly requests it.
+        rows = self.generate_for_vendor(year, month, force=force)
         meta["refreshed"] = True
 
         # Auto-lock once the month is over — final, signed-off, no
@@ -192,11 +244,24 @@ class MonthlyReportService:
         return meta
 
     def list_reports(self, year: int, month: int) -> List[Dict[str, Any]]:
+        # Accept both vendor_id match AND NULL (single-tenant safety).
+        # Only surface employees whose salary was resolved > 0 when the
+        # report row was last generated. The stored MONTHLY_SALARY was
+        # produced by get_effective_monthly_salary, so this filter
+        # matches whatever the source of truth was (SalaryStructure
+        # gross or Employee.SALARY fallback).
+        from sqlalchemy import or_
         rows = (self.db.query(MonthlyAttendanceReport, Employee)
                 .join(Employee, MonthlyAttendanceReport.EMPLOYEE_ID == Employee.ID)
-                .filter(MonthlyAttendanceReport.VENDOR_ID == self.vendor_id,
-                        MonthlyAttendanceReport.YEAR  == year,
-                        MonthlyAttendanceReport.MONTH == month)
+                .filter(
+                    or_(
+                        MonthlyAttendanceReport.VENDOR_ID == self.vendor_id,
+                        MonthlyAttendanceReport.VENDOR_ID.is_(None),
+                    ),
+                    MonthlyAttendanceReport.YEAR  == year,
+                    MonthlyAttendanceReport.MONTH == month,
+                    MonthlyAttendanceReport.MONTHLY_SALARY > 0,
+                )
                 .order_by(Employee.NAME.asc()).all())
         return [self._serialise(r, e) for r, e in rows]
 
@@ -216,15 +281,28 @@ class MonthlyReportService:
         total_days = (last - first).days + 1
         sundays = count_sundays(first, last)
 
-        # Company holidays (excluding Sundays which are double-counted)
-        hols = (self.db.query(HolidayCalendar)
-                .filter(HolidayCalendar.VENDOR_ID == emp.VENDOR_ID,
-                        HolidayCalendar.HOLIDAY_DATE.between(first, last)).all())
-        holiday_dates = {h.HOLIDAY_DATE for h in hols}
-        # Holidays that fall on Sundays don't add to the holiday count
-        # for working-days math (they were already off).
+        # Company holidays sourced from the Announcement table
+        # (TYPE='HOLIDAY', IS_ACTIVE=1) — same single source of truth
+        # the biometric + payroll flow uses. HolidayCalendar is legacy
+        # and no longer consulted.
+        try:
+            from app.models.models import Announcement
+            hols = (self.db.query(Announcement)
+                    .filter(Announcement.TYPE == "HOLIDAY",
+                            Announcement.IS_ACTIVE == 1,
+                            Announcement.EVENT_DATE.between(first, last))
+                    .all())
+            holiday_dates = {a.EVENT_DATE for a in hols if a.EVENT_DATE}
+        except Exception:
+            holiday_dates = set()
+
+        # BVC24 policy: working days = calendar - Sundays ONLY.
+        # Holidays are paid days that count toward the denominator
+        # (per_day = basic / 26 for August 2026, matching the payslip).
+        # Holidays are excluded from the ABSENT count below so a
+        # no-punch on a holiday doesn't dock pay.
         extra_holidays = sum(1 for d in holiday_dates if d.weekday() != 6)
-        working_days = max(0, total_days - sundays - extra_holidays)
+        working_days = max(0, total_days - sundays)
 
         # Attendance rows in the window
         att = (self.db.query(Attendance)
@@ -240,6 +318,12 @@ class MonthlyReportService:
             oh = float(getattr(r, "OVERTIME_HOURS", 0) or 0)
             worked_hours += wh
             ot_hours     += oh
+
+            # Skip the ABSENT / no-punch bookkeeping when the DATE is
+            # a company holiday — those days are paid by policy and
+            # must not count as absent, present, or half-day.
+            if r.DATE in holiday_dates and r.CHECK_IN is None:
+                continue
 
             if s == "PRESENT":
                 # Treat < HALF_DAY_THRESHOLD as half-day even if marked PRESENT
@@ -261,12 +345,19 @@ class MonthlyReportService:
                 early += 1
 
         # Leave taken in the window (only APPROVED counts).
+        # `cl` / `sick` / `earned` / `paid_total` come from LeaveRequest
+        # rows — same source the payroll flow uses for CL matching.
+        # `unpaid_total` (LOP) is deliberately sourced from the
+        # Attendance table (STATUS='LOP' / 'HALF_LOP') instead, so it
+        # matches exactly what payroll_service reads. Using LeaveRequest
+        # for LOP double-counted days that had already been booked as a
+        # regular ABSENT on the Attendance row.
         leaves = (self.db.query(LeaveRequest)
                   .filter(LeaveRequest.EMPLOYEE_ID == emp.ID,
                           LeaveRequest.STATUS == "APPROVED",
                           LeaveRequest.START_DATE <= last,
                           LeaveRequest.END_DATE   >= first).all())
-        cl, sick, earned, paid_total, unpaid_total = 0.0, 0.0, 0.0, 0.0, 0.0
+        cl, sick, earned, paid_total = 0.0, 0.0, 0.0, 0.0
         for lv in leaves:
             # Clip the leave to the month window (in case it spans months)
             s = max(lv.START_DATE, first)
@@ -282,8 +373,17 @@ class MonthlyReportService:
             elif t == "EARNED":  earned += days
             if t in ReportPolicy.PAID_TYPES:
                 paid_total += days
-            elif t in ReportPolicy.UNPAID_TYPES:
-                unpaid_total += days
+
+        # LOP from Attendance (same source payroll uses).
+        unpaid_total = 0.0
+        for r in att:
+            s = (r.STATUS or "").upper()
+            if r.CHECK_IN is not None:
+                continue
+            if s == "LOP":
+                unpaid_total += 1.0
+            elif s == "HALF_LOP":
+                unpaid_total += 0.5
 
         # Excess leaves — sum of paid leaves taken beyond yearly balance.
         # We look at the year's LeaveBalance and assume the *_USED columns
@@ -299,12 +399,51 @@ class MonthlyReportService:
         credited = present + paid_total
         attendance_pct = round((credited / working_days) * 100, 1) if working_days else 0.0
 
-        # Salary
-        salary = float(emp.SALARY or 0)
+        # Salary — pulled through the shared resolver so this report
+        # agrees with the Employee Profile, Biometric calc, and Payroll
+        # slip. When HR fixes salary via the CTC builder the structure
+        # is authoritative; the legacy Employee.SALARY column is a
+        # fallback for employees who never went through the builder.
+        from app.services.attendance_payroll_calc import (
+            get_effective_monthly_salary,
+        )
+        salary = get_effective_monthly_salary(self.db, emp)
         daily_wage = round(salary / working_days, 2) if working_days else 0.0
-        unpaid_days = absent + unpaid_total + excess
+
+        # Pull annual CL cap and derive the monthly cap.
+        annual_cl = 12.0
+        try:
+            from app.models.models import LeaveBalance
+            bal = (self.db.query(LeaveBalance)
+                     .filter(LeaveBalance.EMPLOYEE_ID == emp.ID,
+                             LeaveBalance.YEAR == first.year)
+                     .first())
+            if bal and bal.CASUAL_TOTAL:
+                annual_cl = float(bal.CASUAL_TOTAL)
+        except Exception:
+            pass
+        monthly_cl_cap = float(int(annual_cl // 12)) if annual_cl >= 12 else annual_cl / 12.0
+        # `cl` (formal CL requests) already counted from LeaveRequest above.
+        # Cap formal CL at the monthly limit first, then top up with
+        # auto-consumed absents until we hit the cap.
+        formal_cl_capped = min(cl, monthly_cl_cap)
+        cl_remaining_this_month = max(0.0, monthly_cl_cap - formal_cl_capped)
+        auto_cl = min(float(absent), cl_remaining_this_month)
+        cl_used_effective = round(min(monthly_cl_cap, formal_cl_capped + auto_cl), 1)
+
+        # Unpaid absent = raw absent + formal LOP minus CL applied.
+        # `excess` (leaves beyond yearly quota) is a display-only signal
+        # for HR — it must NOT re-enter the deduction math, otherwise
+        # a CL day that already offset an absent gets counted a second
+        # time. Payroll uses this exact same formula.
+        unpaid_days = max(0.0,
+                          absent + unpaid_total - cl_used_effective)
         absence_ded = round(daily_wage * unpaid_days, 2)
-        late_ded    = round(ReportPolicy.LATE_DEDUCTION_PER_DAY * late, 2)
+
+        # Late deduction — 3-late = 0.5 day rule, mirrors payroll_service.py
+        half_day_penalty = (late // 3) * 0.5
+        late_ded = round(daily_wage * half_day_penalty, 2)
+
         # OT pay: hourly rate × OT hours × multiplier
         hourly = (daily_wage / ReportPolicy.STANDARD_DAILY_HOURS) if daily_wage else 0.0
         ot_payable = round(hourly * ot_hours * ReportPolicy.OT_RATE_MULTIPLIER, 2)
@@ -320,7 +459,10 @@ class MonthlyReportService:
             "holidays": extra_holidays, "working_days": working_days,
             "present_days": present, "absent_days": absent,
             "half_days": half, "late_count": late, "early_exit_count": early,
-            "cl_used": cl, "sick_used": sick, "earned_used": earned,
+            # cl_used shows the EFFECTIVE CL consumed this month
+            # (formal + auto-applied against absents), same figure the
+            # payslip uses so the two views stay reconciled.
+            "cl_used": cl_used_effective, "sick_used": sick, "earned_used": earned,
             "paid_leaves": paid_total, "unpaid_leaves": unpaid_total,
             "excess_leaves": excess,
             "worked_hours": round(worked_hours, 1),
@@ -396,17 +538,24 @@ class MonthlyReportService:
 
     def _upsert(self, emp: Employee, year: int, month: int,
                 s: Dict[str, Any],
-                actor_id: Optional[str]) -> MonthlyAttendanceReport:
+                actor_id: Optional[str],
+                force: bool = False) -> MonthlyAttendanceReport:
         existing = (self.db.query(MonthlyAttendanceReport)
                     .filter(MonthlyAttendanceReport.EMPLOYEE_ID == emp.ID,
                             MonthlyAttendanceReport.YEAR == year,
                             MonthlyAttendanceReport.MONTH == month).first())
-        if existing and existing.STATUS == "LOCKED":
-            # Don't overwrite locked rows (already paid, sent etc.)
+        if existing and existing.STATUS == "LOCKED" and not force:
+            # Don't overwrite locked rows (already paid, sent etc.) —
+            # unless the caller explicitly asked (Force re-sync).
             return existing
+        # Stamp with a real vendor_id — never NULL — so subsequent
+        # list_reports queries pick this row up regardless of whether
+        # they filter with OR-NULL or strict equality. Falls back to
+        # the service's vendor_id (default 1) when the employee row
+        # itself is missing the stamp.
         row = existing or MonthlyAttendanceReport(
             EMPLOYEE_ID=emp.ID, YEAR=year, MONTH=month,
-            VENDOR_ID=emp.VENDOR_ID,
+            VENDOR_ID=(emp.VENDOR_ID or self.vendor_id or 1),
         )
         row.TOTAL_DAYS        = s["total_days"]
         row.SUNDAYS           = s["sundays"]

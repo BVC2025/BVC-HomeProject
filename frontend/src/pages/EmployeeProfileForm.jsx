@@ -19,6 +19,62 @@ const DOC_TYPES = [
   { value: "OTHER", label: "Other" },
 ];
 
+// The six required document categories that every new joiner has to
+// upload during onboarding. Each slot supports multiple files (e.g.
+// front + back of Aadhaar, both 10th and 12th marksheets, etc.).
+// The `types` array is the set of DOC_TYPE keys that count towards
+// this slot's "uploaded" state.
+const REQUIRED_DOC_SLOTS = [
+  {
+    key:      "SCHOOL_MARKSHEETS",
+    label:    "10th & 12th Marksheets",
+    hint:     "Upload both 10th and 12th mark sheets (soft copy).",
+    types:    ["TENTH_MARKSHEET", "TWELFTH_MARKSHEET"],
+    saveAs:   "TENTH_MARKSHEET",   // default when picker doesn't distinguish
+    required: true,
+  },
+  {
+    key:      "DEGREE_CERTIFICATE",
+    label:    "Degree Certificate (UG / PG)",
+    hint:     "UG and/or PG degree certificate. Upload all pages.",
+    types:    ["DEGREE", "POSTGRADUATE"],
+    saveAs:   "DEGREE",
+    required: true,
+  },
+  {
+    key:      "PAN_CARD",
+    label:    "PAN Card",
+    hint:     "PAN card (front side).",
+    types:    ["PAN"],
+    saveAs:   "PAN",
+    required: true,
+  },
+  {
+    key:      "AADHAAR_CARD",
+    label:    "Aadhaar Card",
+    hint:     "Aadhaar card front and back.",
+    types:    ["AADHAAR"],
+    saveAs:   "AADHAAR",
+    required: true,
+  },
+  {
+    key:      "EXPERIENCE_CERTIFICATE",
+    label:    "Previous Experience Certificate",
+    hint:     "Only if you have previous work experience.",
+    types:    ["EXPERIENCE_LETTER", "RELIEVING_LETTER", "SALARY_SLIP"],
+    saveAs:   "EXPERIENCE_LETTER",
+    required: false,
+  },
+  {
+    key:      "BANK_DETAILS",
+    label:    "Bank Details",
+    hint:     "Cancelled cheque or bank passbook first page.",
+    types:    ["BANK_PASSBOOK"],
+    saveAs:   "BANK_PASSBOOK",
+    required: true,
+  },
+];
+
 const MAX_DOC_MB = 10;
 
 // ---- Icons ----
@@ -176,7 +232,7 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
     EXPERIENCE_DETAILS: employee.EXPERIENCE_DETAILS || "",
     PAST_PROJECTS: employee.PAST_PROJECTS || "",
     // Work details
-    CONFIRMATION_DATE: employee.CONFIRMATION_DATE || "",
+    JOINING_DATE: employee.JOINING_DATE || "",
     WORK_LOCATION: employee.WORK_LOCATION || "",
     // Bank & identity (payroll)
     BANK_ACCOUNT_NUMBER: employee.BANK_ACCOUNT_NUMBER || "",
@@ -305,38 +361,63 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
-  const handleDocPick = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Upload a single file with a given DOC_TYPE. Returns the new doc
+  // record on success, or throws with a user-facing message.
+  const uploadOne = async (file, uploadDocType, uploadTitle) => {
     if (file.size > MAX_DOC_MB * 1024 * 1024) {
-      setDocError(`File must be under ${MAX_DOC_MB} MB.`);
-      if (docInputRef.current) docInputRef.current.value = "";
-      return;
+      throw new Error(`"${file.name}" is larger than ${MAX_DOC_MB} MB.`);
     }
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("doc_type", uploadDocType);
+    fd.append("title", uploadTitle || file.name);
+    const res = await API.post(
+      `/employees/${encodeURIComponent(employee.ID)}/documents`,
+      fd,
+      { headers: { "Content-Type": "multipart/form-data" } }
+    );
+    return res.data?.document || res.data;
+  };
+
+  // Legacy single-picker (bottom "Add other document" row). Now takes
+  // FileList so users can select multiple files at once.
+  const handleDocPick = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
     setDocBusy(true);
     setDocError("");
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("doc_type", docType);
-      fd.append("title", docTitle || file.name);
-      const res = await API.post(
-        `/employees/${encodeURIComponent(employee.ID)}/documents`,
-        fd,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
-      const newDoc = res.data?.document || res.data;
-      if (newDoc) setDocs((prev) => [newDoc, ...prev]);
+      for (const f of files) {
+        const newDoc = await uploadOne(f, docType, docTitle || f.name);
+        if (newDoc) setDocs((prev) => [newDoc, ...prev]);
+      }
       setDocTitle("");
     } catch (err) {
-      setDocError(
-        err?.response?.data?.detail ||
-        err?.message ||
-        "Upload failed."
-      );
+      setDocError(err?.response?.data?.detail || err?.message || "Upload failed.");
     } finally {
       setDocBusy(false);
       if (docInputRef.current) docInputRef.current.value = "";
+    }
+  };
+
+  // Per-slot uploader used by the six required-document rows above.
+  // Uploads every selected file under the slot's saveAs type.
+  const handleSlotPick = async (slot, e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setDocBusy(true);
+    setDocError("");
+    try {
+      for (const f of files) {
+        const newDoc = await uploadOne(f, slot.saveAs, f.name);
+        if (newDoc) setDocs((prev) => [newDoc, ...prev]);
+      }
+    } catch (err) {
+      setDocError(err?.response?.data?.detail || err?.message || "Upload failed.");
+    } finally {
+      setDocBusy(false);
+      // Clear the individual slot input so the same file can be re-picked
+      if (e.target) e.target.value = "";
     }
   };
 
@@ -363,14 +444,90 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
   // Form submit is a two-step gate: the button opens a confirmation
   // dialog; only clicking "Yes, submit" in the dialog actually POSTs.
   // Cancel keeps the form editable.
+  //
+  // Full validation runs here — every business-critical field is
+  // enforced before the confirmation dialog opens. The first missing
+  // field wins so the employee sees ONE error at a time and can fix
+  // it without scrolling through a wall of red text.
   const submit = (e) => {
     e?.preventDefault?.();
     setError("");
 
-    if (!form.NAME.trim()) { setError("Name is required."); return; }
-    if (!form.PHONE.trim() || !form.EMAIL.trim()) {
-      setError("Phone and Email are required.");
+    // The employee is usually already at the bottom of the form
+    // when they click Submit — scroll them back to the banner so
+    // they actually see the message.
+    const raise = (msg) => {
+      setError(msg);
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    };
+    const missing = (label) => raise(`${label} is required.`);
+
+    // ---- Personal Information ----
+    if (!form.NAME.trim())              { missing("Full Name"); return; }
+    if (!form.DOB)                      { missing("Date of Birth"); return; }
+    if (!form.FATHER_NAME.trim())       { missing("Father's Name"); return; }
+    if (!form.MOTHER_NAME.trim())       { missing("Mother's Name"); return; }
+    if (!form.GENDER)                   { missing("Gender"); return; }
+    if (!form.MARITAL_STATUS)           { missing("Marital Status"); return; }
+    if (!form.BLOOD_GROUP)              { missing("Blood Group"); return; }
+    if (!form.NATIONALITY.trim())       { missing("Nationality"); return; }
+    if (!form.EMERGENCY_CONTACT_NAME.trim())     { missing("Emergency Contact Name"); return; }
+    if (!form.EMERGENCY_CONTACT_PHONE.trim())    { missing("Emergency Contact Phone"); return; }
+    if (form.EMERGENCY_CONTACT_PHONE.trim().length !== 10) {
+      raise("Emergency Contact Phone must be 10 digits.");
       return;
+    }
+    if (!form.EMERGENCY_CONTACT_RELATION.trim()) { missing("Emergency Contact Relationship"); return; }
+
+    // ---- Contact & Address ----
+    if (!form.PHONE.trim())    { missing("Phone"); return; }
+    if (!form.EMAIL.trim())    { missing("Email"); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.EMAIL.trim())) {
+      raise("Email is not valid.");
+      return;
+    }
+    if (!form.ADDRESS.trim())  { missing("Address"); return; }
+    if (!form.CITY.trim())     { missing("City"); return; }
+    if (!form.STATE.trim())    { missing("State"); return; }
+    if (!form.PINCODE.trim())  { missing("Pincode"); return; }
+
+    // ---- Education ----
+    if (!form.QUALIFICATION.trim())  { missing("Qualification"); return; }
+    if (!form.YEAR_OF_PASSING)       { missing("Year of Passing"); return; }
+
+    // ---- Work Details ----
+    if (!form.JOINING_DATE)          { missing("Joining Date"); return; }
+
+    // ---- Bank & Identity (payroll) ----
+    if (!form.BANK_ACCOUNT_NUMBER.trim())   { missing("Bank Account Number"); return; }
+    if (!form.BANK_NAME.trim())             { missing("Bank Name"); return; }
+    if (!form.IFSC_CODE.trim())             { missing("IFSC Code"); return; }
+    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(form.IFSC_CODE.trim().toUpperCase())) {
+      raise("IFSC Code format is invalid (e.g. HDFC0001234).");
+      return;
+    }
+    if (!form.PAN_NUMBER.trim())            { missing("PAN Number"); return; }
+    if (!/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(form.PAN_NUMBER.trim().toUpperCase())) {
+      raise("PAN format is invalid (e.g. ABCDE1234F).");
+      return;
+    }
+    if (!form.AADHAAR_NUMBER.trim())        { missing("Aadhaar Number"); return; }
+    if (form.AADHAAR_NUMBER.trim().length !== 12) {
+      raise("Aadhaar Number must be 12 digits.");
+      return;
+    }
+
+    // ---- Required documents (5 mandatory slots) ----
+    const uploadedTypes = new Set(docs.map((d) => (d.DOC_TYPE || "").toUpperCase()));
+    for (const slot of REQUIRED_DOC_SLOTS) {
+      if (!slot.required) continue;
+      const hasAny = slot.types.some((t) => uploadedTypes.has(t));
+      if (!hasAny) {
+        raise(`Please upload: ${slot.label}.`);
+        return;
+      }
     }
 
     setConfirmOpen(true);
@@ -384,7 +541,7 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
         ...form,
         // Dates → null if empty (backend expects date or null, not "")
         DOB: form.DOB || null,
-        CONFIRMATION_DATE: form.CONFIRMATION_DATE || null,
+        JOINING_DATE: form.JOINING_DATE || null,
         // Numeric coercions
         YEAR_OF_PASSING: form.YEAR_OF_PASSING ? Number(form.YEAR_OF_PASSING) : null,
         EXPERIENCE_YEARS: Number(form.EXPERIENCE_YEARS) || 0,
@@ -665,8 +822,8 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
               minus Role/Department/Designation which are admin-only. */}
           <Section icon={Icons.building} title="Work Details">
             <div className={styles.grid2}>
-              <Field label="Confirmation Date (probation end)">
-                <input type="date" value={form.CONFIRMATION_DATE} onChange={set("CONFIRMATION_DATE")} className={styles.input} />
+              <Field label="Joining Date">
+                <input type="date" value={form.JOINING_DATE} onChange={set("JOINING_DATE")} className={styles.input} />
               </Field>
               <Field label="Work Location">
                 <input type="text" value={form.WORK_LOCATION} onChange={set("WORK_LOCATION")} className={styles.input} placeholder="Coimbatore HQ / Chennai Site / Remote" />
@@ -738,81 +895,232 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
           <Section icon={Icons.paperclip} title="Documents">
 
             <div className={styles.docHint}>
-              Upload your Resume, Aadhaar, PAN and any other required ID
-              proofs. PDF or image (JPG / PNG). Max {MAX_DOC_MB} MB per file.
+              Upload the following required documents. Each row accepts
+              multiple files (PDF or image, JPG / PNG). Max {MAX_DOC_MB} MB per file.
             </div>
 
-            <div className={styles.docUploadRow}>
-              <Field label="Document Type">
-                <select
-                  value={docType}
-                  onChange={(e) => setDocType(e.target.value)}
-                  className={styles.input}
-                >
-                  {DOC_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
-                  ))}
-                </select>
-              </Field>
+            {/* Six required document slots. Each shows a status pill
+                (Uploaded / Missing), a multi-file picker, and the list
+                of files that have already been uploaded for that slot. */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {REQUIRED_DOC_SLOTS.map((slot) => {
+                const filesInSlot = docs.filter((d) => slot.types.includes(d.DOC_TYPE));
+                const uploaded   = filesInSlot.length > 0;
+                const inputId    = `doc-slot-${slot.key}`;
 
-              <Field label="Title (optional)">
-                <input
-                  type="text"
-                  value={docTitle}
-                  onChange={(e) => setDocTitle(e.target.value)}
-                  className={styles.input}
-                  placeholder="e.g. Aadhaar front side"
-                />
-              </Field>
+                return (
+                  <div
+                    key={slot.key}
+                    style={{
+                      border: uploaded
+                        ? "1px solid #bbf7d0"
+                        : (slot.required ? "1px solid #fecaca" : "1px solid #e5e7eb"),
+                      background: uploaded
+                        ? "#f0fdf4"
+                        : (slot.required ? "#fef2f2" : "#f8fafc"),
+                      borderRadius: 10,
+                      padding: "12px 14px"
+                    }}
+                  >
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      flexWrap: "wrap"
+                    }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{
+                          fontSize: 13.5,
+                          fontWeight: 700,
+                          color: "#0f172a"
+                        }}>
+                          {slot.label}
+                          {slot.required && (
+                            <span style={{ color: "#dc2626", marginLeft: 4 }}>*</span>
+                          )}
+                        </div>
+                        <div style={{
+                          fontSize: 12,
+                          color: "#64748b",
+                          marginTop: 2
+                        }}>
+                          {slot.hint}
+                        </div>
+                      </div>
 
-              <Field label="File">
-                <input
-                  ref={docInputRef}
-                  type="file"
-                  accept=".pdf,image/*"
-                  onChange={handleDocPick}
-                  disabled={docBusy}
-                  className={styles.input}
-                />
-              </Field>
+                      <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10
+                      }}>
+                        <span style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          padding: "3px 8px",
+                          borderRadius: 999,
+                          background: uploaded ? "#dcfce7" : "#fee2e2",
+                          color: uploaded ? "#166534" : "#991b1b",
+                          textTransform: "uppercase",
+                          letterSpacing: 0.4,
+                          whiteSpace: "nowrap"
+                        }}>
+                          {uploaded
+                            ? `${filesInSlot.length} file${filesInSlot.length === 1 ? "" : "s"}`
+                            : (slot.required ? "Required" : "Optional")}
+                        </span>
+
+                        <label
+                          htmlFor={inputId}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            padding: "7px 14px",
+                            borderRadius: 8,
+                            background: "#0f172a",
+                            color: "#ffffff",
+                            fontSize: 13,
+                            fontWeight: 600,
+                            cursor: docBusy ? "not-allowed" : "pointer",
+                            opacity: docBusy ? 0.6 : 1,
+                            whiteSpace: "nowrap"
+                          }}
+                        >
+                          {Icons.paperclip}
+                          <span>Upload Files</span>
+                        </label>
+                        <input
+                          id={inputId}
+                          type="file"
+                          multiple
+                          accept=".pdf,image/*"
+                          disabled={docBusy}
+                          onChange={(e) => handleSlotPick(slot, e)}
+                          style={{ display: "none" }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Files uploaded for this slot */}
+                    {uploaded && (
+                      <ul style={{
+                        listStyle: "none",
+                        padding: 0,
+                        margin: "10px 0 0",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 4
+                      }}>
+                        {filesInSlot.map((d) => {
+                          const id = d.ID || d.id;
+                          return (
+                            <li
+                              key={id}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: 8,
+                                fontSize: 12.5,
+                                background: "#ffffff",
+                                border: "1px solid #d1fadf",
+                                borderRadius: 6,
+                                padding: "6px 10px"
+                              }}
+                            >
+                              <span style={{
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap"
+                              }}>
+                                {d.TITLE || d.FILE_NAME || "Untitled"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => removeDoc(id)}
+                                style={{
+                                  border: "none",
+                                  background: "transparent",
+                                  color: "#b91c1c",
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  cursor: "pointer"
+                                }}
+                              >
+                                Remove
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             {docError && (
-              <div className={styles.errorBanner}>
+              <div className={styles.errorBanner} style={{ marginTop: 12 }}>
                 {Icons.alert}
                 <span>{docError}</span>
               </div>
             )}
             {docBusy && (
-              <div className={styles.fieldHint}>Uploading…</div>
+              <div className={styles.fieldHint} style={{ marginTop: 8 }}>
+                Uploading…
+              </div>
             )}
 
-            {docs.length > 0 && (
-              <ul className={styles.docList}>
-                {docs.map((d) => {
-                  const id = d.ID || d.id;
-                  const typeLbl =
-                    DOC_TYPES.find((t) => t.value === d.DOC_TYPE)?.label
-                    || d.DOC_TYPE
-                    || "Other";
-                  return (
-                    <li key={id} className={styles.docItem}>
-                      <span className={styles.docType}>{typeLbl}</span>
-                      <span className={styles.docTitle}>
-                        {d.TITLE || d.FILE_NAME || "Untitled"}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removeDoc(id)}
-                        className={styles.docRemove}
-                      >
-                        Remove
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+            {/* Optional — legacy "any other document" picker, kept so the
+                employee can still attach an offer letter, address proof,
+                or anything not covered by the six required slots. Now
+                supports selecting multiple files at once. */}
+            <details style={{ marginTop: 18 }}>
+              <summary style={{
+                cursor: "pointer",
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#334155"
+              }}>
+                Add another document (optional)
+              </summary>
+              <div className={styles.docUploadRow} style={{ marginTop: 10 }}>
+                <Field label="Document Type">
+                  <select
+                    value={docType}
+                    onChange={(e) => setDocType(e.target.value)}
+                    className={styles.input}
+                  >
+                    {DOC_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </Field>
+
+                <Field label="Title (optional)">
+                  <input
+                    type="text"
+                    value={docTitle}
+                    onChange={(e) => setDocTitle(e.target.value)}
+                    className={styles.input}
+                    placeholder="e.g. Address proof — utility bill"
+                  />
+                </Field>
+
+                <Field label="Files (multiple allowed)">
+                  <input
+                    ref={docInputRef}
+                    type="file"
+                    multiple
+                    accept=".pdf,image/*"
+                    onChange={handleDocPick}
+                    disabled={docBusy}
+                    className={styles.input}
+                  />
+                </Field>
+              </div>
+            </details>
           </Section>
 
           {/* Additional */}

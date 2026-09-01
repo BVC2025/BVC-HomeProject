@@ -3747,6 +3747,11 @@ class OfferLetter(Base):
     SENT_AT     = Column(DateTime, nullable=True)
     RESPONDED_AT = Column(DateTime, nullable=True)
 
+    # One-time token embedded in the Accept/Reject links in the email.
+    # Cleared after the candidate responds so the same link can't be
+    # reused.
+    RESPONSE_TOKEN = Column(String(64), nullable=True, index=True)
+
     CREATED_BY_ID = Column(
         String(36),
         ForeignKey("employee.ID"),

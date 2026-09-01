@@ -482,30 +482,34 @@ html[data-theme="dark"] .statusPill[data-tone="info"] {
   flex-direction: column;
 }
 
-/* solid primary header instead of multi-stop gradient */
+/* Plain header — no red banner. Photo shows on the natural surface
+   so the uploaded image reads cleanly. */
 .resumeModalHeader {
-  background: var(--clr-primary);
-  padding: 36px 40px;
-  color: white;
+  background: #ffffff;
+  padding: 32px 40px 26px;
+  color: #0f172a;
   position: relative;
   flex-shrink: 0;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .resumeCloseBtn {
   position: absolute;
   top: 14px;
   right: 14px;
-  background: rgba(255, 255, 255, 0.2);
-  color: white;
+  background: #f1f5f9;
+  color: #334155;
   border: none;
   border-radius: var(--radius);
   padding: 4px 12px;
   cursor: pointer;
-  font-size: 18px;
+  font-size: 20px;
+  line-height: 1;
 }
 
 .resumeCloseBtn:hover {
-  background: rgba(255, 255, 255, 0.32);
+  background: #e2e8f0;
+  color: #0f172a;
 }
 
 .resumeHeaderRow {
@@ -517,30 +521,32 @@ html[data-theme="dark"] .statusPill[data-tone="info"] {
 .resumeEyebrow {
   font-size: var(--font-xs);
   letter-spacing: 2px;
-  opacity: 0.85;
+  color: #dc2626;
   font-weight: var(--fw-bold);
   text-transform: uppercase;
 }
 
 .resumeName {
-  font-size: 32px;
+  font-size: 30px;
   font-weight: var(--fw-black);
   margin: 4px 0 6px;
   letter-spacing: -0.5px;
   line-height: 1.15;
-  color: white;
+  color: #0f172a;
 }
 
 .resumeSubTitle {
   font-size: 14px;
-  opacity: 0.9;
+  color: #64748b;
+  font-weight: 500;
 }
 
 .resumeCodeBadge {
   margin-top: 8px;
   font-size: var(--font-xs);
   font-family: ui-monospace, monospace;
-  background: rgba(255, 255, 255, 0.18);
+  background: #f1f5f9;
+  color: #334155;
   padding: 4px 12px;
   border-radius: var(--radius);
   display: inline-block;

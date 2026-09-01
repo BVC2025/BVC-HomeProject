@@ -144,264 +144,437 @@ def render_payslip_pdf(
     net: float,
     company: Dict[str, Any],
 ) -> bytes:
-    """Render a single-page payslip PDF and return the bytes."""
+    """Render a single-page payslip PDF whose layout mirrors the
+    on-screen preview: green Net Pay card top-right, clean employee
+    summary, side-by-side Earnings + Deductions table, Total Net
+    Payable footer, amount in words. Company logo (when present) in
+    the top-right of the header card."""
+
     try:
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         from reportlab.lib import colors
         from reportlab.platypus import (
             SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-            Image as RLImage, KeepTogether, HRFlowable,
+            Image as RLImage, HRFlowable,
         )
         from reportlab.lib.units import mm
         from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
     except Exception:
         return f"PAYSLIP {payslip_number}\n".encode("utf-8")
 
-    BVC_RED  = colors.HexColor("#C8102E")
-    BVC_DARK = colors.HexColor("#7A1022")
-    GREY     = colors.HexColor("#475569")
-    LIGHT    = colors.HexColor("#f1f5f9")
-    GOLD     = colors.HexColor("#F4B324")
-    INK      = colors.HexColor("#1a1a1a")
+    # Match the preview's palette (mint-green summary card, soft grey
+    # borders, ink text). Kept in local vars so the whole layout can
+    # be recoloured from one place.
+    INK        = colors.HexColor("#0f172a")
+    INK2       = colors.HexColor("#334155")
+    MUTED      = colors.HexColor("#64748b")
+    BORDER     = colors.HexColor("#e2e8f0")
+    BORDER_S   = colors.HexColor("#cbd5e1")
+    HEADER_BG  = colors.HexColor("#f8fafc")
+    GREEN      = colors.HexColor("#059669")
+    GREEN_INK  = colors.HexColor("#065f46")
+    GREEN_BG   = colors.HexColor("#ecfdf5")
+    GREEN_BORDER = colors.HexColor("#6ee7b7")
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=A4,
-        leftMargin=14 * mm, rightMargin=14 * mm,
-        topMargin=14 * mm, bottomMargin=14 * mm,
+        leftMargin=16 * mm, rightMargin=16 * mm,
+        topMargin=16 * mm, bottomMargin=16 * mm,
         title=f"Payslip {payslip_number}",
     )
 
     base = getSampleStyleSheet()
-    s_company = ParagraphStyle(
-        "company", parent=base["Normal"],
-        fontName="Helvetica-Bold", fontSize=13, leading=15,
-        textColor=BVC_DARK, spaceAfter=0,
-    )
-    s_company_sub = ParagraphStyle(
-        "companySub", parent=base["Normal"],
-        fontName="Helvetica", fontSize=8.5, leading=11,
-        textColor=GREY,
-    )
-    s_title = ParagraphStyle(
-        "title", parent=base["Normal"],
-        fontName="Helvetica-Bold", fontSize=13, leading=16,
-        alignment=TA_CENTER, textColor=BVC_DARK,
-        spaceBefore=4, spaceAfter=2,
-    )
-    s_period = ParagraphStyle(
-        "period", parent=base["Normal"],
+
+    s_period_label = ParagraphStyle(
+        "periodLabel", parent=base["Normal"],
         fontName="Helvetica", fontSize=10, leading=12,
-        alignment=TA_CENTER, textColor=GREY, spaceAfter=8,
+        textColor=MUTED, alignment=TA_RIGHT,
     )
-    s_label = ParagraphStyle(
-        "label", parent=base["Normal"],
-        fontName="Helvetica-Bold", fontSize=10, leading=12,
-        textColor=BVC_DARK, spaceBefore=8, spaceAfter=4,
+    s_period_value = ParagraphStyle(
+        "periodValue", parent=base["Normal"],
+        fontName="Helvetica-Bold", fontSize=15, leading=18,
+        textColor=INK, alignment=TA_RIGHT,
     )
-    s_body = ParagraphStyle(
-        "body", parent=base["Normal"],
-        fontName="Helvetica", fontSize=9.5, leading=12, textColor=INK,
+    s_section_label = ParagraphStyle(
+        "sectionLabel", parent=base["Normal"],
+        fontName="Helvetica-Bold", fontSize=9.5, leading=12,
+        textColor=MUTED, spaceAfter=4,
     )
-    s_small = ParagraphStyle(
-        "small", parent=base["Normal"],
-        fontName="Helvetica", fontSize=8.5, leading=11, textColor=GREY,
+    s_kv_label = ParagraphStyle(
+        "kvLabel", parent=base["Normal"],
+        fontName="Helvetica", fontSize=10, leading=13, textColor=INK2,
     )
-    s_words = ParagraphStyle(
-        "words", parent=base["Normal"],
-        fontName="Helvetica-Bold", fontSize=10, leading=14,
-        textColor=BVC_DARK,
+    s_kv_value = ParagraphStyle(
+        "kvValue", parent=base["Normal"],
+        fontName="Helvetica-Bold", fontSize=10, leading=13, textColor=INK,
+    )
+    s_green_amount = ParagraphStyle(
+        "greenAmount", parent=base["Normal"],
+        fontName="Helvetica-Bold", fontSize=22, leading=26,
+        textColor=GREEN_INK,
+    )
+    s_green_label = ParagraphStyle(
+        "greenLabel", parent=base["Normal"],
+        fontName="Helvetica", fontSize=9.5, leading=12, textColor=GREEN_INK,
+    )
+    s_green_row_lbl = ParagraphStyle(
+        "greenRowLbl", parent=base["Normal"],
+        fontName="Helvetica", fontSize=10, leading=13, textColor=GREEN_INK,
+    )
+    s_green_row_val = ParagraphStyle(
+        "greenRowVal", parent=base["Normal"],
+        fontName="Helvetica-Bold", fontSize=10, leading=13, textColor=INK,
+        alignment=TA_RIGHT,
+    )
+    s_footer_lbl = ParagraphStyle(
+        "footerLbl", parent=base["Normal"],
+        fontName="Helvetica-Bold", fontSize=12, leading=16, textColor=INK,
+    )
+    s_footer_sub = ParagraphStyle(
+        "footerSub", parent=base["Normal"],
+        fontName="Helvetica", fontSize=9, leading=12, textColor=MUTED,
+    )
+    s_footer_amt = ParagraphStyle(
+        "footerAmt", parent=base["Normal"],
+        fontName="Helvetica-Bold", fontSize=16, leading=20,
+        textColor=GREEN_INK, alignment=TA_RIGHT,
+    )
+    s_words_lbl = ParagraphStyle(
+        "wordsLbl", parent=base["Normal"],
+        fontName="Helvetica", fontSize=9.5, leading=13, textColor=MUTED,
+        alignment=TA_CENTER, spaceBefore=6,
+    )
+    s_words_val = ParagraphStyle(
+        "wordsVal", parent=base["Normal"],
+        fontName="Helvetica-Bold", fontSize=10.5, leading=14, textColor=INK,
+        alignment=TA_CENTER,
     )
 
     story: List = []
 
     # ============================================================
-    # LETTERHEAD
+    # HEADER — logo top-right, pay-period label under it
     # ============================================================
-    logo_path = (company or {}).get("logo_path")
-    logo_cell = ""
+    logo_cell: Any = ""
+    # Always prefer the frontend-bundled logo.webp — that's the file
+    # the preview + login card use, so all surfaces stay in sync when
+    # HR replaces the brand asset. The CompanyMaster.LOGO_URL fallback
+    # is kept only for the edge case where the bundled file is missing
+    # (e.g. broken tarball); in normal operation we ignore whatever
+    # stale image the DB row points at.
+    logo_path = None
+    repo_root = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "..")
+    )
+    for candidate in (
+        os.path.join(repo_root, "frontend", "dist", "logo.webp"),
+        os.path.join(repo_root, "frontend", "public", "logo.webp"),
+    ):
+        if os.path.exists(candidate):
+            logo_path = candidate
+            break
+
+    # Last-resort fallback to CompanyMaster.LOGO_URL only if the
+    # bundled file is missing.
+    if not logo_path:
+        db_logo = (company or {}).get("logo_path")
+        if db_logo and os.path.exists(db_logo):
+            logo_path = db_logo
+
     if logo_path and os.path.exists(logo_path):
         try:
-            img = RLImage(logo_path, width=26 * mm, height=26 * mm)
-            img.hAlign = "LEFT"
+            img = RLImage(logo_path, width=22 * mm, height=22 * mm)
+            img.hAlign = "RIGHT"
             logo_cell = img
         except Exception:
             logo_cell = ""
 
-    legal_name = company.get("legal_name") or company.get("name") or "Bharath Vending Corporation"
-    addr_lines = []
-    if company.get("address_line_1"): addr_lines.append(company["address_line_1"])
-    if company.get("address_line_2"): addr_lines.append(company["address_line_2"])
-    city_line = ", ".join(filter(None, [
-        company.get("city"), company.get("state"), company.get("pincode"),
-    ]))
-    if city_line: addr_lines.append(city_line)
-    contact = []
-    if company.get("phone"):   contact.append(company["phone"])
-    if company.get("email"):   contact.append(company["email"])
-    if contact: addr_lines.append(" &nbsp;·&nbsp; ".join(contact))
-    statutory = []
-    if company.get("gst_number"): statutory.append(f"GSTIN: {company['gst_number']}")
-    if company.get("pan_number"): statutory.append(f"PAN: {company['pan_number']}")
-    if statutory: addr_lines.append(" &nbsp;·&nbsp; ".join(statutory))
-
-    right_lines = [Paragraph(legal_name, s_company)]
-    for ln in addr_lines:
-        right_lines.append(Paragraph(ln, s_company_sub))
-
-    head = Table([[logo_cell, right_lines]], colWidths=[32 * mm, 140 * mm])
-    head.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    period_block = [
+        [logo_cell],
+        [Paragraph("Payslip For the Month", s_period_label)],
+        [Paragraph(f"{_month_name(pay_month)} {pay_year}", s_period_value)],
+    ]
+    period_tbl = Table(period_block, colWidths=[60 * mm])
+    period_tbl.setStyle(TableStyle([
+        ("ALIGN",       (0, 0), (-1, -1), "RIGHT"),
         ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING",(0, 0), (-1, -1), 0),
+        ("TOPPADDING",  (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING",(0, 0), (-1, -1), 0),
+        ("VALIGN",      (0, 0), (-1, -1), "TOP"),
     ]))
-    story.append(head)
+
+    # Left cell — legal name + multi-line postal address. Same fields
+    # the preview reads, so preview + PDF stay in sync.
+    s_letterhead_name = ParagraphStyle(
+        "letterheadName", parent=base["Normal"],
+        fontName="Helvetica-Bold", fontSize=13, leading=16, textColor=INK,
+    )
+    s_letterhead_addr = ParagraphStyle(
+        "letterheadAddr", parent=base["Normal"],
+        fontName="Helvetica", fontSize=8.5, leading=11.5, textColor=MUTED,
+    )
+
+    company_name = (
+        (company or {}).get("legal_name")
+        or (company or {}).get("name")
+        or "Bharath Vending Corporation"
+    )
+    # Build the address block from the same fields _format_company_address
+    # returns in the API — kept here so the PDF works even when called
+    # from paths that don't route through employee_payslips.
+    addr_parts = []
+    if (company or {}).get("address_line_1"):
+        addr_parts.append(str(company["address_line_1"]).strip().rstrip(",") + ",")
+    if (company or {}).get("address_line_2"):
+        addr_parts.append(str(company["address_line_2"]).strip().rstrip(",") + ",")
+    city_bits = []
+    if (company or {}).get("city"):
+        city_bits.append(str(company["city"]).strip())
+    if (company or {}).get("pincode"):
+        city_bits.append("- " + str(company["pincode"]).strip())
+    if city_bits:
+        addr_parts.append(" ".join(city_bits) + ".")
+    tail_bits = []
+    if (company or {}).get("state"):
+        tail_bits.append(str(company["state"]).strip())
+    if (company or {}).get("country"):
+        tail_bits.append(str(company["country"]).strip())
+    if tail_bits:
+        addr_parts.append(", ".join(tail_bits) + ".")
+
+    letterhead_rows = [[Paragraph(company_name, s_letterhead_name)]]
+    for ln in addr_parts:
+        letterhead_rows.append([Paragraph(ln, s_letterhead_addr)])
+
+    letterhead_tbl = Table(letterhead_rows, colWidths=[120 * mm])
+    letterhead_tbl.setStyle(TableStyle([
+        ("LEFTPADDING",  (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING",   (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING",(0, 0), (-1, -1), 1),
+        ("VALIGN",       (0, 0), (-1, -1), "TOP"),
+    ]))
+
+    header = Table(
+        [[letterhead_tbl, period_tbl]],
+        colWidths=[120 * mm, 60 * mm],
+    )
+    header.setStyle(TableStyle([
+        ("VALIGN",      (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING",(0, 0), (-1, -1), 0),
+        ("TOPPADDING",  (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING",(0, 0), (-1, -1), 0),
+    ]))
+    story.append(header)
     story.append(Spacer(1, 6))
-    story.append(HRFlowable(width="100%", thickness=2, color=BVC_RED,
-                           spaceBefore=2, spaceAfter=4))
-    story.append(HRFlowable(width="100%", thickness=1, color=GOLD,
-                           spaceBefore=0, spaceAfter=8))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=BORDER, spaceAfter=10))
 
     # ============================================================
-    # TITLE
+    # EMPLOYEE SUMMARY (left) + NET PAY green card (right)
     # ============================================================
-    story.append(Paragraph("SALARY PAYSLIP", s_title))
-    gen_text = ""
-    if generated_at:
-        gen_text = f" &nbsp;·&nbsp; Generated: {generated_at.strftime('%d %b %Y')}"
-    story.append(Paragraph(
-        f"Payslip #: <b>{payslip_number}</b> &nbsp;·&nbsp; "
-        f"Pay Period: {_month_name(pay_month)} {pay_year}{gen_text}",
-        s_period,
-    ))
-
-    # ============================================================
-    # EMPLOYEE + ATTENDANCE — two-column table
-    # ============================================================
-    emp_left = [
-        ["Employee ID",   employee.get("CODE") or "—"],
-        ["Name",          employee.get("NAME") or "—"],
-        ["Department",    employee.get("DEPARTMENT") or "—"],
-        ["Designation",   employee.get("DESIGNATION") or "—"],
-        ["Date of Joining", _fmt_date(employee.get("JOINING_DATE"))],
-        ["Bank A/C",      employee.get("BANK_ACCOUNT") or "—"],
-        ["PAN",           employee.get("PAN") or "—"],
-    ]
-    att_right = [
-        ["Working Days", str(attendance.get("WORKING_DAYS") or "—")],
-        ["Present Days", str(attendance.get("PRESENT") or 0)],
-        ["Leave Days",   str(attendance.get("LEAVE")   or 0)],
-        ["LOP Days",     str(attendance.get("LOP")     or 0)],
-        ["Absent Days",  str(attendance.get("ABSENT")  or 0)],
-        ["Late Marks",   str(attendance.get("LATE")    or 0)],
-        ["OT Hours",     str(attendance.get("OT_HOURS") or 0)],
-    ]
-
-    detail_rows = [
-        [
-            _style_two_col_table(emp_left,  GREY, INK, LIGHT),
-            _style_two_col_table(att_right, GREY, INK, LIGHT),
+    def _kv(label: str, value: str):
+        return [
+            Paragraph(label, s_kv_label),
+            Paragraph(":", s_kv_label),
+            Paragraph(value or "—", s_kv_value),
         ]
+
+    emp_summary_rows = [
+        [Paragraph("EMPLOYEE SUMMARY", s_section_label), "", ""],
+        _kv("Employee Name", employee.get("NAME") or "—"),
+        _kv("Employee ID",   employee.get("CODE") or "—"),
+        _kv("Department",    employee.get("DEPARTMENT") or "—"),
+        _kv("Pay Period",    f"{_month_name(pay_month)} {pay_year}"),
+        _kv("Pay Date",      _fmt_date(generated_at) if generated_at else "—"),
     ]
-    detail = Table(detail_rows, colWidths=[90 * mm, 80 * mm])
-    detail.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+    emp_summary_tbl = Table(emp_summary_rows, colWidths=[40 * mm, 5 * mm, 45 * mm])
+    emp_summary_tbl.setStyle(TableStyle([
+        ("SPAN",         (0, 0), (-1, 0)),
+        ("VALIGN",       (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING",  (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING",   (0, 1), (-1, -1), 4),
+        ("BOTTOMPADDING",(0, 1), (-1, -1), 4),
+        ("BOTTOMPADDING",(0, 0), (-1, 0), 10),
+    ]))
+
+    # Green Net Pay card — big number, then Paid Days + LOP Days
+    paid_days = attendance.get("PRESENT")
+    if paid_days is None:
+        paid_days = attendance.get("PAID") or 0
+    lop_days = attendance.get("LOP") or 0
+
+    net_card_inner_rows = [
+        [Paragraph(f"Rs. {_inr(net)}", s_green_amount)],
+        [Paragraph("Total Net Pay", s_green_label)],
+        [HRFlowable(width="100%", thickness=0.5, color=GREEN_BORDER, spaceBefore=6, spaceAfter=6)],
+        [Table(
+            [[Paragraph("Paid Days", s_green_row_lbl), Paragraph(":", s_green_row_lbl),
+              Paragraph(str(paid_days), s_green_row_val)],
+             [Paragraph("LOP Days",  s_green_row_lbl), Paragraph(":", s_green_row_lbl),
+              Paragraph(str(lop_days), s_green_row_val)]],
+            colWidths=[24 * mm, 5 * mm, 24 * mm],
+            style=TableStyle([
+                ("LEFTPADDING",  (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING",   (0, 0), (-1, -1), 2),
+                ("BOTTOMPADDING",(0, 0), (-1, -1), 2),
+            ])
+        )],
+    ]
+    net_card = Table(net_card_inner_rows, colWidths=[60 * mm])
+    net_card.setStyle(TableStyle([
+        ("BACKGROUND",   (0, 0), (-1, -1), GREEN_BG),
+        ("BOX",          (0, 0), (-1, -1), 1.4, GREEN),
+        ("LEFTPADDING",  (0, 0), (-1, -1), 12),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+        ("TOPPADDING",   (0, 0), (-1, 0), 12),
+        ("BOTTOMPADDING",(0, -1), (-1, -1), 12),
+        ("VALIGN",       (0, 0), (-1, -1), "TOP"),
+    ]))
+
+    top_grid = Table(
+        [[emp_summary_tbl, net_card]],
+        colWidths=[105 * mm, 72 * mm],
+    )
+    top_grid.setStyle(TableStyle([
+        ("VALIGN",       (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING",  (0, 0), (-1, -1), 0),
         ("RIGHTPADDING", (0, 0), (-1, -1), 0),
     ]))
-    story.append(detail)
+    story.append(top_grid)
+    story.append(Spacer(1, 16))
 
     # ============================================================
-    # EARNINGS + DEDUCTIONS — side-by-side
+    # EARNINGS + DEDUCTIONS — side-by-side table
     # ============================================================
-    story.append(Spacer(1, 8))
+    earn_visible = [(k, float(v)) for k, v in earnings.items() if v and abs(float(v)) >= 0.01]
+    ded_visible  = [(k, float(v)) for k, v in deductions.items() if v and abs(float(v)) >= 0.01]
 
-    earn_rows = [["Earnings", "Amount (INR)"]]
-    earn_sum  = 0.0
-    for label, val in earnings.items():
-        if val is None: continue
-        if abs(float(val)) < 0.01: continue   # skip zero rows
-        earn_rows.append([label, _inr(val)])
-        earn_sum += float(val)
-    earn_rows.append(["Gross Earnings", _inr(gross)])
-    earn_table = _ledger_table(earn_rows, BVC_DARK, LIGHT)
+    # Pad to equal row count so both columns align at the bottom.
+    row_count = max(len(earn_visible), len(ded_visible))
+    while len(earn_visible) < row_count:
+        earn_visible.append(("", 0.0))
+    while len(ded_visible) < row_count:
+        ded_visible.append(("", 0.0))
 
-    ded_rows = [["Deductions", "Amount (INR)"]]
-    ded_sum  = 0.0
-    for label, val in deductions.items():
-        if val is None: continue
-        if abs(float(val)) < 0.01: continue
-        ded_rows.append([label, _inr(val)])
-        ded_sum += float(val)
-    ded_rows.append(["Total Deductions", _inr(total_deductions)])
-    ded_table = _ledger_table(ded_rows, BVC_DARK, LIGHT)
+    table_rows = [
+        ["EARNINGS", "AMOUNT", "DEDUCTIONS", "AMOUNT"],
+    ]
+    for (el, ev), (dl, dv) in zip(earn_visible, ded_visible):
+        table_rows.append([
+            el, _inr(ev) if el else "",
+            dl, _inr(dv) if dl else "",
+        ])
+    # Gross Earnings + Total Deductions footer
+    table_rows.append(["Gross Earnings", _inr(gross), "Total Deductions", _inr(total_deductions)])
 
-    side_by_side = Table(
-        [[earn_table, ded_table]],
-        colWidths=[88 * mm, 88 * mm],
+    ed_table = Table(
+        table_rows,
+        colWidths=[54 * mm, 34 * mm, 54 * mm, 34 * mm],
     )
-    side_by_side.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-    ]))
-    story.append(side_by_side)
-
-    # ============================================================
-    # NET PAY summary box
-    # ============================================================
-    story.append(Spacer(1, 10))
-
-    net_table = Table(
-        [
-            ["Gross Earnings",     _inr(gross)],
-            ["Total Deductions",   _inr(total_deductions)],
-            ["NET PAY",            _inr(net)],
-        ],
-        colWidths=[110 * mm, 55 * mm],
-    )
-    net_table.setStyle(TableStyle([
-        ("FONTNAME", (0, 0), (-1, -2), "Helvetica"),
-        ("FONTSIZE", (0, 0), (-1, -1), 10),
-        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
-        ("TEXTCOLOR", (0, 0), (0, -2), GREY),
-        # Last row — emphasized
-        ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
-        ("BACKGROUND", (0, -1), (-1, -1), BVC_DARK),
-        ("TEXTCOLOR", (0, -1), (-1, -1), colors.white),
-        ("FONTSIZE", (0, -1), (-1, -1), 12),
-        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+    last = len(table_rows) - 1
+    ed_table.setStyle(TableStyle([
+        # Border + grid
+        ("BOX",          (0, 0), (-1, -1), 0.8, BORDER_S),
+        ("LINEBELOW",    (0, 0), (-1, 0), 0.8, BORDER_S),
+        ("LINEBEFORE",   (2, 0), (2, -1), 0.8, BORDER_S),
+        # Header row
+        ("BACKGROUND",   (0, 0), (-1, 0), HEADER_BG),
+        ("FONTNAME",     (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTSIZE",     (0, 0), (-1, 0), 9),
+        ("TEXTCOLOR",    (0, 0), (-1, 0), MUTED),
+        ("ALIGN",        (1, 0), (1, 0), "RIGHT"),
+        ("ALIGN",        (3, 0), (3, 0), "RIGHT"),
+        # Body
+        ("FONTNAME",     (0, 1), (-1, -2), "Helvetica"),
+        ("FONTSIZE",     (0, 1), (-1, -2), 10),
+        ("TEXTCOLOR",    (0, 1), (-1, -2), INK2),
+        ("ALIGN",        (1, 1), (1, -2), "RIGHT"),
+        ("ALIGN",        (3, 1), (3, -2), "RIGHT"),
+        # Footer row (Gross / Total)
+        ("FONTNAME",     (0, last), (-1, last), "Helvetica-Bold"),
+        ("FONTSIZE",     (0, last), (-1, last), 10.5),
+        ("BACKGROUND",   (0, last), (-1, last), HEADER_BG),
+        ("TEXTCOLOR",    (0, last), (-1, last), INK),
+        ("ALIGN",        (1, last), (1, last), "RIGHT"),
+        ("ALIGN",        (3, last), (3, last), "RIGHT"),
+        ("LINEABOVE",    (0, last), (-1, last), 0.6, BORDER_S),
+        # Padding
+        ("LEFTPADDING",  (0, 0), (-1, -1), 10),
         ("RIGHTPADDING", (0, 0), (-1, -1), 10),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ("INNERGRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#e2e8f0")),
-        ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+        ("TOPPADDING",   (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING",(0, 0), (-1, -1), 8),
+        ("VALIGN",       (0, 0), (-1, -1), "MIDDLE"),
     ]))
-    story.append(net_table)
+    story.append(ed_table)
+    story.append(Spacer(1, 14))
+
+    # ============================================================
+    # TOTAL NET PAYABLE footer bar (green, right-aligned amount card)
+    # ============================================================
+    net_footer_left = Table(
+        [
+            [Paragraph("TOTAL NET PAYABLE", s_footer_lbl)],
+            [Paragraph("Gross Earnings - Total Deductions", s_footer_sub)],
+        ],
+        colWidths=[110 * mm],
+    )
+    net_footer_left.setStyle(TableStyle([
+        ("LEFTPADDING",  (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING",   (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING",(0, 0), (-1, -1), 2),
+    ]))
+
+    net_amt_box = Table(
+        [[Paragraph(f"Rs. {_inr(net)}", s_footer_amt)]],
+        colWidths=[62 * mm],
+    )
+    net_amt_box.setStyle(TableStyle([
+        ("BACKGROUND",   (0, 0), (-1, -1), GREEN_BG),
+        ("BOX",          (0, 0), (-1, -1), 1.2, GREEN),
+        ("LEFTPADDING",  (0, 0), (-1, -1), 14),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 14),
+        ("TOPPADDING",   (0, 0), (-1, -1), 12),
+        ("BOTTOMPADDING",(0, 0), (-1, -1), 12),
+    ]))
+
+    net_footer = Table(
+        [[net_footer_left, net_amt_box]],
+        colWidths=[113 * mm, 65 * mm],
+    )
+    net_footer.setStyle(TableStyle([
+        ("VALIGN",       (0, 0), (-1, -1), "MIDDLE"),
+        ("BOX",          (0, 0), (-1, -1), 0.8, BORDER_S),
+        ("LEFTPADDING",  (0, 0), (0, 0), 14),
+        ("RIGHTPADDING", (1, 0), (1, 0), 0),
+        ("TOPPADDING",   (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING",(0, 0), (-1, -1), 6),
+    ]))
+    story.append(net_footer)
 
     # ============================================================
     # AMOUNT IN WORDS
     # ============================================================
-    story.append(Spacer(1, 8))
-    story.append(Paragraph(
-        f"<b>Amount in words:</b> {amount_in_words(net)}",
-        s_words,
-    ))
+    story.append(Spacer(1, 12))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=BORDER, spaceAfter=6))
+    story.append(Paragraph("Amount In Words:", s_words_lbl))
+    story.append(Paragraph(amount_in_words(net), s_words_val))
 
     # ============================================================
     # FOOTER
     # ============================================================
     story.append(Spacer(1, 16))
-    story.append(HRFlowable(width="100%", thickness=0.5,
-                           color=colors.HexColor("#cbd5e1"),
-                           spaceBefore=2, spaceAfter=4))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=BORDER, spaceAfter=6))
     story.append(Paragraph(
-        "This is a system-generated payslip and does not require a signature. "
-        f"For any clarifications, contact <b>{company.get('email') or 'HR'}</b>.",
-        s_small,
+        f"Payslip #: <b>{payslip_number}</b>. This is a system-generated payslip "
+        f"and does not require a signature.",
+        s_footer_sub,
     ))
 
     doc.build(story)
