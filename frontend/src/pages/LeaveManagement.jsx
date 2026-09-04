@@ -22,6 +22,45 @@ const TYPE_THEMES = {
 };
 
 
+// Downloads the current table view as an Excel-friendly CSV. Escaping
+// follows RFC 4180 — every field is double-quoted; embedded quotes
+// become "". Excel opens the file with a UTF-8 BOM.
+function exportLeaveCsv(rows, tab) {
+  const header = [
+    "Employee Code", "Employee Name", "Type", "Start", "End",
+    "Days", "Reason", "Status", "Approved By", "Submitted",
+  ];
+  const escape = (v) => {
+    const s = v == null ? "" : String(v);
+    return `"${s.replace(/"/g, '""')}"`;
+  };
+  const body = rows.map((r) => [
+    r.EMPLOYEE_CODE || "",
+    r.EMPLOYEE_NAME || "",
+    r.LEAVE_TYPE    || "",
+    r.START_DATE    || "",
+    r.END_DATE      || "",
+    r.DAYS ?? "",
+    r.REASON        || "",
+    r.STATUS        || "",
+    r.APPROVED_BY_EMAIL || "",
+    (r.CREATED_AT || "").slice(0, 19).replace("T", " "),
+  ].map(escape).join(","));
+
+  const csv = "﻿" + [header.map(escape).join(","), ...body].join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `leave-${tab}-${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+
 function Tile({ label, value, sub, color }) {
 
   return (
@@ -108,9 +147,38 @@ function RejectDialog({ leaveId, onClose, onDone }) {
 }
 
 
+// Small SVG glyphs — no emojis on this page.
+const IconCheck = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+       stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"
+       strokeLinejoin="round" aria-hidden="true">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+const IconX = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+       stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"
+       strokeLinejoin="round" aria-hidden="true">
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+const IconCalendar = () => (
+  <svg width="42" height="42" viewBox="0 0 24 24" fill="none"
+       stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"
+       strokeLinejoin="round" aria-hidden="true">
+    <rect x="3" y="4" width="18" height="18" rx="2" />
+    <line x1="16" y1="2" x2="16" y2="6" />
+    <line x1="8" y1="2" x2="8" y2="6" />
+    <line x1="3" y1="10" x2="21" y2="10" />
+  </svg>
+);
+
+
 function LeaveTable({ rows, onChanged, showActions }) {
 
   const [rejectingId, setRejectingId] = useState(null);
+  const [viewing, setViewing] = useState(null);
 
   const approve = async (id) => {
 
@@ -149,12 +217,25 @@ function LeaveTable({ rows, onChanged, showActions }) {
               {rows.length === 0 && (
                 <tr>
                   <td colSpan={showActions ? 8 : 7} className={styles.emptyCell}>
-                    No leave requests in this view.
+                    <div className={styles.emptyState}>
+                      <div className={styles.emptyIcon}><IconCalendar /></div>
+                      <div className={styles.emptyTitle}>No leave requests in this view</div>
+                      <div className={styles.emptyBody}>
+                        Requests submitted by employees will appear here.
+                        Clear the filters above to see everything.
+                      </div>
+                    </div>
                   </td>
                 </tr>
               )}
               {rows.map((r) => (
-                <tr key={r.ID} className={styles.tdRow}>
+                <tr
+                  key={r.ID}
+                  className={styles.tdRow}
+                  onClick={() => setViewing(r)}
+                  style={{ cursor: "pointer" }}
+                  title="Click to view full details"
+                >
                   <td className={styles.tdCell}>
                     <div className={styles.empName}>{r.EMPLOYEE_NAME || "—"}</div>
                     <div className={styles.empCode}>{r.EMPLOYEE_CODE}</div>
@@ -190,11 +271,16 @@ function LeaveTable({ rows, onChanged, showActions }) {
                   </td>
                   <td className={styles.tdCell}>{r.APPROVED_BY_EMAIL || "—"}</td>
                   {showActions && (
-                    <td className={styles.tdCellActions}>
+                    <td className={styles.tdCellActions}
+                        onClick={(e) => e.stopPropagation()}>
                       {r.STATUS === "PENDING_APPROVAL" ? (
                         <div className={styles.actionBtns}>
-                          <button onClick={() => approve(r.ID)} className={styles.approveBtn}>✓ Approve</button>
-                          <button onClick={() => setRejectingId(r.ID)} className={styles.rejectBtn}>✗ Reject</button>
+                          <button onClick={() => approve(r.ID)} className={styles.approveBtn}>
+                            <IconCheck /> Approve
+                          </button>
+                          <button onClick={() => setRejectingId(r.ID)} className={styles.rejectBtn}>
+                            <IconX /> Reject
+                          </button>
                         </div>
                       ) : (
                         <span className={styles.noAction}>—</span>
@@ -221,7 +307,109 @@ function LeaveTable({ rows, onChanged, showActions }) {
           }}
         />
       )}
+
+      {viewing && (
+        <LeaveDetailDrawer
+          leave={viewing}
+          onClose={() => setViewing(null)}
+          onApprove={async () => {
+            await approve(viewing.ID);
+            setViewing(null);
+          }}
+          onReject={() => {
+            setRejectingId(viewing.ID);
+            setViewing(null);
+          }}
+        />
+      )}
     </>
+  );
+}
+
+
+function LeaveDetailDrawer({ leave, onClose, onApprove, onReject }) {
+  const isPending = leave.STATUS === "PENDING_APPROVAL";
+  const daysLabel = leave.DAYS === 0.5 ? "0.5 day (half-day)" : `${leave.DAYS} day(s)`;
+
+  const row = (label, value) => (
+    <div className={styles.drawerRow}>
+      <div className={styles.drawerLabel}>{label}</div>
+      <div className={styles.drawerValue}>{value ?? "—"}</div>
+    </div>
+  );
+
+  return (
+    <div className={styles.overlay} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className={styles.detailDrawer}>
+        <div className={styles.drawerHead}>
+          <div>
+            <div className={styles.drawerEyebrow}>LEAVE REQUEST</div>
+            <div className={styles.drawerTitle}>{leave.EMPLOYEE_NAME || "—"}</div>
+            <div className={styles.drawerSub}>
+              {leave.EMPLOYEE_CODE || ""} · #{leave.ID}
+            </div>
+          </div>
+          <button onClick={onClose} className={styles.drawerClose} aria-label="Close">×</button>
+        </div>
+
+        <div className={styles.drawerBody}>
+          <div className={styles.drawerStatus}>
+            <StatusPill status={leave.STATUS} />
+            <span
+              style={{
+                display: "inline-block",
+                padding: "3px 10px",
+                borderRadius: 999,
+                fontSize: 11,
+                fontWeight: 700,
+                background: `${TYPE_THEMES[leave.LEAVE_TYPE] || "#94a3b8"}22`,
+                color: TYPE_THEMES[leave.LEAVE_TYPE] || "#94a3b8",
+                marginLeft: 8,
+              }}
+            >
+              {leave.LEAVE_TYPE}
+            </span>
+          </div>
+
+          <div className={styles.drawerSection}>
+            <div className={styles.drawerSectionTitle}>Request</div>
+            {row("Start", leave.START_DATE)}
+            {row("End",   leave.END_DATE)}
+            {row("Days",  daysLabel)}
+            {row("Reason", leave.REASON || "—")}
+          </div>
+
+          <div className={styles.drawerSection}>
+            <div className={styles.drawerSectionTitle}>Timeline</div>
+            {row("Submitted",  leave.CREATED_AT?.slice(0, 16).replace("T", " "))}
+            {leave.APPROVAL_RESOLVED_AT &&
+              row("Decided",    leave.APPROVAL_RESOLVED_AT.slice(0, 16).replace("T", " "))}
+            {row("Approved by", leave.APPROVED_BY_EMAIL)}
+          </div>
+
+          {leave.REJECTION_REASON && (
+            <div className={styles.drawerSection}>
+              <div className={styles.drawerSectionTitle}>Rejection reason</div>
+              <div className={styles.drawerRejectReason}>{leave.REJECTION_REASON}</div>
+            </div>
+          )}
+        </div>
+
+        <div className={styles.drawerFoot}>
+          <button onClick={onClose} className={styles.dialogCancelBtn}>Close</button>
+          {isPending && (
+            <>
+              <button onClick={onReject}  className={styles.rejectBtn}>
+                <IconX /> Reject
+              </button>
+              <button onClick={onApprove} className={styles.approveBtn}>
+                <IconCheck /> Approve
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -379,7 +567,7 @@ function LeaveManagement() {
         ))}
       </div>
 
-      {/* Employee filter */}
+      {/* Employee filter + Export */}
       <div className={styles.filterRow}>
         <div className={styles.searchWrap}>
           <span className={styles.searchIcon}>
@@ -402,6 +590,26 @@ function LeaveManagement() {
             {(tab === "pending" ? pending : all).filter(matchesEmp).length} match
             {(tab === "pending" ? pending : all).filter(matchesEmp).length === 1 ? "" : "es"} for "{empQuery.trim()}"
           </span>
+        )}
+        {tab !== "balances" && (
+          <button
+            type="button"
+            onClick={() => {
+              const rows = (tab === "pending" ? pending : all).filter(matchesEmp);
+              exportLeaveCsv(rows, tab);
+            }}
+            className={styles.exportBtn}
+            title="Download the current view as an Excel-friendly CSV"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                 strokeLinejoin="round" aria-hidden="true">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Export CSV
+          </button>
         )}
       </div>
 
@@ -643,6 +851,7 @@ function BalanceOverview() {
           year={year}
           onClose={() => setAdjustEmp(null)}
           onSaved={() => { setAdjustEmp(null); load(); }}
+          onChanged={load}
         />
       )}
     </div>
@@ -675,22 +884,46 @@ function BalanceCell({ data, hideIfZero }) {
 }
 
 
-function AdjustmentModal({ employee, year, onClose, onSaved }) {
+function AdjustmentModal({ employee, year, onClose, onSaved, onChanged }) {
 
   const [leaveType, setLeaveType] = useState("CASUAL");
   const [delta, setDelta] = useState("");
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  const [erasingId, setErasingId] = useState(null);
   const [error, setError] = useState("");
   const [history, setHistory] = useState([]);
 
-  // Load prior adjustments for context
-  useEffect(() => {
+  const reloadHistory = () => {
     API.get(`/leave/balance/${employee.employee_id}/adjustments`)
       .then((r) => setHistory(r.data || []))
       .catch(() => { });
-  }, [employee.employee_id]);
+  };
+
+  // Load prior adjustments for context
+  useEffect(() => { reloadHistory(); }, [employee.employee_id]);
+
+  const eraseAdjustment = async (h) => {
+    if (!window.confirm(
+      `Erase this adjustment?\n\n` +
+      `${h.delta_days > 0 ? "+" : ""}${h.delta_days}d ${h.leave_type}` +
+      (h.reason ? `\nReason: ${h.reason}` : "") +
+      `\n\nThe employee's balance will be reset by ${-h.delta_days} day(s).`
+    )) return;
+    setErasingId(h.id);
+    try {
+      await API.delete(
+        `/leave/balance/${employee.employee_id}/adjustments/${h.id}`
+      );
+      reloadHistory();
+      onChanged?.();   // parent refetches balances without closing the modal
+    } catch (e) {
+      window.alert(e?.response?.data?.detail || "Erase failed");
+    } finally {
+      setErasingId(null);
+    }
+  };
 
   const submit = async () => {
     setError("");
@@ -785,6 +1018,15 @@ function AdjustmentModal({ employee, year, onClose, onSaved }) {
                   <span className={styles.adjHistoryDate}>
                     {h.adjusted_at?.slice(0, 10)}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => eraseAdjustment(h)}
+                    disabled={erasingId === h.id}
+                    className={styles.adjEraseBtn}
+                    title="Erase this adjustment and restore the previous balance"
+                  >
+                    {erasingId === h.id ? "…" : "Erase"}
+                  </button>
                 </div>
               ))}
             </div>

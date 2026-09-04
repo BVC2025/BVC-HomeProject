@@ -357,33 +357,18 @@ function Attendance() {
             </span>
           </div>
 
-          <div className={styles.headerActions}>
-            <input
-              ref={csvFileRef}
-              type="file"
-              accept=".csv,.txt,.dat"
-              onChange={handleCsvChosen}
-              style={{ display: "none" }}
-            />
-            <button
-              type="button"
-              onClick={() => csvFileRef.current?.click()}
-              disabled={csvBusy}
-              title="Upload the attendance file you downloaded from the biometric device via USB"
-              className={styles.primaryCta}
-            >
-              <svg
-                width="16" height="16" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2"
-                strokeLinecap="round" strokeLinejoin="round"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-              {csvBusy ? "Importing…" : "Import Biometric CSV"}
-            </button>
-          </div>
+          {/* Import Biometric CSV button hidden per admin request
+              (2026-09-02). The full USB import flow lives on the
+              Biometric Import page; keeping the hidden file input +
+              handlers wired up means uncommenting the block below is
+              enough to bring the shortcut back. */}
+          <input
+            ref={csvFileRef}
+            type="file"
+            accept=".csv,.txt,.dat"
+            onChange={handleCsvChosen}
+            style={{ display: "none" }}
+          />
         </div>
 
         {csvResult && (
@@ -492,8 +477,18 @@ function Attendance() {
             <button
               className={"tab-btn" + (view === "board" ? " tab-active" : "")}
               onClick={() => setView("board")}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
             >
-              🖥️ Live Floor Board
+              <svg
+                width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="1.8"
+                strokeLinecap="round" strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="3" y="4" width="18" height="12" rx="2" />
+                <path d="M8 20h8M12 16v4" />
+              </svg>
+              Live Floor Board
             </button>
 
             <button
@@ -2246,12 +2241,13 @@ const dl = {
     padding: "16px 0",
   },
   card: {
-    maxWidth: 640,
+    width: "100%",
     background: "#fff",
     borderRadius: 14,
     padding: 28,
     boxShadow: "0 6px 20px rgba(15,23,42,0.06)",
     border: "1px solid #e2e8f0",
+    boxSizing: "border-box",
   },
   eyebrow: {
     fontSize: 11,

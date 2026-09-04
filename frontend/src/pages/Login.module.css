@@ -380,30 +380,59 @@
     min-height: 0;
   }
 
-  /* Mobile hero — video stays visible, panel is capped at 380px so it
-     doesn't devour the phone viewport. The video's own base rules
-     (object-fit: cover, object-position: right center) work at this
-     aspect: robot on the left, full red banner + text on the right. */
+  /* Mobile hero — since the intro video was removed on 2026-09-01,
+     the DOM branded panel becomes the hero. The panel is flow-laid-out
+     on mobile (no absolute positioning) so `.left` gets a real height
+     from its content instead of relying on 100% cascading from a
+     min-height. */
   .left {
     flex: none;
-    min-height: 380px;
-    max-height: 380px;
     padding: 0;
-    background: #eceff2;
+    min-height: 0;
+    max-height: none;
+    overflow: hidden;
   }
 
   .welcomeWrap {
-    height: 380px;
+    position: static;
+    height: auto;
   }
 
-  /* DOM branded panel is the fallback path only; on mobile the video
-     is the hero, so keep the DOM copy hidden to avoid duplicated text. */
+  /* Panel becomes the mobile hero — flow-positioned, filling width,
+     giving the section its own height from its content. */
   .panel {
-    display: none;
+    display: flex;
+    position: static;
+    width: 100%;
+    min-height: 260px;
+    border-radius: 0;
+    padding: 24px 20px;
+    box-sizing: border-box;
   }
 
   .brandSpacer {
     display: none;
+  }
+
+  .brandLogo {
+    width: 60px;
+    height: 60px;
+  }
+
+  .welcomeTitle {
+    font-size: 22px;
+  }
+
+  .welcomeSub {
+    font-size: 13px;
+  }
+
+  .tagline {
+    font-size: 12.5px;
+  }
+
+  .brandName {
+    font-size: 12px;
   }
 
   .right {
@@ -424,13 +453,27 @@
   }
 
   .left {
-    min-height: 320px;
-    max-height: 320px;
     padding: 0;
+    min-height: 0;
+    max-height: none;
   }
 
   .welcomeWrap {
-    height: 320px;
+    height: auto;
+  }
+
+  .panel {
+    min-height: 220px;
+    padding: 18px 16px;
+  }
+
+  .brandLogo {
+    width: 52px;
+    height: 52px;
+  }
+
+  .welcomeTitle {
+    font-size: 20px;
   }
 
   .right {

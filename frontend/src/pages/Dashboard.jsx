@@ -1821,16 +1821,19 @@ const NAV_GROUPS = [
       { to: "/project-quotations", icon: <SidebarIcon name="proj-quotation" />, label: "Quotation Templates" },
     ]
   },
-  {
-    key: "manufacturing",
-    label: "Manufacturing",
-    items: [
-      { to: "/machines", icon: <SidebarIcon name="machines" />, label: "Machines" },
-      { to: "/work-centers", icon: <SidebarIcon name="workcenters" />, label: "Work Centers" },
-      { to: "/production", icon: <SidebarIcon name="production" />, label: "Production & BOM" },
-      { to: "/quality", icon: <SidebarIcon name="quality" />, label: "Quality Management" }
-    ]
-  },
+  // Manufacturing section — hidden from the sidebar per admin request
+  // (2026-09-01). Routes and pages are left intact so the module can
+  // be brought back by uncommenting this block.
+  // {
+  //   key: "manufacturing",
+  //   label: "Manufacturing",
+  //   items: [
+  //     { to: "/machines", icon: <SidebarIcon name="machines" />, label: "Machines" },
+  //     { to: "/work-centers", icon: <SidebarIcon name="workcenters" />, label: "Work Centers" },
+  //     { to: "/production", icon: <SidebarIcon name="production" />, label: "Production & BOM" },
+  //     { to: "/quality", icon: <SidebarIcon name="quality" />, label: "Quality Management" }
+  //   ]
+  // },
   {
     key: "purchase",
     label: "Purchase & Inventory",

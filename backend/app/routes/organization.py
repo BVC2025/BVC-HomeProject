@@ -376,6 +376,23 @@ def _assign_role_code(db: Session, vendor_id: int, name: str, explicit_code: Opt
     return candidate
 
 
+@router.get("/roles/names", dependencies=[Depends(require("employee.view"))])
+def list_role_names(
+    vendor_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Lightweight roster of role names for filter dropdowns on the
+    Employees page. Requires employee.view (not role.manage) so HR
+    users without full RBAC access can still populate the picker
+    from the Role-Management module.
+    """
+    q = db.query(Role)
+    if vendor_id is not None:
+        q = q.filter(Role.VENDOR_ID == vendor_id)
+    rows = q.order_by(Role.NAME).all()
+    return [{"ID": r.ID, "NAME": r.NAME} for r in rows]
+
+
 @router.get("/roles", dependencies=[Depends(require("role.manage"))])
 def list_roles(
     vendor_id: Optional[int] = Query(None),

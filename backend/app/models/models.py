@@ -902,6 +902,17 @@ class TaskAssignment(Base):
         default=datetime.utcnow
     )
 
+    # Link back to a Help Desk ticket when the task was auto-created
+    # from a ticket assignment (Admin → Help Desk → Assign to). Used
+    # to find + cancel the old task when the ticket is reassigned to
+    # a different employee, so the assignee's Tasks list stays clean.
+    HELPDESK_TICKET_ID = Column(
+        Integer,
+        ForeignKey("help_desk_ticket.ID"),
+        nullable=True,
+        index=True,
+    )
+
 
 # EmployeeAttendance removed in Module 2 — merged into Attendance
 # (which now points to Employee.ID directly).

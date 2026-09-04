@@ -404,6 +404,8 @@ def _auto_migrate():
         ("recruitment_offer", "RESPONSE_TOKEN", "VARCHAR(64) NULL"),
         # ---- Requisition MD-approval-via-email link ----
         ("recruitment_requisition", "APPROVAL_TOKEN", "VARCHAR(64) NULL"),
+        # ---- Help Desk → Task auto-assignment link ----
+        ("task_assignment", "HELPDESK_TICKET_ID", "INT NULL"),
         # ---- Customer Master + Lead Pipeline (Phase 1) ----
         ("customer", "VENDOR_ID",            "INT NULL"),
         ("customer", "CUSTOMER_TYPE",        "VARCHAR(30) NULL"),

@@ -24,7 +24,7 @@ Role gates:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -33,12 +33,113 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
-from app.models.models import HelpDeskTicket, Employee, Department
+from app.models.models import (
+    HelpDeskTicket, Employee, Department, TaskAssignment,
+)
 from app.auth.auth_bearer import (
     get_current_user,
     assert_self_or_admin,
     require,
 )
+
+
+# ---------------------------------------------------------------------
+# Help Desk → Task auto-linking
+# ---------------------------------------------------------------------
+# When an admin assigns a ticket to an employee, we want that ticket
+# to show up in that employee's Portal → Tasks. The bridge is a
+# TaskAssignment row keyed on HELPDESK_TICKET_ID so we can find it
+# on reassignment and either re-target it or cancel it.
+# ---------------------------------------------------------------------
+
+# Ticket PRIORITY → Task PRIORITY (task_assignment has a free-text
+# PRIORITY column added in a recent migration; fall back cleanly if
+# the column isn't there).
+_PRIORITY_MAP = {
+    "LOW":      "LOW",
+    "MEDIUM":   "MEDIUM",
+    "HIGH":     "HIGH",
+    "CRITICAL": "URGENT",
+    "URGENT":   "URGENT",
+}
+
+
+def _due_date_for(priority: Optional[str]) -> date:
+    """SLA guess so the auto-created task has a real due date."""
+    p = (priority or "MEDIUM").upper()
+    if p in ("CRITICAL", "URGENT"): return date.today() + timedelta(days=1)
+    if p == "HIGH":                 return date.today() + timedelta(days=2)
+    if p == "LOW":                  return date.today() + timedelta(days=7)
+    return date.today() + timedelta(days=3)
+
+
+def _sync_helpdesk_task(
+    db: Session,
+    ticket: HelpDeskTicket,
+    assigned_by_id: Optional[str],
+) -> None:
+    """Idempotent: keep exactly one open Task in sync with this ticket.
+
+    - Ticket unassigned  → cancel any existing linked task.
+    - Ticket assigned to X:
+        * existing task for X      → no-op (leave the employee's
+                                     progress intact).
+        * existing task for Y      → cancel Y's task, create for X.
+        * no existing task         → create for X.
+    Best-effort — failures never break the ticket update itself.
+    """
+    try:
+        existing = (db.query(TaskAssignment)
+                      .filter(TaskAssignment.HELPDESK_TICKET_ID == ticket.ID,
+                              TaskAssignment.TASK_STATUS != "CANCELLED")
+                      .first())
+
+        # 1. Nothing to assign to — cancel any existing task and return.
+        if not ticket.ASSIGNED_TO_ID:
+            if existing:
+                existing.TASK_STATUS = "CANCELLED"
+                db.flush()
+            return
+
+        # 2. Existing task already targets the right person → keep as-is.
+        if existing and existing.EMPLOYEE_ID == ticket.ASSIGNED_TO_ID:
+            return
+
+        # 3. Existing task for a different person → cancel it.
+        if existing and existing.EMPLOYEE_ID != ticket.ASSIGNED_TO_ID:
+            existing.TASK_STATUS = "CANCELLED"
+            db.flush()
+
+        # 4. Create a fresh task for the current assignee.
+        subject = (ticket.SUBJECT or "").strip() or f"Ticket #{ticket.ID}"
+        details = (
+            f"[Help Desk · {ticket.TICKET_NUMBER or f'#{ticket.ID}'}] "
+            f"{ticket.DESCRIPTION or ''}"
+        ).strip()[:500]
+
+        task_kwargs = dict(
+            EMPLOYEE_ID=ticket.ASSIGNED_TO_ID,
+            TASK_NAME=f"Help Desk: {subject}"[:150],
+            TASK_DETAILS=details,
+            ASSIGNED_DATE=date.today(),
+            DUE_DATE=_due_date_for(ticket.PRIORITY),
+            TASK_STATUS="PENDING",
+            APPROVAL_STATUS="APPROVED",
+            ASSIGNED_BY_ID=assigned_by_id,
+            HELPDESK_TICKET_ID=ticket.ID,
+        )
+        # PRIORITY column was added later — set it only if the model
+        # supports it (older databases may not have the column yet).
+        if hasattr(TaskAssignment, "PRIORITY"):
+            task_kwargs["PRIORITY"] = _PRIORITY_MAP.get(
+                (ticket.PRIORITY or "MEDIUM").upper(), "MEDIUM"
+            )
+
+        db.add(TaskAssignment(**task_kwargs))
+        db.flush()
+    except Exception:
+        # Never let a task-sync failure block the ticket update.
+        db.rollback()
 
 
 router = APIRouter(prefix="/helpdesk", tags=["Help Desk"])
@@ -401,6 +502,7 @@ def update_ticket_status(
     Any subset of fields may be supplied."""
 
     ticket = _load_ticket(db, ticket_id)
+    assignee_changed = False
 
     if data.STATUS is not None:
         _apply_status(ticket, data.STATUS)
@@ -409,6 +511,8 @@ def update_ticket_status(
         emp = _resolve_employee(db, data.ASSIGNED_TO_ID)
         if not emp:
             raise HTTPException(status_code=400, detail="Invalid ASSIGNED_TO_ID")
+        if ticket.ASSIGNED_TO_ID != emp.ID:
+            assignee_changed = True
         ticket.ASSIGNED_TO_ID = emp.ID
         ticket.ASSIGNED_TO_NAME = emp.NAME
 
@@ -417,6 +521,10 @@ def update_ticket_status(
 
     if data.INTERNAL_NOTES is not None:
         ticket.INTERNAL_NOTES = (data.INTERNAL_NOTES or "").strip() or None
+
+    # Keep the linked TaskAssignment in sync with the assignee.
+    if assignee_changed:
+        _sync_helpdesk_task(db, ticket, _admin.get("employee_id"))
 
     db.commit()
     db.refresh(ticket)
@@ -430,7 +538,9 @@ def assign_ticket(
     db: Session = Depends(get_db),
     _admin: dict = Depends(require("helpdesk.manage")),
 ):
-    """Assign the ticket to an admin/staff member."""
+    """Assign the ticket to an admin/staff member.
+    Also creates a linked Task in the assignee's Portal → Tasks list
+    (or reassigns the existing linked task if the ticket had one)."""
 
     ticket = _load_ticket(db, ticket_id)
 
@@ -438,6 +548,7 @@ def assign_ticket(
     if not emp:
         raise HTTPException(status_code=400, detail="Invalid ASSIGNED_TO_ID")
 
+    assignee_changed = ticket.ASSIGNED_TO_ID != emp.ID
     ticket.ASSIGNED_TO_ID = emp.ID
     ticket.ASSIGNED_TO_NAME = emp.NAME
 
@@ -445,6 +556,10 @@ def assign_ticket(
     # picks it up. Idempotent for tickets already past OPEN.
     if ticket.STATUS == "OPEN":
         ticket.STATUS = "IN_PROGRESS"
+
+    # Push the ticket into the assignee's Tasks list (best-effort).
+    if assignee_changed:
+        _sync_helpdesk_task(db, ticket, _admin.get("employee_id"))
 
     db.commit()
     db.refresh(ticket)

@@ -786,6 +786,9 @@ html[data-theme="dark"] .statusPill[data-tone="info"] {
   font-size: var(--font-xs);
   font-weight: var(--fw-bold);
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .docDownloadLink {
@@ -797,6 +800,9 @@ html[data-theme="dark"] .statusPill[data-tone="info"] {
   font-size: var(--font-xs);
   font-weight: var(--fw-bold);
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .docDeleteBtn {
@@ -808,6 +814,9 @@ html[data-theme="dark"] .statusPill[data-tone="info"] {
   font-size: var(--font-xs);
   font-weight: var(--fw-bold);
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* ================================================================

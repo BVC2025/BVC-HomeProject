@@ -346,22 +346,19 @@ export default function PayrollRecords() {
           </label>
 
           <label className={styles.filterField}>
-            <span className={styles.filterLabel}>Pay Date From</span>
+            <span className={styles.filterLabel}>Pay Date</span>
             <input
               type="date"
               className={styles.filterInput}
               value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-            />
-          </label>
-
-          <label className={styles.filterField}>
-            <span className={styles.filterLabel}>Pay Date To</span>
-            <input
-              type="date"
-              className={styles.filterInput}
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
+              onChange={(e) => {
+                // One date input drives both bounds — the backend still
+                // takes a range, so we set FROM and TO to the same day
+                // and it filters to just that day's payslips.
+                const d = e.target.value;
+                setDateFrom(d);
+                setDateTo(d);
+              }}
             />
           </label>
 

@@ -2284,14 +2284,14 @@ function ScheduleInterviewModal({ application, onClose, onSaved }) {
 // Generate Offer modal
 // ---------------------------------------------------------------------
 function GenerateOfferModal({ application, onClose, onSaved }) {
+  // BVC24 offer letters are single-component — Basic only. The old
+  // Basic / HRA / Allowances / Bonus form was replaced with one
+  // Annual Salary input on 2026-09-02; it fills BOTH ctc and the
+  // Basic breakdown line on the PDF.
   const [form, setForm] = useState({
     JOB_TITLE: application.JOB_TITLE || "",
     DEPARTMENT: "",
     COMPENSATION_CTC: "",
-    BASIC: "",
-    HRA: "",
-    ALLOWANCES: "",
-    BONUS: "",
     BENEFITS: "Health insurance, paid time off, annual bonus, training budget.",
     JOINING_DATE: "",
     PROBATION_MONTHS: 6,
@@ -2304,22 +2304,25 @@ function GenerateOfferModal({ application, onClose, onSaved }) {
   const [error, setError] = useState("");
 
   const submit = async () => {
-    if (!form.COMPENSATION_CTC || Number(form.COMPENSATION_CTC) <= 0) {
-      setError("CTC is required and must be greater than zero.");
+    const salary = Number(form.COMPENSATION_CTC);
+    if (!salary || salary <= 0) {
+      setError("Annual salary is required and must be greater than zero.");
+      return;
+    }
+    if (salary < 1000) {
+      setError("Enter the full annual salary in rupees (e.g. 350000), not in lakhs.");
       return;
     }
     setSaving(true); setError("");
     try {
-      const breakdown = {};
-      ["BASIC", "HRA", "ALLOWANCES", "BONUS"].forEach((k) => {
-        if (form[k] !== "" && form[k] !== null) breakdown[k.toLowerCase()] = Number(form[k]);
-      });
       const payload = {
         APPLICATION_ID: application.ID,
         JOB_TITLE: form.JOB_TITLE,
         DEPARTMENT: form.DEPARTMENT || null,
-        COMPENSATION_CTC: Number(form.COMPENSATION_CTC),
-        COMPENSATION_BREAKDOWN: Object.keys(breakdown).length ? breakdown : null,
+        COMPENSATION_CTC: salary,
+        // Single-line breakdown — only Basic. Keeps the PDF's
+        // "Annual Compensation" table clean.
+        COMPENSATION_BREAKDOWN: { basic: salary },
         BENEFITS: form.BENEFITS || null,
         JOINING_DATE: form.JOINING_DATE || null,
         PROBATION_MONTHS: Number(form.PROBATION_MONTHS) || 6,
@@ -2352,39 +2355,20 @@ function GenerateOfferModal({ application, onClose, onSaved }) {
               style={input} placeholder="e.g. Engineering" />
           </Field>
 
-          <Field label="Annual CTC (₹) *">
-            <input type="number" min="0" value={form.COMPENSATION_CTC}
+          <Field
+            label="Annual salary (₹) *"
+            hint="Enter the full yearly amount in rupees, e.g. 350000. This appears on the offer letter as the Basic component and total CTC."
+          >
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={form.COMPENSATION_CTC}
               onChange={(e) => setForm({ ...form, COMPENSATION_CTC: e.target.value })}
-              style={input} placeholder="e.g. 600000" />
+              style={input}
+              placeholder="e.g. 350000"
+            />
           </Field>
-
-          <div style={{ fontSize: 10, fontWeight: 800, color: "#64748b", letterSpacing: 1, textTransform: "uppercase", margin: "10px 0 4px" }}>
-            Breakdown (optional — appears on the offer letter)
-          </div>
-          <Row>
-            <Field label="Basic (₹/yr)">
-              <input type="number" min="0" value={form.BASIC}
-                onChange={(e) => setForm({ ...form, BASIC: e.target.value })}
-                style={input} />
-            </Field>
-            <Field label="HRA (₹/yr)">
-              <input type="number" min="0" value={form.HRA}
-                onChange={(e) => setForm({ ...form, HRA: e.target.value })}
-                style={input} />
-            </Field>
-          </Row>
-          <Row>
-            <Field label="Allowances (₹/yr)">
-              <input type="number" min="0" value={form.ALLOWANCES}
-                onChange={(e) => setForm({ ...form, ALLOWANCES: e.target.value })}
-                style={input} />
-            </Field>
-            <Field label="Bonus (₹/yr)">
-              <input type="number" min="0" value={form.BONUS}
-                onChange={(e) => setForm({ ...form, BONUS: e.target.value })}
-                style={input} />
-            </Field>
-          </Row>
 
           <Row>
             <Field label="Joining date">
@@ -2556,6 +2540,22 @@ function InterviewsTab() {
     }
   };
 
+  // Outcome dropdown — HR marks each interview after it happens.
+  // Waitlisted keeps the candidate warm for a later round; Selected
+  // signals the Pipeline can move to Offer; Rejected closes the loop.
+  // The backend already accepts arbitrary STATUS strings on
+  // PATCH /interviews/{id}; no schema change needed.
+  const OUTCOME_OPTIONS = ["SCHEDULED", "WAITLISTED", "SELECTED", "REJECTED"];
+  const updateStatus = async (iv, next) => {
+    if ((iv.STATUS || "").toUpperCase() === next) return;
+    try {
+      await API.patch(`/recruitment/interviews/${iv.ID}`, { STATUS: next });
+      load();
+    } catch (err) {
+      window.alert(err?.response?.data?.detail || "Status update failed");
+    }
+  };
+
   if (loading) return <Spinner />;
   if (items.length === 0)
     return <EmptyState text="No interviews scheduled yet. Go to Pipeline → pick an application → schedule an interview." />;
@@ -2586,7 +2586,34 @@ function InterviewsTab() {
               <td style={cell}>{i.JOB_TITLE}</td>
               <td style={cell}>R{i.ROUND} · {i.ROUND_TYPE || "—"}</td>
               <td style={cell}>{i.MODE}</td>
-              <td style={cell}><Pill status={i.STATUS} /></td>
+              <td style={cell}>
+                <select
+                  value={(i.STATUS || "SCHEDULED").toUpperCase()}
+                  onChange={(e) => updateStatus(i, e.target.value)}
+                  title="Set the interview outcome"
+                  style={{
+                    padding: "4px 8px",
+                    borderRadius: 6,
+                    border: "1px solid #cbd5e1",
+                    background: "white",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color:
+                      (i.STATUS || "").toUpperCase() === "SELECTED"    ? "#047857" :
+                      (i.STATUS || "").toUpperCase() === "REJECTED"    ? "#b91c1c" :
+                      (i.STATUS || "").toUpperCase() === "WAITLISTED"  ? "#b45309" :
+                      "#334155",
+                    cursor: "pointer",
+                    outline: "none",
+                  }}
+                >
+                  {OUTCOME_OPTIONS.map((s) => (
+                    <option key={s} value={s}>
+                      {s.charAt(0) + s.slice(1).toLowerCase()}
+                    </option>
+                  ))}
+                </select>
+              </td>
               <td style={cell}>{i.SCORE != null ? i.SCORE : "—"}</td>
               <td style={cell}>
                 <button onClick={() => remove(i)} style={rowDeleteBtn}>Delete</button>

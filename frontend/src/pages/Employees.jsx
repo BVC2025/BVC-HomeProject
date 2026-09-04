@@ -649,17 +649,41 @@ function EmployeeDocumentsSection({ employee }) {
                   rel="noreferrer"
                   className={styles.docViewLink}
                 >
-                  👁 View
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" strokeWidth="1.8"
+                       strokeLinecap="round" strokeLinejoin="round"
+                       aria-hidden="true">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  View
                 </a>
                 <a
                   href={`${API.defaults.baseURL || ""}${d.FILE_URL}`}
                   download={d.FILE_NAME || "document"}
                   className={styles.docDownloadLink}
                 >
-                  ⬇ Download
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" strokeWidth="1.8"
+                       strokeLinecap="round" strokeLinejoin="round"
+                       aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Download
                 </a>
                 <button type="button" onClick={() => removeDoc(d)} className={styles.docDeleteBtn}>
-                  🗑 Delete
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" strokeWidth="1.8"
+                       strokeLinecap="round" strokeLinejoin="round"
+                       aria-hidden="true">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                    <path d="M10 11v6M14 11v6" />
+                    <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                  </svg>
+                  Delete
                 </button>
               </div>
             ))}
@@ -2374,19 +2398,37 @@ function Employees() {
   // KPI tiles. Populated in fetchAll() from /attendance/live-board.
   const [attToday, setAttToday] = useState({ in_office: 0, checked_out: 0 });
 
+  // Master lists for the filter dropdowns. Sourced from /departments
+  // and /roles so a department/role created in its admin module shows
+  // up here immediately, and disappears from the picker as soon as
+  // it's deleted there — regardless of whether any employee is
+  // currently assigned to it. Previously these were derived from the
+  // employee list itself, which meant new departments with zero
+  // members were invisible.
+  const [allDepartments, setAllDepartments] = useState([]);
+  const [allRoles,       setAllRoles]       = useState([]);
+
   const fetchAll = () => {
     setLoading(true);
     Promise.all([
       API.get("/employees").catch(() => ({ data: [] })),
       API.get("/attendance/live-board").catch(() => ({ data: null })),
+      API.get("/departments").catch(() => ({ data: [] })),
+      // `/roles/names` is the light-permission list built for this
+      // dropdown. Fall back to `/roles` for older backends that
+      // don't have the lightweight endpoint yet.
+      API.get("/roles/names")
+        .catch(() => API.get("/roles").catch(() => ({ data: [] }))),
     ])
-      .then(([empRes, boardRes]) => {
+      .then(([empRes, boardRes, deptRes, roleRes]) => {
         setEmployees(empRes.data || []);
         const s = boardRes.data?.summary || {};
         setAttToday({
           in_office:   Number(s.in_office   || 0),
           checked_out: Number(s.checked_out || 0),
         });
+        setAllDepartments(Array.isArray(deptRes.data) ? deptRes.data : []);
+        setAllRoles(Array.isArray(roleRes.data)       ? roleRes.data       : []);
       })
       .finally(() => setLoading(false));
   };
@@ -2395,21 +2437,47 @@ function Employees() {
     fetchAll();
   }, []);
 
+  // Refresh master lists when the tab regains focus so a department /
+  // role created (or deleted) in another tab is picked up the next
+  // time HR comes back here — without needing a manual page reload.
+  useEffect(() => {
+    const refresh = () => {
+      Promise.all([
+        API.get("/departments").catch(() => ({ data: [] })),
+        API.get("/roles/names")
+          .catch(() => API.get("/roles").catch(() => ({ data: [] }))),
+      ]).then(([d, r]) => {
+        setAllDepartments(Array.isArray(d.data) ? d.data : []);
+        setAllRoles(Array.isArray(r.data)       ? r.data       : []);
+      });
+    };
+    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
+
   const departments = useMemo(() => {
-    const set = new Set();
-    employees.forEach((e) => {
-      if (e.DEPARTMENT?.NAME) set.add(e.DEPARTMENT.NAME);
-    });
-    return [...set].sort();
-  }, [employees]);
+    // Names only, alphabetised, unique. Uses the master list so
+    // brand-new departments with zero employees still appear.
+    const names = allDepartments
+      .map((d) => d?.NAME)
+      .filter(Boolean);
+    return [...new Set(names)].sort();
+  }, [allDepartments]);
 
   const rolesList = useMemo(() => {
-    const set = new Set();
-    employees.forEach((e) => {
-      if (e.ROLE?.NAME) set.add(e.ROLE.NAME);
-    });
-    return [...set].sort();
-  }, [employees]);
+    // Older /roles endpoint returns ROLE_NAME; new /roles/names
+    // returns NAME. Handle both shapes so a fallback response
+    // doesn't render an empty list.
+    const names = allRoles
+      .map((r) => r?.NAME || r?.ROLE_NAME)
+      .filter(Boolean);
+    return [...new Set(names)].sort();
+  }, [allRoles]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -2595,31 +2663,9 @@ function Employees() {
               clearLabel="All roles"
             />
           </div>
-          <div className={styles.dateFilters}>
-            <label className={styles.dateLabel}>From</label>
-            <input
-              type="date"
-              className={styles.dateInput}
-              value={filterFrom}
-              onChange={(e) => setFilterFrom(e.target.value)}
-            />
-            <label className={styles.dateLabel}>To</label>
-            <input
-              type="date"
-              className={styles.dateInput}
-              value={filterTo}
-              onChange={(e) => setFilterTo(e.target.value)}
-            />
-            {(filterFrom || filterTo) && (
-              <button
-                type="button"
-                className={styles.clearFilter}
-                onClick={() => { setFilterFrom(""); setFilterTo(""); }}
-              >
-                ✕
-              </button>
-            )}
-          </div>
+          {/* From / To date filter removed 2026-09-02 per admin request.
+              State + downstream filtering hooks stay in place so the
+              controls can be brought back by uncommenting this block. */}
           <span className={styles.count}>
             {filtered.length} employee{filtered.length !== 1 ? "s" : ""}
           </span>
