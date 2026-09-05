@@ -35,12 +35,12 @@ router = APIRouter(prefix="/customer-payments", tags=["Customer Payments"])
 
 # A Lead's payment/production data becomes meaningful once its PO is
 # received — and stays meaningful for every later stage of the lifecycle.
-# PRODUCTION_SCHEDULED/PRODUCTION_STARTED are automatically set well after
-# PO_RECEIVED by the production scheduling engine (production_scheduling_
-# service.py) — a Lead sitting at either of those must still show up here
-# exactly like one still at PO_RECEIVED, since it's simply further along
-# the SAME converted lifecycle, not a different one.
-_PO_RECEIVED_OR_LATER_STATUSES = {"PO_RECEIVED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED"}
+# PRODUCTION_SCHEDULE_REQUESTED/PRODUCTION_SCHEDULED/PRODUCTION_STARTED
+# are all set well after PO_RECEIVED by the production scheduling engine
+# (production_scheduling_service.py) — a Lead sitting at any of those must
+# still show up here exactly like one still at PO_RECEIVED, since it's
+# simply further along the SAME converted lifecycle, not a different one.
+_PO_RECEIVED_OR_LATER_STATUSES = {"PO_RECEIVED", "PRODUCTION_SCHEDULE_REQUESTED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED"}
 
 
 def _serialize_payment(p: CustomerProjectPayment) -> dict:

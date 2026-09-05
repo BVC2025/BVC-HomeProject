@@ -19,7 +19,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import func
+from sqlalchemy import exists, func
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
@@ -137,20 +137,40 @@ def _resolve_preferred_supplier(db: Session, vendor_id: int, product_ids: list) 
 @router.get("/inventory/full", dependencies=[Depends(require("inventory.view"))])
 def inventory_full(
     vendor_id: int = Query(1),
+    product_id: Optional[str] = Query(None),
+    category_id: Optional[str] = Query(None),
+    supplier_id: Optional[int] = Query(None),
     db: Session = Depends(get_db)
 ):
     """Fat inventory overview powering /inventory. Returns
     { summary: {...}, items: [...] } — one row per tracked product
     (an InventoryStock row already exists for it), each enriched with
     category name, latest unit cost, preferred supplier, and last
-    movement date."""
+    movement date. product_id/category_id/supplier_id narrow which
+    products are included; summary is computed over the same (possibly
+    filtered) set, so the stat tiles reflect whatever is currently
+    filtered."""
 
-    rows = (
+    q = (
         db.query(InventoryStock)
         .join(ProductMaster, ProductMaster.ID == InventoryStock.PRODUCT_ID)
         .filter(InventoryStock.VENDOR_ID == vendor_id)
-        .all()
     )
+    if product_id:
+        q = q.filter(InventoryStock.PRODUCT_ID == product_id)
+    if category_id:
+        q = q.filter(ProductMaster.CATEGORY_ID == category_id)
+    if supplier_id:
+        # A product's supplier(s) live only in SupplierProduct — filter
+        # via that relationship rather than the single PREFERRED_SUPPLIER
+        # this endpoint resolves below (which would silently miss
+        # products where the chosen supplier is linked but not preferred).
+        q = q.filter(exists().where(
+            SupplierProduct.VENDOR_ID == vendor_id,
+            SupplierProduct.SUPPLIER_ID == supplier_id,
+            SupplierProduct.PRODUCT_ID == InventoryStock.PRODUCT_ID,
+        ))
+    rows = q.all()
 
     product_ids = [r.PRODUCT_ID for r in rows]
 

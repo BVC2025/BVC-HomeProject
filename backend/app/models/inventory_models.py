@@ -316,14 +316,20 @@ class InventoryBatch(Base):
         nullable=False, index=True
     )
 
+    # Auto-generated at creation time (PRODUCT_CODE-YYYYMMDD-HHMMSS-N) —
+    # never client-supplied. See inventory_batches.py's _generate_batch_number().
     BATCH_NUMBER = Column(String(100), nullable=False)
 
     # Kept additively alongside the spec's own suggested column list —
     # dropping these would regress the already-live "expiring soon"
     # batch feature and lose direct PO/GRN traceability for no benefit.
-    LOT_NUMBER = Column(String(100), nullable=True)
     MANUFACTURING_DATE = Column(Date, nullable=True)
     EXPIRY_DATE = Column(Date, nullable=True)
+    # Explicit "this product never expires" flag — distinguishes a
+    # genuinely non-expiring product from EXPIRY_DATE simply not having
+    # been entered yet. Always kept in sync with EXPIRY_DATE at the route
+    # layer: True means EXPIRY_DATE is NULL, never a sentinel date.
+    IS_NO_EXPIRY = Column(Boolean, nullable=False, default=False)
     PO_ID = Column(
         Integer,
         ForeignKey("purchase_order.ID", ondelete="SET NULL"),

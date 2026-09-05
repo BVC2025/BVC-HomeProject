@@ -60,6 +60,9 @@ export const inventoryItemService = {
   getItemMovements: (itemId) =>
     API.get(`/api/inventory-movements/${itemId}/history`),
 
+  getMovementDetails: (id) =>
+    API.get(`/api/inventory-movements/${id}/details`),
+
   exportMovements: () =>
     API.get("/api/inventory-movements/export/excel", {
       params: { vendor_id: VENDOR_ID },
@@ -70,12 +73,37 @@ export const inventoryItemService = {
   getBatches: (params = {}) =>
     API.get("/api/inventory-batches", { params: { vendor_id: VENDOR_ID, ...params } }),
 
-  createBatch: (data) =>
-    API.post("/api/inventory-batches", { ...data, VENDOR_ID }),
+  getBatchDetails: (id) =>
+    API.get(`/api/inventory-batches/${id}/details`),
+
+  // Multipart — Batch Number is generated server-side, and DC/Invoice are
+  // real file uploads now (see inventory_batches.py's create_batch).
+  // `data` carries lowercase Form field names matching the backend
+  // signature exactly (vendor_id, product_id, supplier_id, ...).
+  createBatch: (data, dcFile, invoiceFile) => {
+    const fd = new FormData();
+    Object.entries({ vendor_id: VENDOR_ID, ...data }).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") fd.append(k, v);
+    });
+    if (dcFile) fd.append("dc_file", dcFile);
+    if (invoiceFile) fd.append("invoice_file", invoiceFile);
+    return API.post("/api/inventory-batches", fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
 
   updateBatch: (id, data) =>
     API.put(`/api/inventory-batches/${id}`, data),
 
   getExpiringBatches: (days = 30) =>
     API.get(`/api/inventory-batches/expiring-soon?days=${days}&vendor_id=${VENDOR_ID}`),
+
+  getProductSuppliers: (productId) =>
+    API.get(`/api/inventory-batches/products/${productId}/suppliers`, { params: { vendor_id: VENDOR_ID } }),
+
+  getAllSuppliers: () =>
+    API.get("/api/inventory-batches/suppliers", { params: { vendor_id: VENDOR_ID } }),
+
+  viewBatchFile: (batchId, kind) =>
+    API.get(`/api/inventory-batches/${batchId}/file/${kind}`, { responseType: "blob" }),
 };

@@ -19,10 +19,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
 from app.database.database import get_db
-from app.models.inventory_models import InventoryMovement, ProductMaster
+from app.models.inventory_models import InventoryBatch, InventoryMovement, ProductMaster
 from app.models.models import PurchaseOrder, GoodsReceiptNote
 from app.models.customer_models import CustomerProjectAssignment, Customer
+from app.models.employee_models import Employee
+from app.models.lead_models import Lead
 from app.models.project_models import Project
+from app.models.supplier_models import Supplier
 from app.auth.auth_bearer import require
 
 router = APIRouter(prefix="/inventory-movements", tags=["Inventory Movements"])
@@ -120,6 +123,7 @@ def _serialize_movement(m: InventoryMovement, resolved: Optional[dict] = None) -
 def list_movements(
     vendor_id: int = Query(1),
     product_id: Optional[str] = Query(None),
+    category_id: Optional[str] = Query(None),
     customer_id: Optional[str] = Query(None),
     project_id: Optional[str] = Query(None),
     movement_type: Optional[str] = Query(None),
@@ -133,6 +137,13 @@ def list_movements(
     q = db.query(InventoryMovement).filter(InventoryMovement.VENDOR_ID == vendor_id)
     if product_id:
         q = q.filter(InventoryMovement.PRODUCT_ID == product_id)
+    if category_id:
+        # InventoryMovement has no CATEGORY_ID of its own — filter through
+        # ProductMaster, same relationship every other category lookup
+        # in this codebase uses.
+        q = q.join(ProductMaster, ProductMaster.ID == InventoryMovement.PRODUCT_ID).filter(
+            ProductMaster.CATEGORY_ID == category_id
+        )
     if movement_type:
         q = q.filter(InventoryMovement.MOVEMENT_TYPE == movement_type.upper())
     if reference_type:
@@ -157,6 +168,96 @@ def list_movements(
         "total": total, "page": page, "page_size": page_size,
         "items": [_serialize_movement(m, resolved) for m in rows],
     }
+
+
+@router.get("/{movement_id}/details", dependencies=[Depends(require("inventory.view", "inventory.movements.view"))])
+def get_movement_details(movement_id: str, db: Session = Depends(get_db)):
+    """Enriched single-movement payload for the Movement Details modal —
+    batch/supplier info for Stock-In rows, full Customer/Lead/Project/
+    Assignment traceability for production-consumption Stock-Out rows.
+    Kept separate from _serialize_movement()/list_movements (which can
+    return up to 5000 rows) so these extra joins only ever run for a
+    single-row fetch."""
+    movement = db.query(InventoryMovement).filter(InventoryMovement.ID == movement_id).first()
+    if not movement:
+        raise HTTPException(status_code=404, detail="Movement not found")
+
+    resolved = _resolve_references(db, [movement])
+    data = _serialize_movement(movement, resolved)
+
+    product = movement.product
+    category = product.category if product else None
+    creator = (
+        db.query(Employee).filter(Employee.ID == movement.PERFORMED_BY_ID).first()
+        if movement.PERFORMED_BY_ID else None
+    )
+    data.update({
+        "CATEGORY_ID": product.CATEGORY_ID if product else None,
+        "CATEGORY_NAME": category.NAME if category else None,
+        "UNIT": product.UNIT if product else None,
+        "PERFORMED_BY_CODE": creator.EMPLOYEE_CODE if creator else None,
+    })
+
+    # Batch details — populated whenever this movement has a BATCH_ID
+    # (manual batch receipts and GRN-created Stock-In rows always set
+    # this; production-consumption Stock-Out rows never do, since a
+    # single consumption movement can span several batches — see
+    # inventory_consumption_service.consume_stock_for_assignment()).
+    batch = None
+    if movement.BATCH_ID:
+        b = db.query(InventoryBatch).filter(InventoryBatch.ID == movement.BATCH_ID).first()
+        if b:
+            b_supplier = db.query(Supplier).filter(Supplier.ID == b.SUPPLIER_ID).first() if b.SUPPLIER_ID else None
+            batch = {
+                "BATCH_ID": b.ID,
+                "BATCH_NUMBER": b.BATCH_NUMBER,
+                "EXPIRY_DATE": b.EXPIRY_DATE.isoformat() if b.EXPIRY_DATE else None,
+                "IS_NO_EXPIRY": b.IS_NO_EXPIRY,
+                "RECEIVED_DATE": b.RECEIVED_DATE.isoformat() if b.RECEIVED_DATE else None,
+                "SUPPLIER_ID": b.SUPPLIER_ID,
+                "SUPPLIER_COMPANY_NAME": b_supplier.COMPANY_NAME if b_supplier else None,
+                "SUPPLIER_CODE": b_supplier.SUPPLIER_CODE if b_supplier else None,
+            }
+    data["batch"] = batch
+
+    # Production-consumption traceability — only meaningful for a
+    # CUSTOMER_PROJECT_ASSIGNMENT-referenced movement (the only reference
+    # type production consumption ever sets). Traces up to Customer/Lead/
+    # Project/Assignment; TASK_COUNT is the assignment's whole task list
+    # since a single consumption movement is never attributable to one
+    # specific CustomerProjectTask (see consume_stock_for_assignment()).
+    production = None
+    if movement.REFERENCE_TYPE == "CUSTOMER_PROJECT_ASSIGNMENT" and movement.REFERENCE_ID:
+        assignment = db.query(CustomerProjectAssignment).filter(
+            CustomerProjectAssignment.ID == movement.REFERENCE_ID
+        ).first()
+        if assignment:
+            customer = db.query(Customer).filter(Customer.ID == assignment.CUSTOMER_ID).first()
+            project = db.query(Project).filter(Project.ID == assignment.PROJECT_ID).first()
+            lead = db.query(Lead).filter(Lead.ID == assignment.LEAD_ID).first() if assignment.LEAD_ID else None
+            production = {
+                "ASSIGNMENT_ID": assignment.ID,
+                "CUSTOMER_ID": customer.ID if customer else None,
+                "CUSTOMER_NAME": customer.NAME if customer else None,
+                "CUSTOMER_COMPANY_NAME": customer.COMPANY_NAME if customer else None,
+                "LEAD_ID": assignment.LEAD_ID,
+                "LEAD_STATUS": lead.LEAD_STATUS if lead else None,
+                "LEAD_CONTACT_NAME": lead.CONTACT_NAME if lead else None,
+                "PROJECT_ID": project.ID if project else None,
+                "PROJECT_NAME": project.NAME if project else None,
+                "ASSIGNMENT_QUANTITY": assignment.QUANTITY,
+                "ASSIGNMENT_STATUS": assignment.STATUS,
+                "ASSIGNMENT_START_DATE": assignment.START_DATE.isoformat() if assignment.START_DATE else None,
+                "ASSIGNMENT_END_DATE": assignment.END_DATE.isoformat() if assignment.END_DATE else None,
+                "PROJECT_COMPLETION_PERCENTAGE": (
+                    float(assignment.PROJECT_COMPLETION_PERCENTAGE)
+                    if assignment.PROJECT_COMPLETION_PERCENTAGE is not None else None
+                ),
+                "TASK_COUNT": len(assignment.tasks),
+            }
+    data["production"] = production
+
+    return data
 
 
 @router.get("/{product_id}/history", dependencies=[Depends(require("inventory.view", "inventory.movements.view"))])

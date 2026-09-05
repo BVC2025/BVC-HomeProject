@@ -7,16 +7,21 @@ import {
 } from "../components/pm";
 import { inventoryItemService } from "../services/inventoryItemService";
 import { productMasterService } from "../services/productMasterService";
+import { inventoryCategoryService } from "../services/inventoryCategoryService";
+import { supplierManagementService } from "../services/supplierManagementService";
 import { customerMasterService } from "../services/customerMasterService";
 import { projectService } from "../services/projectService";
 import { useToast } from "../hooks/useToast";
 import { useCustomFields, useTableCfValues } from "../hooks/useCustomFields";
 import { exportToExcel, downloadTemplate as dlTemplate } from "../utils/exportExcel";
 import { formatDateTime } from "../utils/formatDateTime";
+import { BatchDetailModal } from "../components/inventory/BatchDetailModal";
+import { MovementDetailModal } from "../components/inventory/MovementDetailModal";
 import InventoryIcon from "../assets/Icons/inventoryIcon.webp";
 import EditIcon from "../assets/Icons/editIcon.webp";
 import DeleteIcon from "../assets/Icons/deleteIcon.webp";
 import UploadIcon from "../assets/Icons/uploadIcon.webp";
+import DetailsIcon from "../assets/Icons/detailsIcon.webp";
 import styles from "./InventoryItemsPage.module.css";
 import { validateForm, clearFieldError, ITEM_RULES, BATCH_RULES, BATCH_EDIT_RULES } from "../utils/formValidation";
 
@@ -61,14 +66,22 @@ const ITEM_EMPTY_FORM = { PRODUCT_ID: "", MIN_QTY: 0, MAX_QTY: "" };
 const STOCK_OP_EMPTY = { QTY: "", REASON: "", BATCH_ID: "" };
 
 // A manual batch now requires a Product (not an InventoryItem) plus at
-// least one of DC_FILE_URL / INVOICE_FILE_URL (enforced by the backend).
+// least one of a DC / Invoice file upload (enforced by the backend).
+// CATEGORY_ID is filter-only — never sent to the backend (ProductMaster
+// already owns the Category relationship, see D3). BATCH_NUMBER is no
+// longer part of the form — it's generated server-side on save.
 const BATCH_EMPTY_FORM = {
-  PRODUCT_ID: "", BATCH_NUMBER: "", LOT_NUMBER: "",
-  RECEIVED_DATE: "", MANUFACTURING_DATE: "", EXPIRY_DATE: "",
-  QTY_RECEIVED: 0, UNIT_COST: 0, DC_FILE_URL: "", INVOICE_FILE_URL: "",
+  CATEGORY_ID: "", PRODUCT_ID: "", SUPPLIER_ID: "",
+  RECEIVED_DATE: "", MANUFACTURING_DATE: "", EXPIRY_DATE: "", IS_NO_EXPIRY: false,
+  QTY_RECEIVED: 0, UNIT_COST: "",
 };
 
-const BATCH_EDIT_EMPTY_FORM = { STATUS: "ACTIVE", QTY_REMAINING: 0, NOTES: "" };
+const BATCH_FILES_EMPTY = { DC_FILE: null, INVOICE_FILE: null };
+
+const BATCH_EDIT_EMPTY_FORM = {
+  STATUS: "ACTIVE", QTY_REMAINING: 0, SUPPLIER_ID: "",
+  EXPIRY_DATE: "", IS_NO_EXPIRY: false, NOTES: "",
+};
 
 const TABS = [
   { key: "items", label: "Items" },
@@ -131,6 +144,9 @@ export default function InventoryItemsPage() {
   const [confirmModal, setConfirmModal] = useState(null);
   const [itemFilterFrom, setItemFilterFrom] = useState("");
   const [itemFilterTo, setItemFilterTo] = useState("");
+  const [itemCategoryFilter, setItemCategoryFilter] = useState("");
+  const [itemProductFilter, setItemProductFilter] = useState("");
+  const [itemSupplierFilter, setItemSupplierFilter] = useState("");
 
   // Stock operation
   const [stockModal, setStockModal] = useState(null); // { type, item }
@@ -142,6 +158,7 @@ export default function InventoryItemsPage() {
   const [movLoading, setMovLoading] = useState(false);
   const [movSearch, setMovSearch] = useState("");
   const [movTypeFilter, setMovTypeFilter] = useState("");
+  const [movCategoryFilter, setMovCategoryFilter] = useState("");
   const [movProductFilter, setMovProductFilter] = useState("");
   const [movCustomerFilter, setMovCustomerFilter] = useState("");
   const [movProjectFilter, setMovProjectFilter] = useState("");
@@ -150,6 +167,7 @@ export default function InventoryItemsPage() {
   const [movPage, setMovPage] = useState(1);
   const [customers, setCustomers] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [movementDetailModal, setMovementDetailModal] = useState(null);
 
   // Batches
   const [batches, setBatches] = useState([]);
@@ -160,8 +178,25 @@ export default function InventoryItemsPage() {
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [batchForm, setBatchForm] = useState(BATCH_EMPTY_FORM);
   const [batchEditForm, setBatchEditForm] = useState(BATCH_EDIT_EMPTY_FORM);
+  const [batchFiles, setBatchFiles] = useState(BATCH_FILES_EMPTY);
   const [batchErrors, setBatchErrors] = useState({});
   const [batchSaving, setBatchSaving] = useState(false);
+  const [batchCategories, setBatchCategories] = useState([]);
+  const [batchProductSuppliers, setBatchProductSuppliers] = useState([]);
+  const [batchAllSuppliers, setBatchAllSuppliers] = useState([]);
+  const [batchSupplierLoading, setBatchSupplierLoading] = useState(false);
+  const [batchDetailModal, setBatchDetailModal] = useState(null);
+  const [batchCategoryFilter, setBatchCategoryFilter] = useState("");
+  const [batchProductFilter, setBatchProductFilter] = useState("");
+  const [batchSupplierFilter, setBatchSupplierFilter] = useState("");
+  const dcFileRef = useRef();
+  const invoiceFileRef = useRef();
+
+  // Vendor-wide, unconditional ACTIVE supplier list — shared by the
+  // Items/Batches list filters (Movements has no Supplier filter — not
+  // requested). Distinct from batchAllSuppliers above, which is the
+  // Add/Edit Batch modal's product-scoped fallback list.
+  const [filterSuppliers, setFilterSuppliers] = useState([]);
 
   const toast = useToast();
   const fetchedRef = useRef({});
@@ -188,11 +223,82 @@ export default function InventoryItemsPage() {
     [products]
   );
 
+  // ── Category picker (Batches "Add" — filter-only, see D3) ───────────────
+  useEffect(() => {
+    inventoryCategoryService.getAll().then((res) => {
+      const d = res.data;
+      setBatchCategories((Array.isArray(d) ? d : (d?.items || [])).filter((c) => c.IS_ACTIVE !== false));
+    }).catch(() => { /* picker just stays empty */ });
+  }, []);
+
+  const categoryOptions = useMemo(
+    () => batchCategories.map((c) => ({ value: c.ID, label: c.NAME })),
+    [batchCategories]
+  );
+
+  // Category filters the Product picker only — never sent to the backend
+  // and never stored on InventoryBatch (ProductMaster.CATEGORY_ID is the
+  // single source of truth for that relationship).
+  const batchProductOptions = useMemo(() => {
+    const list = batchForm.CATEGORY_ID
+      ? products.filter((p) => p.CATEGORY_ID === batchForm.CATEGORY_ID)
+      : products;
+    return list.map((p) => ({ value: p.ID, label: `${p.PRODUCT_CODE} — ${p.PRODUCT_NAME}` }));
+  }, [products, batchForm.CATEGORY_ID]);
+
+  // Supplier options shown in the Add/Edit Batch modal — the product-
+  // specific list (preferred-first), falling back to every active
+  // supplier if the product has no supplier-product link yet (D4).
+  const batchSupplierOptions = useMemo(() => {
+    const source = batchProductSuppliers.length > 0 ? batchProductSuppliers : batchAllSuppliers;
+    return source.map((s) => ({
+      value: s.SUPPLIER_ID,
+      label: s.SUPPLIER_CODE ? `${s.COMPANY_NAME} (${s.SUPPLIER_CODE})` : s.COMPANY_NAME,
+    }));
+  }, [batchProductSuppliers, batchAllSuppliers]);
+
+  // ── Supplier picker for the Items/Batches LIST filters (not the
+  // Add/Edit Batch modal's own product-scoped suppliers above) —
+  // vendor-wide, unconditional, ACTIVE-only per the requirement. ────────
+  useEffect(() => {
+    supplierManagementService.getAll().then((res) => {
+      const d = res.data;
+      setFilterSuppliers((Array.isArray(d) ? d : []).filter((s) => s.STATUS === "ACTIVE"));
+    }).catch(() => { /* picker just stays empty */ });
+  }, []);
+
+  const filterSupplierOptions = useMemo(
+    () => filterSuppliers.map((s) => ({ value: s.ID, label: s.COMPANY_NAME || s.SUPPLIER_CODE })),
+    [filterSuppliers]
+  );
+
+  // Category→Product cascades for the Items/Batches/Movements LIST
+  // filters — same filter-only pattern as batchProductOptions above,
+  // each keyed off its own tab's filter state.
+  const itemFilterProductOptions = useMemo(() => {
+    const list = itemCategoryFilter ? products.filter((p) => p.CATEGORY_ID === itemCategoryFilter) : products;
+    return list.map((p) => ({ value: p.ID, label: `${p.PRODUCT_CODE} — ${p.PRODUCT_NAME}` }));
+  }, [products, itemCategoryFilter]);
+
+  const batchFilterProductOptions = useMemo(() => {
+    const list = batchCategoryFilter ? products.filter((p) => p.CATEGORY_ID === batchCategoryFilter) : products;
+    return list.map((p) => ({ value: p.ID, label: `${p.PRODUCT_CODE} — ${p.PRODUCT_NAME}` }));
+  }, [products, batchCategoryFilter]);
+
+  const movFilterProductOptions = useMemo(() => {
+    const list = movCategoryFilter ? products.filter((p) => p.CATEGORY_ID === movCategoryFilter) : products;
+    return list.map((p) => ({ value: p.ID, label: `${p.PRODUCT_CODE} — ${p.PRODUCT_NAME}` }));
+  }, [products, movCategoryFilter]);
+
   // ── Loaders ────────────────────────────────────────────────────────────
   const loadItems = useCallback(async (silent = false) => {
     if (!silent) setItemsLoading(true); else setItemsRefreshing(true);
     try {
-      const res = await inventoryItemService.getAll({ page_size: 5000 });
+      const params = { page_size: 5000 };
+      if (itemCategoryFilter) params.category_id = itemCategoryFilter;
+      if (itemProductFilter) params.product_id = itemProductFilter;
+      if (itemSupplierFilter) params.supplier_id = itemSupplierFilter;
+      const res = await inventoryItemService.getAll(params);
       const d = res.data;
       setItems(Array.isArray(d) ? d : (d?.items || []));
     } catch {
@@ -201,13 +307,14 @@ export default function InventoryItemsPage() {
       setItemsLoading(false);
       setItemsRefreshing(false);
     }
-  }, []);
+  }, [itemCategoryFilter, itemProductFilter, itemSupplierFilter]);
 
   const loadMovements = useCallback(async () => {
     setMovLoading(true);
     try {
       const params = { page_size: 5000 };
       if (movTypeFilter) params.movement_type = movTypeFilter;
+      if (movCategoryFilter) params.category_id = movCategoryFilter;
       if (movProductFilter) params.product_id = movProductFilter;
       if (movCustomerFilter) params.customer_id = movCustomerFilter;
       if (movProjectFilter) params.project_id = movProjectFilter;
@@ -221,14 +328,21 @@ export default function InventoryItemsPage() {
     } finally {
       setMovLoading(false);
     }
-  }, [movTypeFilter, movProductFilter, movCustomerFilter, movProjectFilter, movFilterFrom, movFilterTo]);
+  }, [movTypeFilter, movCategoryFilter, movProductFilter, movCustomerFilter, movProjectFilter, movFilterFrom, movFilterTo]);
 
   const loadBatches = useCallback(async () => {
     setBatchLoading(true);
     try {
-      const res = showExpiringSoon
-        ? await inventoryItemService.getExpiringBatches(30)
-        : await inventoryItemService.getBatches({ page_size: 5000 });
+      if (showExpiringSoon) {
+        const res = await inventoryItemService.getExpiringBatches(30);
+        setBatches(Array.isArray(res.data) ? res.data : (res.data?.items || []));
+        return;
+      }
+      const params = { page_size: 5000 };
+      if (batchCategoryFilter) params.category_id = batchCategoryFilter;
+      if (batchProductFilter) params.product_id = batchProductFilter;
+      if (batchSupplierFilter) params.supplier_id = batchSupplierFilter;
+      const res = await inventoryItemService.getBatches(params);
       const d = res.data;
       setBatches(Array.isArray(d) ? d : (d?.items || []));
     } catch {
@@ -236,7 +350,7 @@ export default function InventoryItemsPage() {
     } finally {
       setBatchLoading(false);
     }
-  }, [showExpiringSoon]);
+  }, [showExpiringSoon, batchCategoryFilter, batchProductFilter, batchSupplierFilter]);
 
   useEffect(() => {
     if (activeTab === "items" && !fetchedRef.current.items) {
@@ -267,14 +381,25 @@ export default function InventoryItemsPage() {
       setMovPage(1);
       loadMovements();
     }
-  }, [movTypeFilter, movProductFilter, movCustomerFilter, movProjectFilter, movFilterFrom, movFilterTo]);
+  }, [movTypeFilter, movCategoryFilter, movProductFilter, movCustomerFilter, movProjectFilter, movFilterFrom, movFilterTo]);
 
   useEffect(() => {
     if (activeTab === "batches") {
       fetchedRef.current.batches = false;
       loadBatches();
     }
-  }, [showExpiringSoon]);
+  }, [showExpiringSoon, batchCategoryFilter, batchProductFilter, batchSupplierFilter]);
+
+  // Re-fetch items (server-side filtered) whenever the Category/Product/
+  // Supplier filter changes, while the tab is active — mirrors the
+  // Movements/Batches re-fetch effects above. itemSearch/filterStatus/
+  // date-range stay client-side, exactly as before.
+  useEffect(() => {
+    if (activeTab === "items") {
+      setItemPage(1);
+      loadItems();
+    }
+  }, [itemCategoryFilter, itemProductFilter, itemSupplierFilter]);
 
   const customerOptions = useMemo(
     () => customers.map((c) => ({ value: c.ID, label: c.COMPANY_NAME ? `${c.NAME} — ${c.COMPANY_NAME}` : c.NAME })),
@@ -391,6 +516,60 @@ export default function InventoryItemsPage() {
     setBatchForm((prev) => ({ ...prev, [field]: val }));
     clearFieldError(setBatchErrors, field);
   }, []);
+
+  // Changing Category resets Product (and therefore Supplier + the
+  // Unit Cost suggestion tied to it, since Supplier auto-suggest depends
+  // on the selected Product) — mirrors the reset-on-parent-change pattern
+  // already used in SupplierProductModal.jsx.
+  const handleBatchCategoryChange = useCallback((categoryId) => {
+    setBatchForm((prev) => ({ ...prev, CATEGORY_ID: categoryId, PRODUCT_ID: "", SUPPLIER_ID: "", UNIT_COST: "" }));
+    setBatchProductSuppliers([]);
+    clearFieldError(setBatchErrors, "PRODUCT_ID");
+  }, []);
+
+  // Fetches suppliers for the chosen product and auto-selects the top
+  // result (preferred-first, then cheapest) into Supplier — still
+  // user-changeable afterwards. Falls back to every active supplier if
+  // this product has no supplier-product link yet (D4). Also suggests
+  // Unit Cost from that supplier's SupplierProduct.UNIT_PRICE (already
+  // returned by this same endpoint) — left empty if the fallback
+  // (no-price) supplier list is what's used instead.
+  const handleBatchProductChange = useCallback(async (productId) => {
+    setBatchForm((prev) => ({ ...prev, PRODUCT_ID: productId, SUPPLIER_ID: "", UNIT_COST: "" }));
+    clearFieldError(setBatchErrors, "PRODUCT_ID");
+    setBatchProductSuppliers([]);
+    if (!productId) return;
+    setBatchSupplierLoading(true);
+    try {
+      const res = await inventoryItemService.getProductSuppliers(productId);
+      const list = res.data || [];
+      setBatchProductSuppliers(list);
+      let fallback = [];
+      if (list.length === 0) {
+        const allRes = await inventoryItemService.getAllSuppliers();
+        fallback = allRes.data || [];
+        setBatchAllSuppliers(fallback);
+      }
+      const top = list[0] || fallback[0];
+      if (top) setBatchForm((prev) => ({ ...prev, SUPPLIER_ID: top.SUPPLIER_ID, UNIT_COST: top.UNIT_PRICE ?? "" }));
+    } catch {
+      /* Supplier auto-suggest is best-effort — the field just stays empty */
+    } finally {
+      setBatchSupplierLoading(false);
+    }
+  }, []);
+
+  // Manually re-picking a Supplier explicitly re-triggers the Unit Cost
+  // suggestion (an intentional overwrite, per the requirement's own
+  // carve-out) — looks up the matching SupplierProduct price across
+  // whichever list is currently in play, clearing Unit Cost if that
+  // supplier has no price mapping (Scenario B: leave it empty for manual
+  // entry) rather than leaving a stale price from a different supplier.
+  const handleBatchSupplierChange = useCallback((supplierId) => {
+    const match = [...batchProductSuppliers, ...batchAllSuppliers].find((s) => s.SUPPLIER_ID === supplierId);
+    setBatchForm((prev) => ({ ...prev, SUPPLIER_ID: supplierId, UNIT_COST: match?.UNIT_PRICE ?? "" }));
+    clearFieldError(setBatchErrors, "SUPPLIER_ID");
+  }, [batchProductSuppliers, batchAllSuppliers]);
 
   const handleSaveItem = useCallback(async () => {
     const { isValid: itemValid, errors: itemValidErrors } = validateForm(ITEM_RULES, itemForm);
@@ -541,41 +720,89 @@ export default function InventoryItemsPage() {
   // ── Batches ────────────────────────────────────────────────────────────
   const openAddBatch = useCallback(() => {
     setBatchForm(BATCH_EMPTY_FORM);
+    setBatchFiles(BATCH_FILES_EMPTY);
+    setBatchProductSuppliers([]);
+    setBatchAllSuppliers([]);
     setSelectedBatch(null);
     setBatchModal("add");
     setBatchErrors({});
   }, []);
 
-  const openEditBatch = useCallback((b) => {
+  const openEditBatch = useCallback(async (b) => {
     setBatchEditForm({
       STATUS: b.STATUS || "ACTIVE",
       QTY_REMAINING: b.QTY_REMAINING ?? 0,
+      SUPPLIER_ID: b.SUPPLIER_ID || "",
+      EXPIRY_DATE: b.EXPIRY_DATE || "",
+      IS_NO_EXPIRY: !!b.IS_NO_EXPIRY,
       NOTES: b.NOTES || "",
     });
     setSelectedBatch(b);
     setBatchModal("edit");
     setBatchErrors({});
+    setBatchProductSuppliers([]);
+    setBatchAllSuppliers([]);
+    if (b.PRODUCT_ID) {
+      setBatchSupplierLoading(true);
+      try {
+        const res = await inventoryItemService.getProductSuppliers(b.PRODUCT_ID);
+        const list = res.data || [];
+        setBatchProductSuppliers(list);
+        if (list.length === 0) {
+          const allRes = await inventoryItemService.getAllSuppliers();
+          setBatchAllSuppliers(allRes.data || []);
+        }
+      } catch {
+        /* Supplier picker just falls back to empty */
+      } finally {
+        setBatchSupplierLoading(false);
+      }
+    }
   }, []);
+
+  const openBatchDetails = useCallback(async (b) => {
+    setBatchDetailModal({ loading: true });
+    try {
+      const res = await inventoryItemService.getBatchDetails(b.ID);
+      setBatchDetailModal(res.data);
+    } catch {
+      setBatchDetailModal(null);
+      toast.showError("Failed to load batch details");
+    }
+  }, [toast]);
+
+  const openMovementDetails = useCallback(async (m) => {
+    setMovementDetailModal({ loading: true });
+    try {
+      const res = await inventoryItemService.getMovementDetails(m.ID);
+      setMovementDetailModal(res.data);
+    } catch {
+      setMovementDetailModal(null);
+      toast.showError("Failed to load movement details");
+    }
+  }, [toast]);
 
   const handleSaveBatch = useCallback(async () => {
     if (batchModal === "add") {
-      const { isValid, errors } = validateForm(BATCH_RULES, batchForm);
+      const { isValid, errors } = validateForm(BATCH_RULES, { ...batchForm, ...batchFiles });
       if (!isValid) { setBatchErrors(errors); return; }
       setBatchSaving(true);
       try {
-        await inventoryItemService.createBatch({
-          PRODUCT_ID: batchForm.PRODUCT_ID,
-          BATCH_NUMBER: batchForm.BATCH_NUMBER,
-          LOT_NUMBER: batchForm.LOT_NUMBER || undefined,
-          RECEIVED_DATE: batchForm.RECEIVED_DATE || undefined,
-          MANUFACTURING_DATE: batchForm.MANUFACTURING_DATE || undefined,
-          EXPIRY_DATE: batchForm.EXPIRY_DATE || undefined,
-          QTY_RECEIVED: parseFloat(batchForm.QTY_RECEIVED) || 0,
-          UNIT_COST: batchForm.UNIT_COST === "" ? undefined : parseFloat(batchForm.UNIT_COST),
-          DC_FILE_URL: batchForm.DC_FILE_URL || undefined,
-          INVOICE_FILE_URL: batchForm.INVOICE_FILE_URL || undefined,
-        });
-        toast.showSuccess("Batch created");
+        const res = await inventoryItemService.createBatch(
+          {
+            product_id: batchForm.PRODUCT_ID,
+            supplier_id: batchForm.SUPPLIER_ID || undefined,
+            received_date: batchForm.RECEIVED_DATE || undefined,
+            manufacturing_date: batchForm.MANUFACTURING_DATE || undefined,
+            expiry_date: batchForm.IS_NO_EXPIRY ? undefined : (batchForm.EXPIRY_DATE || undefined),
+            is_no_expiry: batchForm.IS_NO_EXPIRY,
+            qty_received: parseFloat(batchForm.QTY_RECEIVED) || 0,
+            unit_cost: batchForm.UNIT_COST === "" ? undefined : parseFloat(batchForm.UNIT_COST),
+          },
+          batchFiles.DC_FILE,
+          batchFiles.INVOICE_FILE
+        );
+        toast.showSuccess(`Batch created — Batch Number ${res.data?.BATCH_NUMBER || ""}`);
         setBatchModal(null);
         fetchedRef.current.batches = false;
         loadBatches();
@@ -592,6 +819,9 @@ export default function InventoryItemsPage() {
         await inventoryItemService.updateBatch(selectedBatch.ID, {
           STATUS: batchEditForm.STATUS,
           QTY_REMAINING: parseFloat(batchEditForm.QTY_REMAINING) || 0,
+          SUPPLIER_ID: batchEditForm.SUPPLIER_ID || null,
+          IS_NO_EXPIRY: batchEditForm.IS_NO_EXPIRY,
+          EXPIRY_DATE: batchEditForm.IS_NO_EXPIRY ? null : (batchEditForm.EXPIRY_DATE || null),
           NOTES: batchEditForm.NOTES || undefined,
         });
         toast.showSuccess("Batch updated");
@@ -604,7 +834,7 @@ export default function InventoryItemsPage() {
         setBatchSaving(false);
       }
     }
-  }, [batchForm, batchEditForm, batchModal, selectedBatch, loadBatches, toast]);
+  }, [batchForm, batchFiles, batchEditForm, batchModal, selectedBatch, loadBatches, toast]);
 
   const isRefreshing = (
     (activeTab === "items" && itemsRefreshing) ||
@@ -682,6 +912,39 @@ export default function InventoryItemsPage() {
               onChange={(v) => { setItemSearch(v); setItemPage(1); }}
               placeholder="Search by product name or code…"
             />
+            <div className={styles.filterSelect}>
+              <PMSelect
+                value={itemCategoryFilter}
+                onChange={(v) => { setItemCategoryFilter(v); setItemProductFilter(""); }}
+                options={categoryOptions}
+                allowClear
+                clearLabel="All Categories"
+                placeholder="All Categories"
+              />
+            </div>
+            <div className={styles.filterSelect}>
+              <PMSelect
+                value={itemProductFilter}
+                onChange={setItemProductFilter}
+                options={itemFilterProductOptions}
+                allowClear
+                clearLabel="All Products"
+                placeholder="All Products"
+              />
+            </div>
+            <div className={styles.filterSelect}>
+              <PMSelect
+                value={itemSupplierFilter}
+                onChange={setItemSupplierFilter}
+                options={filterSupplierOptions}
+                allowClear
+                clearLabel="All Suppliers"
+                placeholder="All Suppliers"
+              />
+            </div>
+            {(itemCategoryFilter || itemProductFilter || itemSupplierFilter) && (
+              <button className={styles.clearFilter} onClick={() => { setItemCategoryFilter(""); setItemProductFilter(""); setItemSupplierFilter(""); }}>✕ Clear</button>
+            )}
             <div className={styles.filterSelect}>
               <PMSelect
                 value={filterStatus}
@@ -809,9 +1072,19 @@ export default function InventoryItemsPage() {
             </div>
             <div className={styles.filterSelect}>
               <PMSelect
+                value={movCategoryFilter}
+                onChange={(v) => { setMovCategoryFilter(v); setMovProductFilter(""); }}
+                options={categoryOptions}
+                allowClear
+                clearLabel="All Categories"
+                placeholder="All Categories"
+              />
+            </div>
+            <div className={styles.filterSelect}>
+              <PMSelect
                 value={movProductFilter}
                 onChange={(v) => setMovProductFilter(v)}
-                options={productOptions}
+                options={movFilterProductOptions}
                 allowClear
                 clearLabel="All Products"
                 placeholder="All Products"
@@ -861,14 +1134,15 @@ export default function InventoryItemsPage() {
                   <th>Diff</th>
                   <th>Reference</th>
                   <th>Performed By</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {movLoading ? (
-                  <tr><td colSpan={10}><Loader /></td></tr>
+                  <tr><td colSpan={11}><Loader /></td></tr>
                 ) : movPaginated.length === 0 ? (
                   <tr>
-                    <td colSpan={10}>
+                    <td colSpan={11}>
                       <EmptyState icon={InventoryIcon} iconAlt="Movements" title="No movements found" />
                     </td>
                   </tr>
@@ -896,6 +1170,11 @@ export default function InventoryItemsPage() {
                         {m.reference_detail?.label || m.REFERENCE_TYPE || <span className={styles.muted}>—</span>}
                       </td>
                       <td className={styles.descCell}>{m.PERFORMED_BY_NAME || <span className={styles.muted}>—</span>}</td>
+                      <td>
+                        <button className={styles.iconBtn} onClick={() => openMovementDetails(m)} title="View Details">
+                          <img src={DetailsIcon} alt="Details" />
+                        </button>
+                      </td>
                     </tr>
                   ))
                 )}
@@ -923,6 +1202,42 @@ export default function InventoryItemsPage() {
             >
               {showExpiringSoon ? "✓ " : ""}Expiring Soon (30 days)
             </button>
+            <div className={styles.filterSelect}>
+              <PMSelect
+                value={batchCategoryFilter}
+                onChange={(v) => { setBatchCategoryFilter(v); setBatchProductFilter(""); }}
+                options={categoryOptions}
+                allowClear
+                clearLabel="All Categories"
+                placeholder="All Categories"
+                disabled={showExpiringSoon}
+              />
+            </div>
+            <div className={styles.filterSelect}>
+              <PMSelect
+                value={batchProductFilter}
+                onChange={setBatchProductFilter}
+                options={batchFilterProductOptions}
+                allowClear
+                clearLabel="All Products"
+                placeholder="All Products"
+                disabled={showExpiringSoon}
+              />
+            </div>
+            <div className={styles.filterSelect}>
+              <PMSelect
+                value={batchSupplierFilter}
+                onChange={setBatchSupplierFilter}
+                options={filterSupplierOptions}
+                allowClear
+                clearLabel="All Suppliers"
+                placeholder="All Suppliers"
+                disabled={showExpiringSoon}
+              />
+            </div>
+            {(batchCategoryFilter || batchProductFilter || batchSupplierFilter) && (
+              <button className={styles.clearFilter} onClick={() => { setBatchCategoryFilter(""); setBatchProductFilter(""); setBatchSupplierFilter(""); }}>✕ Clear</button>
+            )}
             <span className={styles.count}>{batches.length} batch{batches.length !== 1 ? "es" : ""}</span>
           </div>
 
@@ -933,7 +1248,6 @@ export default function InventoryItemsPage() {
                   <th>#</th>
                   <th>Product</th>
                   <th>Batch No.</th>
-                  <th>Lot No.</th>
                   <th>Qty Remaining</th>
                   <th>Unit Cost</th>
                   <th>Received</th>
@@ -945,16 +1259,16 @@ export default function InventoryItemsPage() {
               </thead>
               <tbody>
                 {batchLoading ? (
-                  <tr><td colSpan={11}><Loader /></td></tr>
+                  <tr><td colSpan={10}><Loader /></td></tr>
                 ) : batchPaginated.length === 0 ? (
                   <tr>
-                    <td colSpan={11}>
+                    <td colSpan={10}>
                       <EmptyState icon={InventoryIcon} iconAlt="Batches" title="No batches found" description="Add a batch to start tracking inventory lots." />
                     </td>
                   </tr>
                 ) : (
                   batchPaginated.map((b, i) => {
-                    const expClass = isExpired(b.EXPIRY_DATE) ? styles.expiryExpired : isExpiringSoon(b.EXPIRY_DATE) ? styles.expirySoon : "";
+                    const expClass = b.IS_NO_EXPIRY ? "" : isExpired(b.EXPIRY_DATE) ? styles.expiryExpired : isExpiringSoon(b.EXPIRY_DATE) ? styles.expirySoon : "";
                     return (
                       <tr key={b.ID}>
                         <td className={styles.idx}>{(batchPage - 1) * 25 + i + 1}</td>
@@ -963,20 +1277,28 @@ export default function InventoryItemsPage() {
                           {b.PRODUCT_CODE && <span className={styles.productCode}>{b.PRODUCT_CODE}</span>}
                         </td>
                         <td className={styles.monoCell}>{b.BATCH_NUMBER}</td>
-                        <td className={styles.monoCell}>{b.LOT_NUMBER || <span className={styles.muted}>—</span>}</td>
                         <td className={styles.numCell}>{b.QTY_REMAINING?.toLocaleString() ?? "—"}</td>
                         <td className={styles.numCell}>{b.UNIT_COST != null ? `₹${Number(b.UNIT_COST).toLocaleString()}` : "—"}</td>
                         <td className={styles.dateCell}>{b.RECEIVED_DATE ? new Date(b.RECEIVED_DATE).toLocaleDateString() : "—"}</td>
                         <td className={styles.dateCell}>{b.MANUFACTURING_DATE ? new Date(b.MANUFACTURING_DATE).toLocaleDateString() : "—"}</td>
                         <td className={`${styles.dateCell} ${expClass}`}>
-                          {b.EXPIRY_DATE ? new Date(b.EXPIRY_DATE).toLocaleDateString() : "—"}
-                          {isExpired(b.EXPIRY_DATE) && <span className={styles.expiredTag}> Expired</span>}
-                          {!isExpired(b.EXPIRY_DATE) && isExpiringSoon(b.EXPIRY_DATE) && <span className={styles.soonTag}> !</span>}
+                          {b.IS_NO_EXPIRY ? (
+                            <span className={styles.muted}>No Expiry</span>
+                          ) : (
+                            <>
+                              {b.EXPIRY_DATE ? new Date(b.EXPIRY_DATE).toLocaleDateString() : "—"}
+                              {isExpired(b.EXPIRY_DATE) && <span className={styles.expiredTag}> Expired</span>}
+                              {!isExpired(b.EXPIRY_DATE) && isExpiringSoon(b.EXPIRY_DATE) && <span className={styles.soonTag}> !</span>}
+                            </>
+                          )}
                         </td>
                         <td>
                           <span className={styles.statusBadge}>{b.STATUS}</span>
                         </td>
                         <td>
+                          <button className={styles.iconBtn} onClick={() => openBatchDetails(b)} title="View Details">
+                            <img src={DetailsIcon} alt="Details" />
+                          </button>
                           <button className={styles.iconBtn} onClick={() => openEditBatch(b)} title="Edit">
                             <img src={EditIcon} alt="Edit" />
                           </button>
@@ -1116,24 +1438,44 @@ export default function InventoryItemsPage() {
         }
       >
         <div className={styles.formGrid}>
-          <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+          <div className={styles.formGroup}>
+            <label>Category</label>
+            <PMSelect
+              options={categoryOptions}
+              value={batchForm.CATEGORY_ID}
+              onChange={handleBatchCategoryChange}
+              placeholder="All categories…"
+            />
+            <span className={styles.fieldHint}>Filters the Product list below — not stored on the batch.</span>
+          </div>
+          <div className={styles.formGroup}>
             <label>Product <span className={styles.req}>*</span></label>
             <PMSelect
-              options={productOptions}
+              options={batchProductOptions}
               value={batchForm.PRODUCT_ID}
-              onChange={(v) => handleBatchFormChange("PRODUCT_ID", v)}
+              onChange={handleBatchProductChange}
               placeholder="Select a product…"
             />
             {batchErrors.PRODUCT_ID && <span className={styles.fieldError}>{batchErrors.PRODUCT_ID}</span>}
           </div>
-          <div className={styles.formGroup}>
-            <label>Batch Number <span className={styles.req}>*</span></label>
-            <input className={`${styles.input}${batchErrors.BATCH_NUMBER ? " " + styles.inputError : ""}`} value={batchForm.BATCH_NUMBER} onChange={(e) => handleBatchFormChange("BATCH_NUMBER", e.target.value)} placeholder="BATCH-001" />
-            {batchErrors.BATCH_NUMBER && <span className={styles.fieldError}>{batchErrors.BATCH_NUMBER}</span>}
+          <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+            <label>Supplier</label>
+            <PMSelect
+              options={batchSupplierOptions}
+              value={batchForm.SUPPLIER_ID}
+              onChange={handleBatchSupplierChange}
+              placeholder={batchSupplierLoading ? "Loading suppliers…" : "Select a supplier…"}
+              disabled={!batchForm.PRODUCT_ID}
+            />
+            <span className={styles.fieldHint}>
+              {batchProductSuppliers.length > 0
+                ? "Auto-suggested from this product's linked suppliers — you can change it."
+                : "No supplier is linked to this product yet — showing every active supplier."}
+            </span>
           </div>
-          <div className={styles.formGroup}>
-            <label>Lot Number</label>
-            <input className={styles.input} value={batchForm.LOT_NUMBER} onChange={(e) => setBatchForm((p) => ({ ...p, LOT_NUMBER: e.target.value }))} placeholder="LOT-001" />
+          <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+            <label>Batch Number</label>
+            <input className={styles.input} value="Generated automatically on save" disabled />
           </div>
           <div className={styles.formGroup}>
             <label>Received Date</label>
@@ -1147,7 +1489,21 @@ export default function InventoryItemsPage() {
           </div>
           <div className={styles.formGroup}>
             <label>Expiry Date</label>
-            <input className={`${styles.input}${batchErrors.EXPIRY_DATE ? " " + styles.inputError : ""}`} type="date" value={batchForm.EXPIRY_DATE} onChange={(e) => handleBatchFormChange("EXPIRY_DATE", e.target.value)} />
+            <input
+              className={`${styles.input}${batchErrors.EXPIRY_DATE ? " " + styles.inputError : ""}`}
+              type="date"
+              value={batchForm.EXPIRY_DATE}
+              disabled={batchForm.IS_NO_EXPIRY}
+              onChange={(e) => handleBatchFormChange("EXPIRY_DATE", e.target.value)}
+            />
+            <label className={styles.checkboxRow}>
+              <input
+                type="checkbox"
+                checked={batchForm.IS_NO_EXPIRY}
+                onChange={(e) => setBatchForm((p) => ({ ...p, IS_NO_EXPIRY: e.target.checked, EXPIRY_DATE: e.target.checked ? "" : p.EXPIRY_DATE }))}
+              />
+              This product does not expire
+            </label>
             {batchErrors.EXPIRY_DATE && <span className={styles.fieldError}>{batchErrors.EXPIRY_DATE}</span>}
           </div>
           <div className={styles.formGroup}>
@@ -1157,24 +1513,43 @@ export default function InventoryItemsPage() {
           </div>
           <div className={styles.formGroup}>
             <label>Unit Cost (₹)</label>
-            <input className={`${styles.input}${batchErrors.UNIT_COST ? " " + styles.inputError : ""}`} type="number" min={0} step={0.01} value={batchForm.UNIT_COST} onChange={(e) => handleBatchFormChange("UNIT_COST", parseFloat(e.target.value) || 0)} />
+            <input className={`${styles.input}${batchErrors.UNIT_COST ? " " + styles.inputError : ""}`} type="number" min={0} step={0.01} value={batchForm.UNIT_COST} onChange={(e) => handleBatchFormChange("UNIT_COST", e.target.value === "" ? "" : parseFloat(e.target.value) || 0)} placeholder="Auto-suggested from supplier price" />
             {batchErrors.UNIT_COST && <span className={styles.fieldError}>{batchErrors.UNIT_COST}</span>}
           </div>
           <div className={`${styles.formGroup} ${styles.fullWidth}`}>
-            <label>Delivery Challan File URL</label>
-            <input className={styles.input} value={batchForm.DC_FILE_URL} onChange={(e) => handleBatchFormChange("DC_FILE_URL", e.target.value)} placeholder="https://…" />
+            <label>Delivery Challan</label>
+            <div className={styles.dropzone} onClick={() => dcFileRef.current?.click()}>
+              <span>{batchFiles.DC_FILE ? batchFiles.DC_FILE.name : "Click to select a file (PDF, image, or Word doc)"}</span>
+            </div>
+            <input
+              ref={dcFileRef}
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx"
+              style={{ display: "none" }}
+              onChange={(e) => { setBatchFiles((p) => ({ ...p, DC_FILE: e.target.files?.[0] || null })); clearFieldError(setBatchErrors, "_FILE_REQUIRED"); }}
+            />
           </div>
           <div className={`${styles.formGroup} ${styles.fullWidth}`}>
-            <label>Invoice File URL</label>
-            <input className={styles.input} value={batchForm.INVOICE_FILE_URL} onChange={(e) => handleBatchFormChange("INVOICE_FILE_URL", e.target.value)} placeholder="https://…" />
-            <span className={styles.fieldHint}>At least one of Delivery Challan / Invoice URL is required to create a batch.</span>
+            <label>Invoice</label>
+            <div className={styles.dropzone} onClick={() => invoiceFileRef.current?.click()}>
+              <span>{batchFiles.INVOICE_FILE ? batchFiles.INVOICE_FILE.name : "Click to select a file (PDF, image, or Word doc)"}</span>
+            </div>
+            <input
+              ref={invoiceFileRef}
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx"
+              style={{ display: "none" }}
+              onChange={(e) => { setBatchFiles((p) => ({ ...p, INVOICE_FILE: e.target.files?.[0] || null })); clearFieldError(setBatchErrors, "_FILE_REQUIRED"); }}
+            />
+            <span className={styles.fieldHint}>At least one of Delivery Challan / Invoice is required to create a batch.</span>
             {batchErrors._FILE_REQUIRED && <span className={styles.fieldError}>{batchErrors._FILE_REQUIRED}</span>}
           </div>
         </div>
       </PMModal>
 
-      {/* ── Edit Batch Modal — only STATUS/QTY_REMAINING/NOTES are
-          actually editable server-side (BatchUpdate schema) ── */}
+      {/* ── Edit Batch Modal — STATUS/QTY_REMAINING/SUPPLIER_ID/
+          EXPIRY_DATE/IS_NO_EXPIRY/NOTES are the fields editable
+          server-side (BatchUpdate schema) ── */}
       <PMModal
         open={batchModal === "edit"}
         onClose={() => { setBatchModal(null); setBatchErrors({}); }}
@@ -1204,6 +1579,35 @@ export default function InventoryItemsPage() {
               />
             </div>
             <div className={styles.formGroup}>
+              <label>Supplier</label>
+              <PMSelect
+                options={batchSupplierOptions}
+                value={batchEditForm.SUPPLIER_ID}
+                onChange={(v) => setBatchEditForm((p) => ({ ...p, SUPPLIER_ID: v }))}
+                placeholder={batchSupplierLoading ? "Loading suppliers…" : "Select a supplier…"}
+              />
+              <span className={styles.fieldHint}>Change this if the wrong supplier was picked at creation.</span>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Expiry Date</label>
+              <input
+                className={`${styles.input}${batchErrors.EXPIRY_DATE ? " " + styles.inputError : ""}`}
+                type="date"
+                value={batchEditForm.EXPIRY_DATE}
+                disabled={batchEditForm.IS_NO_EXPIRY}
+                onChange={(e) => setBatchEditForm((p) => ({ ...p, EXPIRY_DATE: e.target.value }))}
+              />
+              <label className={styles.checkboxRow}>
+                <input
+                  type="checkbox"
+                  checked={batchEditForm.IS_NO_EXPIRY}
+                  onChange={(e) => setBatchEditForm((p) => ({ ...p, IS_NO_EXPIRY: e.target.checked, EXPIRY_DATE: e.target.checked ? "" : p.EXPIRY_DATE }))}
+                />
+                This product does not expire
+              </label>
+              {batchErrors.EXPIRY_DATE && <span className={styles.fieldError}>{batchErrors.EXPIRY_DATE}</span>}
+            </div>
+            <div className={styles.formGroup}>
               <label>Qty Remaining</label>
               <input className={`${styles.input}${batchErrors.QTY_REMAINING ? " " + styles.inputError : ""}`} type="number" min={0} step="any" value={batchEditForm.QTY_REMAINING} onChange={(e) => setBatchEditForm((p) => ({ ...p, QTY_REMAINING: e.target.value }))} />
               {batchErrors.QTY_REMAINING && <span className={styles.fieldError}>{batchErrors.QTY_REMAINING}</span>}
@@ -1215,6 +1619,20 @@ export default function InventoryItemsPage() {
           </div>
         )}
       </PMModal>
+
+      {/* ── Batch Details Modal ── */}
+      <BatchDetailModal
+        open={!!batchDetailModal}
+        onClose={() => setBatchDetailModal(null)}
+        data={batchDetailModal?.loading ? null : batchDetailModal}
+      />
+
+      {/* ── Movement Details Modal (Stock In / Stock Out) ── */}
+      <MovementDetailModal
+        open={!!movementDetailModal}
+        onClose={() => setMovementDetailModal(null)}
+        data={movementDetailModal?.loading ? null : movementDetailModal}
+      />
 
       {/* ── Bulk Upload Modal ── */}
       <PMModal open={bulkModal} onClose={() => setBulkModal(false)} title="Bulk Upload Inventory Items" size="sm">

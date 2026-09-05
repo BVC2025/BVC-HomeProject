@@ -30,18 +30,20 @@ const LEAD_STATUS_LABELS = {
   REVISED_QUOTE_REJECTED: "Revised Quote Rejected",
   PO_REQUESTED: "Purchase Order Requested",
   PO_RECEIVED: "Purchase Order Received",
+  PRODUCTION_SCHEDULE_REQUESTED: "Production Schedule Requested",
   PRODUCTION_SCHEDULED: "Production Scheduled",
   PRODUCTION_STARTED: "Production Started",
 };
 
 // A lead's Customer Payment Summary becomes meaningful once its PO is
 // received — and stays meaningful for every later stage of the same
-// lifecycle. PRODUCTION_SCHEDULED/PRODUCTION_STARTED are set well after
-// PO_RECEIVED by the automatic production scheduling engine, so a lead
-// sitting at either must still show this section exactly like one still
-// at PO_RECEIVED — an exact `=== "PO_RECEIVED"` check would incorrectly
-// hide it (and stop fetching payment data) the moment the lead moves on.
-const PO_RECEIVED_OR_LATER_STATUSES = new Set(["PO_RECEIVED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED"]);
+// lifecycle. PRODUCTION_SCHEDULE_REQUESTED/PRODUCTION_SCHEDULED/
+// PRODUCTION_STARTED are all set well after PO_RECEIVED by the production
+// scheduling engine, so a lead sitting at any of them must still show
+// this section exactly like one still at PO_RECEIVED — an exact
+// `=== "PO_RECEIVED"` check would incorrectly hide it (and stop fetching
+// payment data) the moment the lead moves on.
+const PO_RECEIVED_OR_LATER_STATUSES = new Set(["PO_RECEIVED", "PRODUCTION_SCHEDULE_REQUESTED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED"]);
 
 function formatAmount(v) {
   if (v == null) return "—";

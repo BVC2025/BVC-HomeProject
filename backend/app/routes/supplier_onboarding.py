@@ -24,6 +24,7 @@ ADMIN endpoints  (called from ERP UI):
   POST   /supplier-onboarding/invitations/{id}/reject    Reject
 """
 
+import os
 import secrets
 from datetime import timedelta
 from typing import Optional
@@ -42,7 +43,7 @@ from app.models.supplier_models import (
     SupplierApprovalLog,
     SupplierProduct,
 )
-from app.models.inventory_models import ProductMaster
+from app.models.inventory_models import ProductMaster, InventoryCategory
 
 from app.schemas.supplier_onboarding_schema import (
     InvitationCreate,
@@ -332,7 +333,7 @@ def create_invitation(payload: InvitationCreate, db: Session = Depends(get_db)):
             if ok_r:
                 email_result.update({
                     "sent": True, "method": "resend",
-                    "from_email": _os.getenv("SMTP_FROM", ""),
+                    "from_email": os.getenv("SMTP_FROM", ""),
                     "sent_at": now_ist().strftime("%Y-%m-%d %H:%M:%S"),
                     "delivery_status": "accepted",
                     "error": None,
@@ -507,7 +508,7 @@ def resend_invitation(invitation_id: str, db: Session = Depends(get_db)):
     if not inv.INVITED_EMAIL:
         raise HTTPException(status_code=400, detail="No email address on this invitation")
 
-    frontend_base = _os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+    frontend_base = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
     registration_url = f"{frontend_base}/supplier-register/{inv.TOKEN}"
 
     vendor = db.query(Vendor).filter(Vendor.ID == inv.VENDOR_ID).first()
@@ -598,7 +599,7 @@ def resend_invitation(invitation_id: str, db: Session = Depends(get_db)):
         if ok_r:
             email_result.update({
                 "sent": True, "method": "resend",
-                "from_email": _os.getenv("SMTP_FROM", ""),
+                "from_email": os.getenv("SMTP_FROM", ""),
                 "sent_at": now_ist().strftime("%Y-%m-%d %H:%M:%S"),
                 "delivery_status": "accepted",
                 "error": None,
@@ -1065,6 +1066,70 @@ def get_registration_custom_fields(token: str, db: Session = Depends(get_db)):
             "SORT_ORDER": f.SORT_ORDER,
         }
         for f in fields
+    ]
+
+
+@router.get("/register/{token}/categories")
+def get_registration_categories(token: str, db: Session = Depends(get_db)):
+    """Active inventory categories for this invitation's vendor — lets
+    the public registration portal build a Category filter for its
+    product-selection step without needing an authenticated session.
+    Token is the auth secret, same as every other /register/{token}
+    endpoint in this file."""
+
+    inv = _get_by_token(db, token)
+
+    rows = (
+        db.query(InventoryCategory)
+        .filter(
+            InventoryCategory.VENDOR_ID == inv.VENDOR_ID,
+            InventoryCategory.IS_ACTIVE == True,  # noqa: E712
+        )
+        .order_by(InventoryCategory.SORT_ORDER, InventoryCategory.NAME)
+        .all()
+    )
+    return [
+        {"ID": c.ID, "NAME": c.NAME, "CODE": c.CODE}
+        for c in rows
+    ]
+
+
+@router.get("/register/{token}/products")
+def get_registration_products(
+    token: str,
+    category_id: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Active products for this invitation's vendor, optionally filtered
+    by category/search — public, token-gated counterpart to the
+    RBAC-protected GET /api/products used by the authenticated app.
+    Only the fields the registration form actually needs are returned."""
+
+    inv = _get_by_token(db, token)
+
+    q = db.query(ProductMaster).filter(
+        ProductMaster.VENDOR_ID == inv.VENDOR_ID,
+        ProductMaster.STATUS == "ACTIVE",
+    )
+    if category_id:
+        q = q.filter(ProductMaster.CATEGORY_ID == category_id)
+    if search:
+        term = f"%{search}%"
+        q = q.filter(
+            ProductMaster.PRODUCT_NAME.ilike(term) |
+            ProductMaster.PRODUCT_CODE.ilike(term)
+        )
+    rows = q.order_by(ProductMaster.PRODUCT_NAME).limit(500).all()
+    return [
+        {
+            "ID": p.ID,
+            "CATEGORY_ID": p.CATEGORY_ID,
+            "PRODUCT_CODE": p.PRODUCT_CODE,
+            "PRODUCT_NAME": p.PRODUCT_NAME,
+            "UNIT": p.UNIT,
+        }
+        for p in rows
     ]
 
 

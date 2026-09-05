@@ -66,14 +66,20 @@ export const supplierRegistrationService = {
   submitRegistration: (token) =>
     API.post(`/api/supplier-onboarding/register/${token}/submit`),
 
-  searchProducts: (search, vendorId = 1) =>
-    API.get("/api/products", { params: { search, status: "ACTIVE", vendor_id: vendorId } }),
+  // The three lookups below back the public registration page's
+  // product-selection step. They must stay token-scoped and unauthenticated
+  // — the equivalent RBAC-protected /api/products and /api/inventory-categories
+  // endpoints return a 401/403 for an anonymous supplier, which the shared
+  // axios instance's response interceptor treats as "session ended" and
+  // force-redirects to /login, even on this public, token-gated page.
+  searchProducts: (token, search) =>
+    API.get(`/api/supplier-onboarding/register/${token}/products`, { params: { search } }),
 
-  getCategories: (vendorId = 1) =>
-    API.get("/api/inventory-categories", { params: { vendor_id: vendorId, is_active: true } }),
+  getCategories: (token) =>
+    API.get(`/api/supplier-onboarding/register/${token}/categories`),
 
-  getProductsByCategory: (vendorId = 1, categoryId) =>
-    API.get("/api/products", {
-      params: { vendor_id: vendorId, category_id: categoryId, status: "ACTIVE", page_size: 5000 },
+  getProductsByCategory: (token, categoryId) =>
+    API.get(`/api/supplier-onboarding/register/${token}/products`, {
+      params: { category_id: categoryId },
     }),
 };

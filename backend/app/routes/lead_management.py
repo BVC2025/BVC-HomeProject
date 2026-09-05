@@ -31,6 +31,8 @@ from app.services.lead_quotation_service import (
 from app.services.po_service import ALLOWED_PO_EXTENSIONS, MAX_PO_BYTES, apply_po_upload
 from app.services.customer_payment_service import compute_payment_summary, get_accepted_quotation
 from app.services.po_notification_service import send_po_requested_notification
+from app.services.production_scheduling_service import evaluate_and_propose_schedule
+from app.services.payment_milestone_service import first_milestone_status
 from app.utils.datetime_utils import now_ist
 
 log = logging.getLogger(__name__)
@@ -77,6 +79,8 @@ _SYSTEM_ONLY_LEAD_STATUSES = {
         "Use the 'Send Purchase Order Request' action instead of setting this status directly.",
     "PO_RECEIVED":
         "Upload the Purchase Order document to mark it received instead of setting this status directly.",
+    "PRODUCTION_SCHEDULE_REQUESTED":
+        "Use the 'Request Production Schedule' action instead of setting this status directly.",
     "PRODUCTION_SCHEDULED":
         "This status is set automatically when a production schedule is approved — it cannot be set manually.",
     "PRODUCTION_STARTED":
@@ -85,16 +89,16 @@ _SYSTEM_ONLY_LEAD_STATUSES = {
 
 # A lead's PO has been received once its status reaches PO_RECEIVED, and
 # stays received for every later stage of the same lifecycle —
-# PRODUCTION_SCHEDULED/PRODUCTION_STARTED are set well after PO_RECEIVED
-# by the automatic production scheduling engine, not a separate branch.
-# Used to block send_lead_po_request() from re-sending a "Purchase Order
-# Request" email (and regressing LEAD_STATUS back to PO_REQUESTED) for a
-# lead whose PO has already been received — an exact `== "PO_RECEIVED"`
-# check would miss PRODUCTION_SCHEDULED/PRODUCTION_STARTED and let this
-# fire again on a lead that's already in production. Mirrors the same
-# fix in customer_payment.py's /by-customer endpoint and the frontend's
-# LeadQuotationModal.jsx/LeadDetailModal.jsx/ManualLeadManagement.jsx.
-_PO_RECEIVED_OR_LATER_STATUSES = {"PO_RECEIVED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED"}
+# PRODUCTION_SCHEDULE_REQUESTED/PRODUCTION_SCHEDULED/PRODUCTION_STARTED
+# are set well after PO_RECEIVED by the production scheduling engine, not
+# a separate branch. Used to block send_lead_po_request() from re-sending
+# a "Purchase Order Request" email (and regressing LEAD_STATUS back to
+# PO_REQUESTED) for a lead whose PO has already been received — an exact
+# `== "PO_RECEIVED"` check would miss the three later statuses and let
+# this fire again on a lead that's already in production. Mirrors the
+# same fix in customer_payment.py's /by-customer endpoint and the
+# frontend's LeadQuotationModal.jsx/LeadDetailModal.jsx/ManualLeadManagement.jsx.
+_PO_RECEIVED_OR_LATER_STATUSES = {"PO_RECEIVED", "PRODUCTION_SCHEDULE_REQUESTED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED"}
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -875,6 +879,111 @@ def convert_lead(
         "quotation_id": quotation.ID,
         "email_sent": email_sent,
         "email_message": email_message,
+    }
+
+
+def _get_lead_assignment_or_404(db: Session, lead: Lead) -> CustomerProjectAssignment:
+    assignment = db.query(CustomerProjectAssignment).filter(
+        CustomerProjectAssignment.LEAD_ID == lead.ID
+    ).first()
+    if not assignment:
+        raise HTTPException(status_code=400, detail="This lead has no linked customer project assignment. It may not have been converted yet.")
+    return assignment
+
+
+@router.get("/leads/{lead_id}/production-schedule-eligibility")
+def get_production_schedule_eligibility(
+    lead_id: str,
+    db: Session = Depends(get_db),
+    admin=Depends(require("lead.records.convert")),
+):
+    """Read-only pre-check for the Edit Lead modal's PRODUCTION_SCHEDULE_
+    REQUESTED confirm dialog — lets the frontend decide whether to show
+    the Yes/No confirmation or an immediate 'pending payment' error,
+    before ever calling POST .../request-production-schedule (which
+    independently re-validates the same thing — this endpoint is a UX
+    convenience, never the sole enforcement)."""
+    lead = _get_lead_or_404(db, lead_id, admin)
+    if lead.LEAD_STATUS != "PO_RECEIVED":
+        return {
+            "eligible": False,
+            "reason": f"Lead must be in PO_RECEIVED status before production scheduling can be requested (current status: {lead.LEAD_STATUS}).",
+        }
+    assignment = _get_lead_assignment_or_404(db, lead)
+    status = first_milestone_status(db, assignment)
+    if not status["reached"]:
+        return {
+            "eligible": False,
+            "reason": status["reason"] or (
+                "The customer has pending payment. The required first payment milestone has not yet "
+                "been reached, so production scheduling cannot be requested."
+            ),
+            **status,
+        }
+    return {"eligible": True, "reason": None, **status}
+
+
+@router.post("/leads/{lead_id}/request-production-schedule")
+def request_production_schedule(
+    lead_id: str,
+    db: Session = Depends(get_db),
+    admin=Depends(require("lead.records.convert")),
+):
+    """Manual production-schedule-request trigger from the Edit Lead modal.
+    PO_RECEIVED -> (first payment milestone reached, user confirms) ->
+    proposes a ProductionSchedule via the same engine the payment-
+    milestone path uses (which itself advances the lead to
+    PRODUCTION_SCHEDULE_REQUESTED and sends the approval email) — the
+    lead only reaches PRODUCTION_SCHEDULED once staff actually approve
+    the schedule. Idempotent-friendly like /convert above — a repeat call
+    once already requested/scheduled is a no-op success, not an error."""
+    lead = _get_lead_or_404(db, lead_id, admin)
+
+    if lead.LEAD_STATUS in ("PRODUCTION_SCHEDULE_REQUESTED", "PRODUCTION_SCHEDULED"):
+        assignment = db.query(CustomerProjectAssignment).filter(
+            CustomerProjectAssignment.LEAD_ID == lead.ID
+        ).first()
+        return {
+            "message": "Production scheduling has already been requested for this lead.",
+            "already_requested": True,
+            "lead": _serialize_lead(lead),
+            "assignment_id": assignment.ID if assignment else None,
+        }
+
+    if lead.LEAD_STATUS != "PO_RECEIVED":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Lead must be in PO_RECEIVED status before production scheduling can be requested (current status: {lead.LEAD_STATUS}).",
+        )
+
+    assignment = _get_lead_assignment_or_404(db, lead)
+
+    milestone_status = first_milestone_status(db, assignment)
+    if not milestone_status["reached"]:
+        raise HTTPException(
+            status_code=400,
+            detail=milestone_status["reason"] or (
+                "The customer has pending payment. The required first payment milestone has not yet "
+                "been reached, so production scheduling cannot be requested."
+            ),
+        )
+
+    schedule = evaluate_and_propose_schedule(db, assignment)
+    if not schedule:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not schedule production — no tasks are configured for this project, or company working hours have not been set up.",
+        )
+
+    db.commit()
+    db.refresh(lead)
+
+    return {
+        "message": "Production schedule requested successfully. An approval notification has been sent.",
+        "already_requested": False,
+        "lead": _serialize_lead(lead),
+        "assignment_id": assignment.ID,
+        "schedule_id": schedule.ID,
     }
 
 

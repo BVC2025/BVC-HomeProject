@@ -193,6 +193,15 @@ def evaluate_and_propose_schedule(db: Session, assignment: CustomerProjectAssign
         return db.query(ProductionSchedule).filter(ProductionSchedule.ASSIGNMENT_ID == assignment.ID).first()
 
     lead = db.query(Lead).filter(Lead.ID == assignment.LEAD_ID).first() if assignment.LEAD_ID else None
+    # A schedule was just genuinely proposed — the lead now sits awaiting
+    # staff approval, regardless of whether this call came from the
+    # automatic payment-milestone path or the manual Edit-Lead trigger
+    # (both funnel through here, so centralizing the flip here covers
+    # both at once instead of duplicating it in each caller). Never
+    # regresses a lead already at/past this point.
+    if lead and lead.LEAD_STATUS not in ("PRODUCTION_SCHEDULE_REQUESTED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED"):
+        lead.LEAD_STATUS = "PRODUCTION_SCHEDULE_REQUESTED"
+        db.flush()
     customer = assignment.customer
     try:
         production_notification_service.send_production_schedule_approval_notification(

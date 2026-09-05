@@ -1,4 +1,16 @@
 .root {
+  /* Public, standalone page rendered outside the authenticated app shell —
+     the global body{overflow:hidden} reset (index.css) assumes every page
+     manages its own internal scroll region the way the sidebar shell does,
+     which this page didn't. Without its own scroll context here, content
+     taller than the viewport (worst on the "Review & Submit" step) becomes
+     completely unreachable, including the Submit button. Same fix already
+     used by EmployeeProfileForm.module.css for the same standalone-page
+     problem. */
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   min-height: 100vh;
   background: linear-gradient(135deg, #f0f4ff 0%, #fafafa 60%, #f0fdf4 100%);
   display: flex;

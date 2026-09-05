@@ -18,6 +18,12 @@ export const leadService = {
   convert: (id, body = {}) =>
     API.post(`/lead-management/leads/${id}/convert?vendor_id=${VENDOR_ID}`, body),
 
+  requestProductionSchedule: (id) =>
+    API.post(`/lead-management/leads/${id}/request-production-schedule`),
+
+  checkProductionScheduleEligibility: (id) =>
+    API.get(`/lead-management/leads/${id}/production-schedule-eligibility`),
+
   getQuotations: (id) =>
     API.get(`/lead-management/leads/${id}/quotations`),
 

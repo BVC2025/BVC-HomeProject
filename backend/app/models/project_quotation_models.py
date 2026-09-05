@@ -65,6 +65,16 @@ class ProjectQuotationTemplate(Base):
     QUOTATION_NUMBER = Column(String(120), nullable=False)
     QUOTATION_DATE = Column(Date, nullable=False, default=lambda: now_ist().date())
 
+    # Stable, long-lived public-sharing token — lets the WhatsApp Sales
+    # Assistant (and any other channel with no login session) hand out a
+    # working PDF link (GET /quotation-pdf/{token} in project_quotation.py)
+    # without requiring auth. Generated once, on first share, and reused
+    # for every later share of the same project's quotation — never
+    # burned/rotated, since viewing this read-only document isn't a
+    # one-time action the way a quotation accept/reject link is. Mirrors
+    # CustomerProjectPurchaseOrder.UPLOAD_TOKEN's exact same idiom.
+    SHARE_TOKEN = Column(String(64), nullable=True, unique=True, index=True)
+
     CONTENT_JSON = Column(Text, nullable=False)
     RENDERED_HTML = Column(Text, nullable=True)
 

@@ -30,19 +30,21 @@ class StockMovementRequest(BaseModel):
 
 
 # ── InventoryBatch ──────────────────────────────────────────────────
+# BATCH_NUMBER is no longer client-supplied — the route auto-generates it
+# (see inventory_batches.py's _generate_batch_number()). DC_FILE_URL/
+# INVOICE_FILE_URL are also no longer accepted here: create_batch now takes
+# multipart/form-data (Form fields + UploadFile), matching customer_payment.py's
+# manual-payment upload pattern — this schema now only covers the scalar fields.
 class BatchCreate(BaseModel):
     VENDOR_ID: int = 1
     PRODUCT_ID: str
-    BATCH_NUMBER: str
-    LOT_NUMBER: Optional[str] = None
     SUPPLIER_ID: Optional[int] = None
     RECEIVED_DATE: Optional[str] = None
     MANUFACTURING_DATE: Optional[str] = None
     EXPIRY_DATE: Optional[str] = None
+    IS_NO_EXPIRY: Optional[bool] = False
     QTY_RECEIVED: float
     UNIT_COST: Optional[float] = None
-    DC_FILE_URL: Optional[str] = None
-    INVOICE_FILE_URL: Optional[str] = None
     NOTES: Optional[str] = None
     CREATED_BY: Optional[str] = None
 
@@ -50,4 +52,7 @@ class BatchCreate(BaseModel):
 class BatchUpdate(BaseModel):
     STATUS: Optional[str] = None
     QTY_REMAINING: Optional[float] = None
+    SUPPLIER_ID: Optional[int] = None
+    EXPIRY_DATE: Optional[str] = None
+    IS_NO_EXPIRY: Optional[bool] = None
     NOTES: Optional[str] = None

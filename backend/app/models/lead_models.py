@@ -21,16 +21,21 @@ LEAD_STATUS_ENUM = SAEnum(
     "QUOTE_APPROVAL_PENDING", "QUOTE_APPROVED", "QUOTE_REJECTED",
     "REVISED_QUOTE_APPROVAL_PENDING", "REVISED_QUOTE_APPROVED", "REVISED_QUOTE_REJECTED",
     "PO_REQUESTED", "PO_RECEIVED",
-    # Set automatically by the automatic production scheduling engine —
-    # never a plain field edit (see lead_management.py's
-    # _SYSTEM_ONLY_LEAD_STATUSES). PRODUCTION_SCHEDULED is set as a side
-    # effect of production_scheduling_service.approve_schedule()/
-    # reject_and_reschedule() locking in a schedule (staff clicking
+    # Set automatically by the production scheduling engine — never a
+    # plain field edit (see lead_management.py's _SYSTEM_ONLY_LEAD_STATUSES).
+    # PRODUCTION_SCHEDULE_REQUESTED is set by
+    # production_scheduling_service.evaluate_and_propose_schedule() the
+    # moment a schedule is proposed (whether triggered automatically by a
+    # payment milestone, or manually via the Edit Lead modal's
+    # request-production-schedule endpoint) — the lead sits here awaiting
+    # staff approval. PRODUCTION_SCHEDULED is set as a side effect of
+    # production_scheduling_service.approve_schedule()/
+    # reject_and_reschedule() locking in that schedule (staff clicking
     # Approve/Reject-with-a-date on the Production Schedule Approval
     # page); PRODUCTION_STARTED is set automatically by
     # production_reminder_scheduler.py's daily start-date tick once the
     # scheduled production start date actually arrives.
-    "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED",
+    "PRODUCTION_SCHEDULE_REQUESTED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED",
     name="lead_status_enum", create_constraint=True
 )
 LEAD_SOURCE_ENUM = SAEnum(

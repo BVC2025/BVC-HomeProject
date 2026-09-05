@@ -49,21 +49,22 @@ const LEAD_STATUS_OPTIONS = [
   { value: "REVISED_QUOTE_REJECTED", label: "Revised Quote Rejected" },
   { value: "PO_REQUESTED", label: "PO Requested" },
   { value: "PO_RECEIVED", label: "PO Received" },
+  { value: "PRODUCTION_SCHEDULE_REQUESTED", label: "Production Schedule Requested" },
   { value: "PRODUCTION_SCHEDULED", label: "Production Scheduled" },
   { value: "PRODUCTION_STARTED", label: "Production Started" },
 ];
 
-// Set automatically by the automatic production scheduling engine
-// (PRODUCTION_SCHEDULED when a schedule is approved, PRODUCTION_STARTED
-// once the scheduled start date arrives) — never a manual Status dropdown
-// selection. Backend independently blocks this too (lead_management.py's
-// _SYSTEM_ONLY_LEAD_STATUSES) — excluded here so the UI never offers a
-// selection the backend will reject. The existing PO_RECEIVED option is
-// already only offered "while the lead is exactly at PO_REQUESTED" (see
-// editStatusOptions below), so it naturally stops being offered the
-// moment a lead moves on to PRODUCTION_SCHEDULED/PRODUCTION_STARTED —
-// no extra rule needed for that half of the requirement.
-const _PRODUCTION_LIFECYCLE_STATUSES = new Set(["PRODUCTION_SCHEDULED", "PRODUCTION_STARTED"]);
+// PRODUCTION_SCHEDULE_REQUESTED is offered as a manual pick only from
+// PO_RECEIVED (intercepted by handleLeadStatusChange's eligibility-check +
+// Yes/No confirm, which calls the dedicated /request-production-schedule
+// endpoint — never a plain field save). PRODUCTION_SCHEDULED is NEVER a
+// manual pick — it's only reached once staff approve the proposed schedule
+// on the Production Schedule Approval page. PRODUCTION_STARTED is never
+// manually offered either — it's set automatically by
+// production_reminder_scheduler.py once the scheduled start date arrives.
+// All three, once reached, are handled by _BEYOND_PLAIN_PROGRESSION plus
+// the explicit checks in editStatusOptions below, so a lead already at any
+// one of them only ever sees {Ignored, <its own current status>}.
 
 // Statuses reachable only once a quotation has actually been emailed to
 // the customer — convert_lead() sets LEAD_STATUS="CONVERTED" first and
@@ -80,16 +81,16 @@ const _PRODUCTION_LIFECYCLE_STATUSES = new Set(["PRODUCTION_SCHEDULED", "PRODUCT
 const _QUOTATION_SENT_STATUSES = new Set([
   "QUOTE_APPROVAL_PENDING", "QUOTE_APPROVED", "QUOTE_REJECTED",
   "REVISED_QUOTE_APPROVAL_PENDING", "REVISED_QUOTE_APPROVED", "REVISED_QUOTE_REJECTED",
-  "PO_REQUESTED", "PO_RECEIVED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED",
+  "PO_REQUESTED", "PO_RECEIVED", "PRODUCTION_SCHEDULE_REQUESTED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED",
 ]);
 
 // A lead's Purchase Order stays viewable for every stage at or after
-// PO_RECEIVED — PRODUCTION_SCHEDULED/PRODUCTION_STARTED are later stages
-// of the exact same converted lifecycle, not a different one, so the
-// "View Purchase Order" row-action must not disappear once a lead
-// reaches either (mirrors the same fix in LeadDetailModal.jsx and
-// customer_payment.py's /by-customer endpoint).
-const _PO_RECEIVED_OR_LATER_STATUSES = new Set(["PO_RECEIVED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED"]);
+// PO_RECEIVED — PRODUCTION_SCHEDULE_REQUESTED/PRODUCTION_SCHEDULED/
+// PRODUCTION_STARTED are later stages of the exact same converted
+// lifecycle, not a different one, so the "View Purchase Order" row-action
+// must not disappear once a lead reaches any of them (mirrors the same
+// fix in LeadDetailModal.jsx and customer_payment.py's /by-customer endpoint).
+const _PO_RECEIVED_OR_LATER_STATUSES = new Set(["PO_RECEIVED", "PRODUCTION_SCHEDULE_REQUESTED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED"]);
 
 // These statuses only ever change as a side effect of the customer
 // clicking Accept/Reject on a quotation email, or the initial quotation
@@ -157,6 +158,7 @@ const _PLAIN_PROGRESSION = ["NEW", "VIEWED", "CONVERTED"];
 // apply there; see editStatusOptions.
 const _BEYOND_PLAIN_PROGRESSION = new Set([
   ..._QUOTE_LIFECYCLE_STATUSES, "PO_REQUESTED", "PO_RECEIVED",
+  "PRODUCTION_SCHEDULE_REQUESTED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED",
 ]);
 
 const LEAD_SOURCE_OPTIONS = [
@@ -790,7 +792,21 @@ export default function ManualLeadManagement() {
       if (o.value === "PO_RECEIVED") return canConvert && selected?.LEAD_STATUS === "PO_REQUESTED";
       if (o.value === _REJECTED_TO_APPROVED_STATUS[form.LEAD_STATUS]) return canConvert;
       if (_QUOTE_LIFECYCLE_STATUSES.has(o.value)) return false;
-      if (_PRODUCTION_LIFECYCLE_STATUSES.has(o.value)) return false;
+      // PRODUCTION_SCHEDULE_REQUESTED is only ever offered as a pick while
+      // the lead sits at PO_RECEIVED (checked against the live `selected`
+      // record — same reasoning as PO_RECEIVED's own check above); once the
+      // lead is AT PRODUCTION_SCHEDULE_REQUESTED/PRODUCTION_SCHEDULED/
+      // PRODUCTION_STARTED, the `o.value === form.LEAD_STATUS` rule at the
+      // top of this filter already keeps it visible, and
+      // _BEYOND_PLAIN_PROGRESSION hides every earlier stage.
+      if (o.value === "PRODUCTION_SCHEDULE_REQUESTED") return canConvert && selected?.LEAD_STATUS === "PO_RECEIVED";
+      // PRODUCTION_SCHEDULED/PRODUCTION_STARTED are never a manual pick —
+      // PRODUCTION_SCHEDULED only becomes the lead's status once staff
+      // approve the proposed schedule on the Production Schedule Approval
+      // page; PRODUCTION_STARTED is set automatically once the scheduled
+      // start date arrives.
+      if (o.value === "PRODUCTION_SCHEDULED") return false;
+      if (o.value === "PRODUCTION_STARTED") return false;
       return true;
     });
   }, [canConvert, form.LEAD_STATUS, selected]);
@@ -869,6 +885,55 @@ export default function ManualLeadManagement() {
       }
       closeModal();
       setPoModalLead(selected);
+      return;
+    }
+
+    // Selecting "Production Schedule Requested" first validates the first
+    // Payment Milestone server-side (never trusted from the frontend
+    // alone), then requires an explicit Yes/No confirmation — the
+    // request-production-schedule endpoint sends a real approval-request
+    // email, so a stray dropdown click must never fire it. Checked
+    // against `selected` (the lead's real, saved status), same reasoning
+    // as PO_RECEIVED above.
+    if (v === "PRODUCTION_SCHEDULE_REQUESTED" && form.LEAD_STATUS !== "PRODUCTION_SCHEDULE_REQUESTED") {
+      if (!selected) return;
+      if (selected.LEAD_STATUS !== "PO_RECEIVED") {
+        toast.showError(
+          `Production scheduling can only be requested once the Purchase Order has been received. ` +
+          `This lead's current status is "${statusLabel(selected.LEAD_STATUS)}".`
+        );
+        return;
+      }
+      const lead = selected;
+      closeModal();
+      try {
+        const res = await leadService.checkProductionScheduleEligibility(lead.ID);
+        if (!res.data?.eligible) {
+          toast.showError(
+            res.data?.reason ||
+            "The customer has pending payment. The required first payment milestone has not yet been reached, so production scheduling cannot be requested."
+          );
+          return;
+        }
+      } catch (e) {
+        toast.showError(e?.response?.data?.detail || "Failed to check payment milestone status");
+        return;
+      }
+      setConfirmModal({
+        title: "Request Production Schedule?",
+        description: "The required initial payment milestone has been reached. Do you want to request production schedule approval?",
+        confirmLabel: "Yes",
+        cancelLabel: "No",
+        onConfirm: async () => {
+          try {
+            await leadService.requestProductionSchedule(lead.ID);
+            toast.showSuccess("Production schedule requested — awaiting approval");
+            loadLeads(true);
+          } catch (e) {
+            toast.showError(e?.response?.data?.detail || "Failed to request production schedule");
+          }
+        },
+      });
       return;
     }
 

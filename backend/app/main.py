@@ -4487,6 +4487,170 @@ def _migrate_lead_status_enum_add_production_statuses():
 _migrate_lead_status_enum_add_production_statuses()
 
 
+def _migrate_lead_status_enum_add_schedule_requested():
+    """Idempotent: widens lead.LEAD_STATUS to include
+    PRODUCTION_SCHEDULE_REQUESTED (same ALTER-MODIFY-ENUM pattern as
+    _migrate_lead_status_enum_add_production_statuses() above) — the new
+    intermediate status between PO_RECEIVED and PRODUCTION_SCHEDULED
+    representing a proposed schedule awaiting staff approval."""
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("lead"):
+            return
+
+        with engine.connect() as conn:
+            col_type = conn.execute(text(
+                "SELECT COLUMN_TYPE FROM information_schema.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'lead' AND COLUMN_NAME = 'LEAD_STATUS'"
+            )).scalar()
+
+        if col_type and "PRODUCTION_SCHEDULE_REQUESTED" not in col_type:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `lead` MODIFY COLUMN `LEAD_STATUS` "
+                    "ENUM('NEW','VIEWED','CONVERTED','IGNORED','QUOTE_APPROVAL_PENDING','QUOTE_APPROVED','QUOTE_REJECTED',"
+                    "'REVISED_QUOTE_APPROVAL_PENDING','REVISED_QUOTE_APPROVED','REVISED_QUOTE_REJECTED',"
+                    "'PO_REQUESTED','PO_RECEIVED','PRODUCTION_SCHEDULE_REQUESTED','PRODUCTION_SCHEDULED','PRODUCTION_STARTED') NOT NULL DEFAULT 'NEW'"
+                ))
+            log.info("migrate-lead-status-enum: widened LEAD_STATUS with PRODUCTION_SCHEDULE_REQUESTED")
+
+    except Exception as exc:
+        log.warning("migrate-lead-status-enum-add-schedule-requested skipped: %s", exc)
+
+
+_migrate_lead_status_enum_add_schedule_requested()
+
+
+def _migrate_backfill_production_schedule_requested_status():
+    """One-time data backfill: before this change, the AUTOMATIC
+    (payment-milestone-triggered) scheduling path never updated
+    Lead.LEAD_STATUS after proposing a schedule — evaluate_and_propose_
+    schedule() now does (see production_scheduling_service.py), but any
+    lead that already had a schedule silently proposed for it under the
+    old behavior is still stuck showing PO_RECEIVED. Moves those leads to
+    PRODUCTION_SCHEDULE_REQUESTED to match what would have happened had
+    this logic existed when the schedule was first proposed. Idempotent —
+    a second run matches zero rows since the first run already moved them
+    off PO_RECEIVED. Must run after the enum-widening migration above."""
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not (insp.has_table("lead") and insp.has_table("customer_project_assignment") and insp.has_table("production_schedule")):
+            return
+
+        with engine.begin() as conn:
+            result = conn.execute(text(
+                "UPDATE `lead` l "
+                "JOIN `customer_project_assignment` a ON a.`LEAD_ID` = l.`ID` "
+                "JOIN `production_schedule` ps ON ps.`ASSIGNMENT_ID` = a.`ID` "
+                "SET l.`LEAD_STATUS` = 'PRODUCTION_SCHEDULE_REQUESTED' "
+                "WHERE l.`LEAD_STATUS` = 'PO_RECEIVED' AND ps.`STATUS` = 'PROPOSED'"
+            ))
+            if result.rowcount:
+                log.info("migrate-backfill-production-schedule-requested: moved %d lead(s) to PRODUCTION_SCHEDULE_REQUESTED", result.rowcount)
+
+    except Exception as exc:
+        log.warning("migrate-backfill-production-schedule-requested-status skipped: %s", exc)
+
+
+_migrate_backfill_production_schedule_requested_status()
+
+
+def _migrate_drop_inventory_batch_lot_number():
+    """LOT_NUMBER is retired — Batch Number is now the single, auto-
+    generated identifier for a batch (see inventory_batches.py's
+    _generate_batch_number()). Not part of any unique constraint or FK,
+    so a plain drop is safe and preserves every existing batch row's
+    other data untouched."""
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("inventory_batch"):
+            return
+        cols = {c["name"] for c in insp.get_columns("inventory_batch")}
+        if "LOT_NUMBER" in cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE `inventory_batch` DROP COLUMN `LOT_NUMBER`"))
+            log.info("migrate-drop-inventory-batch-lot-number: dropped LOT_NUMBER")
+    except Exception as exc:
+        log.warning("migrate-drop-inventory-batch-lot-number skipped: %s", exc)
+
+
+_migrate_drop_inventory_batch_lot_number()
+
+
+def _migrate_add_inventory_batch_no_expiry():
+    """Adds IS_NO_EXPIRY (nullable-safe boolean, default False) to
+    inventory_batch — lets a batch explicitly declare 'this product never
+    expires' instead of leaving EXPIRY_DATE blank, which is ambiguous
+    with 'not entered yet'. Existing rows all default to False —
+    unchanged meaning (blank EXPIRY_DATE still just means 'not
+    recorded', exactly as before this migration)."""
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("inventory_batch"):
+            return
+        cols = {c["name"] for c in insp.get_columns("inventory_batch")}
+        if "IS_NO_EXPIRY" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `inventory_batch` ADD COLUMN `IS_NO_EXPIRY` TINYINT(1) NOT NULL DEFAULT 0"
+                ))
+            log.info("migrate-add-inventory-batch-no-expiry: added IS_NO_EXPIRY")
+    except Exception as exc:
+        log.warning("migrate-add-inventory-batch-no-expiry skipped: %s", exc)
+
+
+_migrate_add_inventory_batch_no_expiry()
+
+
+def _migrate_add_project_quotation_share_token():
+    """Adds SHARE_TOKEN (nullable, unique) to project_quotation_template —
+    lets the WhatsApp Sales Assistant share a working, unauthenticated PDF
+    link (see routes/project_quotation.py's new public GET /quotation-pdf/
+    {token}) instead of the internal RBAC-protected export endpoint, which
+    a customer's browser can never authenticate against."""
+    import logging
+    from sqlalchemy import text, inspect
+
+    log = logging.getLogger("uvicorn")
+
+    try:
+        insp = inspect(engine)
+        if not insp.has_table("project_quotation_template"):
+            return
+        cols = {c["name"] for c in insp.get_columns("project_quotation_template")}
+        if "SHARE_TOKEN" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE `project_quotation_template` ADD COLUMN `SHARE_TOKEN` VARCHAR(64) NULL UNIQUE"
+                ))
+            log.info("migrate-add-project-quotation-share-token: added SHARE_TOKEN")
+    except Exception as exc:
+        log.warning("migrate-add-project-quotation-share-token skipped: %s", exc)
+
+
+_migrate_add_project_quotation_share_token()
+
+
 from app.services.speech_service import speech_service  # noqa: E402
 speech_service.initialize()  # non-blocking — Piper models load on a background thread
 

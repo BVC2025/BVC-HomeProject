@@ -16,6 +16,7 @@ tenant boundary."""
 import difflib
 import os
 import re
+import secrets
 from urllib.parse import quote as _urlquote
 from typing import Dict, List, NamedTuple, Optional
 
@@ -351,12 +352,17 @@ def tool_send_quotation_pdf(db: Session, context: dict, project_name: str) -> di
     message when this turn belongs to a real WhatsApp conversation, or as a
     direct link when it doesn't (e.g. an internal/Playground test chat with
     no conversation to push a document into). Reuses the existing,
-    already-built PDF renderer at GET /projects/{id}/quotation/pdf
-    (backend/app/routes/project_quotation.py) via its public URL either way
-    — no new PDF-generation code. Read-only from the ERP's perspective: this
-    never creates or edits a Quotation/ProjectPricing row, only shares an
-    existing per-project document that already exists independent of any
-    customer negotiation."""
+    already-built PDF renderer, but via the PUBLIC, token-secured
+    GET /quotation-pdf/{token} endpoint (backend/app/routes/
+    project_quotation.py) — not the internal GET /projects/{id}/quotation/
+    pdf, which is RBAC-gated and unreachable by a customer's browser or by
+    Meta's own servers fetching the media URL to relay as a WhatsApp
+    document. No new PDF-generation code either way. Read-only from the
+    ERP's business-data perspective: this never creates or edits a
+    Quotation/ProjectPricing row, only shares an existing per-project
+    document that already exists independent of any customer negotiation
+    — the one write it does make (SHARE_TOKEN, below) carries no price/
+    content/negotiation meaning, purely a sharing mechanism."""
     vendor_id = context["vendor_id"]
     conversation_id = context.get("conversation_id")
 
@@ -369,8 +375,14 @@ def tool_send_quotation_pdf(db: Session, context: dict, project_name: str) -> di
     if not quotation:
         return {"ok": False, "error": "No quotation document available for this project yet — a sales rep will follow up with pricing details."}
 
+    # Generated once, on first share, and reused after — mirrors
+    # get_or_create_purchase_order_row()'s identical UPLOAD_TOKEN idiom.
+    if not quotation.SHARE_TOKEN:
+        quotation.SHARE_TOKEN = secrets.token_urlsafe(32)
+        db.commit()
+
     backend_base = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
-    media_url = f"{backend_base}/projects/{project.ID}/quotation/pdf"
+    media_url = f"{backend_base}/quotation-pdf/{quotation.SHARE_TOKEN}"
 
     if not conversation_id:
         friendly_name = f"{project.NAME} - Quotation"

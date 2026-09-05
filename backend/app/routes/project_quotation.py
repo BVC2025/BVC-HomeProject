@@ -111,13 +111,7 @@ def update_project_quotation(project_id: str, data: ProjectQuotationUpdate, db: 
     return _serialize(row)
 
 
-@router.get("/projects/{project_id}/quotation/pdf", dependencies=[Depends(require("project.view", "project.quotations.view", "project.quotations.export"))])
-def download_project_quotation_pdf(
-    project_id: str, db: Session = Depends(get_db),
-    filename: Optional[str] = Query(None, description="Override the downloaded file's name (e.g. a customer-friendly name); defaults to the quotation number"),
-):
-    row = _get_or_create_quotation(db, project_id)
-    project = _get_project_or_404(db, project_id)
+def _build_quotation_pdf_response(db: Session, row: ProjectQuotationTemplate, project: Project, filename: Optional[str]) -> Response:
     company = get_company_settings(db, project.VENDOR_ID)
     html = row.RENDERED_HTML or render_quotation_html(row, company)
 
@@ -131,6 +125,37 @@ def download_project_quotation_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/projects/{project_id}/quotation/pdf", dependencies=[Depends(require("project.view", "project.quotations.view", "project.quotations.export"))])
+def download_project_quotation_pdf(
+    project_id: str, db: Session = Depends(get_db),
+    filename: Optional[str] = Query(None, description="Override the downloaded file's name (e.g. a customer-friendly name); defaults to the quotation number"),
+):
+    row = _get_or_create_quotation(db, project_id)
+    project = _get_project_or_404(db, project_id)
+    return _build_quotation_pdf_response(db, row, project, filename)
+
+
+@router.get("/quotation-pdf/{token}")
+def download_project_quotation_pdf_public(
+    token: str, db: Session = Depends(get_db),
+    filename: Optional[str] = Query(None, description="Override the downloaded file's name (e.g. a customer-friendly name); defaults to the quotation number"),
+):
+    """Public, unauthenticated counterpart to the endpoint above — secured
+    by the opaque SHARE_TOKEN rather than a login session, for channels
+    with no authenticated browser session at all (a customer clicking a
+    link the WhatsApp Sales Assistant shared, or Meta's own servers
+    fetching it to relay as a WhatsApp document message — see
+    rag_modules/lead_module_rag_module/tools.py's tool_send_quotation_pdf).
+    Mirrors quotation_actions.py's public/token-secured pattern. The token
+    is never burned/rotated — viewing this read-only document isn't a
+    one-time action the way a quotation accept/reject link is."""
+    row = db.query(ProjectQuotationTemplate).filter(ProjectQuotationTemplate.SHARE_TOKEN == token).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Invalid or expired quotation link.")
+    project = _get_project_or_404(db, row.PROJECT_ID)
+    return _build_quotation_pdf_response(db, row, project, filename)
 
 
 @router.get("/projects/{project_id}/quotation/docx", dependencies=[Depends(require("project.view", "project.quotations.view", "project.quotations.export"))])

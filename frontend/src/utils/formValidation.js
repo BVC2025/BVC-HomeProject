@@ -290,16 +290,18 @@ export const ITEM_RULES = {
   ],
 };
 
-/** Batch Add modal — manual batch receipt. The backend rejects creation
- * unless at least one of DC_FILE_URL/INVOICE_FILE_URL is provided. */
+/** Batch Add modal — manual batch receipt. Batch Number is generated
+ * server-side (read-only in the UI), so it's not validated here. The
+ * backend rejects creation unless at least one of the DC/Invoice files
+ * is attached — data.DC_FILE/data.INVOICE_FILE are the selected File
+ * objects (not URLs), passed in alongside batchForm at validation time. */
 export const BATCH_RULES = {
   PRODUCT_ID: ["required"],
-  BATCH_NUMBER: ["required", maxLength(100)],
   MANUFACTURING_DATE: ["validDate"],
   EXPIRY_DATE: [
     "validDate",
     (value, data) => {
-      if (!value || !data.MANUFACTURING_DATE) return null;
+      if (data.IS_NO_EXPIRY || !value || !data.MANUFACTURING_DATE) return null;
       return new Date(value) > new Date(data.MANUFACTURING_DATE)
         ? null
         : "Expiry date must be after the manufacturing date.";
@@ -309,19 +311,22 @@ export const BATCH_RULES = {
   UNIT_COST: ["nonNegativeNumber"],
   _FILE_REQUIRED: [
     (_, data) => {
-      if (!String(data.DC_FILE_URL || "").trim() && !String(data.INVOICE_FILE_URL || "").trim()) {
-        return "Provide a Delivery Challan or Invoice file URL — at least one is required.";
+      if (!data.DC_FILE && !data.INVOICE_FILE) {
+        return "Attach a Delivery Challan or Invoice file — at least one is required.";
       }
       return null;
     },
   ],
 };
 
-/** Batch Edit modal — the backend's BatchUpdate schema only accepts
- * STATUS/QTY_REMAINING/NOTES (product/dates/qty-received are fixed at
- * creation time), so that's all this form can actually change. */
+/** Batch Edit modal — the backend's BatchUpdate schema accepts
+ * STATUS/QTY_REMAINING/SUPPLIER_ID/EXPIRY_DATE/IS_NO_EXPIRY/NOTES
+ * (product/qty-received/files are fixed at creation time). */
 export const BATCH_EDIT_RULES = {
   QTY_REMAINING: ["nonNegativeNumber"],
+  EXPIRY_DATE: [
+    (value, data) => (data.IS_NO_EXPIRY ? null : _validDate(value)),
+  ],
 };
 
 /** Lead Polling Configuration Add/Edit modal */

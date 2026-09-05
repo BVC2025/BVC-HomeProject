@@ -474,7 +474,6 @@ export default function SupplierRegistrationPortal() {
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [vendorId, setVendorId] = useState(1);
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
@@ -498,7 +497,6 @@ export default function SupplierRegistrationPortal() {
           INVITED_COMPANY_NAME: data.invited_company_name,
           STATUS: data.status,
         });
-        if (data.vendor_id) setVendorId(data.vendor_id);
         const draft = data.draft;
         if (draft?.form_data) {
           const fd = draft.form_data;
@@ -571,11 +569,12 @@ export default function SupplierRegistrationPortal() {
     categoriesFetchedRef.current = true;
     setCategoriesLoading(true);
     supplierRegistrationService
-      .getCategories(vendorId)
-      .then((res) => setCategories((res.data || []).filter((c) => c.IS_ACTIVE === true)))
+      .getCategories(token)
+      // Server already scopes this to IS_ACTIVE=true for this invitation's vendor.
+      .then((res) => setCategories(res.data || []))
       .catch(() => setCategories([]))
       .finally(() => setCategoriesLoading(false));
-  }, [invitation, vendorId]);
+  }, [invitation, token]);
 
   // ── Load custom field definitions after invitation is validated ─────────
   useEffect(() => {
@@ -591,11 +590,11 @@ export default function SupplierRegistrationPortal() {
     if (!selectedCategoryId) { setProductsForCategory([]); return; }
     setProductsLoading(true);
     supplierRegistrationService
-      .getProductsByCategory(vendorId, selectedCategoryId)
-      .then((res) => setProductsForCategory(res.data?.items || []))
+      .getProductsByCategory(token, selectedCategoryId)
+      .then((res) => setProductsForCategory(res.data || []))
       .catch(() => setProductsForCategory([]))
       .finally(() => setProductsLoading(false));
-  }, [selectedCategoryId, vendorId]);
+  }, [selectedCategoryId, token]);
 
   // ── Helpers ─────────────────────────────────────────────────────────────
   const setField = useCallback((field, value) => {

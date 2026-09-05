@@ -13,6 +13,7 @@ from typing import Optional, List
 
 import openpyxl
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Response
+from sqlalchemy import exists
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -21,6 +22,7 @@ from app.utils.db_error_handler import raise_db_error
 from app.database.database import get_db
 from app.models.models import CustomField, CustomFieldTableValue
 from app.models.inventory_models import ProductMaster, InventoryStock
+from app.models.supplier_models import SupplierProduct
 from app.schemas.inventory_item_schema import (
     StockThresholdCreate,
     StockThresholdUpdate,
@@ -94,6 +96,8 @@ def _serialize_stock(stock: InventoryStock, product: Optional[ProductMaster] = N
 def list_items(
     vendor_id: int = Query(1),
     product_id: Optional[str] = Query(None),
+    category_id: Optional[str] = Query(None),
+    supplier_id: Optional[int] = Query(None),
     status: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
@@ -107,6 +111,18 @@ def list_items(
     )
     if product_id:
         q = q.filter(InventoryStock.PRODUCT_ID == product_id)
+    if category_id:
+        q = q.filter(ProductMaster.CATEGORY_ID == category_id)
+    if supplier_id:
+        # InventoryStock has no supplier column — a product's supplier(s)
+        # live only in SupplierProduct, so filtering "stock for products
+        # supplied by X" is an EXISTS semi-join through that relationship
+        # rather than duplicating supplier data onto InventoryStock.
+        q = q.filter(exists().where(
+            SupplierProduct.VENDOR_ID == vendor_id,
+            SupplierProduct.SUPPLIER_ID == supplier_id,
+            SupplierProduct.PRODUCT_ID == InventoryStock.PRODUCT_ID,
+        ))
     if search:
         term = f"%{search}%"
         q = q.filter(

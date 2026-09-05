@@ -53,6 +53,33 @@ def cumulative_required_through(milestones: list, order: int) -> Decimal:
     )
 
 
+def first_milestone_status(db: Session, assignment) -> dict:
+    """Read-only check: has the FIRST active Payment Milestone's cumulative
+    required payment been reached for this assignment? Reuses the exact
+    same milestone/payment-summary computation
+    evaluate_milestones_for_assignment() uses inline for its own first-
+    milestone check, so the manual Edit-Lead 'request production schedule'
+    validation (both the frontend's pre-check and the backend's
+    authoritative gate) can never disagree with the automatic path about
+    whether the milestone has been reached."""
+    milestones = get_active_milestones(db, assignment.VENDOR_ID)
+    if not milestones:
+        return {
+            "reached": False, "required_percentage": None, "paid_percentage": None,
+            "reason": "No payment milestones are configured for this vendor.",
+        }
+    accepted_quotation = get_accepted_quotation(db, assignment)
+    summary = compute_payment_summary(db, assignment, accepted_quotation=accepted_quotation)
+    total_paid_percentage = summary["total_paid_percentage"]
+    required_first = cumulative_required_through(milestones, milestones[0].MILESTONE_ORDER)
+    return {
+        "reached": total_paid_percentage >= required_first,
+        "required_percentage": float(required_first),
+        "paid_percentage": float(total_paid_percentage),
+        "reason": None,
+    }
+
+
 def _get_or_create_status(db: Session, assignment, milestone) -> CustomerProjectMilestoneStatus:
     row = db.query(CustomerProjectMilestoneStatus).filter(
         CustomerProjectMilestoneStatus.CUSTOMER_PROJECT_ASSIGNMENT_ID == assignment.ID,
@@ -177,14 +204,28 @@ def evaluate_milestones_for_assignment(db: Session, assignment) -> list:
                 # generation / employee matching stack), matching this
                 # codebase's existing convention (see po_notification_
                 # service.py's own local import of po_service).
+                from app.models.lead_models import Lead
                 from app.services.production_scheduling_service import evaluate_and_propose_schedule
-                try:
-                    evaluate_and_propose_schedule(db, assignment)
-                except Exception:
-                    log.exception(
-                        "evaluate_milestones_for_assignment: production scheduling failed for assignment %s",
-                        assignment.ID,
+                lead = db.query(Lead).filter(Lead.ID == assignment.LEAD_ID).first() if assignment.LEAD_ID else None
+                if lead and lead.LEAD_STATUS in ("PRODUCTION_SCHEDULE_REQUESTED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED"):
+                    # Already scheduled (e.g. manually, via the Edit Lead
+                    # modal) — evaluate_and_propose_schedule() is already
+                    # idempotent at the data layer (ASSIGNMENT_ID unique
+                    # constraint), but skip the attempt outright so this
+                    # never re-fires after a milestone config edit changes
+                    # which row now qualifies as "first."
+                    log.info(
+                        "evaluate_milestones_for_assignment: skipping production scheduling — assignment %s's lead is already %s",
+                        assignment.ID, lead.LEAD_STATUS,
                     )
+                else:
+                    try:
+                        evaluate_and_propose_schedule(db, assignment)
+                    except Exception:
+                        log.exception(
+                            "evaluate_milestones_for_assignment: production scheduling failed for assignment %s",
+                            assignment.ID,
+                        )
         elif status_row.STATUS == "PENDING":
             ok, message = _send_payment_milestone_request_email(db, assignment, m, summary, milestones)
             if not ok:

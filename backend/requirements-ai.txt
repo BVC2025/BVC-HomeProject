@@ -10,3 +10,12 @@
 #   GEMINI_MODEL=gemini-2.0-flash-exp     # optional, default is set in code
 
 google-generativeai==0.8.3
+
+# ML predictor (app/services/ml_predictor.py) — attrition/anomaly models
+# behind the AI workforce-analytics endpoints. Both are imported at module
+# scope, so a missing wheel here breaks startup outright, not just the
+# feature. scikit-learn also arrives transitively via sentence-transformers
+# in requirements-rag.txt, but it is pinned here too because the code
+# imports it directly and must not depend on that install order.
+xgboost==3.4.1
+scikit-learn==1.9.0

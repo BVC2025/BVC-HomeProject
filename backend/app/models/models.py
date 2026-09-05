@@ -1292,15 +1292,6 @@ class PurchaseOrderLine(Base):
         index=True
     )
 
-    BOM_ITEM_ID = Column(
-        Integer,
-        ForeignKey("bom_item.ID"),
-        nullable=True,
-        index=True
-    )
-    # Optional — when PO was auto-generated from a BOM, this points
-    # back to the originating BOM line.
-
     DESCRIPTION = Column(String(500))
 
     HSN_CODE = Column(String(20), nullable=True)

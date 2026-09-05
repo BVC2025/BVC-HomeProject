@@ -21,14 +21,15 @@ const STATUS_LABELS = { PENDING: "Pending", APPROVED: "Approved", REJECTED: "Rej
 
 // "Send PO Request" must stop being offered once the PO has genuinely
 // been received — and stay stopped for every LATER stage of the same
-// lifecycle too. PRODUCTION_SCHEDULED/PRODUCTION_STARTED are set well
-// after PO_RECEIVED by the automatic production scheduling engine, so a
-// lead sitting at either has obviously already had its PO received; an
-// exact `!== "PO_RECEIVED"` check would incorrectly re-enable sending
-// another PO Request email to a customer whose production has already
-// started (mirrors the same fix in ManualLeadManagement.jsx/
-// LeadDetailModal.jsx/customer_payment.py's /by-customer endpoint).
-const PO_RECEIVED_OR_LATER_STATUSES = new Set(["PO_RECEIVED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED"]);
+// lifecycle too. PRODUCTION_SCHEDULE_REQUESTED/PRODUCTION_SCHEDULED/
+// PRODUCTION_STARTED are all set well after PO_RECEIVED by the production
+// scheduling engine, so a lead sitting at any of them has obviously
+// already had its PO received; an exact `!== "PO_RECEIVED"` check would
+// incorrectly re-enable sending another PO Request email to a customer
+// whose production has already started (mirrors the same fix in
+// ManualLeadManagement.jsx/LeadDetailModal.jsx/customer_payment.py's
+// /by-customer endpoint).
+const PO_RECEIVED_OR_LATER_STATUSES = new Set(["PO_RECEIVED", "PRODUCTION_SCHEDULE_REQUESTED", "PRODUCTION_SCHEDULED", "PRODUCTION_STARTED"]);
 
 function formatAmount(v) {
   if (v == null) return "—";
