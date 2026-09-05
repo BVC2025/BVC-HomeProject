@@ -205,49 +205,49 @@ const DOC_TYPE_LABEL = Object.fromEntries(
 // list here so the Documents tab on both surfaces stays in sync.
 const REQUIRED_DOC_SLOTS = [
   {
-    key:   "SCHOOL_MARKSHEETS",
+    key: "SCHOOL_MARKSHEETS",
     label: "10th & 12th Marksheets",
-    hint:  "Upload both 10th and 12th mark sheets (soft copy).",
+    hint: "Upload both 10th and 12th mark sheets (soft copy).",
     types: ["TENTH_MARKSHEET", "TWELFTH_MARKSHEET"],
     saveAs: "TENTH_MARKSHEET",
     required: true,
   },
   {
-    key:   "DEGREE_CERTIFICATE",
+    key: "DEGREE_CERTIFICATE",
     label: "Degree Certificate (UG / PG)",
-    hint:  "UG and/or PG degree certificate. Upload all pages.",
+    hint: "UG and/or PG degree certificate. Upload all pages.",
     types: ["DEGREE", "POSTGRADUATE"],
     saveAs: "DEGREE",
     required: true,
   },
   {
-    key:   "PAN_CARD",
+    key: "PAN_CARD",
     label: "PAN Card",
-    hint:  "PAN card (front side).",
+    hint: "PAN card (front side).",
     types: ["PAN"],
     saveAs: "PAN",
     required: true,
   },
   {
-    key:   "AADHAAR_CARD",
+    key: "AADHAAR_CARD",
     label: "Aadhaar Card",
-    hint:  "Aadhaar card front and back.",
+    hint: "Aadhaar card front and back.",
     types: ["AADHAAR"],
     saveAs: "AADHAAR",
     required: true,
   },
   {
-    key:   "EXPERIENCE_CERTIFICATE",
+    key: "EXPERIENCE_CERTIFICATE",
     label: "Previous Experience Certificate",
-    hint:  "Only if the employee has previous work experience.",
+    hint: "Only if the employee has previous work experience.",
     types: ["EXPERIENCE_LETTER", "RELIEVING_LETTER", "SALARY_SLIP"],
     saveAs: "EXPERIENCE_LETTER",
     required: false,
   },
   {
-    key:   "BANK_DETAILS",
+    key: "BANK_DETAILS",
     label: "Bank Details",
-    hint:  "Cancelled cheque or bank passbook first page.",
+    hint: "Cancelled cheque or bank passbook first page.",
     types: ["BANK_PASSBOOK"],
     saveAs: "BANK_PASSBOOK",
     required: true,
@@ -387,8 +387,8 @@ function EmployeeDocumentsSection({ employee }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
         {REQUIRED_DOC_SLOTS.map((slot) => {
           const filesInSlot = docs.filter((d) => slot.types.includes(d.DOC_TYPE));
-          const uploaded    = filesInSlot.length > 0;
-          const inputId     = `admin-doc-slot-${empId}-${slot.key}`;
+          const uploaded = filesInSlot.length > 0;
+          const inputId = `admin-doc-slot-${empId}-${slot.key}`;
 
           return (
             <div
@@ -430,7 +430,7 @@ function EmployeeDocumentsSection({ employee }) {
                     padding: "3px 8px",
                     borderRadius: 999,
                     background: uploaded ? "#dcfce7" : "#fee2e2",
-                    color:      uploaded ? "#166534" : "#991b1b",
+                    color: uploaded ? "#166534" : "#991b1b",
                     textTransform: "uppercase",
                     letterSpacing: 0.4,
                     whiteSpace: "nowrap",
@@ -543,62 +543,62 @@ function EmployeeDocumentsSection({ employee }) {
           Add another document (optional)
         </summary>
 
-      {/* Upload row */}
-      <form onSubmit={upload} className={styles.docUploadForm}>
-        <label className={styles.docUploadLabel}>
-          DOCUMENT TYPE
-          <select
-            value={draft.doc_type}
-            onChange={(e) => setDraft((d) => ({ ...d, doc_type: e.target.value }))}
-            className={styles.docUploadSelect}
-          >
-            {/* Render as grouped <optgroup> so the types scan easily */}
-            {(() => {
-              const groupedTypes = DOC_TYPES.reduce((acc, t) => {
-                (acc[t.group || "Other"] ||= []).push(t);
-                return acc;
-              }, {});
+        {/* Upload row */}
+        <form onSubmit={upload} className={styles.docUploadForm}>
+          <label className={styles.docUploadLabel}>
+            DOCUMENT TYPE
+            <select
+              value={draft.doc_type}
+              onChange={(e) => setDraft((d) => ({ ...d, doc_type: e.target.value }))}
+              className={styles.docUploadSelect}
+            >
+              {/* Render as grouped <optgroup> so the types scan easily */}
+              {(() => {
+                const groupedTypes = DOC_TYPES.reduce((acc, t) => {
+                  (acc[t.group || "Other"] ||= []).push(t);
+                  return acc;
+                }, {});
 
-              const order = ["Identity", "Education", "Employment", "Personal", "Other"];
+                const order = ["Identity", "Education", "Employment", "Personal", "Other"];
 
-              return order
-                .filter((g) => groupedTypes[g])
-                .map((g) => (
-                  <optgroup key={g} label={g}>
-                    {groupedTypes[g].map((t) => (
-                      <option key={t.key} value={t.key}>
-                        {t.icon} {t.label}
-                      </option>
-                    ))}
-                  </optgroup>
-                ));
-            })()}
-          </select>
-        </label>
-        <label className={styles.docUploadLabel}>
-          TITLE (optional)
-          <input
-            type="text"
-            value={draft.title}
-            onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
-            placeholder="e.g. Aadhaar — Front"
-            className={styles.docUploadInput}
-          />
-        </label>
-        <label className={styles.docUploadLabel}>
-          FILE (PDF / Image / DOC / XLS · max 10 MB)
-          <input
-            id={`emp-doc-file-${empId}`}
-            type="file"
-            accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"
-            onChange={(e) => setDraft((d) => ({ ...d, file: e.target.files?.[0] || null }))}
-            className={styles.docUploadFileInput}
-          />
-        </label>
-        <button type="submit" disabled={pending || !draft.file} className={styles.docUploadBtn}>
-          {pending ? "Uploading…" : "⬆ Upload"}
-        </button>
-      </form>
+                return order
+                  .filter((g) => groupedTypes[g])
+                  .map((g) => (
+                    <optgroup key={g} label={g}>
+                      {groupedTypes[g].map((t) => (
+                        <option key={t.key} value={t.key}>
+                          {t.icon} {t.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ));
+              })()}
+            </select>
+          </label>
+          <label className={styles.docUploadLabel}>
+            TITLE (optional)
+            <input
+              type="text"
+              value={draft.title}
+              onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
+              placeholder="e.g. Aadhaar — Front"
+              className={styles.docUploadInput}
+            />
+          </label>
+          <label className={styles.docUploadLabel}>
+            FILE (PDF / Image / DOC / XLS · max 10 MB)
+            <input
+              id={`emp-doc-file-${empId}`}
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx"
+              onChange={(e) => setDraft((d) => ({ ...d, file: e.target.files?.[0] || null }))}
+              className={styles.docUploadFileInput}
+            />
+          </label>
+          <button type="submit" disabled={pending || !draft.file} className={styles.docUploadBtn}>
+            {pending ? "Uploading…" : "⬆ Upload"}
+          </button>
+        </form>
       </details>
 
       {loading && <div className={styles.docLoadingText}>Loading documents…</div>}
@@ -625,71 +625,71 @@ function EmployeeDocumentsSection({ employee }) {
               Other Documents
             </div>
             {otherEntries.map(([type, items]) => (
-        <div key={type} style={{ marginBottom: 12 }}>
-          <div className={styles.docGroupLabel}>
-            {DOC_TYPE_LABEL[type] || type} · {items.length}
-          </div>
-          <div style={{ display: "grid", gap: 6 }}>
-            {items.map((d) => (
-              <div key={d.ID} className={styles.docItem}>
-                <div>
-                  <div className={styles.docItemName}>
-                    {d.TITLE || d.FILE_NAME || `Document #${d.ID}`}
-                  </div>
-                  <div className={styles.docItemMeta}>
-                    {d.FILE_NAME && d.FILE_NAME !== d.TITLE ? `${d.FILE_NAME} · ` : ""}
-                    {formatBytes(d.SIZE_BYTES)}
-                    {d.UPLOADED_AT ? ` · ${d.UPLOADED_AT.slice(0, 10)}` : ""}
-                    {d.NOTES ? ` · ${d.NOTES}` : ""}
-                  </div>
+              <div key={type} style={{ marginBottom: 12 }}>
+                <div className={styles.docGroupLabel}>
+                  {DOC_TYPE_LABEL[type] || type} · {items.length}
                 </div>
-                <a
-                  href={`${API.defaults.baseURL || ""}${d.FILE_URL}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={styles.docViewLink}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" strokeWidth="1.8"
-                       strokeLinecap="round" strokeLinejoin="round"
-                       aria-hidden="true">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                  View
-                </a>
-                <a
-                  href={`${API.defaults.baseURL || ""}${d.FILE_URL}`}
-                  download={d.FILE_NAME || "document"}
-                  className={styles.docDownloadLink}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" strokeWidth="1.8"
-                       strokeLinecap="round" strokeLinejoin="round"
-                       aria-hidden="true">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  Download
-                </a>
-                <button type="button" onClick={() => removeDoc(d)} className={styles.docDeleteBtn}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                       stroke="currentColor" strokeWidth="1.8"
-                       strokeLinecap="round" strokeLinejoin="round"
-                       aria-hidden="true">
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                    <path d="M10 11v6M14 11v6" />
-                    <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-                  </svg>
-                  Delete
-                </button>
+                <div style={{ display: "grid", gap: 6 }}>
+                  {items.map((d) => (
+                    <div key={d.ID} className={styles.docItem}>
+                      <div>
+                        <div className={styles.docItemName}>
+                          {d.TITLE || d.FILE_NAME || `Document #${d.ID}`}
+                        </div>
+                        <div className={styles.docItemMeta}>
+                          {d.FILE_NAME && d.FILE_NAME !== d.TITLE ? `${d.FILE_NAME} · ` : ""}
+                          {formatBytes(d.SIZE_BYTES)}
+                          {d.UPLOADED_AT ? ` · ${d.UPLOADED_AT.slice(0, 10)}` : ""}
+                          {d.NOTES ? ` · ${d.NOTES}` : ""}
+                        </div>
+                      </div>
+                      <a
+                        href={`${API.defaults.baseURL || ""}${d.FILE_URL}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={styles.docViewLink}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" strokeWidth="1.8"
+                          strokeLinecap="round" strokeLinejoin="round"
+                          aria-hidden="true">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        View
+                      </a>
+                      <a
+                        href={`${API.defaults.baseURL || ""}${d.FILE_URL}`}
+                        download={d.FILE_NAME || "document"}
+                        className={styles.docDownloadLink}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" strokeWidth="1.8"
+                          strokeLinecap="round" strokeLinejoin="round"
+                          aria-hidden="true">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="7 10 12 15 17 10" />
+                          <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                        Download
+                      </a>
+                      <button type="button" onClick={() => removeDoc(d)} className={styles.docDeleteBtn}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" strokeWidth="1.8"
+                          strokeLinecap="round" strokeLinejoin="round"
+                          aria-hidden="true">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                          <path d="M10 11v6M14 11v6" />
+                          <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                        </svg>
+                        Delete
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
-          </div>
-        </div>
-      ))}
           </>
         );
       })()}
@@ -1775,7 +1775,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   step="500"
                   value={form.SALARY}
                   onChange={set("SALARY")}
-                  placeholder="18000"
+                  placeholder="18001"
                   className={styles.formInput}
                 />
                 <div className={styles.fieldHint}>
@@ -2406,7 +2406,7 @@ function Employees() {
   // employee list itself, which meant new departments with zero
   // members were invisible.
   const [allDepartments, setAllDepartments] = useState([]);
-  const [allRoles,       setAllRoles]       = useState([]);
+  const [allRoles, setAllRoles] = useState([]);
 
   const fetchAll = () => {
     setLoading(true);
@@ -2424,11 +2424,11 @@ function Employees() {
         setEmployees(empRes.data || []);
         const s = boardRes.data?.summary || {};
         setAttToday({
-          in_office:   Number(s.in_office   || 0),
+          in_office: Number(s.in_office || 0),
           checked_out: Number(s.checked_out || 0),
         });
         setAllDepartments(Array.isArray(deptRes.data) ? deptRes.data : []);
-        setAllRoles(Array.isArray(roleRes.data)       ? roleRes.data       : []);
+        setAllRoles(Array.isArray(roleRes.data) ? roleRes.data : []);
       })
       .finally(() => setLoading(false));
   };
@@ -2448,7 +2448,7 @@ function Employees() {
           .catch(() => API.get("/roles").catch(() => ({ data: [] }))),
       ]).then(([d, r]) => {
         setAllDepartments(Array.isArray(d.data) ? d.data : []);
-        setAllRoles(Array.isArray(r.data)       ? r.data       : []);
+        setAllRoles(Array.isArray(r.data) ? r.data : []);
       });
     };
     const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
@@ -2628,9 +2628,9 @@ function Employees() {
 
       <StatsRow
         stats={[
-          { value: stats.total,   label: "Total Employees" },
+          { value: stats.total, label: "Total Employees" },
           { value: stats.present, label: "Total Present", sub: "today" },
-          { value: stats.absent,  label: "Total Absent",  sub: "today" },
+          { value: stats.absent, label: "Total Absent", sub: "today" },
         ]}
       />
 
@@ -2753,9 +2753,9 @@ function Employees() {
                             title="Download profile PDF"
                           >
                             <svg width="16" height="16" viewBox="0 0 24 24"
-                                 fill="none" stroke="currentColor" strokeWidth="2"
-                                 strokeLinecap="round" strokeLinejoin="round"
-                                 aria-hidden="true">
+                              fill="none" stroke="currentColor" strokeWidth="2"
+                              strokeLinecap="round" strokeLinejoin="round"
+                              aria-hidden="true">
                               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                               <polyline points="7 10 12 15 17 10" />
                               <line x1="12" y1="15" x2="12" y2="3" />

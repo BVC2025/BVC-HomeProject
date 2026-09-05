@@ -13,8 +13,8 @@ the step passes, or write the actual outcome under "Found".
 | # | Action | Expected Result | Pass |
 |---|---|---|---|
 | 0.1 | MySQL is running on `localhost:3306` | Connection succeeds via Workbench | [ ] |
-| 0.2 | Backend started with `python -m uvicorn app.main:app --reload --port 8000` | Terminal shows `Application startup complete.` | [ ] |
-| 0.3 | Open `http://192.168.1.10:8000/docs` | Swagger UI loads with title **"Bharath Vending ERP API"** | [ ] |
+| 0.2 | Backend started with `python -m uvicorn app.main:app --reload --port 8001` | Terminal shows `Application startup complete.` | [ ] |
+| 0.3 | Open `http://192.168.1.10:8001/docs` | Swagger UI loads with title **"Bharath Vending ERP API"** | [ ] |
 | 0.4 | Sections include: BVC24 Demo Seed, Biometric, Production & BOM, Quality Management, Suppliers, Process Stages, MD Performance | All 7 sections visible | [ ] |
 | 0.5 | Frontend started with `npm run dev` | Terminal shows `Local: http://localhost:5173` | [ ] |
 | 0.6 | Open `http://localhost:5173/login` | Login page renders, no console errors | [ ] |

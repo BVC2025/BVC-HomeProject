@@ -98,7 +98,7 @@ def _save_turn(
         EMPLOYEE_ID=employee_id,
         VENDOR_ID=vendor_id,
         ROLE=role,
-        CONTENT=(content or "")[:8000],
+        CONTENT=(content or "")[:8001],
         LANGUAGE=(language or "")[:8] or None,
     )
     db.add(row)

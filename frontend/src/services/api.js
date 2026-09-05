@@ -13,7 +13,7 @@ import axios from "axios";
 //      process, so this is stable across reboots.
 //   3. Same-host autodiscovery — uses whatever hostname the frontend
 //      was served from. Makes LAN mobile testing work: a phone hitting
-//      http://192.168.1.56:5173 targets :8000 for the API automatically.
+//      http://192.168.1.56:5173 targets :8001 for the API automatically.
 //   4. Legacy: if the page is on an old .trycloudflare.com host, fall
 //      back to the hardcoded ephemeral backend URL. Kept ONLY for
 //      local dev while the named tunnel isn't yet provisioned.
@@ -21,14 +21,14 @@ import axios from "axios";
 
 // Permanent production hostnames — see deploy/cloudflared-config.example.yml
 const PROD_FRONTEND_HOST = "erp.bvc24.com";
-const PROD_BACKEND_URL = "http://192.168.1.10:8000";
+const PROD_BACKEND_URL = "http://192.168.1.10:8001";
 
 // Legacy quick-tunnel URL — only consulted when the frontend is served
 // from a .trycloudflare.com host. Once the named tunnel is live this
 // branch never fires.
 
 const LEGACY_QUICK_TUNNEL_BACKEND_URL =
-  "http://192.168.1.10:8000";
+  "http://192.168.1.10:8001";
 
 // Capacitor injects `window.Capacitor` at runtime when the app is
 // running inside a native shell (APK / iOS). Same-host autodiscovery
@@ -36,7 +36,7 @@ const LEGACY_QUICK_TUNNEL_BACKEND_URL =
 // (Capacitor's internal scheme), so window.location.hostname is
 // 'localhost' and window.location.protocol is 'https:'. If we let the
 // fallback below run in that context, every API call hits
-// https://localhost:8000 (the phone itself), not the LAN server.
+// https://localhost:8001 (the phone itself), not the LAN server.
 function isCapacitorNative() {
 
   if (typeof window === "undefined") return false;
@@ -87,10 +87,10 @@ function resolveApiBase() {
       return LEGACY_QUICK_TUNNEL_BACKEND_URL;
     }
 
-    return `${proto}//${host}:8000`;
+    return `${proto}//${host}:8001`;
   }
 
-  return "http://192.168.1.10:8000";
+  return "http://192.168.1.10:8001";
 }
 
 export const API_BASE_URL = resolveApiBase();

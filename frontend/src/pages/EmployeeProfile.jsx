@@ -26,7 +26,7 @@ import styles from "./EmployeeProfile.module.css";
 const BVC_RED = "var(--clr-primary)";
 const BVC_DARK = "var(--clr-primary-dark)";
 
-const BACKEND_URL = API.defaults.baseURL || "http://192.168.1.10:8000";
+const BACKEND_URL = API.defaults.baseURL || "http://192.168.1.10:8001";
 
 
 // Tone mapping reused from Employees.jsx's status-pill system — same
@@ -668,9 +668,9 @@ function WorkInfoTab({ emp, departmentName, roleName, manager }) {
           SHIFT_END columns are legacy and were showing stale defaults;
           BVC24 policy is 09:00–18:00 with a 20-minute grace so anyone
           punching in by 09:20 is still counted PRESENT. */}
-      <FieldRow label="Shift Start"   value="09:00 AM" />
-      <FieldRow label="Shift End"     value="06:00 PM" />
-      <FieldRow label="Grace Period"  value="20 minutes (until 09:20 AM)" />
+      <FieldRow label="Shift Start" value="09:00 AM" />
+      <FieldRow label="Shift End" value="06:00 PM" />
+      <FieldRow label="Grace Period" value="20 minutes (until 09:20 AM)" />
 
       <SectionTitle>Skills & qualifications</SectionTitle>
       <FieldRow label="Skills" value={emp.SKILLS} />

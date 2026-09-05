@@ -140,7 +140,7 @@ def chat_message(payload: ChatMessageIn, db: Session = Depends(get_db)) -> Dict[
         db.add(LeaveChatMessage(
             EMPLOYEE_ID=emp.ID,
             ROLE="assistant",
-            CONTENT=(result.get("reply") or "")[:8000],
+            CONTENT=(result.get("reply") or "")[:8001],
             LANGUAGE=(payload.language or "auto"),
             ACTION=result.get("action") or "ANSWER_ONLY",
             VENDOR_ID=emp.VENDOR_ID,

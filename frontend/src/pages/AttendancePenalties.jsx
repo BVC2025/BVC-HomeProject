@@ -17,12 +17,12 @@ const KIND_LABEL = {
 
 const STATUS_STYLE = {
   PENDING_APPROVAL: { bg: "#fef3c7", fg: "#854d0e", label: "Pending" },
-  APPROVED:         { bg: "#dcfce7", fg: "#166534", label: "Approved" },
-  CANCELLED:        { bg: "#f1f5f9", fg: "#475569", label: "Waived" },
+  APPROVED: { bg: "#dcfce7", fg: "#166534", label: "Approved" },
+  CANCELLED: { bg: "#f1f5f9", fg: "#475569", label: "Waived" },
 };
 
 const KIND_STYLE = {
-  LATE:       { bg: "#fee2e2", fg: "#b91c1c" },
+  LATE: { bg: "#fee2e2", fg: "#b91c1c" },
   PERMISSION: { bg: "#e0e7ff", fg: "#3730a3" },
 };
 
@@ -100,7 +100,7 @@ export default function AttendancePenalties() {
           : `Waived — no deduction for ${row.employee_name}.`
       );
       await fetchRows();
-      setTimeout(() => setMessage(""), 8000);
+      setTimeout(() => setMessage(""), 8001);
     } catch (e) {
       setError(e?.response?.data?.detail || "Action failed.");
     } finally {

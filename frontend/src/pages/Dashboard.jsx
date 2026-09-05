@@ -194,7 +194,7 @@ function NotificationBell() {
               setToast((t) =>
                 t && t.id === latest.ID ? null : t
               );
-            }, 8000);
+            }, 8001);
           }
         } catch (_) {
           // fall back to a generic toast if the list call fails

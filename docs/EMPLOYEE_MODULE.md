@@ -269,10 +269,10 @@ After successful login, the frontend stamps `localStorage`:
 [api.js:16](frontend/src/services/api.js#L16) auto-detects the backend:
 
 1. `VITE_API_URL` env var (production override)
-2. Same-host autodetection: `${proto}//${window.location.hostname}:8000`
-3. Hardcoded `http://192.168.1.10:8000` fallback
+2. Same-host autodetection: `${proto}//${window.location.hostname}:8001`
+3. Hardcoded `http://192.168.1.10:8001` fallback
 
-This means a phone on `192.168.1.20` hitting `http://192.168.1.56:5174` automatically targets `http://192.168.1.56:8000` — no code change needed.
+This means a phone on `192.168.1.20` hitting `http://192.168.1.56:5174` automatically targets `http://192.168.1.56:8001` — no code change needed.
 
 ---
 
@@ -369,15 +369,15 @@ For testing geofence from a real phone on the same Wi-Fi (very common deploy sce
 
 1. **Backend** must bind to `0.0.0.0`:
    ```powershell
-   uvicorn app.main:app --host 0.0.0.0 --port 8000
+   uvicorn app.main:app --host 0.0.0.0 --port 8001
    ```
 2. **Frontend** must bind to `0.0.0.0`:
    ```powershell
    npm run dev -- --host 0.0.0.0
    ```
-3. **Windows Firewall** must allow inbound on 8000 + 5173/5174 (run once as Admin):
+3. **Windows Firewall** must allow inbound on 8001 + 5173/5174 (run once as Admin):
    ```powershell
-   New-NetFirewallRule -DisplayName "BVC24 Backend"  -Direction Inbound -LocalPort 8000 -Protocol TCP -Action Allow
+   New-NetFirewallRule -DisplayName "BVC24 Backend"  -Direction Inbound -LocalPort 8001 -Protocol TCP -Action Allow
    New-NetFirewallRule -DisplayName "BVC24 Frontend" -Direction Inbound -LocalPort 5173,5174 -Protocol TCP -Action Allow
    ```
 4. **Phone connects** to `http://<PC-LAN-IP>:5174` (e.g. `http://192.168.1.56:5174`)
@@ -787,7 +787,7 @@ See the dedicated chatbot capability sheet for the full ~50-intent catalogue. Qu
 
 ## 14. Employee API Reference
 
-> Endpoint base: `http://<backend-host>:8000`
+> Endpoint base: `http://<backend-host>:8001`
 > All listed endpoints are employee-relevant. Admin-only endpoints are in [docs/api/03-hr.md](./api/03-hr.md).
 
 ### 14.1 Authentication
@@ -970,7 +970,7 @@ VITE_API_URL=https://api.yourco.com
 mysql -u root -p -e "CREATE DATABASE bvc24_prod CHARACTER SET utf8mb4;"
 
 # 2. Run migrations (tables auto-create on first uvicorn start via Base.metadata.create_all)
-cd backend && ./venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+cd backend && ./venv/Scripts/python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8001
 
 # 3. Seed reference data (departments, designations, roles)
 ./venv/Scripts/python.exe scripts/seed_reference_data.py
@@ -1002,7 +1002,7 @@ Use a process supervisor (NSSM on Windows, systemd on Linux, Docker, or PM2). Ex
 
 ```powershell
 nssm install BVC24-Backend "d:\PUVI-DOC\Vendor-based Manufacturing ERP\backend\venv\Scripts\python.exe"
-nssm set BVC24-Backend AppParameters "-m uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"
+nssm set BVC24-Backend AppParameters "-m uvicorn app.main:app --host 0.0.0.0 --port 8001 --workers 2"
 nssm set BVC24-Backend AppDirectory "d:\PUVI-DOC\Vendor-based Manufacturing ERP\backend"
 nssm set BVC24-Backend AppStdout "d:\PUVI-DOC\Vendor-based Manufacturing ERP\backend\uvicorn.log"
 nssm set BVC24-Backend AppStderr "d:\PUVI-DOC\Vendor-based Manufacturing ERP\backend\uvicorn.err"
@@ -1030,7 +1030,7 @@ erp.yourco.com {
 }
 
 api.yourco.com {
-    reverse_proxy localhost:8000
+    reverse_proxy localhost:8001
 }
 ```
 
@@ -1059,7 +1059,7 @@ schtasks /Create /TN "BVC24-MarkAbsent" /TR "d:\...\backend\venv\Scripts\python.
 |---|---|---|
 | 443 | HTTPS (frontend + reverse-proxied API) | Public |
 | 80 | HTTP → HTTPS redirect | Public |
-| 8000 | Backend uvicorn | LAN only (firewall block external) |
+| 8001 | Backend uvicorn | LAN only (firewall block external) |
 | 3306 | MySQL | Localhost only |
 
 ### 16.9 Smoke Test Before Launch
@@ -1215,8 +1215,8 @@ Schedule a quarterly job to apply these retention windows.
 This used to happen when the backend hadn't reloaded after a code change.
 
 ```
-1. Verify only one uvicorn listens on 8000:
-   netstat -ano | findstr :8000 | findstr LISTENING
+1. Verify only one uvicorn listens on 8001:
+   netstat -ano | findstr :8001 | findstr LISTENING
 2. If multiple, stop all python processes and restart cleanly
 3. Verify the chat health endpoint:
    GET /chat/health

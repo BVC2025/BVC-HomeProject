@@ -381,7 +381,7 @@ def tool_send_quotation_pdf(db: Session, context: dict, project_name: str) -> di
         quotation.SHARE_TOKEN = secrets.token_urlsafe(32)
         db.commit()
 
-    backend_base = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
+    backend_base = os.getenv("BACKEND_URL", "http://localhost:8001").rstrip("/")
     media_url = f"{backend_base}/quotation-pdf/{quotation.SHARE_TOKEN}"
 
     if not conversation_id:

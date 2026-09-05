@@ -15,7 +15,7 @@ const BVC_RED = "#C8102E";
 const BVC_DARK = "#7A1022";
 const BVC_GOLD = "#F4B324";
 
-const BACKEND_URL = API.defaults.baseURL || "http://192.168.1.10:8000";
+const BACKEND_URL = API.defaults.baseURL || "http://192.168.1.10:8001";
 
 
 const STATUS_THEME = {
@@ -899,8 +899,8 @@ function ReqRow({ children }) {
 }
 
 function RequisitionDetailDrawer({ req, busy, onClose, onApprove, onReject, onConvert }) {
-  const isPending   = req.STATUS === "PENDING";
-  const isApproved  = req.STATUS === "APPROVED";
+  const isPending = req.STATUS === "PENDING";
+  const isApproved = req.STATUS === "APPROVED";
   const isConverted = req.STATUS === "CONVERTED";
 
   return (
@@ -1134,7 +1134,7 @@ function JobCard({ job, onOpen, onDelete }) {
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}
-             onClick={(e) => e.stopPropagation()}>
+          onClick={(e) => e.stopPropagation()}>
           <Pill status={job.STATUS} />
           {onDelete && (
             <button
@@ -1803,7 +1803,7 @@ function CandidateCard({ c, onOpen, onDelete }) {
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}
-             onClick={(e) => e.stopPropagation()}>
+          onClick={(e) => e.stopPropagation()}>
           <Pill status={c.STATUS} />
           {onDelete && (
             <button onClick={onDelete} style={rowDeleteBtn}>Delete</button>
@@ -2599,10 +2599,10 @@ function InterviewsTab() {
                     fontSize: 12,
                     fontWeight: 600,
                     color:
-                      (i.STATUS || "").toUpperCase() === "SELECTED"    ? "#047857" :
-                      (i.STATUS || "").toUpperCase() === "REJECTED"    ? "#b91c1c" :
-                      (i.STATUS || "").toUpperCase() === "WAITLISTED"  ? "#b45309" :
-                      "#334155",
+                      (i.STATUS || "").toUpperCase() === "SELECTED" ? "#047857" :
+                        (i.STATUS || "").toUpperCase() === "REJECTED" ? "#b91c1c" :
+                          (i.STATUS || "").toUpperCase() === "WAITLISTED" ? "#b45309" :
+                            "#334155",
                     cursor: "pointer",
                     outline: "none",
                   }}
@@ -2780,8 +2780,8 @@ function OffersTab() {
                           disabled={busy || !o.CANDIDATE_EMAIL}
                           title={o.CANDIDATE_EMAIL
                             ? (o.STATUS === "SENT"
-                                ? "Re-send the offer letter to the candidate"
-                                : "Email this offer letter to the candidate")
+                              ? "Re-send the offer letter to the candidate"
+                              : "Email this offer letter to the candidate")
                             : "Candidate has no email on file"}
                           style={{
                             ...btnPrimary,

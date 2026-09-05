@@ -24,7 +24,7 @@ import PayslipPreview from "../components/PayslipPreview";
 import styles from "./PayslipGenerator.module.css";
 
 
-const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8000";
+const BACKEND_URL = API.defaults.baseURL || "http://127.0.0.1:8001";
 
 
 const MONTHS = [
@@ -379,18 +379,18 @@ export default function PayslipGenerator() {
         // real values (isEdit stays false until that response lands).
         setEarnings((prev) => ({
           ...prev,
-          BASIC:             Number(s.BASIC ?? prev.BASIC ?? 0),
-          HRA:               Number(s.HRA ?? 0),
-          DA:                Number(s.DA ?? 0),
-          CONVEYANCE:        Number(s.CONVEYANCE_ALLOWANCE ?? 0),
+          BASIC: Number(s.BASIC ?? prev.BASIC ?? 0),
+          HRA: Number(s.HRA ?? 0),
+          DA: Number(s.DA ?? 0),
+          CONVEYANCE: Number(s.CONVEYANCE_ALLOWANCE ?? 0),
           MEDICAL_ALLOWANCE: Number(s.MEDICAL_ALLOWANCE ?? 0),
           SPECIAL_ALLOWANCE: Number(s.SPECIAL_ALLOWANCE ?? 0),
-          OTHER_ALLOWANCES:  Number(s.OTHER_ALLOWANCES ?? 0),
+          OTHER_ALLOWANCES: Number(s.OTHER_ALLOWANCES ?? 0),
         }));
         setDeductions((prev) => ({
           ...prev,
-          PF_EMPLOYEE:      Number(s.PF_EMPLOYEE ?? 0),
-          ESI_EMPLOYEE:     Number(s.ESI_EMPLOYEE ?? 0),
+          PF_EMPLOYEE: Number(s.PF_EMPLOYEE ?? 0),
+          ESI_EMPLOYEE: Number(s.ESI_EMPLOYEE ?? 0),
           PROFESSIONAL_TAX: Number(s.PROFESSIONAL_TAX ?? 0),
         }));
       })
@@ -412,13 +412,13 @@ export default function PayslipGenerator() {
         if (!me) return;
         setWorking((prev) => ({
           ...prev,
-          WORKING_DAYS:      Number(me.working_days ?? prev.WORKING_DAYS ?? 0),
-          DAYS_PRESENT:      Number(me.present_days ?? 0),
-          DAYS_LATE:         Number(me.late_arrivals ?? 0),
-          PAID_LEAVE_DAYS:   Number(me.cl_used ?? 0),
+          WORKING_DAYS: Number(me.working_days ?? prev.WORKING_DAYS ?? 0),
+          DAYS_PRESENT: Number(me.present_days ?? 0),
+          DAYS_LATE: Number(me.late_arrivals ?? 0),
+          PAID_LEAVE_DAYS: Number(me.cl_used ?? 0),
           UNPAID_LEAVE_DAYS: Number(me.lop_days ?? 0),
-          ABSENT_DAYS:       Number(me.absent_days ?? 0),
-          OT_HOURS:          Number(me.net_ot_hours ?? 0),
+          ABSENT_DAYS: Number(me.absent_days ?? 0),
+          OT_HOURS: Number(me.net_ot_hours ?? 0),
         }));
         setEarnings((prev) => ({
           ...prev,
@@ -426,7 +426,7 @@ export default function PayslipGenerator() {
         }));
         setDeductions((prev) => ({
           ...prev,
-          LATE_PENALTY:      Number(me.late_penalty ?? 0),
+          LATE_PENALTY: Number(me.late_penalty ?? 0),
           ABSENCE_DEDUCTION: Number(me.absent_deduction_only ?? 0),
         }));
         // These are now sourced from the calc — lock them so the

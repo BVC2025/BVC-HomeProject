@@ -59,7 +59,7 @@ def build_email_logo(company):
             # the email editor, so extract_cid_logo() rescues it. Others use
             # {{logo_html}} → substituted with an HTTP URL → extract_cid_logo
             # finds nothing. Fetching here ensures both cases get CID bytes.
-            backend_base = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
+            backend_base = os.getenv("BACKEND_URL", "http://localhost:8001").rstrip("/")
             http_url = (
                 company.LOGO_URL if company.LOGO_URL.startswith("http")
                 else f"{backend_base}{company.LOGO_URL}"
