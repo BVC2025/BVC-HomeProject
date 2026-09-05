@@ -86,6 +86,7 @@ from app.routes.holiday import router as holiday_router    # Phase 2 Holiday Cal
 from app.routes.work_center import router as work_center_router  # Mfg Phase 1 — Work Centers
 from app.routes.allowance import router as allowance_router  # Employee expense claims
 from app.routes.recruitment import router as recruitment_router  # Phase 2 — AI Recruitment Assistant
+from app.routes.recruitment_voice_agent import router as recruitment_voice_router  # Voice-first Requisition Agent (Qwen)
 from app.routes.employee_payslips import router as my_payslips_router  # Employee self-service payslips
 from app.routes.onboarding_checklist import router as onboarding_checklist_router  # Post-joining onboarding
 from app.routes.attendance_ai import router as attendance_ai_router  # Attendance Automation (Phase 1)
@@ -2452,6 +2453,7 @@ app.include_router(holiday_router)
 app.include_router(work_center_router)
 app.include_router(allowance_router, tags=["Allowances"])
 app.include_router(recruitment_router)
+app.include_router(recruitment_voice_router)
 app.include_router(my_payslips_router)
 app.include_router(onboarding_checklist_router)
 app.include_router(attendance_ai_router)

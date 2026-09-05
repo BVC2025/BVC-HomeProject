@@ -28,6 +28,7 @@ from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -39,6 +40,12 @@ from app.services.leave_ai_chat_service import (
     openrouter_chat,
 )
 from app.services.email_service import send_via_resend, send_via_vendor_smtp
+from app.services.sarvam_tts import (
+    ALLOWED_VOICES,
+    SarvamError,
+    detect_language,
+    sarvam_speak,
+)
 from app.models.email_models import VendorEmailConfig
 
 
@@ -542,3 +549,94 @@ def _render_md_email_html(
   </p>
 </body></html>
 """
+
+
+# ---------------------------------------------------------------------------
+# TTS · Sarvam AI · Bulbul v3 female voice
+# ---------------------------------------------------------------------------
+#
+# The frontend calls this once per assistant reply. We do NOT use the
+# browser's speechSynthesis anywhere — that voice is robotic, has poor
+# Tamil coverage, and swallows Thanglish text as garbled English. Sarvam
+# gives us a native Indian-language female voice that keeps the leave
+# assistant feeling human across Tamil / English / Thanglish switches.
+#
+# `language` is optional. When the client sends `"auto"` (or omits it)
+# we run `detect_language()` on the text itself so a Tamil reply is
+# spoken by a Tamil voice regardless of the language dropdown.
+
+class LeaveSpeakIn(BaseModel):
+    text: str
+    language: Optional[str] = "auto"     # 'auto' | BCP-47 like 'ta-IN'
+    voice: Optional[str] = None          # falls back to SARVAM_VOICE env
+
+
+@router.post("/speak")
+def speak_reply(body: LeaveSpeakIn) -> Response:
+    text = (body.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="text is required")
+
+    # Resolve language:
+    #   'auto' or unset  → sniff from the reply text
+    #   short codes 'en'/'ta'/'hi'/'thanglish' → normalise to BCP-47
+    #   full BCP-47 codes → passed through
+    hint = (body.language or "auto").strip().lower()
+    short_map = {
+        "auto": None,
+        "en":       "en-IN",
+        "english":  "en-IN",
+        "ta":       "ta-IN",
+        "tamil":    "ta-IN",
+        "hi":       "hi-IN",
+        "hindi":    "hi-IN",
+        "thanglish": "ta-IN",     # spoken in a Tamil voice
+    }
+    if hint in short_map:
+        lang_code = short_map[hint]
+    elif "-" in hint:
+        lang_code = hint
+    else:
+        lang_code = None
+
+    if not lang_code:
+        lang_code = detect_language(text, fallback="en-IN")
+
+    try:
+        wav, voice_used, lang_used = sarvam_speak(
+            text=text,
+            language=lang_code,
+            voice=body.voice,
+        )
+    except SarvamError as e:
+        msg = str(e)
+        # 503 when the server has no key configured; 502 for downstream
+        # failures. Both are surfaced to the frontend so the chat still
+        # renders the text reply even when the audio is missing.
+        status = 503 if "SARVAM_API_KEY" in msg else 502
+        raise HTTPException(status_code=status, detail=msg)
+
+    return Response(
+        content=wav,
+        media_type="audio/wav",
+        headers={
+            "Cache-Control": "no-store",
+            "X-Voice-Provider": f"sarvam · {voice_used}",
+            "X-Voice-Language": lang_used,
+        },
+    )
+
+
+@router.get("/speak/health")
+def speak_health() -> Dict[str, Any]:
+    """Quick 'is voice reachable' check — no Sarvam call, just reports
+    what the server sees. Handy when an employee says 'no sound came
+    out' and you want to confirm the key is loaded without SSHing."""
+    key = os.getenv("SARVAM_API_KEY", "").strip()
+    return {
+        "sarvam_key_configured": bool(key),
+        "sarvam_key_preview":    (key[:6] + "…" + key[-4:]) if key else None,
+        "sarvam_voice":          os.getenv("SARVAM_VOICE", "pooja"),
+        "sarvam_model":          os.getenv("SARVAM_MODEL", "bulbul:v3"),
+        "voices_allowed":        sorted(ALLOWED_VOICES),
+    }

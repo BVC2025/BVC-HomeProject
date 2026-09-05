@@ -4,9 +4,13 @@ import API from "../services/api";
 /* Voice-first leave assistant.
 
    Sits at the bottom of the /apply-leave page. Uses the browser Web
-   Speech API for both input (SpeechRecognition) and output (SpeechSynthesis).
-   Talks to POST /leave-ai-chat/message and, on confirmed leave drafts,
-   POST /leave-ai-chat/submit.
+   Speech API for input (SpeechRecognition), and the server-side Sarvam
+   AI Bulbul v3 female voice for output — the browser's own
+   speechSynthesis is deliberately NOT used, because it sounds robotic
+   and butchers Tamil / Thanglish.
+
+   Talks to POST /leave-ai-chat/message, POST /leave-ai-chat/speak
+   (Sarvam TTS), and POST /leave-ai-chat/submit on confirmation.
 
    Design notes:
 
@@ -15,15 +19,18 @@ import API from "../services/api";
    - When the AI proposes a leave draft, we do NOT auto-submit. We
      read the summary aloud, show a Confirm/Cancel bar, and only
      POST /submit after explicit user confirmation.
-   - Language pill toggle controls both the recognition locale and the
-     TTS voice chosen. "Auto" lets the model decide the reply language.
+   - Language pill toggle controls the recognition locale. Reply
+     language is auto-detected server-side from the reply text (so a
+     Tamil reply speaks in a Tamil voice regardless of the dropdown).
+   - Text input is a first-class path — the user can type instead of
+     using the mic, useful when the mic isn't available.
 */
 
 const LANGUAGES = [
-  { key: "auto", label: "Auto", recogLocale: "en-IN", ttsLocaleMatch: /^en/i },
-  { key: "en", label: "English", recogLocale: "en-IN", ttsLocaleMatch: /^en/i },
-  { key: "ta", label: "தமிழ்", recogLocale: "ta-IN", ttsLocaleMatch: /^ta/i },
-  { key: "thanglish", label: "Thanglish", recogLocale: "en-IN", ttsLocaleMatch: /^(en|ta)/i },
+  { key: "auto",      label: "Auto",     recogLocale: "en-IN", ttsHint: "auto" },
+  { key: "en",        label: "English",  recogLocale: "en-IN", ttsHint: "en" },
+  { key: "ta",        label: "தமிழ்",     recogLocale: "ta-IN", ttsHint: "ta" },
+  { key: "thanglish", label: "Thanglish", recogLocale: "en-IN", ttsHint: "thanglish" },
 ];
 
 function useSpeechRecognition() {
@@ -36,68 +43,78 @@ function useSpeechRecognition() {
   return RecognitionCtor;
 }
 
-// Common female-voice name patterns across Windows / macOS / Android /
-// iOS / Chrome OS. Matched case-insensitively against `voice.name`.
-// If none of these match on the current device, we fall back to the
-// first locale-matched voice regardless of gender.
-const FEMALE_VOICE_HINTS = [
-  "female",   // explicit
-  "zira",     // Windows English female
-  "hazel",    // Windows UK English female
-  "susan",    // Windows English female
-  "samantha", // macOS / iOS English female
-  "victoria", // macOS English female
-  "karen",    // macOS Australian English female
-  "moira",    // macOS Irish English female
-  "tessa",    // macOS South African English female
-  "aria",     // Microsoft Neural — female
-  "jenny",    // Microsoft Neural — female
-  "sonia",    // Microsoft Neural UK — female
-  "natasha",  // Microsoft Neural — female
-  "kajal",    // Microsoft Indian English — female
-  "swara",    // Microsoft Hindi — female
-  "pallavi",  // Microsoft Tamil — female
-  "google",   // Google TTS voices are usually female by default
-];
+// Server-side Sarvam TTS player. Any in-flight audio is cancelled
+// before starting the next reply so overlapping utterances don't
+// stack up when the user talks fast.
+//
+// Returns a controller with `stop()` — the component uses it to
+// silence playback when the panel closes or the mute toggle is hit.
+let _currentAudio = null;
+let _currentUrl = null;
 
-
-function pickFemaleVoice(voices, localeMatch) {
-
-  if (!Array.isArray(voices) || voices.length === 0) return null;
-
-  // Locale-matched candidates only.
-  const localeMatches = voices.filter((v) => localeMatch.test(v.lang));
-  if (localeMatches.length === 0) return null;
-
-  // Prefer any voice whose name contains a female hint (case-insensitive).
-  const female = localeMatches.find((v) => {
-    const name = (v.name || "").toLowerCase();
-    return FEMALE_VOICE_HINTS.some((hint) => name.includes(hint));
-  });
-
-  return female || localeMatches[0];
+function stopSpeaking() {
+  try {
+    if (_currentAudio) {
+      _currentAudio.pause();
+      _currentAudio.src = "";
+    }
+  } catch (_) { /* noop */ }
+  try {
+    if (_currentUrl) URL.revokeObjectURL(_currentUrl);
+  } catch (_) { /* noop */ }
+  _currentAudio = null;
+  _currentUrl = null;
 }
 
+async function speakViaSarvam(text, langHint, voice) {
 
-function speak(text, localeMatch) {
+  if (!text || !text.trim()) return;
 
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  stopSpeaking();
 
   try {
+    const res = await API.post(
+      "/leave-ai-chat/speak",
+      {
+        text,
+        language: langHint || "auto",   // server auto-detects on 'auto'
+        voice:    voice || undefined,   // undefined → SARVAM_VOICE env default
+      },
+      {
+        responseType: "blob",
+        timeout: 25000,
+      }
+    );
 
-    window.speechSynthesis.cancel();
+    // A 502/503 with JSON error body slips through axios as a blob;
+    // sniff for that so we don't try to play "not configured" text
+    // as audio.
+    if (!res.data || !res.data.size || !String(res.data.type).startsWith("audio")) {
+      return;
+    }
 
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.rate = 1.0;
-    utter.pitch = 1.05;                 // slight lift — sounds warmer
+    const url = URL.createObjectURL(res.data);
+    const audio = new Audio(url);
 
-    const voices = window.speechSynthesis.getVoices();
-    const preferred = pickFemaleVoice(voices, localeMatch);
-    if (preferred) utter.voice = preferred;
+    _currentAudio = audio;
+    _currentUrl = url;
 
-    window.speechSynthesis.speak(utter);
+    audio.onended = () => {
+      if (_currentUrl === url) {
+        URL.revokeObjectURL(url);
+        _currentAudio = null;
+        _currentUrl = null;
+      }
+    };
 
-  } catch (_) { /* voice is a nice-to-have */ }
+    // Some browsers block autoplay until a user gesture. That's fine —
+    // the mic / send button click IS a gesture, so this normally
+    // plays. If it doesn't, we swallow the rejection quietly.
+    await audio.play().catch(() => { /* autoplay blocked */ });
+  } catch (_) {
+    // Sarvam unreachable / server down / no key — chat still works,
+    // text reply is already on screen. Voice is a nice-to-have.
+  }
 }
 
 
@@ -106,15 +123,26 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
   const RecognitionCtor = useSpeechRecognition();
   const recognitionRef = useRef(null);
 
-  const [supported] = useState(() => !!RecognitionCtor && !!window.speechSynthesis);
+  // Voice OUTPUT works on every browser (server-side Sarvam TTS
+  // played back through <audio>), so it's always available. Voice
+  // INPUT still needs SpeechRecognition — that gates only the mic
+  // button, not the whole component.
+  const micSupported = !!RecognitionCtor;
   const [open, setOpen] = useState(false);
   const [language, setLanguage] = useState("auto");
+  // Mute toggle — persisted per browser so a returning employee
+  // doesn't have to re-mute every visit.
+  const [muted, setMuted] = useState(() => {
+    try { return localStorage.getItem("leave_ai_muted") === "1"; }
+    catch (_) { return false; }
+  });
   const [messages, setMessages] = useState([
     {
       role: "assistant",
       content:
-        "Hi! I'm your leave assistant. You can talk to me — press the mic and " +
-        "say something like 'I need one day casual leave tomorrow'.",
+        "Hi! I'm your leave assistant. You can type below, or press the mic if " +
+        "your device has one. Try 'I need one day casual leave tomorrow' — " +
+        "or say it in Tamil / Thanglish, I'll reply in the same language.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -131,6 +159,19 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
     [language]
   );
 
+  // Persist the mute preference AND stop any in-flight audio when
+  // the user hits mute mid-reply.
+  useEffect(() => {
+    try { localStorage.setItem("leave_ai_muted", muted ? "1" : "0"); }
+    catch (_) { /* private mode */ }
+    if (muted) stopSpeaking();
+  }, [muted]);
+
+  // Silence audio when the panel is closed.
+  useEffect(() => {
+    if (!open) stopSpeaking();
+  }, [open]);
+
   // Scroll to bottom on new message.
   useEffect(() => {
     if (chatEndRef.current) {
@@ -138,13 +179,11 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
     }
   }, [messages, pendingDraft, thinking]);
 
-  // Warm up TTS voice list — some browsers only populate voices after
-  // getVoices is called once.
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      window.speechSynthesis.getVoices();
-    }
-  }, []);
+  // Central "say this out loud" helper — respects the mute toggle.
+  const say = (text) => {
+    if (muted) return;
+    speakViaSarvam(text, activeLang.ttsHint);
+  };
 
   const startListening = () => {
 
@@ -211,7 +250,7 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
 
       const reply = res.data?.reply || "…";
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
-      speak(reply, activeLang.ttsLocaleMatch);
+      say(reply);
 
       if (res.data?.action === "PROPOSE_LEAVE" && res.data?.draft) {
         setPendingDraft(res.data.draft);
@@ -221,7 +260,7 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
         e?.response?.data?.detail ||
         "Sorry, I couldn't reach the assistant. Please try again.";
       setMessages((prev) => [...prev, { role: "assistant", content: msg }]);
-      speak(msg, activeLang.ttsLocaleMatch);
+      say(msg);
     } finally {
       setThinking(false);
     }
@@ -247,7 +286,7 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
         (res.data?.md_email_sent ? " I've emailed the MD as well." : "");
 
       setMessages((prev) => [...prev, { role: "assistant", content: confirmation }]);
-      speak(confirmation, activeLang.ttsLocaleMatch);
+      say(confirmation);
       setPendingDraft(null);
 
       if (typeof onLeaveSubmitted === "function") onLeaveSubmitted();
@@ -257,7 +296,7 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
         e?.response?.data?.detail ||
         "Sorry, the submission failed. Please try again or use the Apply for Leave form above.";
       setError(msg);
-      speak(msg, activeLang.ttsLocaleMatch);
+      say(msg);
     } finally {
       setSubmitting(false);
     }
@@ -363,6 +402,19 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
       cursor: "pointer",
       padding: 4,
       lineHeight: 1,
+    },
+    muteBtn: {
+      background: "rgba(255,255,255,0.15)",
+      border: "1px solid rgba(255,255,255,0.35)",
+      color: "#ffffff",
+      width: 32,
+      height: 32,
+      borderRadius: "50%",
+      cursor: "pointer",
+      padding: 0,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
     },
     header: {
       padding: "14px 20px",
@@ -589,6 +641,27 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
               </div>
               <button
                 type="button"
+                style={S.muteBtn}
+                onClick={() => setMuted((m) => !m)}
+                aria-label={muted ? "Unmute voice" : "Mute voice"}
+                title={muted ? "Voice muted — click to unmute" : "Mute voice"}
+              >
+                {muted ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none" />
+                    <line x1="23" y1="9" x2="17" y2="15" />
+                    <line x1="17" y1="9" x2="23" y2="15" />
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none" />
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                  </svg>
+                )}
+              </button>
+              <button
+                type="button"
                 style={S.closeBtn}
                 onClick={() => setOpen(false)}
                 aria-label="Close"
@@ -600,10 +673,10 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
           </div>
 
           <div style={S.body}>
-            {!supported && (
+            {!micSupported && (
               <div style={S.errorBanner}>
-                Your browser doesn't support voice input / output — but you can still type below.
-                Chrome or Edge on desktop works best.
+                No microphone available in this browser — you can still type below.
+                Replies will still be spoken aloud (Sarvam female voice).
               </div>
             )}
 

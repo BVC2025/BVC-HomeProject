@@ -1860,6 +1860,65 @@ def create_requisition(payload: RequisitionCreate, db: Session = Depends(get_db)
     return _serialize_requisition(r, db)
 
 
+@router.patch("/requisitions/{req_id}",
+              dependencies=[Depends(require("recruitment.manage"))])
+def update_requisition(req_id: int,
+                       payload: RequisitionCreate,
+                       db: Session = Depends(get_db)):
+    """Edit a requisition. Only PENDING rows are mutable —
+    APPROVED / CONVERTED / REJECTED rows are frozen so the audit
+    trail (and any emails already sent) stays honest.
+
+    Fields accepted are the same as create (POSITION_TITLE, etc.);
+    any field left blank / null clears that column."""
+
+    r = (db.query(RecruitmentRequisition)
+           .filter(RecruitmentRequisition.ID == req_id).first())
+    if not r:
+        raise HTTPException(status_code=404, detail="Requisition not found")
+
+    if r.STATUS != "PENDING":
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Cannot edit a {r.STATUS} requisition. Only PENDING "
+                "requisitions can be modified."
+            ),
+        )
+
+    if not payload.POSITION_TITLE.strip():
+        raise HTTPException(status_code=400, detail="POSITION_TITLE is required.")
+
+    needed = None
+    if payload.NEEDED_BY_DATE:
+        try:
+            needed = date.fromisoformat(payload.NEEDED_BY_DATE)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="NEEDED_BY_DATE must be YYYY-MM-DD.")
+
+    r.POSITION_TITLE       = payload.POSITION_TITLE.strip()
+    r.DEPARTMENT           = (payload.DEPARTMENT or "").strip() or None
+    r.LOCATION             = (payload.LOCATION or "").strip() or None
+    r.EMPLOYMENT_TYPE      = payload.EMPLOYMENT_TYPE or "FULL_TIME"
+    r.HEADCOUNT            = payload.HEADCOUNT or 1
+    r.EXPERIENCE_MIN_YEARS = payload.EXPERIENCE_MIN_YEARS or 0.0
+    r.EXPERIENCE_MAX_YEARS = payload.EXPERIENCE_MAX_YEARS
+    r.BUDGET_CTC_MIN       = payload.BUDGET_CTC_MIN
+    r.BUDGET_CTC_MAX       = payload.BUDGET_CTC_MAX
+    r.REQUIRED_SKILLS      = (payload.REQUIRED_SKILLS or "").strip() or None
+    r.PREFERRED_SKILLS     = (payload.PREFERRED_SKILLS or "").strip() or None
+    r.REQUIRED_EDUCATION   = (payload.REQUIRED_EDUCATION or "").strip() or None
+    r.JUSTIFICATION        = (payload.JUSTIFICATION or "").strip() or None
+    r.URGENCY              = payload.URGENCY or "NORMAL"
+    r.NEEDED_BY_DATE       = needed
+    if payload.REQUESTED_BY_ID:
+        r.REQUESTED_BY_ID  = payload.REQUESTED_BY_ID
+
+    db.commit()
+    db.refresh(r)
+    return _serialize_requisition(r, db)
+
+
 def _convert_requisition_to_job_row(r: RecruitmentRequisition,
                                     db: Session) -> RecruitmentJob:
     """Shared conversion — used by manual convert AND email-approve."""

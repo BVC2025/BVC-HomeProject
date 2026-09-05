@@ -453,11 +453,16 @@ function EmployeeProfileForm({ employee, onSubmitted, onLogout }) {
     e?.preventDefault?.();
     setError("");
 
-    // The employee is usually already at the bottom of the form
-    // when they click Submit — scroll them back to the banner so
-    // they actually see the message.
+    // Employee is usually at the bottom of the form when they click
+    // Submit. Instead of scrolling them to the top-anchored banner
+    // (which they often don't notice), we surface the message with
+    // a browser alert first — impossible to miss — then also set
+    // the inline banner + scroll. Console log helps HR debug over
+    // screen-share when a slot mismatch traps the flow silently.
     const raise = (msg) => {
+      console.warn("[profile-submit] blocked:", msg);
       setError(msg);
+      window.alert(msg);
       requestAnimationFrame(() => {
         window.scrollTo({ top: 0, behavior: "smooth" });
       });

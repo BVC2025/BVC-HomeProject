@@ -9,6 +9,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import API from "../services/api";
+import VoiceRequisitionModal from "../components/VoiceRequisitionModal";
+import RecruitmentAgentWorkspace from "../components/RecruitmentAgentWorkspace";
 
 
 const BVC_RED = "#C8102E";
@@ -58,30 +60,60 @@ function Pill({ status }) {
 export default function Recruitment() {
 
   const [tab, setTab] = useState("requisitions");
+  // When the agent's "Create manually" button is clicked, we jump
+  // to the Requisitions tab AND signal it to open the manual form
+  // modal. The signal is a monotonically increasing counter so the
+  // tab can `useEffect` on the change even if the tab is already
+  // selected.
+  const [openManualSignal, setOpenManualSignal] = useState(0);
+  // After Deepthi creates a requisition, we bump this so the tab
+  // knows to reload its list without needing a page refresh.
+  const [reloadSignal, setReloadSignal] = useState(0);
+
+  const openManual = () => {
+    setTab("requisitions");
+    setOpenManualSignal((n) => n + 1);
+  };
 
   return (
     <div style={{ padding: 20, background: "#f1f5f9", minHeight: "calc(100vh - 80px)" }}>
-      {/* Hero */}
+      {/* Slim hero — the workspace below is the real primary. */}
       <div style={{
         background: `linear-gradient(135deg, ${BVC_DARK} 0%, ${BVC_RED} 100%)`,
-        borderRadius: 16, padding: "20px 26px", color: "white",
-        marginBottom: 18,
+        borderRadius: 12, padding: "14px 22px", color: "white",
+        marginBottom: 14,
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        gap: 12, flexWrap: "wrap",
       }}>
-        <div style={{
-          fontSize: 11, fontWeight: 800, letterSpacing: 2,
-          color: BVC_GOLD, textTransform: "uppercase",
-        }}>
-          BVC24 · AI Recruitment
+        <div>
+          <div style={{
+            fontSize: 10, fontWeight: 800, letterSpacing: 2,
+            color: BVC_GOLD, textTransform: "uppercase",
+          }}>
+            BVC24 · AI Recruitment
+          </div>
+          <div style={{ fontSize: 20, fontWeight: 900, marginTop: 2 }}>
+            Recruitment Workspace
+          </div>
         </div>
-        <div style={{ fontSize: 24, fontWeight: 900, marginTop: 4 }}>
-          Recruitment Assistant
-        </div>
-        <div style={{ fontSize: 12, opacity: 0.85, marginTop: 4 }}>
-          Resume parsing · Candidate screening · Interview scheduling · Ranking · Offer letters
+        <div style={{ fontSize: 11.5, opacity: 0.85, maxWidth: 460, textAlign: "right" }}>
+          Speak to Deepthi to raise requisitions, screen candidates,
+          schedule interviews and draft offers — or use the tabs below
+          for direct control.
         </div>
       </div>
 
-      {/* Tab bar */}
+      {/* AI-first workspace — the primary interface */}
+      <RecruitmentAgentWorkspace
+        onCommitted={() => {
+          setTab("requisitions");
+          setReloadSignal((n) => n + 1);
+        }}
+        onOpenManual={openManual}
+        onJumpTab={(key) => setTab(key)}
+      />
+
+      {/* Tab bar — secondary, for direct table access */}
       <div style={{
         background: "white", borderRadius: 12, padding: 6,
         boxShadow: "0 4px 14px rgba(15,23,42,0.05)",
@@ -112,7 +144,13 @@ export default function Recruitment() {
         ))}
       </div>
 
-      {tab === "requisitions" && <RequisitionsTab onConverted={() => setTab("jobs")} />}
+      {tab === "requisitions" && (
+        <RequisitionsTab
+          onConverted={() => setTab("jobs")}
+          openManualSignal={openManualSignal}
+          reloadSignal={reloadSignal}
+        />
+      )}
       {tab === "jobs" && <JobsTab />}
       {tab === "candidates" && <CandidatesTab />}
       {tab === "pipeline" && <PipelineTab />}
@@ -171,12 +209,16 @@ function UrgencyDot({ urgency }) {
   );
 }
 
-function RequisitionsTab({ onConverted }) {
+function RequisitionsTab({ onConverted, openManualSignal = 0, reloadSignal = 0 }) {
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [showVoice,  setShowVoice]  = useState(false);
+  // Edit target — when non-null, the CreateRequisitionModal opens in
+  // edit mode with this row's fields pre-filled.
+  const [editingReq, setEditingReq] = useState(null);
   const [busy, setBusy] = useState(null);          // { id, action }
   const [detailReq, setDetailReq] = useState(null);
   const [toast, setToast] = useState("");
@@ -190,6 +232,17 @@ function RequisitionsTab({ onConverted }) {
   };
 
   useEffect(load, []);
+
+  // Parent signals to open the manual form (from the agent workspace's
+  // "Create manually" button). First render's signal=0 is ignored.
+  useEffect(() => {
+    if (openManualSignal > 0) setShowCreate(true);
+  }, [openManualSignal]);
+
+  // Parent signals to reload after the agent commits a new requisition.
+  useEffect(() => {
+    if (reloadSignal > 0) load();
+  }, [reloadSignal]);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -309,6 +362,28 @@ function RequisitionsTab({ onConverted }) {
             <option value="CANCELLED">Cancelled</option>
           </select>
           <button
+            onClick={() => setShowVoice(true)}
+            title="Speak your requisition — Tamil / English / Thanglish"
+            style={{
+              background: "white",
+              color: BVC_RED,
+              border: `1.5px solid ${BVC_RED}`,
+              padding: "9px 14px", borderRadius: 8, fontSize: 12,
+              fontWeight: 700, cursor: "pointer",
+              display: "inline-flex", alignItems: "center", gap: 6,
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" strokeWidth="2"
+                 strokeLinecap="round" strokeLinejoin="round"
+                 aria-hidden="true">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="22"/>
+            </svg>
+            Voice
+          </button>
+          <button
             onClick={() => setShowCreate(true)}
             style={{
               background: BVC_RED, color: "white", border: "none",
@@ -344,6 +419,7 @@ function RequisitionsTab({ onConverted }) {
               onReject={() => reject(r)}
               onConvert={() => convert(r)}
               onDelete={() => remove(r)}
+              onEdit={() => setEditingReq(r)}
             />
           ))}
         </div>
@@ -357,6 +433,30 @@ function RequisitionsTab({ onConverted }) {
         />
       )}
 
+      {editingReq && (
+        <CreateRequisitionModal
+          initial={editingReq}
+          onClose={() => setEditingReq(null)}
+          onSaved={() => {
+            const code = editingReq.REQ_CODE || "requisition";
+            setEditingReq(null);
+            load();
+            setToast(`Updated ${code}`);
+          }}
+        />
+      )}
+
+      {showVoice && (
+        <VoiceRequisitionModal
+          onClose={() => setShowVoice(false)}
+          onCommitted={(created) => {
+            setShowVoice(false);
+            load();
+            setToast(`Voice → ${created?.REQ_CODE || "requisition"} created`);
+          }}
+        />
+      )}
+
       {detailReq && (
         <RequisitionDetailDrawer
           req={detailReq}
@@ -365,6 +465,7 @@ function RequisitionsTab({ onConverted }) {
           onApprove={async () => { await approve(detailReq); setDetailReq(null); }}
           onReject={async () => { await reject(detailReq); setDetailReq(null); }}
           onConvert={async () => { await convert(detailReq); setDetailReq(null); }}
+          onEdit={() => { setEditingReq(detailReq); setDetailReq(null); }}
         />
       )}
 
@@ -410,7 +511,7 @@ function ReqStatChip({ label, value, tone }) {
   );
 }
 
-function RequisitionRow({ req, busy, onOpen, onApprove, onReject, onConvert, onDelete }) {
+function RequisitionRow({ req, busy, onOpen, onApprove, onReject, onConvert, onDelete, onEdit }) {
 
   const isPending = req.STATUS === "PENDING";
   const isApproved = req.STATUS === "APPROVED";
@@ -481,6 +582,12 @@ function RequisitionRow({ req, busy, onOpen, onApprove, onReject, onConvert, onD
               disabled={!!busy}
               tone="red"
             />
+            <MiniBtn
+              label="Edit"
+              onClick={onEdit}
+              disabled={!!busy}
+              tone="blue"
+            />
           </>
         )}
 
@@ -539,25 +646,31 @@ function MiniBtn({ label, onClick, disabled, tone = "slate" }) {
   );
 }
 
-function CreateRequisitionModal({ onClose, onSaved }) {
+function CreateRequisitionModal({ onClose, onSaved, initial = null }) {
+
+  // Edit mode: `initial` is a full serialized requisition. Fields
+  // prefill from it; submit issues PATCH instead of POST.
+  const isEdit = Boolean(initial?.ID);
 
   const [form, setForm] = useState({
-    POSITION_TITLE: "",
-    DEPARTMENT: "",
-    LOCATION: "",
-    EMPLOYMENT_TYPE: "FULL_TIME",
-    HEADCOUNT: 1,
-    EXPERIENCE_MIN_YEARS: 0,
-    EXPERIENCE_MAX_YEARS: "",
-    BUDGET_CTC_MIN: "",
-    BUDGET_CTC_MAX: "",
-    REQUIRED_SKILLS: "",
-    PREFERRED_SKILLS: "",
-    REQUIRED_EDUCATION: "",
-    JUSTIFICATION: "",
-    URGENCY: "NORMAL",
-    NEEDED_BY_DATE: "",
-    REQUESTED_BY_ID: "",
+    POSITION_TITLE: initial?.POSITION_TITLE || "",
+    DEPARTMENT: initial?.DEPARTMENT || "",
+    LOCATION: initial?.LOCATION || "",
+    EMPLOYMENT_TYPE: initial?.EMPLOYMENT_TYPE || "FULL_TIME",
+    HEADCOUNT: initial?.HEADCOUNT ?? 1,
+    EXPERIENCE_MIN_YEARS: initial?.EXPERIENCE_MIN_YEARS ?? 0,
+    EXPERIENCE_MAX_YEARS: initial?.EXPERIENCE_MAX_YEARS ?? "",
+    BUDGET_CTC_MIN: initial?.BUDGET_CTC_MIN ?? "",
+    BUDGET_CTC_MAX: initial?.BUDGET_CTC_MAX ?? "",
+    REQUIRED_SKILLS: initial?.REQUIRED_SKILLS || "",
+    PREFERRED_SKILLS: initial?.PREFERRED_SKILLS || "",
+    REQUIRED_EDUCATION: initial?.REQUIRED_EDUCATION || "",
+    JUSTIFICATION: initial?.JUSTIFICATION || "",
+    URGENCY: initial?.URGENCY || "NORMAL",
+    NEEDED_BY_DATE: initial?.NEEDED_BY_DATE
+      ? String(initial.NEEDED_BY_DATE).slice(0, 10)
+      : "",
+    REQUESTED_BY_ID: initial?.REQUESTED_BY_ID || "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -598,10 +711,18 @@ function CreateRequisitionModal({ onClose, onSaved }) {
         NEEDED_BY_DATE: form.NEEDED_BY_DATE || null,
         REQUESTED_BY_ID: form.REQUESTED_BY_ID || null,
       };
-      await API.post("/recruitment/requisitions", payload);
+      if (isEdit) {
+        await API.patch(`/recruitment/requisitions/${initial.ID}`, payload);
+      } else {
+        await API.post("/recruitment/requisitions", payload);
+      }
       onSaved?.();
     } catch (err) {
-      setError(err?.response?.data?.detail || "Failed to create requisition.");
+      setError(
+        err?.response?.data?.detail ||
+        (isEdit ? "Failed to update requisition."
+                : "Failed to create requisition.")
+      );
     } finally {
       setSaving(false);
     }
@@ -635,13 +756,15 @@ function CreateRequisitionModal({ onClose, onSaved }) {
             fontSize: 10, fontWeight: 800, letterSpacing: 2,
             color: BVC_GOLD, textTransform: "uppercase",
           }}>
-            Recruitment · New Requisition
+            Recruitment · {isEdit ? `Edit ${initial.REQ_CODE || "Requisition"}` : "New Requisition"}
           </div>
           <div style={{ fontSize: 18, fontWeight: 900, marginTop: 3 }}>
-            Raise a manpower request
+            {isEdit ? "Update this manpower request" : "Raise a manpower request"}
           </div>
           <div style={{ fontSize: 11, opacity: 0.85, marginTop: 3 }}>
-            Once approved, HR can convert this into an open job posting with one click.
+            {isEdit
+              ? "Only PENDING requisitions can be edited — approved rows are locked for audit."
+              : "Once approved, HR can convert this into an open job posting with one click."}
           </div>
         </div>
 
@@ -854,7 +977,9 @@ function CreateRequisitionModal({ onClose, onSaved }) {
                 opacity: saving ? 0.7 : 1,
               }}
             >
-              {saving ? "Saving…" : "Submit requisition"}
+              {saving
+                ? "Saving…"
+                : (isEdit ? "Save changes" : "Submit requisition")}
             </button>
           </div>
         </div>
@@ -898,7 +1023,7 @@ function ReqRow({ children }) {
   );
 }
 
-function RequisitionDetailDrawer({ req, busy, onClose, onApprove, onReject, onConvert }) {
+function RequisitionDetailDrawer({ req, busy, onClose, onApprove, onReject, onConvert, onEdit }) {
   const isPending   = req.STATUS === "PENDING";
   const isApproved  = req.STATUS === "APPROVED";
   const isConverted = req.STATUS === "CONVERTED";
@@ -948,6 +1073,20 @@ function RequisitionDetailDrawer({ req, busy, onClose, onApprove, onReject, onCo
                 >
                   {busy === "reject" ? "Rejecting…" : "✗ Reject"}
                 </button>
+                {onEdit && (
+                  <button
+                    onClick={onEdit}
+                    disabled={!!busy}
+                    style={{
+                      flex: "1 1 100px", padding: "10px 14px",
+                      border: "1px solid #2563eb", borderRadius: 6,
+                      background: "white", color: "#2563eb",
+                      fontSize: 13, fontWeight: 700, cursor: "pointer",
+                    }}
+                  >
+                    ✎ Edit
+                  </button>
+                )}
               </>
             )}
             {isApproved && (
