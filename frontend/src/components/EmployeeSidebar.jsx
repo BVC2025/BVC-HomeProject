@@ -80,6 +80,7 @@ const NAV_GROUPS = [
     label: "Work",
     items: [
       { key: "attendance", label: "Attendance", icon: ICONS.clock },
+      { key: "shift", label: "Shift Schedule", icon: ICONS.clock },
       { key: "tasks", label: "Tasks", icon: ICONS.task },
       { key: "leave", label: "Leave", icon: ICONS.leave },
       { key: "permission", label: "Permission", icon: ICONS.clock },
@@ -122,9 +123,6 @@ const NAV_GROUPS = [
   {
     label: "Support",
     items: [
-      // HRMS AI Assistant — Gemini-powered Q&A grounded on the HRMS
-      // knowledge base. Read-only. Multi-language.
-      { key: "hrms_ai", label: "HRMS Assistant", icon: ICONS.sparkle },
       { key: "assets", label: "My Assets", icon: ICONS.laptop },
       { key: "helpdesk", label: "Help Desk", icon: ICONS.ticket },
       { key: "settings", label: "Settings", icon: ICONS.gear },

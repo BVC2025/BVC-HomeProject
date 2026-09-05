@@ -35,7 +35,7 @@ from app.models.models import (
 #   - 0 late AND 0 unpaid absences → appreciation-memo eligible
 # Change these once and everything downstream (HR view, memo cron,
 # employee portal) uses the new numbers.
-WORK_START = time(9, 15)
+WORK_START = time(9, 20)
 LATE_WARNING_THRESHOLD = 5
 UNPAID_ABSENCE_WARNING_THRESHOLD = 1
 MISSED_CHECKOUT_WARNING_THRESHOLD = 5
@@ -117,7 +117,7 @@ def compute_monthly_summary(
       days_present, days_late, days_absent, days_half_day
       days_on_leave (approved leave that overlapped the month)
       unpaid_absences (no check-in AND no approved leave)
-      late_arrivals (count where CHECK_IN > 09:15)
+      late_arrivals (count where CHECK_IN > 09:20)
       total_late_minutes
       missed_checkouts (CHECK_IN set, CHECK_OUT null on that day)
       total_worked_hours, total_ot_hours

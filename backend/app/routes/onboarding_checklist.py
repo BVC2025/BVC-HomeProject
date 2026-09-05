@@ -736,6 +736,19 @@ def issue_kit_item(emp_id: str, payload: WelcomeKitIssuanceIn,
 def onboarding_overview(only_in_progress: bool = Query(False),
                         db: Session = Depends(get_db),
                         user: dict = Depends(get_current_user)):
+    """
+    Return one summary row per active employee for the onboarding
+    list on /onboarding.
+
+    Fault-tolerant per employee: if seeding / refreshing the checklist
+    for one employee fails (e.g. a stale FK, a null column, a legacy
+    row without VENDOR_ID), the failure is logged and that single row
+    is skipped — the endpoint still returns the rest of the list
+    instead of collapsing with 500.
+    """
+    import logging, traceback
+    log = logging.getLogger("onboarding.overview")
+
     vendor_id = user.get("vendor_id", 1)
     emps = (db.query(Employee)
             .filter(Employee.VENDOR_ID == vendor_id,
@@ -747,35 +760,339 @@ def onboarding_overview(only_in_progress: bool = Query(False),
 
     rows: List[OnboardingOverviewRow] = []
     for emp in emps:
-        _seed_default_checklist(db, emp)
-        _refresh_derived_items(db, emp)
+        try:
+            _seed_default_checklist(db, emp)
+            _refresh_derived_items(db, emp)
 
-        items = (db.query(OnboardingChecklistItem)
-                 .filter(OnboardingChecklistItem.EMPLOYEE_ID == emp.ID).all())
-        total = len(items)
-        done  = sum(1 for i in items if i.STATUS in ("DONE", "SKIPPED"))
-        pct   = int(round(done * 100 / total)) if total else 0
-        status = ("COMPLETE" if pct == 100 else
-                  "NOT_STARTED" if done == 0 else "IN_PROGRESS")
+            items = (db.query(OnboardingChecklistItem)
+                     .filter(OnboardingChecklistItem.EMPLOYEE_ID == emp.ID).all())
+            total = len(items)
+            done  = sum(1 for i in items if i.STATUS in ("DONE", "SKIPPED"))
+            pct   = int(round(done * 100 / total)) if total else 0
+            status = ("COMPLETE" if pct == 100 else
+                      "NOT_STARTED" if done == 0 else "IN_PROGRESS")
 
-        if only_in_progress and status == "COMPLETE":
+            if only_in_progress and status == "COMPLETE":
+                continue
+
+            dept_name = None
+            if emp.DEPARTMENT_ID:
+                d = db.get(Department, emp.DEPARTMENT_ID)
+                dept_name = d.NAME if d else None
+            desig_name = None
+            if emp.DESIGNATION_ID:
+                x = db.get(Designation, emp.DESIGNATION_ID)
+                desig_name = x.TITLE if x else None
+
+            rows.append(OnboardingOverviewRow(
+                employee_id=emp.ID, employee_code=emp.EMPLOYEE_CODE,
+                employee_name=emp.NAME, joining_date=emp.JOINING_DATE,
+                department=dept_name, designation=desig_name,
+                total_items=total, done_items=done,
+                completion_pct=pct, status=status,
+            ))
+        except Exception as exc:
+            # Rollback so a broken row doesn't poison the transaction
+            # for the next employee (seeding does db.flush()).
+            db.rollback()
+            log.error(
+                "onboarding_overview: skipping employee %s (%s): %s\n%s",
+                emp.EMPLOYEE_CODE, emp.ID, exc, traceback.format_exc(),
+            )
             continue
 
-        dept_name = None
-        if emp.DEPARTMENT_ID:
-            d = db.get(Department, emp.DEPARTMENT_ID)
-            dept_name = d.NAME if d else None
-        desig_name = None
-        if emp.DESIGNATION_ID:
-            x = db.get(Designation, emp.DESIGNATION_ID)
-            desig_name = x.TITLE if x else None
-
-        rows.append(OnboardingOverviewRow(
-            employee_id=emp.ID, employee_code=emp.EMPLOYEE_CODE,
-            employee_name=emp.NAME, joining_date=emp.JOINING_DATE,
-            department=dept_name, designation=desig_name,
-            total_items=total, done_items=done,
-            completion_pct=pct, status=status,
-        ))
-    db.commit()
+    try:
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        log.error("onboarding_overview: final commit failed: %s", exc)
     return rows
+
+
+# =====================================================================
+# Onboarding automation — Phase 2
+# ---------------------------------------------------------------------
+# Four one-click actions that HR uses to speed up post-joining setup:
+#
+#   POST  /employees/{emp_id}/provision-email
+#         → generate <first>.<last>@<company-domain> corporate email
+#           and store it on the Employee row. Idempotent.
+#
+#   POST  /employees/{emp_id}/seed-mandatory-trainings
+#         → assign every training_program where IS_MANDATORY=1 to the
+#           employee. Skips any that are already assigned.
+#
+#   PATCH /employees/{emp_id}/reporting-manager
+#         → set Employee.REPORTING_MANAGER_ID.
+#
+#   POST  /employees/{emp_id}/auto-onboard
+#         → orchestrator: fire all three above + seed welcome-kit
+#           defaults in a single call. Returns the merged summary.
+# =====================================================================
+
+import re
+
+
+def _extract_domain_from_company_email(db: Session) -> str:
+    """Look up company_master.EMAIL and return the domain part
+    (portion after '@'). Falls back to 'bvc24.com' if the row / column
+    is missing."""
+    try:
+        from app.models.models import CompanyMaster  # type: ignore
+        row = db.query(CompanyMaster).first()
+        if row and (row.EMAIL or "").strip():
+            after_at = (row.EMAIL or "").split("@", 1)
+            if len(after_at) == 2:
+                return after_at[1].strip().lower()
+    except Exception:
+        pass
+    return "bvc24.com"
+
+
+def _slug_for_email(text: str) -> str:
+    """Lowercase, keep only [a-z0-9], strip everything else. Used to
+    turn 'John Doe' into 'john' + 'doe' for the local-part of the
+    corporate email."""
+    return re.sub(r"[^a-z0-9]+", "", (text or "").lower())
+
+
+def _generate_corporate_email(db: Session, emp: Employee) -> str:
+    """<first>.<last>@<domain>. If the resulting address collides with
+    another employee, append a number until unique."""
+
+    domain = _extract_domain_from_company_email(db)
+
+    name = (emp.NAME or "").strip() or (emp.EMPLOYEE_CODE or "employee")
+    parts = [p for p in name.split() if p]
+
+    if len(parts) == 0:
+        local = "employee"
+    elif len(parts) == 1:
+        local = _slug_for_email(parts[0]) or "employee"
+    else:
+        first = _slug_for_email(parts[0]) or "user"
+        last  = _slug_for_email(parts[-1]) or ""
+        local = f"{first}.{last}" if last else first
+
+    candidate = f"{local}@{domain}"
+
+    # Bump with 2/3/4... suffix until unique.
+    n = 2
+    while (
+        db.query(Employee.ID)
+        .filter(Employee.CORPORATE_EMAIL == candidate, Employee.ID != emp.ID)
+        .first()
+    ):
+        candidate = f"{local}{n}@{domain}"
+        n += 1
+
+    return candidate
+
+
+# ---------------------------------------------------------------------------
+# 1) Provision corporate email
+# ---------------------------------------------------------------------------
+
+@router.post("/employees/{emp_id}/provision-email")
+def provision_corporate_email(emp_id: str, db: Session = Depends(get_db)):
+
+    emp = db.query(Employee).filter(Employee.ID == emp_id).first()
+    if not emp:
+        raise HTTPException(404, "Employee not found.")
+
+    existing = (getattr(emp, "CORPORATE_EMAIL", None) or "").strip()
+    if existing:
+        return {
+            "employee_id":     emp.ID,
+            "corporate_email": existing,
+            "was_generated":   False,
+        }
+
+    new_email = _generate_corporate_email(db, emp)
+    emp.CORPORATE_EMAIL = new_email
+    db.commit()
+    db.refresh(emp)
+
+    return {
+        "employee_id":     emp.ID,
+        "corporate_email": new_email,
+        "was_generated":   True,
+    }
+
+
+# ---------------------------------------------------------------------------
+# 2) Seed mandatory trainings
+# ---------------------------------------------------------------------------
+
+@router.post("/employees/{emp_id}/seed-mandatory-trainings")
+def seed_mandatory_trainings(emp_id: str, db: Session = Depends(get_db)):
+
+    emp = db.query(Employee).filter(Employee.ID == emp_id).first()
+    if not emp:
+        raise HTTPException(404, "Employee not found.")
+
+    mandatory = (
+        db.query(TrainingProgram)
+        .filter(TrainingProgram.IS_MANDATORY == 1)
+        .all()
+    )
+
+    existing_ids = {
+        r.TRAINING_PROGRAM_ID for r in
+        db.query(TrainingAssignment)
+          .filter(TrainingAssignment.EMPLOYEE_ID == emp.ID)
+          .all()
+    }
+
+    created = 0
+    already = 0
+    for prog in mandatory:
+        if prog.ID in existing_ids:
+            already += 1
+            continue
+        db.add(TrainingAssignment(
+            EMPLOYEE_ID         = emp.ID,
+            TRAINING_PROGRAM_ID = prog.ID,
+            STATUS              = "ASSIGNED",
+            VENDOR_ID           = emp.VENDOR_ID or 1,
+        ))
+        created += 1
+
+    db.commit()
+
+    return {
+        "employee_id":                 emp.ID,
+        "mandatory_program_count":     len(mandatory),
+        "assignments_created":         created,
+        "assignments_already_present": already,
+    }
+
+
+# ---------------------------------------------------------------------------
+# 3) Assign reporting manager
+# ---------------------------------------------------------------------------
+
+class ReportingManagerIn(BaseModel):
+    reporting_manager_id: Optional[str] = None
+
+
+@router.patch("/employees/{emp_id}/reporting-manager")
+def set_reporting_manager(
+    emp_id: str,
+    payload: ReportingManagerIn,
+    db: Session = Depends(get_db),
+):
+
+    emp = db.query(Employee).filter(Employee.ID == emp_id).first()
+    if not emp:
+        raise HTTPException(404, "Employee not found.")
+
+    mgr_id = (payload.reporting_manager_id or "").strip() or None
+
+    if mgr_id:
+        if mgr_id == emp.ID:
+            raise HTTPException(400, "An employee can't report to themselves.")
+        mgr = db.query(Employee).filter(Employee.ID == mgr_id).first()
+        if not mgr:
+            raise HTTPException(404, "Reporting manager not found.")
+
+    emp.REPORTING_MANAGER_ID = mgr_id
+    db.commit()
+    db.refresh(emp)
+
+    return {
+        "employee_id":          emp.ID,
+        "reporting_manager_id": mgr_id,
+    }
+
+
+# ---------------------------------------------------------------------------
+# 4) Auto-onboard orchestrator — fires the whole pipeline
+# ---------------------------------------------------------------------------
+
+@router.post("/employees/{emp_id}/auto-onboard")
+def auto_onboard(emp_id: str, db: Session = Depends(get_db)):
+    """One-click: provision email + seed mandatory trainings + seed
+    welcome-kit defaults. Every step is idempotent — safe to call
+    more than once for the same employee.
+
+    Returns a merged summary with the fields the frontend expects."""
+
+    emp = db.query(Employee).filter(Employee.ID == emp_id).first()
+    if not emp:
+        raise HTTPException(404, "Employee not found.")
+
+    # --- Step 1: provision corporate email ---
+    corporate_email = (getattr(emp, "CORPORATE_EMAIL", None) or "").strip()
+    email_was_generated = False
+    if not corporate_email:
+        corporate_email = _generate_corporate_email(db, emp)
+        emp.CORPORATE_EMAIL = corporate_email
+        email_was_generated = True
+
+    # --- Step 2: seed mandatory trainings ---
+    mandatory = (
+        db.query(TrainingProgram)
+        .filter(TrainingProgram.IS_MANDATORY == 1)
+        .all()
+    )
+    existing_train_ids = {
+        r.TRAINING_PROGRAM_ID for r in
+        db.query(TrainingAssignment)
+          .filter(TrainingAssignment.EMPLOYEE_ID == emp.ID)
+          .all()
+    }
+    trainings_created = 0
+    trainings_already = 0
+    for prog in mandatory:
+        if prog.ID in existing_train_ids:
+            trainings_already += 1
+            continue
+        db.add(TrainingAssignment(
+            EMPLOYEE_ID         = emp.ID,
+            TRAINING_PROGRAM_ID = prog.ID,
+            STATUS              = "ASSIGNED",
+            VENDOR_ID           = emp.VENDOR_ID or 1,
+        ))
+        trainings_created += 1
+
+    # --- Step 3: seed default welcome-kit items ---
+    kit_created = 0
+    kit_already = 0
+    try:
+        kit_items = db.query(WelcomeKitItem).all()
+        existing_kit_ids = {
+            r.WELCOME_KIT_ITEM_ID for r in
+            db.query(WelcomeKitIssuance)
+              .filter(WelcomeKitIssuance.EMPLOYEE_ID == emp.ID)
+              .all()
+        }
+        for kit in kit_items:
+            if kit.ID in existing_kit_ids:
+                kit_already += 1
+                continue
+            db.add(WelcomeKitIssuance(
+                EMPLOYEE_ID         = emp.ID,
+                WELCOME_KIT_ITEM_ID = kit.ID,
+                STATUS              = "PLANNED",
+                VENDOR_ID           = emp.VENDOR_ID or 1,
+            ))
+            kit_created += 1
+    except Exception:
+        # Kit seeding is best-effort. If the schema uses different
+        # column names we still return the email + trainings work.
+        db.rollback()
+
+    db.commit()
+    db.refresh(emp)
+
+    return {
+        "employee_id":                 emp.ID,
+        "corporate_email":             corporate_email,
+        "email_was_generated":         email_was_generated,
+        "trainings_seeded_count":      trainings_created,
+        "trainings_already_present":   trainings_already,
+        "mandatory_program_count":     len(mandatory),
+        "kit_seeded_count":            kit_created,
+        "kit_already_present":         kit_already,
+    }

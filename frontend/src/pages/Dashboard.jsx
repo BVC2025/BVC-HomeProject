@@ -58,6 +58,7 @@ import DashboardHome from "./DashboardHome";
 import AdminDashboard from "./AdminDashboard";
 import AdminDashboardV2 from "./AdminDashboardV2";
 import EnterpriseCommandCenter from "./EnterpriseCommandCenter";
+import AdminHome from "./AdminHome";
 import RoleManagement from "./RoleManagement";
 import RbacPermissions from "./RbacPermissions";
 import HolidayCalendar from "./HolidayCalendar";
@@ -76,6 +77,7 @@ import PayslipGenerator from "./PayslipGenerator";
 import PayrollRecords from "./PayrollRecords";
 import HelpDeskAdmin from "./HelpDeskAdmin";
 import OnboardingChecklist from "./OnboardingChecklist";
+import AdminOnboarding from "./AdminOnboarding";
 import ShiftManagement from "./ShiftManagement";
 import HrAutomation from "./HrAutomation";
 import MonthlyReports from "./MonthlyReports";
@@ -85,6 +87,8 @@ function HrLayout() {
 }
 
 const DepartmentManagement = lazy(() => import("./DepartmentManagement"));
+const AttendancePenalties = lazy(() => import("./AttendancePenalties"));
+const LeaveChatHistory = lazy(() => import("./LeaveChatHistory"));
 const OrgRoleManagement = lazy(() => import("./OrgRoleManagement"));
 const ProjectCategoryManagement = lazy(() => import("./ProjectCategoryManagement"));
 const ProjectPage = lazy(() => import("./ProjectPage"));
@@ -143,6 +147,14 @@ function NotificationBell() {
 
   const [firstFetch, setFirstFetch] = useState(true);
 
+  // Toast that pops when a *new* unread notification lands between polls.
+  // The header count on its own is easy to miss; a floating card is
+  // the "immediate popup" the admin dashboard needs for employee
+  // profile submits (and any other server-side notification).
+  const [toast, setToast] = useState(null);
+  const prevUnreadRef = useRef(0);
+  const prevMaxIdRef = useRef(null);
+
   const fetchUnread = async () => {
 
     try {
@@ -151,7 +163,52 @@ function NotificationBell() {
         "/notifications/unread-count"
       );
 
-      setUnread(res.data.count || 0);
+      const count = res.data.count || 0;
+
+      if (count > prevUnreadRef.current) {
+
+        // fetch the latest row so the toast can show *what* arrived,
+        // not just "unread went up"
+        try {
+
+          const list = await API.get("/notifications?limit=5");
+
+          const rows = Array.isArray(list.data) ? list.data : [];
+
+          const latest = rows
+            .filter((n) => !n.IS_READ)
+            .sort((a, b) => b.ID - a.ID)[0];
+
+          if (latest && latest.ID !== prevMaxIdRef.current) {
+
+            prevMaxIdRef.current = latest.ID;
+
+            setToast({
+              id: latest.ID,
+              title: latest.TITLE || "New notification",
+              message: latest.MESSAGE || "",
+            });
+
+            // auto-dismiss after 8 seconds
+            setTimeout(() => {
+              setToast((t) =>
+                t && t.id === latest.ID ? null : t
+              );
+            }, 8000);
+          }
+        } catch (_) {
+          // fall back to a generic toast if the list call fails
+          setToast({
+            id: Date.now(),
+            title: "New notification",
+            message: `${count} unread`,
+          });
+          setTimeout(() => setToast(null), 6000);
+        }
+      }
+
+      prevUnreadRef.current = count;
+      setUnread(count);
 
     } catch (e) {
 
@@ -335,6 +392,28 @@ function NotificationBell() {
   return (
 
     <div className="notification-wrapper">
+
+      {toast && (
+        <div
+          className="notif-toast"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="notif-toast-title">
+            {toast.title}
+          </div>
+          <div className="notif-toast-msg">
+            {toast.message}
+          </div>
+          <button
+            className="notif-toast-close"
+            onClick={() => setToast(null)}
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <button
         className="notification-bell"
@@ -1643,15 +1722,10 @@ const NAV_TOP = [
 
 const NAV_GROUPS = [
   {
-    key: "org",
-    label: "Organization",
+    key: "hr",
+    label: "HR Modules",
     items: [
-
-      // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
-      { to: "/rbac", icon: <SidebarIcon name="rbac" />, label: "RBAC" },
       { to: "/employees", icon: <SidebarIcon name="employees" />, label: "Employees" },
-      { to: "/memos", icon: <SidebarIcon name="memos" />, label: "Memos" },
-      { to: "/announcements", icon: <SidebarIcon name="memos" />, label: "Announcements" },
       { to: "/attendance", icon: <SidebarIcon name="attendance" />, label: "Attendance" },
       { to: "/biometric-import", icon: <SidebarIcon name="attendance" />, label: "Biometric Import (USB)" },
       { to: "/shifts", icon: <SidebarIcon name="attendance" />, label: "Shift Management" },
@@ -1664,10 +1738,21 @@ const NAV_GROUPS = [
       { to: "/onboarding", icon: <SidebarIcon name="employees" />, label: "Onboarding" },
       { to: "/hr-automation", icon: <SidebarIcon name="approvals" />, label: "HR Automation" },
       { to: "/monthly-reports", icon: <SidebarIcon name="payroll" />, label: "Monthly Reports" },
-      // { to: "/workforce-analytics", icon: <SidebarIcon name="star"      />, label: "Workforce Analytics" }  // temporarily hidden per request
+      // { to: "/workforce-analytics", icon: <SidebarIcon name="star"   />, label: "Workforce Analytics" }, // temporarily hidden per request
       { to: "/help-desk", icon: <SidebarIcon name="helpdesk" />, label: "Help Desk" },
+    ]
+  },
+  {
+    key: "admin",
+    label: "Admin Modules",
+    items: [
+      { to: "/rbac", icon: <SidebarIcon name="rbac" />, label: "RBAC" },
+      { to: "/memos", icon: <SidebarIcon name="memos" />, label: "Memos" },
+      { to: "/announcements", icon: <SidebarIcon name="memos" />, label: "Announcements" },
       { to: "/approvals", icon: <SidebarIcon name="approvals" />, label: "Approval Center" },
-      // { to: "/roles",             icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" },  // permanently hidden — RBAC page replaces it
+      // { to: "/roles",      icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" }, // permanently hidden — RBAC page replaces it
+      { to: "/attendance-penalties", icon: <SidebarIcon name="approvals" />, label: "Attendance Penalties" },
+      { to: "/leave-chat-history", icon: <SidebarIcon name="memos" />, label: "Chat History" },
       { to: "/departments", icon: <SidebarIcon name="departments" />, label: "Department Management" },
       { to: "/org-roles", icon: <SidebarIcon name="org-roles" />, label: "Role Management" },
     ]
@@ -1722,6 +1807,23 @@ const NAV_GROUPS = [
       { to: "/project-quotations", icon: <SidebarIcon name="proj-quotation" />, label: "Quotation Templates" },
     ]
   },
+  // Manufacturing section — removed from the codebase entirely (backend
+  // models/routes and these frontend pages were all deleted per an
+  // explicit product decision), not merely hidden. An older branch still
+  // carried this block commented-out on the assumption the pages were
+  // only hidden and could be restored by uncommenting; that assumption
+  // no longer holds, so this stays a historical note only — the routes
+  // below (/machines, /work-centers, /production, /quality) do not exist.
+  // {
+  //   key: "manufacturing",
+  //   label: "Manufacturing",
+  //   items: [
+  //     { to: "/machines", icon: <SidebarIcon name="machines" />, label: "Machines" },
+  //     { to: "/work-centers", icon: <SidebarIcon name="workcenters" />, label: "Work Centers" },
+  //     { to: "/production", icon: <SidebarIcon name="production" />, label: "Production & BOM" },
+  //     { to: "/quality", icon: <SidebarIcon name="quality" />, label: "Quality Management" }
+  //   ]
+  // },
   {
     key: "purchase",
     label: "Purchase & Inventory",
@@ -2105,7 +2207,8 @@ function Dashboard() {
         <Routes>
 
           {/* AI Mission Control — Phase 1 foundation (new default) */}
-          <Route path="/" element={<EnterpriseCommandCenter />} />
+          <Route path="/" element={<AdminHome />} />
+          <Route path="/dashboard-old" element={<EnterpriseCommandCenter />} />
           <Route path="/dashboard-v2" element={<AdminDashboardV2 />} />
 
           {/* Earlier dashboards reachable for comparison / fallback */}
@@ -2199,6 +2302,10 @@ function Dashboard() {
 
           <Route
             path="/onboarding"
+            element={<RequirePermission code={permissionForRoute("/onboarding")}><AdminOnboarding /></RequirePermission>}
+          />
+          <Route
+            path="/onboarding-legacy"
             element={<RequirePermission code={permissionForRoute("/onboarding")}><OnboardingChecklist /></RequirePermission>}
           />
 
@@ -2227,6 +2334,8 @@ function Dashboard() {
             element={<RequirePermission code={permissionForRoute("/settings")}><Settings /></RequirePermission>}
           />
           {/* Organization & Project Management module */}
+          <Route path="/attendance-penalties" element={<RequirePermission code={permissionForRoute("/attendance-penalties")}><Suspense fallback={null}><AttendancePenalties /></Suspense></RequirePermission>} />
+          <Route path="/leave-chat-history" element={<RequirePermission code={permissionForRoute("/leave-chat-history")}><Suspense fallback={null}><LeaveChatHistory /></Suspense></RequirePermission>} />
           <Route path="/departments" element={<RequirePermission code={permissionForRoute("/departments")}><Suspense fallback={null}><DepartmentManagement /></Suspense></RequirePermission>} />
           <Route path="/org-roles" element={<RequirePermission code={permissionForRoute("/org-roles")}><Suspense fallback={null}><OrgRoleManagement /></Suspense></RequirePermission>} />
           <Route path="/project-categories" element={<RequirePermission code={permissionForRoute("/project-categories")}><Suspense fallback={null}><ProjectCategoryManagement /></Suspense></RequirePermission>} />

@@ -65,10 +65,10 @@ from app.models.models import (
 )
 
 try:
-    from app.models.models import HolidayCalendar  # noqa: F401
+    from app.models.models import Announcement  # noqa: F401
     _HAS_HOLIDAY = True
 except Exception:  # older schema — degrade gracefully
-    HolidayCalendar = None  # type: ignore
+    Announcement = None  # type: ignore
     _HAS_HOLIDAY = False
 
 
@@ -83,7 +83,7 @@ OFFICE_END               = time(18, 0)
 OT_START_FOR_PAYROLL     = time(19, 0)   # <- 7 PM cutoff per HR ask
 
 # Employee is LATE if CHECK_IN.time() > this
-OFFICIAL_START           = time(9, 15)
+OFFICIAL_START           = time(9, 20)
 
 # Every N late arrivals in a month costs one half-day of salary
 LATE_ARRIVALS_PER_HALF_DAY_PENALTY = 3
@@ -102,14 +102,56 @@ def _month_bounds(year: int, month: int) -> tuple[date, date]:
     return date(year, month, 1), date(year, month, last_day)
 
 
+def get_effective_monthly_salary(db: Session, emp: Employee) -> float:
+    """Single source of truth for an employee's monthly salary.
+
+    BVC24 policy: if a SalaryStructure exists for the employee, its
+    gross (BASIC + all allowances + INCENTIVES + monthly ANNUAL_BONUS
+    share) is authoritative. Otherwise fall back to Employee.SALARY.
+
+    Employee.SALARY and salary_structure can drift when HR uses the
+    CTC builder — the master column keeps its old lump-sum figure
+    while the structure holds the up-to-date breakdown. Reading both
+    consistently is the ONLY way the Employee Profile, Biometric
+    calc, Payroll slip, and Monthly Report agree on one number.
+    """
+    _ss = (
+        db.query(SalaryStructure)
+          .filter(SalaryStructure.EMPLOYEE_ID == emp.ID)
+          .first()
+    )
+    if _ss:
+        gross = (
+            float(_ss.BASIC or 0.0) +
+            float(_ss.HRA or 0.0) +
+            float(_ss.DA or 0.0) +
+            float(_ss.CONVEYANCE_ALLOWANCE or 0.0) +
+            float(_ss.MEDICAL_ALLOWANCE or 0.0) +
+            float(_ss.SPECIAL_ALLOWANCE or 0.0) +
+            float(_ss.OTHER_ALLOWANCES or 0.0) +
+            float(_ss.ANNUAL_BONUS or 0.0) +
+            float(_ss.INCENTIVES or 0.0)
+        )
+        if gross > 0:
+            return round(gross, 2)
+    return float(emp.SALARY or 0.0)
+
+
 def _working_days_default(
     db: Session,
     year: int,
     month: int,
     vendor_id: Optional[int],
 ) -> int:
-    """Calendar days in the month minus Sundays minus holiday rows.
-    Falls back to (days − Sundays) if HolidayCalendar isn't present."""
+    """Calendar days in the month minus Sundays.
+
+    BVC24 policy: holidays are PAID days but still count toward the
+    working-days denominator. That's why the same number (26 for
+    August 2026) shows up on the Biometric Import monthly-calc and on
+    the payroll slip. Holiday attendance rows are excluded from the
+    ABSENT count elsewhere so an unpunched holiday doesn't dock pay,
+    but per_day rate = basic / (calendar - Sundays only).
+    """
 
     start, end = _month_bounds(year, month)
     total = 0
@@ -118,24 +160,6 @@ def _working_days_default(
         if d.weekday() != 6:   # 6 = Sunday
             total += 1
         d += timedelta(days=1)
-
-    if _HAS_HOLIDAY and vendor_id is not None:
-        try:
-            holiday_dates = {
-                h.HOLIDAY_DATE
-                for h in db.query(HolidayCalendar)
-                             .filter(HolidayCalendar.VENDOR_ID == vendor_id)
-                             .filter(HolidayCalendar.HOLIDAY_DATE >= start)
-                             .filter(HolidayCalendar.HOLIDAY_DATE <= end)
-                             .all()
-                if getattr(h, "HOLIDAY_DATE", None) is not None
-            }
-            for h in holiday_dates:
-                if h and h.weekday() != 6:  # don't double-count Sundays
-                    total -= 1
-        except Exception:
-            # Older schema / column mismatch — accept the without-holiday count.
-            pass
 
     return max(1, total)
 
@@ -246,6 +270,28 @@ def compute_monthly_calculation(
     for r in att_rows:
         att_by_emp.setdefault(r.EMPLOYEE_ID, []).append(r)
 
+    # ---- Load holiday dates for the month.
+    # Source: Announcement rows with TYPE='HOLIDAY' + IS_ACTIVE=1.
+    # The Admin → Announcements page is the single source of truth
+    # for what counts as a company holiday. A holiday is a PAID day
+    # and must not count as ABSENT even if the biometric handler
+    # auto-stamped ABSENT for that date at month-close.
+    holiday_dates: set = set()
+    if _HAS_HOLIDAY:
+        try:
+            aq = db.query(Announcement).filter(
+                Announcement.TYPE == "HOLIDAY",
+                Announcement.IS_ACTIVE == 1,
+                Announcement.EVENT_DATE >= start,
+                Announcement.EVENT_DATE <= end,
+            )
+            for a in aq.all():
+                d = getattr(a, "EVENT_DATE", None)
+                if d is not None:
+                    holiday_dates.add(d)
+        except Exception:
+            holiday_dates = set()
+
     # ---- Load casual-leave usage for the month (approved + pending) -
     cl_rows = (
         db.query(LeaveRequest)
@@ -280,18 +326,32 @@ def compute_monthly_calculation(
             if r.CHECK_IN is not None
             or (r.STATUS or "").upper() in ("PRESENT", "LATE", "EARLY_EXIT", "HALF_DAY")
         )
+        # Absent only when the employee didn't punch in AND the DATE
+        # isn't a company holiday. Holidays are paid days and must not
+        # appear in this counter — otherwise Independence Day / Diwali
+        # etc. get deducted at month-close.
         absent_days = sum(
             1 for r in rows
             if r.CHECK_IN is None
             and (r.STATUS or "").upper() == "ABSENT"
+            and r.DATE not in holiday_dates
         )
-        # Late = check-in after the official-start cutoff. Independent
-        # of STATUS so an EARLY_EXIT day with a late arrival still
-        # counts as late.
+
+        # Count how many holiday dates the employee has in the month.
+        # Exposed on the summary so HR and the payslip can show it.
+        holiday_days = sum(
+            1 for r in rows
+            if r.DATE in holiday_dates
+        )
+        # Late = attendance rows where the biometric handler already
+        # stamped STATUS == 'LATE'. This is the same definition the
+        # Monthly Report uses, so both engines agree on the late-count
+        # (and therefore on the 3-late-per-half-day-penalty math).
+        # Deriving from raw CHECK_IN time here would drift whenever HR
+        # manually edits an attendance row.
         late_arrivals = sum(
             1 for r in rows
-            if r.CHECK_IN is not None
-            and r.CHECK_IN.time() > OFFICIAL_START
+            if (r.STATUS or "").upper() == "LATE"
         )
         formal_cl_used = round(cl_days_by_emp.get(emp.ID, 0.0), 1)
 
@@ -367,19 +427,11 @@ def compute_monthly_calculation(
         # separate LATE_PENALTY / ABSENCE_DEDUCTION cells (the DB
         # columns are already separate; the calc was collapsing them).
         #
-        # BASIC lookup: prefer Employee.SALARY when set; otherwise
-        # fall back to salary_structure.BASIC. Some employees have
-        # only the structure filled in (Nasira / Harshith) — reading
-        # SALARY alone gives 0 and blows out the whole row.
-        basic_salary = float(emp.SALARY or 0.0)
-        if basic_salary <= 0:
-            _ss = (
-                db.query(SalaryStructure)
-                  .filter(SalaryStructure.EMPLOYEE_ID == emp.ID)
-                  .first()
-            )
-            if _ss and _ss.BASIC:
-                basic_salary = float(_ss.BASIC)
+        # BASIC lookup: use the shared salary resolver so this row
+        # matches Employee Profile, Payroll slip, and Monthly Report
+        # exactly. Prefers SalaryStructure gross when set, else
+        # Employee.SALARY. See get_effective_monthly_salary above.
+        basic_salary = get_effective_monthly_salary(db, emp)
         per_day_rate = basic_salary / working_days if working_days else 0.0
 
         absent_deduction_only = round(per_day_rate * unpaid_absent, 2)
@@ -403,6 +455,7 @@ def compute_monthly_calculation(
 
             "present_days":  present_days,
             "absent_days":   absent_days,
+            "holiday_days":  holiday_days,
             "cl_used":       cl_used,
             "paid_leave_days":   round(paid_leave_days, 1),
             "lop_days":          round(lop_days, 1),

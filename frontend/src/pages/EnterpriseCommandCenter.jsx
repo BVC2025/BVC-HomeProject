@@ -1428,11 +1428,6 @@ export default function EnterpriseCommandCenter() {
       <BusinessHealthGrid stats={stats} />
 
 
-      {/* Health gauge */}
-      <div className={styles.singleColSection}>
-        <HealthGauge health={health} />
-      </div>
-
 
       <div className={styles.singleColSection}>
 

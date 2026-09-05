@@ -59,13 +59,18 @@ router = APIRouter(prefix="/iclock", tags=["ADMS Biometric"])
 # Config — tune only if the device misbehaves.
 # ---------------------------------------------------------------------
 
-# Anyone scanning in AFTER this time is marked LATE. Matches
-# attendance.py / biometric.py so all three code paths agree.
-WORK_START = time(9, 15)
+# Official office start. Punches at 9:20:xx are still PRESENT — only
+# punches from 9:21 AM onwards are LATE. Matches attendance.py so
+# both code paths agree.
+WORK_START = time(9, 20)
+LATE_CUTOFF = time(9, 21)
 
-# Regular shift ends at 6:00 PM. Work past this time is overtime and
-# gets moved to OVERTIME_HOURS / OT_CHECK_IN / OT_CHECK_OUT.
+# Regular shift ends at 6:00 PM. Work past this time is overtime, but
+# only the portion from 7:00 PM onwards counts as OT — the 6:00-7:00
+# window is a grace period so employees who stay a little late aren't
+# marked as doing paid overtime.
 OFFICE_END = time(18, 0)
+OT_START   = time(19, 0)
 
 # Punches strictly before this time-of-day are treated as morning
 # arrivals (CHECK_IN candidates). Punches at or after are treated as
@@ -430,7 +435,7 @@ def _apply_to_attendance(
     if action == "CHECK_IN":
 
         row.CHECK_IN = event_time
-        row.STATUS = "LATE" if event_time.time() > WORK_START else "PRESENT"
+        row.STATUS = "LATE" if event_time.time() >= LATE_CUTOFF else "PRESENT"
 
     elif action == "CHECK_OUT":
 
@@ -484,31 +489,44 @@ def _decide_action(row: Attendance, event_time: datetime) -> Optional[str]:
         delta = abs((event_time - row.CHECK_OUT).total_seconds())
         if delta < DEDUP_WINDOW_SECONDS:
             return None
-        # Otherwise the LATEST evening punch wins — someone who
-        # punched at 2 PM (lunch outing) and again at 6:30 PM should
-        # have CHECK_OUT = 6:30 PM.
+
+        # Only advance CHECK_OUT to a chronologically LATER punch.
+        # ADMS pushes and USB backfills can replay events out of order
+        # (e.g. a 21:55 actual departure gets processed first, then a
+        # stale 19:00 event from the device queue arrives later). The
+        # old "latest wins by processing order" rule let the 19:00
+        # clobber the 21:55, silently deleting overtime.
+        if event_time <= row.CHECK_OUT:
+            return None
 
     return "CHECK_OUT"
 
 
 def _recompute_hours_with_ot(row: Attendance, punch_out: datetime) -> None:
     """
-    Fill WORKED_HOURS (regular) and OVERTIME_HOURS (past 6 PM) on the
-    Attendance row from the current CHECK_IN → punch_out range.
+    Fill WORKED_HOURS (regular) and OVERTIME_HOURS on the Attendance
+    row from the current CHECK_IN → punch_out range.
 
-    Payroll consumes both fields:
+    Time bands used:
+      CHECK_IN … 6:00 PM     → regular WORKED_HOURS
+      6:00 PM … 7:00 PM      → grace window (no pay, no OT)
+      7:00 PM … CHECK_OUT    → OVERTIME_HOURS
+
+    Payroll consumes:
       WORKED_HOURS   → base salary calculation
       OVERTIME_HOURS → OT payout at the OT rate
-      OT_CHECK_IN    → 6:00 PM anchor of the OT session
+      OT_CHECK_IN    → 7:00 PM anchor of the OT session
       OT_CHECK_OUT   → actual punch-out
     """
     if not row.CHECK_IN or not punch_out or punch_out <= row.CHECK_IN:
         return
 
     office_end_dt = datetime.combine(punch_out.date(), OFFICE_END)
+    ot_start_dt   = datetime.combine(punch_out.date(), OT_START)
 
     if punch_out <= office_end_dt:
-        # Left at or before 6 PM — no OT this day.
+        # Left at or before 6 PM — no OT this day, no grace window
+        # to trim.
         worked = (punch_out - row.CHECK_IN).total_seconds() / 3600.0
         row.WORKED_HOURS = round(max(0.0, worked), 2)
         row.OVERTIME_HOURS = 0.0
@@ -516,19 +534,27 @@ def _recompute_hours_with_ot(row: Attendance, punch_out: datetime) -> None:
         row.OT_CHECK_OUT = None
         return
 
-    # CHECK_OUT is past 6 PM: split into regular + OT.
-    # Regular = CHECK_IN → 6 PM (or CHECK_IN → punch_out if arrived
-    # after 6 PM, which we clamp to zero regular hours).
+    # Compute the regular block: CHECK_IN → 6 PM (or CHECK_IN → punch
+    # if arrived after 6 PM, which we clamp to zero regular hours).
     if row.CHECK_IN < office_end_dt:
         regular = (office_end_dt - row.CHECK_IN).total_seconds() / 3600.0
-        ot_start = office_end_dt
     else:
-        # Arrived after 6 PM (unusual — maybe a night shift). Treat
-        # the whole thing as OT so the regular column doesn't carry
-        # a hostile negative.
         regular = 0.0
-        ot_start = row.CHECK_IN
 
+    if punch_out <= ot_start_dt:
+        # Left between 6:00 and 7:00 PM — the whole extra portion is
+        # grace, no OT credit.
+        row.WORKED_HOURS = round(max(0.0, regular), 2)
+        row.OVERTIME_HOURS = 0.0
+        row.OT_CHECK_IN = None
+        row.OT_CHECK_OUT = None
+        return
+
+    # Stayed past 7 PM: OT clock runs from 7 PM onwards. If the
+    # employee arrived after 7 PM (rare — night shift), the OT
+    # anchor is their actual arrival, not 7 PM, so regular hours
+    # aren't double-counted.
+    ot_start = ot_start_dt if row.CHECK_IN < ot_start_dt else row.CHECK_IN
     ot_hours = (punch_out - ot_start).total_seconds() / 3600.0
 
     row.WORKED_HOURS = round(max(0.0, regular), 2)

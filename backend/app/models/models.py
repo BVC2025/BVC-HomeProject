@@ -445,6 +445,17 @@ class TaskAssignment(Base):
         default=datetime.utcnow
     )
 
+    # Link back to a Help Desk ticket when the task was auto-created
+    # from a ticket assignment (Admin → Help Desk → Assign to). Used
+    # to find + cancel the old task when the ticket is reassigned to
+    # a different employee, so the assignee's Tasks list stays clean.
+    HELPDESK_TICKET_ID = Column(
+        Integer,
+        ForeignKey("help_desk_ticket.ID"),
+        nullable=True,
+        index=True,
+    )
+
 
 # EmployeeAttendance removed in Module 2 — merged into Attendance
 # (which now points to Employee.ID directly).
@@ -2102,6 +2113,11 @@ class OfferLetter(Base):
 
     SENT_AT     = Column(DateTime, nullable=True)
     RESPONDED_AT = Column(DateTime, nullable=True)
+
+    # One-time token embedded in the Accept/Reject links in the email.
+    # Cleared after the candidate responds so the same link can't be
+    # reused.
+    RESPONSE_TOKEN = Column(String(64), nullable=True, index=True)
 
     CREATED_BY_ID = Column(
         String(36),

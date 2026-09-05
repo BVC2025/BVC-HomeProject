@@ -120,7 +120,7 @@ def _log_failure(
 # Source of truth is attendance_settings_service.get_office_hours(db)
 # — that reads from the `setting` table (configurable from the UI).
 WORK_START_HOUR = 9
-WORK_START_MINUTE = 15
+WORK_START_MINUTE = 20
 
 
 # =========================
@@ -133,9 +133,17 @@ def compute_status(check_in_time: datetime) -> str:
 
         return "PRESENT"
 
-    cutoff = time(WORK_START_HOUR, WORK_START_MINUTE)
+    # Policy: 9:20 AM is on-time (PRESENT). Only punches from 9:21 AM
+    # onwards are LATE. `late_cutoff` = start + 1 minute; anyone at or
+    # after that instant is late.
+    from datetime import timedelta
+    start_dt = check_in_time.replace(
+        hour=WORK_START_HOUR, minute=WORK_START_MINUTE,
+        second=0, microsecond=0,
+    )
+    late_cutoff = start_dt + timedelta(minutes=1)
 
-    return "LATE" if check_in_time.time() > cutoff else "PRESENT"
+    return "LATE" if check_in_time >= late_cutoff else "PRESENT"
 
 
 # =========================
@@ -432,7 +440,13 @@ def ot_check_in(
             "ot_check_in": record.OT_CHECK_IN.isoformat()
         }
 
-    record.OT_CHECK_IN = datetime.now()
+    # OT clock only starts from 7:00 PM. Employees who click the OT
+    # button between 6:00 and 7:00 PM are still logged, but the OT
+    # anchor is clamped to 7:00 PM so the 6-7 grace window doesn't
+    # count as paid overtime.
+    now_ = datetime.now()
+    ot_floor = now_.replace(hour=19, minute=0, second=0, microsecond=0)
+    record.OT_CHECK_IN = max(now_, ot_floor)
     db.commit()
 
     return {
@@ -1092,6 +1106,11 @@ from io import BytesIO
 def export_attendance_excel(
     month: str = Query(..., description="YYYY-MM, e.g. 2026-08"),
     employee_id: Optional[str] = Query(None),
+    employee_ids: Optional[str] = Query(
+        None,
+        description="Comma-separated employee UUIDs. Wins over "
+                    "employee_id when both are set.",
+    ),
     department_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
 ):
@@ -1122,15 +1141,73 @@ def export_attendance_excel(
         db.query(Attendance, Employee)
           .join(Employee, Employee.ID == Attendance.EMPLOYEE_ID)
           .filter(Attendance.DATE >= start_date, Attendance.DATE < end_date)
+          # Don't surface auto-stamped ABSENT rows from before the
+          # employee had actually joined. Prior to this filter, someone
+          # like Deepthi R (joined 10-08-2026) was showing ABSENT for
+          # 01..09 August in the export because the month-close job
+          # back-filled every calendar date. Rows whose JOINING_DATE
+          # is null (legacy data) fall through unfiltered so we don't
+          # accidentally hide anything real.
+          .filter(
+              (Employee.JOINING_DATE.is_(None))
+              | (Attendance.DATE >= Employee.JOINING_DATE)
+          )
     )
 
-    if employee_id:
+    # Multi-select wins when provided. Falls back to the single-id
+    # param so old callers still work.
+    if employee_ids:
+        ids = [i.strip() for i in employee_ids.split(",") if i.strip()]
+        if ids:
+            q = q.filter(Attendance.EMPLOYEE_ID.in_(ids))
+    elif employee_id:
         q = q.filter(Attendance.EMPLOYEE_ID == employee_id)
 
     if department_id:
         q = q.filter(Employee.DEPARTMENT_ID == department_id)
 
     rows = q.order_by(Employee.EMPLOYEE_CODE, Attendance.DATE).all()
+
+    # ---- Load holidays that fall in this month.
+    #
+    # Source: the Announcement table (Admin → Announcements → type
+    # HOLIDAY). Whatever the admin publishes there is the single source
+    # of truth for what counts as a company holiday. If no HOLIDAY
+    # announcement exists for a date, that date is a regular working
+    # day — even if it's a well-known public holiday.
+    #
+    # `holiday_by_date`  — every announced holiday in this month
+    #                      (drives STATUS label + Remarks on daily rows).
+    # `countable_dates`  — subset that rolls up into the per-employee
+    #                      summary's "Holidays" column. India's three
+    #                      mandatory national holidays (Aug 15,
+    #                      Jan 26, Oct 2) are excluded from that
+    #                      rollup — they still show as HOLIDAY on the
+    #                      daily rows but don't inflate the summary.
+    MANDATORY_NATIONAL_DATES = {
+        (1, 26),   # Republic Day
+        (8, 15),   # Independence Day
+        (10, 2),   # Gandhi Jayanti
+    }
+    holiday_by_date: dict = {}
+    countable_dates: set = set()
+    try:
+        from app.models.models import Announcement
+        aq = db.query(Announcement).filter(
+            Announcement.TYPE == "HOLIDAY",
+            Announcement.IS_ACTIVE == 1,
+            Announcement.EVENT_DATE >= start_date,
+            Announcement.EVENT_DATE <  end_date,
+        )
+        for a in aq.all():
+            if a.EVENT_DATE is not None:
+                holiday_by_date[a.EVENT_DATE] = a.TITLE or "Holiday"
+                key = (a.EVENT_DATE.month, a.EVENT_DATE.day)
+                if key not in MANDATORY_NATIONAL_DATES:
+                    countable_dates.add(a.EVENT_DATE)
+    except Exception:
+        holiday_by_date = {}
+        countable_dates = set()
 
     # ---- Build the workbook ----------------------------------------
     wb = Workbook()
@@ -1175,20 +1252,70 @@ def export_attendance_excel(
         cell.border = thin_border
 
     # ---- Row-by-row data -------------------------------------------
-    WORK_START = time(9, 15)  # match attendance.py's cutoff
+    WORK_START = time(9, 20)  # match attendance.py's cutoff
 
     def fmt_time(dt):
         return dt.strftime("%H:%M") if dt else ""
 
     def compute_late_by(check_in):
-        """Minutes late past 09:15. 0 if on-time or missing."""
+        """Minutes late past 09:20. 0 if on-time or missing."""
         if not check_in:
             return 0
         cutoff = datetime.combine(check_in.date(), WORK_START)
         delta = (check_in - cutoff).total_seconds() / 60.0
         return max(0, round(delta))
 
+    def hours_to_hhmm(dec_hours):
+        """Convert decimal hours (e.g. 4.92) to 'H:MM' string ('4:55').
+
+        Empty / zero / None → '0:00' so the column reads cleanly for
+        absent or non-OT days. Uses floor (truncates the seconds) so
+        the HH:MM matches the OT Check In / Check Out columns, which
+        are already displayed with seconds stripped (%H:%M).
+        """
+        try:
+            v = float(dec_hours or 0)
+        except (TypeError, ValueError):
+            v = 0.0
+        if v <= 0:
+            return "0:00"
+        total_min = int(v * 60)  # floor — matches visible HH:MM punches
+        h, m = divmod(total_min, 60)
+        return f"{h}:{m:02d}"
+
+    # Per-employee accumulators — written as a summary block at the
+    # bottom of the sheet so the salary team can read the month
+    # totals for every employee without summing daily rows by hand.
+    emp_totals: dict = {}
+
     for i, (att, emp) in enumerate(rows, start=2):
+
+        # If this DATE is on the company holiday calendar and the
+        # employee didn't punch in, replace the raw STATUS (usually
+        # ABSENT, stamped by the month-close job) with HOLIDAY. Also
+        # surface the holiday name in the Remarks column so the export
+        # is self-explanatory.
+        holiday_name = holiday_by_date.get(att.DATE)
+        if holiday_name and att.CHECK_IN is None:
+            status_val = "HOLIDAY"
+            remarks_val = holiday_name
+        else:
+            status_val = att.STATUS or ""
+            remarks_val = att.REMARKS or ""
+
+        # OT columns must only show a value on days that genuinely
+        # earned OT — i.e. CHECK_OUT was past 19:00 and the row's
+        # OVERTIME_HOURS is > 0. Legacy rows written before the 19:00
+        # OT floor rule sometimes carry stale OT_CHECK_OUT = CHECK_OUT
+        # even though no OT was earned. Hiding them here keeps the
+        # export clean without needing a data-migration.
+        has_ot = (
+            (att.OVERTIME_HOURS or 0) > 0
+            and att.CHECK_OUT is not None
+            and att.CHECK_OUT.time() > time(19, 0)
+        )
+        ot_in_display  = fmt_time(att.OT_CHECK_IN)  if has_ot else ""
+        ot_out_display = fmt_time(att.OT_CHECK_OUT) if has_ot else ""
 
         row_data = [
             emp.EMPLOYEE_CODE or "",
@@ -1197,14 +1324,14 @@ def export_attendance_excel(
             att.DATE.strftime("%A") if att.DATE else "",
             fmt_time(att.CHECK_IN),
             fmt_time(att.CHECK_OUT),
-            fmt_time(att.OT_CHECK_IN),
-            fmt_time(att.OT_CHECK_OUT),
+            ot_in_display,
+            ot_out_display,
             round(att.WORKED_HOURS or 0, 2),
-            round(att.OVERTIME_HOURS or 0, 2),
-            att.STATUS or "",
+            hours_to_hhmm(att.OVERTIME_HOURS) if has_ot else "0:00",
+            status_val,
             compute_late_by(att.CHECK_IN),
             att.DEVICE_INFO or "",
-            att.REMARKS or "",
+            remarks_val,
         ]
 
         ws.append(row_data)
@@ -1215,9 +1342,166 @@ def export_attendance_excel(
             if i % 2 == 0:
                 cell.fill = alt_fill
 
+        # Update this employee's month totals for the summary block.
+        # Late Minutes uses the same 09:20 cutoff as the daily "Late By"
+        # column so both figures reconcile.
+        key = emp.EMPLOYEE_CODE or emp.ID
+        bucket = emp_totals.setdefault(key, {
+            "code":            emp.EMPLOYEE_CODE or "",
+            "name":            emp.NAME or "",
+            "employee":        emp,        # kept for post-loop holiday counting
+            "physical_days":   0,          # rows with CHECK_IN (paid via punch)
+            "punched_dates":   set(),      # dates the employee actually punched
+            "days_present":    0,          # filled in post-loop
+            "days_late":       0,
+            "days_absent":     0,
+            "days_holiday":    0,          # filled in post-loop
+            "worked_hours":    0.0,
+            "ot_hours":        0.0,
+            "late_minutes":    0,
+        })
+
+        if att.CHECK_IN is not None:
+            bucket["physical_days"] += 1
+            bucket["punched_dates"].add(att.DATE)
+            if (att.STATUS or "").upper() == "LATE":
+                bucket["days_late"] += 1
+        elif (att.STATUS or "").upper() == "ABSENT" and not holiday_by_date.get(att.DATE):
+            # Real absent: not on a holiday, and no punch. This is a
+            # money-lost day (unless covered by CL in payroll math).
+            bucket["days_absent"] += 1
+
+        bucket["worked_hours"] += float(att.WORKED_HOURS or 0)
+        if has_ot:
+            bucket["ot_hours"] += float(att.OVERTIME_HOURS or 0)
+        bucket["late_minutes"] += compute_late_by(att.CHECK_IN)
+
     # If no rows, drop a friendly note in row 2 so the file isn't empty.
     if not rows:
         ws.cell(row=2, column=1, value=f"No attendance rows for {month}.")
+
+    # ---- Month totals block per employee ---------------------------
+    # Written after the daily rows so the salary team can consume the
+    # month at a glance without pivoting. Sorted by employee code.
+    if emp_totals:
+        # ---- Recompute Days Present + Holidays from the employee's
+        # active date range, not per-row. This makes both columns
+        # correct even when the Attendance table is missing rows for
+        # some holiday dates (e.g. month-close never wrote an Aug 26
+        # row for a specific employee).
+        #
+        # Days Present = physical punches + holidays in range NOT
+        #                already covered by a punch. That matches the
+        #                payslip's "Paid Days" (days the employee gets
+        #                paid for).
+        # Holidays     = non-mandatory-national holidays in the range,
+        #                not already covered by a punch (subset for
+        #                informational rollup; overlaps with Present).
+        from datetime import timedelta
+        month_last_day = end_date - timedelta(days=1)
+
+        for bucket in emp_totals.values():
+            emp = bucket.get("employee")
+            if emp is None:
+                continue
+            join_date = getattr(emp, "JOINING_DATE", None) or start_date
+            range_start = max(start_date, join_date)
+            range_end   = month_last_day
+            punched     = bucket.get("punched_dates", set())
+
+            paid_holiday_credit = 0
+            countable_holiday_credit = 0
+            for d in holiday_by_date.keys():
+                if range_start <= d <= range_end and d not in punched:
+                    paid_holiday_credit += 1
+                    if d in countable_dates:
+                        countable_holiday_credit += 1
+
+            bucket["days_present"] = bucket["physical_days"] + paid_holiday_credit
+            bucket["days_holiday"] = countable_holiday_credit
+
+        totals_sorted = sorted(emp_totals.values(), key=lambda x: x["code"])
+
+        # Spacer row
+        blank_row_idx = ws.max_row + 2
+
+        # Section title spanning columns A..N so it reads as a header.
+        title_cell = ws.cell(row=blank_row_idx, column=1,
+                             value=f"MONTH TOTALS PER EMPLOYEE — {month}")
+        title_cell.font = Font(bold=True, color="FFFFFF", size=12)
+        title_cell.fill = header_fill
+        title_cell.alignment = Alignment(horizontal="left", vertical="center")
+        ws.merge_cells(
+            start_row=blank_row_idx, start_column=1,
+            end_row=blank_row_idx,   end_column=len(headers),
+        )
+
+        # Column headers for the summary. Holidays column removed
+        # per admin request — Days Present already accounts for paid
+        # holidays (see the post-loop counter), so a separate rollup
+        # column was redundant.
+        summary_headers = [
+            "Employee Code",
+            "Name",
+            "Days Present",
+            "Late Arrivals",
+            "Days Absent",
+            "Total Worked Hours",
+            "Total OT Hours",
+            "Total Late Minutes",
+        ]
+        header_row_idx = blank_row_idx + 1
+        ws.append(summary_headers)
+        for col_idx in range(1, len(summary_headers) + 1):
+            cell = ws.cell(row=header_row_idx, column=col_idx)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_align
+            cell.border = thin_border
+
+        # One data row per employee
+        for row_offset, t in enumerate(totals_sorted, start=header_row_idx + 1):
+            ws.append([
+                t["code"],
+                t["name"],
+                t["days_present"],
+                t["days_late"],
+                t["days_absent"],
+                round(t["worked_hours"], 2),
+                hours_to_hhmm(t["ot_hours"]),
+                int(t["late_minutes"]),
+            ])
+            for col_idx in range(1, len(summary_headers) + 1):
+                cell = ws.cell(row=row_offset, column=col_idx)
+                cell.border = thin_border
+                if row_offset % 2 == 0:
+                    cell.fill = alt_fill
+
+        # Overall grand-total row across all employees
+        grand_row_idx = ws.max_row + 1
+        gt_worked = sum(t["worked_hours"] for t in totals_sorted)
+        gt_ot     = sum(t["ot_hours"]     for t in totals_sorted)
+        gt_late   = sum(t["late_minutes"] for t in totals_sorted)
+        gt_days_p = sum(t["days_present"] for t in totals_sorted)
+        gt_days_a = sum(t["days_absent"]  for t in totals_sorted)
+        gt_days_l = sum(t["days_late"]    for t in totals_sorted)
+
+        ws.append([
+            "GRAND TOTAL",
+            f"{len(totals_sorted)} employees",
+            gt_days_p,
+            gt_days_l,
+            gt_days_a,
+            round(gt_worked, 2),
+            hours_to_hhmm(gt_ot),
+            gt_late,
+        ])
+        for col_idx in range(1, len(summary_headers) + 1):
+            cell = ws.cell(row=grand_row_idx, column=col_idx)
+            cell.font = Font(bold=True)
+            cell.fill = PatternFill(start_color="FEF2F2", end_color="FEF2F2",
+                                    fill_type="solid")
+            cell.border = thin_border
 
     # ---- Column widths ---------------------------------------------
     widths = [15, 22, 12, 11, 11, 11, 12, 13, 13, 10, 12, 13, 15, 30]

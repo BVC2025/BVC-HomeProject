@@ -83,7 +83,11 @@ const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"];
 function fmtDate(iso) {
   if (!iso) return "—";
   try {
-    const d = new Date(iso);
+    // Same UTC-suffix guard as fmtDateTime — backend emits naive
+    // UTC strings, so we force UTC parsing and let the browser
+    // convert to IST for display.
+    const s = /Z$|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`;
+    const d = new Date(s);
     if (isNaN(d.getTime())) return "—";
     return d.toLocaleDateString("en-IN", {
       day: "2-digit", month: "short", year: "numeric",
@@ -93,7 +97,13 @@ function fmtDate(iso) {
 function fmtDateTime(iso) {
   if (!iso) return "—";
   try {
-    const d = new Date(iso);
+    // Backend timestamps come as naive ISO strings (no trailing "Z"
+    // and no offset). Without the marker, JS parses them as LOCAL
+    // time — but they're actually UTC on our server. Force UTC by
+    // appending Z when neither Z nor an explicit offset is present,
+    // then toLocaleString converts to the browser's IST for display.
+    const s = /Z$|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`;
+    const d = new Date(s);
     if (isNaN(d.getTime())) return "—";
     return d.toLocaleString("en-IN", {
       day: "2-digit", month: "short", year: "numeric",

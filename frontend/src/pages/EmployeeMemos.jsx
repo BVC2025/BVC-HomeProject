@@ -474,7 +474,6 @@ function MemoRow({ memo, onOpen, onClose, onCancel, onDelete }) {
       <td className={`${styles.td} ${styles.tdRight}`}>
         <div className={styles.rowActions}>
           <RowBtn onClick={onOpen}>View</RowBtn>
-          {!isLocked && <RowBtn onClick={onClose}>Close</RowBtn>}
           {!isLocked && <RowBtn onClick={onCancel}>Cancel</RowBtn>}
           <RowBtn danger onClick={onDelete}>Delete</RowBtn>
         </div>

@@ -1348,6 +1348,19 @@ def upsert_salary_structure(
 
         action = "created"
 
+    # BVC24 policy: wipe any cached MonthlyAttendanceReport rows for
+    # this employee so the Monthly Reports page rebuilds them with the
+    # new gross. Without this, LOCKED past-month rows keep showing the
+    # old salary (e.g. Bharath's structure fixed to ₹15,000 but the
+    # August report still cached ₹20,000).
+    try:
+        from app.models.models import MonthlyAttendanceReport
+        (db.query(MonthlyAttendanceReport)
+            .filter(MonthlyAttendanceReport.EMPLOYEE_ID == employee_id)
+            .delete(synchronize_session=False))
+    except Exception:
+        pass
+
     db.commit()
 
     db.refresh(s)

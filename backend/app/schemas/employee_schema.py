@@ -80,6 +80,7 @@ class EmployeeCreate(BaseModel):
     EMERGENCY_CONTACT_PHONE: Optional[str] = None
     EMERGENCY_CONTACT_RELATION: Optional[str] = None
     CONFIRMATION_DATE: Optional[date] = None
+    JOINING_DATE: Optional[date] = None
     WORK_LOCATION: Optional[str] = None
     COLLEGE: Optional[str] = None
     UNIVERSITY: Optional[str] = None
@@ -144,6 +145,7 @@ class EmployeeUpdate(BaseModel):
     EMERGENCY_CONTACT_PHONE: Optional[str] = None
     EMERGENCY_CONTACT_RELATION: Optional[str] = None
     CONFIRMATION_DATE: Optional[date] = None
+    JOINING_DATE: Optional[date] = None
     WORK_LOCATION: Optional[str] = None
     COLLEGE: Optional[str] = None
     UNIVERSITY: Optional[str] = None

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -11,54 +11,13 @@ import { useAuth } from "../context/AuthContext";
 
 
 // =====================================================================
-// AnimatedWelcomePanel — plays the AI-generated video (/robot-login.mp4)
-// The video contains the entire walk-in + panel-push + text sequence
-// and freezes on its last frame. A subtle CSS filter brightens/lifts
-// contrast so the baked-in text reads more clearly.
-//
-// A DOM fallback panel is shown ONLY if the video errors out.
+// AnimatedWelcomePanel — static branded welcome panel.
+// The intro video was removed on 2026-09-01; the panel now stands on
+// its own with just the welcome copy the MD asked for.
 // =====================================================================
 function AnimatedWelcomePanel() {
-  const [videoError, setVideoError] = useState(false);
-  const videoRef = useRef(null);
-
-  // playbackRate is not a video attribute — it must be set on the
-  // element after it mounts. 1.75x feels natural: robot walks briskly
-  // and the panel push lands quickly without looking sped-up.
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    const apply = () => { v.playbackRate = 1.75; };
-    apply();
-    v.addEventListener("loadedmetadata", apply);
-    v.addEventListener("play", apply);
-    return () => {
-      v.removeEventListener("loadedmetadata", apply);
-      v.removeEventListener("play", apply);
-    };
-  }, []);
-
   return (
     <div className={styles.welcomeWrap}>
-
-      {!videoError && (
-        <video
-          ref={videoRef}
-          className={styles.introVideo}
-          src="/robot-login.mp4"
-          autoPlay
-          muted
-          playsInline
-          preload="auto"
-          onError={() => setVideoError(true)}
-        />
-      )}
-
-      {/* Branded panel — always rendered.
-          • Desktop: sits behind the video (z-index 2 vs 5); the video
-            covers it. Doubles as fallback if the video errors out.
-          • Mobile: video is hidden via CSS; this panel becomes the
-            compact hero above the credentials form. */}
       <motion.div
         className={styles.panel}
         initial={{ opacity: 0 }}
@@ -73,7 +32,7 @@ function AnimatedWelcomePanel() {
           className={styles.brandLogo}
         />
         <h1 className={styles.welcomeTitle}>Welcome Back</h1>
-        <p className={styles.welcomeSub}>Access your ERP dashboard.</p>
+        <p className={styles.welcomeSub}>Access Your ERP Dashboard</p>
         <p className={styles.tagline}>
           Automate. Optimize.{" "}
           <span className={styles.taglineAccent}>Accelerate with AI.</span>

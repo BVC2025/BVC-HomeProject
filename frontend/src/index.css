@@ -95,8 +95,16 @@
   --slate-900: #0f172a;
 
   /* ── Typography ───────────────────────────────────────────────── */
-  /* --font: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif; */
-  /* --font-mono: ui-monospace, 'Cascadia Code', Consolas, monospace; */
+  /* Montserrat matches the bvc24.com brand site typography. Loaded
+     from Google Fonts in index.html. Fallbacks kick in only if the
+     network font hasn't arrived yet. */
+  --font: "Montserrat", system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --heading: "Montserrat", system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", Consolas, "SF Mono",
+    "Roboto Mono", monospace;
+  --mono: var(--font-mono);
   --font-xs: 11px;
   --font-sm: 12px;
   --font-base: 14px;
@@ -218,7 +226,7 @@ th {
   font-variant-numeric: tabular-nums;
 }
 
-/* Headings stay bold + italic. */
+/* Headings — bold, upright (matches bvc24.com brand). */
 h1,
 h2,
 h3,
@@ -227,7 +235,7 @@ h5,
 h6 {
   font-family: var(--heading);
   font-weight: 700;
-  font-style: italic;
+  font-style: normal;
   letter-spacing: 0;
 }
 
@@ -239,13 +247,18 @@ svg * {
 }
 
 /* =====================================================================
-   FORCE Segoe UI Bold Italic on every element in every page.
+   FORCE Montserrat on every element in every page.
    ---------------------------------------------------------------------
-   The codebase has hundreds of inline `fontWeight: 400/500/600/700` and
-   `fontFamily` overrides per page. Without !important they keep their
-   own weights and the global rule never wins. This block makes the
-   font system truly global — covers every inner page (Employees,
-   Memos, Attendance, Leave, Payroll, Customers, Quotations, etc.).
+   Matches the bvc24.com brand-site typography. The codebase has
+   hundreds of inline `fontFamily` overrides per page. Without
+   !important they keep their own family and the global rule never
+   wins. This block makes Montserrat truly global — covers every inner
+   page (Employees, Memos, Attendance, Leave, Payroll, Customers,
+   Quotations, etc.).
+
+   Only font-family is forced. Weights and italic remain whatever the
+   inline styles specify — that preserves per-element visual hierarchy
+   (headings 700, body 400, labels 500, etc.).
 
    Exceptions:
      - Monospace text (codes / IDs / GST / IP / clock) — see the
@@ -254,11 +267,10 @@ svg * {
    ===================================================================== */
 body,
 body *:not(svg):not(svg *):not(code):not(.counter) {
-  font-family: "Segoe UI", "Segoe UI Bold Italic", system-ui,
-    -apple-system, Roboto, "Helvetica Neue", Arial,
+  font-family: "Montserrat", system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
     sans-serif !important;
-  font-weight: 700 !important;
-  font-style: italic !important;
+  font-style: normal !important;
 }
 
 /* Keep monospace text upright + not bold so codes / IDs / GST numbers
@@ -521,4 +533,39 @@ svg[width][height] {
   button {
     min-height: 38px;
   }
+}
+
+/* ================================================================
+   Global scrollbar polish — Chromium / Edge / Safari.
+   Windows Chrome renders default up/down chevron buttons on the
+   scrollbar; those chevrons kept appearing next to modal steppers
+   and looked like part of the UI. Hide the buttons everywhere and
+   thin the track so scrollbars stay visible but quiet.
+   Firefox falls back to `scrollbar-width` / `scrollbar-color`.
+   ================================================================ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-button {
+  display: none !important;
+  height: 0 !important;
+  width: 0 !important;
+}
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }

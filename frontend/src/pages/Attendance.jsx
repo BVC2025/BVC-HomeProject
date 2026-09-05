@@ -357,33 +357,18 @@ function Attendance() {
             </span>
           </div>
 
-          <div className={styles.headerActions}>
-            <input
-              ref={csvFileRef}
-              type="file"
-              accept=".csv,.txt,.dat"
-              onChange={handleCsvChosen}
-              style={{ display: "none" }}
-            />
-            <button
-              type="button"
-              onClick={() => csvFileRef.current?.click()}
-              disabled={csvBusy}
-              title="Upload the attendance file you downloaded from the biometric device via USB"
-              className={styles.primaryCta}
-            >
-              <svg
-                width="16" height="16" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2"
-                strokeLinecap="round" strokeLinejoin="round"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-              {csvBusy ? "Importing…" : "Import Biometric CSV"}
-            </button>
-          </div>
+          {/* Import Biometric CSV button hidden per admin request
+              (2026-09-02). The full USB import flow lives on the
+              Biometric Import page; keeping the hidden file input +
+              handlers wired up means uncommenting the block below is
+              enough to bring the shortcut back. */}
+          <input
+            ref={csvFileRef}
+            type="file"
+            accept=".csv,.txt,.dat"
+            onChange={handleCsvChosen}
+            style={{ display: "none" }}
+          />
         </div>
 
         {csvResult && (
@@ -421,31 +406,10 @@ function Attendance() {
       </div>
 
 
-      {/* ===================================================================
-          3. GEOFENCE STRIP — three compact tiles in the same visual language
-             as the KPI grid above. Replaces the earlier stack of tall
-             coloured banners + a redundant pill row.
-          =================================================================== */}
-      <div className={styles.geoGrid}>
-        <GeoTile
-          label="Inside Geofence"
-          value={geoStats?.inside_geofence ?? "—"}
-          sub="employees inside office today"
-          tint="green"
-        />
-        <GeoTile
-          label="Outside Geofence"
-          value={geoStats?.outside_geofence ?? "—"}
-          sub="marked from outside the radius"
-          tint="red"
-        />
-        <GeoTile
-          label="Security Failures (Today)"
-          value={geoStats?.security_failures_today ?? "—"}
-          sub={<a href="/geofence" className={styles.geoSubLink}>review log →</a>}
-          tint="amber"
-        />
-      </div>
+      {/* Geofence tiles (Inside / Outside / Security Failures) removed
+          per admin request — the info wasn't driving decisions here and
+          was taking up prime page space above the mark-attendance
+          controls. The /geofence page still has the full log if needed. */}
 
 
       {/* ===================================================================
@@ -513,8 +477,18 @@ function Attendance() {
             <button
               className={"tab-btn" + (view === "board" ? " tab-active" : "")}
               onClick={() => setView("board")}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
             >
-              🖥️ Live Floor Board
+              <svg
+                width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="1.8"
+                strokeLinecap="round" strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="3" y="4" width="18" height="12" rx="2" />
+                <path d="M8 20h8M12 16v4" />
+              </svg>
+              Live Floor Board
             </button>
 
             <button
@@ -545,12 +519,15 @@ function Attendance() {
               Employee Tracking
             </button>
 
+            {/* Monthly Summary tab hidden per request — restore this block
+                when the module is ready to reappear.
             <button
               className={"tab-btn" + (view === "monthly" ? " tab-active" : "")}
               onClick={() => setView("monthly")}
             >
               Monthly Summary
             </button>
+            */}
 
             <button
               className={"tab-btn" + (view === "download" ? " tab-active" : "")}
@@ -666,7 +643,7 @@ function Attendance() {
 
           {view === "report" && <AttendanceReport employees={employees} />}
           {view === "tracking" && <EmployeeTracking employees={employees} />}
-          {view === "monthly" && <MonthlySummary />}
+          {/* {view === "monthly" && <MonthlySummary />} */}
           {view === "download" && <DownloadAttendance employees={employees} />}
 
           {(view === "today" || view === "all") && (
@@ -1962,7 +1939,10 @@ function DownloadAttendance({ employees }) {
     `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
   const [month, setMonth] = useState(defaultMonth);
-  const [employeeId, setEmployeeId] = useState("");
+  // Multi-select: empty array means "whole company"; any picks means
+  // "only these employees". Tick individual boxes to build the list.
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [empFilter, setEmpFilter] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [lastDownload, setLastDownload] = useState(null);
@@ -1979,11 +1959,15 @@ function DownloadAttendance({ employees }) {
 
     try {
 
+      const params = { month };
+      if (selectedIds.length === 1) {
+        params.employee_id = selectedIds[0];
+      } else if (selectedIds.length > 1) {
+        params.employee_ids = selectedIds.join(",");
+      }
+
       const res = await API.get("/attendance/download/xlsx", {
-        params: {
-          month,
-          ...(employeeId ? { employee_id: employeeId } : {}),
-        },
+        params,
         responseType: "blob",
       });
 
@@ -1993,9 +1977,12 @@ function DownloadAttendance({ employees }) {
       });
       const url = window.URL.createObjectURL(blob);
 
-      const filename = employeeId
-        ? `attendance-${month}-${employeeId.slice(0, 8)}.xlsx`
-        : `attendance-${month}.xlsx`;
+      const filename =
+        selectedIds.length === 1
+          ? `attendance-${month}-${selectedIds[0].slice(0, 8)}.xlsx`
+          : selectedIds.length > 1
+          ? `attendance-${month}-${selectedIds.length}emps.xlsx`
+          : `attendance-${month}.xlsx`;
 
       const a = document.createElement("a");
       a.href = url;
@@ -2072,22 +2059,141 @@ function DownloadAttendance({ employees }) {
         </div>
 
         <div style={dl.field}>
-          <label style={dl.label}>Employee (optional)</label>
-          <select
-            value={employeeId}
-            onChange={(e) => setEmployeeId(e.target.value)}
-            style={dl.input}
+          <label style={dl.label}>
+            Employees (optional)
+            {selectedIds.length > 0 && (
+              <span style={{ marginLeft: 8, color: "#dc2626", fontWeight: 700 }}>
+                · {selectedIds.length} selected
+              </span>
+            )}
+          </label>
+
+          {/* Search + select-all / clear controls */}
+          <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+            <input
+              type="text"
+              placeholder="Search by name or code…"
+              value={empFilter}
+              onChange={(e) => setEmpFilter(e.target.value)}
+              style={{ ...dl.input, flex: "1 1 220px", margin: 0 }}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const filtered = (employees || []).filter((e) => {
+                  const q = empFilter.trim().toLowerCase();
+                  if (!q) return true;
+                  return (
+                    (e.NAME || "").toLowerCase().includes(q) ||
+                    (e.EMPLOYEE_CODE || "").toLowerCase().includes(q)
+                  );
+                });
+                setSelectedIds(filtered.map((e) => e.ID));
+              }}
+              style={{
+                padding: "8px 14px",
+                borderRadius: 8,
+                border: "1px solid #d1d5db",
+                background: "#ffffff",
+                color: "#1f2937",
+                fontWeight: 600,
+                fontSize: 12,
+                cursor: "pointer",
+              }}
+            >
+              Select all
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIds([])}
+              style={{
+                padding: "8px 14px",
+                borderRadius: 8,
+                border: "1px solid #d1d5db",
+                background: "#ffffff",
+                color: "#1f2937",
+                fontWeight: 600,
+                fontSize: 12,
+                cursor: "pointer",
+              }}
+            >
+              Clear
+            </button>
+          </div>
+
+          {/* Scrollable checkbox list */}
+          <div
+            style={{
+              border: "1px solid #d1d5db",
+              borderRadius: 8,
+              maxHeight: 260,
+              overflowY: "auto",
+              padding: 8,
+              background: "#ffffff",
+            }}
           >
-            <option value="">All employees</option>
-            {(employees || []).map((emp) => (
-              <option key={emp.ID} value={emp.ID}>
-                {emp.NAME} ({emp.EMPLOYEE_CODE || "—"})
-              </option>
-            ))}
-          </select>
+            {(() => {
+              const q = empFilter.trim().toLowerCase();
+              const visible = (employees || []).filter((e) => {
+                if (!q) return true;
+                return (
+                  (e.NAME || "").toLowerCase().includes(q) ||
+                  (e.EMPLOYEE_CODE || "").toLowerCase().includes(q)
+                );
+              });
+              if (visible.length === 0) {
+                return (
+                  <div style={{ padding: 12, color: "#9ca3af", fontSize: 13 }}>
+                    No employees match "{empFilter}".
+                  </div>
+                );
+              }
+              return visible.map((emp) => {
+                const checked = selectedIds.includes(emp.ID);
+                return (
+                  <label
+                    key={emp.ID}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "flex-start",
+                      gap: 10,
+                      padding: "6px 8px",
+                      cursor: "pointer",
+                      fontSize: 13,
+                      color: "#1f2937",
+                      borderRadius: 6,
+                      background: checked ? "#fef2f2" : "transparent",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedIds((prev) => [...prev, emp.ID]);
+                        } else {
+                          setSelectedIds((prev) =>
+                            prev.filter((id) => id !== emp.ID)
+                          );
+                        }
+                      }}
+                      style={{ margin: 0, flexShrink: 0 }}
+                    />
+                    <span style={{ flex: 1 }}>
+                      {emp.NAME}{" "}
+                      <span style={{ color: "#9ca3af", fontSize: 11 }}>
+                        ({emp.EMPLOYEE_CODE || "—"})
+                      </span>
+                    </span>
+                  </label>
+                );
+              });
+            })()}
+          </div>
           <div style={dl.hint}>
-            Leave blank to export the whole company. Pick one employee
-            to export just their month.
+            Leave all boxes unchecked to export the whole company. Tick
+            one or more employees to limit the export to just their rows.
           </div>
         </div>
 
@@ -2135,12 +2241,13 @@ const dl = {
     padding: "16px 0",
   },
   card: {
-    maxWidth: 640,
+    width: "100%",
     background: "#fff",
     borderRadius: 14,
     padding: 28,
     boxShadow: "0 6px 20px rgba(15,23,42,0.06)",
     border: "1px solid #e2e8f0",
+    boxSizing: "border-box",
   },
   eyebrow: {
     fontSize: 11,

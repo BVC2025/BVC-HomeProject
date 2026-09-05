@@ -1245,6 +1245,54 @@ def list_balance_adjustments(
     } for r in rows]
 
 
+@router.delete("/balance/{employee_id}/adjustments/{adjustment_id}",
+               dependencies=[Depends(require("leave.policy.manage"))])
+def erase_balance_adjustment(
+    employee_id: str,
+    adjustment_id: int,
+    db: Session = Depends(get_db),
+):
+    """Undo one manual balance adjustment.
+
+    HR sometimes makes a wrong credit / debit — this endpoint removes
+    the audit row AND reverses its effect on LeaveBalance so the
+    employee's total goes back to what it was before that adjustment.
+
+    Ordering doesn't matter: subtracting delta_days from the current
+    total gives the correct result even if newer adjustments have
+    already been applied on top.
+    """
+    from app.models.models import LeaveBalance as LB, LeaveBalanceAdjustment
+
+    emp = _resolve_employee(db, employee_id)
+    if not emp:
+        raise HTTPException(404, "Employee not found")
+
+    adj = (db.query(LeaveBalanceAdjustment)
+             .filter(LeaveBalanceAdjustment.ID == adjustment_id,
+                     LeaveBalanceAdjustment.EMPLOYEE_ID == emp.ID)
+             .first())
+    if not adj:
+        raise HTTPException(404, "Adjustment not found for this employee")
+
+    bal = (db.query(LB)
+             .filter(LB.EMPLOYEE_ID == emp.ID, LB.YEAR == adj.YEAR)
+             .first())
+    if bal:
+        col = f"{adj.LEAVE_TYPE}_TOTAL"
+        current = float(getattr(bal, col) or 0)
+        # Subtract the delta to restore the pre-adjustment total.
+        # Guard against going negative (defensive — payroll/attendance
+        # can also touch the balance, so we clamp at 0).
+        new_total = max(0.0, current - float(adj.DELTA_DAYS or 0))
+        setattr(bal, col, new_total)
+
+    db.delete(adj)
+    db.commit()
+
+    return {"ok": True, "adjustment_id": adjustment_id}
+
+
 # ----------------------------------------------------------------
 # Admin dashboard tile
 # ----------------------------------------------------------------

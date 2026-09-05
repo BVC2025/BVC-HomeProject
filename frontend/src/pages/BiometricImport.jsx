@@ -416,7 +416,6 @@ export default function BiometricImport() {
                       <th style={styles.th}>Late</th>
                       <th style={styles.th} title="Half-day deduction from 3× late rule">½D-pen</th>
                       <th style={styles.th}>Gross OT (h)</th>
-                      <th style={styles.th} title="Gross OT − late minutes, capped at 0">Net OT (h)</th>
                       <th style={styles.th}>Per-day ₹</th>
                       <th style={styles.th}>Abs. deduction ₹</th>
                       <th style={styles.th}>OT pay ₹</th>
@@ -436,7 +435,6 @@ export default function BiometricImport() {
                         <td style={styles.tdNum}>{r.late_arrivals}</td>
                         <td style={styles.tdNum}>{r.half_day_penalty}</td>
                         <td style={styles.tdNum}>{r.gross_ot_hours}</td>
-                        <td style={{ ...styles.tdNum, fontWeight: 700 }}>{r.net_ot_hours}</td>
                         <td style={styles.tdNum}>{Number(r.per_day_rate || 0).toLocaleString("en-IN")}</td>
                         <td style={{ ...styles.tdNum, color: "#b91c1c" }}>
                           {Number(r.absence_deduction || 0).toLocaleString("en-IN")}
@@ -455,8 +453,7 @@ export default function BiometricImport() {
               <div style={styles.summaryFoot}>
                 Legend — WD = working days · Pres = days present ·
                 Abs = days absent · CL = casual leave used ·
-                ½D-pen = half-day penalty from 3× late rule ·
-                Net OT = Gross OT with late-minute offset applied.
+                ½D-pen = half-day penalty from 3× late rule.
               </div>
             </>
           )}

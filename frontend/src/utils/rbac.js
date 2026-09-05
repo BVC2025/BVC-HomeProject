@@ -103,6 +103,8 @@ export const ROUTE_PERMISSIONS = {
   "/attendance": "attendance.view.all",
   "/memos": "memo.view.all",
   "/leave-management": "leave.view.all",
+  "/attendance-penalties": "leave.view.all",
+  "/leave-chat-history":  "leave.view.all",
   "/payroll": "payroll.view",
   "/payslip-generator": "payroll.manage",
   "/payroll-records": "payroll.view",

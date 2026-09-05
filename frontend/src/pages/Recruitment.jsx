@@ -360,7 +360,11 @@ function RequisitionsTab({ onConverted }) {
       {detailReq && (
         <RequisitionDetailDrawer
           req={detailReq}
+          busy={busy?.id === detailReq.ID ? busy.action : null}
           onClose={() => setDetailReq(null)}
+          onApprove={async () => { await approve(detailReq); setDetailReq(null); }}
+          onReject={async () => { await reject(detailReq); setDetailReq(null); }}
+          onConvert={async () => { await convert(detailReq); setDetailReq(null); }}
         />
       )}
 
@@ -499,14 +503,12 @@ function RequisitionRow({ req, busy, onOpen, onApprove, onReject, onConvert, onD
           </span>
         )}
 
-        {(isPending || isTerminal) && (
-          <MiniBtn
-            label="Delete"
-            onClick={onDelete}
-            disabled={!!busy}
-            tone="slate"
-          />
-        )}
+        <MiniBtn
+          label="Delete"
+          onClick={onDelete}
+          disabled={!!busy}
+          tone="slate"
+        />
       </div>
     </div>
   );
@@ -896,7 +898,11 @@ function ReqRow({ children }) {
   );
 }
 
-function RequisitionDetailDrawer({ req, onClose }) {
+function RequisitionDetailDrawer({ req, busy, onClose, onApprove, onReject, onConvert }) {
+  const isPending   = req.STATUS === "PENDING";
+  const isApproved  = req.STATUS === "APPROVED";
+  const isConverted = req.STATUS === "CONVERTED";
+
   return (
     <Drawer title={`Requisition ${req.REQ_CODE}`} onClose={onClose} width={520}>
       <div style={{ padding: 20 }}>
@@ -908,6 +914,68 @@ function RequisitionDetailDrawer({ req, onClose }) {
             × {req.HEADCOUNT} opening{req.HEADCOUNT === 1 ? "" : "s"}
           </span>
         </div>
+
+        {(isPending || isApproved) && (
+          <div style={{
+            display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap",
+            padding: 12, background: "#f8fafc", borderRadius: 8,
+            border: "1px solid #e2e8f0",
+          }}>
+            {isPending && (
+              <>
+                <button
+                  onClick={onApprove}
+                  disabled={busy === "approve"}
+                  style={{
+                    flex: "1 1 140px", padding: "10px 14px", border: "none",
+                    borderRadius: 6, background: "#10b981", color: "white",
+                    fontSize: 13, fontWeight: 700, cursor: "pointer",
+                    opacity: busy === "approve" ? 0.6 : 1,
+                  }}
+                >
+                  {busy === "approve" ? "Approving…" : "✓ Approve"}
+                </button>
+                <button
+                  onClick={onReject}
+                  disabled={busy === "reject"}
+                  style={{
+                    flex: "1 1 140px", padding: "10px 14px",
+                    border: "1px solid #ef4444", borderRadius: 6,
+                    background: "white", color: "#ef4444",
+                    fontSize: 13, fontWeight: 700, cursor: "pointer",
+                    opacity: busy === "reject" ? 0.6 : 1,
+                  }}
+                >
+                  {busy === "reject" ? "Rejecting…" : "✗ Reject"}
+                </button>
+              </>
+            )}
+            {isApproved && (
+              <button
+                onClick={onConvert}
+                disabled={busy === "convert"}
+                style={{
+                  flex: "1 1 auto", padding: "10px 14px", border: "none",
+                  borderRadius: 6, background: "#2563eb", color: "white",
+                  fontSize: 13, fontWeight: 700, cursor: "pointer",
+                  opacity: busy === "convert" ? 0.6 : 1,
+                }}
+              >
+                {busy === "convert" ? "Converting…" : "→ Convert to Job"}
+              </button>
+            )}
+          </div>
+        )}
+
+        {isConverted && req.CONVERTED_JOB_ID && (
+          <div style={{
+            marginBottom: 18, padding: 12, background: "#eff6ff",
+            border: "1px solid #bfdbfe", borderRadius: 8,
+            fontSize: 12, color: "#1e40af", fontWeight: 700,
+          }}>
+            → Live as Job #{req.CONVERTED_JOB_ID}
+          </div>
+        )}
 
         <SectionTitle>{req.POSITION_TITLE}</SectionTitle>
         <div style={{ fontSize: 12, color: "#64748b", marginBottom: 16 }}>
@@ -960,16 +1028,6 @@ function RequisitionDetailDrawer({ req, onClose }) {
           </div>
         )}
 
-        {req.CONVERTED_JOB_ID && (
-          <div style={{
-            marginTop: 14, padding: 12, background: "#eff6ff",
-            border: "1px solid #bfdbfe", borderRadius: 8,
-            fontSize: 12, color: "#1e40af", fontWeight: 700,
-          }}>
-            → Converted to Job #{req.CONVERTED_JOB_ID}
-          </div>
-        )}
-
       </div>
     </Drawer>
   );
@@ -994,6 +1052,20 @@ function JobsTab() {
   };
   useEffect(() => { load(); }, []);
 
+  const deleteJob = async (j) => {
+    if (!window.confirm(
+      `Delete job ${j.JOB_CODE} — ${j.TITLE}?\n\n` +
+      `This also removes every application, interview and offer linked to it. ` +
+      `Candidates themselves stay in the Candidates tab.`
+    )) return;
+    try {
+      await API.delete(`/recruitment/jobs/${j.ID}`);
+      load();
+    } catch (err) {
+      window.alert(err?.response?.data?.detail || "Delete failed");
+    }
+  };
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
@@ -1011,7 +1083,12 @@ function JobsTab() {
       {!loading && jobs.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 14 }}>
           {jobs.map((j) => (
-            <JobCard key={j.ID} job={j} onOpen={() => setFocusJob(j)} />
+            <JobCard
+              key={j.ID}
+              job={j}
+              onOpen={() => setFocusJob(j)}
+              onDelete={() => deleteJob(j)}
+            />
           ))}
         </div>
       )}
@@ -1034,7 +1111,7 @@ function JobsTab() {
 }
 
 
-function JobCard({ job, onOpen }) {
+function JobCard({ job, onOpen, onDelete }) {
   return (
     <div
       onClick={onOpen}
@@ -1056,7 +1133,19 @@ function JobCard({ job, onOpen }) {
             {[job.DEPARTMENT, job.LOCATION, job.EMPLOYMENT_TYPE].filter(Boolean).join(" · ")}
           </div>
         </div>
-        <Pill status={job.STATUS} />
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}
+             onClick={(e) => e.stopPropagation()}>
+          <Pill status={job.STATUS} />
+          {onDelete && (
+            <button
+              onClick={onDelete}
+              title="Delete job"
+              style={rowDeleteBtn}
+            >
+              Delete
+            </button>
+          )}
+        </div>
       </div>
 
       <div style={{ marginTop: 12, fontSize: 11, color: "#475569", lineHeight: 1.6 }}>
@@ -1417,7 +1506,24 @@ function CandidatesTab() {
       {!loading && filtered.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
           {filtered.map((c) => (
-            <CandidateCard key={c.ID} c={c} onOpen={() => setFocus(c)} />
+            <CandidateCard
+              key={c.ID}
+              c={c}
+              onOpen={() => setFocus(c)}
+              onDelete={async () => {
+                if (!window.confirm(
+                  `Delete candidate ${c.NAME || c.EMAIL}?\n\n` +
+                  `This also removes every application, interview and offer ` +
+                  `linked to them.`
+                )) return;
+                try {
+                  await API.delete(`/recruitment/candidates/${c.ID}`);
+                  load();
+                } catch (err) {
+                  window.alert(err?.response?.data?.detail || "Delete failed");
+                }
+              }}
+            />
           ))}
         </div>
       )}
@@ -1667,7 +1773,7 @@ const fInput = {
 };
 
 
-function CandidateCard({ c, onOpen }) {
+function CandidateCard({ c, onOpen, onDelete }) {
   const initial = (c.FULL_NAME || "?").charAt(0).toUpperCase();
   return (
     <div onClick={onOpen} style={{
@@ -1696,7 +1802,13 @@ function CandidateCard({ c, onOpen }) {
             {c.HIGHEST_QUALIFICATION || "—"} · {c.TOTAL_EXPERIENCE_YEARS || 0} yr exp
           </div>
         </div>
-        <Pill status={c.STATUS} />
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}
+             onClick={(e) => e.stopPropagation()}>
+          <Pill status={c.STATUS} />
+          {onDelete && (
+            <button onClick={onDelete} style={rowDeleteBtn}>Delete</button>
+          )}
+        </div>
       </div>
       <div style={{ marginTop: 10, fontSize: 11, color: "#475569", lineHeight: 1.5 }}>
         {c.EMAIL && <div>✉ {c.EMAIL}</div>}
@@ -1861,6 +1973,21 @@ function PipelineTab() {
     load();
   };
 
+  const remove = async (a) => {
+    if (!window.confirm(
+      `Delete this application?\n\n` +
+      `${a.CANDIDATE_NAME} for ${a.JOB_TITLE}\n\n` +
+      `Any scheduled interviews and generated offers for this pairing ` +
+      `will also be removed. The candidate and job stay in place.`
+    )) return;
+    try {
+      await API.delete(`/recruitment/applications/${a.ID}`);
+      load();
+    } catch (err) {
+      window.alert(err?.response?.data?.detail || "Delete failed");
+    }
+  };
+
   if (loading) return <Spinner />;
   if (apps.length === 0)
     return <EmptyState text="No applications yet. Pick a candidate in the Candidates tab and apply them to a job." />;
@@ -1911,6 +2038,7 @@ function PipelineTab() {
                   <button onClick={() => setSchedFor(a)} style={btnSecondary}>Schedule</button>
                   <button onClick={() => setOfferFor(a)} style={btnSecondary}>Offer</button>
                   <button onClick={() => rescreen(a.ID)} style={btnSecondary}>Re-screen</button>
+                  <button onClick={() => remove(a)} style={rowDeleteBtn}>Delete</button>
                 </div>
               </td>
             </tr>
@@ -1962,10 +2090,15 @@ function ScheduleInterviewModal({ application, onClose, onSaved }) {
     LOCATION: "",
     INTERVIEWER_NAME: "",
     INTERVIEWER_EMAIL: "",
+    // Pre-fill from the candidate's stored email (Pipeline sends it
+    // through on `application`); HR can override in this field.
+    CANDIDATE_EMAIL: application?.CANDIDATE_EMAIL || "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [questions, setQuestions] = useState([]);
+  const [scheduled, setScheduled] = useState(false);
+  const [emailStatus, setEmailStatus] = useState(null); // {ok, recipient}
 
   const submit = async () => {
     setSaving(true); setError("");
@@ -1974,7 +2107,6 @@ function ScheduleInterviewModal({ application, onClose, onSaved }) {
         APPLICATION_ID: application.ID,
         ROUND: Number(form.ROUND) || 1,
         ROUND_TYPE: form.ROUND_TYPE,
-        // Convert the datetime-local value to a full ISO string
         SCHEDULED_AT: new Date(form.SCHEDULED_AT).toISOString(),
         DURATION_MINUTES: Number(form.DURATION_MINUTES) || 45,
         MODE: form.MODE,
@@ -1982,17 +2114,32 @@ function ScheduleInterviewModal({ application, onClose, onSaved }) {
         LOCATION: form.LOCATION || null,
         INTERVIEWER_NAME: form.INTERVIEWER_NAME || null,
         INTERVIEWER_EMAIL: form.INTERVIEWER_EMAIL || null,
+        CANDIDATE_EMAIL: form.CANDIDATE_EMAIL || null,
       };
       const res = await API.post("/recruitment/interviews", payload);
-      // Best-effort: also fetch AI-suggested questions for this round
+
+      setEmailStatus({
+        ok: !!res.data?.email_sent,
+        recipient: res.data?.email_recipient || form.CANDIDATE_EMAIL || null,
+      });
+
+      // Fetch AI-suggested questions for this round based on candidate
+      // skills × job requirements × round type.
       try {
         const qs = await API.post(`/recruitment/interviews/${res.data.ID}/suggest-questions`);
         setQuestions(qs.data?.questions || []);
-      } catch {/* non-fatal */ }
-      onSaved?.();
+      } catch { /* non-fatal */ }
+
+      setScheduled(true);
+      // Refresh the Pipeline list in the background; keep this drawer
+      // open so HR can read the suggested questions before dismissing.
     } catch (e) {
       setError(e?.response?.data?.detail || "Could not schedule interview");
     } finally { setSaving(false); }
+  };
+
+  const closeAndRefresh = () => {
+    onSaved?.();
   };
 
   return (
@@ -2070,7 +2217,37 @@ function ScheduleInterviewModal({ application, onClose, onSaved }) {
         </Field>
       </Row>
 
+      <Field
+        label="Candidate email"
+        hint="A confirmation with the schedule + meeting link is sent here as soon as you click Schedule."
+      >
+        <input
+          type="email"
+          value={form.CANDIDATE_EMAIL}
+          onChange={(e) => setForm({ ...form, CANDIDATE_EMAIL: e.target.value })}
+          placeholder="candidate@example.com"
+          style={input}
+          disabled={scheduled}
+        />
+      </Field>
+
       {error && <div style={errBox}>{error}</div>}
+
+      {scheduled && emailStatus && (
+        <div style={{
+          marginTop: 14, padding: "10px 14px", borderRadius: 8,
+          border: `1px solid ${emailStatus.ok ? "#86efac" : "#fecaca"}`,
+          background: emailStatus.ok ? "#f0fdf4" : "#fef2f2",
+          color: emailStatus.ok ? "#166534" : "#b91c1c",
+          fontSize: 12, fontWeight: 600,
+        }}>
+          {emailStatus.ok
+            ? `✓ Confirmation email sent to ${emailStatus.recipient}.`
+            : emailStatus.recipient
+              ? `⚠ Could not send email to ${emailStatus.recipient}. Interview is scheduled — please notify the candidate manually.`
+              : "⚠ No candidate email provided. Interview is scheduled but no confirmation was sent."}
+        </div>
+      )}
 
       {questions.length > 0 && (
         <div style={{ marginTop: 14, padding: 12, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10 }}>
@@ -2084,10 +2261,19 @@ function ScheduleInterviewModal({ application, onClose, onSaved }) {
       )}
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
-        <button onClick={onClose} style={btnSecondary}>Cancel</button>
-        <button onClick={submit} disabled={saving} style={btnPrimary}>
-          {saving ? "Scheduling..." : "Schedule + Suggest questions"}
-        </button>
+        {!scheduled && (
+          <>
+            <button onClick={onClose} style={btnSecondary}>Cancel</button>
+            <button onClick={submit} disabled={saving} style={btnPrimary}>
+              {saving ? "Scheduling..." : "Schedule + Suggest questions"}
+            </button>
+          </>
+        )}
+        {scheduled && (
+          <button onClick={closeAndRefresh} style={btnPrimary}>
+            Done
+          </button>
+        )}
       </div>
     </Drawer>
   );
@@ -2098,14 +2284,14 @@ function ScheduleInterviewModal({ application, onClose, onSaved }) {
 // Generate Offer modal
 // ---------------------------------------------------------------------
 function GenerateOfferModal({ application, onClose, onSaved }) {
+  // BVC24 offer letters are single-component — Basic only. The old
+  // Basic / HRA / Allowances / Bonus form was replaced with one
+  // Annual Salary input on 2026-09-02; it fills BOTH ctc and the
+  // Basic breakdown line on the PDF.
   const [form, setForm] = useState({
     JOB_TITLE: application.JOB_TITLE || "",
     DEPARTMENT: "",
     COMPENSATION_CTC: "",
-    BASIC: "",
-    HRA: "",
-    ALLOWANCES: "",
-    BONUS: "",
     BENEFITS: "Health insurance, paid time off, annual bonus, training budget.",
     JOINING_DATE: "",
     PROBATION_MONTHS: 6,
@@ -2118,22 +2304,25 @@ function GenerateOfferModal({ application, onClose, onSaved }) {
   const [error, setError] = useState("");
 
   const submit = async () => {
-    if (!form.COMPENSATION_CTC || Number(form.COMPENSATION_CTC) <= 0) {
-      setError("CTC is required and must be greater than zero.");
+    const salary = Number(form.COMPENSATION_CTC);
+    if (!salary || salary <= 0) {
+      setError("Annual salary is required and must be greater than zero.");
+      return;
+    }
+    if (salary < 1000) {
+      setError("Enter the full annual salary in rupees (e.g. 350000), not in lakhs.");
       return;
     }
     setSaving(true); setError("");
     try {
-      const breakdown = {};
-      ["BASIC", "HRA", "ALLOWANCES", "BONUS"].forEach((k) => {
-        if (form[k] !== "" && form[k] !== null) breakdown[k.toLowerCase()] = Number(form[k]);
-      });
       const payload = {
         APPLICATION_ID: application.ID,
         JOB_TITLE: form.JOB_TITLE,
         DEPARTMENT: form.DEPARTMENT || null,
-        COMPENSATION_CTC: Number(form.COMPENSATION_CTC),
-        COMPENSATION_BREAKDOWN: Object.keys(breakdown).length ? breakdown : null,
+        COMPENSATION_CTC: salary,
+        // Single-line breakdown — only Basic. Keeps the PDF's
+        // "Annual Compensation" table clean.
+        COMPENSATION_BREAKDOWN: { basic: salary },
         BENEFITS: form.BENEFITS || null,
         JOINING_DATE: form.JOINING_DATE || null,
         PROBATION_MONTHS: Number(form.PROBATION_MONTHS) || 6,
@@ -2166,39 +2355,20 @@ function GenerateOfferModal({ application, onClose, onSaved }) {
               style={input} placeholder="e.g. Engineering" />
           </Field>
 
-          <Field label="Annual CTC (₹) *">
-            <input type="number" min="0" value={form.COMPENSATION_CTC}
+          <Field
+            label="Annual salary (₹) *"
+            hint="Enter the full yearly amount in rupees, e.g. 350000. This appears on the offer letter as the Basic component and total CTC."
+          >
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={form.COMPENSATION_CTC}
               onChange={(e) => setForm({ ...form, COMPENSATION_CTC: e.target.value })}
-              style={input} placeholder="e.g. 600000" />
+              style={input}
+              placeholder="e.g. 350000"
+            />
           </Field>
-
-          <div style={{ fontSize: 10, fontWeight: 800, color: "#64748b", letterSpacing: 1, textTransform: "uppercase", margin: "10px 0 4px" }}>
-            Breakdown (optional — appears on the offer letter)
-          </div>
-          <Row>
-            <Field label="Basic (₹/yr)">
-              <input type="number" min="0" value={form.BASIC}
-                onChange={(e) => setForm({ ...form, BASIC: e.target.value })}
-                style={input} />
-            </Field>
-            <Field label="HRA (₹/yr)">
-              <input type="number" min="0" value={form.HRA}
-                onChange={(e) => setForm({ ...form, HRA: e.target.value })}
-                style={input} />
-            </Field>
-          </Row>
-          <Row>
-            <Field label="Allowances (₹/yr)">
-              <input type="number" min="0" value={form.ALLOWANCES}
-                onChange={(e) => setForm({ ...form, ALLOWANCES: e.target.value })}
-                style={input} />
-            </Field>
-            <Field label="Bonus (₹/yr)">
-              <input type="number" min="0" value={form.BONUS}
-                onChange={(e) => setForm({ ...form, BONUS: e.target.value })}
-                style={input} />
-            </Field>
-          </Row>
 
           <Row>
             <Field label="Joining date">
@@ -2262,17 +2432,31 @@ function GenerateOfferModal({ application, onClose, onSaved }) {
             CTC ₹{Number(created.COMPENSATION_CTC || 0).toLocaleString("en-IN")} · status: {created.STATUS}
           </div>
           <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-            <a href={`${BACKEND_URL}/recruitment/offers/${created.ID}/pdf`}
-              target="_blank" rel="noreferrer"
+            <button
+              onClick={async () => {
+                try {
+                  const res = await API.get(
+                    `/recruitment/offers/${created.ID}/pdf`,
+                    { responseType: "blob" }
+                  );
+                  const blob = new Blob([res.data], { type: "application/pdf" });
+                  const url = URL.createObjectURL(blob);
+                  const win = window.open(url, "_blank", "noopener,noreferrer");
+                  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+                  if (!win) window.location.href = url;
+                } catch (e) {
+                  alert(e?.response?.data?.detail || "Failed to load PDF");
+                }
+              }}
               style={{
                 padding: "9px 16px",
                 background: BVC_RED, color: "white",
                 border: "none", borderRadius: 8,
                 fontWeight: 800, fontSize: 12,
-                textDecoration: "none",
+                cursor: "pointer",
               }}>
               View PDF
-            </a>
+            </button>
             <button onClick={onClose} style={btnSecondary}>Close</button>
           </div>
         </div>
@@ -2343,6 +2527,35 @@ function InterviewsTab() {
     catch { return iso; }
   };
 
+  const remove = async (iv) => {
+    if (!window.confirm(
+      `Delete this interview?\n\n` +
+      `${iv.CANDIDATE_NAME} — ${iv.JOB_TITLE} (Round ${iv.ROUND})`
+    )) return;
+    try {
+      await API.delete(`/recruitment/interviews/${iv.ID}`);
+      load();
+    } catch (err) {
+      window.alert(err?.response?.data?.detail || "Delete failed");
+    }
+  };
+
+  // Outcome dropdown — HR marks each interview after it happens.
+  // Waitlisted keeps the candidate warm for a later round; Selected
+  // signals the Pipeline can move to Offer; Rejected closes the loop.
+  // The backend already accepts arbitrary STATUS strings on
+  // PATCH /interviews/{id}; no schema change needed.
+  const OUTCOME_OPTIONS = ["SCHEDULED", "WAITLISTED", "SELECTED", "REJECTED"];
+  const updateStatus = async (iv, next) => {
+    if ((iv.STATUS || "").toUpperCase() === next) return;
+    try {
+      await API.patch(`/recruitment/interviews/${iv.ID}`, { STATUS: next });
+      load();
+    } catch (err) {
+      window.alert(err?.response?.data?.detail || "Status update failed");
+    }
+  };
+
   if (loading) return <Spinner />;
   if (items.length === 0)
     return <EmptyState text="No interviews scheduled yet. Go to Pipeline → pick an application → schedule an interview." />;
@@ -2362,6 +2575,7 @@ function InterviewsTab() {
             <th style={cell}>Mode</th>
             <th style={cell}>Status</th>
             <th style={cell}>Score</th>
+            <th style={cell}>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -2372,8 +2586,38 @@ function InterviewsTab() {
               <td style={cell}>{i.JOB_TITLE}</td>
               <td style={cell}>R{i.ROUND} · {i.ROUND_TYPE || "—"}</td>
               <td style={cell}>{i.MODE}</td>
-              <td style={cell}><Pill status={i.STATUS} /></td>
+              <td style={cell}>
+                <select
+                  value={(i.STATUS || "SCHEDULED").toUpperCase()}
+                  onChange={(e) => updateStatus(i, e.target.value)}
+                  title="Set the interview outcome"
+                  style={{
+                    padding: "4px 8px",
+                    borderRadius: 6,
+                    border: "1px solid #cbd5e1",
+                    background: "white",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color:
+                      (i.STATUS || "").toUpperCase() === "SELECTED"    ? "#047857" :
+                      (i.STATUS || "").toUpperCase() === "REJECTED"    ? "#b91c1c" :
+                      (i.STATUS || "").toUpperCase() === "WAITLISTED"  ? "#b45309" :
+                      "#334155",
+                    cursor: "pointer",
+                    outline: "none",
+                  }}
+                >
+                  {OUTCOME_OPTIONS.map((s) => (
+                    <option key={s} value={s}>
+                      {s.charAt(0) + s.slice(1).toLowerCase()}
+                    </option>
+                  ))}
+                </select>
+              </td>
               <td style={cell}>{i.SCORE != null ? i.SCORE : "—"}</td>
+              <td style={cell}>
+                <button onClick={() => remove(i)} style={rowDeleteBtn}>Delete</button>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -2430,6 +2674,46 @@ function OffersTab() {
     } finally { setBusyId(null); }
   };
 
+  const remove = async (o) => {
+    if (!window.confirm(
+      `Delete offer ${o.OFFER_NUMBER}?\n\n` +
+      `${o.CANDIDATE_NAME || "—"} for ${o.JOB_TITLE || "—"}`
+    )) return;
+    setBusyId(o.ID);
+    try {
+      await API.delete(`/recruitment/offers/${o.ID}`);
+      showToast(`Deleted ${o.OFFER_NUMBER}`);
+      load();
+    } catch (e) {
+      alert(e?.response?.data?.detail || "Failed to delete");
+    } finally { setBusyId(null); }
+  };
+
+  // Fetch the offer PDF via the API service (which sends the auth
+  // token), then open the resulting blob in a new tab. Opening the
+  // /pdf URL directly via <a href> doesn't work because the browser
+  // strips the Authorization header on a new-tab navigation → the
+  // backend returns 401 Not authenticated.
+  const viewOfferPdf = async (offerId) => {
+    try {
+      const res = await API.get(
+        `/recruitment/offers/${offerId}/pdf`,
+        { responseType: "blob" }
+      );
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const win = window.open(url, "_blank", "noopener,noreferrer");
+      // Revoke after the tab has had time to load — keeps memory clean.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      if (!win) {
+        // popup blocked — fall back to same-tab navigation
+        window.location.href = url;
+      }
+    } catch (e) {
+      alert(e?.response?.data?.detail || "Failed to load PDF");
+    }
+  };
+
   if (loading) return <Spinner />;
   if (offers.length === 0)
     return <EmptyState text="No offers drafted yet. Go to Pipeline → 'Offer' button on any application to generate an offer letter." />;
@@ -2476,17 +2760,12 @@ function OffersTab() {
                   <td style={cell}><Pill status={o.STATUS} /></td>
                   <td style={cell}>
                     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                      <a
-                        href={`${BACKEND_URL}/recruitment/offers/${o.ID}/pdf`}
-                        target="_blank" rel="noreferrer"
-                        style={{
-                          ...btnSecondary,
-                          textDecoration: "none",
-                          display: "inline-block",
-                        }}
+                      <button
+                        onClick={() => viewOfferPdf(o.ID)}
+                        style={btnSecondary}
                       >
                         View PDF
-                      </a>
+                      </button>
                       <button
                         onClick={() => regeneratePdf(o)}
                         disabled={busy}
@@ -2495,26 +2774,31 @@ function OffersTab() {
                       >
                         Regenerate
                       </button>
-                      <button
-                        onClick={() => setSendingFor(o)}
-                        disabled={busy || !o.CANDIDATE_EMAIL}
-                        title={o.CANDIDATE_EMAIL
-                          ? "Email this offer letter to the candidate"
-                          : "Candidate has no email on file"}
-                        style={{
-                          ...btnPrimary,
-                          opacity: !o.CANDIDATE_EMAIL ? 0.4 : 1,
-                          cursor: !o.CANDIDATE_EMAIL ? "not-allowed" : "pointer",
-                        }}
-                      >
-                        Send
-                      </button>
+                      {o.STATUS !== "ACCEPTED" && o.STATUS !== "REJECTED" && (
+                        <button
+                          onClick={() => setSendingFor(o)}
+                          disabled={busy || !o.CANDIDATE_EMAIL}
+                          title={o.CANDIDATE_EMAIL
+                            ? (o.STATUS === "SENT"
+                                ? "Re-send the offer letter to the candidate"
+                                : "Email this offer letter to the candidate")
+                            : "Candidate has no email on file"}
+                          style={{
+                            ...btnPrimary,
+                            opacity: !o.CANDIDATE_EMAIL ? 0.4 : 1,
+                            cursor: !o.CANDIDATE_EMAIL ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {o.STATUS === "SENT" ? "Re-send" : "Send"}
+                        </button>
+                      )}
                       {o.STATUS === "SENT" && (
                         <>
                           <button
                             onClick={() => markStatus(o, "ACCEPTED")}
                             disabled={busy}
                             style={{ ...btnSecondary, color: "#166534" }}
+                            title="Manually mark this offer as accepted"
                           >
                             Accepted
                           </button>
@@ -2522,11 +2806,69 @@ function OffersTab() {
                             onClick={() => markStatus(o, "REJECTED")}
                             disabled={busy}
                             style={{ ...btnSecondary, color: "#b91c1c" }}
+                            title="Manually mark this offer as rejected"
                           >
                             Rejected
                           </button>
                         </>
                       )}
+
+                      {/* Response badge — the candidate clicked
+                          Accept / Reject in their email, no admin
+                          action needed. Shows inline in the Actions
+                          column so HR sees the outcome without
+                          scanning the Status column separately. */}
+                      {o.STATUS === "ACCEPTED" && (
+                        <span
+                          title={o.RESPONDED_AT
+                            ? `Accepted on ${new Date(o.RESPONDED_AT).toLocaleString()}`
+                            : "Candidate accepted this offer"}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            padding: "6px 12px",
+                            background: "#dcfce7",
+                            color: "#166534",
+                            border: "1px solid #86efac",
+                            borderRadius: 999,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            letterSpacing: 0.2,
+                          }}
+                        >
+                          ✓ Accepted
+                        </span>
+                      )}
+                      {o.STATUS === "REJECTED" && (
+                        <span
+                          title={o.RESPONDED_AT
+                            ? `Rejected on ${new Date(o.RESPONDED_AT).toLocaleString()}`
+                            : "Candidate declined this offer"}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            padding: "6px 12px",
+                            background: "#fef2f2",
+                            color: "#b91c1c",
+                            border: "1px solid #fecaca",
+                            borderRadius: 999,
+                            fontSize: 12,
+                            fontWeight: 700,
+                            letterSpacing: 0.2,
+                          }}
+                        >
+                          ✗ Rejected
+                        </span>
+                      )}
+                      <button
+                        onClick={() => remove(o)}
+                        disabled={busy}
+                        style={rowDeleteBtn}
+                      >
+                        Delete
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -2668,6 +3010,14 @@ const btnSecondary = {
   padding: "8px 14px", background: "white", color: "#475569",
   border: "1px solid #cbd5e1", borderRadius: 8, fontWeight: 700,
   fontSize: 12, cursor: "pointer",
+};
+
+// Compact "Delete" button used in every recruitment tab (Jobs cards,
+// Candidates cards, Pipeline rows, Interviews rows, Offers rows).
+const rowDeleteBtn = {
+  padding: "4px 10px", background: "white", color: "#b91c1c",
+  border: "1px solid #fecaca", borderRadius: 6, fontWeight: 600,
+  fontSize: 11, cursor: "pointer", letterSpacing: 0.2,
 };
 
 const input = {

@@ -200,6 +200,60 @@ const DOC_TYPE_LABEL = Object.fromEntries(
   DOC_TYPES.map((d) => [d.key, `${d.icon} ${d.label}`])
 );
 
+// Same six-slot policy the self-onboarding form uses (see
+// EmployeeProfileForm.jsx). Admin picks up the exact same required
+// list here so the Documents tab on both surfaces stays in sync.
+const REQUIRED_DOC_SLOTS = [
+  {
+    key:   "SCHOOL_MARKSHEETS",
+    label: "10th & 12th Marksheets",
+    hint:  "Upload both 10th and 12th mark sheets (soft copy).",
+    types: ["TENTH_MARKSHEET", "TWELFTH_MARKSHEET"],
+    saveAs: "TENTH_MARKSHEET",
+    required: true,
+  },
+  {
+    key:   "DEGREE_CERTIFICATE",
+    label: "Degree Certificate (UG / PG)",
+    hint:  "UG and/or PG degree certificate. Upload all pages.",
+    types: ["DEGREE", "POSTGRADUATE"],
+    saveAs: "DEGREE",
+    required: true,
+  },
+  {
+    key:   "PAN_CARD",
+    label: "PAN Card",
+    hint:  "PAN card (front side).",
+    types: ["PAN"],
+    saveAs: "PAN",
+    required: true,
+  },
+  {
+    key:   "AADHAAR_CARD",
+    label: "Aadhaar Card",
+    hint:  "Aadhaar card front and back.",
+    types: ["AADHAAR"],
+    saveAs: "AADHAAR",
+    required: true,
+  },
+  {
+    key:   "EXPERIENCE_CERTIFICATE",
+    label: "Previous Experience Certificate",
+    hint:  "Only if the employee has previous work experience.",
+    types: ["EXPERIENCE_LETTER", "RELIEVING_LETTER", "SALARY_SLIP"],
+    saveAs: "EXPERIENCE_LETTER",
+    required: false,
+  },
+  {
+    key:   "BANK_DETAILS",
+    label: "Bank Details",
+    hint:  "Cancelled cheque or bank passbook first page.",
+    types: ["BANK_PASSBOOK"],
+    saveAs: "BANK_PASSBOOK",
+    required: true,
+  },
+];
+
 function EmployeeDocumentsSection({ employee }) {
   const empId = employee?.ID;
 
@@ -282,6 +336,35 @@ function EmployeeDocumentsSection({ employee }) {
     }
   };
 
+  // Multi-file uploader for a specific required-doc slot. Same API as
+  // the employee's self-form so the two flows produce identical rows
+  // on the backend.
+  const handleSlotPick = async (slot, e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    setPending(true);
+    setError("");
+
+    try {
+      for (const f of files) {
+        const fd = new FormData();
+        fd.append("file", f);
+        fd.append("doc_type", slot.saveAs);
+        fd.append("title", f.name);
+        await API.post(`/employees/${empId}/documents`, fd, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+      }
+      await fetchDocs();
+    } catch (err) {
+      setError(err?.response?.data?.detail || err?.message || "Upload failed.");
+    } finally {
+      setPending(false);
+      if (e.target) e.target.value = "";
+    }
+  };
+
   const formatBytes = (n) => {
     if (!n) return "—";
     if (n < 1024) return `${n} B`;
@@ -297,6 +380,168 @@ function EmployeeDocumentsSection({ employee }) {
 
   return (
     <ResumeBlock title="📂 Documents">
+
+      {/* ---- Six required-document slots (matches the employee's
+              self-onboarding form so admin + employee see the same
+              checklist). Each slot supports multiple files. ---- */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+        {REQUIRED_DOC_SLOTS.map((slot) => {
+          const filesInSlot = docs.filter((d) => slot.types.includes(d.DOC_TYPE));
+          const uploaded    = filesInSlot.length > 0;
+          const inputId     = `admin-doc-slot-${empId}-${slot.key}`;
+
+          return (
+            <div
+              key={slot.key}
+              style={{
+                border: uploaded
+                  ? "1px solid #bbf7d0"
+                  : (slot.required ? "1px solid #fecaca" : "1px solid #e5e7eb"),
+                background: uploaded
+                  ? "#f0fdf4"
+                  : (slot.required ? "#fef2f2" : "#f8fafc"),
+                borderRadius: 10,
+                padding: "12px 14px",
+              }}
+            >
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                flexWrap: "wrap",
+              }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0f172a" }}>
+                    {slot.label}
+                    {slot.required && (
+                      <span style={{ color: "#dc2626", marginLeft: 4 }}>*</span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+                    {slot.hint}
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: "3px 8px",
+                    borderRadius: 999,
+                    background: uploaded ? "#dcfce7" : "#fee2e2",
+                    color:      uploaded ? "#166534" : "#991b1b",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.4,
+                    whiteSpace: "nowrap",
+                  }}>
+                    {uploaded
+                      ? `${filesInSlot.length} file${filesInSlot.length === 1 ? "" : "s"}`
+                      : (slot.required ? "Required" : "Optional")}
+                  </span>
+
+                  <label
+                    htmlFor={inputId}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "7px 14px",
+                      borderRadius: 8,
+                      background: "#0f172a",
+                      color: "#ffffff",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      cursor: pending ? "not-allowed" : "pointer",
+                      opacity: pending ? 0.6 : 1,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Upload Files
+                  </label>
+                  <input
+                    id={inputId}
+                    type="file"
+                    multiple
+                    accept=".pdf,image/*,.doc,.docx"
+                    disabled={pending}
+                    onChange={(e) => handleSlotPick(slot, e)}
+                    style={{ display: "none" }}
+                  />
+                </div>
+              </div>
+
+              {uploaded && (
+                <ul style={{
+                  listStyle: "none",
+                  padding: 0,
+                  margin: "10px 0 0",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 4,
+                }}>
+                  {filesInSlot.map((d) => (
+                    <li key={d.ID} style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 8,
+                      fontSize: 12.5,
+                      background: "#ffffff",
+                      border: "1px solid #d1fadf",
+                      borderRadius: 6,
+                      padding: "6px 10px",
+                    }}>
+                      <span style={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}>
+                        {d.TITLE || d.FILE_NAME || "Untitled"}
+                      </span>
+                      <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
+                        <a
+                          href={`${API.defaults.baseURL || ""}${d.FILE_URL}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ fontSize: 12, color: "#0f172a", fontWeight: 600, textDecoration: "none" }}
+                        >
+                          View
+                        </a>
+                        <button
+                          type="button"
+                          onClick={() => removeDoc(d)}
+                          style={{
+                            border: "none",
+                            background: "transparent",
+                            color: "#b91c1c",
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            padding: 0,
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {error && <div className={styles.docErrorBanner}>⚠ {error}</div>}
+
+      {/* ---- Legacy any-other-document picker, kept collapsed so the
+              admin can still attach offer letters, address proof,
+              photograph, etc. that aren't in the six required slots. ---- */}
+      <details style={{ marginBottom: 14 }}>
+        <summary style={{ cursor: "pointer", fontSize: 13, fontWeight: 600, color: "#334155" }}>
+          Add another document (optional)
+        </summary>
 
       {/* Upload row */}
       <form onSubmit={upload} className={styles.docUploadForm}>
@@ -354,19 +599,32 @@ function EmployeeDocumentsSection({ employee }) {
           {pending ? "Uploading…" : "⬆ Upload"}
         </button>
       </form>
-
-      {error && <div className={styles.docErrorBanner}>⚠ {error}</div>}
+      </details>
 
       {loading && <div className={styles.docLoadingText}>Loading documents…</div>}
 
-      {!loading && docs.length === 0 && !error && (
-        <div className={styles.docEmpty}>
-          No documents uploaded yet. Use the form above to add Aadhaar, PAN, Resume,
-          Offer Letter, etc.
-        </div>
-      )}
-
-      {Object.entries(grouped).map(([type, items]) => (
+      {/* "Other documents" list — anything the employee uploaded that
+          isn't one of the six required-slot types (offer letter,
+          photograph, address proof, resume, etc.). The required-slot
+          types are already surfaced inside their own cards above, so
+          filtering them out here avoids showing the same doc twice. */}
+      {(() => {
+        const slotTypes = new Set(REQUIRED_DOC_SLOTS.flatMap((s) => s.types));
+        const otherEntries = Object.entries(grouped).filter(([type]) => !slotTypes.has(type));
+        if (otherEntries.length === 0) return null;
+        return (
+          <>
+            <div style={{
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: 0.4,
+              color: "#dc2626",
+              textTransform: "uppercase",
+              margin: "18px 0 8px",
+            }}>
+              Other Documents
+            </div>
+            {otherEntries.map(([type, items]) => (
         <div key={type} style={{ marginBottom: 12 }}>
           <div className={styles.docGroupLabel}>
             {DOC_TYPE_LABEL[type] || type} · {items.length}
@@ -391,23 +649,50 @@ function EmployeeDocumentsSection({ employee }) {
                   rel="noreferrer"
                   className={styles.docViewLink}
                 >
-                  👁 View
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" strokeWidth="1.8"
+                       strokeLinecap="round" strokeLinejoin="round"
+                       aria-hidden="true">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                  View
                 </a>
                 <a
                   href={`${API.defaults.baseURL || ""}${d.FILE_URL}`}
                   download={d.FILE_NAME || "document"}
                   className={styles.docDownloadLink}
                 >
-                  ⬇ Download
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" strokeWidth="1.8"
+                       strokeLinecap="round" strokeLinejoin="round"
+                       aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Download
                 </a>
                 <button type="button" onClick={() => removeDoc(d)} className={styles.docDeleteBtn}>
-                  🗑 Delete
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" strokeWidth="1.8"
+                       strokeLinecap="round" strokeLinejoin="round"
+                       aria-hidden="true">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                    <path d="M10 11v6M14 11v6" />
+                    <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                  </svg>
+                  Delete
                 </button>
               </div>
             ))}
           </div>
         </div>
       ))}
+          </>
+        );
+      })()}
     </ResumeBlock>
   );
 }
@@ -549,9 +834,6 @@ function ResumeModal({ employee, photoDataUrl, onClose }) {
                 {employee.STATUS && <ResumeRow icon="⚡" label="Status" value={employee.STATUS} />}
                 {employee.JOINING_DATE && (
                   <ResumeRow icon="📆" label="Joined" value={employee.JOINING_DATE} />
-                )}
-                {employee.CONFIRMATION_DATE && (
-                  <ResumeRow icon="✅" label="Confirmed" value={employee.CONFIRMATION_DATE} />
                 )}
                 {employee.WORK_LOCATION && (
                   <ResumeRow icon="📍" label="Location" value={employee.WORK_LOCATION} />
@@ -730,7 +1012,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
     EMERGENCY_CONTACT_NAME: editingEmployee?.EMERGENCY_CONTACT_NAME || "",
     EMERGENCY_CONTACT_PHONE: editingEmployee?.EMERGENCY_CONTACT_PHONE || "",
     EMERGENCY_CONTACT_RELATION: editingEmployee?.EMERGENCY_CONTACT_RELATION || "",
-    CONFIRMATION_DATE: editingEmployee?.CONFIRMATION_DATE || "",
+    JOINING_DATE: editingEmployee?.JOINING_DATE || "",
     WORK_LOCATION: editingEmployee?.WORK_LOCATION || "",
     COLLEGE: editingEmployee?.COLLEGE || "",
     UNIVERSITY: editingEmployee?.UNIVERSITY || "",
@@ -801,9 +1083,50 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
   const [roles, setRoles] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [successBanner, setSuccessBanner] = useState("");
   const [errors, setErrors] = useState({});
   const [phoneErrors, setPhoneErrors] = useState({ PHONE: "", EMERGENCY_CONTACT_PHONE: "" });
   const [showPreview, setShowPreview] = useState(false);
+
+  // "Send Login Credentials" modal — Edit page only. Admin types the
+  // password they want emailed; backend does NOT change the stored
+  // password (this replaces the WhatsApp-broadcast workflow, it does
+  // not reset anyone's login).
+  const [credModalOpen, setCredModalOpen] = useState(false);
+  const [credPassword, setCredPassword] = useState("");
+  const [credSending, setCredSending] = useState(false);
+  const [credError, setCredError] = useState("");
+
+  const sendCredentials = async () => {
+    if (!editingEmployee?.ID) return;
+    const pw = credPassword.trim();
+    if (!pw) {
+      setCredError("Please type the password you want the employee to receive.");
+      return;
+    }
+    setCredSending(true);
+    setCredError("");
+    try {
+      const res = await API.post(
+        `/employees/${editingEmployee.ID}/send-credentials`,
+        { password: pw }
+      );
+      setCredModalOpen(false);
+      setCredPassword("");
+      setSuccessBanner(
+        `Login credentials emailed to ${res.data?.email || form.EMAIL}.`
+      );
+      // Auto-clear the success banner after 6 seconds so it doesn't
+      // linger through subsequent edits.
+      setTimeout(() => setSuccessBanner(""), 6000);
+    } catch (e) {
+      setCredError(
+        e?.response?.data?.detail || "Could not send credentials email."
+      );
+    } finally {
+      setCredSending(false);
+    }
+  };
 
   // Department -> Role cascade: always show global/system roles (no
   // DEPARTMENT_ID) plus any role scoped to the selected department. If
@@ -891,7 +1214,7 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
             ? null
             : Number(form.PREVIOUS_SALARY),
         SALARY: form.SALARY === "" || form.SALARY == null ? 0 : Number(form.SALARY),
-        CONFIRMATION_DATE: form.CONFIRMATION_DATE || null,
+        JOINING_DATE: form.JOINING_DATE || null,
       };
 
       let empId;
@@ -1069,6 +1392,18 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
         <div className={styles.drawerBody}>
 
           {error && <div className={styles.formErrorBanner}>{error}</div>}
+          {successBanner && (
+            <div
+              className={styles.formErrorBanner}
+              style={{
+                background: "#dcfce7",
+                color: "#15803d",
+                border: "1px solid #86efac",
+              }}
+            >
+              {successBanner}
+            </div>
+          )}
 
           <div className={styles.photoStrip}>
             <div
@@ -1535,6 +1870,8 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                     : "Pick a department to narrow this list to its roles."}
                 </div>
               </FormField>
+              {/* Designation dropdown hidden per request — Department + Role
+                  are enough. Restore this block if the field is needed again.
               <FormField label="Designation">
                 <select
                   value={form.DESIGNATION_ID}
@@ -1549,11 +1886,12 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                   ))}
                 </select>
               </FormField>
-              <FormField label="Confirmation Date (probation end)">
+              */}
+              <FormField label="Joining Date">
                 <input
                   type="date"
-                  value={form.CONFIRMATION_DATE}
-                  onChange={set("CONFIRMATION_DATE")}
+                  value={form.JOINING_DATE}
+                  onChange={set("JOINING_DATE")}
                   className={styles.formInput}
                 />
               </FormField>
@@ -1822,6 +2160,17 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
             })()}
           </FormSection>
 
+          {/* ============== 9. DOCUMENTS ============== */}
+          {/* Uploads need an existing employee ID (the endpoint is
+              /employees/{id}/documents), so this section only appears
+              in edit mode. Same six-slot required-doc UI the employee
+              sees on their self-onboarding form. */}
+          {isEdit && editingEmployee?.ID && (
+            <FormSection title="⑨ Documents (upload on behalf of employee)">
+              <EmployeeDocumentsSection employee={editingEmployee} />
+            </FormSection>
+          )}
+
           <div className={styles.formFooter}>
             <button
               type="button"
@@ -1830,6 +2179,29 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
             >
               View Data (preview)
             </button>
+            {isEdit && (
+              <button
+                type="button"
+                onClick={() => {
+                  setCredError("");
+                  setCredPassword("");
+                  setCredModalOpen(true);
+                }}
+                disabled={!(form.EMAIL || "").trim()}
+                className={styles.formPreviewBtn}
+                title={
+                  (form.EMAIL || "").trim()
+                    ? "Email login ID + password to this employee"
+                    : "Set an email address first"
+                }
+                style={{
+                  borderColor: "#dc2626",
+                  color: "#dc2626",
+                }}
+              >
+                Send Login Credentials
+              </button>
+            )}
             <button type="submit" disabled={saving} className={styles.formSaveBtn}>
               {saving ? "Saving…" : isEdit ? "Save Changes" : "Save Employee"}
             </button>
@@ -1843,6 +2215,119 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
           photoDataUrl={photoPreview}
           onClose={() => setShowPreview(false)}
         />
+      )}
+
+      {credModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !credSending) {
+              setCredModalOpen(false);
+            }
+          }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10000,
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              background: "var(--card-bg, #ffffff)",
+              color: "var(--text, #0f172a)",
+              width: "100%",
+              maxWidth: 440,
+              borderRadius: 12,
+              padding: 24,
+              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.25)",
+            }}
+          >
+            <h3
+              style={{
+                margin: 0,
+                marginBottom: 8,
+                fontSize: 18,
+                fontWeight: 700,
+                color: "#dc2626",
+              }}
+            >
+              Send Login Credentials
+            </h3>
+            <p style={{ margin: 0, marginBottom: 16, fontSize: 13, opacity: 0.75 }}>
+              Emailing <strong>{editingEmployee?.EMPLOYEE_CODE}</strong> ({form.NAME}) at{" "}
+              <strong>{form.EMAIL}</strong>.<br />
+              Type the password the employee should receive. The stored login
+              password is <em>not</em> changed by this action.
+            </p>
+
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+              Password to email
+            </label>
+            <input
+              type="text"
+              value={credPassword}
+              onChange={(e) => {
+                setCredPassword(e.target.value);
+                if (credError) setCredError("");
+              }}
+              placeholder="e.g. !welcome123"
+              autoFocus
+              disabled={credSending}
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                borderRadius: 8,
+                border: "1px solid var(--border, #d1d5db)",
+                background: "var(--input-bg, #ffffff)",
+                color: "inherit",
+                fontSize: 14,
+                fontFamily: "monospace",
+                boxSizing: "border-box",
+              }}
+            />
+
+            {credError && (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: "8px 12px",
+                  background: "#fef2f2",
+                  color: "#b91c1c",
+                  border: "1px solid #fecaca",
+                  borderRadius: 8,
+                  fontSize: 13,
+                }}
+              >
+                {credError}
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+              <button
+                type="button"
+                onClick={() => setCredModalOpen(false)}
+                disabled={credSending}
+                className={styles.formPreviewBtn}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={sendCredentials}
+                disabled={credSending || !credPassword.trim()}
+                className={styles.formSaveBtn}
+              >
+                {credSending ? "Sending…" : "Send Email"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -1909,11 +2394,42 @@ function Employees() {
   // Delete-employee confirmation: { title, description, onConfirm } | null
   const [confirmModal, setConfirmModal] = useState(null);
 
+  // Today's attendance summary — used for the "Total Present / Absent"
+  // KPI tiles. Populated in fetchAll() from /attendance/live-board.
+  const [attToday, setAttToday] = useState({ in_office: 0, checked_out: 0 });
+
+  // Master lists for the filter dropdowns. Sourced from /departments
+  // and /roles so a department/role created in its admin module shows
+  // up here immediately, and disappears from the picker as soon as
+  // it's deleted there — regardless of whether any employee is
+  // currently assigned to it. Previously these were derived from the
+  // employee list itself, which meant new departments with zero
+  // members were invisible.
+  const [allDepartments, setAllDepartments] = useState([]);
+  const [allRoles,       setAllRoles]       = useState([]);
+
   const fetchAll = () => {
     setLoading(true);
-    API.get("/employees")
-      .then((r) => setEmployees(r.data || []))
-      .catch(() => setEmployees([]))
+    Promise.all([
+      API.get("/employees").catch(() => ({ data: [] })),
+      API.get("/attendance/live-board").catch(() => ({ data: null })),
+      API.get("/departments").catch(() => ({ data: [] })),
+      // `/roles/names` is the light-permission list built for this
+      // dropdown. Fall back to `/roles` for older backends that
+      // don't have the lightweight endpoint yet.
+      API.get("/roles/names")
+        .catch(() => API.get("/roles").catch(() => ({ data: [] }))),
+    ])
+      .then(([empRes, boardRes, deptRes, roleRes]) => {
+        setEmployees(empRes.data || []);
+        const s = boardRes.data?.summary || {};
+        setAttToday({
+          in_office:   Number(s.in_office   || 0),
+          checked_out: Number(s.checked_out || 0),
+        });
+        setAllDepartments(Array.isArray(deptRes.data) ? deptRes.data : []);
+        setAllRoles(Array.isArray(roleRes.data)       ? roleRes.data       : []);
+      })
       .finally(() => setLoading(false));
   };
 
@@ -1921,21 +2437,47 @@ function Employees() {
     fetchAll();
   }, []);
 
+  // Refresh master lists when the tab regains focus so a department /
+  // role created (or deleted) in another tab is picked up the next
+  // time HR comes back here — without needing a manual page reload.
+  useEffect(() => {
+    const refresh = () => {
+      Promise.all([
+        API.get("/departments").catch(() => ({ data: [] })),
+        API.get("/roles/names")
+          .catch(() => API.get("/roles").catch(() => ({ data: [] }))),
+      ]).then(([d, r]) => {
+        setAllDepartments(Array.isArray(d.data) ? d.data : []);
+        setAllRoles(Array.isArray(r.data)       ? r.data       : []);
+      });
+    };
+    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, []);
+
   const departments = useMemo(() => {
-    const set = new Set();
-    employees.forEach((e) => {
-      if (e.DEPARTMENT?.NAME) set.add(e.DEPARTMENT.NAME);
-    });
-    return [...set].sort();
-  }, [employees]);
+    // Names only, alphabetised, unique. Uses the master list so
+    // brand-new departments with zero employees still appear.
+    const names = allDepartments
+      .map((d) => d?.NAME)
+      .filter(Boolean);
+    return [...new Set(names)].sort();
+  }, [allDepartments]);
 
   const rolesList = useMemo(() => {
-    const set = new Set();
-    employees.forEach((e) => {
-      if (e.ROLE?.NAME) set.add(e.ROLE.NAME);
-    });
-    return [...set].sort();
-  }, [employees]);
+    // Older /roles endpoint returns ROLE_NAME; new /roles/names
+    // returns NAME. Handle both shapes so a fallback response
+    // doesn't render an empty list.
+    const names = allRoles
+      .map((r) => r?.NAME || r?.ROLE_NAME)
+      .filter(Boolean);
+    return [...new Set(names)].sort();
+  }, [allRoles]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -1985,17 +2527,18 @@ function Employees() {
 
   const stats = useMemo(() => {
     const total = employees.length;
-    const active = employees.filter((e) => e.STATUS === "ACTIVE").length;
-    const freshers = employees.filter((e) => e.EMPLOYMENT_TYPE === "FRESHER").length;
-    const avgExp = employees.length
-      ? (
-        employees.reduce((s, e) => s + (Number(e.EXPERIENCE_YEARS) || 0), 0) /
-        employees.length
-      ).toFixed(1)
-      : 0;
+    // "Present today" = anyone who punched in today, whether they're
+    // still on-site (in_office) or already checked out (checked_out).
+    // Live-board summary comes from /attendance/live-board.
+    const present = attToday.in_office + attToday.checked_out;
+    // "Absent today" = active employees who never punched in. Guarded
+    // against negative results (if the board reports more punches than
+    // the current active headcount for any reason).
+    const activeCount = employees.filter((e) => e.STATUS === "ACTIVE").length;
+    const absent = Math.max(0, activeCount - present);
 
-    return { total, active, freshers, avgExp };
-  }, [employees]);
+    return { total, present, absent };
+  }, [employees, attToday]);
 
   const handleDelete = (emp) => {
     setConfirmModal({
@@ -2085,10 +2628,9 @@ function Employees() {
 
       <StatsRow
         stats={[
-          { value: stats.total, label: "Total Employees" },
-          { value: stats.active, label: "Active", sub: "working" },
-          { value: stats.freshers, label: "Freshers", sub: "new joinees" },
-          { value: `${stats.avgExp} yr`, label: "Avg Experience", sub: "across team" },
+          { value: stats.total,   label: "Total Employees" },
+          { value: stats.present, label: "Total Present", sub: "today" },
+          { value: stats.absent,  label: "Total Absent",  sub: "today" },
         ]}
       />
 
@@ -2121,31 +2663,9 @@ function Employees() {
               clearLabel="All roles"
             />
           </div>
-          <div className={styles.dateFilters}>
-            <label className={styles.dateLabel}>From</label>
-            <input
-              type="date"
-              className={styles.dateInput}
-              value={filterFrom}
-              onChange={(e) => setFilterFrom(e.target.value)}
-            />
-            <label className={styles.dateLabel}>To</label>
-            <input
-              type="date"
-              className={styles.dateInput}
-              value={filterTo}
-              onChange={(e) => setFilterTo(e.target.value)}
-            />
-            {(filterFrom || filterTo) && (
-              <button
-                type="button"
-                className={styles.clearFilter}
-                onClick={() => { setFilterFrom(""); setFilterTo(""); }}
-              >
-                ✕
-              </button>
-            )}
-          </div>
+          {/* From / To date filter removed 2026-09-02 per admin request.
+              State + downstream filtering hooks stay in place so the
+              controls can be brought back by uncommenting this block. */}
           <span className={styles.count}>
             {filtered.length} employee{filtered.length !== 1 ? "s" : ""}
           </span>

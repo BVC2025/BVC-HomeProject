@@ -608,59 +608,11 @@ export default function MyLeaveRequest({ employeeId, onSubmitted }) {
       </section>
 
 
-      {/* ---------- History ---------- */}
-      <section className={styles.card}>
-        <div className={styles.sectionHead}>
-          <div className={styles.sectionTitle}>My leave requests</div>
-          <div className={styles.sectionSub}>
-            {history.length} in total
-          </div>
-        </div>
-
-        {history.length === 0 ? (
-          <div className={styles.empty}>
-            {I.empty}
-            <div>
-              <div className={styles.emptyTitle}>No leave requests yet</div>
-              <div className={styles.emptyBody}>
-                Requests you submit above will appear here with their status.
-              </div>
-            </div>
-          </div>
-        ) : (
-          <ul className={styles.historyList}>
-            {history.slice(0, 20).map((r) => {
-              const status = (r.STATUS || "PENDING").toUpperCase();
-              const meta = STATUS_META[status] || STATUS_META.PENDING;
-              const range = r.START_DATE === r.END_DATE
-                ? fmtDate(r.START_DATE)
-                : `${fmtDate(r.START_DATE)} → ${fmtDate(r.END_DATE)}`;
-              return (
-                <li key={r.ID} className={styles.historyRow}>
-                  <span className={styles.historyBadge}>{I.calendar}</span>
-                  <div className={styles.historyBody}>
-                    <div className={styles.historyTitle}>
-                      <span>{(r.LEAVE_TYPE || "—")}</span>
-                      <span style={{ color: "#94a3b8", fontWeight: 500, fontSize: 12 }}>
-                        {" · "}{r.DAYS || 0} day{r.DAYS === 1 ? "" : "s"}
-                      </span>
-                    </div>
-                    <div className={styles.historyMeta}>
-                      {range}
-                      {r.REASON ? ` · ${r.REASON}` : ""}
-                    </div>
-                  </div>
-                  <div className={styles.historyRight}>
-                    <span className={`${styles.chip} ${styles[meta.cls]}`}>
-                      {meta.label}
-                    </span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+      {/* History card removed per admin request (2026-09-02).
+          The employee's leave-request list is no longer surfaced in
+          the Self Portal. HR still sees the full history from the
+          admin Leave Management page. Handlers + fetch stay wired
+          so the card can be brought back by uncommenting this block. */}
 
       {/* -------- Balance-deduction confirmation modal -------- */}
       {showBalanceConfirm && (
