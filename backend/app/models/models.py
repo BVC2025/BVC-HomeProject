@@ -451,7 +451,7 @@ class TaskAssignment(Base):
     # a different employee, so the assignee's Tasks list stays clean.
     HELPDESK_TICKET_ID = Column(
         Integer,
-        ForeignKey("help_desk_ticket.ID"),
+        ForeignKey("helpdesk_ticket.ID"),
         nullable=True,
         index=True,
     )
