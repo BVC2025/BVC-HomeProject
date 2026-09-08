@@ -332,6 +332,13 @@ class CompanySettingsBody(BaseModel):
     BANK_BRANCH:         Optional[str] = None
     UPI_ID:              Optional[str] = None
     NOTES:               Optional[str] = None
+    CURRENCY:                Optional[str] = None
+    TIMEZONE:                Optional[str] = None
+    DATE_FORMAT:             Optional[str] = None
+    FISCAL_YEAR_START_MONTH: Optional[int] = None
+    WORKING_DAYS:            Optional[str] = None
+    WORKING_HOURS_START:     Optional[str] = None
+    WORKING_HOURS_END:       Optional[str] = None
 
 
 @router.get("/settings/company", dependencies=[Depends(require("setting.modify"))])

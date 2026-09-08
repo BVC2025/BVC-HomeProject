@@ -9,8 +9,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import API from "../services/api";
-import VoiceRequisitionModal from "../components/VoiceRequisitionModal";
 import RecruitmentAgentWorkspace from "../components/RecruitmentAgentWorkspace";
+import NewRequisitionPage from "../components/NewRequisitionPage";
 
 
 const BVC_RED = "#C8102E";
@@ -215,7 +215,9 @@ function RequisitionsTab({ onConverted, openManualSignal = 0, reloadSignal = 0 }
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("");
   const [showCreate, setShowCreate] = useState(false);
-  const [showVoice,  setShowVoice]  = useState(false);
+  // "+ New Requisition" opens the unified Manual/Chat/Voice experience;
+  // its "Manual Entry" card opens showCreate (the classic form) on top.
+  const [showAssistant, setShowAssistant] = useState(false);
   // Edit target — when non-null, the CreateRequisitionModal opens in
   // edit mode with this row's fields pre-filled.
   const [editingReq, setEditingReq] = useState(null);
@@ -362,29 +364,7 @@ function RequisitionsTab({ onConverted, openManualSignal = 0, reloadSignal = 0 }
             <option value="CANCELLED">Cancelled</option>
           </select>
           <button
-            onClick={() => setShowVoice(true)}
-            title="Speak your requisition — Tamil / English / Thanglish"
-            style={{
-              background: "white",
-              color: BVC_RED,
-              border: `1.5px solid ${BVC_RED}`,
-              padding: "9px 14px", borderRadius: 8, fontSize: 12,
-              fontWeight: 700, cursor: "pointer",
-              display: "inline-flex", alignItems: "center", gap: 6,
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" strokeWidth="2"
-                 strokeLinecap="round" strokeLinejoin="round"
-                 aria-hidden="true">
-              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-              <line x1="12" y1="19" x2="12" y2="22"/>
-            </svg>
-            Voice
-          </button>
-          <button
-            onClick={() => setShowCreate(true)}
+            onClick={() => setShowAssistant(true)}
             style={{
               background: BVC_RED, color: "white", border: "none",
               padding: "9px 16px", borderRadius: 8, fontSize: 12,
@@ -446,13 +426,13 @@ function RequisitionsTab({ onConverted, openManualSignal = 0, reloadSignal = 0 }
         />
       )}
 
-      {showVoice && (
-        <VoiceRequisitionModal
-          onClose={() => setShowVoice(false)}
+      {showAssistant && (
+        <NewRequisitionPage
+          onClose={() => setShowAssistant(false)}
+          onOpenManual={() => { setShowAssistant(false); setShowCreate(true); }}
           onCommitted={(created) => {
-            setShowVoice(false);
             load();
-            setToast(`Voice → ${created?.REQ_CODE || "requisition"} created`);
+            setToast(`${created?.REQ_CODE || "Requisition"} created`);
           }}
         />
       )}
@@ -671,6 +651,17 @@ function CreateRequisitionModal({ onClose, onSaved, initial = null }) {
       ? String(initial.NEEDED_BY_DATE).slice(0, 10)
       : "",
     REQUESTED_BY_ID: initial?.REQUESTED_BY_ID || "",
+    WORK_MODE: initial?.WORK_MODE || "ON_SITE",
+    SHIFT: initial?.SHIFT || "",
+    SALARY_PERIOD: initial?.SALARY_PERIOD || "MONTHLY",
+    APPLICATION_DEADLINE: initial?.APPLICATION_DEADLINE
+      ? String(initial.APPLICATION_DEADLINE).slice(0, 10)
+      : "",
+    HIRING_MANAGER_ID: initial?.HIRING_MANAGER_ID || "",
+    RECRUITER_ID: initial?.RECRUITER_ID || "",
+    JOB_DESCRIPTION: initial?.JOB_DESCRIPTION || "",
+    RESPONSIBILITIES: initial?.RESPONSIBILITIES || "",
+    QUALIFICATIONS: initial?.QUALIFICATIONS || "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -710,6 +701,15 @@ function CreateRequisitionModal({ onClose, onSaved, initial = null }) {
         URGENCY: form.URGENCY || "NORMAL",
         NEEDED_BY_DATE: form.NEEDED_BY_DATE || null,
         REQUESTED_BY_ID: form.REQUESTED_BY_ID || null,
+        WORK_MODE: form.WORK_MODE || "ON_SITE",
+        SHIFT: form.SHIFT.trim() || null,
+        SALARY_PERIOD: form.SALARY_PERIOD || "MONTHLY",
+        APPLICATION_DEADLINE: form.APPLICATION_DEADLINE || null,
+        HIRING_MANAGER_ID: form.HIRING_MANAGER_ID || null,
+        RECRUITER_ID: form.RECRUITER_ID || null,
+        JOB_DESCRIPTION: form.JOB_DESCRIPTION.trim() || null,
+        RESPONSIBILITIES: form.RESPONSIBILITIES.trim() || null,
+        QUALIFICATIONS: form.QUALIFICATIONS.trim() || null,
       };
       if (isEdit) {
         await API.patch(`/recruitment/requisitions/${initial.ID}`, payload);
@@ -930,6 +930,91 @@ function CreateRequisitionModal({ onClose, onSaved, initial = null }) {
               />
             </ReqField>
           </ReqRow>
+
+          <ReqRow>
+            <ReqField label="Work mode">
+              <select value={form.WORK_MODE} onChange={set("WORK_MODE")} style={reqInputStyle}>
+                <option value="ON_SITE">On-site</option>
+                <option value="REMOTE">Remote</option>
+                <option value="HYBRID">Hybrid</option>
+              </select>
+            </ReqField>
+            <ReqField label="Shift">
+              <input
+                type="text"
+                value={form.SHIFT}
+                onChange={set("SHIFT")}
+                placeholder="e.g. Day Shift"
+                style={reqInputStyle}
+              />
+            </ReqField>
+          </ReqRow>
+
+          <ReqRow>
+            <ReqField label="Salary period">
+              <select value={form.SALARY_PERIOD} onChange={set("SALARY_PERIOD")} style={reqInputStyle}>
+                <option value="MONTHLY">Monthly</option>
+                <option value="ANNUAL">Annual (CTC)</option>
+              </select>
+            </ReqField>
+            <ReqField label="Application deadline">
+              <input
+                type="date"
+                value={form.APPLICATION_DEADLINE}
+                onChange={set("APPLICATION_DEADLINE")}
+                style={reqInputStyle}
+              />
+            </ReqField>
+          </ReqRow>
+
+          <ReqRow>
+            <ReqField label="Hiring manager">
+              <select value={form.HIRING_MANAGER_ID} onChange={set("HIRING_MANAGER_ID")} style={reqInputStyle}>
+                <option value="">— optional —</option>
+                {employees.map((e) => (
+                  <option key={e.ID} value={e.ID}>{e.NAME || e.EMPLOYEE_CODE}</option>
+                ))}
+              </select>
+            </ReqField>
+            <ReqField label="Recruiter">
+              <select value={form.RECRUITER_ID} onChange={set("RECRUITER_ID")} style={reqInputStyle}>
+                <option value="">— optional —</option>
+                {employees.map((e) => (
+                  <option key={e.ID} value={e.ID}>{e.NAME || e.EMPLOYEE_CODE}</option>
+                ))}
+              </select>
+            </ReqField>
+          </ReqRow>
+
+          <ReqField label="Job description">
+            <textarea
+              rows={2}
+              value={form.JOB_DESCRIPTION}
+              onChange={set("JOB_DESCRIPTION")}
+              placeholder="Short overview of the role…"
+              style={{ ...reqInputStyle, resize: "vertical", fontFamily: "inherit" }}
+            />
+          </ReqField>
+
+          <ReqField label="Responsibilities">
+            <textarea
+              rows={3}
+              value={form.RESPONSIBILITIES}
+              onChange={set("RESPONSIBILITIES")}
+              placeholder={"- Bullet point one\n- Bullet point two"}
+              style={{ ...reqInputStyle, resize: "vertical", fontFamily: "inherit" }}
+            />
+          </ReqField>
+
+          <ReqField label="Qualifications">
+            <textarea
+              rows={2}
+              value={form.QUALIFICATIONS}
+              onChange={set("QUALIFICATIONS")}
+              placeholder={"- Degree / certification\n- Years of experience"}
+              style={{ ...reqInputStyle, resize: "vertical", fontFamily: "inherit" }}
+            />
+          </ReqField>
 
           <ReqField label="Justification">
             <textarea

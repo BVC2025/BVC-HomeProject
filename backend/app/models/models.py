@@ -908,7 +908,7 @@ class TaskAssignment(Base):
     # a different employee, so the assignee's Tasks list stays clean.
     HELPDESK_TICKET_ID = Column(
         Integer,
-        ForeignKey("help_desk_ticket.ID"),
+        ForeignKey("helpdesk_ticket.ID"),
         nullable=True,
         index=True,
     )
@@ -3372,6 +3372,26 @@ class CompanyMaster(Base):
     # e.g. /static/company/<uuid>.png — written by the upload endpoint
 
     NOTES = Column(String(1000), nullable=True)
+
+    # ---- Admin / System Foundation: locale + working calendar ----
+    CURRENCY = Column(String(10), nullable=True, default="INR")
+
+    TIMEZONE = Column(String(60), nullable=True, default="Asia/Kolkata")
+
+    DATE_FORMAT = Column(String(20), nullable=True, default="DD-MM-YYYY")
+
+    FISCAL_YEAR_START_MONTH = Column(Integer, nullable=True, default=4)
+    # 1-12. Default April (Indian fiscal year).
+
+    WORKING_DAYS = Column(String(60), nullable=True)
+    # Comma-separated, e.g. "MON,TUE,WED,THU,FRI,SAT"
+
+    WORKING_HOURS_START = Column(String(10), nullable=True)
+    # "HH:MM", e.g. "09:30" — stored as text since this is a display/
+    # default-policy setting, not used for arithmetic (per-shift times
+    # already live on ShiftTemplate).
+
+    WORKING_HOURS_END = Column(String(10), nullable=True)
 
     CREATED_AT = Column(DateTime, default=datetime.utcnow)
 

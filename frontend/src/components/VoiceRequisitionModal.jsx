@@ -97,6 +97,12 @@ export default function VoiceRequisitionModal({ onClose, onCommitted }) {
   // Generated job-post image URL — set after clicking "Generate post".
   const [postImageUrl, setPostImageUrl] = useState(null);
   const [postBusy, setPostBusy] = useState(false);
+  const [postTextBusy, setPostTextBusy] = useState(false);
+  const [postTextCopied, setPostTextCopied] = useState(false);
+  // For the Hiring Manager / Recruiter pickers — same employee list
+  // the manual requisition form already fetches, duplicated here
+  // since this modal doesn't share that component's state.
+  const [employees, setEmployees] = useState([]);
 
   const recogRef = useRef(null);
   const historyRef = useRef([]);
@@ -105,6 +111,11 @@ export default function VoiceRequisitionModal({ onClose, onCommitted }) {
   // that immediately if the mic warm-up is slow; one silent retry
   // hides the flake from HR.
   const noSpeechRetryRef = useRef(0);
+  // Did HR actually use the mic at any point this session, or only
+  // type? Drives RecruitmentRequisition.SOURCE (VOICE vs CHAT) at
+  // commit time — set true only by the SpeechRecognition result
+  // handler, never by the typed-input send paths.
+  const usedVoiceRef = useRef(false);
   // The one <audio> element that plays every server-synth reply.
   // Kept in a ref so we can cancel a queued reply if HR starts
   // speaking again — no barge-in weirdness.
@@ -247,6 +258,46 @@ export default function VoiceRequisitionModal({ onClose, onCommitted }) {
     }
   };
 
+  // No real LinkedIn/Indeed/Naukri API access exists — this fetches a
+  // plain-text job posting and copies it to the clipboard so HR can
+  // paste it into whichever portal they actually have an account on,
+  // rather than a "Publish" button that would have to lie about
+  // whether it actually reached the portal.
+  const copyPostText = async () => {
+    if (!draft?.POSITION_TITLE) return;
+    setPostTextBusy(true);
+    setError("");
+    try {
+      const res = await API.post("/recruitment/voice-agent/post-text", {
+        POSITION_TITLE: draft.POSITION_TITLE,
+        DEPARTMENT: draft.DEPARTMENT,
+        LOCATION: draft.LOCATION || "Coimbatore, Tamil Nadu",
+        EMPLOYMENT_TYPE: draft.EMPLOYMENT_TYPE || "FULL_TIME",
+        WORK_MODE: draft.WORK_MODE || "ON_SITE",
+        SHIFT: draft.SHIFT || null,
+        HEADCOUNT: Number(draft.HEADCOUNT) || 1,
+        EXPERIENCE_MIN_YEARS: draft.EXPERIENCE_MIN_YEARS ?? 0,
+        EXPERIENCE_MAX_YEARS: draft.EXPERIENCE_MAX_YEARS ?? null,
+        BUDGET_CTC_MIN: draft.BUDGET_CTC_MIN ?? null,
+        BUDGET_CTC_MAX: draft.BUDGET_CTC_MAX ?? null,
+        SALARY_PERIOD: draft.SALARY_PERIOD || "MONTHLY",
+        REQUIRED_SKILLS: draft.REQUIRED_SKILLS || null,
+        PREFERRED_SKILLS: draft.PREFERRED_SKILLS || null,
+        REQUIRED_EDUCATION: draft.REQUIRED_EDUCATION || null,
+        JOB_DESCRIPTION: draft.JOB_DESCRIPTION || null,
+        RESPONSIBILITIES: draft.RESPONSIBILITIES || null,
+        QUALIFICATIONS: draft.QUALIFICATIONS || null,
+      });
+      await navigator.clipboard.writeText(res.data?.text || "");
+      setPostTextCopied(true);
+      setTimeout(() => setPostTextCopied(false), 2500);
+    } catch (e) {
+      setError(e?.response?.data?.detail || "Could not generate the job post text.");
+    } finally {
+      setPostTextBusy(false);
+    }
+  };
+
   const downloadPostImage = () => {
     if (!postImageUrl || !draft) return;
     const a = document.createElement("a");
@@ -270,6 +321,10 @@ export default function VoiceRequisitionModal({ onClose, onCommitted }) {
       setSupported(false);
       setError("Your browser doesn't support voice input. Use Chrome or Edge — or type your request in the box below.");
     }
+  }, []);
+
+  useEffect(() => {
+    API.get("/employees").then((res) => setEmployees(res.data || [])).catch(() => {});
   }, []);
 
 
@@ -396,7 +451,10 @@ export default function VoiceRequisitionModal({ onClose, onCommitted }) {
       setListening(false);
       const t = (finalTranscript || interim || "").trim();
       setInterim("");
-      if (t) sendToAgent(t);
+      if (t) {
+        usedVoiceRef.current = true;
+        sendToAgent(t);
+      }
     };
 
     recogRef.current = rec;
@@ -448,6 +506,19 @@ export default function VoiceRequisitionModal({ onClose, onCommitted }) {
         NEEDED_BY_DATE: draft.NEEDED_BY_DATE || null,
         JUSTIFICATION: draft.JUSTIFICATION || null,
         URGENCY: draft.URGENCY || "NORMAL",
+        WORK_MODE: draft.WORK_MODE || "ON_SITE",
+        SHIFT: draft.SHIFT || null,
+        SALARY_PERIOD: draft.SALARY_PERIOD || "MONTHLY",
+        HIRING_MANAGER_ID: draft.HIRING_MANAGER_ID || null,
+        RECRUITER_ID: draft.RECRUITER_ID || null,
+        APPLICATION_DEADLINE: draft.APPLICATION_DEADLINE || null,
+        JOB_DESCRIPTION: draft.JOB_DESCRIPTION || null,
+        RESPONSIBILITIES: draft.RESPONSIBILITIES || null,
+        QUALIFICATIONS: draft.QUALIFICATIONS || null,
+        source: usedVoiceRef.current ? "VOICE" : "CHAT",
+        original_transcript: historyRef.current
+          .map((t) => `${t.role === "user" ? "HR" : "Agent"}: ${t.content}`)
+          .join("\n") || null,
       };
       const res = await API.post("/recruitment/voice-agent/commit", payload);
       speakServer(
@@ -501,13 +572,13 @@ export default function VoiceRequisitionModal({ onClose, onCommitted }) {
               fontSize: 10.5, fontWeight: 800, letterSpacing: 1.4,
               color: BVC_RED, textTransform: "uppercase",
             }}>
-              Deepthi · Recruitment voice agent
+              Deepthi · AI Recruitment Assistant
             </div>
             <div style={{
               fontSize: 18, fontWeight: 700, color: "#0f172a",
               marginTop: 4, lineHeight: 1.25,
             }}>
-              Speak your hiring request
+              Type or speak your hiring request
             </div>
             <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
               Tamil · English · Thanglish — the agent adapts.
@@ -859,6 +930,67 @@ export default function VoiceRequisitionModal({ onClose, onCommitted }) {
                     <DraftRow label="Location" value={draft.LOCATION} onChange={set("LOCATION")} placeholder="Coimbatore, Tamil Nadu" />
                     <DraftRow label="Type" value={draft.EMPLOYMENT_TYPE} onChange={set("EMPLOYMENT_TYPE")} placeholder="FULL_TIME" />
                     <DraftRow label="Urgency" value={draft.URGENCY} onChange={set("URGENCY")} placeholder="NORMAL / HIGH / URGENT" />
+                    <DraftRow label="Work mode" value={draft.WORK_MODE} onChange={set("WORK_MODE")} placeholder="ON_SITE / REMOTE / HYBRID" />
+                    <DraftRow label="Shift" value={draft.SHIFT} onChange={set("SHIFT")} placeholder="e.g. Day Shift" />
+                    <DraftRow label="Salary period" value={draft.SALARY_PERIOD} onChange={set("SALARY_PERIOD")} placeholder="MONTHLY / ANNUAL" />
+                    <DraftRow label="App. deadline" value={draft.APPLICATION_DEADLINE} onChange={set("APPLICATION_DEADLINE")} type="date" />
+
+                    <div style={{
+                      display: "grid", gridTemplateColumns: "110px 1fr",
+                      gap: 8, padding: "2px 0", fontSize: 13, alignItems: "center",
+                    }}>
+                      <div style={{ color: "#64748b" }}>Hiring manager</div>
+                      <select
+                        value={draft.HIRING_MANAGER_ID || ""}
+                        onChange={(e) => set("HIRING_MANAGER_ID")(e.target.value || null)}
+                        style={{ width: "100%", padding: "5px 8px", fontSize: 13, border: "1px solid #e2e8f0", borderRadius: 5, background: "white", color: "#0f172a" }}
+                      >
+                        <option value="">— optional —</option>
+                        {employees.map((e) => (
+                          <option key={e.ID} value={e.ID}>{e.NAME || e.EMPLOYEE_CODE}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div style={{
+                      display: "grid", gridTemplateColumns: "110px 1fr",
+                      gap: 8, padding: "2px 0", fontSize: 13, alignItems: "center",
+                    }}>
+                      <div style={{ color: "#64748b" }}>Recruiter</div>
+                      <select
+                        value={draft.RECRUITER_ID || ""}
+                        onChange={(e) => set("RECRUITER_ID")(e.target.value || null)}
+                        style={{ width: "100%", padding: "5px 8px", fontSize: 13, border: "1px solid #e2e8f0", borderRadius: 5, background: "white", color: "#0f172a" }}
+                      >
+                        <option value="">— optional —</option>
+                        {employees.map((e) => (
+                          <option key={e.ID} value={e.ID}>{e.NAME || e.EMPLOYEE_CODE}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* AI-generated prose — clearly labelled, always
+                        editable before commit (never auto-published
+                        unreviewed). Blank when the regex fallback
+                        answered instead of the LLM. */}
+                    {["JOB_DESCRIPTION", "RESPONSIBILITIES", "QUALIFICATIONS"].map((field) => (
+                      <div key={field} style={{ marginTop: 8 }}>
+                        <div style={{ fontSize: 11, color: "#64748b", marginBottom: 3, display: "flex", alignItems: "center", gap: 6 }}>
+                          {field === "JOB_DESCRIPTION" ? "Job description" : field === "RESPONSIBILITIES" ? "Responsibilities" : "Qualifications"}
+                          <span style={{ fontSize: 9, fontWeight: 700, color: BVC_RED, letterSpacing: 0.4 }}>AI-GENERATED · REVIEW BEFORE SAVING</span>
+                        </div>
+                        <textarea
+                          value={draft[field] || ""}
+                          onChange={(e) => set(field)(e.target.value)}
+                          placeholder="(not generated — add manually if needed)"
+                          rows={3}
+                          style={{
+                            width: "100%", padding: "6px 8px", fontSize: 12.5,
+                            border: "1px solid #e2e8f0", borderRadius: 6,
+                            fontFamily: "inherit", resize: "vertical", boxSizing: "border-box",
+                          }}
+                        />
+                      </div>
+                    ))}
                   </>
                 );
               })()}
@@ -926,6 +1058,60 @@ export default function VoiceRequisitionModal({ onClose, onCommitted }) {
                       Download
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={copyPostText}
+                    disabled={postTextBusy}
+                    style={{
+                      padding: "8px 14px", background: "white",
+                      color: "#475569", border: "1.5px solid #cbd5e1",
+                      borderRadius: 8, fontSize: 12, fontWeight: 700,
+                      cursor: postTextBusy ? "not-allowed" : "pointer",
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      whiteSpace: "nowrap", opacity: postTextBusy ? 0.6 : 1,
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="2"
+                      strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
+                    {postTextBusy ? "Preparing…" : postTextCopied ? "Copied!" : "Copy job post text"}
+                  </button>
+                </div>
+
+                {/* Portal publishing — no real API access to any of
+                    these exists, so this never claims a publish
+                    succeeded. Recruiter copies the text/image above
+                    and posts it themselves wherever they have an
+                    account. */}
+                <div style={{
+                  display: "flex", gap: 6, flexWrap: "wrap",
+                  marginTop: 10, fontSize: 11,
+                }}>
+                  {[
+                    { label: "Internal Job Board", connected: true },
+                    { label: "LinkedIn", connected: false },
+                    { label: "Indeed", connected: false },
+                    { label: "Naukri", connected: false },
+                  ].map((p) => (
+                    <span
+                      key={p.label}
+                      title={p.connected
+                        ? "Shows on the Jobs tab once this requisition converts to a job."
+                        : "No API connection configured — copy the text/image above and post manually."}
+                      style={{
+                        padding: "3px 9px", borderRadius: 999,
+                        border: `1px solid ${p.connected ? "#16a34a" : "#e2e8f0"}`,
+                        color: p.connected ? "#16a34a" : "#94a3b8",
+                        background: p.connected ? "#f0fdf4" : "#f8fafc",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {p.label} · {p.connected ? "Connected" : "Not connected"}
+                    </span>
+                  ))}
                 </div>
 
                 {postImageUrl && (

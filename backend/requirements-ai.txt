@@ -10,3 +10,15 @@
 #   GEMINI_MODEL=gemini-2.0-flash-exp     # optional, default is set in code
 
 google-generativeai==0.8.3
+
+# ── ERP Assistant (Qwen3 via Ollama) ──────────────────────────────
+# LLM itself runs in Ollama (separate app, not a pip package) — install
+# from https://ollama.com/download, then:  ollama pull qwen3
+# This file just needs the HTTP client, and requests is already in
+# requirements.txt, so there is nothing to add here for the LLM side.
+
+# ── Kokoro TTS (optional, better-quality voice for en/hi) ─────────
+# Also needs the espeak-ng binary on PATH (phonemizer dependency):
+#   https://github.com/espeak-ng/espeak-ng/releases
+kokoro>=0.9.4
+soundfile>=0.12.1

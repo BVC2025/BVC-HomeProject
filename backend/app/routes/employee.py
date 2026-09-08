@@ -31,7 +31,7 @@ from app.schemas.employee_schema import (
     EmployeePasswordReset
 )
 
-from app.services.auth_service import hash_password
+from app.services.auth_service import hash_password, bump_token_version
 from app.services.email_service import send_via_resend, send_via_vendor_smtp
 from app.services.email_template_service import get_or_create_template, render_template
 from app.services.company_settings_service import get_company_settings, format_full_address
@@ -888,6 +888,12 @@ def reset_password(
     emp.PASSWORD = hash_password(data.NEW_PASSWORD)
 
     db.commit()
+
+    # Instantly invalidate any session issued before this reset — an
+    # admin-forced password reset is usually a "lock this account down
+    # now" action, so the old token shouldn't stay valid until it
+    # naturally expires.
+    bump_token_version(db, emp)
 
     return {"message": "Password reset successfully"}
 

@@ -12,6 +12,7 @@ from app.models.rag_models import AIModule
 from app.rag_modules.core.retrieval_service import retrieve
 from app.rag_modules.core.module_registry import get_system_prompt
 from app.rag_modules.core import llm_client
+from app.rag_modules.core import ollama_llm_client
 
 log = logging.getLogger(__name__)
 
@@ -128,13 +129,19 @@ def run_chat(
 
     full_prompt = _build_context_prompt(system_prompt, chunks)
 
+    # AIModule.LLM_PROVIDER picks which backend answers this module —
+    # "OLLAMA" (self-hosted, e.g. Qwen3) or the default "GEMINI". Both
+    # clients share the exact same stream_answer() signature/yield shape,
+    # so nothing below this line needs to know or care which one it is.
+    client = ollama_llm_client if (module.LLM_PROVIDER or "GEMINI").upper() == "OLLAMA" else llm_client
+
     final_answer_parts = []
 
     meta = None
 
     try:
 
-        for event in llm_client.stream_answer(
+        for event in client.stream_answer(
             full_prompt, user_message, history=history,
             tools=tools, tool_resolver=tool_resolver,
         ):

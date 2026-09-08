@@ -1611,6 +1611,15 @@ class RequisitionCreate(BaseModel):
     JUSTIFICATION: Optional[str] = None
     URGENCY: Optional[str] = "NORMAL"
     NEEDED_BY_DATE: Optional[str] = None
+    WORK_MODE: Optional[str] = "ON_SITE"
+    SHIFT: Optional[str] = None
+    SALARY_PERIOD: Optional[str] = "MONTHLY"
+    HIRING_MANAGER_ID: Optional[str] = None
+    RECRUITER_ID: Optional[str] = None
+    APPLICATION_DEADLINE: Optional[str] = None
+    JOB_DESCRIPTION: Optional[str] = None
+    RESPONSIBILITIES: Optional[str] = None
+    QUALIFICATIONS: Optional[str] = None
     REQUESTED_BY_ID: Optional[str] = None
 
 
@@ -1651,6 +1660,17 @@ def _serialize_requisition(r: RecruitmentRequisition, db: Session) -> Dict[str, 
         "JUSTIFICATION": r.JUSTIFICATION,
         "URGENCY": r.URGENCY,
         "NEEDED_BY_DATE": r.NEEDED_BY_DATE.isoformat() if r.NEEDED_BY_DATE else None,
+        "WORK_MODE": r.WORK_MODE,
+        "SHIFT": r.SHIFT,
+        "SALARY_PERIOD": r.SALARY_PERIOD,
+        "HIRING_MANAGER_ID": r.HIRING_MANAGER_ID,
+        "RECRUITER_ID": r.RECRUITER_ID,
+        "APPLICATION_DEADLINE": r.APPLICATION_DEADLINE.isoformat() if r.APPLICATION_DEADLINE else None,
+        "JOB_DESCRIPTION": r.JOB_DESCRIPTION,
+        "RESPONSIBILITIES": r.RESPONSIBILITIES,
+        "QUALIFICATIONS": r.QUALIFICATIONS,
+        "SOURCE": r.SOURCE,
+        "ORIGINAL_TRANSCRIPT": r.ORIGINAL_TRANSCRIPT,
         "REQUESTED_BY_ID": r.REQUESTED_BY_ID,
         "REQUESTED_BY_NAME": requester_name,
         "STATUS": r.STATUS,
@@ -1823,6 +1843,13 @@ def create_requisition(payload: RequisitionCreate, db: Session = Depends(get_db)
         except (TypeError, ValueError):
             raise HTTPException(status_code=400, detail="NEEDED_BY_DATE must be YYYY-MM-DD.")
 
+    deadline = None
+    if payload.APPLICATION_DEADLINE:
+        try:
+            deadline = date.fromisoformat(payload.APPLICATION_DEADLINE)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="APPLICATION_DEADLINE must be YYYY-MM-DD.")
+
     r = RecruitmentRequisition(
         REQ_CODE             = _next_req_code(db),
         POSITION_TITLE       = payload.POSITION_TITLE.strip(),
@@ -1840,6 +1867,16 @@ def create_requisition(payload: RequisitionCreate, db: Session = Depends(get_db)
         JUSTIFICATION        = (payload.JUSTIFICATION or "").strip() or None,
         URGENCY              = payload.URGENCY or "NORMAL",
         NEEDED_BY_DATE       = needed,
+        WORK_MODE            = (payload.WORK_MODE or "ON_SITE").upper(),
+        SHIFT                = (payload.SHIFT or "").strip() or None,
+        SALARY_PERIOD        = (payload.SALARY_PERIOD or "MONTHLY").upper(),
+        HIRING_MANAGER_ID    = payload.HIRING_MANAGER_ID or None,
+        RECRUITER_ID         = payload.RECRUITER_ID or None,
+        APPLICATION_DEADLINE = deadline,
+        JOB_DESCRIPTION      = (payload.JOB_DESCRIPTION or "").strip() or None,
+        RESPONSIBILITIES     = (payload.RESPONSIBILITIES or "").strip() or None,
+        QUALIFICATIONS       = (payload.QUALIFICATIONS or "").strip() or None,
+        SOURCE               = "MANUAL",
         REQUESTED_BY_ID      = payload.REQUESTED_BY_ID or None,
         STATUS               = "PENDING",
         APPROVAL_TOKEN       = secrets.token_urlsafe(32),

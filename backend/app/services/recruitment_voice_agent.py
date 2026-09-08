@@ -94,10 +94,34 @@ FIELDS YOU SHOULD CAPTURE (nice-to-have — draft can proceed without):
   9. LOCATION             — city / site (default: Coimbatore, Tamil Nadu)
  10. EMPLOYMENT_TYPE      — FULL_TIME (default) | PART_TIME | CONTRACT | INTERN
  11. URGENCY              — NORMAL (default) | HIGH | URGENT
- 12. BUDGET_CTC_MIN       — minimum annual CTC in rupees (e.g. 240000)
- 13. BUDGET_CTC_MAX       — maximum annual CTC in rupees (e.g. 420000)
+ 12. BUDGET_CTC_MIN       — minimum salary in rupees (e.g. 30000)
+ 13. BUDGET_CTC_MAX       — maximum salary in rupees (e.g. 40000)
  14. NEEDED_BY_DATE       — target join date in YYYY-MM-DD format
  15. JUSTIFICATION        — one-sentence business reason
+ 16. WORK_MODE            — ON_SITE (default) | REMOTE | HYBRID
+ 17. SHIFT                — e.g. "Day", "Night", "General" (nullable)
+ 18. SALARY_PERIOD        — MONTHLY (default) | ANNUAL — the unit BUDGET_CTC_MIN/MAX
+                             is in. Infer from how HR phrased it ("30 to 40
+                             thousand a month" = MONTHLY; "4.2 LPA" = ANNUAL).
+ 19. APPLICATION_DEADLINE — when applications close, YYYY-MM-DD (nullable,
+                             distinct from NEEDED_BY_DATE which is the join target)
+
+Do NOT ask about or capture any gender/marital/religious/community
+requirement for the role, even if HR mentions one — politely note in
+your reply that hiring must stay open to all eligible candidates and
+drop that detail from the draft entirely. This is a hard rule, not a
+style preference.
+
+ONCE YOU PROPOSE A DRAFT, also generate (from ONLY what HR actually
+said — never invent a skill, benefit, or requirement they didn't
+mention):
+  - JOB_DESCRIPTION  — 2-3 sentence overview of the role
+  - RESPONSIBILITIES — newline-separated bullet points (as a single
+                        string, "- " prefix per line)
+  - QUALIFICATIONS   — newline-separated bullet points, same format,
+                        built from REQUIRED_EDUCATION/REQUIRED_SKILLS/
+                        EXPERIENCE_MIN_YEARS — don't repeat information
+                        not already captured in those fields.
 
 CONVERSATION FLOW:
 - On the first turn, if HR gave the 3 critical fields, jump straight
@@ -130,7 +154,14 @@ OUTPUT FORMAT — JSON ONLY, no prose, no markdown fences:
     "BUDGET_CTC_MIN":       <number|null>,
     "BUDGET_CTC_MAX":       <number|null>,
     "NEEDED_BY_DATE":       "YYYY-MM-DD|null",
-    "JUSTIFICATION":        "string|null"
+    "JUSTIFICATION":        "string|null",
+    "WORK_MODE":            "ON_SITE",
+    "SHIFT":                "string|null",
+    "SALARY_PERIOD":        "MONTHLY",
+    "APPLICATION_DEADLINE": "YYYY-MM-DD|null",
+    "JOB_DESCRIPTION":      "string|null",
+    "RESPONSIBILITIES":     "string|null",
+    "QUALIFICATIONS":       "string|null"
   }
 }
 
@@ -324,6 +355,16 @@ def _regex_extract(utterance: str) -> Dict[str, Any]:
         "BUDGET_CTC_MAX": None,
         "NEEDED_BY_DATE": None,
         "JUSTIFICATION": None,
+        "WORK_MODE": "ON_SITE",
+        "SHIFT": None,
+        "SALARY_PERIOD": "MONTHLY",
+        "APPLICATION_DEADLINE": None,
+        # Prose generation (JOB_DESCRIPTION/RESPONSIBILITIES/QUALIFICATIONS)
+        # is an LLM-only capability — left blank in the regex fallback
+        # rather than templating something HR didn't actually say.
+        "JOB_DESCRIPTION": None,
+        "RESPONSIBILITIES": None,
+        "QUALIFICATIONS": None,
     }
 
     # ---- Headcount ---------------------------------------------
@@ -462,6 +503,44 @@ def _regex_extract(utterance: str) -> Dict[str, Any]:
         )
         if m:
             draft["BUDGET_CTC_MAX"] = _parse_inr(m.group(1))
+
+    # ---- Work mode ----------------------------------------------
+    if re.search(r"\b(remote|work\s+from\s+home|wfh)\b", t):
+        draft["WORK_MODE"] = "REMOTE"
+    elif re.search(r"\bhybrid\b", t):
+        draft["WORK_MODE"] = "HYBRID"
+    elif re.search(r"\b(on\s*-?\s*site|onsite|office)\b", t):
+        draft["WORK_MODE"] = "ON_SITE"
+
+    # ---- Shift ---------------------------------------------------
+    m = re.search(r"\b(day|night|general|morning|evening|rotational)\s+shift\b", t)
+    if m:
+        draft["SHIFT"] = m.group(1).title() + " Shift"
+
+    # ---- Salary period --------------------------------------------
+    # "a month" / "per month" / "monthly" -> MONTHLY; "lpa" / "per
+    # annum" / "annual" / "a year" -> ANNUAL. Only overrides the
+    # MONTHLY default when annual phrasing is actually present.
+    if re.search(r"\b(lpa|per\s+annum|p\.?a\.?|annual(?:ly)?|a\s+year|per\s+year)\b", t):
+        draft["SALARY_PERIOD"] = "ANNUAL"
+    elif re.search(r"\b(per\s+month|a\s+month|monthly)\b", t):
+        draft["SALARY_PERIOD"] = "MONTHLY"
+
+    # ---- Application deadline (distinct from "needed by") ---------
+    m = re.search(
+        r"(?:application|apply)[^.\n]{0,20}(?:by|before|deadline)\s*[:\-]?\s*"
+        r"(\d{1,2}[-\s/](?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[-\s/]?\d{4}|\d{4}-\d{2}-\d{2})",
+        t,
+    )
+    if m:
+        from datetime import datetime as _dt2
+        raw = m.group(1)
+        for fmt_try in ("%Y-%m-%d",):
+            try:
+                draft["APPLICATION_DEADLINE"] = _dt2.strptime(raw, fmt_try).strftime("%Y-%m-%d")
+                break
+            except ValueError:
+                continue
 
     # ---- Urgency ----------------------------------------------
     if re.search(r"\b(urgent|urgency\s+high|asap|immediately|high\s+priority)\b", t):

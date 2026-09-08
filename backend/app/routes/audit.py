@@ -12,12 +12,32 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from fastapi import HTTPException as _HTTPException
+
 from app.database.database import get_db
 from app.models.models import AuditLog
-from app.auth.auth_bearer import get_current_admin
+from app.auth.auth_bearer import get_current_user, ADMIN_ROLES
 
 
 router = APIRouter(prefix="/audit-logs", tags=["Audit Logs"])
+
+
+def _require_audit_access(payload: dict = Depends(get_current_user)):
+    """Admin-tier role (existing behaviour) OR anyone explicitly
+    granted the audit.view permission (new, granular option) OR Root.
+    Kept as an OR so existing admin-tier logins that predate the
+    audit.view permission code aren't locked out by adding it."""
+
+    if payload.get("principal_type") == "ROOT":
+        return payload
+
+    if payload.get("role") in ADMIN_ROLES:
+        return payload
+
+    if "audit.view" in set(payload.get("permissions") or []):
+        return payload
+
+    raise _HTTPException(status_code=403, detail="Missing required permission: audit.view")
 
 
 def _serialize(row: AuditLog) -> dict:
@@ -38,7 +58,7 @@ def _serialize(row: AuditLog) -> dict:
     }
 
 
-@router.get("", dependencies=[Depends(get_current_admin)])
+@router.get("", dependencies=[Depends(_require_audit_access)])
 def list_audit_logs(
     user_id:      Optional[str] = Query(None, description="Filter by USER_ID (employee UUID)"),
     user_code:    Optional[str] = Query(None, description="Filter by USER_CODE (e.g. EMP101)"),
@@ -93,7 +113,7 @@ def list_audit_logs(
     }
 
 
-@router.get("/stats", dependencies=[Depends(get_current_admin)])
+@router.get("/stats", dependencies=[Depends(_require_audit_access)])
 def audit_stats(
     since_hours: int = Query(24, ge=1, le=720),
     db: Session = Depends(get_db),

@@ -1128,6 +1128,44 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
     }
   };
 
+  // "Reset Password" modal — Edit page only. Admin sets a brand new
+  // stored password directly (unlike Send Login Credentials above,
+  // this DOES change what the employee logs in with, and instantly
+  // invalidates their current session server-side).
+  const [resetPwModalOpen, setResetPwModalOpen] = useState(false);
+  const [resetPwValue, setResetPwValue] = useState("");
+  const [resetPwSending, setResetPwSending] = useState(false);
+  const [resetPwError, setResetPwError] = useState("");
+
+  const resetPassword = async () => {
+    if (!editingEmployee?.ID) return;
+    const pw = resetPwValue.trim();
+    if (pw.length < 6) {
+      setResetPwError("New password must be at least 6 characters.");
+      return;
+    }
+    setResetPwSending(true);
+    setResetPwError("");
+    try {
+      await API.put(
+        `/employees/${editingEmployee.ID}/reset-password`,
+        { NEW_PASSWORD: pw }
+      );
+      setResetPwModalOpen(false);
+      setResetPwValue("");
+      setSuccessBanner(
+        `Password reset for ${editingEmployee.EMPLOYEE_CODE}. Their existing session has been logged out.`
+      );
+      setTimeout(() => setSuccessBanner(""), 6000);
+    } catch (e) {
+      setResetPwError(
+        e?.response?.data?.detail || "Could not reset the password."
+      );
+    } finally {
+      setResetPwSending(false);
+    }
+  };
+
   // Department -> Role cascade: always show global/system roles (no
   // DEPARTMENT_ID) plus any role scoped to the selected department. If
   // the already-selected role falls outside that filtered set (e.g. the
@@ -2202,6 +2240,24 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                 Send Login Credentials
               </button>
             )}
+            {isEdit && (
+              <button
+                type="button"
+                onClick={() => {
+                  setResetPwError("");
+                  setResetPwValue("");
+                  setResetPwModalOpen(true);
+                }}
+                className={styles.formPreviewBtn}
+                title="Set a new login password for this employee"
+                style={{
+                  borderColor: "#dc2626",
+                  color: "#dc2626",
+                }}
+              >
+                Reset Password
+              </button>
+            )}
             <button type="submit" disabled={saving} className={styles.formSaveBtn}>
               {saving ? "Saving…" : isEdit ? "Save Changes" : "Save Employee"}
             </button>
@@ -2324,6 +2380,119 @@ function AddEmployeeModal({ onClose, onCreated, editingEmployee }) {
                 className={styles.formSaveBtn}
               >
                 {credSending ? "Sending…" : "Send Email"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {resetPwModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !resetPwSending) {
+              setResetPwModalOpen(false);
+            }
+          }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10000,
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              background: "var(--card-bg, #ffffff)",
+              color: "var(--text, #0f172a)",
+              width: "100%",
+              maxWidth: 440,
+              borderRadius: 12,
+              padding: 24,
+              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.25)",
+            }}
+          >
+            <h3
+              style={{
+                margin: 0,
+                marginBottom: 8,
+                fontSize: 18,
+                fontWeight: 700,
+                color: "#dc2626",
+              }}
+            >
+              Reset Password
+            </h3>
+            <p style={{ margin: 0, marginBottom: 16, fontSize: 13, opacity: 0.75 }}>
+              Setting a new login password for{" "}
+              <strong>{editingEmployee?.EMPLOYEE_CODE}</strong> ({form.NAME}).
+              This replaces their current password and logs out any active
+              session immediately.
+            </p>
+
+            <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+              New password
+            </label>
+            <input
+              type="text"
+              value={resetPwValue}
+              onChange={(e) => {
+                setResetPwValue(e.target.value);
+                if (resetPwError) setResetPwError("");
+              }}
+              placeholder="At least 6 characters"
+              autoFocus
+              disabled={resetPwSending}
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                borderRadius: 8,
+                border: "1px solid var(--border, #d1d5db)",
+                background: "var(--input-bg, #ffffff)",
+                color: "inherit",
+                fontSize: 14,
+                fontFamily: "monospace",
+                boxSizing: "border-box",
+              }}
+            />
+
+            {resetPwError && (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: "8px 12px",
+                  background: "#fef2f2",
+                  color: "#b91c1c",
+                  border: "1px solid #fecaca",
+                  borderRadius: 8,
+                  fontSize: 13,
+                }}
+              >
+                {resetPwError}
+              </div>
+            )}
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+              <button
+                type="button"
+                onClick={() => setResetPwModalOpen(false)}
+                disabled={resetPwSending}
+                className={styles.formPreviewBtn}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={resetPassword}
+                disabled={resetPwSending || resetPwValue.trim().length < 6}
+                className={styles.formSaveBtn}
+              >
+                {resetPwSending ? "Resetting…" : "Reset Password"}
               </button>
             </div>
           </div>

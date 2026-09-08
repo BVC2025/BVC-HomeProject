@@ -49,6 +49,36 @@ class RecruitmentRequisition(Base):
 
     NEEDED_BY_DATE = Column(Date, nullable=True)
 
+    # ---- AI Voice/Chat requisition agent (2026-09) ----
+    WORK_MODE = Column(String(20), nullable=True)          # ON_SITE / REMOTE / HYBRID
+    SHIFT     = Column(String(50), nullable=True)           # e.g. "Day", "Night", "General"
+
+    SALARY_PERIOD = Column(String(20), nullable=True, default="MONTHLY")
+    # MONTHLY / ANNUAL — BUDGET_CTC_MIN/MAX's unit; assembly-floor roles
+    # are usually quoted monthly, office roles annual (CTC), so this
+    # can't be assumed either way.
+
+    HIRING_MANAGER_ID = Column(String(36), ForeignKey("employee.ID"), nullable=True, index=True)
+    RECRUITER_ID      = Column(String(36), ForeignKey("employee.ID"), nullable=True, index=True)
+
+    APPLICATION_DEADLINE = Column(Date, nullable=True)
+    # Distinct from NEEDED_BY_DATE (target join date) — this is when
+    # applications close.
+
+    JOB_DESCRIPTION = Column(Text, nullable=True)
+    RESPONSIBILITIES = Column(Text, nullable=True)
+    QUALIFICATIONS   = Column(Text, nullable=True)
+    # AI-generated prose (or manually written for the manual-entry
+    # path), editable before commit — never auto-published unreviewed.
+
+    SOURCE = Column(String(20), nullable=True, default="MANUAL", index=True)
+    # MANUAL / CHAT / VOICE — which entry path raised this requisition.
+
+    ORIGINAL_TRANSCRIPT = Column(Text, nullable=True)
+    # Raw conversation for CHAT/VOICE-sourced requisitions only —
+    # audit trail for what the recruiter actually said vs what the AI
+    # extracted (spec's privacy-permitting transcript-retention rule).
+
     REQUESTED_BY_ID = Column(
         String(36), ForeignKey("employee.ID"), nullable=True, index=True,
     )

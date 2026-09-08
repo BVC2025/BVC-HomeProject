@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.auth.auth_bearer import get_current_admin, get_current_user
+from app.services.auth_service import bump_token_version
 from app.models.models import (
     Employee, EmployeeStatusHistory, Notification,
 )
@@ -145,6 +146,12 @@ def change_status(employee_id: str, payload: StatusChangeIn,
         VENDOR_ID=emp.VENDOR_ID,
     )
     emp.STATUS = new_status
+
+    # Instantly invalidate any outstanding access token for this employee
+    # (e.g. TERMINATED/ON_NOTICE) instead of leaving it valid until it
+    # naturally expires — checked once per request in
+    # auth_bearer.get_current_user via the "tv" JWT claim.
+    bump_token_version(db, emp)
 
     db.add(history)
     db.flush()

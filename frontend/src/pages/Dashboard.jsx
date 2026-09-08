@@ -44,9 +44,11 @@ import {
 } from "../services/voiceAlerts";
 
 import ConfirmDialog from "../components/ConfirmDialog";
+import GlobalAIAssistant from "../components/GlobalAIAssistant";
 import Employees from "./Employees";
 import EmployeeOnboardingReview from "./EmployeeOnboardingReview";
 import Customers from "./Customers";
+import Calendar from "./Calendar";
 import Quotations from "./Quotations";
 import SalesOrders from "./SalesOrders";
 import InvoiceOrder from "./InvoiceOrder";
@@ -94,6 +96,8 @@ function HrLayout() {
 }
 
 const DepartmentManagement = lazy(() => import("./DepartmentManagement"));
+const DesignationManagement = lazy(() => import("./DesignationManagement"));
+const BranchManagement = lazy(() => import("./BranchManagement"));
 const AttendancePenalties = lazy(() => import("./AttendancePenalties"));
 const LeaveChatHistory = lazy(() => import("./LeaveChatHistory"));
 const OrgRoleManagement = lazy(() => import("./OrgRoleManagement"));
@@ -1453,6 +1457,14 @@ function SidebarIcon({ name }) {
           <path d="M5 21c0-4 3-7 7-7s7 3 7 7" />
         </svg>
       );
+    case "calendar":
+      return (
+        <svg {...props}>
+          <rect x="3" y="5" width="18" height="16" rx="2" />
+          <path d="M3 9h18" />
+          <path d="M8 3v4M16 3v4" />
+        </svg>
+      );
     case "quotations":
       return (
         <svg {...props}>
@@ -1576,6 +1588,44 @@ function SidebarIcon({ name }) {
           <circle cx="8" cy="8" r="3" />
           <path d="M4 20c0-3 2-5 4-5s4 2 4 5" />
           <path d="M14 10h6M14 14h6" />
+        </svg>
+      );
+    case "branches":
+      return (
+        <svg {...props}>
+          <path d="M12 21s-7-6.5-7-11.5A7 7 0 0 1 19 9.5C19 14.5 12 21 12 21z" />
+          <circle cx="12" cy="9.5" r="2.5" />
+        </svg>
+      );
+    case "designations":
+      return (
+        <svg {...props}>
+          <rect x="4" y="4" width="16" height="16" rx="3" />
+          <circle cx="12" cy="10" r="2.5" />
+          <path d="M8 17c0-2 1.8-3.5 4-3.5s4 1.5 4 3.5" />
+        </svg>
+      );
+    case "audit-logs":
+      return (
+        <svg {...props}>
+          <path d="M9 3h6l2 2v14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5l2-2z" />
+          <path d="M9 9h6M9 13h6M9 17h3" />
+        </svg>
+      );
+    case "notifications":
+      return (
+        <svg {...props}>
+          <path d="M6 9a6 6 0 1 1 12 0c0 4 1.5 5.5 1.5 5.5H4.5S6 13 6 9z" />
+          <path d="M10 18a2 2 0 0 0 4 0" />
+        </svg>
+      );
+    case "admin-dashboard":
+      return (
+        <svg {...props}>
+          <rect x="3" y="3" width="7" height="9" rx="1.5" />
+          <rect x="14" y="3" width="7" height="5" rx="1.5" />
+          <rect x="14" y="12" width="7" height="9" rx="1.5" />
+          <rect x="3" y="16" width="7" height="5" rx="1.5" />
         </svg>
       );
     case "proj-cat":
@@ -1767,6 +1817,8 @@ const NAV_GROUPS = [
       { to: "/attendance-penalties", icon: <SidebarIcon name="approvals" />, label: "Attendance Penalties" },
       { to: "/leave-chat-history",   icon: <SidebarIcon name="memos" />,     label: "Chat History" },
       { to: "/departments",   icon: <SidebarIcon name="departments" />, label: "Department Management" },
+      { to: "/designations",  icon: <SidebarIcon name="designations" />, label: "Designation Management" },
+      { to: "/branches",      icon: <SidebarIcon name="branches"    />, label: "Branches / Locations" },
       { to: "/org-roles",     icon: <SidebarIcon name="org-roles"   />, label: "Role Management" },
     ]
   },
@@ -1776,7 +1828,8 @@ const NAV_GROUPS = [
     items: [
       { to: "/customers", icon: <SidebarIcon name="customers" />, label: "Customers" },
       { to: "/quotations", icon: <SidebarIcon name="quotations" />, label: "Quotations" },
-      { to: "/sales-orders", icon: <SidebarIcon name="salesorders" />, label: "Sales Orders" }
+      { to: "/sales-orders", icon: <SidebarIcon name="salesorders" />, label: "Sales Orders" },
+      { to: "/calendar",   icon: <SidebarIcon name="calendar" />, label: "Calendar" }
 
     ]
   },
@@ -2265,6 +2318,11 @@ function Dashboard() {
           />
 
           <Route
+            path="/calendar"
+            element={<RequirePermission code={permissionForRoute("/calendar")}><Calendar /></RequirePermission>}
+          />
+
+          <Route
             path="/quotations"
             element={<RequirePermission code={permissionForRoute("/quotations")}><Quotations /></RequirePermission>}
           />
@@ -2372,6 +2430,8 @@ function Dashboard() {
           <Route path="/attendance-penalties" element={<RequirePermission code={permissionForRoute("/attendance-penalties")}><Suspense fallback={null}><AttendancePenalties /></Suspense></RequirePermission>} />
           <Route path="/leave-chat-history" element={<RequirePermission code={permissionForRoute("/leave-chat-history")}><Suspense fallback={null}><LeaveChatHistory /></Suspense></RequirePermission>} />
           <Route path="/departments" element={<RequirePermission code={permissionForRoute("/departments")}><Suspense fallback={null}><DepartmentManagement /></Suspense></RequirePermission>} />
+          <Route path="/designations" element={<RequirePermission code={permissionForRoute("/designations")}><Suspense fallback={null}><DesignationManagement /></Suspense></RequirePermission>} />
+          <Route path="/branches" element={<RequirePermission code={permissionForRoute("/branches")}><Suspense fallback={null}><BranchManagement /></Suspense></RequirePermission>} />
           <Route path="/org-roles" element={<RequirePermission code={permissionForRoute("/org-roles")}><Suspense fallback={null}><OrgRoleManagement /></Suspense></RequirePermission>} />
           <Route path="/project-categories" element={<RequirePermission code={permissionForRoute("/project-categories")}><Suspense fallback={null}><ProjectCategoryManagement /></Suspense></RequirePermission>} />
           <Route path="/task-templates" element={<RequirePermission code={permissionForRoute("/task-templates")}><Suspense fallback={null}><TaskTemplatePage /></Suspense></RequirePermission>} />
@@ -2412,6 +2472,8 @@ function Dashboard() {
         </Routes>
 
       </div>
+
+      <GlobalAIAssistant />
 
       <ConfirmDialog
         open={logoutOpen}

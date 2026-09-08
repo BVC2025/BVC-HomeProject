@@ -93,6 +93,10 @@ CATALOGUE = [
     # ---- Org / Project (existing) ----
     ("org.view",         "View departments / designations", "Organization", None),
     ("org.manage",       "Manage org structure",            "Organization", "Create/edit/delete departments and designations"),
+
+    # ---- Branches / Locations (Admin/System Foundation) ----
+    ("branch.view",   "View branches / locations",   "Organization", None),
+    ("branch.manage", "Manage branches / locations", "Organization", "Create/edit/delete branches, assign employees"),
     ("project.view",     "View projects",                   "Projects", None),
     ("project.create",   "Create projects",                 "Projects", None),
     ("project.update",   "Edit projects",                   "Projects", None),
@@ -192,6 +196,8 @@ CATALOGUE = [
     ("permission.override.manage", "Manage permission overrides", "System", "Create/edit per-employee grant/deny exceptions — Root-grantable only, see self-escalation guard"),
     ("report.export",         "Export reports",         "Reports","PDF / Excel exports"),
     ("notification.broadcast","Broadcast notifications","System", "Send to all staff"),
+    ("audit.view",             "View audit logs",         "System", "Read-only access to the centralised audit trail"),
+    ("admin.dashboard.view",   "View admin system dashboard", "System", "Users/roles/departments/audit KPI overview"),
 
     # ---- Announcements ----
     ("announcement.manage", "Create/edit/delete announcements", "Announcements", "POST/PATCH/DELETE /announcements — already enforced, was missing from the catalogue"),
@@ -224,6 +230,11 @@ CATALOGUE = [
     # ---- Recruitment (ATS) — RBAC plan gap, no codes existed before ----
     ("recruitment.view",   "View recruitment/ATS", "Recruitment", "Jobs, candidates, applications, interviews, offers"),
     ("recruitment.manage", "Manage recruitment",   "Recruitment", "Create/edit jobs, screen candidates, schedule interviews, issue offers"),
+
+    # ---- Calendar (CRM activities: meetings, calls, follow-ups) ----
+    ("calendar.view",       "View own calendar",     "Calendar", "See events I own or was invited to"),
+    ("calendar.manage",     "Manage calendar events", "Calendar", "Create/edit/complete/cancel events I own"),
+    ("calendar.team_view",  "View team calendars",   "Calendar", "See other employees' events (manager view)"),
 
     # ---- Manufacturing — production/quality/work-center CRUD (RBAC plan gap;
     # only machine.view/machine.update.stage existed before) ----
@@ -263,6 +274,12 @@ CATALOGUE = [
 PAGE_LABELS = {
     "attendance.holiday.view":   "Holiday Calendar",
     "attendance.holiday.manage": "Holiday Calendar",
+
+    "branch.view":   "Branches / Locations",
+    "branch.manage": "Branches / Locations",
+
+    "audit.view":           "Audit Logs",
+    "admin.dashboard.view": "Admin Dashboard",
 
     "onboarding.checklist.view":   "Onboarding Checklist",
     "onboarding.checklist.manage": "Onboarding Checklist",

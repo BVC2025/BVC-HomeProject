@@ -196,6 +196,21 @@ class Employee(Base):
     # already-issued access token can be invalidated immediately
     # instead of waiting out its full lifetime.
 
+    LAST_LOGIN_AT = Column(DateTime, nullable=True)
+    # Stamped on every successful /login and /admin-login. Mirrors the
+    # column RootUser/IAMUser already carry — Employee never had one.
+
+    BRANCH_ID = Column(Integer, ForeignKey("branch.ID"), nullable=True, index=True)
+    # Admin/System Foundation — which office/location this employee
+    # is assigned to. Nullable: existing employees have none until an
+    # admin assigns one.
+
+    PASSWORD_RESET_TOKEN = Column(String(100), nullable=True)
+
+    PASSWORD_RESET_EXPIRES_AT = Column(DateTime, nullable=True)
+    # Self-service "forgot password" flow — mirrors the columns
+    # RootUser already reserves for the same purpose.
+
     CREATED_AT = Column(DateTime, default=datetime.utcnow)
 
     UPDATED_AT = Column(
@@ -230,6 +245,9 @@ class Department(Base):
         # model is restructured — leave nullable for now
     )
 
+    STATUS = Column(String(20), nullable=False, default="ACTIVE")
+    # ACTIVE / INACTIVE — Admin/System Foundation.
+
     CREATED_AT = Column(DateTime, default=datetime.utcnow)
     UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -263,7 +281,67 @@ class Designation(Base):
         index=True
     )
 
+    STATUS = Column(String(20), nullable=False, default="ACTIVE")
+    # ACTIVE / INACTIVE — Admin/System Foundation.
+
     CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ====================================================================
+# Admin / System Foundation — Branch / Location
+# ====================================================================
+
+class Branch(Base):
+    """A physical office/location an Employee can be assigned to.
+    Kept in this module (alongside Department/Designation) since it's
+    the same kind of org-structure master data, reused the same way
+    Department already is."""
+
+    __tablename__ = "branch"
+
+    __table_args__ = (
+        UniqueConstraint("VENDOR_ID", "BRANCH_CODE", name="uq_branch_vendor_code"),
+    )
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    VENDOR_ID = Column(Integer, ForeignKey("vendor.ID", ondelete="RESTRICT"), nullable=False, index=True)
+
+    BRANCH_CODE = Column(String(20), nullable=False)
+
+    NAME = Column(String(100), nullable=False)
+
+    ADDRESS = Column(String(500), nullable=True)
+
+    CITY = Column(String(100), nullable=True)
+
+    STATE = Column(String(100), nullable=True)
+
+    COUNTRY = Column(String(60), nullable=True, default="India")
+
+    PINCODE = Column(String(15), nullable=True)
+
+    PHONE = Column(String(40), nullable=True)
+
+    EMAIL = Column(String(120), nullable=True)
+
+    MANAGER_EMPLOYEE_ID = Column(String(36), nullable=True)
+    # No FK — same deliberate deferral as Department.HEAD_EMPLOYEE_ID
+    # (Employee is defined earlier in this same file/module, so a real
+    # FK is possible, but kept consistent with that existing pattern).
+
+    LATITUDE = Column(Float, nullable=True)
+
+    LONGITUDE = Column(Float, nullable=True)
+    # Reserved for future attendance geofencing per branch — not wired
+    # to anything yet, same "reserve the column" pattern as
+    # RootUser.MFA_ENABLED.
+
+    STATUS = Column(String(20), nullable=False, default="ACTIVE")
+
+    CREATED_AT = Column(DateTime, default=datetime.utcnow)
+    UPDATED_AT = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 # ====================================================================

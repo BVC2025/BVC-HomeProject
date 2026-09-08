@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import os
 from datetime import date, datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
@@ -100,6 +100,17 @@ class CommitIn(BaseModel):
     JUSTIFICATION: Optional[str] = None
     URGENCY: Optional[str] = "NORMAL"
     NEEDED_BY_DATE: Optional[str] = None
+    WORK_MODE: Optional[str] = "ON_SITE"
+    SHIFT: Optional[str] = None
+    SALARY_PERIOD: Optional[str] = "MONTHLY"
+    HIRING_MANAGER_ID: Optional[str] = None
+    RECRUITER_ID: Optional[str] = None
+    APPLICATION_DEADLINE: Optional[str] = None
+    JOB_DESCRIPTION: Optional[str] = None
+    RESPONSIBILITIES: Optional[str] = None
+    QUALIFICATIONS: Optional[str] = None
+    source: Literal["CHAT", "VOICE"] = "VOICE"
+    original_transcript: Optional[str] = None
 
 
 # ---------------------------------------------------------------------
@@ -149,6 +160,13 @@ def commit_requisition(
         except (TypeError, ValueError):
             raise HTTPException(400, "NEEDED_BY_DATE must be YYYY-MM-DD.")
 
+    deadline = None
+    if body.APPLICATION_DEADLINE:
+        try:
+            deadline = date.fromisoformat(body.APPLICATION_DEADLINE)
+        except (TypeError, ValueError):
+            raise HTTPException(400, "APPLICATION_DEADLINE must be YYYY-MM-DD.")
+
     import secrets
 
     r = RecruitmentRequisition(
@@ -170,6 +188,17 @@ def commit_requisition(
                                   f"{datetime.now():%Y-%m-%d %H:%M}",
         URGENCY              = (body.URGENCY or "NORMAL").upper(),
         NEEDED_BY_DATE       = needed,
+        WORK_MODE            = (body.WORK_MODE or "ON_SITE").upper(),
+        SHIFT                = (body.SHIFT or "").strip() or None,
+        SALARY_PERIOD        = (body.SALARY_PERIOD or "MONTHLY").upper(),
+        HIRING_MANAGER_ID    = body.HIRING_MANAGER_ID or None,
+        RECRUITER_ID         = body.RECRUITER_ID or None,
+        APPLICATION_DEADLINE = deadline,
+        JOB_DESCRIPTION      = (body.JOB_DESCRIPTION or "").strip() or None,
+        RESPONSIBILITIES     = (body.RESPONSIBILITIES or "").strip() or None,
+        QUALIFICATIONS       = (body.QUALIFICATIONS or "").strip() or None,
+        SOURCE               = body.source,
+        ORIGINAL_TRANSCRIPT  = (body.original_transcript or "").strip() or None,
         REQUESTED_BY_ID      = user.get("employee_id"),
         STATUS               = "PENDING",
         APPROVAL_TOKEN       = secrets.token_urlsafe(32),
@@ -320,6 +349,91 @@ def generate_job_post_image(body: PostImageIn) -> Response:
             ),
         },
     )
+
+
+# =====================================================================
+# Job-post plain text — for pasting into LinkedIn / Indeed / Naukri
+# by hand. No real portal API integration exists yet (no credentials
+# for any of them) — this is the honest "export, don't fake-publish"
+# path: the recruiter copies this and posts it themselves wherever
+# they actually have an account.
+# =====================================================================
+
+class PostTextIn(PostImageIn):
+    WORK_MODE: Optional[str] = "ON_SITE"
+    SHIFT: Optional[str] = None
+    SALARY_PERIOD: Optional[str] = "MONTHLY"
+    JOB_DESCRIPTION: Optional[str] = None
+    RESPONSIBILITIES: Optional[str] = None
+    QUALIFICATIONS: Optional[str] = None
+
+
+def _format_salary(lo, hi, period) -> Optional[str]:
+    if not lo and not hi:
+        return None
+    unit = "/month" if (period or "MONTHLY").upper() == "MONTHLY" else " CTC/year"
+    if lo and hi:
+        return f"₹{lo:,.0f}–₹{hi:,.0f}{unit}"
+    return f"₹{(lo or hi):,.0f}{unit}"
+
+
+@router.post(
+    "/post-text",
+    dependencies=[Depends(require("recruitment.manage"))],
+)
+def generate_job_post_text(body: PostTextIn) -> Dict[str, str]:
+    """Plain-text job posting, ready to copy-paste. Company name is
+    hardcoded (BVC24 doesn't have a multi-tenant company-name setting
+    the recruitment module already reads from) — update here if that
+    changes."""
+
+    if not body.POSITION_TITLE.strip():
+        raise HTTPException(400, "POSITION_TITLE is required")
+
+    lines = [
+        body.POSITION_TITLE.strip(),
+        "Bharath Vending Corporation",
+        "",
+    ]
+
+    facts = []
+    if body.LOCATION:
+        facts.append(f"📍 {body.LOCATION}")
+    if body.EMPLOYMENT_TYPE:
+        facts.append(f"💼 {body.EMPLOYMENT_TYPE.replace('_', ' ').title()}")
+    if body.WORK_MODE:
+        facts.append(f"🏠 {body.WORK_MODE.replace('_', ' ').title()}")
+    if body.EXPERIENCE_MIN_YEARS is not None or body.EXPERIENCE_MAX_YEARS is not None:
+        lo, hi = body.EXPERIENCE_MIN_YEARS or 0, body.EXPERIENCE_MAX_YEARS
+        facts.append(f"👨‍💻 {lo:g}–{hi:g} Years" if hi else f"👨‍💻 {lo:g}+ Years")
+    salary = _format_salary(body.BUDGET_CTC_MIN, body.BUDGET_CTC_MAX, body.SALARY_PERIOD)
+    if salary:
+        facts.append(f"💰 {salary}")
+    if facts:
+        lines.append("  ".join(facts))
+        lines.append("")
+
+    if body.JOB_DESCRIPTION:
+        lines += ["About the Role", body.JOB_DESCRIPTION.strip(), ""]
+
+    if body.RESPONSIBILITIES:
+        lines += ["Responsibilities", body.RESPONSIBILITIES.strip(), ""]
+
+    if body.REQUIRED_SKILLS:
+        lines += ["Required Skills", body.REQUIRED_SKILLS.strip(), ""]
+
+    if body.PREFERRED_SKILLS:
+        lines += ["Preferred Skills", body.PREFERRED_SKILLS.strip(), ""]
+
+    if body.QUALIFICATIONS:
+        lines += ["Qualifications", body.QUALIFICATIONS.strip(), ""]
+    elif body.REQUIRED_EDUCATION:
+        lines += ["Qualifications", body.REQUIRED_EDUCATION.strip(), ""]
+
+    if body.SHIFT:
+        lines += [f"Shift: {body.SHIFT}", ""]
+
+    return {"text": "\n".join(lines).strip() + "\n"}
 
 
 @router.get("/agent/health")
