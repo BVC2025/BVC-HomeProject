@@ -138,7 +138,7 @@ class CustomerProjectAssignment(Base):
 
     VENDOR_ID = Column(Integer, ForeignKey("vendor.ID", ondelete="CASCADE"), nullable=False, index=True)
 
-    CUSTOMER_ID = Column(String(36), ForeignKey("customer.ID", ondelete="CASCADE"), nullable=False, index=True)
+    CUSTOMER_ID = Column(Integer, ForeignKey("customer.ID", ondelete="CASCADE"), nullable=False, index=True)
 
     PROJECT_ID = Column(String(36), ForeignKey("project.ID", ondelete="RESTRICT"), nullable=False, index=True)
 

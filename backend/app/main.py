@@ -4846,11 +4846,8 @@ def _stop_background_schedulers():
     after shutdown', which is what makes Ctrl+C take a while to land."""
     stop_scheduler()
     stop_whatsapp_scheduler()
-<<<<<<< HEAD
     stop_production_reminder_scheduler()
-=======
     stop_calendar_scheduler()
->>>>>>> puvi-pro-1
 
 
 
