@@ -1124,11 +1124,13 @@ function ReqRow({ children }) {
   );
 }
 
-function RequisitionDetailDrawer({ req, busy, onClose, onApprove, onReject, onConvert }) {
-  const isPending = req.STATUS === "PENDING";
-  const isApproved = req.STATUS === "APPROVED";
-
-  function RequisitionDetailDrawer({ req, busy, onClose, onApprove, onReject, onConvert, onEdit }) {
+// The outer stub (with signature missing `onEdit`) was accidentally
+// wrapping the real component, trapping every subsequent tab function
+// (JobsTab, CandidatesTab, PipelineTab, InterviewsTab, OffersTab) in
+// its scope — so they were invisible to the parent Recruitment page
+// and every tab except Requisitions rendered as a blank white screen.
+// Removed the outer wrapper + its trailing brace further down.
+function RequisitionDetailDrawer({ req, busy, onClose, onApprove, onReject, onConvert, onEdit }) {
     const isPending = req.STATUS === "PENDING";
     const isApproved = req.STATUS === "APPROVED";
 
@@ -3332,22 +3334,8 @@ function RequisitionDetailDrawer({ req, busy, onClose, onApprove, onReject, onCo
     );
   }
 
-  function Spinner() {
-    return <div style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontStyle: "italic" }}>Loading…</div>;
-  }
-
-  function EmptyState({ text, small }) {
-    return (
-      <div style={{
-        padding: small ? 20 : 50, textAlign: "center",
-        color: "#64748b", background: "#f8fafc",
-        border: "1px dashed #cbd5e1", borderRadius: 14,
-        fontSize: 13,
-      }}>
-        {text}
-      </div>
-    );
-  }
+  // Spinner + EmptyState hoisted to file scope at the top — the
+  // duplicates that used to live here were removed.
 
   function Drawer({ children, onClose, width = 600, title }) {
     return (
@@ -3374,5 +3362,4 @@ function RequisitionDetailDrawer({ req, busy, onClose, onApprove, onReject, onCo
         </div>
       </div>
     );
-  }
 }

@@ -507,6 +507,61 @@ export default function NewRequisitionPage({ onClose, onCommitted, onOpenManual 
                     </button>
                   )}
                 </div>
+
+                {/* Text-input fallback for testing when the mic is unavailable
+                    (Stereo Mix, no headset, browser mic blocked, etc.). Feeds
+                    the same interpret pipeline as the mic. Also a "Test voice"
+                    button that just makes Deepthi speak — verifies the Sarvam
+                    voice pipeline end-to-end with zero user speech. */}
+                <div style={{ marginTop: 14, borderTop: "1px dashed #cbd5e1", paddingTop: 12 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>
+                    Mic not working? Type instead
+                  </div>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (!chatInput.trim() || thinking) return;
+                      const t = chatInput.trim();
+                      setChatInput("");
+                      sendToAgent(t);
+                    }}
+                    style={{ display: "flex", gap: 6, marginBottom: 8 }}
+                  >
+                    <input
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      placeholder="e.g. Need 2 React devs in Coimbatore, 2-3 yrs, ₹4-6L"
+                      disabled={thinking || committing}
+                      style={{
+                        flex: 1, padding: "8px 12px", borderRadius: 8,
+                        border: "1px solid #cbd5e1", fontSize: 13, background: "#fff",
+                      }}
+                    />
+                    <button
+                      type="submit"
+                      disabled={!chatInput.trim() || thinking || committing}
+                      style={{
+                        padding: "8px 14px", background: "#7A1022", color: "#fff",
+                        border: "none", borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: "pointer",
+                      }}
+                    >Send</button>
+                  </form>
+                  <button
+                    type="button"
+                    onClick={() => speakServer(
+                      "Hi, this is Deepthi from BVC24 recruitment. " +
+                      "I can hear you clearly. Tell me the role, department, " +
+                      "experience and how many people you want to hire."
+                    )}
+                    style={{
+                      padding: "6px 12px", background: "#fff", color: "#7A1022",
+                      border: "1px solid #7A1022", borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                    }}
+                    title="Play a sample Sarvam voice reply to verify audio works"
+                  >
+                    <I.speaker /> Test voice
+                  </button>
+                </div>
               </>
             ) : (
               <div className={styles.chatBox}>
