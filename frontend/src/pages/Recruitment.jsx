@@ -18,6 +18,27 @@ const BVC_RED = "#C8102E";
 const BVC_DARK = "#7A1022";
 const BVC_GOLD = "#F4B324";
 
+// File-scope helpers so every tab (Requisitions/Jobs/Candidates/Pipeline/
+// Interviews/Offers) can render them. Previously these lived inside
+// RequisitionDetailDrawer so calls outside that component blew up with
+// "Spinner is not defined" on the /recruitment page.
+function Spinner() {
+  return <div style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontStyle: "italic" }}>Loading…</div>;
+}
+
+function EmptyState({ text, small }) {
+  return (
+    <div style={{
+      padding: small ? 20 : 50, textAlign: "center",
+      color: "#64748b", background: "#f8fafc",
+      border: "1px dashed #cbd5e1", borderRadius: 14,
+      fontSize: 13,
+    }}>
+      {text}
+    </div>
+  );
+}
+
 const BACKEND_URL = API.defaults.baseURL || "http://192.168.1.10:8001";
 
 
