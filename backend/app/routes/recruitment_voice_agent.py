@@ -79,7 +79,7 @@ class InterpretIn(BaseModel):
 
 class InterpretOut(BaseModel):
     reply: str
-    action: str                     # NEED_MORE | PROPOSE_DRAFT
+    action: str                     # CHIT_CHAT | NEED_MORE | PROPOSE_DRAFT
     draft: Optional[Dict[str, Any]] = None
     provider: str
 
