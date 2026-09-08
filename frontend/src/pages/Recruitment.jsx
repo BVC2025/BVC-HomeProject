@@ -9,7 +9,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import API from "../services/api";
-import RecruitmentAgentWorkspace from "../components/RecruitmentAgentWorkspace";
+// RecruitmentAgentWorkspace removed — tabs moved to top navbar; the
+// per-tab entry pages carry their own voice/chat/manual pickers.
 import NewRequisitionPage from "../components/NewRequisitionPage";
 
 
@@ -77,71 +78,65 @@ export default function Recruitment() {
 
   return (
     <div style={{ padding: 20, background: "#f1f5f9", minHeight: "calc(100vh - 80px)" }}>
-      {/* Slim hero — the workspace below is the real primary. */}
+      {/* Top navbar — Recruitment Assistant title + section tabs.
+          The former hero + workspace panels are removed so tabs
+          become the primary control at the top of the page. */}
       <div style={{
         background: `linear-gradient(135deg, ${BVC_DARK} 0%, ${BVC_RED} 100%)`,
-        borderRadius: 12, padding: "14px 22px", color: "white",
-        marginBottom: 14,
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        gap: 12, flexWrap: "wrap",
+        borderRadius: 14, padding: "16px 22px 0", color: "white",
+        marginBottom: 18, boxShadow: "0 6px 18px rgba(127,29,29,0.15)",
       }}>
-        <div>
-          <div style={{
-            fontSize: 10, fontWeight: 800, letterSpacing: 2,
-            color: BVC_GOLD, textTransform: "uppercase",
-          }}>
-            BVC24 · AI Recruitment
-          </div>
-          <div style={{ fontSize: 20, fontWeight: 900, marginTop: 2 }}>
-            Recruitment Workspace
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          gap: 12, flexWrap: "wrap", marginBottom: 12,
+        }}>
+          <div>
+            <div style={{
+              fontSize: 10, fontWeight: 800, letterSpacing: 2,
+              color: BVC_GOLD, textTransform: "uppercase",
+            }}>
+              BVC24 · AI Recruitment
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 900, marginTop: 2 }}>
+              Recruitment Assistant
+            </div>
+            <div style={{ fontSize: 11.5, opacity: 0.85, marginTop: 2 }}>
+              Resume parsing · Candidate screening · Interview scheduling · Ranking · Offer letters
+            </div>
           </div>
         </div>
-        <div style={{ fontSize: 11.5, opacity: 0.85, maxWidth: 460, textAlign: "right" }}>
-          Speak to Deepthi to raise requisitions, screen candidates,
-          schedule interviews and draft offers — or use the tabs below
-          for direct control.
+        {/* Tabs — navbar-style, joined to the header */}
+        <div style={{
+          display: "flex", gap: 2, flexWrap: "wrap",
+          borderTop: "1px solid rgba(255,255,255,0.15)",
+          paddingTop: 6,
+        }}>
+          {[
+            { key: "requisitions", label: "Requisitions" },
+            { key: "jobs",         label: "Jobs" },
+            { key: "candidates",   label: "Candidates" },
+            { key: "pipeline",     label: "Pipeline" },
+            { key: "interviews",   label: "Interviews" },
+            { key: "offers",       label: "Offers" },
+          ].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              style={{
+                padding: "10px 20px",
+                background: tab === t.key ? "white" : "transparent",
+                color:      tab === t.key ? BVC_DARK : "rgba(255,255,255,0.85)",
+                border: "none",
+                borderRadius: "10px 10px 0 0",
+                fontWeight: 700, fontSize: 13, cursor: "pointer",
+                marginBottom: -1,
+                borderBottom: tab === t.key ? "2px solid white" : "2px solid transparent",
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
-      </div>
-
-      {/* AI-first workspace — the primary interface */}
-      <RecruitmentAgentWorkspace
-        onCommitted={() => {
-          setTab("requisitions");
-          setReloadSignal((n) => n + 1);
-        }}
-        onOpenManual={openManual}
-        onJumpTab={(key) => setTab(key)}
-      />
-
-      {/* Tab bar — secondary, for direct table access */}
-      <div style={{
-        background: "white", borderRadius: 12, padding: 6,
-        boxShadow: "0 4px 14px rgba(15,23,42,0.05)",
-        marginBottom: 18, display: "flex", gap: 4,
-      }}>
-        {[
-          { key: "requisitions", label: "Requisitions" },
-          { key: "jobs", label: "Jobs" },
-          { key: "candidates", label: "Candidates" },
-          { key: "pipeline", label: "Pipeline" },
-          { key: "interviews", label: "Interviews" },
-          { key: "offers", label: "Offers" },
-        ].map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            style={{
-              padding: "9px 18px",
-              background: tab === t.key ? BVC_DARK : "transparent",
-              color: tab === t.key ? "white" : "#475569",
-              border: "none", borderRadius: 8,
-              fontWeight: 700, fontSize: 13, cursor: "pointer",
-              letterSpacing: -0.005 + "em",
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
       </div>
 
       {tab === "requisitions" && (
@@ -3359,3 +3354,4 @@ function RequisitionDetailDrawer({ req, busy, onClose, onApprove, onReject, onCo
       </div>
     );
   }
+}

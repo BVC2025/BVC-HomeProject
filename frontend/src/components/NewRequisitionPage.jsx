@@ -84,6 +84,16 @@ const I = {
 export default function NewRequisitionPage({ onClose, onCommitted, onOpenManual }) {
 
   const [mode, setMode] = useState("voice"); // "voice" | "chat"
+  // Sarvam Bulbul v3 female voice roster — user picks; the server
+  // whitelists these same names. Persisted per-browser so the user
+  // doesn't have to re-pick each visit.
+  const [voice, setVoice] = useState(() => {
+    try { return localStorage.getItem("recruitment_voice") || "pooja"; }
+    catch { return "pooja"; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("recruitment_voice", voice); } catch { /* noop */ }
+  }, [voice]);
   const [supported] = useState(() => !!getRecognition());
   const [listening, setListening] = useState(false);
   const [thinking, setThinking] = useState(false);
@@ -128,7 +138,7 @@ export default function NewRequisitionPage({ onClose, onCommitted, onOpenManual 
     try {
       const res = await API.post(
         "/recruitment/voice-agent/speak",
-        { text, language: detectLang(text), voice: "pooja" },
+        { text, language: detectLang(text), voice },
         { responseType: "blob" },
       );
       const type = res.headers?.["content-type"] || "";
@@ -374,14 +384,34 @@ export default function NewRequisitionPage({ onClose, onCommitted, onOpenManual 
             <h1 className={styles.title}>Create Job Requisition</h1>
             <p className={styles.subtitle}>Don't want to fill the form? Just tell us what you need.</p>
           </div>
-          <button
-            type="button"
-            className={styles.switchBtn}
-            onClick={() => setMode((m) => (m === "voice" ? "chat" : "voice"))}
-          >
-            {mode === "voice" ? <I.chat /> : <I.mic />}
-            Switch to {mode === "voice" ? "Chat" : "Voice"}
-          </button>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            {/* Sarvam Bulbul v3 female voices — reply reads back in whichever the user picks. */}
+            <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: 12, fontWeight: 600, color: "#334155" }}>
+              <I.speaker />
+              Voice:
+              <select
+                value={voice}
+                onChange={(e) => setVoice(e.target.value)}
+                style={{
+                  padding: "6px 10px", borderRadius: 8, border: "1px solid #cbd5e1",
+                  fontSize: 12, fontWeight: 600, background: "#fff", cursor: "pointer",
+                }}
+                title="Female voice used for the assistant's spoken reply"
+              >
+                {["pooja","priya","kavya","shruti","ishita","neha","shreya","kavitha","ritu","simran","roopa","tanya","suhani"].map(v =>
+                  <option key={v} value={v}>{v.charAt(0).toUpperCase()+v.slice(1)}</option>
+                )}
+              </select>
+            </label>
+            <button
+              type="button"
+              className={styles.switchBtn}
+              onClick={() => setMode((m) => (m === "voice" ? "chat" : "voice"))}
+            >
+              {mode === "voice" ? <I.chat /> : <I.mic />}
+              Switch to {mode === "voice" ? "Chat" : "Voice"}
+            </button>
+          </div>
         </div>
 
         <div className={styles.methodCards}>
