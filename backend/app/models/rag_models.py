@@ -38,6 +38,11 @@ class AIModule(Base):
     EMBEDDING_MODEL        = Column(String(150), nullable=False, default="BAAI/bge-small-en-v1.5")
     LLM_MODEL              = Column(String(100), nullable=False)                # resolved GEMINI_MODEL at seed time
 
+    LLM_PROVIDER = Column(String(20), nullable=False, default="GEMINI")
+    # "GEMINI" (default, every module before this column existed) or
+    # "OLLAMA" (self-hosted, e.g. Qwen3) — chat_orchestrator.run_chat()
+    # picks the matching core/*_llm_client module based on this.
+
     IS_ACTIVE = Column(Boolean, nullable=False, default=True)
 
     CREATED_AT = Column(DateTime, default=now_ist)

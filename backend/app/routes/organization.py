@@ -32,9 +32,18 @@ from app.schemas.org_schema import (
 
 from app.services.seed_data import (
     ORG_PRESETS,
-    PERMISSIONS_CATALOG,
     STANDARD_ROLES
 )
+
+# The permission *codes* used to seed the `permission` table come from
+# permission_catalogue.py — the single source of truth also used by
+# ensure_permission_catalogue() (every backend boot) and GET
+# /rbac/permissions. seed_data.py used to carry its own smaller,
+# stale copy (PERMISSIONS_CATALOG) that had drifted out of sync
+# (e.g. it had "audit.view", which the real catalogue lacked) — both
+# seeders below now read from the same list so a seed can never
+# create a permission code the rest of the app doesn't know about.
+from app.services.permission_catalogue import CATALOGUE as PERMISSIONS_CATALOG
 
 from pydantic import BaseModel
 
@@ -59,7 +68,7 @@ router = APIRouter()
 # DEPARTMENTS
 # =========================
 
-@router.get("/departments")
+@router.get("/departments", dependencies=[Depends(require("org.view"))])
 def list_departments(
     vendor_id: Optional[int] = Query(None),
     search: Optional[str] = Query(None),
@@ -87,6 +96,7 @@ def list_departments(
             "DESCRIPTION": d.DESCRIPTION,
             "HEAD_EMPLOYEE_ID": d.HEAD_EMPLOYEE_ID,
             "VENDOR_ID": d.VENDOR_ID,
+            "STATUS": d.STATUS,
             "CREATED_AT": d.CREATED_AT.isoformat() if d.CREATED_AT else None,
             "UPDATED_AT": d.UPDATED_AT.isoformat() if d.UPDATED_AT else None
         }
@@ -94,7 +104,7 @@ def list_departments(
     ]
 
 
-@router.post("/departments")
+@router.post("/departments", dependencies=[Depends(require("org.manage"))])
 def create_department(
     data: DepartmentCreate,
     db: Session = Depends(get_db)
@@ -129,7 +139,7 @@ def create_department(
     return {"message": "Department created", "ID": dept.ID}
 
 
-@router.put("/departments/{dept_id}")
+@router.put("/departments/{dept_id}", dependencies=[Depends(require("org.manage"))])
 def update_department(
     dept_id: int,
     data: DepartmentUpdate,
@@ -156,12 +166,15 @@ def update_department(
     if data.HEAD_EMPLOYEE_ID is not None:
         dept.HEAD_EMPLOYEE_ID = data.HEAD_EMPLOYEE_ID
 
+    if data.STATUS is not None:
+        dept.STATUS = data.STATUS.upper()
+
     db.commit()
 
     return {"message": "Department updated"}
 
 
-@router.delete("/departments/{dept_id}")
+@router.delete("/departments/{dept_id}", dependencies=[Depends(require("org.manage"))])
 def delete_department(
     dept_id: int,
     db: Session = Depends(get_db)
@@ -200,7 +213,7 @@ def delete_department(
 # DESIGNATIONS
 # =========================
 
-@router.get("/designations")
+@router.get("/designations", dependencies=[Depends(require("org.view"))])
 def list_designations(
     department_id: Optional[int] = Query(None),
     vendor_id: Optional[int] = Query(None),
@@ -230,13 +243,14 @@ def list_designations(
             "DEPARTMENT_NAME": dept.NAME,
             "BASE_SALARY": des.BASE_SALARY,
             "DESCRIPTION": des.DESCRIPTION,
-            "VENDOR_ID": des.VENDOR_ID
+            "VENDOR_ID": des.VENDOR_ID,
+            "STATUS": des.STATUS
         }
         for des, dept in rows
     ]
 
 
-@router.post("/designations")
+@router.post("/designations", dependencies=[Depends(require("org.manage"))])
 def create_designation(
     data: DesignationCreate,
     db: Session = Depends(get_db)
@@ -270,7 +284,7 @@ def create_designation(
     return {"message": "Designation created", "ID": des.ID}
 
 
-@router.put("/designations/{des_id}")
+@router.put("/designations/{des_id}", dependencies=[Depends(require("org.manage"))])
 def update_designation(
     des_id: int,
     data: DesignationUpdate,
@@ -297,12 +311,15 @@ def update_designation(
     if data.DESCRIPTION is not None:
         des.DESCRIPTION = data.DESCRIPTION
 
+    if data.STATUS is not None:
+        des.STATUS = data.STATUS.upper()
+
     db.commit()
 
     return {"message": "Designation updated"}
 
 
-@router.delete("/designations/{des_id}")
+@router.delete("/designations/{des_id}", dependencies=[Depends(require("org.manage"))])
 def delete_designation(
     des_id: int,
     db: Session = Depends(get_db)
@@ -706,7 +723,7 @@ def do_seed_org(db: Session, preset_key: str, vendor_id: int) -> dict:
     }
 
 
-@router.post("/seed-org")
+@router.post("/seed-org", dependencies=[Depends(require("role.manage"))])
 def seed_org(
     preset: str = Query("MANUFACTURING"),
     vendor_id: int = Query(1),

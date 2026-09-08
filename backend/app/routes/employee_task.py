@@ -16,7 +16,6 @@ from app.models.models import (
 )
 
 from app.schemas.employee_task_schema import (
-    EmployeeLogin,
     EmployeeLogout,
     TaskStatusUpdate,
     TaskAssignmentCreate,
@@ -32,8 +31,6 @@ from app.auth.auth_bearer import (
 
 from app.services.auth_service import (
     find_employee_by_login,
-    verify_password,
-    build_login_response,
     hash_password
 )
 
@@ -52,10 +49,7 @@ from app.services.email_service import send_task_assignment_email
 from app.services.attendance_settings_service import (
     get_office_hours,
     is_before_end,
-    get_grace_minutes
 )
-
-from app.services.leave_service import auto_create_permission
 
 
 router = APIRouter()
@@ -584,150 +578,13 @@ def seed_admin(
 
 
 # =========================
-# EMPLOYEE LOGIN
+# EMPLOYEE LOGIN — removed (Admin/System Foundation cleanup, 2026-09).
+# This duplicated /login (routes/auth.py) with weaker security (no
+# lockout protection) and had zero frontend callers — confirmed by a
+# repo-wide grep before removal. The unified /login endpoint already
+# covers everything this route did (attendance check-in, late/pending
+# notifications, same response shape).
 # =========================
-
-@router.post("/employee-login")
-def employee_login(
-    data: EmployeeLogin,
-    db: Session = Depends(get_db)
-):
-
-    emp = find_employee_by_login(db, data.EMPLOYEE_ID)
-
-    if not emp:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Employee not found"
-        )
-
-    if emp.STATUS and emp.STATUS.upper() != "ACTIVE":
-
-        raise HTTPException(
-            status_code=403,
-            detail=f"Account is {emp.STATUS}"
-        )
-
-    if not verify_password(data.PASSWORD, emp.PASSWORD):
-
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid password"
-        )
-
-    now = datetime.now()
-
-    attendance, fresh = ensure_today_attendance(
-        db,
-        emp.ID,
-        now,
-        emp.VENDOR_ID or 1
-    )
-
-    pending_yesterday = get_pending_from_yesterday(
-        db,
-        emp.ID,
-        now.date()
-    )
-
-    if fresh and attendance.STATUS == "LATE":
-
-        push_notification(
-            db,
-            title=f"Late login: {emp.NAME}",
-            message=(
-                f"{emp.EMPLOYEE_CODE} logged in at "
-                f"{now.strftime('%H:%M')} "
-                f"(after 10:00 AM cutoff)."
-            ),
-            ntype="WARNING",
-            vendor_id=emp.VENDOR_ID or 1
-        )
-
-        # Phase D — auto-create a LATE_COMING Permission row when
-        # the employee is past the configured grace window.
-        try:
-
-            office_start, _ = get_office_hours(db)
-
-            late_grace_min, _ = get_grace_minutes(db)
-
-            start_dt = datetime.combine(now.date(), office_start)
-
-            minutes_late = max(0, int((now - start_dt).total_seconds() // 60))
-
-            if minutes_late > late_grace_min:
-
-                hours_late = round(minutes_late / 60.0, 2)
-
-                auto_create_permission(
-                    db,
-                    employee_id=emp.ID,
-                    on_date=now.date(),
-                    subtype="LATE_COMING",
-                    duration_hours=hours_late,
-                    reason=(
-                        f"Auto-recorded: logged in at "
-                        f"{now.strftime('%H:%M')} "
-                        f"({minutes_late} min after "
-                        f"{office_start.strftime('%H:%M')} cutoff, "
-                        f"beyond {late_grace_min} min grace)."
-                    ),
-                    vendor_id=emp.VENDOR_ID or 1
-                )
-
-        except Exception:
-
-            # Best-effort: never block login on the permission write
-            pass
-
-    if fresh and pending_yesterday:
-
-        push_notification(
-            db,
-            title="Pending tasks from yesterday",
-            message=(
-                f"{emp.NAME} has "
-                f"{len(pending_yesterday)} task(s) "
-                f"pending from yesterday."
-            ),
-            ntype="WARNING",
-            vendor_id=emp.VENDOR_ID or 1
-        )
-
-    response = build_login_response(db, emp)
-
-    response.update({
-        "LOGIN_TIME": (
-            attendance.CHECK_IN.isoformat()
-            if attendance.CHECK_IN else None
-        ),
-        "ATTENDANCE_STATUS": attendance.STATUS,
-        "HAS_PENDING_FROM_YESTERDAY": bool(pending_yesterday),
-        "PENDING_FROM_YESTERDAY": [
-            serialize_task(t) for t in pending_yesterday
-        ]
-    })
-
-    # Backward-compat keys for the old frontend
-    response["EMPLOYEE_ID"] = emp.EMPLOYEE_CODE
-
-    response["EMPLOYEE_NAME"] = emp.NAME
-
-    dept_name = None
-
-    if emp.DEPARTMENT_ID:
-
-        d = db.query(Department).filter(
-            Department.ID == emp.DEPARTMENT_ID
-        ).first()
-
-        dept_name = d.NAME if d else None
-
-    response["DEPARTMENT"] = dept_name
-
-    return response
 
 
 # =========================

@@ -1,13 +1,17 @@
+import os
+import secrets
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.database.database import get_db
 
 from app.models.models import Department, Role, Employee
 from app.models.rbac_models import RootUser, IAMUser
+from app.models.email_models import VendorEmailConfig
 
 from app.auth.jwt_handler import create_token
 
@@ -18,8 +22,10 @@ from app.auth.auth_bearer import (
 
 from app.services.auth_service import (
     find_employee_by_login,
+    verify_and_upgrade_password,
     verify_password,
     hash_password,
+    hash_refresh_token,
     build_login_response,
     get_role_and_permissions,
     resolve_effective_permissions,
@@ -29,7 +35,12 @@ from app.services.auth_service import (
     check_lockout,
     record_failed_login,
     reset_lockout,
+    bump_token_version,
 )
+from app.services.email_service import send_via_resend, send_via_vendor_smtp
+from app.services.company_settings_service import get_company_settings
+
+PASSWORD_RESET_TTL_MINUTES = 30
 
 
 router = APIRouter()
@@ -121,7 +132,7 @@ def admin_login(
             detail=f"Account is {emp.STATUS}"
         )
 
-    if not verify_password(data.PASSWORD, emp.PASSWORD):
+    if not verify_and_upgrade_password(db, emp, data.PASSWORD):
 
         record_failed_login(db, "EMPLOYEE", emp.ID)
 
@@ -131,6 +142,10 @@ def admin_login(
         )
 
     reset_lockout(db, "EMPLOYEE", emp.ID)
+
+    emp.LAST_LOGIN_AT = datetime.utcnow()
+
+    db.commit()
 
     response = build_login_response(db, emp)
 
@@ -196,7 +211,7 @@ def unified_login(
             detail=f"Account is {emp.STATUS.lower()}"
         )
 
-    if not verify_password(data.PASSWORD, emp.PASSWORD):
+    if not verify_and_upgrade_password(db, emp, data.PASSWORD):
 
         record_failed_login(db, "EMPLOYEE", emp.ID)
 
@@ -206,6 +221,10 @@ def unified_login(
         )
 
     reset_lockout(db, "EMPLOYEE", emp.ID)
+
+    emp.LAST_LOGIN_AT = datetime.utcnow()
+
+    db.commit()
 
     response = build_login_response(db, emp)
 
@@ -323,6 +342,200 @@ def get_me(
     }
 
 
+class ChangePasswordRequest(BaseModel):
+
+    CURRENT_PASSWORD: str
+    NEW_PASSWORD: str
+
+
+@router.post("/me/change-password")
+def change_own_password(
+    data: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    payload: dict = Depends(get_current_user),
+):
+    """Self-service password change for the logged-in employee. Admin/
+    Root/IAM accounts don't carry an employee_id claim and aren't
+    supported here — see the admin-triggered PUT
+    /employees/{id}/reset-password for managing other accounts."""
+
+    employee_id = payload.get("employee_id")
+
+    if not employee_id:
+
+        raise HTTPException(
+            status_code=400,
+            detail="Self-service password change is only available for employee accounts."
+        )
+
+    if len(data.NEW_PASSWORD) < 6:
+
+        raise HTTPException(
+            status_code=400,
+            detail="New password must be at least 6 characters."
+        )
+
+    emp = db.query(Employee).filter(Employee.ID == employee_id).first()
+
+    if not emp:
+
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    if not verify_password(data.CURRENT_PASSWORD, emp.PASSWORD):
+
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+
+    emp.PASSWORD = hash_password(data.NEW_PASSWORD)
+
+    db.commit()
+
+    # Invalidate this (and every other) outstanding token for the
+    # account — the frontend already tells the user to log in again
+    # with the new password, so this just makes that promise true
+    # instead of leaving the old token usable until it expires.
+    bump_token_version(db, emp)
+
+    return {"message": "Password updated. Please log in again."}
+
+
+# =========================
+# FORGOT / RESET PASSWORD — self-service, email-link based.
+# Employee-only (mirrors /me/change-password's scope). Root/IAM
+# accounts aren't wired to any login UI today — see the Admin
+# Foundation architecture notes.
+# =========================
+
+class ForgotPasswordRequest(BaseModel):
+
+    IDENTIFIER: str  # EMPLOYEE_CODE or EMAIL
+
+
+class ResetPasswordRequest(BaseModel):
+
+    NEW_PASSWORD: str
+
+
+def _send_password_reset_email(db: Session, emp: Employee, raw_token: str) -> None:
+    """Best-effort — a delivery failure must not reveal whether the
+    account exists (that's the caller's job) or block the response."""
+
+    try:
+
+        if not emp.EMAIL:
+
+            return
+
+        frontend_base = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+
+        reset_url = f"{frontend_base}/reset-password?token={raw_token}"
+
+        company = get_company_settings(db, emp.VENDOR_ID)
+
+        company_name = (company.LEGAL_NAME if company else None) or "your ERP account"
+
+        subject = f"Reset your {company_name} password"
+
+        body_html = f"""
+            <p>Hi {emp.NAME or emp.EMPLOYEE_CODE},</p>
+            <p>We received a request to reset the password for your
+            account (<strong>{emp.EMPLOYEE_CODE}</strong>).</p>
+            <p><a href="{reset_url}">Click here to set a new password</a>.
+            This link expires in {PASSWORD_RESET_TTL_MINUTES} minutes.</p>
+            <p>If you didn't request this, you can safely ignore this
+            email — your password won't change.</p>
+        """
+
+        active_cfgs = db.query(VendorEmailConfig).filter(
+            VendorEmailConfig.VENDOR_ID == emp.VENDOR_ID,
+            VendorEmailConfig.IS_ACTIVE == True,
+        ).all()
+
+        for cfg in active_cfgs:
+
+            ok, _err, _detail = send_via_vendor_smtp(cfg, emp.EMAIL, subject, body_html)
+
+            if ok:
+
+                return
+
+        send_via_resend(subject=subject, body_html=body_html, recipient=emp.EMAIL)
+
+    except Exception:
+
+        pass
+
+
+@router.post("/forgot-password")
+def forgot_password(
+    data: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    """Always returns the same generic response regardless of whether
+    the account exists or has an email on file — prevents an attacker
+    from using this endpoint to enumerate valid EMPLOYEE_CODEs."""
+
+    generic_response = {
+        "message": (
+            "If an account exists for that ID, a password reset link "
+            "has been sent to its registered email."
+        )
+    }
+
+    emp = find_employee_by_login(db, (data.IDENTIFIER or "").strip())
+
+    if not emp or (emp.STATUS and emp.STATUS.upper() != "ACTIVE") or not emp.EMAIL:
+
+        return generic_response
+
+    raw_token = secrets.token_urlsafe(32)
+
+    emp.PASSWORD_RESET_TOKEN = hash_refresh_token(raw_token)
+
+    emp.PASSWORD_RESET_EXPIRES_AT = datetime.utcnow() + timedelta(minutes=PASSWORD_RESET_TTL_MINUTES)
+
+    db.commit()
+
+    _send_password_reset_email(db, emp, raw_token)
+
+    return generic_response
+
+
+@router.post("/reset-password/{token}")
+def reset_password_with_token(
+    token: str,
+    data: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+):
+
+    if len(data.NEW_PASSWORD) < 6:
+
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters.")
+
+    token_hash = hash_refresh_token(token)
+
+    emp = db.query(Employee).filter(Employee.PASSWORD_RESET_TOKEN == token_hash).first()
+
+    if (
+        not emp
+        or not emp.PASSWORD_RESET_EXPIRES_AT
+        or emp.PASSWORD_RESET_EXPIRES_AT < datetime.utcnow()
+    ):
+
+        raise HTTPException(status_code=400, detail="This reset link is invalid or has expired.")
+
+    emp.PASSWORD = hash_password(data.NEW_PASSWORD)
+
+    emp.PASSWORD_RESET_TOKEN = None
+
+    emp.PASSWORD_RESET_EXPIRES_AT = None
+
+    db.commit()
+
+    bump_token_version(db, emp)
+
+    return {"message": "Password reset. You can now log in with your new password."}
+
+
 # =========================
 # ROOT LOGIN — separate identity, separate table, never touches
 # Employee/IAMUser login paths above.
@@ -350,7 +563,7 @@ def root_login(
 
         raise HTTPException(status_code=403, detail=f"Account is {root.STATUS}")
 
-    if not verify_password(data.PASSWORD, root.PASSWORD):
+    if not verify_and_upgrade_password(db, root, data.PASSWORD):
 
         record_failed_login(db, "ROOT", root.ID)
 
@@ -413,7 +626,7 @@ def iam_login(
 
         raise HTTPException(status_code=403, detail=f"Account is {iam.STATUS}")
 
-    if not verify_password(data.PASSWORD, iam.PASSWORD):
+    if not verify_and_upgrade_password(db, iam, data.PASSWORD):
 
         record_failed_login(db, "IAM", iam.ID)
 

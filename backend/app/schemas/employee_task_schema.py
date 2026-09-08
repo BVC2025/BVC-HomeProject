@@ -3,12 +3,6 @@ from typing import Optional
 from datetime import date
 
 
-class EmployeeLogin(BaseModel):
-
-    EMPLOYEE_ID: str
-    PASSWORD: str
-
-
 class TaskStatusUpdate(BaseModel):
 
     TASK_STATUS: str

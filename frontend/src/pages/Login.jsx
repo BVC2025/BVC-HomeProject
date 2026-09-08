@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 
 import styles from "./Login.module.css";
@@ -379,6 +379,12 @@ function Login() {
               )}
             </button>
 
+          </div>
+
+          <div style={{ textAlign: "right", marginBottom: "var(--sp-3)" }}>
+            <Link to="/forgot-password" className={styles.cancelLink}>
+              Forgot password?
+            </Link>
           </div>
 
           <button

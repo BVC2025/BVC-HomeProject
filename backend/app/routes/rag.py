@@ -49,6 +49,7 @@ def _serialize_module(m: AIModule) -> dict:
         "VECTOR_COLLECTION_NAME": m.VECTOR_COLLECTION_NAME,
         "EMBEDDING_MODEL": m.EMBEDDING_MODEL,
         "LLM_MODEL": m.LLM_MODEL,
+        "LLM_PROVIDER": m.LLM_PROVIDER,
         "IS_ACTIVE": m.IS_ACTIVE,
         "CREATED_AT": m.CREATED_AT.isoformat() if m.CREATED_AT else None,
         "UPDATED_AT": m.UPDATED_AT.isoformat() if m.UPDATED_AT else None,

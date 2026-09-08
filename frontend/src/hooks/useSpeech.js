@@ -34,7 +34,7 @@ const STT_ERROR_MESSAGES = {
   "language-not-supported": "This browser doesn't support the selected language for speech.",
 };
 
-export function useSpeech({ sttLang = "en-IN", ttsLangMode = "auto", onFinalResult } = {}) {
+export function useSpeech({ sttLang = "en-IN", ttsLangMode = "auto", ttsEngine = "piper", onFinalResult } = {}) {
 
   const SR = typeof window !== "undefined" && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
@@ -72,6 +72,8 @@ export function useSpeech({ sttLang = "en-IN", ttsLangMode = "auto", onFinalResu
 
   const ttsLangModeRef = useRef(ttsLangMode);
 
+  const ttsEngineRef = useRef(ttsEngine);
+
   const onFinalResultRef = useRef(onFinalResult);
 
   const isMountedRef = useRef(true);
@@ -79,6 +81,8 @@ export function useSpeech({ sttLang = "en-IN", ttsLangMode = "auto", onFinalResu
   useEffect(() => { sttLangRef.current = sttLang; }, [sttLang]);
 
   useEffect(() => { ttsLangModeRef.current = ttsLangMode; }, [ttsLangMode]);
+
+  useEffect(() => { ttsEngineRef.current = ttsEngine; }, [ttsEngine]);
 
   useEffect(() => { onFinalResultRef.current = onFinalResult; }, [onFinalResult]);
 
@@ -152,7 +156,10 @@ export function useSpeech({ sttLang = "en-IN", ttsLangMode = "auto", onFinalResu
 
     try {
 
-      const res = await speechService.speak(text, backendLang, { signal: controller.signal });
+      const res = await speechService.speak(text, backendLang, {
+        signal: controller.signal,
+        engine: ttsEngineRef.current,
+      });
 
       if (!isMountedRef.current) return;
 

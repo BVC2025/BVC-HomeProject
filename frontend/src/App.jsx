@@ -3,6 +3,8 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import "./App.css";
 
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import EmployeeDashboard from "./pages/EmployeeDashboard";
 import BiometricCheckIn from "./pages/BiometricCheckIn";
@@ -115,6 +117,16 @@ function App() {
       <Route
         path="/login"
         element={<LoginGate />}
+      />
+
+      {/* Self-service password reset — public, no auth required */}
+      <Route
+        path="/forgot-password"
+        element={<ForgotPassword />}
+      />
+      <Route
+        path="/reset-password"
+        element={<ResetPassword />}
       />
 
       {/* Legacy tile-board welcome — retired. Redirect any old bookmark

@@ -7,6 +7,7 @@ so the token shape is consistent across the system.
 
 import bcrypt
 import hashlib
+import os
 import secrets
 from datetime import datetime, timedelta
 
@@ -22,7 +23,10 @@ from app.models.models import (
 from app.auth.jwt_handler import create_token
 
 
-BCRYPT_ROUNDS = 4  # dev. bump to 12 in production.
+BCRYPT_ROUNDS = int(os.getenv("BCRYPT_ROUNDS", "12"))
+# Was hardcoded to 4 (dev-only). bcrypt embeds its own round count in
+# every hash, so raising this doesn't require rehashing existing rows —
+# old hashes keep verifying exactly as before.
 
 REFRESH_TOKEN_TTL_DAYS = 14
 MAX_FAILED_LOGIN_ATTEMPTS = 5
@@ -60,6 +64,28 @@ def verify_password(plain: str, hashed: str) -> bool:
         print(f"bcrypt verify failed: {e}")
 
         return False
+
+
+def verify_and_upgrade_password(db: Session, principal, plain: str) -> bool:
+    """Same check as verify_password(plain, principal.PASSWORD), but if
+    the match succeeded via the legacy plain-text fallback, transparently
+    re-hashes it with bcrypt and saves it — so plain-text rows migrate
+    themselves out of existence on next login instead of needing a
+    one-off data migration or a login-breaking cutover."""
+
+    stored = principal.PASSWORD
+
+    if not verify_password(plain, stored):
+
+        return False
+
+    if stored and not stored.startswith("$2"):
+
+        principal.PASSWORD = hash_password(plain)
+
+        db.commit()
+
+    return True
 
 
 def find_employee_by_login(db: Session, identifier: str):

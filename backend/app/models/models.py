@@ -1691,6 +1691,27 @@ class CompanyMaster(Base):
 
     WORKING_TIMEZONE = Column(String(50), nullable=False, default="Asia/Kolkata")
 
+    # ---- Admin / System Foundation: locale + working calendar ----
+    CURRENCY = Column(String(10), nullable=True, default="INR")
+
+    TIMEZONE = Column(String(60), nullable=True, default="Asia/Kolkata")
+
+    DATE_FORMAT = Column(String(20), nullable=True, default="DD-MM-YYYY")
+
+    FISCAL_YEAR_START_MONTH = Column(Integer, nullable=True, default=4)
+    # 1-12. Default April (Indian fiscal year).
+
+    WORKING_DAYS = Column(String(60), nullable=True)
+    # Comma-separated, e.g. "MON,TUE,WED,THU,FRI,SAT"
+
+    WORKING_HOURS_START = Column(String(10), nullable=True)
+    # "HH:MM", e.g. "09:30" — stored as text since this is a display/
+    # default-policy setting, not used for arithmetic (per-shift times
+    # already live on ShiftTemplate).
+
+    WORKING_HOURS_END = Column(String(10), nullable=True)
+
+
     CREATED_AT = Column(DateTime, default=datetime.utcnow)
 
     UPDATED_AT = Column(

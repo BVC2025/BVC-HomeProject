@@ -44,6 +44,13 @@ DEFAULT_COMPANY = {
     "UPI_ID":               None,
     "LOGO_URL":             None,
     "NOTES":                None,
+    "CURRENCY":               "INR",
+    "TIMEZONE":               "Asia/Kolkata",
+    "DATE_FORMAT":            "DD-MM-YYYY",
+    "FISCAL_YEAR_START_MONTH":4,
+    "WORKING_DAYS":           "MON,TUE,WED,THU,FRI,SAT",
+    "WORKING_HOURS_START":    "09:30",
+    "WORKING_HOURS_END":      "18:30",
 }
 
 
@@ -103,6 +110,7 @@ def serialize_company(c: CompanyMaster) -> dict:
         "UPI_ID":              c.UPI_ID,
         "LOGO_URL":            c.LOGO_URL,
         "NOTES":               c.NOTES,
+
         "WORK_START_TIME": (
             c.WORK_START_TIME.strftime("%H:%M:%S")
             if c.WORK_START_TIME else None
@@ -124,6 +132,15 @@ def serialize_company(c: CompanyMaster) -> dict:
             }
             for b in sorted(c.working_breaks, key=lambda x: x.SEQUENCE_NUMBER)
         ],
+
+        "CURRENCY":                c.CURRENCY,
+        "TIMEZONE":                c.TIMEZONE,
+        "DATE_FORMAT":             c.DATE_FORMAT,
+        "FISCAL_YEAR_START_MONTH": c.FISCAL_YEAR_START_MONTH,
+        "WORKING_DAYS":            c.WORKING_DAYS,
+        "WORKING_HOURS_START":     c.WORKING_HOURS_START,
+        "WORKING_HOURS_END":       c.WORKING_HOURS_END,
+
         "UPDATED_AT": (
             c.UPDATED_AT.isoformat()
             if c.UPDATED_AT else None

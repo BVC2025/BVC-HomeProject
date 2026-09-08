@@ -32,7 +32,7 @@ import app.models.rag_models         # noqa: F401 — registers ai_modules, ai_d
 import app.models.whatsapp_models    # noqa: F401 — registers vendor_whatsapp_config, whatsapp_conversation, whatsapp_message, whatsapp_webhook_event tables
 import app.models.rbac_models        # noqa: F401 — registers iam_user, employee_permission_override, employee_permission_override_audit tables (root_user already registered via models.py)
 import app.models.auth_models        # noqa: F401 — registers refresh_token, login_lockout tables
-import app.models.employee_models    # noqa: F401 — registers employee, department, designation, employee_onboarding_session, employee_document, employee_memos, employee_allowance, employee_status_history tables
+import app.models.employee_models    # noqa: F401 — registers employee, department, designation, branch, employee_onboarding_session, employee_document, employee_memos, employee_allowance, employee_status_history tables
 import app.models.leave_models       # noqa: F401 — registers leave_request, leave_balance, leave_quota_policy, ai_leave_conversation, leave_balance_adjustment tables
 from app.services.permission_catalogue import ensure_permission_catalogue
 from app.routes.users import router as users_router
@@ -52,6 +52,7 @@ from app.routes.employee_task import router as employee_task_router
 from app.routes.project_template import router as project_template_router
 from app.routes.project_quotation import router as project_quotation_router
 from app.routes.organization import router as organization_router
+from app.routes.branch import router as branch_router
 from app.routes.task_approval import router as task_approval_router
 from app.routes.biometric import router as biometric_router
 from app.routes.iclock import router as iclock_router  # ADMS Push (ZKTeco/ESSL X2008)
@@ -78,6 +79,9 @@ from app.routes.rbac import router as rbac_router    # Phase 2 RBAC
 from app.routes.holiday import router as holiday_router    # Phase 2 Holiday Calendar
 from app.routes.allowance import router as allowance_router  # Employee expense claims
 from app.routes.recruitment import router as recruitment_router  # Phase 2 — AI Recruitment Assistant
+from app.routes.calendar import router as calendar_router  # CRM Calendar (meetings/calls/follow-ups)
+import app.models.calendar_models  # noqa: F401 — registers calendar_event table
+from app.routes.recruitment_voice_agent import router as recruitment_voice_router  # Voice-first Requisition Agent (Qwen)
 from app.routes.employee_payslips import router as my_payslips_router  # Employee self-service payslips
 from app.routes.onboarding_checklist import router as onboarding_checklist_router  # Post-joining onboarding
 from app.routes.attendance_ai import router as attendance_ai_router  # Attendance Automation (Phase 1)
@@ -563,6 +567,35 @@ def _auto_migrate():
         ("root_user", "UPDATED_AT",                 "DATETIME NULL"),
         # ---- RBAC Phase 3 (API auth/security): TOKEN_VERSION on Employee ----
         ("employee", "TOKEN_VERSION",                "INT NOT NULL DEFAULT 1"),
+        # ---- Admin / System Foundation (2026-09) ----
+        ("employee",   "LAST_LOGIN_AT",              "DATETIME NULL"),
+        ("employee",   "BRANCH_ID",                  "INT NULL"),
+        ("employee",   "PASSWORD_RESET_TOKEN",       "VARCHAR(100) NULL"),
+        ("employee",   "PASSWORD_RESET_EXPIRES_AT",  "DATETIME NULL"),
+        ("department", "STATUS",                     "VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'"),
+        ("designation","STATUS",                     "VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'"),
+        ("designation","UPDATED_AT",                 "DATETIME NULL"),
+        ("company_master", "CURRENCY",               "VARCHAR(10) NULL DEFAULT 'INR'"),
+        ("company_master", "TIMEZONE",                "VARCHAR(60) NULL DEFAULT 'Asia/Kolkata'"),
+        ("company_master", "DATE_FORMAT",             "VARCHAR(20) NULL DEFAULT 'DD-MM-YYYY'"),
+        ("company_master", "FISCAL_YEAR_START_MONTH", "INT NULL DEFAULT 4"),
+        ("company_master", "WORKING_DAYS",            "VARCHAR(60) NULL"),
+        ("company_master", "WORKING_HOURS_START",     "VARCHAR(10) NULL"),
+        ("company_master", "WORKING_HOURS_END",       "VARCHAR(10) NULL"),
+        # ---- ERP-wide voice assistant (Qwen3/Ollama + Kokoro, 2026-09) ----
+        ("ai_modules", "LLM_PROVIDER", "VARCHAR(20) NOT NULL DEFAULT 'GEMINI'"),
+        # ---- Recruitment AI voice/chat requisition agent (2026-09) ----
+        ("recruitment_requisition", "WORK_MODE",            "VARCHAR(20) NULL"),
+        ("recruitment_requisition", "SHIFT",                "VARCHAR(50) NULL"),
+        ("recruitment_requisition", "SALARY_PERIOD",        "VARCHAR(20) NULL DEFAULT 'MONTHLY'"),
+        ("recruitment_requisition", "HIRING_MANAGER_ID",    "VARCHAR(36) NULL"),
+        ("recruitment_requisition", "RECRUITER_ID",         "VARCHAR(36) NULL"),
+        ("recruitment_requisition", "APPLICATION_DEADLINE", "DATE NULL"),
+        ("recruitment_requisition", "JOB_DESCRIPTION",      "TEXT NULL"),
+        ("recruitment_requisition", "RESPONSIBILITIES",     "TEXT NULL"),
+        ("recruitment_requisition", "QUALIFICATIONS",       "TEXT NULL"),
+        ("recruitment_requisition", "SOURCE",               "VARCHAR(20) NULL DEFAULT 'MANUAL'"),
+        ("recruitment_requisition", "ORIGINAL_TRANSCRIPT",  "TEXT NULL"),
     ]
 
     # New unique indexes on tables that already exist in production.
@@ -1858,6 +1891,30 @@ def _auto_seed_ai_modules():
             ))
             db.commit()
             log.info("auto-seed-ai-modules: 'lead_module' module created")
+
+        existing_erp = db.query(AIModule).filter(AIModule.MODULE_CODE == "erp-assistant").first()
+
+        if existing_erp is None:
+            from app.rag_modules.core.ollama_llm_client import OLLAMA_MODEL as RAG_DEFAULT_OLLAMA_MODEL
+
+            db.add(AIModule(
+                MODULE_NAME="ERP Assistant",
+                MODULE_CODE="erp-assistant",
+                DESCRIPTION=(
+                    "ERP-wide voice/text assistant (floating widget on every "
+                    "admin page). Self-hosted via Ollama/Qwen3 instead of "
+                    "Gemini — see LLM_PROVIDER. Admins upload the docs it "
+                    "should be grounded on through the existing Knowledge "
+                    "Base UI, same as any other module."
+                ),
+                VECTOR_COLLECTION_NAME="erp_assistant_rag_collection",
+                EMBEDDING_MODEL="BAAI/bge-small-en-v1.5",
+                LLM_MODEL=RAG_DEFAULT_OLLAMA_MODEL,
+                LLM_PROVIDER="OLLAMA",
+                IS_ACTIVE=True,
+            ))
+            db.commit()
+            log.info("auto-seed-ai-modules: 'erp-assistant' module created")
 
     except Exception as exc:
         db.rollback()
@@ -4770,7 +4827,9 @@ from app.services.speech_service import speech_service  # noqa: E402
 speech_service.initialize()  # non-blocking — Piper models load on a background thread
 
 from app.scheduler import start_scheduler, stop_scheduler  # noqa: E402 — started after seeding, before routers
+from app.calendar_scheduler import start_calendar_scheduler, stop_calendar_scheduler  # noqa: E402
 start_scheduler()
+start_calendar_scheduler()
 
 from app.whatsapp_scheduler import start_whatsapp_scheduler, stop_whatsapp_scheduler  # noqa: E402 — separate scheduler instance, see module docstring
 start_whatsapp_scheduler()
@@ -4787,12 +4846,17 @@ def _stop_background_schedulers():
     after shutdown', which is what makes Ctrl+C take a while to land."""
     stop_scheduler()
     stop_whatsapp_scheduler()
+<<<<<<< HEAD
     stop_production_reminder_scheduler()
+=======
+    stop_calendar_scheduler()
+>>>>>>> puvi-pro-1
 
 
 
 app.include_router(auth_router, tags=["Auth"])
 app.include_router(organization_router, tags=["Organization"])
+app.include_router(branch_router, tags=["Branches"])
 app.include_router(employee.router, tags=["Employees (IAM)"])
 app.include_router(employee_task_router, tags=["Employee Workflow"])
 app.include_router(task_approval_router, tags=["Task Approval"])
@@ -4838,6 +4902,8 @@ app.include_router(rbac_router)
 app.include_router(holiday_router)
 app.include_router(allowance_router, tags=["Allowances"])
 app.include_router(recruitment_router)
+app.include_router(calendar_router)
+app.include_router(recruitment_voice_router)
 app.include_router(my_payslips_router)
 app.include_router(onboarding_checklist_router)
 app.include_router(attendance_ai_router)
