@@ -119,8 +119,11 @@ class CalendarEvent(Base):
         ForeignKey("lead.ID", ondelete="SET NULL"),
         nullable=True,
     )
+    # customer.ID is VARCHAR(36) UUID in the live schema despite the
+    # legacy models.py declaring it as Integer — matching reality here
+    # so the FK constraint can be created.
     CUSTOMER_ID = Column(
-        Integer,
+        String(36),
         ForeignKey("customer.ID", ondelete="SET NULL"),
         nullable=True,
     )

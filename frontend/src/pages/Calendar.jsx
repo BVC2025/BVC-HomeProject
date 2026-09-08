@@ -307,7 +307,7 @@ function EventModal({ initial, canManage, defaultDate, onClose, onSaved }) {
       end_at:           new Date(form.end_at).toISOString(),
       all_day:          !!form.all_day,
       lead_id:          form.lead_id.trim() || null,
-      customer_id:      form.customer_id ? Number(form.customer_id) : null,
+      customer_id:      form.customer_id.trim() || null,
       reminder_minutes: Number(form.reminder_minutes) || 0,
     };
     setSaving(true);
@@ -366,7 +366,7 @@ function EventModal({ initial, canManage, defaultDate, onClose, onSaved }) {
             </div>
             <div>
               <label style={S.lbl}>Customer ID (optional)</label>
-              <input type="number" style={S.inp} value={form.customer_id} onChange={change("customer_id")} disabled={!canManage} placeholder="customer numeric id" />
+              <input style={S.inp} value={form.customer_id} onChange={change("customer_id")} disabled={!canManage} placeholder="customer UUID" />
             </div>
           </div>
 

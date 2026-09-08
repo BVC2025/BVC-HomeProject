@@ -26,7 +26,7 @@ class CalendarEventCreate(BaseModel):
     attendee_ids:     List[str] = Field(default_factory=list)
 
     lead_id:          Optional[str] = None
-    customer_id:      Optional[int] = None
+    customer_id:      Optional[str] = None
 
     reminder_minutes: int = 15                  # 0 → no reminder
 
@@ -69,7 +69,7 @@ class CalendarEventUpdate(BaseModel):
     attendee_ids:     Optional[List[str]] = None
 
     lead_id:          Optional[str] = None
-    customer_id:      Optional[int] = None
+    customer_id:      Optional[str] = None
 
     reminder_minutes: Optional[int] = None
     status:           Optional[str] = None
@@ -122,7 +122,7 @@ class CalendarEventOut(BaseModel):
 
     lead_id:          Optional[str] = None
     lead_name:        Optional[str] = None
-    customer_id:      Optional[int] = None
+    customer_id:      Optional[str] = None      # customer.ID is VARCHAR(36) UUID
     customer_name:    Optional[str] = None
 
     reminder_minutes: int

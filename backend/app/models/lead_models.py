@@ -158,7 +158,7 @@ class Lead(Base):
     # New Customer chosen) or later at conversion time as a fallback for
     # leads created before this feature existed. ---
     PROJECT_ID  = Column(String(36), ForeignKey("project.ID",  ondelete="SET NULL"), nullable=True, index=True)
-    CUSTOMER_ID = Column(Integer, ForeignKey("customer.ID", ondelete="SET NULL"), nullable=True, index=True)
+    CUSTOMER_ID = Column(String(36), ForeignKey("customer.ID", ondelete="SET NULL"), nullable=True, index=True)
     CUSTOMER_ASSIGNMENT_TYPE = Column(LEAD_CUSTOMER_ASSIGNMENT_TYPE_ENUM, nullable=True)
     GST_NUMBER  = Column(String(50), nullable=True)
 

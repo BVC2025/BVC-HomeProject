@@ -225,7 +225,7 @@ def list_events(
     to:          Optional[datetime] = Query(None),
     owner_id:    Optional[str] = Query(None),
     lead_id:     Optional[str] = Query(None),
-    customer_id: Optional[int] = Query(None),
+    customer_id: Optional[str] = Query(None),
     status:      Optional[str] = Query(None),
     event_type:  Optional[str] = Query(None),
     limit:       int  = Query(200, ge=1, le=1000),
