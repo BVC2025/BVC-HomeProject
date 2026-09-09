@@ -490,22 +490,23 @@ def team_calendar(
 
 @router.get("/email/health")
 def calendar_email_health(
-    db:  Session = Depends(get_db),
-    vid: int = Depends(get_effective_vendor_id),
+    vendor_id: int = 1,
+    db:        Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    """No-auth-inside diagnostic: does the ERP have any way to deliver
-    a calendar-invite email right now? Answers the "I created an event
-    but the email didn't arrive" question in one look — WITHOUT
-    actually sending an email. Reports vendor-SMTP config + whether
-    Resend is set."""
+    """Public diagnostic (no auth) — does the ERP have any way to
+    deliver a calendar-invite email right now? Answers "I created an
+    event but the email didn't arrive" in one browser hit — WITHOUT
+    actually sending. Only returns config flags (hostnames + booleans),
+    no passwords or PII. Vendor 1 by default; pass ?vendor_id=N for
+    multi-tenant checks."""
     import os as _os
     from app.models.email_models import VendorEmailConfig
     vendor_cfgs = db.query(VendorEmailConfig).filter(
-        VendorEmailConfig.VENDOR_ID == vid,
+        VendorEmailConfig.VENDOR_ID == vendor_id,
         VendorEmailConfig.IS_ACTIVE == True,
     ).all()
     return {
-        "vendor_id":                vid,
+        "vendor_id":                vendor_id,
         "vendor_smtp_active_count": len(vendor_cfgs),
         "vendor_smtp_hosts":        [c.SMTP_HOST for c in vendor_cfgs] if vendor_cfgs else [],
         "resend_key_configured":    bool(_os.getenv("RESEND_API_KEY", "").strip()),
@@ -516,9 +517,9 @@ def calendar_email_health(
         },
         "hint": (
             "If vendor_smtp_active_count is 0 AND resend_key_configured is "
-            "false, emails can't be delivered. Configure one of them under "
-            "Admin → Channels & Templates → Email Config, or set RESEND_API_KEY "
-            "in backend/.env."
+            "false, emails can't be delivered. Add an SMTP row under "
+            "Admin → Channels & Templates → Email Config (Save + Activate), "
+            "or set RESEND_API_KEY in backend/.env."
         ),
     }
 
