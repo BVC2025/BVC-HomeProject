@@ -214,6 +214,27 @@ def create_event(
     db.add(ev)
     db.commit()
     db.refresh(ev)
+
+    # Fire an INVITE email straight away to every notify address so the
+    # recipient sees the event as soon as it's created — not just at
+    # the N-min-before reminder. Google Calendar / Outlook do the same
+    # thing. Best-effort: any per-address failure is logged inside
+    # the helper and does not roll the requisition back.
+    if ev.NOTIFY_EMAILS:
+        addrs = [
+            a.strip() for a in ev.NOTIFY_EMAILS.split(",")
+            if a and "@" in a and "." in a
+        ]
+        if addrs:
+            try:
+                _send_invite_email(ev, addrs)
+            except Exception:
+                import logging
+                logging.getLogger("uvicorn.error").warning(
+                    "[calendar-invite-email] send failed for event %s", ev.ID,
+                    exc_info=True,
+                )
+
     return _serialize(ev, db)
 
 
@@ -467,6 +488,65 @@ def team_calendar(
     return [_serialize(r, db) for r in rows]
 
 
+@router.get("/email/health")
+def calendar_email_health(
+    db:  Session = Depends(get_db),
+    vid: int = Depends(get_effective_vendor_id),
+) -> Dict[str, Any]:
+    """No-auth-inside diagnostic: does the ERP have any way to deliver
+    a calendar-invite email right now? Answers the "I created an event
+    but the email didn't arrive" question in one look — WITHOUT
+    actually sending an email. Reports vendor-SMTP config + whether
+    Resend is set."""
+    import os as _os
+    from app.models.email_models import VendorEmailConfig
+    vendor_cfgs = db.query(VendorEmailConfig).filter(
+        VendorEmailConfig.VENDOR_ID == vid,
+        VendorEmailConfig.IS_ACTIVE == True,
+    ).all()
+    return {
+        "vendor_id":                vid,
+        "vendor_smtp_active_count": len(vendor_cfgs),
+        "vendor_smtp_hosts":        [c.SMTP_HOST for c in vendor_cfgs] if vendor_cfgs else [],
+        "resend_key_configured":    bool(_os.getenv("RESEND_API_KEY", "").strip()),
+        "smtp_env_fallback":        {
+            "SMTP_HOST": _os.getenv("SMTP_HOST", ""),
+            "SMTP_USER": _os.getenv("SMTP_USER", ""),
+            "SMTP_FROM": _os.getenv("SMTP_FROM", ""),
+        },
+        "hint": (
+            "If vendor_smtp_active_count is 0 AND resend_key_configured is "
+            "false, emails can't be delivered. Configure one of them under "
+            "Admin → Channels & Templates → Email Config, or set RESEND_API_KEY "
+            "in backend/.env."
+        ),
+    }
+
+
+@router.post(
+    "/email/test",
+    dependencies=[Depends(require("calendar.manage"))],
+)
+def calendar_email_test(
+    to: str,
+    vid: int = Depends(get_effective_vendor_id),
+) -> Dict[str, Any]:
+    """Sends a real BVC24-branded test email to the given address so
+    you can verify the pipeline end-to-end without creating a bogus
+    event. Use once after configuring SMTP; safe to leave enabled."""
+    _dispatch_email(
+        subject="BVC24 Calendar email test",
+        body_html=(
+            "<h3>BVC24 Calendar email test</h3>"
+            "<p>If you're reading this, your ERP can send calendar invites and reminders successfully.</p>"
+        ),
+        addrs=[to.strip()],
+        vendor_id=vid,
+        log_prefix="calendar-email-test",
+    )
+    return {"attempted": to, "note": "check server logs and your inbox"}
+
+
 @router.post("/scan-reminders")
 def scan_reminders(
     db:  Session = Depends(get_db),
@@ -556,6 +636,114 @@ def _scan_reminders_impl(db: Session, vendor_id: Optional[int] = None) -> Dict[s
     return {"fired": fired, "checked_at": now.isoformat()}
 
 
+def _send_invite_email(ev: CalendarEvent, addrs: List[str]) -> None:
+    """One-shot email at event-creation time — "you've been added to
+    this event on this date/time". Delivery pipeline mirrors
+    _send_reminder_email so both channels behave the same way."""
+    import logging
+    log = logging.getLogger("uvicorn.error")
+
+    subject = f"You're invited: {ev.EVENT_TYPE.title()} — {ev.TITLE}"
+
+    location_html = (
+        f'<tr><td style="padding:4px 12px 4px 0;color:#64748b;">Where</td>'
+        f'<td><strong>{ev.LOCATION}</strong></td></tr>'
+    ) if ev.LOCATION else ""
+
+    notes_html = (
+        f'<tr><td style="padding:4px 12px 4px 0;color:#64748b;vertical-align:top;">Notes</td>'
+        f'<td>{ev.DESCRIPTION}</td></tr>'
+    ) if ev.DESCRIPTION else ""
+
+    reminder_html = (
+        f'<p style="margin-top:10px;font-size:13px;color:#334155;">'
+        f'You will get a reminder email {ev.REMINDER_MINUTES} minute'
+        f'{"s" if int(ev.REMINDER_MINUTES) != 1 else ""} before the event starts.'
+        f'</p>'
+    ) if ev.REMINDER_MINUTES else ""
+
+    body_html = f"""<!doctype html>
+<html><body style="font-family:Arial,sans-serif;color:#111827;max-width:560px;margin:0 auto;padding:24px;">
+  <div style="border-left:4px solid #C8102E;padding:12px 16px;background:#fef2f2;border-radius:6px;margin-bottom:16px;">
+    <strong>BVC24 Calendar invite</strong> — a new {ev.EVENT_TYPE.lower()} has been scheduled with you.
+  </div>
+
+  <h2 style="margin:0 0 8px 0;color:#7A1022;">{ev.TITLE}</h2>
+
+  <table style="border-collapse:collapse;font-size:14px;margin-top:12px;">
+    <tr><td style="padding:4px 12px 4px 0;color:#64748b;">Type</td>
+        <td><strong>{ev.EVENT_TYPE}</strong></td></tr>
+    <tr><td style="padding:4px 12px 4px 0;color:#64748b;">When</td>
+        <td><strong>{ev.START_AT.strftime('%A, %d %B %Y · %H:%M')} – {ev.END_AT.strftime('%H:%M')}</strong></td></tr>
+    {location_html}
+    {notes_html}
+  </table>
+
+  {reminder_html}
+
+  <p style="margin-top:22px;font-size:12px;color:#94a3b8;">
+    This is an automatic invite from Bharath Vending Corporation's ERP calendar.
+    Save it to your own calendar if you like — a reminder email will follow closer to the time.
+  </p>
+</body></html>
+"""
+
+    _dispatch_email(subject, body_html, addrs, ev.VENDOR_ID, log_prefix="calendar-invite-email")
+
+
+def _dispatch_email(subject: str, body_html: str, addrs: List[str],
+                    vendor_id: Optional[int], log_prefix: str) -> None:
+    """Shared sender used by BOTH invite (on-create) and reminder
+    (N-min-before) emails. Vendor SMTP first, Resend fallback. Per-
+    address failures are logged, never raised."""
+    import logging
+    log = logging.getLogger("uvicorn.error")
+
+    try:
+        from app.services.email_service import send_via_resend, send_via_vendor_smtp
+        from app.models.email_models import VendorEmailConfig
+        from app.database.database import SessionLocal
+    except Exception as e:
+        log.warning("[%s] email service unavailable: %s", log_prefix, e)
+        return
+
+    db2 = SessionLocal()
+    try:
+        active_cfgs = (
+            db2.query(VendorEmailConfig)
+               .filter(
+                   VendorEmailConfig.VENDOR_ID == vendor_id,
+                   VendorEmailConfig.IS_ACTIVE == True,
+               )
+               .all()
+        ) if vendor_id else []
+    except Exception:
+        active_cfgs = []
+    finally:
+        db2.close()
+
+    for addr in addrs:
+        sent = False
+        for cfg in active_cfgs:
+            try:
+                ok, _err, _detail = send_via_vendor_smtp(cfg, addr, subject, body_html)
+                if ok:
+                    sent = True
+                    break
+            except Exception as e:
+                log.warning("[%s] vendor SMTP failed for %s: %s", log_prefix, addr, e)
+        if not sent:
+            try:
+                send_via_resend(subject=subject, body_html=body_html, recipient=addr)
+                sent = True
+            except Exception as e:
+                log.warning("[%s] Resend failed for %s: %s: %s", log_prefix, addr, type(e).__name__, e)
+        if sent:
+            log.info("[%s] sent to %s", log_prefix, addr)
+        else:
+            log.warning("[%s] all channels failed for %s — check .env SMTP / Resend", log_prefix, addr)
+
+
 def _send_reminder_email(ev: CalendarEvent, addrs: List[str], mins_to_start: int) -> None:
     """Send a plain-text-friendly HTML reminder to every address in
     `addrs`. Runs inside the reminder scheduler; must NEVER raise —
@@ -602,45 +790,4 @@ def _send_reminder_email(ev: CalendarEvent, addrs: List[str], mins_to_start: int
 </body></html>
 """
 
-    # Try vendor SMTP first, fall back to Resend if configured.
-    try:
-        from app.services.email_service import send_via_resend, send_via_vendor_smtp
-        from app.models.email_models import VendorEmailConfig
-        from app.database.database import SessionLocal
-    except Exception as e:
-        log.warning("[calendar-reminder-email] email service unavailable: %s", e)
-        return
-
-    db2 = SessionLocal()
-    try:
-        active_cfgs = (
-            db2.query(VendorEmailConfig)
-               .filter(
-                   VendorEmailConfig.VENDOR_ID == ev.VENDOR_ID,
-                   VendorEmailConfig.IS_ACTIVE == True,
-               )
-               .all()
-        ) if ev.VENDOR_ID else []
-    except Exception:
-        active_cfgs = []
-    finally:
-        db2.close()
-
-    for addr in addrs:
-        sent = False
-        for cfg in active_cfgs:
-            try:
-                ok, _err, _detail = send_via_vendor_smtp(cfg, addr, subject, body_html)
-                if ok:
-                    sent = True
-                    break
-            except Exception as e:
-                log.warning("[calendar-reminder-email] vendor SMTP failed for %s: %s", addr, e)
-        if not sent:
-            try:
-                send_via_resend(subject=subject, body_html=body_html, recipient=addr)
-                sent = True
-            except Exception as e:
-                log.warning("[calendar-reminder-email] Resend failed for %s: %s: %s", addr, type(e).__name__, e)
-        if sent:
-            log.info("[calendar-reminder-email] sent to %s for event %s", addr, ev.ID)
+    _dispatch_email(subject, body_html, addrs, ev.VENDOR_ID, log_prefix="calendar-reminder-email")
