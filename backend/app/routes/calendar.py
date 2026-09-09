@@ -108,6 +108,7 @@ def _serialize(ev: CalendarEvent, db: Session) -> CalendarEventOut:
         customer_id      = ev.CUSTOMER_ID,
         customer_name    = customer_name,
         reminder_minutes = ev.REMINDER_MINUTES,
+        notify_emails    = ev.NOTIFY_EMAILS,
         reminder_sent    = bool(ev.REMINDER_SENT),
         created_at       = ev.CREATED_AT,
         updated_at       = ev.UPDATED_AT,
@@ -206,6 +207,7 @@ def create_event(
         LEAD_ID          = payload.lead_id,
         CUSTOMER_ID      = payload.customer_id,
         REMINDER_MINUTES = payload.reminder_minutes,
+        NOTIFY_EMAILS    = (payload.notify_emails or "").strip() or None,
         REMINDER_SENT    = False,
         STATUS           = "SCHEDULED",
     )
@@ -320,6 +322,7 @@ def update_event(
         "lead_id":          ("LEAD_ID",          lambda v: v),
         "customer_id":      ("CUSTOMER_ID",      lambda v: v),
         "reminder_minutes": ("REMINDER_MINUTES", lambda v: v),
+        "notify_emails":    ("NOTIFY_EMAILS",    lambda v: (v or "").strip() or None),
         "status":           ("STATUS",           lambda v: v.upper() if v else v),
         "outcome_notes":    ("OUTCOME_NOTES",    lambda v: (v or "").strip() or None),
     }
@@ -486,11 +489,13 @@ def _scan_reminders_impl(db: Session, vendor_id: Optional[int] = None) -> Dict[s
     every tenant is processed in one sweep."""
     now = datetime.now()
 
+    # Event needs a reminder if EITHER an owner (in-app) OR at least
+    # one notify email is set. Relaxed from Phase 1's owner-only rule
+    # so external-only reminders (e.g. remind a customer contact) work.
     q = db.query(CalendarEvent).filter(
         CalendarEvent.STATUS == "SCHEDULED",
         CalendarEvent.REMINDER_SENT == False,           # noqa: E712
         CalendarEvent.REMINDER_MINUTES > 0,
-        CalendarEvent.OWNER_ID.isnot(None),
     )
     if vendor_id is not None:
         q = q.filter(CalendarEvent.VENDOR_ID == vendor_id)
@@ -512,23 +517,130 @@ def _scan_reminders_impl(db: Session, vendor_id: Optional[int] = None) -> Dict[s
             if mins_to_start else "now"
         )
 
-        db.add(Notification(
-            EMPLOYEE_ID = ev.OWNER_ID,
-            TITLE       = f"{ev.EVENT_TYPE.title()}: {ev.TITLE}",
-            MESSAGE     = (
-                f"Starts {window} — "
-                f"{ev.START_AT.strftime('%d %b %H:%M')} to "
-                f"{ev.END_AT.strftime('%H:%M')}"
-                f"{' · ' + ev.LOCATION if ev.LOCATION else ''}"
-            )[:500],
-            TYPE        = "CALENDAR_REMINDER",
-            IS_READ     = 0,
-            VENDOR_ID   = ev.VENDOR_ID,
-            REF_TYPE    = "CALENDAR_EVENT",
-            REF_ID      = None,     # REF_ID is INT on Notification; event ID is UUID → skip
-        ))
+        # ---- In-app notification (owner) ----
+        if ev.OWNER_ID:
+            db.add(Notification(
+                EMPLOYEE_ID = ev.OWNER_ID,
+                TITLE       = f"{ev.EVENT_TYPE.title()}: {ev.TITLE}",
+                MESSAGE     = (
+                    f"Starts {window} — "
+                    f"{ev.START_AT.strftime('%d %b %H:%M')} to "
+                    f"{ev.END_AT.strftime('%H:%M')}"
+                    f"{' · ' + ev.LOCATION if ev.LOCATION else ''}"
+                )[:500],
+                TYPE        = "CALENDAR_REMINDER",
+                IS_READ     = 0,
+                VENDOR_ID   = ev.VENDOR_ID,
+                REF_TYPE    = "CALENDAR_EVENT",
+                REF_ID      = None,   # REF_ID is INT; event ID is UUID
+            ))
+
+        # ---- Email reminders — one per address in NOTIFY_EMAILS ----
+        # Uses the existing email service so it picks up the vendor's
+        # SMTP config (falls back to Resend if configured). Best-effort:
+        # per-address failures are logged but do not roll the whole
+        # scan back. If NO email channel is configured this returns
+        # False silently, which is fine — in-app still worked.
+        if ev.NOTIFY_EMAILS:
+            addrs = [
+                a.strip() for a in ev.NOTIFY_EMAILS.split(",")
+                if a and "@" in a and "." in a
+            ]
+            if addrs:
+                _send_reminder_email(ev, addrs, mins_to_start)
+
         ev.REMINDER_SENT = True
         fired += 1
 
     db.commit()
     return {"fired": fired, "checked_at": now.isoformat()}
+
+
+def _send_reminder_email(ev: CalendarEvent, addrs: List[str], mins_to_start: int) -> None:
+    """Send a plain-text-friendly HTML reminder to every address in
+    `addrs`. Runs inside the reminder scheduler; must NEVER raise —
+    any failure is swallowed so the SCHEDULED event still gets
+    marked REMINDER_SENT and the loop moves on."""
+    import logging
+    log = logging.getLogger("uvicorn.error")
+
+    subject = f"Reminder: {ev.EVENT_TYPE.title()} — {ev.TITLE}"
+    window  = (f"starts in {mins_to_start} minute{'s' if mins_to_start != 1 else ''}"
+               if mins_to_start else "starts now")
+
+    location_html = (
+        f'<tr><td style="padding:4px 12px 4px 0;color:#64748b;">Where</td>'
+        f'<td><strong>{ev.LOCATION}</strong></td></tr>'
+    ) if ev.LOCATION else ""
+
+    notes_html = (
+        f'<tr><td style="padding:4px 12px 4px 0;color:#64748b;vertical-align:top;">Notes</td>'
+        f'<td>{ev.DESCRIPTION}</td></tr>'
+    ) if ev.DESCRIPTION else ""
+
+    body_html = f"""<!doctype html>
+<html><body style="font-family:Arial,sans-serif;color:#111827;max-width:560px;margin:0 auto;padding:24px;">
+  <div style="border-left:4px solid #C8102E;padding:12px 16px;background:#fef2f2;border-radius:6px;margin-bottom:16px;">
+    <strong>BVC24 Calendar reminder</strong> — this {ev.EVENT_TYPE.lower()} {window}.
+  </div>
+
+  <h2 style="margin:0 0 8px 0;color:#7A1022;">{ev.TITLE}</h2>
+
+  <table style="border-collapse:collapse;font-size:14px;margin-top:12px;">
+    <tr><td style="padding:4px 12px 4px 0;color:#64748b;">Type</td>
+        <td><strong>{ev.EVENT_TYPE}</strong></td></tr>
+    <tr><td style="padding:4px 12px 4px 0;color:#64748b;">When</td>
+        <td><strong>{ev.START_AT.strftime('%A, %d %B %Y · %H:%M')} – {ev.END_AT.strftime('%H:%M')}</strong></td></tr>
+    {location_html}
+    {notes_html}
+  </table>
+
+  <p style="margin-top:22px;font-size:12px;color:#94a3b8;">
+    This is an automatic reminder from Bharath Vending Corporation's ERP calendar.
+    You received it because you were added to the "notify by email" list for this event.
+  </p>
+</body></html>
+"""
+
+    # Try vendor SMTP first, fall back to Resend if configured.
+    try:
+        from app.services.email_service import send_via_resend, send_via_vendor_smtp
+        from app.models.email_models import VendorEmailConfig
+        from app.database.database import SessionLocal
+    except Exception as e:
+        log.warning("[calendar-reminder-email] email service unavailable: %s", e)
+        return
+
+    db2 = SessionLocal()
+    try:
+        active_cfgs = (
+            db2.query(VendorEmailConfig)
+               .filter(
+                   VendorEmailConfig.VENDOR_ID == ev.VENDOR_ID,
+                   VendorEmailConfig.IS_ACTIVE == True,
+               )
+               .all()
+        ) if ev.VENDOR_ID else []
+    except Exception:
+        active_cfgs = []
+    finally:
+        db2.close()
+
+    for addr in addrs:
+        sent = False
+        for cfg in active_cfgs:
+            try:
+                ok, _err, _detail = send_via_vendor_smtp(cfg, addr, subject, body_html)
+                if ok:
+                    sent = True
+                    break
+            except Exception as e:
+                log.warning("[calendar-reminder-email] vendor SMTP failed for %s: %s", addr, e)
+        if not sent:
+            try:
+                send_via_resend(subject=subject, body_html=body_html, recipient=addr)
+                sent = True
+            except Exception as e:
+                log.warning("[calendar-reminder-email] Resend failed for %s: %s: %s", addr, type(e).__name__, e)
+        if sent:
+            log.info("[calendar-reminder-email] sent to %s for event %s", addr, ev.ID)

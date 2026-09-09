@@ -132,6 +132,14 @@ class CalendarEvent(Base):
     REMINDER_MINUTES = Column(Integer, nullable=False, default=15)  # 0 = no reminder
     REMINDER_SENT    = Column(Boolean, nullable=False, default=False)
 
+    # Comma-separated list of email addresses to notify when the
+    # reminder fires. Optional — leave empty for in-app-only. The
+    # background scheduler sends one email per address at the same
+    # moment it creates the in-app Notification row (so nothing
+    # duplicates and nothing runs twice — the same REMINDER_SENT
+    # flag gates both channels).
+    NOTIFY_EMAILS    = Column(Text, nullable=True)
+
     # ---- Audit ----
     CREATED_AT = Column(DateTime, default=datetime.now, nullable=False)
     UPDATED_AT = Column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)

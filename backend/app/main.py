@@ -371,6 +371,8 @@ def _auto_migrate():
 
     # (table, column, DDL fragment for the ADD COLUMN clause)
     pending = [
+        # ---- Calendar (M1 → notify-email column added Sep 2026) ----
+        ("calendar_event", "NOTIFY_EMAILS", "TEXT NULL"),
         # ---- Shift Management ----
         ("shift_master", "SHIFT_CODE", "VARCHAR(20) NULL"),
         ("machine",  "PRODUCT_MODEL_ID", "INT NULL"),

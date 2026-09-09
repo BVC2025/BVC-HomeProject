@@ -30,6 +30,11 @@ class CalendarEventCreate(BaseModel):
 
     reminder_minutes: int = 15                  # 0 → no reminder
 
+    # Optional comma-separated emails to notify when the reminder
+    # fires (e.g. "priya@bvc24.com, arun@bvc24.com"). Empty = in-app
+    # notification only.
+    notify_emails:    Optional[str] = None
+
     @field_validator("event_type")
     @classmethod
     def _valid_type(cls, v: str) -> str:
@@ -72,6 +77,7 @@ class CalendarEventUpdate(BaseModel):
     customer_id:      Optional[str] = None
 
     reminder_minutes: Optional[int] = None
+    notify_emails:    Optional[str] = None
     status:           Optional[str] = None
     outcome_notes:    Optional[str] = None
 
@@ -127,6 +133,7 @@ class CalendarEventOut(BaseModel):
 
     reminder_minutes: int
     reminder_sent:    bool
+    notify_emails:    Optional[str] = None
 
     created_at:       datetime
     updated_at:       datetime

@@ -612,6 +612,10 @@ function EventModal({ initial, prefill, canManage, onClose, onSaved }) {
     lead_id:          initial?.lead_id || "",
     customer_id:      initial?.customer_id || "",
     reminder_minutes: initial?.reminder_minutes ?? 15,
+    // Comma-separated emails to notify when the reminder fires. Empty
+    // = in-app notification only. Handles both single and multi
+    // ("a@x.com" or "a@x.com, b@y.com").
+    notify_emails:    initial?.notify_emails || "",
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
@@ -632,6 +636,7 @@ function EventModal({ initial, prefill, canManage, onClose, onSaved }) {
       lead_id:          form.lead_id.trim() || null,
       customer_id:      form.customer_id.trim() || null,
       reminder_minutes: Number(form.reminder_minutes) || 0,
+      notify_emails:    form.notify_emails.trim() || null,
     };
     setSaving(true); setErr("");
     const req = isEdit
@@ -684,6 +689,20 @@ function EventModal({ initial, prefill, canManage, onClose, onSaved }) {
               <input style={S.inp} value={form.customer_id} onChange={change("customer_id")} disabled={!canManage} placeholder="customer UUID" />
             </div>
           </div>
+          <label style={S.lbl}>
+            Notify by email — auto-sent {form.reminder_minutes || 0} min before
+          </label>
+          <input
+            style={S.inp}
+            value={form.notify_emails}
+            onChange={change("notify_emails")}
+            disabled={!canManage}
+            placeholder="e.g. priya@bvc24.com, arun@bvc24.com — comma-separated"
+          />
+          <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>
+            Leave empty for in-app notification only. Multiple addresses supported (comma-separated).
+          </div>
+
           <label style={S.lbl}>Notes</label>
           <textarea style={{ ...S.inp, minHeight: 70 }} value={form.description} onChange={change("description")} disabled={!canManage} />
           {err && <div style={S.errorBar}>{err}</div>}
