@@ -76,6 +76,11 @@ class HistoryTurn(BaseModel):
 class InterpretIn(BaseModel):
     utterance: str
     history: List[HistoryTurn] = Field(default_factory=list)
+    # Groups turns of one conversation together in the audit trail.
+    # Frontend generates a random UUID per "New Requisition" opening
+    # and sends the same value on every subsequent turn. Optional —
+    # if missing we auto-create one server-side.
+    session_id: Optional[str] = None
 
 
 class InterpretOut(BaseModel):
@@ -123,9 +128,23 @@ class CommitIn(BaseModel):
     response_model=InterpretOut,
     dependencies=[Depends(require("recruitment.manage"))],
 )
-def interpret_utterance(body: InterpretIn) -> InterpretOut:
+def interpret_utterance(
+    body: InterpretIn,
+    db:   Session = Depends(get_db),
+    user: dict    = Depends(get_current_user),
+) -> InterpretOut:
     """Turn one HR utterance into either a follow-up question or a
-    complete requisition draft. Never mutates the DB."""
+    complete requisition draft.
+
+    Persists BOTH the user's utterance and Deepthi's reply to
+    `recruitment_chat_message` so admins can audit conversations.
+    Persistence failures never break the chat — the reply always
+    reaches the caller even if the DB write blows up.
+    """
+    import json as _json
+    import uuid as _uuid
+    import re as _re
+    from app.models.recruitment_chat_models import RecruitmentChatMessage
 
     history = [
         {"role": t.role, "content": t.content}
@@ -133,6 +152,41 @@ def interpret_utterance(body: InterpretIn) -> InterpretOut:
         if (t.content or "").strip()
     ]
     result = interpret(body.utterance, history=history)
+
+    session_id = (body.session_id or str(_uuid.uuid4())).strip()[:36]
+    emp_id     = user.get("employee_id") or user.get("sub")
+    vendor_id  = user.get("vendor_id")
+
+    # Sniff the utterance's script so admins can filter by language
+    # without needing every row to pass through detect_language().
+    utter = (body.utterance or "")
+    if _re.search(r"[஀-௿]", utter):    lang = "ta"
+    elif _re.search(r"[ऀ-ॿ]", utter):    lang = "hi"
+    else:                                 lang = "en"
+
+    try:
+        db.add(RecruitmentChatMessage(
+            EMPLOYEE_ID = emp_id,
+            ROLE        = "user",
+            CONTENT     = utter[:20000],
+            LANGUAGE    = lang,
+            SESSION_ID  = session_id,
+            VENDOR_ID   = vendor_id,
+        ))
+        db.add(RecruitmentChatMessage(
+            EMPLOYEE_ID    = emp_id,
+            ROLE           = "assistant",
+            CONTENT        = (result.get("reply") or "")[:20000],
+            ACTION         = result.get("action"),
+            PROVIDER       = result.get("provider"),
+            DRAFT_SNAPSHOT = _json.dumps(result.get("draft")) if result.get("draft") else None,
+            SESSION_ID     = session_id,
+            VENDOR_ID      = vendor_id,
+        ))
+        db.commit()
+    except Exception:
+        db.rollback()      # best-effort persistence; chat must still work
+
     return InterpretOut(**result)
 
 
@@ -484,3 +538,140 @@ def speak_health() -> Dict[str, Any]:
         "sarvam_voice": os.getenv("SARVAM_VOICE", "priya"),
         "sarvam_model": os.getenv("SARVAM_MODEL", "bulbul:v3"),
     }
+
+
+# =====================================================================
+# Chat-history admin endpoints
+# =====================================================================
+#
+# All /recruitment/voice-agent/interpret calls store both the user
+# utterance and Deepthi's reply. These three endpoints let an admin
+# (recruitment.view or admin-level) list who has talked to Deepthi,
+# open one employee's full transcript, and delete a transcript if
+# needed (GDPR, accidental sensitive content).
+
+@router.get(
+    "/history/employees",
+    dependencies=[Depends(require("recruitment.view"))],
+)
+def recruit_history_employees(db: Session = Depends(get_db)) -> List[Dict[str, Any]]:
+    """Sidebar for the admin Chat History view — one row per employee
+    who has chatted with Deepthi, with message count + last activity.
+    Sorted newest-first."""
+    from sqlalchemy import func
+    from app.models.recruitment_chat_models import RecruitmentChatMessage
+
+    rows = (
+        db.query(
+            RecruitmentChatMessage.EMPLOYEE_ID,
+            func.count(RecruitmentChatMessage.ID).label("message_count"),
+            func.max(RecruitmentChatMessage.CREATED_AT).label("last_activity"),
+        )
+        .group_by(RecruitmentChatMessage.EMPLOYEE_ID)
+        .all()
+    )
+    if not rows:
+        return []
+
+    emp_ids = [r.EMPLOYEE_ID for r in rows if r.EMPLOYEE_ID]
+    by_id: Dict[str, Employee] = {}
+    if emp_ids:
+        for e in db.query(Employee).filter(Employee.ID.in_(emp_ids)).all():
+            by_id[e.ID] = e
+
+    out: List[Dict[str, Any]] = []
+    for r in rows:
+        emp = by_id.get(r.EMPLOYEE_ID) if r.EMPLOYEE_ID else None
+        out.append({
+            "employee_id":   r.EMPLOYEE_ID,
+            "employee_code": emp.EMPLOYEE_CODE if emp else None,
+            "employee_name": (emp.NAME if emp else None) or ("(anonymous)" if not r.EMPLOYEE_ID else "(unknown)"),
+            "message_count": int(r.message_count or 0),
+            "last_activity": r.last_activity.isoformat() if r.last_activity else None,
+        })
+    out.sort(key=lambda x: x["last_activity"] or "", reverse=True)
+    return out
+
+
+@router.get(
+    "/history/employee/{employee_id}",
+    dependencies=[Depends(require("recruitment.view"))],
+)
+def recruit_history_for_employee(
+    employee_id: str,
+    limit:       int = 500,
+    db:          Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Full transcript for one employee, oldest-first (chronological
+    reading order). Draft snapshots are parsed back to dicts so the
+    admin UI can render the requisition preview inline."""
+    import json as _json
+    from app.models.recruitment_chat_models import RecruitmentChatMessage
+
+    emp = db.query(Employee).filter(Employee.ID == employee_id).first()
+    if not emp:
+        emp = db.query(Employee).filter(Employee.EMPLOYEE_CODE == employee_id).first()
+
+    rows = (
+        db.query(RecruitmentChatMessage)
+        .filter(RecruitmentChatMessage.EMPLOYEE_ID == (emp.ID if emp else employee_id))
+        .order_by(RecruitmentChatMessage.CREATED_AT.asc())
+        .limit(limit)
+        .all()
+    )
+
+    messages: List[Dict[str, Any]] = []
+    for m in rows:
+        draft: Optional[Dict[str, Any]] = None
+        if m.DRAFT_SNAPSHOT:
+            try:
+                draft = _json.loads(m.DRAFT_SNAPSHOT)
+            except Exception:
+                draft = None
+        messages.append({
+            "id":         m.ID,
+            "role":       m.ROLE,
+            "content":    m.CONTENT,
+            "language":   m.LANGUAGE,
+            "action":     m.ACTION,
+            "provider":   m.PROVIDER,
+            "draft":      draft,
+            "session_id": m.SESSION_ID,
+            "created_at": m.CREATED_AT.isoformat() if m.CREATED_AT else None,
+        })
+
+    return {
+        "employee": {
+            "id":   emp.ID if emp else employee_id,
+            "code": emp.EMPLOYEE_CODE if emp else None,
+            "name": emp.NAME if emp else None,
+        },
+        "message_count": len(messages),
+        "messages":      messages,
+    }
+
+
+@router.delete(
+    "/history/employee/{employee_id}",
+    dependencies=[Depends(require("recruitment.manage"))],
+)
+def recruit_history_delete(
+    employee_id: str,
+    db:          Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Admin can clear one employee's Deepthi transcript (e.g. GDPR
+    request, sensitive content accidentally spoken). Requires the
+    stronger recruitment.manage permission, not just .view."""
+    from app.models.recruitment_chat_models import RecruitmentChatMessage
+
+    emp = db.query(Employee).filter(Employee.ID == employee_id).first()
+    if not emp:
+        emp = db.query(Employee).filter(Employee.EMPLOYEE_CODE == employee_id).first()
+
+    n = (
+        db.query(RecruitmentChatMessage)
+        .filter(RecruitmentChatMessage.EMPLOYEE_ID == (emp.ID if emp else employee_id))
+        .delete(synchronize_session=False)
+    )
+    db.commit()
+    return {"deleted": n, "employee_id": emp.ID if emp else employee_id}

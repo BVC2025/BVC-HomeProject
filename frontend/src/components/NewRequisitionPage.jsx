@@ -99,6 +99,14 @@ export default function NewRequisitionPage({ onClose, onCommitted, onOpenManual 
   const [thinking, setThinking] = useState(false);
   const [committing, setCommitting] = useState(false);
   const [history, setHistory] = useState([]);
+  // Stable session id for the whole conversation — pinned when the
+  // component mounts, sent on every /interpret call so the backend
+  // groups the turns in `recruitment_chat_message` for later review.
+  const sessionIdRef = useRef(
+    (typeof crypto !== "undefined" && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `sess-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
   const [interim, setInterim] = useState("");
   const [lastUtterance, setLastUtterance] = useState("");
   const [draft, setDraft] = useState(null);
@@ -173,7 +181,9 @@ export default function NewRequisitionPage({ onClose, onCommitted, onOpenManual 
     setThinking(true);
     try {
       const res = await API.post("/recruitment/voice-agent/interpret", {
-        utterance, history: historyRef.current,
+        utterance,
+        history:    historyRef.current,
+        session_id: sessionIdRef.current,
       });
       const { reply, action, draft: newDraft } = res.data || {};
       setHistory((h) => [...h, { role: "assistant", content: reply || "" }]);

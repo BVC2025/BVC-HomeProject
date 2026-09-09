@@ -81,6 +81,7 @@ from app.routes.allowance import router as allowance_router  # Employee expense 
 from app.routes.recruitment import router as recruitment_router  # Phase 2 — AI Recruitment Assistant
 from app.routes.calendar import router as calendar_router  # CRM Calendar (meetings/calls/follow-ups)
 import app.models.calendar_models  # noqa: F401 — registers calendar_event table
+import app.models.recruitment_chat_models  # noqa: F401 — registers recruitment_chat_message table
 from app.routes.recruitment_voice_agent import router as recruitment_voice_router  # Voice-first Requisition Agent (Qwen)
 from app.routes.employee_payslips import router as my_payslips_router  # Employee self-service payslips
 from app.routes.onboarding_checklist import router as onboarding_checklist_router  # Post-joining onboarding
