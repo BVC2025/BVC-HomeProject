@@ -39,6 +39,7 @@ from app.services.recruitment_voice_agent import (
     interpret,
     LAST_ERRORS,
     QWEN_MODEL_FALLBACKS,
+    GEMINI_MODEL_FALLBACKS,
 )
 from app.services.sarvam_tts import (
     ALLOWED_VOICES as _ALLOWED_VOICES_SHARED,
@@ -447,16 +448,24 @@ def agent_health() -> Dict[str, Any]:
     names + error messages (no secrets, no PII), and HR needs to
     hit it from the browser address bar when debugging.
     """
-    key = os.getenv("OPENROUTER_API_KEY", "").strip()
+    gemini_key    = os.getenv("GEMINI_API_KEY", "").strip()
+    openrouter_key = os.getenv("OPENROUTER_API_KEY", "").strip()
     return {
-        "openrouter_key_configured": bool(key),
-        # Just the prefix — enough to confirm which key is loaded
-        # without leaking anything useful.
-        "openrouter_key_prefix": key[:8] if key else None,
-        "primary_model": os.getenv("OPENROUTER_MODEL", "").strip()
-                          or QWEN_MODEL_FALLBACKS[0],
-        "fallback_chain": QWEN_MODEL_FALLBACKS,
-        "recent_attempts": list(LAST_ERRORS[-12:]),
+        "primary_provider":              "gemini" if gemini_key else ("openrouter" if openrouter_key else "regex-fallback"),
+
+        "gemini_key_configured":         bool(gemini_key),
+        "gemini_key_prefix":             gemini_key[:8] if gemini_key else None,
+        "gemini_primary_model":          os.getenv("GEMINI_MODEL", "").strip()
+                                          or GEMINI_MODEL_FALLBACKS[0],
+        "gemini_fallback_chain":         GEMINI_MODEL_FALLBACKS,
+
+        "openrouter_key_configured":     bool(openrouter_key),
+        "openrouter_key_prefix":         openrouter_key[:8] if openrouter_key else None,
+        "openrouter_primary_model":      os.getenv("OPENROUTER_MODEL", "").strip()
+                                          or QWEN_MODEL_FALLBACKS[0],
+        "openrouter_fallback_chain":     QWEN_MODEL_FALLBACKS,
+
+        "recent_attempts":               list(LAST_ERRORS[-12:]),
     }
 
 

@@ -29,8 +29,19 @@ from typing import Any, Dict, List, Optional
 
 
 # ---------------------------------------------------------------------
-# OpenRouter model fallback chain
+# LLM model fallback chains — Gemini (primary) + OpenRouter (secondary)
 # ---------------------------------------------------------------------
+# Gemini gives visibly better ChatGPT-style conversation (natural chit-chat,
+# consistent language matching, no repeated boilerplate) than the free-tier
+# OpenRouter models. Same provider the Leave assistant already uses well.
+# OpenRouter/Qwen stays as a secondary fallback for when Gemini quota is
+# exhausted, and regex is the last resort.
+GEMINI_MODEL_FALLBACKS = [
+    "gemini-flash-lite-latest",    # Rolling alias — always the current lite model
+    "gemini-flash-latest",         # Rolling alias — always the current flash model
+    "gemini-2.5-flash",            # Explicit stable name
+]
+
 # OpenRouter deprecates free-tier variants often — chain includes
 # current (Sep 2026) and older names so the agent survives silent
 # retirements. Accuracy first, small-and-fast second.
@@ -299,6 +310,126 @@ You: {
   "action": "CHIT_CHAT"
 }
 """
+
+
+# ---------------------------------------------------------------------
+# Gemini call — primary LLM. Same pattern the Leave assistant uses.
+# ---------------------------------------------------------------------
+
+def _parse_and_pack(raw: str, provider_label: str) -> Optional[Dict[str, Any]]:
+    """Parse a raw LLM JSON reply into the standard return shape.
+    Returns None on any parse error so the caller can try the next model.
+    Shared between the Gemini and OpenRouter branches so both handle
+    fences, unknown actions, and empty replies identically."""
+    if not raw:
+        return None
+
+    if raw.startswith("```"):
+        raw = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+
+    reply = (parsed.get("reply") or "").strip()
+    action = (parsed.get("action") or "NEED_MORE").upper()
+    if action not in ("CHIT_CHAT", "NEED_MORE", "PROPOSE_DRAFT"):
+        action = "CHIT_CHAT"
+    draft = parsed.get("draft") if action == "PROPOSE_DRAFT" else None
+    if not reply:
+        return None
+
+    return {
+        "reply": reply,
+        "action": action,
+        "draft": draft,
+        "provider": provider_label,
+    }
+
+
+def _call_gemini(
+    system_prompt: str,
+    messages: List[Dict[str, str]],
+    model: str,
+) -> Optional[str]:
+    """One Gemini turn. Returns raw JSON text or None on failure.
+
+    Uses `response_mime_type=application/json` + system_instruction so
+    the model is guided to return a valid JSON object per SYSTEM_PROMPT.
+    History is converted from OpenAI-style {role,content} to Gemini's
+    {role:'user'|'model', parts:[text]} shape.
+    """
+    try:
+        import google.generativeai as genai
+    except ImportError:
+        _record_attempt(model, False, "google-generativeai not installed")
+        return None
+
+    key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not key:
+        _record_attempt(model, False, "GEMINI_API_KEY missing")
+        return None
+
+    genai.configure(api_key=key)
+
+    # Build Gemini-style history — peel off the last user message so
+    # start_chat() gets prior turns and send_message() carries the fresh ask.
+    history: List[Dict[str, Any]] = []
+    latest_user: Optional[str] = None
+    for m in messages:
+        role = (m.get("role") or "user").strip()
+        text = (m.get("content") or "").strip()
+        if not text:
+            continue
+        if role == "user":
+            history.append({"role": "user",  "parts": [text]})
+        elif role == "assistant":
+            history.append({"role": "model", "parts": [text]})
+
+    if history and history[-1]["role"] == "user":
+        latest_user = history[-1]["parts"][0]
+        history = history[:-1]
+
+    if not latest_user:
+        _record_attempt(model, False, "no user message in history")
+        return None
+
+    try:
+        gm = genai.GenerativeModel(
+            model_name=model,
+            system_instruction=system_prompt,
+            generation_config={
+                "response_mime_type": "application/json",
+                # Slightly warm so replies vary turn-to-turn instead of
+                # repeating the same "shall I create it?" phrasing.
+                "temperature": 0.6,
+                "max_output_tokens": 700,
+            },
+        )
+        chat = gm.start_chat(history=history)
+        try:
+            resp = chat.send_message(latest_user, request_options={"timeout": 25})
+        except TypeError:
+            # Older google-generativeai versions don't accept request_options
+            resp = chat.send_message(latest_user)
+
+        raw = ""
+        try:
+            raw = (resp.text or "").strip()
+        except Exception:
+            raw = ""
+
+        if raw:
+            _record_attempt(model, True, raw[:180])
+            return raw
+        _record_attempt(model, False, "empty response")
+        return None
+
+    except Exception as e:
+        _record_attempt(model, False, f"{type(e).__name__}: {e}")
+        return None
 
 
 # ---------------------------------------------------------------------
@@ -710,9 +841,25 @@ def interpret(
     messages = list(history or [])
     messages.append({"role": "user", "content": utterance})
 
+    # ---- Gemini FIRST (primary — better chit-chat, language matching) ----
+    if os.getenv("GEMINI_API_KEY", "").strip():
+        env_gemini = (os.getenv("GEMINI_MODEL") or "").strip()
+        gemini_chain = (
+            [env_gemini] + [m for m in GEMINI_MODEL_FALLBACKS if m != env_gemini]
+            if env_gemini
+            else list(GEMINI_MODEL_FALLBACKS)
+        )
+        for model in gemini_chain:
+            raw = _call_gemini(SYSTEM_PROMPT, messages, model)
+            if not raw:
+                continue
+            parsed_ok = _parse_and_pack(raw, provider_label=f"gemini · {model}")
+            if parsed_ok:
+                return parsed_ok
+
     api_key = os.getenv("OPENROUTER_API_KEY", "").strip()
 
-    # ---- LLM path ------------------------------------------------
+    # ---- OpenRouter/Qwen SECONDARY (only if Gemini failed) -------
     if api_key:
         env_model = (os.getenv("OPENROUTER_MODEL") or "").strip()
         chain = (
@@ -723,35 +870,9 @@ def interpret(
 
         for model in chain:
             raw = _call_openrouter(SYSTEM_PROMPT, messages, api_key, model)
-            if not raw:
-                continue
-
-            # Strip any accidental fences the model produced
-            if raw.startswith("```"):
-                raw = re.sub(r"^```(?:json)?\s*", "", raw)
-                raw = re.sub(r"\s*```$", "", raw)
-
-            try:
-                parsed = json.loads(raw)
-            except json.JSONDecodeError:
-                # Model returned text — retry with next model
-                continue
-
-            reply = (parsed.get("reply") or "").strip()
-            action = (parsed.get("action") or "NEED_MORE").upper()
-            # Whitelist the valid actions — any unknown value gets
-            # coerced to CHIT_CHAT so a broken/hallucinated response
-            # still results in a natural reply, not an error.
-            if action not in ("CHIT_CHAT", "NEED_MORE", "PROPOSE_DRAFT"):
-                action = "CHIT_CHAT"
-            draft = parsed.get("draft") if action == "PROPOSE_DRAFT" else None
-            if reply:
-                return {
-                    "reply": reply,
-                    "action": action,
-                    "draft": draft,
-                    "provider": model.split(":")[0].split("/")[-1],
-                }
+            packed = _parse_and_pack(raw, provider_label=model.split(":")[0].split("/")[-1])
+            if packed:
+                return packed
 
     # ---- Regex fallback -----------------------------------------
     d = _regex_extract(utterance)
