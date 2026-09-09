@@ -51,6 +51,7 @@ import EmployeeOnboardingReview from "./EmployeeOnboardingReview";
 // repo — routes below either redirect (Customers → CustomerMaster) or
 // render a lightweight "coming soon" stub so the build can succeed.
 import Calendar from "./Calendar";
+import RecruitmentChatHistory from "./RecruitmentChatHistory";
 
 const MissingPagePlaceholder = ({ name }) => (
   <div style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>
@@ -1798,6 +1799,7 @@ const NAV_GROUPS = [
       { to: "/star-performance", icon: <SidebarIcon name="star" />, label: "Star Performance" },
       { to: "/allowances", icon: <SidebarIcon name="allowances" />, label: "Allowances" },
       { to: "/recruitment", icon: <SidebarIcon name="recruitment" />, label: "Recruitment" },
+      { to: "/recruitment/chat-history", icon: <SidebarIcon name="calendar" />, label: "Deepthi History" },
       { to: "/onboarding", icon: <SidebarIcon name="employees" />, label: "Onboarding" },
       { to: "/hr-automation", icon: <SidebarIcon name="approvals" />, label: "HR Automation" },
       { to: "/monthly-reports", icon: <SidebarIcon name="payroll" />, label: "Monthly Reports" },
@@ -2347,6 +2349,11 @@ function Dashboard() {
           <Route
             path="/calendar"
             element={<RequirePermission code={permissionForRoute("/calendar")}><Calendar /></RequirePermission>}
+          />
+
+          <Route
+            path="/recruitment/chat-history"
+            element={<RequirePermission code={permissionForRoute("/recruitment/chat-history")}><RecruitmentChatHistory /></RequirePermission>}
           />
 
           <Route

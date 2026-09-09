@@ -113,6 +113,8 @@ export const ROUTE_PERMISSIONS = {
   "/projects": "project.view",
   "/inventory": "inventory.view",
   "/recruitment": "recruitment.view",
+  "/recruitment/chat-history": "recruitment.view",
+  "/calendar":  "calendar.view",
   "/onboarding": "onboarding.sessions.view",
   "/monthly-reports": "report.export",
   "/reports": "report.export",
