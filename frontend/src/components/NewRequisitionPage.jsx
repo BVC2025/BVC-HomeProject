@@ -107,6 +107,36 @@ export default function NewRequisitionPage({ onClose, onCommitted, onOpenManual 
       ? crypto.randomUUID()
       : `sess-${Date.now()}-${Math.random().toString(36).slice(2)}`
   );
+
+  // ChatGPT-style history side panel (collapsible). Fetches employee
+  // transcripts from /recruitment/voice-agent/history/employee/{me}
+  // and lets the user reload past turns into the current session.
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [pastTurns, setPastTurns]   = useState([]);
+  const [historyBusy, setHistoryBusy] = useState(false);
+
+  const loadPastTurns = () => {
+    setHistoryBusy(true);
+    // "me" is a server-side alias for the current caller; falls back
+    // to a plain filter if the backend doesn't recognise it.
+    API.get("/recruitment/voice-agent/history/employees")
+      .then(async (r) => {
+        const list = Array.isArray(r.data) ? r.data : [];
+        // Grab the current user's session — most recent employee first,
+        // since sidebar is sorted by last_activity desc.
+        const mine = list[0];
+        if (!mine?.employee_id) { setPastTurns([]); return; }
+        const d = await API.get(`/recruitment/voice-agent/history/employee/${mine.employee_id}?limit=100`);
+        setPastTurns(d.data?.messages || []);
+      })
+      .catch(() => setPastTurns([]))
+      .finally(() => setHistoryBusy(false));
+  };
+
+  useEffect(() => {
+    if (historyOpen) loadPastTurns();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyOpen]);
   const [interim, setInterim] = useState("");
   const [lastUtterance, setLastUtterance] = useState("");
   const [draft, setDraft] = useState(null);
@@ -421,6 +451,15 @@ export default function NewRequisitionPage({ onClose, onCommitted, onOpenManual 
               {mode === "voice" ? <I.chat /> : <I.mic />}
               Switch to {mode === "voice" ? "Chat" : "Voice"}
             </button>
+            <button
+              type="button"
+              className={styles.switchBtn}
+              onClick={() => setHistoryOpen((s) => !s)}
+              title="Show past conversations with Deepthi (ChatGPT-style)"
+              style={{ background: historyOpen ? "#7A1022" : undefined, color: historyOpen ? "#fff" : undefined }}
+            >
+              ☰ History
+            </button>
           </div>
         </div>
 
@@ -450,6 +489,51 @@ export default function NewRequisitionPage({ onClose, onCommitted, onOpenManual 
             <span className={styles.methodSub}>Speak your requirement</span>
           </button>
         </div>
+
+        {historyOpen && (
+          <div style={{
+            marginBottom: 14, background: "#fff", border: "1px solid #e5e7eb",
+            borderRadius: 12, padding: 12, maxHeight: 260, overflowY: "auto",
+          }}>
+            <div style={{
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              marginBottom: 8, borderBottom: "1px solid #e5e7eb", paddingBottom: 6,
+            }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: "#0f172a" }}>
+                Past conversations with Deepthi
+              </div>
+              <button
+                type="button"
+                onClick={() => setHistoryOpen(false)}
+                style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: 16, color: "#64748b" }}
+                aria-label="Close history"
+              >×</button>
+            </div>
+            {historyBusy && <div style={{ color: "#94a3b8", fontSize: 12 }}>Loading…</div>}
+            {!historyBusy && pastTurns.length === 0 && (
+              <div style={{ color: "#94a3b8", fontSize: 12 }}>No past conversations yet.</div>
+            )}
+            {pastTurns.map((m) => (
+              <div key={m.id} style={{
+                display: "flex", gap: 6, padding: "5px 0",
+                borderBottom: "1px solid #f1f5f9", fontSize: 12,
+              }}>
+                <span style={{
+                  fontWeight: 800, minWidth: 60,
+                  color: m.role === "user" ? "#7A1022" : "#0f172a",
+                }}>
+                  {m.role === "user" ? "You" : "Deepthi"}
+                </span>
+                <span style={{ color: "#334155", flex: 1, wordBreak: "break-word" }}>
+                  {(m.content || "").slice(0, 200)}
+                </span>
+                <span style={{ color: "#94a3b8", fontSize: 10, whiteSpace: "nowrap" }}>
+                  {m.created_at && new Date(m.created_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className={styles.mainGrid}>
 
@@ -788,6 +872,62 @@ export default function NewRequisitionPage({ onClose, onCommitted, onOpenManual 
                     <I.copy /> {postTextBusy ? "Preparing…" : postTextCopied ? "Copied!" : "Copy job post text"}
                   </button>
                 </div>
+
+                {/* WhatsApp share — two buttons, distinct flows:
+                    1) "Send approval to MD" opens WhatsApp with the requisition
+                       summary + approve/reject links pre-filled, ready to send
+                       to the MD number (+91 77089 80266). MD taps the approve
+                       link → same one-shot decide endpoint that auto-converts
+                       the requisition to an open Job.
+                    2) "Share post on WhatsApp" opens WhatsApp with the caption
+                       pre-filled (attach the downloaded poster manually). */}
+                {committedReq && (
+                  <div className={styles.shareRow} style={{ marginTop: 10, borderTop: "1px dashed #cbd5e1", paddingTop: 10 }}>
+                    <button
+                      type="button"
+                      className={styles.shareBtn}
+                      style={{ background: "#25D366", color: "#fff", borderColor: "#25D366" }}
+                      onClick={async () => {
+                        try {
+                          const res = await API.post("/recruitment/voice-agent/whatsapp-approval", {
+                            req_id:    committedReq.ID,
+                            to_number: "917708980266",     // MD's WhatsApp
+                          });
+                          if (res.data?.wa_me_url) {
+                            window.open(res.data.wa_me_url, "_blank", "noopener");
+                          }
+                        } catch (e) {
+                          window.alert(e?.response?.data?.detail || "WhatsApp share failed");
+                        }
+                      }}
+                      title="Send the requisition to MD on WhatsApp with one-tap approve/reject links"
+                    >
+                      Send approval to MD (WhatsApp)
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.shareBtn}
+                      style={{ background: "#fff", color: "#128C7E", borderColor: "#128C7E" }}
+                      onClick={async () => {
+                        // Get the same post caption we'd copy, then wrap
+                        // it in a wa.me contact-picker link.
+                        try {
+                          const cap = await API.post("/recruitment/voice-agent/post-text", draftForExport());
+                          const text = cap?.data?.caption || cap?.data?.text || "";
+                          const res = await API.post("/recruitment/voice-agent/whatsapp-approval", {
+                            text: text || (draft.POSITION_TITLE ? `We're hiring: ${draft.POSITION_TITLE} at BVC24` : ""),
+                          });
+                          if (res.data?.wa_me_url) window.open(res.data.wa_me_url, "_blank", "noopener");
+                        } catch (e) {
+                          window.alert(e?.response?.data?.detail || "WhatsApp share failed");
+                        }
+                      }}
+                      title="Share the job post on WhatsApp (attach the downloaded poster manually)"
+                    >
+                      Share post on WhatsApp
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>

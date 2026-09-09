@@ -651,6 +651,140 @@ def recruit_history_for_employee(
     }
 
 
+# ---------------------------------------------------------------------
+# WhatsApp share — click-to-share URL for MD approval or post publishing
+# ---------------------------------------------------------------------
+#
+# Two use-cases wired here:
+#
+# 1) MD approval:
+#    HR clicks "Share on WhatsApp" on a just-created requisition. Server
+#    returns a wa.me link pre-filled with the requisition summary +
+#    approve/reject deep-links. HR taps once → WhatsApp opens with the
+#    message ready to send to the MD. MD taps the approve link → the
+#    same existing /recruitment/requisitions/decide/{token} endpoint
+#    fires → requisition auto-converts to a Job (same flow the email
+#    approval uses).
+#
+# 2) Post publishing (LinkedIn / WhatsApp groups):
+#    Once a requisition is created and Deepthi generated the job post
+#    text, HR clicks "Share on WhatsApp" on the post card. Server
+#    returns a wa.me link with the caption pre-filled — HR picks any
+#    number/group to send it to. The image itself has to be attached
+#    manually (WhatsApp Cloud API doesn't allow arbitrary image URLs
+#    in wa.me deep links; the download button is right next to it).
+
+class WhatsAppShareIn(BaseModel):
+    """Either req_id (server pulls requisition + generates approval
+    message) OR text (server just wraps the caller's text into a
+    wa.me link). The two are exclusive."""
+    req_id:       Optional[int] = None
+    text:         Optional[str] = None
+    # Destination number in E.164 without the '+' (e.g. '917708980266').
+    # For the MD flow this is +91 77089 80266 → '917708980266'.
+    # Optional — omitted = "wa.me/?text=..." which prompts a picker.
+    to_number:    Optional[str] = None
+
+
+class WhatsAppShareOut(BaseModel):
+    wa_me_url:    str          # tap-to-open WhatsApp with message pre-filled
+    preview_text: str          # what the message will contain
+    approve_url:  Optional[str] = None
+    reject_url:   Optional[str] = None
+
+
+def _wa_normalize_number(raw: Optional[str]) -> Optional[str]:
+    """Strip everything but digits; require 10-15 digit E.164 body."""
+    if not raw:
+        return None
+    digits = "".join(c for c in str(raw) if c.isdigit())
+    if not (10 <= len(digits) <= 15):
+        return None
+    return digits
+
+
+@router.post(
+    "/whatsapp-approval",
+    response_model=WhatsAppShareOut,
+    dependencies=[Depends(require("recruitment.manage"))],
+)
+def whatsapp_approval(
+    body: WhatsAppShareIn,
+    db:   Session = Depends(get_db),
+) -> WhatsAppShareOut:
+    """Build a wa.me share URL with the requisition summary + approve/
+    reject deep-links so MD gets a WhatsApp message they can act on
+    with one tap. Does NOT actually SEND the message — HR taps the
+    returned URL and WhatsApp opens with everything pre-filled.
+
+    Sending automatically requires the Meta WhatsApp Cloud API to be
+    configured for the vendor; that path lives in the outbox service
+    and can be layered on later without changing the client contract.
+    """
+    from urllib.parse import quote
+    import os as _os
+
+    approve_url = reject_url = None
+    lines: List[str] = []
+
+    if body.req_id:
+        r = db.query(RecruitmentRequisition).filter(
+            RecruitmentRequisition.ID == body.req_id
+        ).first()
+        if not r:
+            raise HTTPException(404, "Requisition not found")
+        if not r.APPROVAL_TOKEN:
+            import secrets
+            r.APPROVAL_TOKEN = secrets.token_urlsafe(32)
+            db.commit()
+
+        base = (_os.getenv("BACKEND_URL") or "").rstrip("/") or "http://192.168.1.10:8001"
+        approve_url = f"{base}/recruitment/requisitions/decide/{r.APPROVAL_TOKEN}?action=approve"
+        reject_url  = f"{base}/recruitment/requisitions/decide/{r.APPROVAL_TOKEN}?action=reject"
+
+        # Build a WhatsApp-friendly summary (no HTML — plain text)
+        lines.append(f"*BVC24 · Recruitment Approval Request*")
+        lines.append("")
+        lines.append(f"*Req Code:* {r.REQ_CODE or '(pending)'}")
+        lines.append(f"*Position:* {r.POSITION_TITLE}")
+        if r.DEPARTMENT:  lines.append(f"*Department:* {r.DEPARTMENT}")
+        if r.HEADCOUNT:   lines.append(f"*Openings:* {r.HEADCOUNT}")
+        if r.EXPERIENCE_MIN_YEARS is not None:
+            exp_hi = f"–{r.EXPERIENCE_MAX_YEARS}" if r.EXPERIENCE_MAX_YEARS else "+"
+            lines.append(f"*Experience:* {r.EXPERIENCE_MIN_YEARS}{exp_hi} yrs")
+        if r.LOCATION:    lines.append(f"*Location:* {r.LOCATION}")
+        if r.URGENCY:     lines.append(f"*Urgency:* {r.URGENCY}")
+        if r.BUDGET_CTC_MIN or r.BUDGET_CTC_MAX:
+            lo = f"₹{int(r.BUDGET_CTC_MIN):,}" if r.BUDGET_CTC_MIN else "?"
+            hi = f"₹{int(r.BUDGET_CTC_MAX):,}" if r.BUDGET_CTC_MAX else "?"
+            lines.append(f"*Budget:* {lo} – {hi}")
+        if r.REQUIRED_SKILLS: lines.append(f"*Skills:* {r.REQUIRED_SKILLS}")
+        if r.JUSTIFICATION:   lines.append(f"*Reason:* {r.JUSTIFICATION}")
+        lines.append("")
+        lines.append(f"✅ Approve: {approve_url}")
+        lines.append(f"❌ Reject:  {reject_url}")
+        lines.append("")
+        lines.append("_Approve tap = auto-converts to an open Job. Reply OK to also confirm._")
+    elif body.text:
+        lines.append(body.text.strip())
+    else:
+        raise HTTPException(400, "Provide either req_id or text")
+
+    preview = "\n".join(lines).strip()
+    to = _wa_normalize_number(body.to_number)
+    # wa.me/<num>?text=... opens chat with THAT number. wa.me/?text=...
+    # opens a contact picker so the sender chooses who to send to.
+    base_url = f"https://wa.me/{to}" if to else "https://wa.me/"
+    wa_me_url = f"{base_url}?text={quote(preview)}"
+
+    return WhatsAppShareOut(
+        wa_me_url    = wa_me_url,
+        preview_text = preview,
+        approve_url  = approve_url,
+        reject_url   = reject_url,
+    )
+
+
 @router.delete(
     "/history/employee/{employee_id}",
     dependencies=[Depends(require("recruitment.manage"))],

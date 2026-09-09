@@ -1799,7 +1799,8 @@ const NAV_GROUPS = [
       { to: "/star-performance", icon: <SidebarIcon name="star" />, label: "Star Performance" },
       { to: "/allowances", icon: <SidebarIcon name="allowances" />, label: "Allowances" },
       { to: "/recruitment", icon: <SidebarIcon name="recruitment" />, label: "Recruitment" },
-      { to: "/recruitment/chat-history", icon: <SidebarIcon name="calendar" />, label: "Deepthi History" },
+      // Chat history moved INTO the New Requisition page as a
+      // ChatGPT-style side panel; no separate sidebar link needed.
       { to: "/onboarding", icon: <SidebarIcon name="employees" />, label: "Onboarding" },
       { to: "/hr-automation", icon: <SidebarIcon name="approvals" />, label: "HR Automation" },
       { to: "/monthly-reports", icon: <SidebarIcon name="payroll" />, label: "Monthly Reports" },
