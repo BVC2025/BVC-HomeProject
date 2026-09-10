@@ -567,8 +567,13 @@ function EventRowMini({ ev, onEdit, onChanged, canManage }) {
       .then(onChanged).catch((e) => alert(e?.response?.data?.detail || "Failed"));
   };
   const cancel = () => {
-    if (!window.confirm("Cancel this event?")) return;
+    if (!window.confirm("Cancel this event? (Kept in history as CANCELLED.)")) return;
+    // No ?hard=true → soft cancel: STATUS='CANCELLED', row preserved for audit.
     API.delete(`/calendar/events/${ev.id}`).then(onChanged).catch((e) => alert(e?.response?.data?.detail || "Failed"));
+  };
+  const remove = () => {
+    if (!window.confirm(`Delete "${ev.title}" permanently? This cannot be undone.`)) return;
+    API.delete(`/calendar/events/${ev.id}?hard=true`).then(onChanged).catch((e) => alert(e?.response?.data?.detail || "Failed"));
   };
   return (
     <div style={{ ...S.rowCard, borderLeftColor: EVENT_COLORS[ev.event_type] || "#6b7280" }}>
@@ -589,6 +594,12 @@ function EventRowMini({ ev, onEdit, onChanged, canManage }) {
           <button style={S.smBtn} onClick={onEdit}>Edit</button>
           <button style={{ ...S.smBtn, background: "#16a34a", color: "#fff", borderColor: "#16a34a" }} onClick={complete}>Complete</button>
           <button style={{ ...S.smBtn, background: "#fff", color: "#b91c1c", borderColor: "#fca5a5" }} onClick={cancel}>Cancel</button>
+          <button style={{ ...S.smBtn, background: "#b91c1c", color: "#fff", borderColor: "#b91c1c" }} onClick={remove}>Delete</button>
+        </div>
+      )}
+      {canManage && ev.status !== "SCHEDULED" && (
+        <div style={S.rowActions}>
+          <button style={{ ...S.smBtn, background: "#b91c1c", color: "#fff", borderColor: "#b91c1c" }} onClick={remove}>Delete</button>
         </div>
       )}
     </div>
@@ -643,6 +654,18 @@ function EventModal({ initial, prefill, canManage, onClose, onSaved }) {
       ? API.patch(`/calendar/events/${initial.id}`, body)
       : API.post(`/calendar/events`, body);
     req.then(onSaved).catch((e) => setErr(e?.response?.data?.detail || "Save failed")).finally(() => setSaving(false));
+  };
+
+  const [deleting, setDeleting] = useState(false);
+  const doDelete = () => {
+    if (!isEdit) return;
+    if (!window.confirm(`Delete "${initial.title}" permanently? This cannot be undone.`)) return;
+    setDeleting(true); setErr("");
+    // hard=true → actually removes the row instead of the soft-cancel default
+    API.delete(`/calendar/events/${initial.id}?hard=true`)
+      .then(onSaved)
+      .catch((e) => setErr(e?.response?.data?.detail || "Delete failed"))
+      .finally(() => setDeleting(false));
   };
 
   return (
@@ -707,9 +730,32 @@ function EventModal({ initial, prefill, canManage, onClose, onSaved }) {
           <textarea style={{ ...S.inp, minHeight: 70 }} value={form.description} onChange={change("description")} disabled={!canManage} />
           {err && <div style={S.errorBar}>{err}</div>}
           <div style={S.modalActions}>
+            {/* Delete lives on the LEFT so it can't be tapped by accident
+                when the user is aiming for Save. Only shown in edit mode
+                with manage permission. */}
+            {isEdit && canManage && (
+              <button
+                type="button"
+                onClick={doDelete}
+                disabled={deleting || saving}
+                style={{
+                  padding: "8px 14px",
+                  background: "#fff",
+                  color:  "#b91c1c",
+                  border: "1px solid #fca5a5",
+                  borderRadius: 6,
+                  fontWeight: 700,
+                  fontSize: 12,
+                  cursor: "pointer",
+                  marginRight: "auto",   // pushes Cancel/Save to the far right
+                }}
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            )}
             <button type="button" style={S.smBtn} onClick={onClose}>Cancel</button>
             {canManage && (
-              <button type="submit" style={S.createBtn} disabled={saving}>
+              <button type="submit" style={S.createBtn} disabled={saving || deleting}>
                 {saving ? "Saving…" : (isEdit ? "Save changes" : "Create event")}
               </button>
             )}
