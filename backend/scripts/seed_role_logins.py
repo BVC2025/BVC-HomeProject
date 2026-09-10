@@ -31,7 +31,49 @@ from typing import Dict, List, Set
 # Make `app.*` imports work when run as a script
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+# Load .env before anything queries the DB / auth helpers touch os.getenv
+from pathlib import Path
+from dotenv import load_dotenv
+load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent / ".env", override=True)
+
 from app.database.database import SessionLocal
+
+# IMPORTANT: import EVERY model module before ORM queries so SQLAlchemy
+# can resolve cross-module relationship() strings (e.g. ProjectProductRequirement
+# → ProductMaster). Without this, the first .query() call blows up with
+# "InvalidRequestError: ... failed to locate a name ('ProductMaster')".
+# This mirrors what main.py does at startup.
+import app.models.models              # noqa: F401
+import app.models.project_models      # noqa: F401
+import app.models.inventory_models    # noqa: F401
+import app.models.supplier_models     # noqa: F401
+import app.models.email_models        # noqa: F401
+import app.models.lead_models         # noqa: F401
+import app.models.project_quotation_models  # noqa: F401
+import app.models.rag_models          # noqa: F401
+import app.models.whatsapp_models     # noqa: F401
+import app.models.rbac_models         # noqa: F401
+import app.models.auth_models         # noqa: F401
+import app.models.employee_models     # noqa: F401
+import app.models.leave_models        # noqa: F401
+import app.models.calendar_models     # noqa: F401
+try:
+    import app.models.recruitment_chat_models  # noqa: F401
+except ImportError:
+    pass  # optional — only present after Deepthi chat-history feature
+try:
+    import app.models.customer_models  # noqa: F401
+except ImportError:
+    pass
+try:
+    import app.models.project_milestone_models  # noqa: F401
+except ImportError:
+    pass
+try:
+    import app.models.email_send_rule_models  # noqa: F401
+except ImportError:
+    pass
+
 from app.models.models import Employee, Role, Permission, RolePermission, Vendor
 from app.services.auth_service import hash_password
 from app.services.permission_catalogue import ensure_permission_catalogue
