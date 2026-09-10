@@ -41,6 +41,14 @@ function fmtLocalDateTime(dt) {
   return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}` +
          `T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
 }
+// Local naïve ISO ("2026-09-10T11:00:00") — matches the rest of the ERP,
+// which stores IST wall-clock in naïve DATETIME columns. We deliberately
+// do NOT call `.toISOString()` here (which would convert to UTC and shift
+// every event by −5:30 h round-trip).
+function toLocalISO(dt) {
+  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}` +
+         `T${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
+}
 function keyOf(d) { return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }
 function sameDay(a, b) { return keyOf(a) === keyOf(b); }
 function startOfDay(d) { const c = new Date(d); c.setHours(0,0,0,0); return c; }
@@ -105,7 +113,7 @@ export default function Calendar() {
   const fetchEvents = () => {
     setLoading(true); setError("");
     API.get("/calendar/events", {
-      params: { from: rangeFrom.toISOString(), to: rangeTo.toISOString(), limit: 500 },
+      params: { from: toLocalISO(rangeFrom), to: toLocalISO(rangeTo), limit: 500 },
     })
       .then((r) => setEvents(Array.isArray(r.data) ? r.data : []))
       .catch((e) => setError(e?.response?.data?.detail || "Failed to load"))
@@ -165,10 +173,13 @@ export default function Calendar() {
     const durMin = minutesBetween(start, end);
     const newEnd = new Date(newStart); newEnd.setMinutes(newEnd.getMinutes() + durMin);
     // Optimistic UI
-    setEvents(prev => prev.map(e => e.id === ev.id ? { ...e, start_at: newStart.toISOString(), end_at: newEnd.toISOString() } : e));
+    // Same local-naïve convention as the modal — keeps the wall-clock
+    // the user drops on. The optimistic UI state carries an ISO string
+    // that new Date() re-parses correctly (naïve → local).
+    setEvents(prev => prev.map(e => e.id === ev.id ? { ...e, start_at: toLocalISO(newStart), end_at: toLocalISO(newEnd) } : e));
     API.patch(`/calendar/events/${ev.id}`, {
-      start_at: newStart.toISOString(),
-      end_at:   newEnd.toISOString(),
+      start_at: toLocalISO(newStart),
+      end_at:   toLocalISO(newEnd),
     }).catch((e) => {
       // Rollback + reload on error
       fetchEvents();
@@ -641,8 +652,12 @@ function EventModal({ initial, prefill, canManage, onClose, onSaved }) {
       description:      form.description.trim() || null,
       event_type:       form.event_type,
       location:         form.location.trim() || null,
-      start_at:         new Date(form.start_at).toISOString(),
-      end_at:           new Date(form.end_at).toISOString(),
+      // form.start_at is "YYYY-MM-DDTHH:mm" from <input type="datetime-local">
+      // — already local time. Sending it as-is preserves the wall-clock
+      // the user typed (matches how leave / attendance / payroll store
+      // times elsewhere in the ERP).
+      start_at:         form.start_at,
+      end_at:           form.end_at,
       all_day:          !!form.all_day,
       lead_id:          form.lead_id.trim() || null,
       customer_id:      form.customer_id.trim() || null,
