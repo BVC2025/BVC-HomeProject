@@ -505,21 +505,23 @@ def calendar_email_health(
         VendorEmailConfig.VENDOR_ID == vendor_id,
         VendorEmailConfig.IS_ACTIVE == True,
     ).all()
+    env_cfg = _env_smtp_config()
     return {
         "vendor_id":                vendor_id,
         "vendor_smtp_active_count": len(vendor_cfgs),
         "vendor_smtp_hosts":        [c.SMTP_HOST for c in vendor_cfgs] if vendor_cfgs else [],
+        "env_smtp_fallback_ready":  bool(env_cfg),   # NEW — true when .env is complete
         "resend_key_configured":    bool(_os.getenv("RESEND_API_KEY", "").strip()),
         "smtp_env_fallback":        {
             "SMTP_HOST": _os.getenv("SMTP_HOST", ""),
-            "SMTP_USER": _os.getenv("SMTP_USER", ""),
+            "SMTP_USER": _os.getenv("SMTP_USER") or _os.getenv("SMTP_USERNAME") or "",
             "SMTP_FROM": _os.getenv("SMTP_FROM", ""),
+            "SMTP_PASSWORD_set": bool((_os.getenv("SMTP_PASSWORD") or "").strip()),
         },
         "hint": (
-            "If vendor_smtp_active_count is 0 AND resend_key_configured is "
-            "false, emails can't be delivered. Add an SMTP row under "
-            "Admin → Channels & Templates → Email Config (Save + Activate), "
-            "or set RESEND_API_KEY in backend/.env."
+            "Delivery order: vendor_smtp → env-fallback → Resend. If "
+            "vendor_smtp_active_count=0 AND env_smtp_fallback_ready=false "
+            "AND resend_key_configured=false, no channel exists."
         ),
     }
 
@@ -692,11 +694,36 @@ def _send_invite_email(ev: CalendarEvent, addrs: List[str]) -> None:
     _dispatch_email(subject, body_html, addrs, ev.VENDOR_ID, log_prefix="calendar-invite-email")
 
 
+def _env_smtp_config():
+    """Build a duck-typed VendorEmailConfig from backend/.env when no
+    DB row exists. Lets local dev + fresh deployments work without
+    having to seed the vendor_email_config table first. Returns None
+    if the env is not sufficiently configured."""
+    import os as _os
+    from types import SimpleNamespace
+    host = (_os.getenv("SMTP_HOST", "") or "").strip()
+    user = (_os.getenv("SMTP_USER") or _os.getenv("SMTP_USERNAME") or "").strip()
+    pwd  = (_os.getenv("SMTP_PASSWORD", "") or "").strip()
+    if not (host and user and pwd):
+        return None
+    return SimpleNamespace(
+        SMTP_HOST     = host,
+        SMTP_PORT     = int(_os.getenv("SMTP_PORT", "587")),
+        SMTP_USERNAME = user,
+        SMTP_PASSWORD = pwd,
+        FROM_EMAIL    = (_os.getenv("SMTP_FROM") or user).strip(),
+        FROM_NAME     = (_os.getenv("SMTP_FROM_NAME", "BVC24 ERP") or "BVC24 ERP").strip(),
+        BCC_EMAIL     = None,
+    )
+
+
 def _dispatch_email(subject: str, body_html: str, addrs: List[str],
                     vendor_id: Optional[int], log_prefix: str) -> None:
     """Shared sender used by BOTH invite (on-create) and reminder
-    (N-min-before) emails. Vendor SMTP first, Resend fallback. Per-
-    address failures are logged, never raised."""
+    (N-min-before) emails. Tries vendor SMTP (DB), then env-SMTP
+    fallback, then Resend. Per-address failures are logged, never
+    raised. Adding env fallback so local dev + fresh servers work
+    without seeding the vendor_email_config table first."""
     import logging
     log = logging.getLogger("uvicorn.error")
 
@@ -723,6 +750,14 @@ def _dispatch_email(subject: str, body_html: str, addrs: List[str],
     finally:
         db2.close()
 
+    # If no DB config, try to synthesise one from backend/.env so local
+    # dev works without seeding the vendor_email_config table.
+    if not active_cfgs:
+        env_cfg = _env_smtp_config()
+        if env_cfg:
+            log.info("[%s] using .env SMTP fallback (host=%s)", log_prefix, env_cfg.SMTP_HOST)
+            active_cfgs = [env_cfg]
+
     for addr in addrs:
         sent = False
         for cfg in active_cfgs:
@@ -732,7 +767,7 @@ def _dispatch_email(subject: str, body_html: str, addrs: List[str],
                     sent = True
                     break
             except Exception as e:
-                log.warning("[%s] vendor SMTP failed for %s: %s", log_prefix, addr, e)
+                log.warning("[%s] SMTP failed for %s: %s", log_prefix, addr, e)
         if not sent:
             try:
                 send_via_resend(subject=subject, body_html=body_html, recipient=addr)
