@@ -235,9 +235,12 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
         if (!chunks.length) { setListening(false); return; }
 
         const blob = new Blob(chunks, { type: mime || "audio/webm" });
-        if (blob.size < 800) {
-          // <1 KB = likely tap-and-release with no actual speech
-          setError("That was too short — press and hold, then speak clearly.");
+        // Empirical thresholds from opus @ ~24kbps:
+        //   ~1 KB  = <0.5s   → tap-release, no speech captured
+        //   ~4 KB  = ~1.5s   → one very short word, Sarvam usually can't lock language
+        //   ~8 KB+ = ~3s+    → reliable full sentence
+        if (blob.size < 4000) {
+          setError("That was too short — hold the mic, speak for 2-3 seconds, then release.");
           setListening(false);
           return;
         }
@@ -247,11 +250,17 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
         try {
           const fd = new FormData();
           fd.append("file", blob, "voice.webm");
-          // 'unknown' = let Sarvam auto-detect Tamil/English/Hindi.
-          // If user pinned a language pill, pass its BCP-47 hint.
-          const hint = activeLang.key === "ta" ? "ta-IN"
-                     : activeLang.key === "en" ? "en-IN"
-                     : "unknown";
+          // Sarvam auto-detect is unreliable on short clips. Pass a
+          // concrete hint whenever we can:
+          //   Tamil pill        → ta-IN
+          //   Thanglish pill    → ta-IN (Tamil transliterated, still Tamil ASR)
+          //   English pill      → en-IN
+          //   Auto pill (default) → en-IN too (most first turns are English)
+          //                         — server will retry with ta-IN if English
+          //                         doesn't transcribe. Safer than 'unknown'.
+          const hint = activeLang.key === "ta"        ? "ta-IN"
+                     : activeLang.key === "thanglish" ? "ta-IN"
+                     : "en-IN";
           fd.append("language", hint);
 
           const res = await API.post("/leave-ai-chat/transcribe", fd, {

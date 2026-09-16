@@ -325,9 +325,52 @@ def sarvam_transcribe(
     transcript = (data.get("transcript") or "").strip()
     detected = (data.get("language_code") or lang_hint or "en-IN").strip()
 
+    # Sarvam auto-detect ("unknown") is unreliable on short utterances —
+    # "hi" or "vanakkam" often come back with an empty transcript + a
+    # low-confidence language guess (kn-IN / mr-IN etc). Retry ONCE
+    # with an explicit en-IN hint, which handles most short English
+    # + Thanglish clips. If that also fails, then raise.
+    if not transcript and lang_hint == "unknown":
+        retry_lang = "en-IN"
+        parts2 = []
+        parts2.append(f"--{boundary}{lb}".encode())
+        parts2.append(f'Content-Disposition: form-data; name="file"; filename="{filename}"{lb}'.encode())
+        parts2.append(f"Content-Type: {content_type}{lb}{lb}".encode())
+        parts2.append(audio_bytes)
+        parts2.append(lb.encode())
+        parts2.append(f"--{boundary}{lb}".encode())
+        parts2.append(f'Content-Disposition: form-data; name="model"{lb}{lb}'.encode())
+        parts2.append(model.encode())
+        parts2.append(lb.encode())
+        parts2.append(f"--{boundary}{lb}".encode())
+        parts2.append(f'Content-Disposition: form-data; name="language_code"{lb}{lb}'.encode())
+        parts2.append(retry_lang.encode())
+        parts2.append(lb.encode())
+        parts2.append(f"--{boundary}--{lb}".encode())
+        body2 = b"".join(parts2)
+
+        req2 = urllib.request.Request(
+            url, data=body2,
+            headers={
+                "api-subscription-key": api_key,
+                "Content-Type": f"multipart/form-data; boundary={boundary}",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req2, timeout=30) as resp2:
+                data2 = json.loads(resp2.read().decode("utf-8"))
+                transcript = (data2.get("transcript") or "").strip()
+                if transcript:
+                    detected = (data2.get("language_code") or retry_lang).strip()
+        except Exception:
+            pass                                             # swallow — outer raise handles it
+
     if not transcript:
+        # Friendly message — don't dump the raw Sarvam JSON to the user.
         raise SarvamError(
-            f"Sarvam ASR returned no transcript. Full response: {json.dumps(data)[:400]}"
+            "Couldn't understand that — please speak clearly for at least 2 seconds, "
+            "then release the mic. Try again."
         )
 
     return transcript, detected
