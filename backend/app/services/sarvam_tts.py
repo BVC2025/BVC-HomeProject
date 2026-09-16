@@ -221,3 +221,106 @@ def _post_sarvam(api_key: str, payload: dict):
         return None, f"HTTP {e.code} · {body or str(e)}"
     except (urllib.error.URLError, TimeoutError, Exception) as e:
         return None, f"unreachable · {e}"
+
+
+# ---------------------------------------------------------------------
+# Speech-to-Text — Sarvam ASR (Saarika v2 / Saaras)
+# ---------------------------------------------------------------------
+#
+# Used by the Leave chatbot mic — MediaRecorder in the browser posts a
+# webm/opus (or wav) blob → this function forwards it to Sarvam's ASR
+# API and returns the plain-text transcript. Handles auto language
+# detection for Tamil/English/Hindi/Thanglish.
+
+def sarvam_transcribe(
+    audio_bytes: bytes,
+    filename: str = "audio.webm",
+    content_type: str = "audio/webm",
+    language: str = "unknown",
+) -> Tuple[str, str]:
+    """Send `audio_bytes` to Sarvam ASR and return (transcript, detected_language).
+
+    Args:
+      audio_bytes:   raw bytes of the recording (webm/wav/mp3/opus)
+      filename:      original filename hint for Sarvam
+      content_type:  MIME type — 'audio/webm' from MediaRecorder is fine
+      language:      Sarvam language hint. 'unknown' = auto-detect.
+                     'en-IN', 'ta-IN', 'hi-IN' etc. force a specific one.
+
+    Returns (transcript_text, language_code_actually_used).
+    Raises `SarvamError` on any failure.
+    """
+    if not audio_bytes:
+        raise SarvamError("audio is required")
+
+    api_key = os.getenv("SARVAM_API_KEY", "").strip()
+    if not api_key:
+        raise SarvamError("SARVAM_API_KEY not set — voice input disabled.")
+
+    # Sarvam ASR endpoint. Model `saarika:v2` handles code-switched
+    # Tamil-English-Hindi well; `saaras:v2` is the translation model.
+    url = "https://api.sarvam.ai/speech-to-text"
+    model = os.getenv("SARVAM_ASR_MODEL", "saarika:v2.5").strip() or "saarika:v2.5"
+    lang_hint = SARVAM_LANG_MAP.get(language or "unknown", language) if language != "unknown" else "unknown"
+
+    # Sarvam ASR uses multipart/form-data. We hand-build the multipart
+    # body so we don't need `requests` — the rest of this file is stdlib
+    # only, keep it that way.
+    import uuid as _uuid
+    boundary = f"----BVCFormBoundary{_uuid.uuid4().hex}"
+    lb = "\r\n"
+
+    parts = []
+    # file part
+    parts.append(f"--{boundary}{lb}".encode())
+    parts.append(f'Content-Disposition: form-data; name="file"; filename="{filename}"{lb}'.encode())
+    parts.append(f"Content-Type: {content_type}{lb}{lb}".encode())
+    parts.append(audio_bytes)
+    parts.append(lb.encode())
+    # model
+    parts.append(f"--{boundary}{lb}".encode())
+    parts.append(f'Content-Disposition: form-data; name="model"{lb}{lb}'.encode())
+    parts.append(model.encode())
+    parts.append(lb.encode())
+    # language_code
+    parts.append(f"--{boundary}{lb}".encode())
+    parts.append(f'Content-Disposition: form-data; name="language_code"{lb}{lb}'.encode())
+    parts.append(lang_hint.encode())
+    parts.append(lb.encode())
+    # closing boundary
+    parts.append(f"--{boundary}--{lb}".encode())
+
+    body = b"".join(parts)
+
+    req = urllib.request.Request(
+        url,
+        data=body,
+        headers={
+            "api-subscription-key": api_key,
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        detail = ""
+        try:
+            detail = e.read().decode("utf-8")[:500]
+        except Exception:
+            pass
+        raise SarvamError(f"Sarvam ASR HTTP {e.code} · {detail or str(e)}")
+    except (urllib.error.URLError, TimeoutError, Exception) as e:
+        raise SarvamError(f"Sarvam ASR unreachable · {e}")
+
+    transcript = (data.get("transcript") or "").strip()
+    detected = (data.get("language_code") or lang_hint or "en-IN").strip()
+
+    if not transcript:
+        raise SarvamError(
+            f"Sarvam ASR returned no transcript. Full response: {json.dumps(data)[:400]}"
+        )
+
+    return transcript, detected

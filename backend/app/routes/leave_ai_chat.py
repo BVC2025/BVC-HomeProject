@@ -27,7 +27,7 @@ import secrets
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -45,6 +45,7 @@ from app.services.sarvam_tts import (
     SarvamError,
     detect_language,
     sarvam_speak,
+    sarvam_transcribe,
 )
 from app.models.email_models import VendorEmailConfig
 
@@ -639,4 +640,57 @@ def speak_health() -> Dict[str, Any]:
         "sarvam_voice":          os.getenv("SARVAM_VOICE", "pooja"),
         "sarvam_model":          os.getenv("SARVAM_MODEL", "bulbul:v3"),
         "voices_allowed":        sorted(ALLOWED_VOICES),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Speech-to-Text — Sarvam ASR (mic input from the Leave chatbot)
+# ---------------------------------------------------------------------------
+#
+# Browser records audio with MediaRecorder → POSTs the blob here →
+# we forward to Sarvam ASR → return the transcript. Front-end then
+# feeds the transcript to /leave-ai-chat/message like any typed input,
+# so the rest of the pipeline (Gemini → Sarvam TTS reply) is unchanged.
+#
+# Sarvam auto-detects language when language=unknown, so the same
+# endpoint handles Tamil / English / Thanglish / Hindi without the
+# client having to pre-select. Detected code returned in `language`.
+
+@router.post("/transcribe")
+async def transcribe_audio(
+    file:     UploadFile = File(...),
+    language: str        = Form("unknown"),
+) -> Dict[str, Any]:
+    """Transcribe an audio recording to text via Sarvam ASR.
+
+    Accepts webm/opus (default from MediaRecorder), wav, mp3 — anything
+    Sarvam ASR accepts. `language` is a hint: 'unknown' (auto-detect),
+    'en-IN', 'ta-IN', 'hi-IN', etc. Front-end usually passes 'unknown'
+    so a user can speak any language.
+    """
+    audio_bytes = await file.read()
+    if not audio_bytes:
+        raise HTTPException(status_code=400, detail="Empty audio upload.")
+    if len(audio_bytes) > 8 * 1024 * 1024:   # 8 MB safety cap
+        raise HTTPException(status_code=413, detail="Audio too large (>8 MB).")
+
+    try:
+        transcript, detected_lang = sarvam_transcribe(
+            audio_bytes  = audio_bytes,
+            filename     = file.filename or "audio.webm",
+            content_type = file.content_type or "audio/webm",
+            language     = language or "unknown",
+        )
+    except SarvamError as e:
+        msg = str(e)
+        status = 503 if "SARVAM_API_KEY" in msg else 502
+        raise HTTPException(status_code=status, detail=msg)
+
+    logger.info(
+        "[leave-transcribe] %s bytes → %d chars · lang=%s",
+        len(audio_bytes), len(transcript), detected_lang,
+    )
+    return {
+        "transcript": transcript,
+        "language":   detected_lang,
     }

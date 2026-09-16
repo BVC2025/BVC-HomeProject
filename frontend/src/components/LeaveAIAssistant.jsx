@@ -120,14 +120,24 @@ async function speakViaSarvam(text, langHint, voice) {
 
 export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
 
-  const RecognitionCtor = useSpeechRecognition();
-  const recognitionRef = useRef(null);
-
-  // Voice OUTPUT works on every browser (server-side Sarvam TTS
-  // played back through <audio>), so it's always available. Voice
-  // INPUT still needs SpeechRecognition — that gates only the mic
-  // button, not the whole component.
-  const micSupported = !!RecognitionCtor;
+  // Voice INPUT — now uses MediaRecorder → server-side Sarvam ASR
+  // (matches the Recruitment page). Browser Web Speech Recognition
+  // was replaced because (a) it needs internet to Google's servers,
+  // (b) it butchers Tamil/Thanglish, and (c) Sarvam auto-detects
+  // language so the user can say anything in any language.
+  //
+  // MediaRecorder + getUserMedia both need a secure context —
+  // HTTPS or localhost. Over plain http://<LAN-IP> Chrome will
+  // block the mic; user has to whitelist the origin in
+  //   chrome://flags/#unsafely-treat-insecure-origin-as-secure
+  // or serve over HTTPS. Text input path always works regardless.
+  const micSupported = typeof window !== "undefined"
+    && typeof navigator !== "undefined"
+    && !!navigator.mediaDevices?.getUserMedia
+    && !!window.MediaRecorder;
+  const mediaRecorderRef = useRef(null);
+  const mediaStreamRef   = useRef(null);
+  const audioChunksRef   = useRef([]);
   const [open, setOpen] = useState(false);
   const [language, setLanguage] = useState("auto");
   // Mute toggle — persisted per browser so a returning employee
@@ -185,43 +195,103 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
     speakViaSarvam(text, activeLang.ttsHint);
   };
 
-  const startListening = () => {
-
-    if (!RecognitionCtor) return;
+  // ---- Mic → Sarvam ASR flow ----
+  //
+  // Click mic → getUserMedia → MediaRecorder starts collecting audio
+  // chunks. Click again → recorder stops → we bundle chunks into one
+  // Blob → POST to /leave-ai-chat/transcribe → server returns text
+  // (auto-detected language) → we feed that into sendMessage() like
+  // any typed input, so the rest of the pipeline is unchanged.
+  const startListening = async () => {
+    if (!micSupported) {
+      setError("Mic not supported here. Use Chrome/Edge over HTTPS or on localhost.");
+      return;
+    }
     setError("");
-
-    const r = new RecognitionCtor();
-    r.lang = activeLang.recogLocale;
-    r.interimResults = false;
-    r.maxAlternatives = 1;
-    r.continuous = false;
-
-    r.onresult = (e) => {
-      const transcript = e.results?.[0]?.[0]?.transcript || "";
-      setInput(transcript);
-      setListening(false);
-      if (transcript.trim()) sendMessage(transcript);
-    };
-
-    r.onerror = (e) => {
-      setListening(false);
-      setError(`Mic error: ${e.error || "unknown"}. You can also type.`);
-    };
-
-    r.onend = () => setListening(false);
-
     try {
-      r.start();
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+
+      // Prefer opus in webm (small + Sarvam-compatible). Fall back to
+      // whatever the browser gives us if that's not supported.
+      let mime = "audio/webm;codecs=opus";
+      if (!window.MediaRecorder.isTypeSupported(mime)) {
+        mime = window.MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
+      }
+      const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+      mediaRecorderRef.current = rec;
+      audioChunksRef.current = [];
+
+      rec.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      rec.onstop = async () => {
+        // Release the mic ASAP so the browser tab icon stops recording
+        try { mediaStreamRef.current?.getTracks().forEach(t => t.stop()); } catch (_) {}
+        mediaStreamRef.current = null;
+
+        const chunks = audioChunksRef.current;
+        audioChunksRef.current = [];
+        if (!chunks.length) { setListening(false); return; }
+
+        const blob = new Blob(chunks, { type: mime || "audio/webm" });
+        if (blob.size < 800) {
+          // <1 KB = likely tap-and-release with no actual speech
+          setError("That was too short — press and hold, then speak clearly.");
+          setListening(false);
+          return;
+        }
+
+        setListening(false);
+        setThinking(true);
+        try {
+          const fd = new FormData();
+          fd.append("file", blob, "voice.webm");
+          // 'unknown' = let Sarvam auto-detect Tamil/English/Hindi.
+          // If user pinned a language pill, pass its BCP-47 hint.
+          const hint = activeLang.key === "ta" ? "ta-IN"
+                     : activeLang.key === "en" ? "en-IN"
+                     : "unknown";
+          fd.append("language", hint);
+
+          const res = await API.post("/leave-ai-chat/transcribe", fd, {
+            headers: { "Content-Type": "multipart/form-data" },
+            timeout: 30000,
+          });
+          const transcript = (res.data?.transcript || "").trim();
+          if (!transcript) {
+            setError("Didn't catch that — try again a bit louder.");
+            return;
+          }
+          setInput(transcript);
+          sendMessage(transcript);
+        } catch (e) {
+          const msg = e?.response?.data?.detail
+                   || e?.message
+                   || "Voice transcription failed. Try typing instead.";
+          setError(msg);
+        } finally {
+          setThinking(false);
+        }
+      };
+
+      rec.start();
       setListening(true);
-      recognitionRef.current = r;
-    } catch (_) {
+    } catch (e) {
+      setError(
+        e?.name === "NotAllowedError"
+          ? "Microphone permission blocked — allow it in the browser's address bar."
+          : `Mic error: ${e?.message || e}`
+      );
       setListening(false);
     }
   };
 
   const stopListening = () => {
-    try { recognitionRef.current?.stop(); } catch (_) { /* noop */ }
-    setListening(false);
+    try {
+      const rec = mediaRecorderRef.current;
+      if (rec && rec.state !== "inactive") rec.stop();   // triggers onstop above
+    } catch (_) { /* noop */ }
   };
 
   const sendMessage = async (text) => {
@@ -731,7 +801,7 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
                 style={S.micBtn(listening)}
                 onClick={listening ? stopListening : startListening}
                 title={listening ? "Stop listening" : "Start listening"}
-                disabled={!RecognitionCtor}
+                disabled={!micSupported}
                 aria-label="Toggle voice input"
               >
                 {listening ? (
