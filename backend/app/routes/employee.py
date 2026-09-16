@@ -453,10 +453,23 @@ def create_employee(
         # Never fail employee creation over an email delivery problem.
         pass
 
+    # Return the temporary password ONLY when the admin didn't set one
+    # explicitly (i.e. we used the DEFAULT_NEW_HIRE_PASSWORD fallback).
+    # This lets the UI show it in a toast so HR can hand it to the new
+    # hire without having to check email or run the reset script. When
+    # the admin picked their own password, we do NOT echo it back — they
+    # already know it and it should never leave the process again.
+    used_default = (data.PASSWORD is None or data.PASSWORD == "")
+
     return {
         "message": "Employee created successfully",
         "employee_id": emp.ID,
-        "EMPLOYEE_CODE": emp.EMPLOYEE_CODE
+        "EMPLOYEE_CODE": emp.EMPLOYEE_CODE,
+        "temp_password": DEFAULT_NEW_HIRE_PASSWORD if used_default else None,
+        "temp_password_note": (
+            "This is the default first-login password. It has also been "
+            "emailed to the employee. Ask them to change it after login."
+        ) if used_default else None,
     }
 
 
@@ -905,6 +918,40 @@ def reset_password(
     bump_token_version(db, emp)
 
     return {"message": "Password reset successfully"}
+
+
+# ---------------------------------------------------------------------------
+# Admin quick action: reset an employee's password to the standard
+# default ("!welcome123") in one call — no need to type + confirm a
+# new password every time. Same permission gate as reset-password,
+# same token invalidation. Returns the default so the admin can copy
+# it right away without checking the emailed template.
+# ---------------------------------------------------------------------------
+
+DEFAULT_HIRE_PASSWORD = "!welcome123"
+
+
+@router.post(
+    "/employees/{employee_id}/reset-to-default",
+    dependencies=[Depends(require("employee.password-reset"))],
+)
+def reset_to_default_password(employee_id: str, db: Session = Depends(get_db)):
+    emp = db.query(Employee).filter(Employee.ID == employee_id).first()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    emp.PASSWORD = hash_password(DEFAULT_HIRE_PASSWORD)
+    if (emp.STATUS or "").upper() != "ACTIVE":
+        emp.STATUS = "ACTIVE"     # unblock inactive accounts as part of the reset
+    db.commit()
+    bump_token_version(db, emp)   # kill any live session using the old password
+
+    return {
+        "message":       f"Password reset to default for {emp.EMPLOYEE_CODE}",
+        "employee_code": emp.EMPLOYEE_CODE,
+        "temp_password": DEFAULT_HIRE_PASSWORD,
+        "note":          "Employee should change this on next login.",
+    }
 
 
 # ---------------------------------------------------------------------------
