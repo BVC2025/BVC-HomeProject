@@ -956,16 +956,26 @@ def reset_to_default_password(employee_id: str, db: Session = Depends(get_db)):
 
 # ---------------------------------------------------------------------------
 # Admin action: email the login credentials to an existing employee.
-# Replaces the current "share ID + password over WhatsApp" workflow — admin
-# opens Edit, confirms Department / Role / Email, then clicks "Send Login
-# Credentials" and types the password they want the employee to receive.
-# Does NOT change the stored password — the admin remains the source of
-# truth on which password is actually active. This endpoint only renders
-# the onboarding template with (employee_code, provided_password, login_url)
-# and dispatches it via the vendor's SMTP (Resend fallback).
+#
+# UPDATED (Sep 2026):
+# Now UPDATES the stored password to match what's sent in the email —
+# the previous design (email-only, don't touch DB) caused a drift bug
+# where the emailed password was correct in the message body but the
+# stored hash was something else, so login failed. HR reported "email
+# vandhurichu but login work aagala". Fix: hash + persist the password
+# alongside the email dispatch so the sent value is guaranteed usable.
+#
+# If admin passes an empty password, we auto-fall-back to the standard
+# `!welcome123` — same default new-hire creation uses — so they don't
+# have to type anything for the common "send login to new joiner" case.
+# The response returns which password was actually used so the UI can
+# show it in a toast.
 # ---------------------------------------------------------------------------
 
 import logging
+
+DEFAULT_HIRE_PWD_FALLBACK = "!welcome123"
+
 
 @router.post(
     "/employees/{employee_id}/send-credentials",
@@ -988,26 +998,39 @@ def send_credentials_email(
             detail="Employee has no email address on file — set it first, then Save Changes.",
         )
 
-    password_to_send = (payload.get("password") or "").strip()
+    # If admin left the password field empty in the UI dialog, fall back
+    # to the standard default so a "just send the login link" click still
+    # works with no typing. Admin can override by supplying their own.
+    password_to_send = (payload.get("password") or "").strip() or DEFAULT_HIRE_PWD_FALLBACK
+    used_default     = (payload.get("password") or "").strip() == ""
 
-    if not password_to_send:
-        raise HTTPException(
-            status_code=400,
-            detail="Password is required — type the password you want the employee to receive.",
-        )
+    # Persist FIRST so the login is usable the instant the email lands —
+    # if the email fails downstream the DB is already correct and the
+    # admin can retry the send without a second reset.
+    emp.PASSWORD = hash_password(password_to_send)
+    if (emp.STATUS or "").upper() != "ACTIVE":
+        emp.STATUS = "ACTIVE"
+    db.commit()
+    bump_token_version(db, emp)   # kill any live session tied to the old hash
 
     _send_onboarding_credentials_email(db, emp, password_to_send)
 
     # Audit line — masks the password so it never lands in logs.
     logging.getLogger("uvicorn.error").info(
-        "[credentials-email] dispatched to %s for %s",
-        emp.EMAIL, emp.EMPLOYEE_CODE,
+        "[credentials-email] dispatched to %s for %s (default_pw=%s)",
+        emp.EMAIL, emp.EMPLOYEE_CODE, used_default,
     )
 
     return {
         "sent": True,
         "email": emp.EMAIL,
         "employee_code": emp.EMPLOYEE_CODE,
+        "password_stored": True,                # NEW — signals the DB was updated
+        "used_default_password": used_default,  # true when admin left it blank
+        # Only echo the password back when we auto-picked the default,
+        # so the UI can display it. When admin typed their own, they
+        # already know it — do NOT echo (avoids re-broadcasting).
+        "temp_password": password_to_send if used_default else None,
     }
 
 
