@@ -257,6 +257,13 @@ def sarvam_transcribe(
     if not api_key:
         raise SarvamError("SARVAM_API_KEY not set — voice input disabled.")
 
+    # Sarvam ASR rejects MIME types with parameters like
+    # "audio/webm;codecs=opus" — it only whitelists the bare types
+    # (audio/webm, audio/wav, audio/mp3, audio/ogg, audio/opus, etc).
+    # Strip everything after the ";" so the browser's MediaRecorder
+    # default ("audio/webm;codecs=opus") still gets through.
+    content_type = (content_type or "audio/webm").split(";")[0].strip() or "audio/webm"
+
     # Sarvam ASR endpoint. Model `saarika:v2` handles code-switched
     # Tamil-English-Hindi well; `saaras:v2` is the translation model.
     url = "https://api.sarvam.ai/speech-to-text"
