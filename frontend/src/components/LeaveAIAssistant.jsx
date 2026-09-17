@@ -204,7 +204,7 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
   // Named after the default Sarvam voice for consistency.
   const AGENT_NAME  = "Priya";
   const AGENT_ROLE  = "Leave Assistant";
-  const AVATAR_SRC  = "/priya.png";
+  const AVATAR_SRC  = "/priyaa.jpg";
   const AVATAR_INITIAL = "P";
 
   // Pulse the avatar while Sarvam TTS is actively speaking.
