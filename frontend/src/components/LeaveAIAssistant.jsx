@@ -49,8 +49,19 @@ function useSpeechRecognition() {
 //
 // Returns a controller with `stop()` — the component uses it to
 // silence playback when the panel closes or the mute toggle is hit.
+//
+// A small pub-sub — components can subscribe to know when playback
+// starts / ends so the Priya avatar can pulse while she's speaking.
 let _currentAudio = null;
 let _currentUrl = null;
+const _speakingListeners = new Set();
+function onSpeakingChange(cb) {
+  _speakingListeners.add(cb);
+  return () => _speakingListeners.delete(cb);
+}
+function _emitSpeaking(v) {
+  for (const cb of _speakingListeners) { try { cb(v); } catch (_) {} }
+}
 
 function stopSpeaking() {
   try {
@@ -64,6 +75,7 @@ function stopSpeaking() {
   } catch (_) { /* noop */ }
   _currentAudio = null;
   _currentUrl = null;
+  _emitSpeaking(false);
 }
 
 async function speakViaSarvam(text, langHint, voice) {
@@ -99,7 +111,13 @@ async function speakViaSarvam(text, langHint, voice) {
     _currentAudio = audio;
     _currentUrl = url;
 
+    // Broadcast speaking state so the Priya avatar can pulse
+    // exactly while she's speaking, not just while a request is
+    // in flight.
+    audio.onplay  = () => _emitSpeaking(true);
+    audio.onpause = () => _emitSpeaking(false);
     audio.onended = () => {
+      _emitSpeaking(false);
       if (_currentUrl === url) {
         URL.revokeObjectURL(url);
         _currentAudio = null;
@@ -110,11 +128,52 @@ async function speakViaSarvam(text, langHint, voice) {
     // Some browsers block autoplay until a user gesture. That's fine —
     // the mic / send button click IS a gesture, so this normally
     // plays. If it doesn't, we swallow the rejection quietly.
-    await audio.play().catch(() => { /* autoplay blocked */ });
+    await audio.play().catch(() => { _emitSpeaking(false); });
   } catch (_) {
     // Sarvam unreachable / server down / no key — chat still works,
     // text reply is already on screen. Voice is a nice-to-have.
   }
+}
+
+
+// Circular avatar with graceful <img> → initial fallback.
+// Used on both the collapsed FAB bubble AND the expanded panel
+// header. `speaking` adds the red pulse ring while Sarvam TTS
+// audio is actively playing.
+function AvatarFace({ src, initial = "P", size = 72, speaking = false, bordered = false }) {
+  const [broken, setBroken] = useState(false);
+  const dims = { width: size, height: size };
+  const commonWrap = {
+    ...dims,
+    borderRadius: "50%",
+    overflow: "hidden",
+    background: "linear-gradient(135deg,#7A1022,#dc2626)",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: 800,
+    fontSize: Math.round(size * 0.45),
+    letterSpacing: 0.5,
+    border: bordered ? "2px solid #fff" : "none",
+    boxShadow: bordered ? "0 0 0 1px rgba(0,0,0,0.08)" : "none",
+    flexShrink: 0,
+  };
+  return (
+    <div
+      className={`priya-face ${speaking ? "speaking" : ""}`}
+      style={commonWrap}
+    >
+      {(!src || broken) ? initial : (
+        <img
+          src={src}
+          alt={initial}
+          onError={() => setBroken(true)}
+          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+        />
+      )}
+    </div>
+  );
 }
 
 
@@ -138,6 +197,19 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
   const mediaRecorderRef = useRef(null);
   const mediaStreamRef   = useRef(null);
   const audioChunksRef   = useRef([]);
+
+  // Avatar name + image. `/priya.png` should be a square (256x256+)
+  // portrait dropped into frontend/public/. If it's missing the avatar
+  // gracefully falls back to a gradient circle with the initial 'P'.
+  // Named after the default Sarvam voice for consistency.
+  const AGENT_NAME  = "Priya";
+  const AGENT_ROLE  = "Leave Assistant";
+  const AVATAR_SRC  = "/priya.png";
+  const AVATAR_INITIAL = "P";
+
+  // Pulse the avatar while Sarvam TTS is actively speaking.
+  const [speaking, setSpeakingState] = useState(false);
+  useEffect(() => onSpeakingChange(setSpeakingState), []);
   const [open, setOpen] = useState(false);
   const [language, setLanguage] = useState("auto");
   // Mute toggle — persisted per browser so a returning employee
@@ -672,37 +744,48 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
           from { opacity: 0; transform: translateY(20px) scale(0.96); }
           to   { opacity: 1; transform: translateY(0) scale(1); }
         }
+        @keyframes priyaSpeakingRing {
+          0%   { box-shadow: 0 4px 10px rgba(0,0,0,0.25), 0 0 0 0 rgba(220,38,38,0.55); }
+          70%  { box-shadow: 0 4px 10px rgba(0,0,0,0.25), 0 0 0 14px rgba(220,38,38,0); }
+          100% { box-shadow: 0 4px 10px rgba(0,0,0,0.25), 0 0 0 0 rgba(220,38,38,0); }
+        }
         .leave-ai-fab:hover { transform: scale(1.08); }
+        .leave-ai-fab.speaking { animation: priyaSpeakingRing 1.4s ease-out infinite; }
+        .priya-face.speaking  { animation: priyaSpeakingRing 1.4s ease-out infinite; }
       `}</style>
 
       {!open && (
-        <button
-          type="button"
-          className="leave-ai-fab"
-          style={S.fab}
-          onClick={() => setOpen(true)}
-          title="Open Voice Leave Assistant"
-          aria-label="Open Voice Leave Assistant"
-        >
-          <video
-            src="/Ai%20Chatbot3.mp4"
-            style={S.fabVideo}
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-          />
-        </button>
+        <>
+          <div style={S.fabLabel} aria-hidden="true">{AGENT_NAME} · {AGENT_ROLE}</div>
+          <button
+            type="button"
+            className={`leave-ai-fab ${speaking ? "speaking" : ""}`}
+            style={S.fab}
+            onClick={() => setOpen(true)}
+            title={`Open ${AGENT_NAME} — Voice Leave Assistant`}
+            aria-label={`Open ${AGENT_NAME} — Voice Leave Assistant`}
+          >
+            <AvatarFace src={AVATAR_SRC} initial={AVATAR_INITIAL} size={72} />
+          </button>
+        </>
       )}
 
       <div style={S.panel} role="dialog" aria-modal="true">
         <div style={S.card}>
           <div style={S.header}>
-            <div>
-              <div style={S.title}>Voice Leave Assistant</div>
-              <div style={S.subtitle}>
-                Talk to me — I can apply for leave, answer questions about your balance, and check your tasks.
+            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+              <AvatarFace
+                src={AVATAR_SRC}
+                initial={AVATAR_INITIAL}
+                size={44}
+                speaking={speaking}
+                bordered
+              />
+              <div style={{ minWidth: 0 }}>
+                <div style={S.title}>{AGENT_NAME} · {AGENT_ROLE}</div>
+                <div style={S.subtitle}>
+                  {speaking ? "Speaking…" : "Talk to me — I can apply for leave, check your balance, review tasks."}
+                </div>
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
