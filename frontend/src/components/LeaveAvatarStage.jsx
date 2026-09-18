@@ -22,16 +22,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
    • Bottom bar — mic, text input (fallback since user's mic often
      blocked), send, mute toggle, language pills, close.
 
-   Character image lives at /priya-full.png (public/). Falls back to
-   the smaller /priyaa.jpg if the full-size one is missing.
+   Character image lives at /Assistant.png (public/, transparent PNG
+   with a real alpha channel — no blend hacks needed).
 */
 
-// JPG doesn't hold alpha, so the white background from the source PNG
-// got flattened when the user saved it. mix-blend on the img element
-// (below) hides those white pixels against the dark backdrop. For a
-// perfect matte, re-save as .png with alpha and point this path back.
-const AVATAR_FULL_SRC     = "/priya-full.jpg";
-const AVATAR_FALLBACK_SRC = "/priyaa.jpg";
+// True transparent PNG (alpha channel present) — no blend hack needed.
+// Drop-in replacement art also goes here; keep it a PNG.
+const AVATAR_FULL_SRC     = "/Assistant.png";
+const AVATAR_FALLBACK_SRC = "/priya-full.png";
 
 const LANGUAGES = [
   { key: "auto",      label: "Auto" },
@@ -452,10 +450,6 @@ const S = {
     objectFit: "contain", objectPosition: "bottom center",
     display: "block", position: "relative", zIndex: 2,
     filter: "drop-shadow(0 40px 60px rgba(0,0,0,0.55))",
-    // JPG has no alpha — the flattened white bg would otherwise show
-    // as a rectangle. Multiply blend against the dark red backdrop
-    // makes white pixels invisible while the character stays.
-    mixBlendMode: "multiply",
   },
 
   // Blink bar — approximate horizontal band across upper-face area

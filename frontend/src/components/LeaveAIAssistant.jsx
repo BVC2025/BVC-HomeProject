@@ -199,13 +199,13 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
   const mediaStreamRef   = useRef(null);
   const audioChunksRef   = useRef([]);
 
-  // Avatar name + image. `/priya.png` should be a square (256x256+)
+  // Avatar name + image. `/Assistant.png` is the transparent-PNG
   // portrait dropped into frontend/public/. If it's missing the avatar
   // gracefully falls back to a gradient circle with the initial 'P'.
   // Named after the default Sarvam voice for consistency.
   const AGENT_NAME  = "Priya";
   const AGENT_ROLE  = "Leave Assistant";
-  const AVATAR_SRC  = "/priyaa.jpg";
+  const AVATAR_SRC  = "/Assistant.png";
   const AVATAR_INITIAL = "P";
 
   // Pulse the avatar while Sarvam TTS is actively speaking.
