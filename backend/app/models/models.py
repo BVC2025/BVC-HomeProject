@@ -1869,16 +1869,14 @@ class AnnouncementRead(Base):
     views the announcement in their portal. Powers the admin's
     "45 of 100 read" receipt view. Idempotent — inserting the same
     (announcement_id, employee_id) pair is a no-op via the unique key.
+
+    Deliberately NO `mysql_charset` override — the FK targets employee.ID
+    and announcement.ID which may be utf8mb3-collated on older schemas,
+    and mixing charsets across a FK is what triggered a 3780 on server.
+    Letting the table inherit the DB's default charset avoids that.
     """
 
     __tablename__ = "announcement_read"
-
-    __table_args__ = (
-        # Prevents duplicate reads via a natural composite unique key.
-        # MySQL wants an explicit constraint name here — anything unique
-        # inside the schema is fine.
-        {"mysql_charset": "utf8mb4"},
-    )
 
     ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
 
