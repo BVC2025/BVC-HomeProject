@@ -1794,88 +1794,45 @@ const NAV_TOP = [
 // removed and no route changed — just the grouping / order.
 // ---------------------------------------------------------------------
 const NAV_GROUPS = [
-
-  // ─── HR — split from one 13-item block into 5 focused groups ───
-
   {
-    key: "hr-people",
-    label: "People",
+    key: "hr",
+    label: "HR Modules",
     items: [
-      { to: "/employees",         icon: <SidebarIcon name="employees" />, label: "Employees" },
-      { to: "/onboarding",        icon: <SidebarIcon name="employees" />, label: "Onboarding" },
-      { to: "/recruitment",       icon: <SidebarIcon name="recruitment" />, label: "Recruitment" },
-      // Deepthi chat-history now lives inside /recruitment as a
-      // ChatGPT-style side panel — no standalone entry.
-    ],
+      { to: "/employees", icon: <SidebarIcon name="employees" />, label: "Employees" },
+      { to: "/attendance", icon: <SidebarIcon name="attendance" />, label: "Attendance" },
+      { to: "/biometric-import", icon: <SidebarIcon name="attendance" />, label: "Biometric Import (USB)" },
+      { to: "/shifts", icon: <SidebarIcon name="attendance" />, label: "Shift Management" },
+      { to: "/leave-management", icon: <SidebarIcon name="leaves" />, label: "Leave Management" },
+      { to: "/payroll", icon: <SidebarIcon name="payroll" />, label: "Payroll" },
+      { to: "/payroll-records", icon: <SidebarIcon name="payroll" />, label: "Payroll Records" },
+      { to: "/star-performance", icon: <SidebarIcon name="star" />, label: "Star Performance" },
+      { to: "/allowances", icon: <SidebarIcon name="allowances" />, label: "Allowances" },
+      { to: "/recruitment", icon: <SidebarIcon name="recruitment" />, label: "Recruitment" },
+      // Chat history moved INTO the New Requisition page as a
+      // ChatGPT-style side panel; no separate sidebar link needed.
+      { to: "/onboarding", icon: <SidebarIcon name="employees" />, label: "Onboarding" },
+      { to: "/hr-automation", icon: <SidebarIcon name="approvals" />, label: "HR Automation" },
+      { to: "/monthly-reports", icon: <SidebarIcon name="payroll" />, label: "Monthly Reports" },
+      // { to: "/workforce-analytics", icon: <SidebarIcon name="star"   />, label: "Workforce Analytics" }, // temporarily hidden per request
+      { to: "/help-desk", icon: <SidebarIcon name="helpdesk" />, label: "Help Desk" },
+    ]
   },
   {
-    key: "hr-time",
-    label: "Time & Attendance",
+    key: "admin",
+    label: "Admin Modules",
     items: [
-      { to: "/attendance",        icon: <SidebarIcon name="attendance" />, label: "Attendance" },
-      { to: "/biometric-import",  icon: <SidebarIcon name="attendance" />, label: "Biometric Import (USB)" },
-      { to: "/shifts",            icon: <SidebarIcon name="attendance" />, label: "Shift Management" },
-      { to: "/leave-management",  icon: <SidebarIcon name="leaves" />, label: "Leave Management" },
-      { to: "/holidays",          icon: <SidebarIcon name="holidays" />, label: "Holiday Calendar" },
-      { to: "/geofence",          icon: <SidebarIcon name="geofence" />, label: "Geofence Settings" },
-    ],
-  },
-  {
-    key: "hr-payroll",
-    label: "Payroll & Allowances",
-    items: [
-      { to: "/payroll",           icon: <SidebarIcon name="payroll" />, label: "Payroll" },
-      { to: "/payroll-records",   icon: <SidebarIcon name="payroll" />, label: "Payroll Records" },
-      { to: "/allowances",        icon: <SidebarIcon name="allowances" />, label: "Allowances" },
-    ],
-  },
-  {
-    key: "hr-performance",
-    label: "Performance",
-    items: [
-      { to: "/star-performance",  icon: <SidebarIcon name="star" />, label: "Star Performance" },
-      // Workforce Analytics temporarily hidden per prior request
-    ],
-  },
-  {
-    key: "hr-ops",
-    label: "HR Operations",
-    items: [
-      { to: "/hr-automation",     icon: <SidebarIcon name="approvals" />, label: "HR Automation" },
-      { to: "/monthly-reports",   icon: <SidebarIcon name="payroll" />, label: "Monthly Reports" },
-      { to: "/help-desk",         icon: <SidebarIcon name="helpdesk" />, label: "Help Desk" },
-    ],
-  },
-
-  // ─── Admin — split from one big block into 3 groups ───
-
-  {
-    key: "admin-access",
-    label: "Access & Structure",
-    items: [
-      { to: "/rbac",              icon: <SidebarIcon name="rbac" />, label: "RBAC" },
-      { to: "/org-roles",         icon: <SidebarIcon name="org-roles" />, label: "Role Management" },
-      { to: "/departments",       icon: <SidebarIcon name="departments" />, label: "Departments" },
-      { to: "/designations",      icon: <SidebarIcon name="designations" />, label: "Designations" },
-      { to: "/branches",          icon: <SidebarIcon name="branches" />, label: "Branches / Locations" },
-    ],
-  },
-  {
-    key: "admin-comms",
-    label: "Communications",
-    items: [
-      { to: "/memos",             icon: <SidebarIcon name="memos" />, label: "Memos" },
-      { to: "/announcements",     icon: <SidebarIcon name="memos" />, label: "Announcements" },
-      { to: "/leave-chat-history", icon: <SidebarIcon name="memos" />, label: "Leave Chat History" },
-    ],
-  },
-  {
-    key: "admin-approvals",
-    label: "Approvals & Automation",
-    items: [
-      { to: "/approvals",              icon: <SidebarIcon name="approvals" />, label: "Approval Center" },
-      { to: "/attendance-penalties",   icon: <SidebarIcon name="approvals" />, label: "Attendance Penalties" },
-    ],
+      { to: "/rbac", icon: <SidebarIcon name="rbac" />, label: "RBAC" },
+      { to: "/memos", icon: <SidebarIcon name="memos" />, label: "Memos" },
+      { to: "/announcements", icon: <SidebarIcon name="memos" />, label: "Announcements" },
+      { to: "/approvals", icon: <SidebarIcon name="approvals" />, label: "Approval Center" },
+      // { to: "/roles",      icon: <SidebarIcon name="roles"       />, label: "Roles & Permissions" }, // permanently hidden — RBAC page replaces it
+      { to: "/attendance-penalties", icon: <SidebarIcon name="approvals" />, label: "Attendance Penalties" },
+      { to: "/leave-chat-history", icon: <SidebarIcon name="memos" />, label: "Chat History" },
+      { to: "/departments", icon: <SidebarIcon name="departments" />, label: "Department Management" },
+      { to: "/designations", icon: <SidebarIcon name="designations" />, label: "Designation Management" },
+      { to: "/branches", icon: <SidebarIcon name="branches" />, label: "Branches / Locations" },
+      { to: "/org-roles", icon: <SidebarIcon name="org-roles" />, label: "Role Management" },
+    ]
   },
   {
     key: "crm",
@@ -1885,8 +1842,6 @@ const NAV_GROUPS = [
       { to: "/quotations", icon: <SidebarIcon name="quotations" />, label: "Quotations" },
       { to: "/sales-orders", icon: <SidebarIcon name="salesorders" />, label: "Sales Orders" },
       { to: "/calendar", icon: <SidebarIcon name="calendar" />, label: "Calendar" }
-
-
     ]
   },
   {
@@ -1920,14 +1875,6 @@ const NAV_GROUPS = [
       { to: "/ai-platform/settings", icon: <SidebarIcon name="ai-settings" />, label: "AI Settings" }
     ]
   },
-  // {
-  //   key: "organization",
-  //   label: "Org Structure",
-  //   items: [
-  //     { to: "/departments", icon: <SidebarIcon name="departments" />, label: "Department Management" },
-  //     { to: "/org-roles", icon: <SidebarIcon name="org-roles" />, label: "Role Management" }
-  //   ]
-  // },
   {
     key: "project-mgmt",
     label: "Project Management",
@@ -1939,34 +1886,15 @@ const NAV_GROUPS = [
       { to: "/project-quotations", icon: <SidebarIcon name="proj-quotation" />, label: "Quotation Templates" },
     ]
   },
-  // Manufacturing section — removed from the codebase entirely (backend
-  // models/routes and these frontend pages were all deleted per an
-  // explicit product decision), not merely hidden. An older branch still
-  // carried this block commented-out on the assumption the pages were
-  // only hidden and could be restored by uncommenting; that assumption
-  // no longer holds, so this stays a historical note only — the routes
-  // below (/machines, /work-centers, /production, /quality) do not exist.
-  // {
-  //   key: "manufacturing",
-  //   label: "Manufacturing",
-  //   items: [
-  //     { to: "/machines", icon: <SidebarIcon name="machines" />, label: "Machines" },
-  //     { to: "/work-centers", icon: <SidebarIcon name="workcenters" />, label: "Work Centers" },
-  //     { to: "/production", icon: <SidebarIcon name="production" />, label: "Production & BOM" },
-  //     { to: "/quality", icon: <SidebarIcon name="quality" />, label: "Quality Management" }
-  //   ]
-  // },
   {
     key: "purchase",
     label: "Purchase & Inventory",
     items: [
-
       { to: "/inventory", icon: <SidebarIcon name="inventory" />, label: "Inventory" },
       { to: "/supplier-management", icon: <SidebarIcon name="suppliers" />, label: "Supplier Management" },
       { to: "/inventory-categories", icon: <SidebarIcon name="inventory" />, label: "Inv. Categories" },
       { to: "/product-master", icon: <SidebarIcon name="inventory" />, label: "Product Master" },
       { to: "/inventory-items", icon: <SidebarIcon name="inventory" />, label: "Inventory Items" },
-
     ]
   },
   {
@@ -1976,34 +1904,22 @@ const NAV_GROUPS = [
       { to: "/reports", icon: <SidebarIcon name="reports" />, label: "Reports" }
     ]
   },
-  // ─── System — split into 3 tighter groups ───
-
   {
-    key: "sys-org",
-    label: "Organization",
+    key: "system",
+    label: "System",
     items: [
-      { to: "/company-profile",       icon: <SidebarIcon name="company" />, label: "Company Profile" },
-      { to: "/payment-milestones",    icon: <SidebarIcon name="payment-milestones" />, label: "Payment Milestones" },
-    ],
-  },
-  {
-    key: "sys-channels",
-    label: "Channels & Templates",
-    items: [
-      { to: "/email-config",          icon: <SidebarIcon name="settings" />, label: "Email Config" },
-      { to: "/email-templates",       icon: <SidebarIcon name="mail" />, label: "Email Templates" },
-      { to: "/email-send-rule",       icon: <SidebarIcon name="mail" />, label: "Email Send Rules" },
-      { to: "/whatsapp-config",       icon: <SidebarIcon name="whatsapp-config" />, label: "WhatsApp Configuration" },
+      { to: "/company-profile", icon: <SidebarIcon name="company" />, label: "Company Profile" },
+      { to: "/email-config", icon: <SidebarIcon name="settings" />, label: "Email Config" },
+      { to: "/whatsapp-config", icon: <SidebarIcon name="whatsapp-config" />, label: "WhatsApp Configuration" },
       { to: "/whatsapp-module-settings", icon: <SidebarIcon name="whatsapp-config" />, label: "WhatsApp Module Settings" },
-    ],
-  },
-  {
-    key: "sys-preferences",
-    label: "Preferences",
-    items: [
-      { to: "/settings",              icon: <SidebarIcon name="settings" />, label: "Settings" },
-    ],
-  },
+      { to: "/email-templates", icon: <SidebarIcon name="mail" />, label: "Email Templates" },
+      { to: "/email-send-rule", icon: <SidebarIcon name="mail" />, label: "Email Send Rule" },
+      { to: "/payment-milestones", icon: <SidebarIcon name="payment-milestones" />, label: "Payment Milestones" },
+      { to: "/holidays", icon: <SidebarIcon name="holidays" />, label: "Holiday Calendar" },
+      { to: "/geofence", icon: <SidebarIcon name="geofence" />, label: "Geofence Settings" },
+      { to: "/settings", icon: <SidebarIcon name="settings" />, label: "Settings" }
+    ]
+  }
 ];
 
 
@@ -2042,7 +1958,10 @@ function SidebarNav({ onItemClick }) {
       // Default: open the People group on a fresh session so the
       // most-common HR workflows (Employees, Onboarding, Recruitment)
       // are visible without the user opening anything.
-      init["hr-people"] = true;
+      // HR Modules opens by default on fresh sessions — matches the
+      // pre-Zoho-restructure behaviour and lands users where the most
+      // common workflows live.
+      init["hr"] = true;
     }
 
     return init;
