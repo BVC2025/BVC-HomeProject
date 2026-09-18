@@ -26,7 +26,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
    the smaller /priyaa.jpg if the full-size one is missing.
 */
 
-const AVATAR_FULL_SRC     = "/priya-full.png";      // recommend 800×1200
+// JPG doesn't hold alpha, so the white background from the source PNG
+// got flattened when the user saved it. mix-blend on the img element
+// (below) hides those white pixels against the dark backdrop. For a
+// perfect matte, re-save as .png with alpha and point this path back.
+const AVATAR_FULL_SRC     = "/priya-full.jpg";
 const AVATAR_FALLBACK_SRC = "/priyaa.jpg";
 
 const LANGUAGES = [
@@ -448,10 +452,9 @@ const S = {
     objectFit: "contain", objectPosition: "bottom center",
     display: "block", position: "relative", zIndex: 2,
     filter: "drop-shadow(0 40px 60px rgba(0,0,0,0.55))",
-    // Hides the white background of a non-transparent PNG/JPG against
-    // the dark red backdrop — every white pixel picks up the backdrop
-    // colour, character pixels stay themselves. Not a perfect matte
-    // but reads as no-background against the deep red gradient.
+    // JPG has no alpha — the flattened white bg would otherwise show
+    // as a rectangle. Multiply blend against the dark red backdrop
+    // makes white pixels invisible while the character stays.
     mixBlendMode: "multiply",
   },
 
