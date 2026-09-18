@@ -1831,7 +1831,10 @@ const NAV_GROUPS = [
       { to: "/departments", icon: <SidebarIcon name="departments" />, label: "Department Management" },
       { to: "/designations", icon: <SidebarIcon name="designations" />, label: "Designation Management" },
       { to: "/branches", icon: <SidebarIcon name="branches" />, label: "Branches / Locations" },
-      { to: "/org-roles", icon: <SidebarIcon name="org-roles" />, label: "Role Management" },
+      // Role Management hidden per user request (2026-09-18) —
+      // RBAC page already covers role+permission editing. Restore
+      // this line if you need the standalone role list back.
+      // { to: "/org-roles", icon: <SidebarIcon name="org-roles" />, label: "Role Management" },
     ]
   },
   {
