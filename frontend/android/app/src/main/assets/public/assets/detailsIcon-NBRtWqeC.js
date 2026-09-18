@@ -1,1 +1,0 @@
-var e=`/assets/detailsIcon-DR1P2-If.webp`;export{e as t};

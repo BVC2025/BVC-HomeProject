@@ -1,1 +1,0 @@
-var e=`/assets/projectIcon-QbedDja1.webp`;export{e as t};

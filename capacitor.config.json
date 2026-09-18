@@ -1,0 +1,5 @@
+{
+  "appId": "com.bvc.crm24",
+  "appName": "BVC CRM24",
+  "webDir": "frontend/dist"
+}
