@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 
 from app.database.database import get_db
 from app.auth.auth_bearer import require, get_current_user
-from app.models.models import Announcement, Employee, Notification
+from app.models.models import Announcement, AnnouncementRead, Employee, Notification
 
 
 router = APIRouter(prefix="/announcements", tags=["Announcements"])
@@ -345,3 +345,143 @@ def delete_announcement(
     db.commit()
 
     return {"message": "Announcement removed"}
+
+
+# ---------------------------------------------------------------------
+# Read receipts — who saw which announcement.
+# ---------------------------------------------------------------------
+# Employee's Announcements panel calls /mark-read the moment they open
+# an announcement (or scroll past it in their feed). Idempotent — the
+# unique (announcement_id, employee_id) constraint means a second call
+# is a no-op. Admin's Announcements page calls /receipts to see how
+# many people have actually read it.
+
+@router.post("/{ann_id}/mark-read")
+def mark_announcement_read(
+    ann_id: int,
+    db:   Session = Depends(get_db),
+    user: dict    = Depends(get_current_user),
+):
+    """Record that the current employee has read this announcement.
+    Called by the ESS Announcements panel on view/expand."""
+    emp_id = user.get("employee_id") or user.get("sub")
+    if not emp_id:
+        # Not an employee session (e.g. Root) — nothing to record.
+        return {"recorded": False, "reason": "no employee context"}
+
+    if not db.query(Announcement).filter(
+        Announcement.ID == ann_id,
+        Announcement.IS_ACTIVE == 1,
+    ).first():
+        raise HTTPException(404, "Announcement not found")
+
+    # Insert-or-ignore. SQLAlchemy has no cross-DB "on duplicate ignore",
+    # so we probe first — cheap because both columns are indexed.
+    exists = db.query(AnnouncementRead).filter(
+        AnnouncementRead.ANNOUNCEMENT_ID == ann_id,
+        AnnouncementRead.EMPLOYEE_ID     == emp_id,
+    ).first()
+    if exists:
+        return {"recorded": True, "already": True, "at": exists.READ_AT.isoformat()}
+
+    row = AnnouncementRead(ANNOUNCEMENT_ID=ann_id, EMPLOYEE_ID=emp_id)
+    db.add(row)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        # Race: another tab of the same user just recorded it. Fine.
+        return {"recorded": True, "raced": True}
+    return {"recorded": True, "at": row.READ_AT.isoformat()}
+
+
+@router.get(
+    "/{ann_id}/receipts",
+    dependencies=[Depends(require("announcement.manage"))],
+)
+def get_receipts(ann_id: int, db: Session = Depends(get_db)):
+    """Admin view — who has read this announcement + total-eligible
+    count so the UI can show "45 of 100 read"."""
+    ann = db.query(Announcement).filter(Announcement.ID == ann_id).first()
+    if not ann:
+        raise HTTPException(404, "Announcement not found")
+
+    # Everyone in the same vendor + ACTIVE = eligible reader count.
+    total_eligible = (
+        db.query(Employee)
+        .filter(
+            Employee.VENDOR_ID == ann.VENDOR_ID,
+            (Employee.STATUS == None) | (Employee.STATUS == "ACTIVE"),  # noqa: E711
+        )
+        .count()
+    )
+
+    reads = (
+        db.query(AnnouncementRead, Employee)
+        .join(Employee, Employee.ID == AnnouncementRead.EMPLOYEE_ID)
+        .filter(AnnouncementRead.ANNOUNCEMENT_ID == ann_id)
+        .order_by(AnnouncementRead.READ_AT.desc())
+        .all()
+    )
+
+    return {
+        "announcement_id":  ann_id,
+        "title":            ann.TITLE,
+        "read_count":       len(reads),
+        "total_eligible":   total_eligible,
+        "readers": [
+            {
+                "employee_id":   emp.ID,
+                "employee_code": emp.EMPLOYEE_CODE,
+                "name":          emp.NAME,
+                "read_at":       ar.READ_AT.isoformat(),
+            }
+            for ar, emp in reads
+        ],
+    }
+
+
+@router.get(
+    "/receipts/summary",
+    dependencies=[Depends(require("announcement.manage"))],
+)
+def receipts_summary(db: Session = Depends(get_db)):
+    """One-line read-count per active announcement for the admin list
+    page — 'HR townhall — 12/40', 'Diwali holiday notice — 38/40'."""
+    from sqlalchemy import func
+    rows = (
+        db.query(
+            Announcement.ID,
+            Announcement.TITLE,
+            Announcement.VENDOR_ID,
+            func.count(AnnouncementRead.ID).label("read_count"),
+        )
+        .outerjoin(AnnouncementRead, AnnouncementRead.ANNOUNCEMENT_ID == Announcement.ID)
+        .filter(Announcement.IS_ACTIVE == 1)
+        .group_by(Announcement.ID, Announcement.TITLE, Announcement.VENDOR_ID)
+        .order_by(Announcement.CREATED_AT.desc())
+        .all()
+    )
+    if not rows:
+        return []
+
+    # Compute active-employee counts once per vendor for the "of N" side.
+    vendor_ids = {r.VENDOR_ID for r in rows}
+    from app.models.models import Employee as _E
+    from sqlalchemy import func as _f
+    eligible = dict(
+        db.query(_E.VENDOR_ID, _f.count(_E.ID))
+          .filter(_E.VENDOR_ID.in_(vendor_ids))
+          .filter((_E.STATUS == None) | (_E.STATUS == "ACTIVE"))  # noqa: E711
+          .group_by(_E.VENDOR_ID)
+          .all()
+    )
+    return [
+        {
+            "announcement_id":  r.ID,
+            "title":            r.TITLE,
+            "read_count":       int(r.read_count or 0),
+            "total_eligible":   int(eligible.get(r.VENDOR_ID, 0)),
+        }
+        for r in rows
+    ]

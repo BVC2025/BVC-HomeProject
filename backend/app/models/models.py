@@ -1864,6 +1864,41 @@ class Announcement(Base):
     UPDATED_AT = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
+class AnnouncementRead(Base):
+    """One row per (announcement, employee) when the employee first
+    views the announcement in their portal. Powers the admin's
+    "45 of 100 read" receipt view. Idempotent — inserting the same
+    (announcement_id, employee_id) pair is a no-op via the unique key.
+    """
+
+    __tablename__ = "announcement_read"
+
+    __table_args__ = (
+        # Prevents duplicate reads via a natural composite unique key.
+        # MySQL wants an explicit constraint name here — anything unique
+        # inside the schema is fine.
+        {"mysql_charset": "utf8mb4"},
+    )
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    ANNOUNCEMENT_ID = Column(
+        Integer,
+        ForeignKey("announcement.ID", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    EMPLOYEE_ID = Column(
+        String(36),
+        ForeignKey("employee.ID", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    READ_AT = Column(DateTime, default=datetime.now, nullable=False)
+
+
 # AILeaveConversation moved to app/models/leave_models.py (re-exported below).
 
 
