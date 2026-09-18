@@ -10,8 +10,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
    • Character fills most of the viewport, feels like you're standing
      in front of a person, not a bot chip.
    • Idle state — subtle breathing (scale + Y-drift, 4s loop).
-   • Blink overlay — thin dark bar animates across the eye zone every
-     ~4s. Works on any static image; not perfect but reads as "alive".
    • Listening state — green aura + soft waveform bars below the
      character while the user speaks.
    • Thinking state — amber aura + three dots ellipsis.
@@ -172,11 +170,6 @@ export default function LeaveAvatarStage({
             style={S.charImg}
           />
 
-          {/* Eye-blink overlay — thin horizontal bar animated across
-              the eye zone. Not perfect on a 3D render but reads as
-              alive-ish. */}
-          <div className="priya-blink" style={S.blinkOverlay} />
-
           {/* Mouth-region shimmer while speaking. */}
           {stateKind === "speaking" && (
             <div className="priya-mouth-shimmer" style={S.mouthShimmer} />
@@ -327,12 +320,6 @@ function StageStyles() {
         0%, 100% { transform: scaleY(0.35); }
         50%      { transform: scaleY(1); }
       }
-      @keyframes priyaBlink {
-        0%, 92%, 100% { transform: translateY(-3px) scaleY(0); opacity: 0; }
-        94%           { transform: translateY(0)   scaleY(1); opacity: 0.85; }
-        96%           { transform: translateY(0)   scaleY(1); opacity: 0.85; }
-        98%           { transform: translateY(3px) scaleY(0); opacity: 0; }
-      }
       @keyframes priyaThinkDot {
         0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
         40%           { opacity: 1;   transform: translateY(-4px); }
@@ -346,7 +333,6 @@ function StageStyles() {
       .priya-breathe.listening { animation: priyaListenLean 2.2s ease-in-out infinite; }
       .priya-breathe.thinking  { animation: priyaBreathe 2s ease-in-out infinite; }
       .priya-breathe.speaking  { animation: priyaBounceSpeak 0.6s ease-in-out infinite; transform-origin: bottom center; }
-      .priya-blink   { animation: priyaBlink 4.2s ease-in-out infinite; }
       .priya-wave-bar {
         display: inline-block; width: 4px; height: 32px;
         background: linear-gradient(180deg, #dc2626, #7a1022);
@@ -452,19 +438,6 @@ const S = {
     filter: "drop-shadow(0 40px 60px rgba(0,0,0,0.55))",
   },
 
-  // Blink bar — approximate horizontal band across upper-face area
-  blinkOverlay: {
-    position: "absolute",
-    top: "22%",
-    left: "26%", right: "26%",
-    height: 8,
-    background: "linear-gradient(180deg, transparent, rgba(0,0,0,0.6), transparent)",
-    borderRadius: 4,
-    transformOrigin: "center",
-    pointerEvents: "none",
-    zIndex: 3,
-    mixBlendMode: "multiply",
-  },
   mouthShimmer: {
     position: "absolute",
     top: "58%", left: "42%", right: "42%",
