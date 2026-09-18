@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import API from "../services/api";
+import LeaveAvatarStage from "./LeaveAvatarStage";
 
 /* Voice-first leave assistant.
 
@@ -770,188 +771,31 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
         </>
       )}
 
-      <div style={S.panel} role="dialog" aria-modal="true">
-        <div style={S.card}>
-          <div style={S.header}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-              <AvatarFace
-                src={AVATAR_SRC}
-                initial={AVATAR_INITIAL}
-                size={44}
-                speaking={speaking}
-                bordered
-              />
-              <div style={{ minWidth: 0 }}>
-                <div style={S.title}>{AGENT_NAME} · {AGENT_ROLE}</div>
-                <div style={S.subtitle}>
-                  {speaking ? "Speaking…" : "Talk to me — I can apply for leave, check your balance, review tasks."}
-                </div>
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={S.langBar}>
-                {LANGUAGES.map((l) => (
-                  <button
-                    key={l.key}
-                    type="button"
-                    style={S.langPill(language === l.key)}
-                    onClick={() => setLanguage(l.key)}
-                  >
-                    {l.label}
-                  </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                style={S.muteBtn}
-                onClick={() => setMuted((m) => !m)}
-                aria-label={muted ? "Unmute voice" : "Mute voice"}
-                title={muted ? "Voice muted — click to unmute" : "Mute voice"}
-              >
-                {muted ? (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none" />
-                    <line x1="23" y1="9" x2="17" y2="15" />
-                    <line x1="17" y1="9" x2="23" y2="15" />
-                  </svg>
-                ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none" />
-                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-                  </svg>
-                )}
-              </button>
-              <button
-                type="button"
-                style={S.closeBtn}
-                onClick={() => setOpen(false)}
-                aria-label="Close"
-                title="Close"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-
-          <div style={S.body}>
-            {!micSupported && (
-              <div style={S.errorBanner}>
-                No microphone available in this browser — you can still type below.
-                Replies will still be spoken aloud (Sarvam female voice).
-              </div>
-            )}
-
-            <div style={S.log}>
-              {messages.map((m, i) => (
-                <div key={i} style={S.row(m.role === "user")}>
-                  <div style={S.bubble(m.role === "user")}>{m.content}</div>
-                </div>
-              ))}
-              {thinking && (
-                <div style={S.thinkingRow}>Thinking…</div>
-              )}
-              <div ref={chatEndRef} />
-            </div>
-
-            {pendingDraft && (
-              <div style={S.draftPanel}>
-                <div style={S.draftTitle}>Confirm before sending</div>
-                <div style={S.draftField}>
-                  <div>Type:</div>       <div>{pendingDraft.leave_type}</div>
-                  <div>From:</div>       <div>{pendingDraft.start_date}</div>
-                  <div>To:</div>         <div>{pendingDraft.end_date}</div>
-                  <div>Days:</div>       <div>{pendingDraft.days ?? "—"}{pendingDraft.half_day ? " (half day)" : ""}</div>
-                  <div>Reason:</div>     <div>{pendingDraft.reason || "—"}</div>
-                  {(pendingDraft.task_commitments || []).length > 0 && (
-                    <>
-                      <div>Task commits:</div>
-                      <div>
-                        {pendingDraft.task_commitments.map((tc, i) => (
-                          <div key={i}>• {tc.title} → {tc.promised_completion_date}</div>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-                <div style={S.draftActions}>
-                  <button type="button" style={S.cancelBtn} onClick={cancelDraft} disabled={submitting}>
-                    Cancel
-                  </button>
-                  <button type="button" style={S.confirmBtn} onClick={confirmSubmit} disabled={submitting}>
-                    {submitting ? "Sending…" : "Confirm & Send"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {error && <div style={S.errorBanner}>{error}</div>}
-
-            <form style={S.inputRow} onSubmit={handleTextSubmit}>
-              <button
-                type="button"
-                style={S.micBtn(listening)}
-                onClick={listening ? stopListening : startListening}
-                title={listening ? "Stop listening" : "Start listening"}
-                disabled={!micSupported}
-                aria-label="Toggle voice input"
-              >
-                {listening ? (
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <rect x="6" y="6" width="12" height="12" rx="2" />
-                  </svg>
-                ) : (
-                  <svg
-                    width="22"
-                    height="22"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor" stroke="none" />
-                    <path d="M5 11a7 7 0 0 0 14 0" />
-                    <line x1="12" y1="18" x2="12" y2="21" />
-                    <line x1="9" y1="21" x2="15" y2="21" />
-                  </svg>
-                )}
-              </button>
-              <input
-                style={S.input}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={
-                  listening
-                    ? "Listening…"
-                    : "Type your message or press the mic to speak"
-                }
-                disabled={thinking || submitting}
-              />
-              <button
-                type="submit"
-                style={S.sendBtn}
-                disabled={!input.trim() || thinking || submitting}
-              >
-                Send
-              </button>
-            </form>
-
-            <div style={S.footNote}>
-              Nothing is submitted until you say <strong>Confirm &amp; Send</strong>.
-              For sensitive HR/admin data, I'll politely decline.
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
+      {open && (
+        <LeaveAvatarStage
+          messages={messages}
+          input={input}
+          listening={listening}
+          thinking={thinking}
+          speaking={speaking}
+          submitting={submitting}
+          muted={muted}
+          pendingDraft={pendingDraft}
+          error={error}
+          language={language}
+          agentName={AGENT_NAME}
+          micSupported={micSupported}
+          onClose={() => setOpen(false)}
+          onChangeInput={setInput}
+          onSendText={(t) => { setInput(""); sendMessage(t); }}
+          onStartListening={startListening}
+          onStopListening={stopListening}
+          onLangChange={setLanguage}
+          onToggleMute={() => setMuted((m) => !m)}
+          onConfirmDraft={confirmSubmit}
+          onCancelDraft={cancelDraft}
+        />
+      )}
+        </>
   );
 }
