@@ -119,26 +119,39 @@ export default function LeaveAvatarStage({
           <span style={S.state}>· {stateKind === "idle" ? "ready" : stateKind}</span>
         </div>
 
-        <div style={S.langBar}>
-          {LANGUAGES.map((l) => (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+          <div style={S.langBar}>
+            {LANGUAGES.map((l) => (
+              <button
+                key={l.key}
+                type="button"
+                style={S.langPill(language === l.key)}
+                onClick={() => onLangChange(l.key)}
+                title={
+                  l.key === "auto" ? "Reply in whatever language you type in"
+                  : l.key === "ta" ? "Force reply in Tamil script"
+                  : l.key === "thanglish" ? "Force reply in Thanglish (Tamil in Latin script)"
+                  : "Force reply in English"
+                }
+              >
+                {l.label}
+              </button>
+            ))}
             <button
-              key={l.key}
               type="button"
-              style={S.langPill(language === l.key)}
-              onClick={() => onLangChange(l.key)}
+              style={S.iconBtn}
+              onClick={onToggleMute}
+              title={muted ? "Unmute" : "Mute"}
+              aria-label={muted ? "Unmute" : "Mute"}
             >
-              {l.label}
+              {muted ? "🔇" : "🔊"}
             </button>
-          ))}
-          <button
-            type="button"
-            style={S.iconBtn}
-            onClick={onToggleMute}
-            title={muted ? "Unmute" : "Mute"}
-            aria-label={muted ? "Unmute" : "Mute"}
-          >
-            {muted ? "🔇" : "🔊"}
-          </button>
+          </div>
+          {language === "auto" && (
+            <div style={S.langHint}>
+              For Tamil replies, tap <strong style={{ color: "#fff" }}>தமிழ்</strong>
+            </div>
+          )}
         </div>
       </div>
 
@@ -292,9 +305,16 @@ function StageStyles() {
         100% { transform: translateY(0)     scale(1); }
       }
       @keyframes priyaBounceSpeak {
-        0%   { transform: translateY(0);    filter: brightness(1); }
-        50%  { transform: translateY(-8px); filter: brightness(1.06); }
-        100% { transform: translateY(0);    filter: brightness(1); }
+        0%   { transform: translateY(0)    rotate(0deg);   filter: brightness(1); }
+        20%  { transform: translateY(-4px) rotate(-1.5deg); filter: brightness(1.05); }
+        40%  { transform: translateY(-8px) rotate(0deg);    filter: brightness(1.08); }
+        60%  { transform: translateY(-6px) rotate(1.2deg);  filter: brightness(1.05); }
+        80%  { transform: translateY(-2px) rotate(0deg);    filter: brightness(1.02); }
+        100% { transform: translateY(0)    rotate(0deg);    filter: brightness(1); }
+      }
+      @keyframes priyaListenLean {
+        0%, 100% { transform: translateY(0)    rotate(0deg); }
+        50%      { transform: translateY(-2px) rotate(-0.8deg); }
       }
       @keyframes priyaAuraPulse {
         0%   { opacity: 0.55; transform: translate(-50%, -50%) scale(0.98); }
@@ -321,7 +341,9 @@ function StageStyles() {
       }
 
       .priya-breathe { animation: priyaBreathe 4s ease-in-out infinite; position: relative; }
-      .priya-breathe.speaking { animation: priyaBounceSpeak 0.55s ease-in-out infinite; }
+      .priya-breathe.listening { animation: priyaListenLean 2.2s ease-in-out infinite; }
+      .priya-breathe.thinking  { animation: priyaBreathe 2s ease-in-out infinite; }
+      .priya-breathe.speaking  { animation: priyaBounceSpeak 0.6s ease-in-out infinite; transform-origin: bottom center; }
       .priya-blink   { animation: priyaBlink 4.2s ease-in-out infinite; }
       .priya-wave-bar {
         display: inline-block; width: 4px; height: 32px;
@@ -380,6 +402,12 @@ const S = {
   name: { fontWeight: 800, letterSpacing: 0.3 },
   state: { fontSize: 12, opacity: 0.7 },
   langBar: { display: "flex", gap: 6, alignItems: "center" },
+  langHint: {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.75)",
+    padding: "3px 10px 0",
+    letterSpacing: 0.2,
+  },
   langPill: (active) => ({
     padding: "5px 12px", borderRadius: 999, fontSize: 12, fontWeight: 700,
     background: active ? "#fff" : "rgba(255,255,255,0.12)",
@@ -420,6 +448,11 @@ const S = {
     objectFit: "contain", objectPosition: "bottom center",
     display: "block", position: "relative", zIndex: 2,
     filter: "drop-shadow(0 40px 60px rgba(0,0,0,0.55))",
+    // Hides the white background of a non-transparent PNG/JPG against
+    // the dark red backdrop — every white pixel picks up the backdrop
+    // colour, character pixels stay themselves. Not a perfect matte
+    // but reads as no-background against the deep red gradient.
+    mixBlendMode: "multiply",
   },
 
   // Blink bar — approximate horizontal band across upper-face area
