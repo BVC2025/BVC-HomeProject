@@ -255,6 +255,33 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
     if (!open) stopSpeaking();
   }, [open]);
 
+  // Welcome speech — speak the initial greeting the FIRST time the
+  // stage opens in a browser session. Language follows the current
+  // pill: Tamil pill → Tamil greeting, English → English, Auto/
+  // Thanglish → warm Thanglish. Guarded by a ref so it never repeats
+  // even if the user closes + reopens; the message row is already in
+  // `messages` so a duplicate would feel weird.
+  const welcomeSaidRef = useRef(false);
+  useEffect(() => {
+    if (!open || welcomeSaidRef.current || muted) return;
+    // Small delay so <audio>.play() lands after the user's click
+    // (the click is the required user gesture for autoplay).
+    const t = setTimeout(() => {
+      const greeting =
+        language === "ta"
+          ? "வணக்கம், நான் ப்ரியா. உங்கள் லீவ் அசிஸ்டன்ட். எப்படி உதவலாம்?"
+          : language === "thanglish"
+          ? "Vanakkam, naan Priya. Ungala leave apply pandradhukum, questions kekurudhukum help pannuven."
+          : language === "en"
+          ? "Hi, I'm Priya, your leave assistant. Tell me what you need — apply for leave, check your balance, or ask about your tasks."
+          : "Hi, I'm Priya. Naan ungala leave assistant. Tell me what you need — Tamil, English, Thanglish anything works.";
+      speakViaSarvam(greeting, language === "ta" ? "ta" : language === "en" ? "en" : "auto");
+      welcomeSaidRef.current = true;
+    }, 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   // Scroll to bottom on new message.
   useEffect(() => {
     if (chatEndRef.current) {
