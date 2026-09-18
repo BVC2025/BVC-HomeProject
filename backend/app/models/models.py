@@ -1864,6 +1864,49 @@ class Announcement(Base):
     UPDATED_AT = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
+class AttendancePenaltyRule(Base):
+    """Admin-tunable rules for the daily attendance-penalty scanner.
+    One row per vendor; the scanner reads (or seeds defaults) before
+    each run so a rule change takes effect on the next 23:00 tick
+    without a code deploy.
+
+    Defaults mirror the historical hard-coded values so existing
+    behaviour is preserved for any vendor that hasn't customised them.
+    """
+
+    __tablename__ = "attendance_penalty_rule"
+
+    ID = Column(Integer, primary_key=True, autoincrement=True, index=True)
+
+    VENDOR_ID = Column(
+        Integer,
+        ForeignKey("vendor.ID", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,          # exactly one rule row per vendor
+        index=True,
+    )
+
+    # Late-arrival rule: how many "LATE" marks in a calendar month
+    # trigger the LOP row. Set to 0 to disable this rule entirely.
+    LATE_THRESHOLD_PER_MONTH  = Column(Integer, nullable=False, default=3)
+
+    # Permission-hours rule: hours allowed free before the LOP row
+    # kicks in. Set very high to effectively disable.
+    PERMISSION_FREE_HOURS_PER_MONTH = Column(
+        Numeric(5, 2), nullable=False, default=2.0
+    )
+
+    # Deduction depth per trigger — 0.5 = half-day LOP, 1.0 = full day.
+    LOP_DAYS_PER_TRIGGER      = Column(Numeric(3, 1), nullable=False, default=0.5)
+
+    # Global kill switch — flip to 0 to pause the entire scanner for
+    # this vendor without losing the tuned thresholds.
+    ENABLED                   = Column(Integer, nullable=False, default=1)
+
+    CREATED_AT = Column(DateTime, default=datetime.now, nullable=False)
+    UPDATED_AT = Column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
+
+
 class AnnouncementRead(Base):
     """One row per (announcement, employee) when the employee first
     views the announcement in their portal. Powers the admin's

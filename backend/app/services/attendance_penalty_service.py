@@ -46,13 +46,58 @@ from typing import Any, Dict, List, Optional, Tuple
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.models import Attendance, Employee, Notification
+from app.models.models import Attendance, AttendancePenaltyRule, Employee, Notification
 from app.models.leave_models import LeaveRequest
 
 
-LATE_THRESHOLD_PER_MONTH = 3
-PERMISSION_FREE_HOURS_PER_MONTH = 2.0
-LOP_DAYS_PER_TRIGGER = 0.5
+# Historical defaults — used when a vendor doesn't have a
+# per-vendor AttendancePenaltyRule row yet, so behaviour is
+# unchanged for anyone who hasn't customised.
+DEFAULT_LATE_THRESHOLD_PER_MONTH        = 3
+DEFAULT_PERMISSION_FREE_HOURS_PER_MONTH = 2.0
+DEFAULT_LOP_DAYS_PER_TRIGGER            = 0.5
+
+
+def get_or_create_penalty_rules(db: Session, vendor_id: int) -> AttendancePenaltyRule:
+    """Fetch this vendor's rule row, creating it with the historical
+    defaults on first access. Called by the scanner AND by the admin
+    GET endpoint, so both paths always see a real row."""
+    row = (
+        db.query(AttendancePenaltyRule)
+          .filter(AttendancePenaltyRule.VENDOR_ID == vendor_id)
+          .first()
+    )
+    if row:
+        return row
+    row = AttendancePenaltyRule(
+        VENDOR_ID                       = vendor_id,
+        LATE_THRESHOLD_PER_MONTH        = DEFAULT_LATE_THRESHOLD_PER_MONTH,
+        PERMISSION_FREE_HOURS_PER_MONTH = DEFAULT_PERMISSION_FREE_HOURS_PER_MONTH,
+        LOP_DAYS_PER_TRIGGER            = DEFAULT_LOP_DAYS_PER_TRIGGER,
+        ENABLED                         = 1,
+    )
+    db.add(row)
+    try:
+        db.commit()
+        db.refresh(row)
+    except Exception:
+        db.rollback()
+        # Race with another worker → re-fetch
+        row = (
+            db.query(AttendancePenaltyRule)
+              .filter(AttendancePenaltyRule.VENDOR_ID == vendor_id)
+              .first()
+        )
+    return row
+
+
+# Backwards-compat: keep the old module constants readable so any
+# other module still doing `from ...penalty_service import
+# LATE_THRESHOLD_PER_MONTH` gets the default. New scanner reads the
+# per-vendor row.
+LATE_THRESHOLD_PER_MONTH        = DEFAULT_LATE_THRESHOLD_PER_MONTH
+PERMISSION_FREE_HOURS_PER_MONTH = DEFAULT_PERMISSION_FREE_HOURS_PER_MONTH
+LOP_DAYS_PER_TRIGGER            = DEFAULT_LOP_DAYS_PER_TRIGGER
 
 _log = logging.getLogger("uvicorn")
 
@@ -135,6 +180,17 @@ def _apply_late_penalty(
     summary: ScanSummary,
 ) -> None:
 
+    # Per-vendor tunable rules — reads (or seeds) the DB row so an
+    # admin's config change takes effect on the very next tick.
+    rules = get_or_create_penalty_rules(db, emp.VENDOR_ID) if emp.VENDOR_ID else None
+    late_threshold = int(rules.LATE_THRESHOLD_PER_MONTH) if rules else DEFAULT_LATE_THRESHOLD_PER_MONTH
+    lop_days       = float(rules.LOP_DAYS_PER_TRIGGER) if rules else DEFAULT_LOP_DAYS_PER_TRIGGER
+    enabled        = bool(rules.ENABLED) if rules else True
+
+    # Kill-switch or threshold=0 → skip this employee entirely.
+    if not enabled or late_threshold <= 0:
+        return
+
     month_start, month_end = _month_bounds(today)
 
     late_count = (
@@ -148,7 +204,7 @@ def _apply_late_penalty(
         .scalar()
     ) or 0
 
-    if late_count < LATE_THRESHOLD_PER_MONTH:
+    if late_count < late_threshold:
         return
 
     key = build_late_key(today, emp.ID)
@@ -157,7 +213,7 @@ def _apply_late_penalty(
         summary.late_skipped_existing += 1
         return
 
-    # Anchor the deduction to the 3rd late's date (or today if we can't
+    # Anchor the deduction to the Nth late's date (or today if we can't
     # determine it — we still land inside the same month).
     third_late = (
         db.query(Attendance.DATE)
@@ -168,7 +224,7 @@ def _apply_late_penalty(
             Attendance.DATE <= today,
         )
         .order_by(Attendance.DATE.asc())
-        .offset(LATE_THRESHOLD_PER_MONTH - 1)
+        .offset(late_threshold - 1)
         .limit(1)
         .scalar()
     ) or today
@@ -178,12 +234,12 @@ def _apply_late_penalty(
         LEAVE_TYPE="LOP",
         START_DATE=third_late,
         END_DATE=third_late,
-        DAYS=LOP_DAYS_PER_TRIGGER,
+        DAYS=lop_days,
         REASON=_tag_reason(
             key,
             f"Auto-generated: {late_count} late arrivals in "
             f"{today.strftime('%B %Y')} exceeded the threshold of "
-            f"{LATE_THRESHOLD_PER_MONTH}. Half-day salary deduction "
+            f"{late_threshold}. {lop_days}-day salary deduction "
             f"pending admin review.",
         ),
         STATUS="PENDING_APPROVAL",
@@ -196,9 +252,9 @@ def _apply_late_penalty(
     _emit_admin_notification(
         db,
         emp,
-        title="Auto LOP: 3+ late arrivals",
+        title=f"Auto LOP: {late_threshold}+ late arrivals",
         message=(
-            f"{emp.NAME} ({emp.EMPLOYEE_CODE}) crossed {LATE_THRESHOLD_PER_MONTH} "
+            f"{emp.NAME} ({emp.EMPLOYEE_CODE}) crossed {late_threshold} "
             f"late arrivals in {today.strftime('%B %Y')} (actual: {late_count}). "
             f"A half-day LOP row is now pending your review."
         ),
@@ -218,6 +274,14 @@ def _apply_permission_penalty(
     summary: ScanSummary,
 ) -> None:
 
+    rules = get_or_create_penalty_rules(db, emp.VENDOR_ID) if emp.VENDOR_ID else None
+    free_hours = float(rules.PERMISSION_FREE_HOURS_PER_MONTH) if rules else DEFAULT_PERMISSION_FREE_HOURS_PER_MONTH
+    lop_days   = float(rules.LOP_DAYS_PER_TRIGGER) if rules else DEFAULT_LOP_DAYS_PER_TRIGGER
+    enabled    = bool(rules.ENABLED) if rules else True
+
+    if not enabled:
+        return
+
     month_start, month_end = _month_bounds(today)
 
     hours_used = (
@@ -234,7 +298,7 @@ def _apply_permission_penalty(
 
     hours_used = float(hours_used)
 
-    if hours_used <= PERMISSION_FREE_HOURS_PER_MONTH:
+    if hours_used <= free_hours:
         return
 
     key = build_perm_key(today, emp.ID)
@@ -261,12 +325,12 @@ def _apply_permission_penalty(
         LEAVE_TYPE="LOP",
         START_DATE=trigger_date,
         END_DATE=trigger_date,
-        DAYS=LOP_DAYS_PER_TRIGGER,
+        DAYS=lop_days,
         REASON=_tag_reason(
             key,
             f"Auto-generated: {hours_used:.2f}h of permission taken in "
             f"{today.strftime('%B %Y')} exceeded the free allowance of "
-            f"{PERMISSION_FREE_HOURS_PER_MONTH:.0f}h. Half-day salary "
+            f"{free_hours:.1f}h. {lop_days}-day salary "
             f"deduction pending admin review.",
         ),
         STATUS="PENDING_APPROVAL",
@@ -279,11 +343,11 @@ def _apply_permission_penalty(
     _emit_admin_notification(
         db,
         emp,
-        title="Auto LOP: permission over 2h",
+        title=f"Auto LOP: permission over {free_hours:.1f}h",
         message=(
             f"{emp.NAME} ({emp.EMPLOYEE_CODE}) used {hours_used:.2f}h of "
-            f"permission in {today.strftime('%B %Y')}, exceeding the 2h "
-            f"free allowance. A half-day LOP row is now pending your review."
+            f"permission in {today.strftime('%B %Y')}, exceeding the {free_hours:.1f}h "
+            f"free allowance. A {lop_days}-day LOP row is now pending your review."
         ),
     )
 

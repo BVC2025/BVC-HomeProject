@@ -19,12 +19,18 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.auth.auth_bearer import get_effective_vendor_id, require
 from app.database.database import get_db
-from app.models.models import Employee
+from app.models.models import AttendancePenaltyRule, Employee
 from app.models.leave_models import LeaveRequest
 from app.services.attendance_penalty_service import (
+    DEFAULT_LATE_THRESHOLD_PER_MONTH,
+    DEFAULT_LOP_DAYS_PER_TRIGGER,
+    DEFAULT_PERMISSION_FREE_HOURS_PER_MONTH,
+    get_or_create_penalty_rules,
     is_auto_penalty,
     penalty_kind,
     run_scan,
@@ -185,3 +191,128 @@ def waive_penalty(penalty_id: str, db: Session = Depends(get_db)):
     db.commit()
 
     return {"ok": True, "status": row.STATUS}
+
+
+# ---------------------------------------------------------------------
+# Admin: view + edit the auto-LOP rule thresholds
+# ---------------------------------------------------------------------
+# Currently the scanner reads:
+#   - LATE_THRESHOLD_PER_MONTH       — Nth late-mark that triggers LOP
+#   - PERMISSION_FREE_HOURS_PER_MONTH — free permission hours cap
+#   - LOP_DAYS_PER_TRIGGER           — how much salary to dock (0.5 = half-day)
+#   - ENABLED                         — kill switch for the whole scanner
+# All 4 live per-vendor in `attendance_penalty_rule`. GET reads (with
+# defaults auto-seeded); PATCH updates only the fields you send.
+# Admin permission (approval.manage) gates both — matches who else
+# handles approval decisions.
+
+class PenaltyRuleOut(BaseModel):
+    vendor_id:                        int
+    late_threshold_per_month:         int
+    permission_free_hours_per_month:  float
+    lop_days_per_trigger:             float
+    enabled:                          bool
+    defaults: Dict[str, Any] = Field(default_factory=dict)
+
+
+class PenaltyRuleUpdate(BaseModel):
+    late_threshold_per_month:         Optional[int] = Field(None, ge=0, le=30,
+        description="How many LATE marks in a calendar month before the LOP row is created. 0 = disable this rule.")
+    permission_free_hours_per_month:  Optional[float] = Field(None, ge=0, le=100,
+        description="Free permission hours per month before LOP kicks in.")
+    lop_days_per_trigger:             Optional[float] = Field(None, ge=0.25, le=2.0,
+        description="Salary deduction per trigger — 0.5 = half day, 1.0 = full day.")
+    enabled:                          Optional[bool] = Field(None,
+        description="Master switch. false = pause auto-LOP entirely without losing the tuned thresholds.")
+
+
+def _serialise_rule(rule: AttendancePenaltyRule) -> PenaltyRuleOut:
+    return PenaltyRuleOut(
+        vendor_id                       = rule.VENDOR_ID,
+        late_threshold_per_month        = int(rule.LATE_THRESHOLD_PER_MONTH),
+        permission_free_hours_per_month = float(rule.PERMISSION_FREE_HOURS_PER_MONTH),
+        lop_days_per_trigger            = float(rule.LOP_DAYS_PER_TRIGGER),
+        enabled                         = bool(rule.ENABLED),
+        defaults = {
+            "late_threshold_per_month":        DEFAULT_LATE_THRESHOLD_PER_MONTH,
+            "permission_free_hours_per_month": DEFAULT_PERMISSION_FREE_HOURS_PER_MONTH,
+            "lop_days_per_trigger":            DEFAULT_LOP_DAYS_PER_TRIGGER,
+        },
+    )
+
+
+@router.get(
+    "/rules",
+    response_model=PenaltyRuleOut,
+    dependencies=[Depends(require("approval.manage"))],
+)
+def get_penalty_rules(
+    db:  Session = Depends(get_db),
+    vid: int = Depends(get_effective_vendor_id),
+) -> PenaltyRuleOut:
+    """Fetch the current auto-LOP rules for this vendor. Auto-seeds a
+    row with historical defaults on first call so the UI always has
+    something to display."""
+    return _serialise_rule(get_or_create_penalty_rules(db, vid))
+
+
+@router.patch(
+    "/rules",
+    response_model=PenaltyRuleOut,
+    dependencies=[Depends(require("approval.manage"))],
+)
+def update_penalty_rules(
+    payload: PenaltyRuleUpdate,
+    db:  Session = Depends(get_db),
+    vid: int = Depends(get_effective_vendor_id),
+) -> PenaltyRuleOut:
+    """Update one or more rule thresholds. Only the fields you send
+    are changed; omitted fields keep their current value. Changes are
+    picked up on the very next scanner tick (23:00 IST daily, or a
+    manual /attendance-penalties/scan POST)."""
+    rule = get_or_create_penalty_rules(db, vid)
+
+    changed = payload.model_dump(exclude_unset=True)
+    if not changed:
+        raise HTTPException(400, "No fields provided.")
+
+    field_map = {
+        "late_threshold_per_month":        "LATE_THRESHOLD_PER_MONTH",
+        "permission_free_hours_per_month": "PERMISSION_FREE_HOURS_PER_MONTH",
+        "lop_days_per_trigger":            "LOP_DAYS_PER_TRIGGER",
+        "enabled":                         "ENABLED",
+    }
+    for k, v in changed.items():
+        col = field_map.get(k)
+        if not col:
+            continue
+        if k == "enabled":
+            setattr(rule, col, 1 if v else 0)
+        else:
+            setattr(rule, col, v)
+
+    db.commit()
+    db.refresh(rule)
+    return _serialise_rule(rule)
+
+
+@router.post(
+    "/rules/reset",
+    response_model=PenaltyRuleOut,
+    dependencies=[Depends(require("approval.manage"))],
+)
+def reset_penalty_rules_to_default(
+    db:  Session = Depends(get_db),
+    vid: int = Depends(get_effective_vendor_id),
+) -> PenaltyRuleOut:
+    """Reset all 4 rule fields to the historical hard-coded defaults
+    (3 lates → half-day LOP, 2 free permission hours). Useful after
+    an admin experiments with values and wants to roll back cleanly."""
+    rule = get_or_create_penalty_rules(db, vid)
+    rule.LATE_THRESHOLD_PER_MONTH        = DEFAULT_LATE_THRESHOLD_PER_MONTH
+    rule.PERMISSION_FREE_HOURS_PER_MONTH = DEFAULT_PERMISSION_FREE_HOURS_PER_MONTH
+    rule.LOP_DAYS_PER_TRIGGER            = DEFAULT_LOP_DAYS_PER_TRIGGER
+    rule.ENABLED                         = 1
+    db.commit()
+    db.refresh(rule)
+    return _serialise_rule(rule)
