@@ -44,6 +44,7 @@ export default function LeaveAvatarStage({
   listening,
   thinking,
   speaking,
+  speakAmp = 0,     // 0..1 real-time RMS of Sarvam TTS audio
   submitting,
   muted,
   pendingDraft,
@@ -157,12 +158,38 @@ export default function LeaveAvatarStage({
 
       {/* Character container */}
       <div style={S.charWrap}>
-        {/* State-coloured aura ring behind the character */}
-        <div style={{ ...S.aura, ...S.auraByState[stateKind] }} />
+        {/* State-coloured aura ring behind the character.
+            Aura also pulses with real audio amplitude while speaking,
+            not just a canned 3s CSS loop. */}
+        <div
+          style={{
+            ...S.aura,
+            ...S.auraByState[stateKind],
+            transform:
+              stateKind === "speaking"
+                ? `translate(-50%, -50%) scale(${1 + speakAmp * 0.25})`
+                : undefined,
+            opacity: stateKind === "speaking" ? 0.5 + speakAmp * 0.5 : undefined,
+          }}
+        />
 
         {/* Breathing wrapper — subtle scale animation on idle,
-            heavier bounce when speaking. */}
-        <div className={`priya-breathe ${stateKind}`}>
+            audio-amplitude-driven head bob when speaking. */}
+        <div
+          className={`priya-breathe ${stateKind}`}
+          style={
+            stateKind === "speaking"
+              ? {
+                  // Talking-Tom trick: head lifts + tilts a hair per
+                  // syllable. Amplitude 0..1 → up to 10px lift, 2deg
+                  // tilt, 1.02x scale. Cheap CSS transform, no reflow.
+                  transform: `translateY(${-speakAmp * 10}px) rotate(${(speakAmp - 0.5) * 2}deg) scale(${1 + speakAmp * 0.02})`,
+                  transition: "transform 60ms linear",
+                  transformOrigin: "bottom center",
+                }
+              : undefined
+          }
+        >
           <img
             src={imgSrc}
             onError={() => imgSrc === AVATAR_FULL_SRC && setImgSrc(AVATAR_FALLBACK_SRC)}
@@ -170,22 +197,36 @@ export default function LeaveAvatarStage({
             style={S.charImg}
           />
 
-          {/* Mouth-region shimmer while speaking. */}
+          {/* Mouth-region overlay — a soft radial glow that scales
+              with audio amplitude. Not real lip-sync (needs multi-pose
+              sprites for that) but reads as "she's mouthing along". */}
           {stateKind === "speaking" && (
-            <div className="priya-mouth-shimmer" style={S.mouthShimmer} />
+            <div
+              style={{
+                ...S.mouthShimmer,
+                opacity: 0.15 + speakAmp * 0.55,
+                transform: `translate(-50%, -50%) scaleY(${0.4 + speakAmp * 1.6}) scaleX(${0.8 + speakAmp * 0.4})`,
+              }}
+            />
           )}
         </div>
 
-        {/* Speaking waveform — 24 bars, animate on TTS play */}
+        {/* Speaking waveform — 24 bars, height driven by real amplitude */}
         {stateKind === "speaking" && (
           <div style={S.waveWrap} aria-hidden="true">
-            {Array.from({ length: 24 }).map((_, i) => (
-              <span
-                key={i}
-                className="priya-wave-bar"
-                style={{ animationDelay: `${(i % 8) * 0.08}s` }}
-              />
-            ))}
+            {Array.from({ length: 24 }).map((_, i) => {
+              // Give each bar a slightly different phase so the wall
+              // isn't a flat rectangle — a tiny per-bar sine keeps the
+              // "wave" feeling even when amplitude is uniform.
+              const jitter = 0.5 + 0.5 * Math.sin((i / 24) * Math.PI * 2 + speakAmp * 6);
+              return (
+                <span
+                  key={i}
+                  className="priya-wave-bar"
+                  style={{ transform: `scaleY(${0.15 + speakAmp * jitter * 1.2})` }}
+                />
+              );
+            })}
           </div>
         )}
 
@@ -299,14 +340,6 @@ function StageStyles() {
         50%  { transform: translateY(-4px)  scale(1.005); }
         100% { transform: translateY(0)     scale(1); }
       }
-      @keyframes priyaBounceSpeak {
-        0%   { transform: translateY(0)    rotate(0deg);   filter: brightness(1); }
-        20%  { transform: translateY(-4px) rotate(-1.5deg); filter: brightness(1.05); }
-        40%  { transform: translateY(-8px) rotate(0deg);    filter: brightness(1.08); }
-        60%  { transform: translateY(-6px) rotate(1.2deg);  filter: brightness(1.05); }
-        80%  { transform: translateY(-2px) rotate(0deg);    filter: brightness(1.02); }
-        100% { transform: translateY(0)    rotate(0deg);    filter: brightness(1); }
-      }
       @keyframes priyaListenLean {
         0%, 100% { transform: translateY(0)    rotate(0deg); }
         50%      { transform: translateY(-2px) rotate(-0.8deg); }
@@ -316,30 +349,26 @@ function StageStyles() {
         50%  { opacity: 0.85; transform: translate(-50%, -50%) scale(1.05); }
         100% { opacity: 0.55; transform: translate(-50%, -50%) scale(0.98); }
       }
-      @keyframes priyaWave {
-        0%, 100% { transform: scaleY(0.35); }
-        50%      { transform: scaleY(1); }
-      }
       @keyframes priyaThinkDot {
         0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
         40%           { opacity: 1;   transform: translateY(-4px); }
       }
-      @keyframes priyaMouthShimmer {
-        0%, 100% { opacity: 0.15; transform: scaleX(0.85); }
-        50%      { opacity: 0.35; transform: scaleX(1.15); }
-      }
-
       .priya-breathe { animation: priyaBreathe 4s ease-in-out infinite; position: relative; }
       .priya-breathe.listening { animation: priyaListenLean 2.2s ease-in-out infinite; }
       .priya-breathe.thinking  { animation: priyaBreathe 2s ease-in-out infinite; }
-      .priya-breathe.speaking  { animation: priyaBounceSpeak 0.6s ease-in-out infinite; transform-origin: bottom center; }
+      /* Speaking state: no CSS animation on transform — the inline
+         style in the render sets transform each frame from real
+         audio amplitude. A CSS animation on the same property would
+         win the specificity fight and freeze the lip-sync. */
+      .priya-breathe.speaking  { animation: none; transform-origin: bottom center; }
+      /* Wave bars now driven by inline transform (scaleY from amp).
+         Keep the base bar shape here; skip the keyframe. */
       .priya-wave-bar {
-        display: inline-block; width: 4px; height: 32px;
-        background: linear-gradient(180deg, #dc2626, #7a1022);
+        display: inline-block; width: 4px; height: 40px;
+        background: linear-gradient(180deg, #ef4444, #7a1022);
         margin: 0 2px; border-radius: 2px; transform-origin: center bottom;
-        animation: priyaWave 0.9s ease-in-out infinite;
+        transition: transform 60ms linear;
       }
-      .priya-mouth-shimmer { animation: priyaMouthShimmer 0.5s ease-in-out infinite; }
     `}</style>
   );
 }
@@ -438,12 +467,22 @@ const S = {
     filter: "drop-shadow(0 40px 60px rgba(0,0,0,0.55))",
   },
 
+  // Mouth-region glow — sits over Priya's mouth (~32% from top of
+  // the image). Not real lip-sync — for that we'd need 3+ mouth-pose
+  // sprites (closed/half/open) and swap them per amplitude bucket.
+  // Positioned via left:50% + translate so the inline transform in
+  // the render can scale it around its own centre without shifting.
   mouthShimmer: {
     position: "absolute",
-    top: "58%", left: "42%", right: "42%",
-    height: 6, borderRadius: 6,
-    background: "radial-gradient(closest-side, rgba(255,255,255,0.7), transparent)",
-    zIndex: 3, pointerEvents: "none", transformOrigin: "center",
+    top: "32%", left: "50%",
+    width: "14%", height: 14,
+    borderRadius: 8,
+    background:
+      "radial-gradient(closest-side, rgba(255,120,120,0.85), rgba(220,38,38,0.25) 60%, transparent 100%)",
+    zIndex: 3, pointerEvents: "none",
+    transformOrigin: "center",
+    mixBlendMode: "screen",
+    transition: "opacity 60ms linear, transform 60ms linear",
   },
 
   waveWrap: {

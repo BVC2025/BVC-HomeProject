@@ -51,17 +51,80 @@ function useSpeechRecognition() {
 // Returns a controller with `stop()` — the component uses it to
 // silence playback when the panel closes or the mute toggle is hit.
 //
-// A small pub-sub — components can subscribe to know when playback
-// starts / ends so the Priya avatar can pulse while she's speaking.
+// Two pub-subs power the avatar:
+//   • speaking (bool) — TTS started/ended, drives the aura ring +
+//     idle/speaking state switch.
+//   • amplitude (0..1) — real-time RMS of the playing audio, sampled
+//     ~60x/sec via a Web Audio AnalyserNode. Talking-Tom trick:
+//     mouth opens when the audio is loud, closes when it's quiet.
+//     Same feed also drives a subtle head bob so the whole face
+//     moves in sync with the voice instead of on a canned loop.
 let _currentAudio = null;
 let _currentUrl = null;
+let _audioCtx = null;          // singleton — one AudioContext per tab
+let _analyser = null;          // reused across utterances
+let _rafId = null;
+let _sourceForAudio = null;    // WeakMap fallback isn't needed — one at a time
 const _speakingListeners = new Set();
+const _amplitudeListeners = new Set();
 function onSpeakingChange(cb) {
   _speakingListeners.add(cb);
   return () => _speakingListeners.delete(cb);
 }
+function onAmplitudeChange(cb) {
+  _amplitudeListeners.add(cb);
+  return () => _amplitudeListeners.delete(cb);
+}
 function _emitSpeaking(v) {
   for (const cb of _speakingListeners) { try { cb(v); } catch (_) {} }
+}
+function _emitAmplitude(v) {
+  for (const cb of _amplitudeListeners) { try { cb(v); } catch (_) {} }
+}
+
+// Set up (once) an AudioContext + AnalyserNode. Chrome requires a
+// user gesture — this runs from inside a click handler (mic / send)
+// so it's safe. We create the source node lazily per audio element
+// because createMediaElementSource can only be called once per element.
+function _ensureAnalyser() {
+  if (_audioCtx) return _analyser;
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    _audioCtx = new Ctx();
+    _analyser = _audioCtx.createAnalyser();
+    _analyser.fftSize = 256;             // smaller = cheaper, plenty for RMS
+    _analyser.smoothingTimeConstant = 0.4; // 0=jittery, 1=frozen
+  } catch (_) { _audioCtx = null; _analyser = null; }
+  return _analyser;
+}
+
+function _startAmplitudeLoop() {
+  if (!_analyser || _rafId) return;
+  const buf = new Uint8Array(_analyser.fftSize);
+  const tick = () => {
+    if (!_analyser || !_currentAudio || _currentAudio.paused) {
+      _rafId = null; _emitAmplitude(0); return;
+    }
+    _analyser.getByteTimeDomainData(buf);
+    // Compute RMS around 128 (silence baseline for byte-time-domain).
+    let sum = 0;
+    for (let i = 0; i < buf.length; i++) {
+      const v = (buf[i] - 128) / 128;
+      sum += v * v;
+    }
+    const rms = Math.sqrt(sum / buf.length);
+    // Boost the tail — TTS output tends to sit around 0.05–0.15 RMS.
+    // Clamp 0..1 with a modest gamma so quiet syllables still register.
+    const amp = Math.min(1, Math.pow(rms * 4, 0.7));
+    _emitAmplitude(amp);
+    _rafId = requestAnimationFrame(tick);
+  };
+  _rafId = requestAnimationFrame(tick);
+}
+function _stopAmplitudeLoop() {
+  if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
+  _emitAmplitude(0);
 }
 
 function stopSpeaking() {
@@ -76,6 +139,8 @@ function stopSpeaking() {
   } catch (_) { /* noop */ }
   _currentAudio = null;
   _currentUrl = null;
+  _sourceForAudio = null;
+  _stopAmplitudeLoop();
   _emitSpeaking(false);
 }
 
@@ -108,28 +173,46 @@ async function speakViaSarvam(text, langHint, voice) {
 
     const url = URL.createObjectURL(res.data);
     const audio = new Audio(url);
+    audio.crossOrigin = "anonymous";     // required for AnalyserNode on blob:
 
     _currentAudio = audio;
     _currentUrl = url;
 
+    // Wire the audio through an AnalyserNode so the avatar can react
+    // to real amplitude. If Web Audio isn't available (very old
+    // browser) we still play the audio — just without lip-sync.
+    try {
+      const analyser = _ensureAnalyser();
+      if (analyser && _audioCtx) {
+        // Resume if the tab suspended the context.
+        if (_audioCtx.state === "suspended") _audioCtx.resume();
+        const src = _audioCtx.createMediaElementSource(audio);
+        src.connect(analyser);
+        analyser.connect(_audioCtx.destination);
+        _sourceForAudio = src;
+      }
+    } catch (_) { /* fall through — playback still works without analyser */ }
+
     // Broadcast speaking state so the Priya avatar can pulse
     // exactly while she's speaking, not just while a request is
     // in flight.
-    audio.onplay  = () => _emitSpeaking(true);
-    audio.onpause = () => _emitSpeaking(false);
+    audio.onplay  = () => { _emitSpeaking(true); _startAmplitudeLoop(); };
+    audio.onpause = () => { _emitSpeaking(false); _stopAmplitudeLoop(); };
     audio.onended = () => {
       _emitSpeaking(false);
+      _stopAmplitudeLoop();
       if (_currentUrl === url) {
         URL.revokeObjectURL(url);
         _currentAudio = null;
         _currentUrl = null;
+        _sourceForAudio = null;
       }
     };
 
     // Some browsers block autoplay until a user gesture. That's fine —
     // the mic / send button click IS a gesture, so this normally
     // plays. If it doesn't, we swallow the rejection quietly.
-    await audio.play().catch(() => { _emitSpeaking(false); });
+    await audio.play().catch(() => { _emitSpeaking(false); _stopAmplitudeLoop(); });
   } catch (_) {
     // Sarvam unreachable / server down / no key — chat still works,
     // text reply is already on screen. Voice is a nice-to-have.
@@ -211,6 +294,12 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
   // Pulse the avatar while Sarvam TTS is actively speaking.
   const [speaking, setSpeakingState] = useState(false);
   useEffect(() => onSpeakingChange(setSpeakingState), []);
+
+  // Real-time audio amplitude 0..1 — drives Talking-Tom-style mouth
+  // opening + head bob in the avatar stage. Throttled at rAF so
+  // React reconciles no faster than the browser can paint.
+  const [speakAmp, setSpeakAmp] = useState(0);
+  useEffect(() => onAmplitudeChange(setSpeakAmp), []);
   const [open, setOpen] = useState(false);
   const [language, setLanguage] = useState("auto");
   // Mute toggle — persisted per browser so a returning employee
@@ -805,6 +894,7 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
           listening={listening}
           thinking={thinking}
           speaking={speaking}
+          speakAmp={speakAmp}
           submitting={submitting}
           muted={muted}
           pendingDraft={pendingDraft}
