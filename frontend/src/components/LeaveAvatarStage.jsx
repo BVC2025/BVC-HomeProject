@@ -1,31 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import LeaveAssistantAvatar from "./avatar/LeaveAssistantAvatar";
+import { avatarSession } from "../services/avatarSessionService";
 
 /* Full-screen avatar experience for the Leave chatbot.
 
-   Presentational component — no API calls. All state + handlers come
-   in as props from LeaveAIAssistant so this file only cares about the
-   visual layer.
+   Two rendering paths, chosen at runtime:
 
-   Design goals (per user brief 2026-09-18):
-   • Character fills most of the viewport, feels like you're standing
-     in front of a person, not a bot chip.
-   • Idle state — subtle breathing (scale + Y-drift, 4s loop).
-   • Listening state — green aura + soft waveform bars below the
-     character while the user speaks.
-   • Thinking state — amber aura + three dots ellipsis.
-   • Speaking state — red pulse ring + audio wave visualisation, and
-     a small mouth-region shimmer to simulate lip movement.
-   • Reply subtitle — floating bubble above the character, updates as
-     the agent replies. Fades in / out.
-   • Bottom bar — mic, text input (fallback since user's mic often
-     blocked), send, mute toggle, language pills, close.
+   1. REAL-TIME AVATAR (preferred) — <LeaveAssistantAvatar> streams a
+      talking-head video from D-ID and lip-syncs to the Sarvam TTS
+      audio blob. Activated when the backend /avatar-session/health
+      probe confirms DID_API_KEY is set.
 
-   Character image lives at /Assistant.png (public/, transparent PNG
-   with a real alpha channel — no blend hacks needed).
+   2. STATIC FALLBACK — the original transparent PNG of Priya with
+      amplitude-driven CSS motion. Used when D-ID is unreachable, the
+      backend key is missing, or the WebRTC handshake fails. Ensures
+      the Leave chatbot still works with no dependency on D-ID.
+
+   Everything below is unchanged from before — top bar, subtitle
+   bubble, draft confirmation, language pills, bottom input row. Only
+   the character-render block in the middle is swapped based on the
+   avatar-ready flag.
 */
 
-// True transparent PNG (alpha channel present) — no blend hack needed.
-// Drop-in replacement art also goes here; keep it a PNG.
+// Static-fallback image assets.
 const AVATAR_FULL_SRC     = "/Assistant.png";
 const AVATAR_FALLBACK_SRC = "/priya-full.png";
 
@@ -44,7 +41,8 @@ export default function LeaveAvatarStage({
   listening,
   thinking,
   speaking,
-  speakAmp = 0,     // 0..1 real-time RMS of Sarvam TTS audio
+  speakAmp = 0,     // 0..1 real-time RMS of Sarvam TTS audio (fallback anim)
+  ttsBlob = null,   // MP3 Blob of the current reply — fed to D-ID for lip-sync
   submitting,
   muted,
   pendingDraft,
@@ -81,17 +79,51 @@ export default function LeaveAvatarStage({
   const [imgSrc, setImgSrc]   = useState(AVATAR_FULL_SRC);
   const [showBubble, setShow] = useState(false);
 
+  // Avatar mode selection — probe backend once on mount. If D-ID is
+  // configured we render the real-time avatar; otherwise (missing
+  // key, unreachable, or user on offline LAN) we render the static
+  // Priya image with amplitude-driven CSS motion. `avatarFailed`
+  // flips to true if the WebRTC session errors mid-conversation so
+  // the UI degrades gracefully without a full page reload.
+  const [avatarReady,  setAvatarReady]  = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    avatarSession.health()
+      .then((h) => { if (!cancelled) setAvatarReady(!!h?.enabled); })
+      .catch(()  => { if (!cancelled) setAvatarReady(false); });
+    return () => { cancelled = true; };
+  }, []);
+  const useLiveAvatar = avatarReady && !avatarFailed;
+
+  // Map internal state → avatar contract states.
+  const avatarState = listening ? "listening"
+                    : thinking  ? "thinking"
+                    : speaking  ? "speaking"
+                    : "idle";
+
   // Mouth position calibration — persists in localStorage so once
   // the admin nudges the mouth onto the character's actual lips it
   // stays there across sessions. Shift+Arrows while the stage is
   // open move the mouth 0.5% at a time; Shift+R resets to defaults.
+  // Default 35% top matches the current Assistant.png where her
+  // lips sit ~35% down from the top of the visible character.
+  const DEFAULT_MOUTH = { top: 35, left: 50 };
   const [mouthPos, setMouthPos] = useState(() => {
     try {
       const raw = localStorage.getItem("priya_mouth_pos");
-      if (raw) return JSON.parse(raw);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        // If the stale 28.5 default is stored from an earlier build,
+        // migrate to the new default so users don't get a mouth on
+        // her nose forever.
+        if (parsed && parsed.top === 28.5) return DEFAULT_MOUTH;
+        return parsed;
+      }
     } catch (_) {}
-    return { top: 28.5, left: 50 };
+    return DEFAULT_MOUTH;
   });
+  const [showMouthGuide, setShowMouthGuide] = useState(false);
   useEffect(() => {
     const onKey = (e) => {
       if (!e.shiftKey) return;
@@ -103,11 +135,15 @@ export default function LeaveAvatarStage({
       if (e.key === "R" || e.key === "r") reset = true;
       if (!dt && !dl && !reset) return;
       e.preventDefault();
+      setShowMouthGuide(true);
       setMouthPos((p) => {
-        const next = reset ? { top: 28.5, left: 50 } : { top: p.top + dt, left: p.left + dl };
+        const next = reset ? DEFAULT_MOUTH : { top: p.top + dt, left: p.left + dl };
         try { localStorage.setItem("priya_mouth_pos", JSON.stringify(next)); } catch (_) {}
         return next;
       });
+      // Hide the guide 3s after last nudge.
+      clearTimeout(window.__priyaMouthGuideT);
+      window.__priyaMouthGuideT = setTimeout(() => setShowMouthGuide(false), 3000);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -188,7 +224,19 @@ export default function LeaveAvatarStage({
         </div>
       </div>
 
-      {/* Character container */}
+      {/* Character container — either the live D-ID stream or the
+          static-image fallback. Static fallback preserves the full
+          previous experience (amplitude-driven CSS motion) so users
+          on an offline LAN still get a working chatbot. */}
+      {useLiveAvatar ? (
+        <div style={S.charWrap}>
+          <LeaveAssistantAvatar
+            state={avatarState}
+            audioBlob={ttsBlob}
+            onFail={() => setAvatarFailed(true)}
+          />
+        </div>
+      ) : (
       <div style={S.charWrap}>
         {/* State-coloured aura ring behind the character.
             Aura also pulses with real audio amplitude while speaking,
@@ -251,17 +299,18 @@ export default function LeaveAvatarStage({
               Position via inline top/left — tweak the two numbers
               below (mouthTopPct / mouthLeftPct) if the mouth doesn't
               land on her actual lips in your build. */}
-          {stateKind === "speaking" && (() => {
+          {(stateKind === "speaking" || showMouthGuide) && (() => {
             const mouthTopPct  = mouthPos.top;    // tune with Shift+↑/↓
             const mouthLeftPct = mouthPos.left;   // tune with Shift+←/→
-            // Amplitude 0 = closed (thin dark line), 1 = wide open
-            // (tall dark ellipse). scaleY drives the "jaw drop", the
-            // radial gradient fakes the inside-mouth shadow.
-            const openH = 3 + speakAmp * 22;   // px, cavity height
-            const openW = 22 + speakAmp * 10;  // px, cavity width
+            // Wide + short ellipse = mouth shape. Height jumps big
+            // per amplitude (jaw drop), width stays fairly constant
+            // (only a small vowel-shape variation).
+            const amp = stateKind === "speaking" ? speakAmp : 0.4;
+            const openW = 55 + amp * 20;   // 55–75px wide
+            const openH = 4  + amp * 24;   // 4–28px tall (jaw drop)
             return (
               <>
-                {/* Dark mouth cavity */}
+                {/* Dark mouth cavity — inside of mouth */}
                 <div
                   style={{
                     position: "absolute",
@@ -271,34 +320,79 @@ export default function LeaveAvatarStage({
                     height: openH,
                     borderRadius: "50%",
                     background:
-                      "radial-gradient(ellipse at center 40%, #1a0308 0%, #3a0d18 45%, rgba(58,13,24,0) 100%)",
+                      "radial-gradient(ellipse at center 45%, #0a0104 0%, #2a0510 55%, rgba(42,5,16,0) 100%)",
                     transform: "translate(-50%, -50%)",
                     zIndex: 3,
                     pointerEvents: "none",
                     boxShadow:
-                      speakAmp > 0.2
-                        ? `inset 0 ${1 + speakAmp * 2}px ${2 + speakAmp * 3}px rgba(0,0,0,0.6)`
+                      amp > 0.2
+                        ? `inset 0 ${1 + amp * 3}px ${3 + amp * 4}px rgba(0,0,0,0.75)`
                         : "none",
-                    transition: "width 60ms linear, height 60ms linear",
+                    transition: "width 50ms linear, height 50ms linear",
                   }}
                 />
-                {/* Lip-line highlight — thin dark line on top of cavity
-                    so lips read as lips at low amplitude. */}
+                {/* Faint teeth hint — only visible when mouth is
+                    fairly open (amp > 0.35). Thin light strip near
+                    the top of the cavity fakes upper teeth. */}
+                {amp > 0.35 && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top:  `calc(${mouthTopPct}% - ${openH * 0.2}px)`,
+                      left: `${mouthLeftPct}%`,
+                      width:  openW * 0.7,
+                      height: 2,
+                      borderRadius: 2,
+                      background: "rgba(255,240,235,0.35)",
+                      transform: "translate(-50%, -50%)",
+                      zIndex: 4,
+                      pointerEvents: "none",
+                      filter: "blur(0.4px)",
+                    }}
+                  />
+                )}
+                {/* Lip-line — thin dark line, always visible so at
+                    low amplitude her lips still read as lips. */}
                 <div
                   style={{
                     position: "absolute",
                     top:  `${mouthTopPct}%`,
                     left: `${mouthLeftPct}%`,
-                    width:  openW * 1.05,
+                    width:  openW * 1.02,
                     height: 2,
                     borderRadius: 2,
-                    background: "rgba(80,15,25,0.55)",
+                    background: "rgba(60,10,20,0.6)",
                     transform: "translate(-50%, -50%)",
                     zIndex: 4,
                     pointerEvents: "none",
-                    opacity: 1 - speakAmp * 0.7,   // fades as mouth opens
+                    opacity: 1 - amp * 0.6,
                   }}
                 />
+                {/* Calibration guide — crosshair + coords, shown
+                    briefly while nudging with Shift+arrows. */}
+                {showMouthGuide && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top:  `${mouthTopPct}%`,
+                      left: `${mouthLeftPct}%`,
+                      transform: "translate(-50%, -50%)",
+                      width: 100, height: 100,
+                      border: "1px dashed rgba(255,255,255,0.7)",
+                      borderRadius: "50%",
+                      zIndex: 5,
+                      pointerEvents: "none",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      color: "#fff", fontSize: 10, fontWeight: 700,
+                      background: "rgba(0,0,0,0.35)",
+                    }}
+                  >
+                    <div style={{ textAlign: "center", lineHeight: 1.3 }}>
+                      top:{mouthPos.top.toFixed(1)}%<br />
+                      left:{mouthPos.left.toFixed(1)}%
+                    </div>
+                  </div>
+                )}
               </>
             );
           })()}
@@ -337,6 +431,7 @@ export default function LeaveAvatarStage({
           </div>
         )}
       </div>
+      )}
 
       {/* Subtitle bubble — latest reply floats above the character */}
       {lastAssistant && (

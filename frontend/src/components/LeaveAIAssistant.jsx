@@ -67,6 +67,7 @@ let _rafId = null;
 let _sourceForAudio = null;    // WeakMap fallback isn't needed — one at a time
 const _speakingListeners = new Set();
 const _amplitudeListeners = new Set();
+const _ttsBlobListeners  = new Set();
 function onSpeakingChange(cb) {
   _speakingListeners.add(cb);
   return () => _speakingListeners.delete(cb);
@@ -75,11 +76,21 @@ function onAmplitudeChange(cb) {
   _amplitudeListeners.add(cb);
   return () => _amplitudeListeners.delete(cb);
 }
+// New: broadcasts the raw MP3 Blob whenever Sarvam TTS returns one.
+// The D-ID avatar consumes this so it can lip-sync to the exact same
+// bytes the user's <audio> element is about to play — perfect sync.
+function onTtsBlob(cb) {
+  _ttsBlobListeners.add(cb);
+  return () => _ttsBlobListeners.delete(cb);
+}
 function _emitSpeaking(v) {
   for (const cb of _speakingListeners) { try { cb(v); } catch (_) {} }
 }
 function _emitAmplitude(v) {
   for (const cb of _amplitudeListeners) { try { cb(v); } catch (_) {} }
+}
+function _emitTtsBlob(b) {
+  for (const cb of _ttsBlobListeners) { try { cb(b); } catch (_) {} }
 }
 
 // Set up (once) an AudioContext + AnalyserNode. Chrome requires a
@@ -174,6 +185,12 @@ async function speakViaSarvam(text, langHint, voice) {
     const url = URL.createObjectURL(res.data);
     const audio = new Audio(url);
     audio.crossOrigin = "anonymous";     // required for AnalyserNode on blob:
+
+    // Hand the raw MP3 blob to any subscriber (D-ID avatar) so it
+    // can lip-sync to the exact same audio the user is about to
+    // hear. Fires BEFORE play() so the avatar's speak() request is
+    // already in flight when the user's <audio> starts.
+    _emitTtsBlob(res.data);
 
     _currentAudio = audio;
     _currentUrl = url;
@@ -300,6 +317,12 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
   // React reconciles no faster than the browser can paint.
   const [speakAmp, setSpeakAmp] = useState(0);
   useEffect(() => onAmplitudeChange(setSpeakAmp), []);
+
+  // Latest Sarvam TTS MP3 Blob — handed down to the D-ID avatar so
+  // it can lip-sync to the exact same audio. Kept as state (not a
+  // ref) so React re-renders the avatar when a new reply arrives.
+  const [ttsBlob, setTtsBlob] = useState(null);
+  useEffect(() => onTtsBlob(setTtsBlob), []);
   const [open, setOpen] = useState(false);
   const [language, setLanguage] = useState("auto");
   // Mute toggle — persisted per browser so a returning employee
@@ -895,6 +918,7 @@ export default function LeaveAIAssistant({ employeeId, onLeaveSubmitted }) {
           thinking={thinking}
           speaking={speaking}
           speakAmp={speakAmp}
+          ttsBlob={ttsBlob}
           submitting={submitting}
           muted={muted}
           pendingDraft={pendingDraft}

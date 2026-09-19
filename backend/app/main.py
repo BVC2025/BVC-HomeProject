@@ -89,6 +89,7 @@ from app.routes.attendance_ai import router as attendance_ai_router  # Attendanc
 from app.routes.leave_decisions import router as leave_decisions_router  # Leave Automation (Phase 1)
 from app.routes.leave_ai_chat import router as leave_ai_chat_router  # Voice leave assistant (OpenRouter)
 from app.routes.attendance_penalties import router as attendance_penalties_router  # Auto LOP for late/permission
+from app.routes.avatar_session import router as avatar_session_router  # Real-time talking-avatar proxy (D-ID)
 from app.routes.shifts import router as shifts_router  # Shift templates + calendar assignments
 from app.routes.monthly_reports import router as monthly_reports_router  # Auto monthly attendance + payroll reports
 from app.routes.employee_status import router as employee_status_router  # Employee lifecycle status tracking
@@ -4910,6 +4911,7 @@ app.include_router(attendance_ai_router)
 app.include_router(leave_decisions_router)
 app.include_router(leave_ai_chat_router, prefix="/leave-ai-chat", tags=["leave-ai-chat"])
 app.include_router(attendance_penalties_router, prefix="/attendance-penalties", tags=["attendance-penalties"])
+app.include_router(avatar_session_router, prefix="/avatar-session", tags=["avatar-session"])
 app.include_router(shifts_router, prefix="/shifts", tags=["shifts"])
 app.include_router(monthly_reports_router)
 app.include_router(employee_status_router)
