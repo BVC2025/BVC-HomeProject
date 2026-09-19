@@ -80,6 +80,38 @@ export default function LeaveAvatarStage({
 
   const [imgSrc, setImgSrc]   = useState(AVATAR_FULL_SRC);
   const [showBubble, setShow] = useState(false);
+
+  // Mouth position calibration — persists in localStorage so once
+  // the admin nudges the mouth onto the character's actual lips it
+  // stays there across sessions. Shift+Arrows while the stage is
+  // open move the mouth 0.5% at a time; Shift+R resets to defaults.
+  const [mouthPos, setMouthPos] = useState(() => {
+    try {
+      const raw = localStorage.getItem("priya_mouth_pos");
+      if (raw) return JSON.parse(raw);
+    } catch (_) {}
+    return { top: 28.5, left: 50 };
+  });
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!e.shiftKey) return;
+      let dt = 0, dl = 0, reset = false;
+      if (e.key === "ArrowUp")    dt = -0.5;
+      if (e.key === "ArrowDown")  dt = +0.5;
+      if (e.key === "ArrowLeft")  dl = -0.5;
+      if (e.key === "ArrowRight") dl = +0.5;
+      if (e.key === "R" || e.key === "r") reset = true;
+      if (!dt && !dl && !reset) return;
+      e.preventDefault();
+      setMouthPos((p) => {
+        const next = reset ? { top: 28.5, left: 50 } : { top: p.top + dt, left: p.left + dl };
+        try { localStorage.setItem("priya_mouth_pos", JSON.stringify(next)); } catch (_) {}
+        return next;
+      });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   useEffect(() => {
     // Fade the subtitle whenever a new reply arrives so the eye is drawn
     // to it, not a static bubble that just quietly changes.
@@ -173,20 +205,34 @@ export default function LeaveAvatarStage({
           }}
         />
 
-        {/* Breathing wrapper — subtle scale animation on idle,
-            audio-amplitude-driven head bob when speaking. */}
+        {/* Breathing wrapper — subtle scale on idle, audio-amplitude
+            driven head bob + head-tilt when speaking. A time-based
+            sinusoidal sway is added into the same transform so she
+            keeps moving even when the voice goes quiet between
+            syllables (Talking-Tom energy: always alive). */}
         <div
           className={`priya-breathe ${stateKind}`}
           style={
             stateKind === "speaking"
-              ? {
-                  // Talking-Tom trick: head lifts + tilts a hair per
-                  // syllable. Amplitude 0..1 → up to 10px lift, 2deg
-                  // tilt, 1.02x scale. Cheap CSS transform, no reflow.
-                  transform: `translateY(${-speakAmp * 10}px) rotate(${(speakAmp - 0.5) * 2}deg) scale(${1 + speakAmp * 0.02})`,
-                  transition: "transform 60ms linear",
-                  transformOrigin: "bottom center",
-                }
+              ? (() => {
+                  // Ambient sway that runs regardless of amplitude —
+                  // low freq (~0.5Hz), tiny (2px / 1deg). speakAmp
+                  // adds the loud-syllable jolt on top.
+                  const t = Date.now() / 1000;
+                  const swayY = Math.sin(t * 3.1) * 2;         // 2px vertical
+                  const swayX = Math.sin(t * 2.3) * 3;         // 3px horizontal
+                  const swayR = Math.sin(t * 1.7) * 0.8;       // 0.8deg tilt
+                  return {
+                    transform: `
+                      translateY(${-speakAmp * 14 + swayY}px)
+                      translateX(${(speakAmp - 0.5) * 4 + swayX}px)
+                      rotate(${(speakAmp - 0.5) * 3 + swayR}deg)
+                      scale(${1 + speakAmp * 0.03})
+                    `,
+                    transition: "transform 50ms linear",
+                    transformOrigin: "bottom center",
+                  };
+                })()
               : undefined
           }
         >
@@ -197,18 +243,65 @@ export default function LeaveAvatarStage({
             style={S.charImg}
           />
 
-          {/* Mouth-region overlay — a soft radial glow that scales
-              with audio amplitude. Not real lip-sync (needs multi-pose
-              sprites for that) but reads as "she's mouthing along". */}
-          {stateKind === "speaking" && (
-            <div
-              style={{
-                ...S.mouthShimmer,
-                opacity: 0.15 + speakAmp * 0.55,
-                transform: `translate(-50%, -50%) scaleY(${0.4 + speakAmp * 1.6}) scaleX(${0.8 + speakAmp * 0.4})`,
-              }}
-            />
-          )}
+          {/* Talking-Tom mouth: two stacked ellipses positioned over
+              her lips. The DARK one is the mouth cavity (opens
+              vertically with amplitude). The LIGHT one on top is a
+              thin lip highlight so at rest her mouth still reads as
+              lips, not a black hole.
+              Position via inline top/left — tweak the two numbers
+              below (mouthTopPct / mouthLeftPct) if the mouth doesn't
+              land on her actual lips in your build. */}
+          {stateKind === "speaking" && (() => {
+            const mouthTopPct  = mouthPos.top;    // tune with Shift+↑/↓
+            const mouthLeftPct = mouthPos.left;   // tune with Shift+←/→
+            // Amplitude 0 = closed (thin dark line), 1 = wide open
+            // (tall dark ellipse). scaleY drives the "jaw drop", the
+            // radial gradient fakes the inside-mouth shadow.
+            const openH = 3 + speakAmp * 22;   // px, cavity height
+            const openW = 22 + speakAmp * 10;  // px, cavity width
+            return (
+              <>
+                {/* Dark mouth cavity */}
+                <div
+                  style={{
+                    position: "absolute",
+                    top:  `${mouthTopPct}%`,
+                    left: `${mouthLeftPct}%`,
+                    width:  openW,
+                    height: openH,
+                    borderRadius: "50%",
+                    background:
+                      "radial-gradient(ellipse at center 40%, #1a0308 0%, #3a0d18 45%, rgba(58,13,24,0) 100%)",
+                    transform: "translate(-50%, -50%)",
+                    zIndex: 3,
+                    pointerEvents: "none",
+                    boxShadow:
+                      speakAmp > 0.2
+                        ? `inset 0 ${1 + speakAmp * 2}px ${2 + speakAmp * 3}px rgba(0,0,0,0.6)`
+                        : "none",
+                    transition: "width 60ms linear, height 60ms linear",
+                  }}
+                />
+                {/* Lip-line highlight — thin dark line on top of cavity
+                    so lips read as lips at low amplitude. */}
+                <div
+                  style={{
+                    position: "absolute",
+                    top:  `${mouthTopPct}%`,
+                    left: `${mouthLeftPct}%`,
+                    width:  openW * 1.05,
+                    height: 2,
+                    borderRadius: 2,
+                    background: "rgba(80,15,25,0.55)",
+                    transform: "translate(-50%, -50%)",
+                    zIndex: 4,
+                    pointerEvents: "none",
+                    opacity: 1 - speakAmp * 0.7,   // fades as mouth opens
+                  }}
+                />
+              </>
+            );
+          })()}
         </div>
 
         {/* Speaking waveform — 24 bars, height driven by real amplitude */}
@@ -467,23 +560,6 @@ const S = {
     filter: "drop-shadow(0 40px 60px rgba(0,0,0,0.55))",
   },
 
-  // Mouth-region glow — sits over Priya's mouth (~32% from top of
-  // the image). Not real lip-sync — for that we'd need 3+ mouth-pose
-  // sprites (closed/half/open) and swap them per amplitude bucket.
-  // Positioned via left:50% + translate so the inline transform in
-  // the render can scale it around its own centre without shifting.
-  mouthShimmer: {
-    position: "absolute",
-    top: "32%", left: "50%",
-    width: "14%", height: 14,
-    borderRadius: 8,
-    background:
-      "radial-gradient(closest-side, rgba(255,120,120,0.85), rgba(220,38,38,0.25) 60%, transparent 100%)",
-    zIndex: 3, pointerEvents: "none",
-    transformOrigin: "center",
-    mixBlendMode: "screen",
-    transition: "opacity 60ms linear, transform 60ms linear",
-  },
 
   waveWrap: {
     position: "absolute", bottom: 24, left: "50%",
