@@ -123,6 +123,10 @@ export default function LeaveAssistantAvatar({
         }}
         autoPlay
         playsInline
+        /* NOT muted — D-ID's audio track is now the source of truth
+           for playback. Sarvam <audio> is muted upstream (via the
+           didStreamRegistry flag) so the user hears D-ID's audio
+           only, which is perfectly synced with D-ID's video. */
       />
     </div>
   );

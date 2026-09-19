@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import API from "../services/api";
 import LeaveAvatarStage from "./LeaveAvatarStage";
+import { getDidReady } from "./avatar/didStreamRegistry";
 
 /* Voice-first leave assistant.
 
@@ -191,6 +192,17 @@ async function speakViaSarvam(text, langHint, voice) {
     // hear. Fires BEFORE play() so the avatar's speak() request is
     // already in flight when the user's <audio> starts.
     _emitTtsBlob(res.data);
+
+    // If the D-ID live avatar is connected, MUTE our own <audio>
+    // element — D-ID's WebRTC stream will play the audio itself,
+    // perfectly synced with its rendered video. Playing both would
+    // cause double-audio + lip-sync drift (D-ID renders ~500ms
+    // behind the raw MP3). We still call play() so `speaking` state
+    // events fire for aura/subtitle UI; the user just doesn't hear
+    // this stream — they hear D-ID's audio instead.
+    if (getDidReady()) {
+      audio.muted = true;
+    }
 
     _currentAudio = audio;
     _currentUrl = url;
